@@ -23,14 +23,34 @@
 
 | 阶段 | 状态 | 产出文件 |
 |------|------|---------|
-| Phase 0 — Freeze Normative Layer | ✅ 已完成 | [`phase0_normative_freeze.md`](./phase0_normative_freeze.md) |
-| Phase 1 — Build Solution Input Pack | ✅ 已完成 | [`phase1_solution_input_pack.md`](./phase1_solution_input_pack.md) |
-| Phase 2 — Produce Domain Realization Spec | ✅ 已完成 | [`phase2_domain_realization_spec.md`](./phase2_domain_realization_spec.md) |
-| Phase 3 — Produce Detailed Technical Design | ⏳ 待启动 | `phase3_detailed_technical_design.md`（待产出） |
-| Phase 4 — Coding Agent Implementation Packet | ⏳ 待启动 | `phase4_implementation_packet.md`（待产出） |
-| Phase 5 — Eval / Release / Feedback Loop | ⏳ 待启动 | `phase5_eval_release_feedback.md`（待产出） |
+| Phase 0 — Freeze Normative Layer | ✅ 已完成（v3）| [`phase0_normative_freeze.md`](./phase0_normative_freeze.md) |
+| Phase 1 — Build Solution Input Pack | ✅ 已完成（v3）| [`phase1_solution_input_pack.md`](./phase1_solution_input_pack.md) |
+| Phase 2 — Produce Domain Realization Spec | ✅ 已完成（v3）| [`phase2_domain_realization_spec.md`](./phase2_domain_realization_spec.md) |
+| Phase 3 — Produce Detailed Technical Design | ⏸ 暂缓 | 待用户补齐缺失输入（见 §6.4）后启动 |
+| Phase 4 — Coding Agent Implementation Packet | ⏸ 暂缓 | 依赖 Phase 3 |
+| Phase 5 — Eval / Release / Feedback Loop | ⏸ 暂缓 | 依赖 Phase 3、4 |
 
 本 workbook 保留作为**阶段模板与索引**；每个阶段的实际产出在独立文件中维护，便于 review 与迭代。
+
+## 规范层文件（外部依赖）
+
+| 文件 | 角色 |
+|------|------|
+| [`customer_service_agent_tech_spec.md`](./customer_service_agent_tech_spec.md) | 通用 Customer Service Agent 技术规范（V1 内核 / 架构 / 控制 / 工具 / Handover / Guardrails / Observability / NFR / Release Criteria）|
+| [`customer_service_agent_eval_spec.md`](./customer_service_agent_eval_spec.md) | 通用 Eval 规范（Eval scope / Dataset / Grader / Metrics / Launch Gates / CI/CD）|
+
+## 业务输入文件
+
+| 文件 | 角色 |
+|------|------|
+| [`BRD.md`](./BRD.md) | Business Requirements — scope、user stories、UX、tone-of-voice、launch criteria |
+| [`PRD_biz_part.md`](./PRD_biz_part.md) | Business-only PRD — 系统角色、handling 状态机、A–F' 对话流、Salesforce 数据模型骨架 |
+| [`case-data-stat.md`](./case-data-stat.md) | 120,367 条 Case 历史数据分析（Case Reason 维度）|
+| [`case-samples.md`](./case-samples.md) | 原始 Case 样本 |
+| [`customer_service_conversation_samples_organized.xlsx`](./customer_service_conversation_samples_organized.xlsx) | **新增** — 499 条 Live Chat 会话（含 262 条 transcript、2,890 turns、43 条 curated examples）|
+| [`inferred_tool_candidates_from_human_conversations.xlsx`](./inferred_tool_candidates_from_human_conversations.xlsx) | **新增** — 从 262 条对话反推的 10 类工具候选 + 证据 |
+| [`customer_service_tool_spec_v0_1.yaml`](./customer_service_tool_spec_v0_1.yaml) | **新增** — V1 Tool Spec v0.1（agent_visible + runtime_only + human_only 工具 / per-UC 可用性 / runtime policy）|
+| [`07-engineering-constraints.md`](./07-engineering-constraints.md) | Gumtree 平台代码库提取的工程基线 |
 
 ---
 
@@ -329,31 +349,79 @@
 Gumtree Customer Service Live Chat Bot（Salesforce Enhanced Chat 自研 Bot）
 
 ## 6.2 当前阶段
-**Phase 2 — Domain Realization Spec 已完成**。下一步启动 Phase 3（Detailed Technical Design）。
+**Phase 0 / 1 / 2 已完成（v3 迭代，2026-04-14）**。
+
+Phase 3（Detailed Technical Design）及之后阶段**暂缓**，等待用户补齐 §6.4 中的必要信息和数据后再启动。
+
+最近一次迭代（v3）的主要更新（基于新增的 tool spec + conversation samples + inferred tools）：
+- **Phase 0**：
+  - 新增规范源引用 `customer_service_tool_spec_v0_1.yaml`
+  - §0.2 补齐 `tool_surface_strategy: small_and_strong` 与 `sensitive_write_actions: human_only_or_phase2` 两条母规范
+  - §0.3 V1 工具集拆分为 agent_visible / runtime_only / human_only 三层，并加入 per-UC 可用性矩阵与 tool risk tier 两行；V1 use case 集合扩展至 12 个（UC-A..F/FP + UC-G/H/I/J/K）
+  - §0.4 新增 per-UC 工具可用性矩阵与 `create_case_controlled` required_fields 作为可领域化项
+- **Phase 1**：
+  - 输入来源列表加入 3 份新文件
+  - §1.1.2 新增"Out-of-V1-Bot-Resolution 但需 intake + handover"表（UC-G/H/I/J/K），并加入"活体 Chat 样本分布"与"设计桶分布"两表
+  - §1.1.3 加入 Live Chat 真实对话样本与工具候选证据小节，新增"关键对话模式"7 条（从 262 条 transcript 抽象）
+  - §1.2 `当前已知 gaps` 增补 UC-H/J/K required_fields 合约缺失 + UC-G 身份核验接点缺失
+  - §1.3 Handover 后流程补充 `create_case_controlled` 已创建 Case 的坐席视角 + `send_followup_email_or_async_update` 触发主体
+  - §1.4.12 外部集成表补齐每一行到 tool_spec 的映射
+  - §1.4.13 新增"Tool Layer Integration"小节（agent_visible / runtime_only / human_only 三层 + tool scope 治理 + runtime policy 映射）
+  - §1.5.1 数据集表补 initial 规模 + 新增 Intake/Tool Contract Dataset + Missed-Session Dataset
+- **Phase 2**：
+  - §2.1 use case 范围从 7 个扩到 12 个；命名约定说明 `UC-X-01 ∈ UC-X`
+  - §2.2 新增 UC-G-01 / UC-H-01 / UC-I-01 / UC-J-01 / UC-K-01 五个 use case registry 完整 schema（intake-only 或 intake+case）
+  - §2.3 Risk Matrix 加入 critical 级别与扩充 High Risk 表；Forbidden Automation 表加入新 tool_spec 对应的禁令
+  - §2.4 Escalation Matrix 新增 `intake_complete` / `intake_required_fields_missing_after_max_attempts` / `gdpr_or_data_request_detected` / `identity_verification_required` / `any_imminent_harm_signal` / `tool_scope_blocked` 等触发条件
+  - §2.5 Knowledge Scope Map 加入 UC-G/H/I/J/K 行并显式标记 `search_knowledge` 不可用；Disallowed Knowledge 增加对应行
+  - §2.6 新增 UC-G-01 / UC-H-01 / UC-I-01 / UC-J-01 / UC-K-01 的 Control Policy Override（intake 必填字段、固定话术、forbidden behaviors）
+  - §2.8 Cross-UC Routing 扩展（UC-FP→UC-H、UC-D→UC-G、UC-F→UC-I、任意→UC-J imminent harm 等）
+  - §2.9 Guardrails 加入 tool scope enforcement、最小 PII 暴露、占位话术、禁用"已删除/已限制"类假行动承诺（基于 transcript 观察）
+  - **§2.10 新增"Tool Allocation per Use Case"整节** — agent_visible × UC 矩阵、runtime_only × UC 矩阵、human_only 工具、per-UC 期望调用序列、`create_case_controlled` required_fields 草案、tool runtime_policy 对照
+  - §2.11（原 §2.10）移交清单更新为 v3 状态
 
 ## 6.3 已有输入
-- **规范层**: `customer_service_agent_version_new_spec.md`（Part I Whole Tech Spec + Part II Eval Spec）
-- **业务 BRD**: `BRD.md`（scope、user stories、functional/UI/legal requirements、success metrics）
-- **PRD 业务部分**: `PRD_biz_part.md`（capacity analysis、A–F' use case flows、架构参考、数据模型）
-- **数据分析**: `case-data-stat.md`（120,367 条 Case 结构化分析，渠道/原因/子原因占比）
-- **Case 样本**: `case-samples.md`（原始 Case 样本）
-- **工程约束**: `07-engineering-constraints.md`（从 Gumtree 平台代码库提取的语言/框架/部署/CI/CD/可观测性/安全等基线）
+- **规范层**: `customer_service_agent_tech_spec.md`（Whole Tech Spec）+ `customer_service_agent_eval_spec.md`（Eval Spec）+ **`customer_service_tool_spec_v0_1.yaml`（V1 Tool Spec，新增）**
+- **业务 BRD**: `BRD.md`（scope、user stories、functional/UI/legal requirements、success metrics、tone-of-voice）
+- **PRD 业务部分**: `PRD_biz_part.md`（去除技术规范后的业务 PRD：capacity analysis、A–F' 对话流、系统角色、handling 状态机、Salesforce 数据模型骨架）
+- **数据分析**: `case-data-stat.md`（120,367 条 Case 结构化分析）
+- **Case 样本**: `case-samples.md`
+- **Live Chat 会话样本（新增）**: `customer_service_conversation_samples_organized.xlsx`（499 会话，262 条 transcript，2,890 turns，43 curated examples）
+- **工具候选证据（新增）**: `inferred_tool_candidates_from_human_conversations.xlsx`（10 类工具候选 + matched_sessions 证据）
+- **工程约束**: `07-engineering-constraints.md`
 - **阶段产出**: `phase0_normative_freeze.md`、`phase1_solution_input_pack.md`、`phase2_domain_realization_spec.md`
 
-## 6.4 缺失输入
-1. **Help Centre 文章清单与 URL 映射**：需具体 Knowledge 文章 ID、URL 和覆盖范围列表，完成 `knowledge_scope` 到实际文章的精确映射。
-2. **标准话术模板终稿**：UC-FP-01 政策解释话术、各类安全提示话术需与合规/产品终审确认。
-3. **Salesforce 组织配置确认**：Enhanced Chat、Omni-Channel、Knowledge API 的具体版本与配置状态。
-4. **向量库选型决策**：pgvector on Cloud SQL / Vertex AI Vector Search / GKE self-hosted 三选一。
-5. **Embedding 模型选型**：Vertex AI text-embedding / 其他 GCP 原生模型终审。
-6. **Golden Dataset 初始版本**：基于 A–F' 场景的评测用例集尚未构建。
-7. **流量分配策略确认**：初始试点比例（5%/10%/50%）与 go/no-go 阈值的业务方确认。
-8. **Off-hours 策略确认**：非工作时间 Bot 行为边界（是否仍可转人工、是否创建 Case 供后续跟进）。
-9. **Bot 项目新 repo 创建**：greenfield repo 初始化（Helm chart、Jenkinsfile、Dockerfile、contract 目录骨架）。
+## 6.4 缺失输入（阻塞 Phase 3 启动）
+
+| # | 缺失项 | 影响的 Phase 3 章节 | 责任方建议 |
+|---|-------|-------------------|-----------|
+| 1 | **Help Centre 文章清单与 URL 映射**（UC-A / UC-B / UC-C / UC-D / UC-E / UC-F / UC-FP）| 3.5 Knowledge & Grounding | Knowledge & Content Ops |
+| 2 | **UC-FP-01 标准解释话术终稿 + UC-H-01 安抚话术终稿** | 3.7 Guardrails / 3.4 Tools | 合规 + 产品 |
+| 3 | **UC-G-01 / UC-H-01 / UC-I-01 / UC-J-01 / UC-K-01 固定话术库合规审批**（`search_knowledge` 禁用场景的话术模板）| 3.4 Tools / 3.7 Guardrails | 合规 + 产品 + Ops |
+| 4 | **`create_case_controlled` per-UC required_fields 终稿 + Queue 路由表**（UC-H / UC-J / UC-K）| 3.4 Tools / 3.6 Handover | Salesforce Admin + Ops + 产品 |
+| 5 | **UC-G-01 GDPR intake 字段边界**（哪些字段由 Bot 采集、哪些必须人工核验）| 3.4 Tools (UC-G policy) | 合规（Privacy）+ 产品 |
+| 6 | **Salesforce 组织配置确认**（Enhanced Chat / Omni-Channel / Knowledge API 版本与可用能力） | 3.1 Runtime Architecture / 3.6 Handover | Salesforce Admin |
+| 7 | **向量库选型决策**（pgvector / Vertex AI Vector Search / GKE self-hosted） | 3.4 Tools (search_knowledge) / 3.5 Retrieval Strategy | 工程 + 架构评审 |
+| 8 | **Embedding 模型选型** | 3.5 Retrieval Strategy | 工程 + 数据科学 |
+| 9 | **Golden Dataset 初始版本扩充**（从 43 curated + 30 self_serve 样本扩展到 ≥ 150 条 + 40 条 Intake/Tool Contract cases） | Phase 5 Eval | Product / Ops + QA |
+| 10 | **流量分配策略与 go/no-go 阈值** | 3.1 Runtime（流量门控）+ Phase 5 Release Gates | Product + Support + Data |
+| 11 | **Off-hours 策略**（is_business_hours 判定 + 离线时段 Bot 行为边界） | 3.6 Handover Trigger Policy | Operations |
+| 12 | **Salesforce 自定义对象/字段命名最终方案**（`Bot_Session__c` / `Bot_Event__c` / `Bot_Context__c` 是否采用，或使用既有对象） | 3.2 State Model / 3.6 Handover Payload | Salesforce Admin + 产品 |
+| 13 | **CSAT 采集机制与阈值**（"X 点跌幅"具体值） | Phase 5 Release Gates | Data + Product |
+| 14 | **PII redaction 规则与字段清单**（含 `safe_summary` 组装规则）| 3.7 Guardrails / 3.8 Observability | Legal + 工程 |
+| 15 | **Bot 项目新 repo** 是否创建及命名 | Phase 4 Coding Agent Implementation Packet | 工程 |
+| 16 | **`send_followup_email_or_async_update` 触发主体**（一期明确为人工/back-office；相关 email 模板 ID 清单）| 3.6 Handover / 3.4 Tools | Ops + 产品 |
 
 ## 6.5 下一步行动
-1. **对齐 Phase 2 输出**：与业务方（Chelsea Fagan-Hall）、产品方（Lance Li）review Domain Realization Spec，确认 use case 边界和升级条件。
-2. **补齐缺失输入**（§6.4），特别是向量库选型、Help Centre 文章清单、话术模板。
-3. **启动 Phase 3 — Detailed Technical Design**：基于已确认的 Domain Realization Spec + 工程约束，产出 Runtime Architecture、State Model、Control Kernel 实现、Tools/Capabilities、Knowledge & Grounding、Handover、Guardrails、Observability、NFRs。输出文件：`phase3_detailed_technical_design.md`。
-4. **启动 Golden Dataset 构建**：从 `case-samples.md` 中提取 A–F' 高频样本，转化为评测用例格式。
-5. **创建 Bot 服务 greenfield repo 骨架**：按 `07-engineering-constraints.md` §7.4 baseline（Java 17 + Spring Boot 3.x，GKE + Helm + Jenkins）。
+
+1. **Review v3 输出**：与业务方（Chelsea Fagan-Hall）、产品方（Lance Li）确认 Phase 0 / 1 / 2 v3 内容，重点是：
+   - 新增的 UC-G / UC-H / UC-I / UC-J / UC-K 五个 use case schema 与 "intake + handover" 定位
+   - §2.10 Tool Allocation 矩阵是否与 `customer_service_tool_spec_v0_1.yaml` 完全一致
+   - UC-FP-01 → UC-H-01 降判路径的边界
+   - §2.9 Guardrails 中关于"禁止模仿真实坐席已删除/已限制类话术"的条款
+2. **补齐 §6.4 缺失输入**：每项指定 owner 与 due date；**优先补 1/2/3/4/5**（直接阻塞 tool contract 落地）。
+3. **暂不启动** Phase 3 / 4 / 5 — 待 §6.4 输入到位后再开。
+4. **可并行**：
+   - 从 `customer_service_conversation_samples_organized.xlsx` 第 05 sheet（43 curated examples）+ 第 01 sheet `design_bucket=self_serve_design` 的 30 条，构建 Golden Dataset 初始版本（73 条起步，目标 ≥ 150）
+   - 从 `design_bucket=escalation_design` 的 207 条样本中，为每个 escalation_reason 标注 5–10 条 reference transcript，构建 Handover Dataset
+   - 从 `frustration_or_failure_mode`(7) + `likely_outcome=abandoned_or_timeout`(25) + `escalation_signal=True`(63) 中去重，形成初始 bad-case bank（目标 ≥ 80 条）
