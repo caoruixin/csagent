@@ -1,4 +1,4 @@
-# 客服 Case 报表分析：Live Chat 机器人一期 / 二期范围与占比
+# 客服 Case 报表分析：Customer Service Agent 一期 / 二期范围与占比
 
 本文档基于报表 `report1768917670361 (3).xlsb`（工作表 `report1768917670361`）中的历史 Case 结构化字段，对客户咨询类型进行归纳，并映射到 FAQ、帖子查询等一期能力与删帖 / GDPR 等二期能力，供产品与实施对齐指标假设。
 
@@ -148,18 +148,3 @@ Chat 占比较高，适合作为一期机器人的主要承接渠道之一，并
 4. **指标：** 同时跟踪 **Containment（会话内解决）**、**CSAT**、**转人工后首响**，避免只汇报单一「解决占比」。
 
 ---
-
-## 5\. 数据与复现说明
-
-- **源文件路径（本地）：** `/Users/lance.li/Downloads/report1768917670361 (3).xlsb`  
-- **工作表：** `report1768917670361`（另有一页 `Sheet1` 为类目列表，未参与上述计数）  
-- **解析方式：** Excel `.xlsb` 需使用 `pyxlsb` 等库读取；占比按行计数，与 Salesforce 报表导出时间点一致。
-
-若需按贵司规则强制将某几类 Sub Reason 划入一期或二期，可在同结构下重新跑映射脚本并替换本文第 3 节区间说明。
-
----
-
-## 6\. 关联文档
-
-- 产品详细说明（仓库内）：`/Users/lance.li/Documents/gumtree/code/salesforce_trigg_master_1126/salesforce/PRD_Customer_Service_Live_Chat_Bot_Detailed.md`
-

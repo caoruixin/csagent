@@ -134,12 +134,439 @@ flowchart LR
 
 ---
 
-## 7. 待决策项（TBD）
+# 7. pgvector 索引策略补充
 
-- Embedding 具体型号与是否 GCP 托管统一。
-- Top-K 固定为 2 还是 3，是否引入轻量 reranker（交叉编码器）再截断到 2～3 条。
-- 与 Salesforce Knowledge 的 **URL 权威展示** 对齐方式（见 PRD 中 Knowledge 双通道描述）。
+这块我会分成两件事来定：
+
+1. **pgvector 索引策略：IVFFlat 还是 HNSW**
+2. **`faq_miss score_threshold=3.5` 该不该直接作为 Retrieval 的判定阈值**
+
+先给结论：
+
+## 结论
+
+对于你这个**客服 agent 知识库检索**场景，我建议：
+
+* **默认选 HNSW**
+* **距离度量优先用 cosine**
+* **不要把 `score_threshold=3.5` 直接当 pgvector 检索阈值**
+* 改成 **两段式 miss 判定**：
+
+  * **Retrieval miss**：基于向量相似度 / 候选分布 / metadata 命中情况
+  * **Answer miss**：基于 reranker / LLM grounding score，例如 5 分制的 `3.5`
+
+原因是：
+
+* pgvector 官方明确说明：**HNSW 的 speed-recall tradeoff 优于 IVFFlat**，但建索引更慢、吃更多内存；IVFFlat 建得更快、更省内存，但检索效果和速度-召回折中不如 HNSW。([GitHub][1])
+* 你的文档本身就是客服/知识场景，并且在线链路要把召回结果喂给模型生成，这类场景通常更怕**漏召回**而不是纯索引构建时间。
+* pgvector 的 cosine 相关分数里，**cosine distance** 用 `<=>`，而 **cosine similarity = 1 - cosine distance**。因此 `3.5` 这种值**不可能**是 cosine similarity，也不适合作为 pgvector 的原生距离阈值。([GitHub][1])
 
 ---
 
-*文档版本：v0.1 | 存储路径：`docs/Data/problem_retrieval_solution_plan_pgvector.md`*
+# 1. IVFFlat vs HNSW：怎么选
+
+## 1.1 默认建议：客服知识库检索优先 HNSW
+
+pgvector 官方的描述很直接：
+
+* **HNSW**
+
+  * 更好的 query performance / speed-recall tradeoff
+  * 建索引更慢
+  * 更占内存
+  * 不需要像 IVFFlat 那样先靠已有数据训练聚类结构([GitHub][1])
+
+* **IVFFlat**
+
+  * 建索引更快
+  * 更省内存
+  * 但 recall / latency 折中不如 HNSW
+  * 要先有数据，再建索引；并且 `lists`、`probes` 选不好，效果会明显波动([GitHub][1])
+
+对客服 agent 来说，通常优先级是：
+
+**漏召回代价 > 建索引慢一点的代价**
+
+因为漏召回会直接导致：
+
+* 回答不到点子上
+* 错引政策
+* 本可自助解决却误转人工
+* FAQ miss 假阳性增多
+
+所以第一版生产我建议：
+
+## 生产默认
+
+**HNSW + cosine**
+
+---
+
+## 1.2 什么情况下才优先 IVFFlat
+
+只有下面几种情况，我才会建议先上 IVFFlat：
+
+### 情况 A：内存预算很紧
+
+HNSW 更吃内存，官方明确写了这一点。([GitHub][1])
+
+### 情况 B：数据装载/重建频繁，且可接受 recall 略差
+
+比如你每天都要大批量重建，且更关心 build speed。
+
+### 情况 C：你只是做 very-early MVP
+
+想快速把系统先跑起来，再后续换 HNSW。
+
+---
+
+# 2. 结合你的场景，该怎么判断
+
+你现在的方案特征是：
+
+* 客服/知识库场景
+* chunk 级向量检索
+* 在线召回后喂给 LLM
+* 还要做 FAQ miss / handover 决策
+
+这意味着你更在意：
+
+* Recall@K
+* Top 结果是否稳定
+* filter 后还能拿到足够候选
+* miss 判定别太激进
+
+这套目标天然更偏 **HNSW**。
+
+所以我的建议不是“看情况两边都行”，而是更明确一点：
+
+## 你的场景建议
+
+* **首选：HNSW**
+* **备选：IVFFlat 只作为资源受限或快速 MVP 方案**
+
+---
+
+# 3. 具体索引怎么建
+
+## 3.1 距离函数
+
+如果你的 embedding 是文本 embedding，默认用：
+
+```sql
+vector_cosine_ops
+```
+
+因为 pgvector 官方把 cosine distance 作为标准支持方式之一；而 cosine similarity 可由 `1 - distance` 得到。([GitHub][1])
+
+---
+
+## 3.2 HNSW 推荐配置
+
+先别一上来就过度调参，第一版建议用接近官方默认值：
+
+```sql
+CREATE INDEX CONCURRENTLY idx_kb_chunks_embedding_hnsw
+ON kb_chunks USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 64);
+```
+
+这是 pgvector 官方给出的默认推荐起点；更高 `ef_construction` 会提升 recall，但会增加建索引时间和写入成本。([GitHub][1])
+
+### 在线查询参数
+
+```sql
+SET LOCAL hnsw.ef_search = 100;
+```
+
+官方说明默认 `ef_search=40`，更高会带来更好的 recall，但更慢。([GitHub][1])
+
+### 我给你的落地起点
+
+* 普通查询：`ef_search = 80~100`
+* 高风险客服问题 / 严格 filter 后查询：`ef_search = 120~200`
+
+---
+
+## 3.3 IVFFlat 推荐配置
+
+如果你最终因为资源原因要上 IVFFlat，按 pgvector 官方起点来：
+
+* `lists`
+
+  * <= 1M rows：`rows / 1000`
+  * > 1M rows：`sqrt(rows)`
+* `probes`
+
+  * 从 `sqrt(lists)` 开始([GitHub][1])
+
+例如 300k chunks：
+
+* `lists ≈ 300`
+* `probes ≈ 17`
+
+```sql
+CREATE INDEX CONCURRENTLY idx_kb_chunks_embedding_ivf
+ON kb_chunks USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 300);
+```
+
+查询时：
+
+```sql
+SET LOCAL ivfflat.probes = 17;
+```
+
+但要记住：官方也明确说了，IVFFlat 要想 recall 好，有三个关键：
+
+* 表里先要有足够数据再建索引
+* `lists` 要合理
+* `probes` 要合理([GitHub][1])
+
+这意味着它更“依赖调参”，没有 HNSW 那么稳。
+
+---
+
+# 4. 你这个场景里，真正的坑在 filter，不在索引名字
+
+这点非常关键。
+
+客服知识库几乎一定会带过滤：
+
+* locale
+* market
+* audience
+* published
+* valid_from / valid_to
+* product/domain
+
+pgvector 官方明确提醒：
+
+对于 approximate index，**过滤是在 index scan 之后才应用的**。
+如果过滤条件只匹配 10% 的行，而 `hnsw.ef_search=40`，那平均只会留下约 4 行。([GitHub][1])
+
+这会直接造成你看到的现象：
+
+* 明明知识库里有答案
+* 但 filter 后候选不够
+* 系统误判成 faq_miss
+
+所以真正的策略应该是：
+
+## 过滤场景下的建议
+
+1. 给过滤列建普通索引（B-tree 等）
+2. 对高频固定过滤条件做 partial index
+3. 必要时按市场/语言分区
+4. 对 HNSW / IVFFlat 打开 iterative scan
+5. 提高 `ef_search` 或 `probes`
+
+官方从 0.8.0 开始支持 **iterative index scans**，会在过滤后结果不够时自动继续扫描。([GitHub][1])
+
+### 推荐打开
+
+HNSW：
+
+```sql
+SET LOCAL hnsw.iterative_scan = strict_order;
+```
+
+如果更看重 recall：
+
+```sql
+SET LOCAL hnsw.iterative_scan = relaxed_order;
+```
+
+IVFFlat 也有类似能力。([GitHub][1])
+
+---
+
+# 5. `faq_miss score_threshold = 3.5` 该怎么理解
+
+这里我先明确说：
+
+## 不建议把 `3.5` 直接作为 pgvector retrieval 阈值
+
+因为如果你用的是 pgvector cosine：
+
+* distance 是 `<=>`
+* similarity = `1 - distance`([GitHub][1])
+
+那这个数值空间根本不是 3.5 这种量级。
+
+所以 `3.5` 更像是下面两类之一：
+
+### 可能性 A：5 分制 reranker / LLM grading 分数
+
+例如：
+
+* 1 = 完全不相关
+* 3 = 有点相关但不够支撑回答
+* 5 = 高度相关且可直接回答
+
+那 `3.5` 可以作为一个 **answerability / grounding** 阈值。
+
+### 可能性 B：你们内部业务打分
+
+比如 FAQ 命中置信度、策略分、综合评分。
+
+无论哪种，它都不应该和 pgvector 原始距离阈值混为一谈。
+
+---
+
+# 6. 正确的 faq_miss 策略：两段式
+
+我建议改成下面这样：
+
+## 阶段一：Retrieval Gate
+
+判断“有没有检索到足够靠谱的知识候选”
+
+输入：
+
+* top1 similarity
+* topK similarity 分布
+* 是否命中过滤条件
+* 是否命中标题 / exact anchors（错误码、政策号、SKU）
+* 候选是否集中在同一 article / domain
+
+输出：
+
+* `retrieval_hit`
+* `retrieval_weak_hit`
+* `retrieval_miss`
+
+## 阶段二：Grounding / Answer Gate
+
+判断“这些候选是否足够支撑回答”
+
+输入：
+
+* reranker score
+* LLM grounding judge score
+* evidence coverage
+* contradiction / ambiguity
+
+这里如果你们内部已经有 **5 分制 score_threshold = 3.5**，那它更适合放在这一层。
+
+也就是：
+
+**`3.5` 用于“能不能回答”**
+而不是用于“向量检索是不是命中”。
+
+---
+
+# 7. 我建议你直接这样配
+
+## 7.1 索引层
+
+### 推荐
+
+* **HNSW**
+* `vector_cosine_ops`
+* `m = 16`
+* `ef_construction = 64`
+
+### 查询层
+
+* 默认 `hnsw.ef_search = 100`
+* 严格 filter / 高价值问题 `hnsw.ef_search = 160`
+* 开 `hnsw.iterative_scan = relaxed_order`
+
+---
+
+## 7.2 Retrieval 策略
+
+不要只取 top 2-3 就直接定生死。你原文档里写的 top 2–3 更适合 very-early MVP。
+客服 agent 更稳妥的方式是：
+
+* ANN 先取 `top_k = 20`
+* 过滤 publish / locale / market / audience
+* article 去重
+* rerank
+* 最终给 LLM `4~6` 条
+* 再做 faq_miss 判定
+
+---
+
+## 7.3 faq_miss 判定
+
+### 推荐规则
+
+* **retrieval_miss**
+
+  * 过滤后候选不足
+  * top 结果相关性整体弱
+  * 关键 metadata 不匹配
+* **answer_miss**
+
+  * reranker / grounding score < 3.5
+  * 或虽然有候选，但证据不足以支撑具体回答
+
+所以：
+
+```text
+faq_miss = retrieval_miss OR answer_miss
+```
+
+而不是：
+
+```text
+faq_miss = similarity < 3.5
+```
+
+---
+
+# 8. 一个很实用的起始版本
+
+如果你现在要尽快拍板，我会建议直接定成：
+
+## 推荐起始配置
+
+### 索引
+
+```sql
+CREATE INDEX CONCURRENTLY idx_kb_chunks_embedding_hnsw
+ON kb_chunks USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 64);
+```
+
+### 查询会话参数
+
+```sql
+SET LOCAL hnsw.ef_search = 100;
+SET LOCAL hnsw.iterative_scan = relaxed_order;
+```
+
+### 检索流程
+
+* ANN top 20
+* metadata filter
+* article-level dedupe
+* rerank top 8
+* final context top 4~6
+
+### miss 判定
+
+* retrieval gate：看向量候选质量
+* answer gate：`grounding_score < 3.5` 判弱命中/不可答
+
+---
+
+# 9. 最终建议
+
+一句话总结：
+
+**客服 agent 的 pgvector 检索，优先选 HNSW；`3.5` 不要拿来做向量距离阈值，而要作为 reranker / grounding 的可答性阈值。**
+
+这会比“IVFFlat vs HNSW 二选一 + 一个神奇的 3.5 阈值”更稳，也更符合你现在这个客服知识库方案的目标。 ([GitHub][1])
+
+下一步我可以直接帮你把这块写成一段 **spec 可落地文案**，包括：
+
+* `Postgres DDL`
+* `查询 SQL 模板`
+* `faq_miss 判定伪代码`
+* `HNSW / IVFFlat 的切换策略`
+
+[1]: https://github.com/pgvector/pgvector "GitHub - pgvector/pgvector: Open-source vector similarity search for Postgres · GitHub"
+

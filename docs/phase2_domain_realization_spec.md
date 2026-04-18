@@ -612,7 +612,11 @@ tool_spec_mapping: UC-K
 
 ### Use Case → Knowledge Sources
 
-> 对齐 tool_spec v0.1 的 `search_knowledge.allowed_use_cases` = UC-A/B/C/D/E/F/FP；其他 UC（UC-G/H/I/J/K）不启用 `search_knowledge`，只用固定话术模板。
+> 对齐 tool_spec v0.2 的 `search_knowledge.allowed_use_cases` = UC-A/B/C/D/E/F/FP；其他 UC（UC-G/H/I/J/K）不启用 `search_knowledge`，只用固定话术模板（`fixed_script_library` runtime capability）。
+>
+> **关键约束（v4 已确认）**：Salesforce Knowledge API 当前**无可用开发 API 能力**（`salesforce-part-spec.md`）。Bot 知识检索完全依赖 **pgvector 离线索引**（3,963 篇文章，见 `FAQ-knowledge_include_help_url.csv`）。Salesforce Knowledge 仅用于 article Id → 发布状态验证（`resolve_article` 的 `must_verify_published_status` policy）。
+>
+> **UC-FP 增强（v0.2 新增）**：`get_moderation_review_context` 工具（runtime_only，gumshield cs-review API）为 UC-A/UC-FP 提供广告审核/删除的具体 reason_code，使 Bot 能给出 grounded 的"为什么被删"解释而非 generic "policy violation"。
 
 | Use Case | 允许的 Knowledge 范围 | 期望 Evidence 类型 | `search_knowledge` 可调用？ |
 |----------|---------------------|------------------|------------------------|
@@ -657,7 +661,27 @@ V1.1 才补：readiness score、coverage gap analysis、freshness governance、l
 
 ```yaml
 discover_policy:
-  - 入口：菜单主题选择 或 自由文本 → 意图 + 置信度
+  # ── Pre-chat Form Integration（新增 2026-04-17）──
+  # 用户进入对话前已通过 pre-chat form 提供 structured input：
+  #   新版表单：first_name*, last_name*, email*, topic_subject* (dropdown),
+  #             ad_id_number (optional), description*
+  # Bot 在 INIT 阶段即可获得 form_context，不需要等对话才开始分类
+  form_context_usage:
+    - topic_subject 作为 UC 预分类弱信号（精度因选项而异，见 §1.4.13 映射表）
+    - description 作为意图分类主输入（结合 topic_subject）
+    - email（必填）→ 立即触发 get_customer_context（不再需要对话中问 email）
+    - ad_id_number（选填）→ 若有值则同时触发 listing lookup
+    - first_name → 用于 Bot 开场称呼（"Hi {first_name}, ..."）
+  strong_routing_signals:
+    - topic_subject = "Report a Safety Issue" → UC-J 先验 (71%)
+    - topic_subject = "Delete my account / Data" → UC-G 先验 (70%)
+  weak_routing_signals:
+    - topic_subject = "Account Support" → 必须结合 description 再分类（37% UC-H / 11% UC-C / 9% UC-D）
+    - topic_subject = "Ad Support" → 偏 UC-H 但需 description 确认
+    - topic_subject = "Payments" → 多 UC 混合，需 description 确认
+  # ── 原有 discover 逻辑 ──
+  - 入口：form_context.topic_subject + form_context.description → 意图 + 置信度
+  - 若 form 信号不足 → 菜单主题选择 或 自由文本补充 → 意图 + 置信度
   - 低置信度时展示澄清按钮（≤ 2 轮，记录 INTENT 与 intent_confidence）
   - 检测到 out-of-scope 意图时记录 candidate_use_cases 并引导
   - 检测到高风险/跨类意图时降判或升级
@@ -669,6 +693,10 @@ clarification_policy:
     - 澄清预算耗尽后自动升级
     - 不在 free text 中索取敏感个人数据（如密码、完整身份证号）
     - 索取识别信息（email / case number）时必须解释原因
+    # ── 新增：Pre-chat Form 影响 ──
+    - 新版表单 email 为必填 → Bot 不再需要澄清"请提供您的 email"
+    - 新版表单 ad_id 为选填 → 若用户未填且 UC 需要，仍需 1 轮澄清
+    - 新版表单 description 为必填 → 减少"请描述您的问题"类澄清
 
 resolution_policy:
   - 优先 FAQ 向量检索 + Knowledge 校验
@@ -1008,7 +1036,9 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 
 ---
 
-## 2.9 Guardrails（领域落地，对齐 tech_spec §16 + tool_spec v0.1）
+## 2.9 Guardrails（领域落地，对齐 tech_spec §16 + tool_spec v0.2 + `customer_service_agent-Common-Phrases.md`）
+
+> v4 新增参考源：`customer_service_agent-Common-Phrases.md`（从 1.18 万条真实 transcript 提炼的 7 类标准话术模板）对齐到 tool_spec_v0.2 的 `fixed_script_library` runtime capability。Bot 的固定话术必须基于该文档 + BRD §6.3 + 合规审批后的模板库。
 
 | 类别 | 规则 | 落地方式 |
 |------|------|---------|
@@ -1029,7 +1059,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 
 ---
 
-## 2.10 Tool Allocation per Use Case（对齐 `customer_service_tool_spec_v0_1.yaml`）
+## 2.10 Tool Allocation per Use Case（对齐 `customer_service_tool_spec_v0_2.yaml`）
 
 ### 2.10.1 Agent-Visible Tool × Use Case 矩阵
 
@@ -1041,21 +1071,26 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 | `request_handover` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `record_outcome` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-> ✅ = tool_spec 允许（in `allowed_use_cases`）；❌ = tool_spec 禁用（in `disallowed_use_cases` 或未列入 allowed）
+> ✅ = tool_spec v0.2 允许（in `allowed_use_cases`）；❌ = 禁用（in `disallowed_use_cases`）
 >
-> 注：源来自 `customer_service_tool_spec_v0_1.yaml`；runtime 必须强制 enforce；模型尝试调用 ❌ 的 tool 时 runtime 返回 `scope_blocked` 并升级。
+> **v0.2 变更**：`get_customer_context` 的 `disallowed_use_cases` 明确为 [UC-B, UC-E, UC-G, UC-H, UC-I, UC-J]。UC-B/UC-E 不需要账户/广告上下文（纯 FAQ）；UC-G/H/I/J 为 intake-only UC，Bot 不做 context lookup（通过 ask_user 收集标识符后直接 handover）。
+>
+> **Pre-chat form 影响**：`get_customer_context` 增加 `form_context` 输入 + `must_auto_trigger_on_form_context: true` policy — 当 INIT 阶段有 email 时自动触发（不等对话中问 email）。
 
-### 2.10.2 Runtime-Only Tool × Use Case 矩阵
+### 2.10.2 Runtime-Only Tool × Use Case 矩阵（v0.2 = 4 个）
 
 | Tool \\ UC | UC-A | UC-B | UC-C | UC-D | UC-E | UC-F | UC-FP | UC-G | UC-H | UC-I | UC-J | UC-K |
 |-----------|:---:|:---:|:---:|:---:|:---:|:---:|:----:|:---:|:---:|:---:|:---:|:---:|
 | `lookup_customer_account` | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | `lookup_listing_or_ad` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **`get_moderation_review_context`** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `create_case_controlled` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
 
-> `lookup_*` 不被模型直接调用；由 `get_customer_context` 复合触发，因此上表有效性等价于 `get_customer_context` 可用时这些底层 lookup 也可用。
+> **v0.2 新增 `get_moderation_review_context`**（gumshield cs-review API）：仅 UC-A / UC-FP 允许。由 `lookup_listing_or_ad` 链式调用（step 5: `POST /api/cs-review/ad-id/`）。为 UC-FP 提供具体 `review_reason` / `reason_code` / `deletion_reason_code`，使 Bot 能 grounded 解释"为什么帖子被删"而非 generic "policy violation"。`must_map_reason_to_public_policy: true` — runtime 需将内部 reason_code 映射为公开政策解释后才暴露给 Bot。
 >
-> `create_case_controlled` 由 runtime 根据 UC-H/J/K 的 `intake_complete` 条件自动触发，不在 agent prompt 中暴露。
+> `lookup_*` + `get_moderation_review_context` 不被模型直接调用；由 `get_customer_context` 复合触发。
+>
+> `create_case_controlled` 由 runtime 根据 UC-H/J/K 的 `intake_complete` 条件自动触发。
 
 ### 2.10.3 Human-Only Tool（Bot 永远不可调用）
 
@@ -1064,43 +1099,64 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 | `moderation_enforcement_action` | 坐席 console / back-office | 删帖、限号、账号限制；tool_spec visibility=human_only，risk_tier=critical |
 | `send_followup_email_or_async_update` | 坐席 / back-office workflow | 异步邮件跟进；V1.1+ 或人工触发 |
 
-### 2.10.4 Per-UC Tool Call Sequence（期望模式）
+### 2.10.4 Per-UC Tool Call Sequence（期望模式，v0.2 含 form_context 触发）
+
+> **INIT 阶段**（所有 UC 共享）：`form_context_ingestion` 解析 pre-chat form → 若有 email → 自动触发 `get_customer_context`（仅对 allowed UC）。此步骤在 UC 路由之前完成。
 
 | Use Case | 典型 tool call 序列 |
 |----------|-------------------|
-| UC-A-01 | `get_customer_context`(listing)? → `search_knowledge` → `resolve_article` → `record_outcome` |
-| UC-B-01 | `search_knowledge` → `resolve_article` → `record_outcome` |
-| UC-C-01 | `get_customer_context`(account/listing)? → `search_knowledge` → `resolve_article` → `record_outcome` |
-| UC-D-01 | `get_customer_context`(account)? → `search_knowledge` → `resolve_article` → `record_outcome` |
-| UC-E-01 | `search_knowledge` → `resolve_article` → `record_outcome` |
-| UC-F-01 | `get_customer_context`(listing)? → `search_knowledge` → `resolve_article` → `record_outcome` |
-| UC-FP-01 | `get_customer_context`(account+listing)? → `search_knowledge` → `resolve_article` → `record_outcome` |
-| UC-G-01 | `request_handover` → `record_outcome`（intake 由 ask_user，无 search_knowledge）|
-| UC-H-01 | [intake via ask_user] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
-| UC-I-01 | [intake via ask_user] → `request_handover` → `record_outcome` |
-| UC-J-01 | [intake via ask_user] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
-| UC-K-01 | `get_customer_context` → [若解决] → `record_outcome`；[若未解决] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
+| UC-A-01 | [INIT: auto `get_customer_context`(listing, from form email+ad_id)] → `search_knowledge` → `resolve_article` → `record_outcome` |
+| UC-B-01 | `search_knowledge` → `resolve_article` → `record_outcome`（`get_customer_context` 对 UC-B 禁用）|
+| UC-C-01 | [INIT: auto `get_customer_context`(account)] → `search_knowledge` → `resolve_article` → `record_outcome` |
+| UC-D-01 | [INIT: auto `get_customer_context`(account)] → `search_knowledge` → `resolve_article` → `record_outcome` |
+| UC-E-01 | `search_knowledge` → `resolve_article` → `record_outcome`（`get_customer_context` 对 UC-E 禁用）|
+| UC-F-01 | [INIT: auto `get_customer_context`(listing)] → `search_knowledge` → `resolve_article` → `record_outcome` |
+| UC-FP-01 | [INIT: auto `get_customer_context`(account+listing, 含 `get_moderation_review_context` 链式调用)] → `search_knowledge` → `resolve_article` → `record_outcome` |
+| UC-G-01 | [intake via ask_user + fixed_script_library] → `request_handover`(is_business_hours) → `record_outcome` |
+| UC-H-01 | [intake via ask_user + fixed_script_library] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
+| UC-I-01 | [intake via ask_user + fixed_script_library] → `request_handover` → `record_outcome` |
+| UC-J-01 | [intake via ask_user + fixed_script_library] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
+| UC-K-01 | [INIT: auto `get_customer_context`] → [若 safe_summary 可解释] → `record_outcome`；[若需后端调查] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
 
-### 2.10.5 `create_case_controlled` Required Fields 合约（per UC，**Phase 2 占位，待合规+产品终审**）
+### 2.10.5 `create_case_controlled` Required Fields 合约（v4 已与 tool_spec v0.2 + Salesforce 对齐）
 
-| UC | Required Fields | Queue 路由候选 |
-|----|----------------|--------------|
-| UC-H | `ad_id_or_listing_url`, `registered_email`, `stated_reason_or_context` | Ad Moderation / Appeal queue |
-| UC-J | `report_target`, `report_type`, `description` | Trust & Safety queue |
-| UC-K | `platform`, `browser_or_app_version`, `repro_steps_or_error_message` | Technical Support queue |
+**Salesforce Case 字段（v4 已确认，`salesforce-part-spec.md`）：**
+- Record Type：`Customer Service`
+- 必填：`First Name` / `Last Name` / `Email` / `Topic Subject`（Picklist）/ `Description`
+- 选填：`Ad ID Number`
 
-> ⚠️ 上表为 Phase 2 合同雏形；final required fields 与 queue 规则待 §6.4 缺失输入补齐（queue 路由表 / case category 合约 / queue 运营时间）。
+**Per-UC required_fields（tool_spec v0.2 `per_uc_required_fields`）：**
 
-### 2.10.6 Tool Runtime Policy 对照（对齐 tool_spec `runtime_policy`）
+| UC | Bot 需收集的 Required Fields | Topic Subject 映射 | Queue 路由 |
+|----|---------------------------|-------------------|-----------|
+| UC-H | `ad_id_or_listing_url`, `registered_email`, `stated_reason_or_context` | `Ad Support` | online: CS_NEW_chat / offline: CS_Cases_New |
+| UC-J | `report_target`, `report_type`, `description`；optional: `contacted_police`, `evidence_references` | `Report a Safety Issue` | online: CS_NEW_chat / offline: CS_Cases_New |
+| UC-K | `platform`, `repro_steps_or_error_message`；optional: `browser_or_app_version`, `screenshot_reference` | `Technical Support` | online: CS_NEW_chat / offline: CS_Cases_New |
+
+> **注**：`First Name` / `Last Name` / `Email` 来自 pre-chat form（新版表单必填），Bot 不需要再次索取。Bot 只需补充 per-UC 特有字段（ad_id / report_target / platform 等）。
+>
+> **Queue 路由**：v4 已确认 online → CS_NEW_chat（坐席主动认领），offline → CS_Cases_New。Phase 3 需确认是否需要 per-UC 专属 queue（如 Trust & Safety 专属 queue）或统一用 CS_Cases_New。
+
+### 2.10.6 Tool Runtime Policy 对照（对齐 tool_spec v0.2 `runtime_policy`）
 
 | Tool | Policy 关键约束 | Phase 3 实现要求 |
 |------|----------------|----------------|
-| `search_knowledge` | `max_retries: 1` / `on_no_results: allow_clarification_or_escalate` / `must_log_article_candidates: true` | 失败 1 次后触发 clarification 或 faq_miss 计数 |
-| `resolve_article` | `must_track_article_shown: true` / `customer_output_pattern: title_plus_1_to_3_sentence_summary_plus_link` | 每次 resolve 必写 ARTICLE_SHOWN 事件 |
-| `get_customer_context` | `must_minimize_pii: true` / `must_return_safe_summary_only: true` / `should_prompt_for_identifiers_when_missing: true` | 返回 safe_summary + 结构化 account/listing_context；缺少标识符时触发 ask_user |
-| `request_handover` | `must_preserve_same_thread: true` / `must_include_structured_summary: true` / `must_log_escalation_reason: true` | Omni-Channel transfer + structured payload + escalation_reason 事件 |
-| `record_outcome` | `must_be_called_on_close_or_escalation: true` | 会话结束或 handover 后必调；failed record_outcome 需有 retry |
+| `search_knowledge` | `max_retries: 1` / `on_no_results: allow_clarification_or_escalate` / `must_log_article_candidates: true` | pgvector 检索 Top-3；失败 1 次后触发 clarification 或 faq_miss 计数 |
+| `resolve_article` | `must_track_article_shown: true` / `customer_output_pattern: title_plus_1_to_3_sentence_summary_plus_link` / **`must_verify_published_status: true`**（v0.2） | 每次 resolve 必写 ARTICLE_SHOWN 事件；需验证文章发布状态 |
+| `get_customer_context` | `must_minimize_pii` / `must_return_safe_summary_only` / `should_prompt_for_identifiers_when_missing` / **`must_auto_trigger_on_form_context: true`**（v0.2） | pre-chat form 有 email 时 INIT 自动触发；返回 safe_summary + 结构化 context |
+| `get_moderation_review_context`（v0.2 新增） | `must_minimize_pii` / `must_return_safe_summary_only` / **`must_map_reason_to_public_policy: true`** | 内部 reason_code 必须映射为公开政策解释后才暴露给 Bot；由 `lookup_listing_or_ad` 链式调用 |
+| `request_handover` | `must_preserve_same_thread` / `must_include_structured_summary` / `must_log_escalation_reason` / **`must_select_message_by_hours_and_reason: true`**（v0.2） | 根据 `is_business_hours` + `escalation_reason` 选择话术模板（在线 vs 离线） |
+| `record_outcome` | `must_be_called_on_close_or_escalation: true` / **`retry_on_failure: true`**（v0.2） | 会话结束或 handover 后必调；failed 时自动 retry |
 | `create_case_controlled` | `model_direct_invocation_allowed: false` / `must_validate_required_fields: true` / `must_follow_use_case_policy: true` | 由 runtime 策略层触发；validator 检查 §2.10.5 required_fields |
+
+### 2.10.7 Runtime Capabilities（v0.2 新增，非 tool）
+
+| Capability | 类型 | 用途 | 来源 |
+|-----------|------|------|------|
+| `fixed_script_library` | template_store | 管理式话术模板库。为 UC-G/H/I/J/K（无 knowledge retrieval）+ 通用 opening/closing/escalation 提供固定话术。模板分 14 类：opening / empathy / hold_placeholder / identifier_request / resolution_check / escalation_business_hours / escalation_off_hours / gdpr_intake / appeal_intake / dispute_disclaimer / safety_intake / tech_troubleshoot / policy_explanation / idle_close | BRD §6.3 + `customer_service_agent-Common-Phrases.md` + phase2 per-UC policy overrides + 合规审批 |
+| `form_context_ingestion` | session_init | INIT 阶段解析 pre-chat form（first_name / last_name / email / topic_subject / ad_id_number / description）→ 写入 session state → 自动触发 `get_customer_context`（若 email 可用且 UC 允许）| salesforce-part-spec.md pre-chat form |
+| `tool_policy_enforcer` | runtime_guard | 每次 tool call 前检查 `active_use_case ∈ tool.allowed_use_cases`；violation → `scope_blocked` + event log | tool_spec v0.2 per-UC matrix |
+| `progress_placeholder` | ux_enhancement | tool call 延迟 >1.5s 时发送 "One moment while I look into this" 占位消息 | transcript 观察：用户常在等待时重复追问"???" |
 
 ---
 
@@ -1111,20 +1167,38 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 - ✅ 12 个 use case 的完整 schema（§2.2；UC-A/B/C/D/E/F/FP + UC-G/H/I/J/K）
 - ✅ Risk 分级（含 critical）与 forbidden automation 列表（§2.3）
 - ✅ 17 类 escalation triggers + reason codes（§2.4）
-- ✅ Use case → knowledge scope 映射框架（§2.5；具体 KB ID 待补）
-- ✅ 通用 + per-UC 控制策略（§2.6；含 UC-G/H/I/J/K intake 策略）
+- ✅ Use case → knowledge scope 映射框架（§2.5；**v4：Knowledge API 不可用已确认，pgvector 为唯一检索后端；3,963 篇文章 CSV 已可用**）
+- ✅ 通用 + per-UC 控制策略（§2.6；含 UC-G/H/I/J/K intake 策略 + **v4 pre-chat form integration**）
 - ✅ 5 类 outcome + ContainmentOutcome__c 映射（§2.7）
 - ✅ Handover payload JSON schema（§2.7）
-- ✅ 跨 UC 路由规则 + drift 语义（§2.8；含 UC-FP→UC-H、UC-D→UC-G 等新路径）
-- ✅ Guardrails 领域落地（§2.9；含 tool scope enforcement、最小 PII 暴露、占位话术）
-- ✅ **Per-UC tool allocation 矩阵 + runtime policy 对照（§2.10）**
+- ✅ 跨 UC 路由规则 + drift 语义（§2.8）
+- ✅ Guardrails 领域落地（§2.9；**v4 对齐 Common-Phrases 文档 + fixed_script_library**）
+- ✅ **Per-UC tool allocation 矩阵 + runtime policy（§2.10；v4 对齐 tool_spec v0.2 — 含 `get_moderation_review_context` 新工具 + runtime capabilities + confirmed Salesforce Case 字段）**
+- ✅ **7 类 eval 数据集已构建（§phase1 1.5.1）+ 367 条 human review queue 待标注**
 
 **Phase 3 需要在此基础上产出的是实现层细节**（Runtime / State Model 实例化 / Tool 实现 / Integration 详细 / Observability schema 实例 / NFR 验证方式等），不应反向修改本 Phase 2 已固定的契约项。
 
-### Phase 3 之前待补齐输入（阻塞项，见 workbook §6.4）
+### Phase 3 之前仍待补齐输入（见 workbook §6.4 更新后的状态）
 
-- §2.10.5 `create_case_controlled` per-UC required_fields 与 queue 路由终审
-- §2.5 UC-A..F, UC-FP 的 Help Centre 文章清单与 URL 映射
-- UC-FP-01 / UC-H-01 安抚与解释话术合规终审
-- UC-G-01 GDPR intake 字段范围与后端对接点确认
-- UC-J-01 举报 intake 字段是否足以支撑 Trust & Safety 队列审核
+**已解决（v4）：**
+- ~~Salesforce 组织配置~~ → `salesforce-part-spec.md` 已确认
+- ~~向量库选型~~ → pgvector on Cloud SQL 已确认
+- ~~Off-hours 策略~~ → 检查 New Chat queue agent 在线状态已确认
+- ~~Salesforce 自定义对象~~ → `Chat_Message_Log__c` 已存在
+- ~~Help Centre 文章清单~~ → `FAQ-knowledge_include_help_url.csv` 3,963 篇已可用
+- ~~create_case_controlled per-UC required_fields~~ → tool_spec v0.2 已定义初版
+
+**仍待补齐：**
+- UC-FP-01 / UC-H-01 安抚与解释话术**合规终审**
+- UC-G/H/I/J/K 固定话术库（`fixed_script_library`）**合规审批**
+- UC-G-01 GDPR intake 字段边界（哪些由 Bot 采集 vs 人工核验）
+- article → UC 映射（3,963 篇文章的 UC 分类标注）
+- Embedding 模型选型
+- pgvector 索引策略（IVFFlat vs HNSW）
+- faq_miss score_threshold 确定
+- gumshield cs-review API Bot 服务账号访问审批
+- Golden Dataset human review 标注（367 条 queue）
+- CSAT 采集机制与阈值
+- PII redaction 规则
+- 流量分配策略与 go/no-go 阈值
+- per-UC 专属 queue 是否需要（或统一 CS_Cases_New / CS_NEW_chat）

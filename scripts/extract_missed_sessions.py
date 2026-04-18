@@ -33,7 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from filter_chat_dataset import (
     parse_transcript, redact_pii, read_input, write_csv,
-    classify_use_case, UC_BODY_PATTERNS,
+    classify_use_case, UC_BODY_PATTERNS, build_form_turn,
 )
 
 random_seed = 42
@@ -189,8 +189,11 @@ def process_missed(record):
         "review_priority": review_priority,
     }
 
-    # Build turn-level rows (visitor only, since no agent)
+    # Build turn-level rows — inject form data as turn 0, then visitor turns
     turn_rows = []
+    form_turn = build_form_turn(out["Id"], out["CaseId"], subject, description)
+    if form_turn:
+        turn_rows.append(form_turn)
     for seq, t in enumerate(visitor_turns, start=1):
         turn_rows.append({
             "conversation_id": out["Id"],

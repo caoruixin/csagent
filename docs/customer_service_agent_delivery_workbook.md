@@ -23,9 +23,9 @@
 
 | 阶段 | 状态 | 产出文件 |
 |------|------|---------|
-| Phase 0 — Freeze Normative Layer | ✅ 已完成（v3）| [`phase0_normative_freeze.md`](./phase0_normative_freeze.md) |
-| Phase 1 — Build Solution Input Pack | ✅ 已完成（v3）| [`phase1_solution_input_pack.md`](./phase1_solution_input_pack.md) |
-| Phase 2 — Produce Domain Realization Spec | ✅ 已完成（v3）| [`phase2_domain_realization_spec.md`](./phase2_domain_realization_spec.md) |
+| Phase 0 — Freeze Normative Layer | ✅ 已完成（v4）| [`phase0_normative_freeze.md`](./phase0_normative_freeze.md) |
+| Phase 1 — Build Solution Input Pack | ✅ 已完成（v4）| [`phase1_solution_input_pack.md`](./phase1_solution_input_pack.md) |
+| Phase 2 — Produce Domain Realization Spec | ✅ 已完成（v4）| [`phase2_domain_realization_spec.md`](./phase2_domain_realization_spec.md) |
 | Phase 3 — Produce Detailed Technical Design | ⏸ 暂缓 | 待用户补齐缺失输入（见 §6.4）后启动 |
 | Phase 4 — Coding Agent Implementation Packet | ⏸ 暂缓 | 依赖 Phase 3 |
 | Phase 5 — Eval / Release / Feedback Loop | ⏸ 暂缓 | 依赖 Phase 3、4 |
@@ -49,7 +49,13 @@
 | [`case-samples.md`](./case-samples.md) | 原始 Case 样本 |
 | [`customer_service_conversation_samples_organized.xlsx`](./customer_service_conversation_samples_organized.xlsx) | **新增** — 499 条 Live Chat 会话（含 262 条 transcript、2,890 turns、43 条 curated examples）|
 | [`inferred_tool_candidates_from_human_conversations.xlsx`](./inferred_tool_candidates_from_human_conversations.xlsx) | **新增** — 从 262 条对话反推的 10 类工具候选 + 证据 |
-| [`customer_service_tool_spec_v0_1.yaml`](./customer_service_tool_spec_v0_1.yaml) | **新增** — V1 Tool Spec v0.1（agent_visible + runtime_only + human_only 工具 / per-UC 可用性 / runtime policy）|
+| [`customer_service_tool_spec_v0_2.yaml`](./customer_service_tool_spec_v0_2.yaml) | **v4 更新** — V1 Tool Spec v0.2（concrete API mapping / pre-chat form / pgvector backend / `get_moderation_review_context` / runtime capabilities）|
+| [`salesforce-part-spec.md`](./salesforce-part-spec.md) | **v4 新增** — Salesforce 组织配置确认（Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form）|
+| [`problem_retrieval_solution_plan_pgvector.md`](./problem_retrieval_solution_plan_pgvector.md) | **v4 新增** — pgvector 检索方案确认 |
+| [`customer_service_agent-Common-Phrases.md`](./customer_service_agent-Common-Phrases.md) | **v4 新增** — 从 1.18 万条 transcript 提炼的标准话术指导（7 类模板）|
+| [`FAQ-knowledge_include_help_url.csv`](./FAQ-knowledge_include_help_url.csv) | **v4 新增** — 3,963 篇 Salesforce Knowledge 文章（Id / Title / Summary / Help_Site_URL__c）|
+| [`platform_api_detailed_reference.md`](./platform_api_detailed_reference.md) | **v4 新增** — 196 REST 端点 / 14 微服务详细 API 参考 |
+| [`fixed_script_library_v1.md`](./fixed_script_library_v1.md) | **v4 新增** — Bot V1 固定话术模板库（14 类 / 50+ 模板 / 禁止话术清单），从 1,230+ 条真实 agent 消息提炼 |
 | [`07-engineering-constraints.md`](./07-engineering-constraints.md) | Gumtree 平台代码库提取的工程基线 |
 
 ---
@@ -349,79 +355,97 @@
 Gumtree Customer Service Live Chat Bot（Salesforce Enhanced Chat 自研 Bot）
 
 ## 6.2 当前阶段
-**Phase 0 / 1 / 2 已完成（v3 迭代，2026-04-14）**。
+**Phase 0 / 1 / 2 已完成（v4 迭代，2026-04-17）**。
 
-Phase 3（Detailed Technical Design）及之后阶段**暂缓**，等待用户补齐 §6.4 中的必要信息和数据后再启动。
+Phase 3（Detailed Technical Design）及之后阶段**暂缓**，等待用户补齐 §6.4 中的剩余信息后再启动。v4 已解决了 v3 时代多项阻塞项。
 
-最近一次迭代（v3）的主要更新（基于新增的 tool spec + conversation samples + inferred tools）：
+最近一次迭代（v4）的主要更新（基于 tool_spec v0.2 + salesforce-part-spec + pgvector plan + common phrases + FAQ CSV + platform API ref + eval datasets）：
 - **Phase 0**：
-  - 新增规范源引用 `customer_service_tool_spec_v0_1.yaml`
-  - §0.2 补齐 `tool_surface_strategy: small_and_strong` 与 `sensitive_write_actions: human_only_or_phase2` 两条母规范
-  - §0.3 V1 工具集拆分为 agent_visible / runtime_only / human_only 三层，并加入 per-UC 可用性矩阵与 tool risk tier 两行；V1 use case 集合扩展至 12 个（UC-A..F/FP + UC-G/H/I/J/K）
-  - §0.4 新增 per-UC 工具可用性矩阵与 `create_case_controlled` required_fields 作为可领域化项
+  - 规范源引用升级 v0.1 → **v0.2** + 新增 salesforce-part-spec / pgvector plan / platform API ref
+  - §0.3 runtime_only 工具从 3 → **4**（新增 `get_moderation_review_context`）；新增 runtime capabilities 行（`fixed_script_library` / `form_context_ingestion` / `tool_policy_enforcer` / `progress_placeholder`）
+  - §0.3 context projection contract 新增 `form_context`
+  - §0.3 新增 3 条已确认硬约束：Salesforce 平台（Enhanced Chat max 50 turns / Knowledge API 不可用 / queue 名称 / pre-chat form = turn 0）、向量检索选型（pgvector）、平台 API 基线（196 端点 / 14 微服务）
 - **Phase 1**：
-  - 输入来源列表加入 3 份新文件
-  - §1.1.2 新增"Out-of-V1-Bot-Resolution 但需 intake + handover"表（UC-G/H/I/J/K），并加入"活体 Chat 样本分布"与"设计桶分布"两表
-  - §1.1.3 加入 Live Chat 真实对话样本与工具候选证据小节，新增"关键对话模式"7 条（从 262 条 transcript 抽象）
-  - §1.2 `当前已知 gaps` 增补 UC-H/J/K required_fields 合约缺失 + UC-G 身份核验接点缺失
-  - §1.3 Handover 后流程补充 `create_case_controlled` 已创建 Case 的坐席视角 + `send_followup_email_or_async_update` 触发主体
-  - §1.4.12 外部集成表补齐每一行到 tool_spec 的映射
-  - §1.4.13 新增"Tool Layer Integration"小节（agent_visible / runtime_only / human_only 三层 + tool scope 治理 + runtime policy 映射）
-  - §1.5.1 数据集表补 initial 规模 + 新增 Intake/Tool Contract Dataset + Missed-Session Dataset
+  - 输入来源从 9 → **15**（新增 tool_spec v0.2 / salesforce-part-spec / pgvector plan / common phrases / FAQ CSV / platform API ref / eval datasets）
+  - §1.2 Knowledge：3,963 篇文章 CSV 已可用；Knowledge API **不可用**确认；pgvector 为唯一检索后端；新增 `get_moderation_review_context` 审核原因数据源
+  - §1.3 Operating Model：queue 名称已确认（CS_NEW_chat / CS_Cases_New）；off-hours 判定逻辑已确认；Bot 最大 50 turns 约束已确认；已确认 Case 字段与 Bot 输出 JSON 结构
+  - §1.3.3 数据模型：新增已确认的 `Chat_Message_Log__c` 自定义对象 + Case 字段（11 个 Topic Subject 选项）+ Bot 输出 JSON
+  - §1.4.3 向量检索：从 TBD 升级为 **已确认 pgvector on Cloud SQL**（含分块策略 / 双层表 / 在线检索流程）
+  - §1.4.13（用户已新增）Pre-chat Form & Case Creation Flow
+  - §1.4.14 Tool Layer：升级对齐 v0.2（4 runtime-only 工具 / runtime capabilities / concrete API dependencies / 新增 runtime policies）
+  - §1.5.1 Eval 数据集：从"目标规模"升级为 **全部已构建**（601 sessions / 11,288 turns + 367 human review queue）；标注数据质量发现
 - **Phase 2**：
-  - §2.1 use case 范围从 7 个扩到 12 个；命名约定说明 `UC-X-01 ∈ UC-X`
-  - §2.2 新增 UC-G-01 / UC-H-01 / UC-I-01 / UC-J-01 / UC-K-01 五个 use case registry 完整 schema（intake-only 或 intake+case）
-  - §2.3 Risk Matrix 加入 critical 级别与扩充 High Risk 表；Forbidden Automation 表加入新 tool_spec 对应的禁令
-  - §2.4 Escalation Matrix 新增 `intake_complete` / `intake_required_fields_missing_after_max_attempts` / `gdpr_or_data_request_detected` / `identity_verification_required` / `any_imminent_harm_signal` / `tool_scope_blocked` 等触发条件
-  - §2.5 Knowledge Scope Map 加入 UC-G/H/I/J/K 行并显式标记 `search_knowledge` 不可用；Disallowed Knowledge 增加对应行
-  - §2.6 新增 UC-G-01 / UC-H-01 / UC-I-01 / UC-J-01 / UC-K-01 的 Control Policy Override（intake 必填字段、固定话术、forbidden behaviors）
-  - §2.8 Cross-UC Routing 扩展（UC-FP→UC-H、UC-D→UC-G、UC-F→UC-I、任意→UC-J imminent harm 等）
-  - §2.9 Guardrails 加入 tool scope enforcement、最小 PII 暴露、占位话术、禁用"已删除/已限制"类假行动承诺（基于 transcript 观察）
-  - **§2.10 新增"Tool Allocation per Use Case"整节** — agent_visible × UC 矩阵、runtime_only × UC 矩阵、human_only 工具、per-UC 期望调用序列、`create_case_controlled` required_fields 草案、tool runtime_policy 对照
-  - §2.11（原 §2.10）移交清单更新为 v3 状态
+  - §2.5 Knowledge Scope Map：新增 Knowledge API 不可用说明 + pgvector 为唯一后端 + `get_moderation_review_context` 对 UC-FP 增强
+  - §2.6（用户已新增）通用 discover_policy 的 pre-chat form integration（form_context_usage / strong_routing_signals / weak_routing_signals）+ clarification_policy 的新版表单影响
+  - §2.9 Guardrails：对齐 `customer_service_agent-Common-Phrases.md` + `fixed_script_library`
+  - §2.10 Tool Allocation 全面升级对齐 v0.2：`get_customer_context` disallowed UC-B/UC-E 明确化；新增 `get_moderation_review_context` × UC 矩阵；per-UC tool call sequence 加入 form_context INIT 触发；`create_case_controlled` required_fields 对齐 Salesforce Case 字段 + Topic Subject；新增 §2.10.7 Runtime Capabilities
+  - §2.11 移交清单：标注已解决 vs 仍待补齐的阻塞项
 
 ## 6.3 已有输入
-- **规范层**: `customer_service_agent_tech_spec.md`（Whole Tech Spec）+ `customer_service_agent_eval_spec.md`（Eval Spec）+ **`customer_service_tool_spec_v0_1.yaml`（V1 Tool Spec，新增）**
-- **业务 BRD**: `BRD.md`（scope、user stories、functional/UI/legal requirements、success metrics、tone-of-voice）
-- **PRD 业务部分**: `PRD_biz_part.md`（去除技术规范后的业务 PRD：capacity analysis、A–F' 对话流、系统角色、handling 状态机、Salesforce 数据模型骨架）
+- **规范层**: `customer_service_agent_tech_spec.md`（Whole Tech Spec）+ `customer_service_agent_eval_spec.md`（Eval Spec）+ **`customer_service_tool_spec_v0_2.yaml`（V1 Tool Spec v0.2）**
+- **业务 BRD**: `BRD.md`
+- **PRD 业务部分**: `PRD_biz_part.md`
 - **数据分析**: `case-data-stat.md`（120,367 条 Case 结构化分析）
 - **Case 样本**: `case-samples.md`
-- **Live Chat 会话样本（新增）**: `customer_service_conversation_samples_organized.xlsx`（499 会话，262 条 transcript，2,890 turns，43 curated examples）
-- **工具候选证据（新增）**: `inferred_tool_candidates_from_human_conversations.xlsx`（10 类工具候选 + matched_sessions 证据）
+- **Live Chat 会话样本**: `customer_service_conversation_samples_organized.xlsx`（499 会话，262 条 transcript）
+- **工具候选证据**: `inferred_tool_candidates_from_human_conversations.xlsx`（10 类工具候选）
+- **Salesforce 配置确认（v4 新增）**: `salesforce-part-spec.md`（Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form）
+- **向量检索方案（v4 新增）**: `problem_retrieval_solution_plan_pgvector.md`
+- **标准话术指导（v4 新增）**: `customer_service_agent-Common-Phrases.md`（从 1.18 万条 transcript 提炼）
+- **Knowledge 文章库（v4 新增）**: `FAQ-knowledge_include_help_url.csv`（3,963 篇文章）
+- **平台 API 参考（v4 新增）**: `platform_api_detailed_reference.md`（196 端点 / 14 微服务）
+- **Eval 数据集（v4 新增）**: `data/eval_datasets/*`（7 类数据集，601 sessions / 11,288 turns + 367 条 human review queue）
 - **工程约束**: `07-engineering-constraints.md`
 - **阶段产出**: `phase0_normative_freeze.md`、`phase1_solution_input_pack.md`、`phase2_domain_realization_spec.md`
 
-## 6.4 缺失输入（阻塞 Phase 3 启动）
+## 6.4 缺失输入状态（v4 更新）
+
+### 已解决（v4）
+
+| # | 原缺失项 | 解决方式 | 来源文件 |
+|---|---------|---------|---------|
+| 1 | Help Centre 文章清单与 URL 映射 | **3,963 篇文章 CSV 已可用**（Id / Title / Summary / Help_Site_URL__c）；article → UC 映射待构建 | `FAQ-knowledge_include_help_url.csv` |
+| 4 | `create_case_controlled` per-UC required_fields | **tool_spec v0.2 已定义初版**（UC-H / UC-J / UC-K）；queue 统一用 CS_NEW_chat / CS_Cases_New | `customer_service_tool_spec_v0_2.yaml` §per_uc_required_fields |
+| 6 | Salesforce 组织配置确认 | **Enhanced Chat Web v1 / Omni-Channel 标准 / Knowledge API 无 / max 50 turns / 坐席并发 2** | `salesforce-part-spec.md` |
+| 7 | 向量库选型 | **pgvector on Cloud SQL PostgreSQL 已确认** | `problem_retrieval_solution_plan_pgvector.md` |
+| 9 | Golden Dataset 扩充 | **7 类数据集全部已构建**（601 sessions / 11,288 turns）；367 条 human review queue 待标注 | `data/eval_datasets/DATASET_REPORT.md` |
+| 11 | Off-hours 策略 | **检查 New Chat queue agent 在线状态**；离线时 Case → CS_Cases_New；Bot 给 offline 话术 | `salesforce-part-spec.md` |
+| 12 | Salesforce 自定义对象命名 | **`Chat_Message_Log__c` 已存在**；Bot_Session__c / Bot_Event__c 待 Salesforce Admin 确认是否追加 | `salesforce-part-spec.md` |
+
+### 仍待补齐（阻塞 Phase 3 启动）
 
 | # | 缺失项 | 影响的 Phase 3 章节 | 责任方建议 |
 |---|-------|-------------------|-----------|
-| 1 | **Help Centre 文章清单与 URL 映射**（UC-A / UC-B / UC-C / UC-D / UC-E / UC-F / UC-FP）| 3.5 Knowledge & Grounding | Knowledge & Content Ops |
-| 2 | **UC-FP-01 标准解释话术终稿 + UC-H-01 安抚话术终稿** | 3.7 Guardrails / 3.4 Tools | 合规 + 产品 |
-| 3 | **UC-G-01 / UC-H-01 / UC-I-01 / UC-J-01 / UC-K-01 固定话术库合规审批**（`search_knowledge` 禁用场景的话术模板）| 3.4 Tools / 3.7 Guardrails | 合规 + 产品 + Ops |
-| 4 | **`create_case_controlled` per-UC required_fields 终稿 + Queue 路由表**（UC-H / UC-J / UC-K）| 3.4 Tools / 3.6 Handover | Salesforce Admin + Ops + 产品 |
-| 5 | **UC-G-01 GDPR intake 字段边界**（哪些字段由 Bot 采集、哪些必须人工核验）| 3.4 Tools (UC-G policy) | 合规（Privacy）+ 产品 |
-| 6 | **Salesforce 组织配置确认**（Enhanced Chat / Omni-Channel / Knowledge API 版本与可用能力） | 3.1 Runtime Architecture / 3.6 Handover | Salesforce Admin |
-| 7 | **向量库选型决策**（pgvector / Vertex AI Vector Search / GKE self-hosted） | 3.4 Tools (search_knowledge) / 3.5 Retrieval Strategy | 工程 + 架构评审 |
+| 2 | **UC-FP-01 标准解释话术终稿 + UC-H-01 安抚话术终稿** — **初版已完成**，见 `fixed_script_library_v1.md` §2-3 + `customer_service_agent-Common-Phrases.md` §7.1-7.2；从 18 条 UC-FP + 35 条 UC-H 真实对话提炼；**待合规终审** | 3.7 Guardrails / 3.4 Tools | 合规 + 产品 |
+| 3 | **UC-G/H/I/J/K 固定话术库（`fixed_script_library`）合规审批** — **初版已完成**，见 `fixed_script_library_v1.md`（14 类模板 / 50+ 话术 / 禁止话术清单）+ `customer_service_agent-Common-Phrases.md` §7-8；从 1,230+ 条真实 agent 消息提炼；**待合规终审** | 3.4 Tools / 3.7 Guardrails | 合规 + 产品 + Ops |
+| 5 | **UC-G-01 GDPR intake 字段边界**（哪些由 Bot 采集 vs 必须人工核验）| 3.4 Tools (UC-G policy) | 合规（Privacy）+ 产品 |
 | 8 | **Embedding 模型选型** | 3.5 Retrieval Strategy | 工程 + 数据科学 |
-| 9 | **Golden Dataset 初始版本扩充**（从 43 curated + 30 self_serve 样本扩展到 ≥ 150 条 + 40 条 Intake/Tool Contract cases） | Phase 5 Eval | Product / Ops + QA |
-| 10 | **流量分配策略与 go/no-go 阈值** | 3.1 Runtime（流量门控）+ Phase 5 Release Gates | Product + Support + Data |
-| 11 | **Off-hours 策略**（is_business_hours 判定 + 离线时段 Bot 行为边界） | 3.6 Handover Trigger Policy | Operations |
-| 12 | **Salesforce 自定义对象/字段命名最终方案**（`Bot_Session__c` / `Bot_Event__c` / `Bot_Context__c` 是否采用，或使用既有对象） | 3.2 State Model / 3.6 Handover Payload | Salesforce Admin + 产品 |
-| 13 | **CSAT 采集机制与阈值**（"X 点跌幅"具体值） | Phase 5 Release Gates | Data + Product |
-| 14 | **PII redaction 规则与字段清单**（含 `safe_summary` 组装规则）| 3.7 Guardrails / 3.8 Observability | Legal + 工程 |
-| 15 | **Bot 项目新 repo** 是否创建及命名 | Phase 4 Coding Agent Implementation Packet | 工程 |
-| 16 | **`send_followup_email_or_async_update` 触发主体**（一期明确为人工/back-office；相关 email 模板 ID 清单）| 3.6 Handover / 3.4 Tools | Ops + 产品 |
+| 10 | **流量分配策略与 go/no-go 阈值** | 3.1 Runtime + Phase 5 Release Gates | Product + Support + Data |
+| 13 | **CSAT 采集机制与阈值** | Phase 5 Release Gates | Data + Product |
+| 14 | **PII redaction 规则与字段清单** | 3.7 Guardrails / 3.8 Observability | Legal + 工程 |
+| 15 | **Bot 项目新 repo** 是否创建及命名 | Phase 4 | 工程 |
+| 16 | **`send_followup_email_or_async_update` 触发主体与 email 模板 ID** | 3.6 Handover | Ops + 产品 |
+| 17 | **article → UC 映射**（3,963 篇文章的 UC 分类标注） | 3.5 Knowledge & Grounding | Knowledge Ops + 工程 |
+| 18 | **pgvector 索引策略**（IVFFlat vs HNSW）+ faq_miss score_threshold | 3.5 Retrieval Strategy | 工程 |
+| 19 | **gumshield cs-review API Bot 服务账号访问审批** | 3.4 Tools (`get_moderation_review_context`) | Security + Gumshield team |
+| 20 | **Golden Dataset human review 标注完成**（367 条 queue，P0 优先 150 Golden）| Phase 5 Eval | Product/Ops + QA + Salesforce 三角色 |
+| 21 | **per-UC 专属 queue 是否需要**（或统一 CS_Cases_New / CS_NEW_chat） | 3.6 Handover queue routing | Salesforce Admin + Ops |
+| 22 | **Bot_Session__c / Bot_Event__c 是否追加创建**（或仅用现有 `Chat_Message_Log__c`） | 3.2 State Model | Salesforce Admin + 产品 |
 
 ## 6.5 下一步行动
 
-1. **Review v3 输出**：与业务方（Chelsea Fagan-Hall）、产品方（Lance Li）确认 Phase 0 / 1 / 2 v3 内容，重点是：
-   - 新增的 UC-G / UC-H / UC-I / UC-J / UC-K 五个 use case schema 与 "intake + handover" 定位
-   - §2.10 Tool Allocation 矩阵是否与 `customer_service_tool_spec_v0_1.yaml` 完全一致
-   - UC-FP-01 → UC-H-01 降判路径的边界
-   - §2.9 Guardrails 中关于"禁止模仿真实坐席已删除/已限制类话术"的条款
-2. **补齐 §6.4 缺失输入**：每项指定 owner 与 due date；**优先补 1/2/3/4/5**（直接阻塞 tool contract 落地）。
-3. **暂不启动** Phase 3 / 4 / 5 — 待 §6.4 输入到位后再开。
-4. **可并行**：
-   - 从 `customer_service_conversation_samples_organized.xlsx` 第 05 sheet（43 curated examples）+ 第 01 sheet `design_bucket=self_serve_design` 的 30 条，构建 Golden Dataset 初始版本（73 条起步，目标 ≥ 150）
-   - 从 `design_bucket=escalation_design` 的 207 条样本中，为每个 escalation_reason 标注 5–10 条 reference transcript，构建 Handover Dataset
-   - 从 `frustration_or_failure_mode`(7) + `likely_outcome=abandoned_or_timeout`(25) + `escalation_signal=True`(63) 中去重，形成初始 bad-case bank（目标 ≥ 80 条）
+1. **Review v4 输出**：与业务方（Chelsea Fagan-Hall）、产品方（Lance Li）确认 Phase 0 / 1 / 2 v4 内容，重点是：
+   - tool_spec v0.2 的 `get_moderation_review_context` 新工具（gumshield cs-review API 访问审批）
+   - pre-chat form integration 的 form_context → 自动 `get_customer_context` 触发设计
+   - `fixed_script_library` 14 类话术模板的合规审批路径
+   - Salesforce 确认项：Bot max 50 turns / Knowledge API 不可用 / queue 统一 or per-UC
+2. **优先推动 §6.4 仍待补齐项**：
+   - **P0**（直接阻塞 Phase 3 实现）：#2 话术合规终审 / #3 fixed_script_library 合规审批 / #8 Embedding 模型选型 / #19 gumshield API 访问审批
+   - **P1**（阻塞 eval 完成）：#20 Golden Dataset human review 标注（367 条，估计 ~3 周 @15 sessions/day/reviewer）
+   - **P2**（Phase 3 中期需要）：#5 UC-G GDPR intake 边界 / #17 article→UC 映射 / #18 pgvector 索引策略 / #21 per-UC queue 决策 / #22 Bot_Session__c 追加决策
+3. **暂不启动** Phase 3 / 4 / 5 — 待 §6.4 P0 项到位后再开。
+4. **可并行推进**（不依赖 Phase 3）：
+   - **Human review 标注启动**：按 `HUMAN_REVIEW_GUIDE.md` 分工（Product/Ops → Golden+Intake；QA → Bad-case+Drift；Salesforce → Handover+Escalation）
+   - **pgvector 离线入库 POC**：用 3,963 篇 FAQ CSV 跑通分块 → Embedding → pgvector 写入 → 检索 Top-3 链路（`problem_retrieval_solution_plan_pgvector.md` M1–M2）
+   - **fixed_script_library 初稿**：基于 `customer_service_agent-Common-Phrases.md` 提炼 14 类模板，提交合规审批
+   - **article → UC 映射**：从 3,963 篇 title/URL heuristics 自动标注初版 UC 分类，再人工校准
