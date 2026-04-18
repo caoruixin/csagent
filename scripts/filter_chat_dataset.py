@@ -511,9 +511,41 @@ TURN_FIELDS = [
 ]
 
 
-def build_turn_rows(conversation_id, case_id, turns):
-    """Build turn-level rows with PII redaction and sequence numbering."""
+def build_form_turn(conversation_id, case_id, subject, description):
+    """Build a synthetic turn 0 from pre-chat form data (Subject + Description).
+
+    The pre-chat form is submitted by the user BEFORE the chat session starts.
+    In the current system, this creates a Case and the agent sees the form data
+    in their console before greeting the user. For the Bot, this is the first
+    input it receives — effectively the user's turn 0.
+    """
+    parts = []
+    if subject:
+        parts.append(f"Subject: {subject}")
+    if description:
+        parts.append(f"Description: {description}")
+    if not parts:
+        return None
+    return {
+        "conversation_id": conversation_id,
+        "case_id": case_id,
+        "sequence": 0,
+        "relative_time_sec": 0,
+        "role": "visitor",
+        "speaker": "[PRE_CHAT_FORM]",
+        "message_redacted": redact_pii("[Form] " + " | ".join(parts)),
+    }
+
+
+def build_turn_rows(conversation_id, case_id, turns, subject="", description=""):
+    """Build turn-level rows with PII redaction and sequence numbering.
+
+    Injects a synthetic sequence=0 turn from pre-chat form data when available.
+    """
     rows = []
+    form_turn = build_form_turn(conversation_id, case_id, subject, description)
+    if form_turn:
+        rows.append(form_turn)
     for seq, t in enumerate(turns, start=1):
         rows.append({
             "conversation_id": conversation_id,
@@ -645,7 +677,8 @@ def process_record(record):
         "tags": "|".join(tags),
     }
 
-    turn_rows = build_turn_rows(out["Id"], out["CaseId"], turns)
+    turn_rows = build_turn_rows(out["Id"], out["CaseId"], turns,
+                                subject=subject, description=description)
     return out, turn_rows, "pass"
 
 

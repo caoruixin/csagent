@@ -5,7 +5,10 @@
 > **规范来源**:
 > - `customer_service_agent_tech_spec.md`（Whole Tech Spec — V1 内核 / 架构 / 控制 / 工具 / Handover / Guardrails / Observability / NFR / Release Criteria）
 > - `customer_service_agent_eval_spec.md`（Eval Spec — Eval scope / Dataset / Grader / Metrics / Launch Gates / CI/CD）
-> - `customer_service_tool_spec_v0_1.yaml`（Tool Spec v0.1 — V1 tool surface、visibility、risk_tier、per-UC 可用性、runtime_policy；与母规范一致并对其做领域具化）
+> - `customer_service_tool_spec_v0_2.yaml`（Tool Spec v0.2 — V1 tool surface、visibility、risk_tier、per-UC 可用性、concrete API mapping、runtime_policy、runtime capabilities；与母规范一致并对其做领域具化）
+> - `salesforce-part-spec.md`（Salesforce 组织配置确认 — Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form / 自定义对象）
+> - `problem_retrieval_solution_plan_pgvector.md`（pgvector 向量检索方案确认 — 分块策略 / 索引 / 在线检索流程）
+> - `platform_api_detailed_reference.md`（平台 API 详细参考 — 196 端点 / 14 微服务）
 
 ---
 
@@ -20,7 +23,7 @@
 
 ## 0.2 对 Customer Service Agent 固定的共性约束
 
-来自 `customer_service_agent_tech_spec.md` §5 设计原则与 §11 控制内核，以及 `customer_service_tool_spec_v0_1.yaml` §principles：
+来自 `customer_service_agent_tech_spec.md` §5 设计原则与 §11 控制内核，以及 `customer_service_tool_spec_v0_2.yaml` §principles：
 
 - single agent + bounded loop（§5.2 / tool_spec `agent_pattern: single_agent_bounded_loop`）
 - state outside, context projected（§5.4 / §8 / §10）
@@ -50,10 +53,11 @@
 | **control budgets** | `max_clarification_rounds`、`max_faq_miss`、`max_bot_turns_per_issue`、`max_repeated_same_action`、`max_total_bot_turns_before_forced_escalation` | tech_spec §11.5 |
 | **drift handling semantics** | minor drift（保持 use case）/ soft shift（切换 active issue 但保留主问题）/ hard shift（升级或切策略） | tech_spec §11.6 |
 | **state model layers** | External State / Session State / Memory（V1 极轻）/ Context（每轮投影） | tech_spec §8 |
-| **context projection contract** | 输出包含 `task_summary`、`active_use_case`、`candidate_use_cases`、`recent_messages`、`retrieved_knowledge`、`risk_flags`、`budget_state`、`allowed_actions`、`tool_schemas` | tech_spec §10.5 |
+| **context projection contract** | 输出包含 `task_summary`、`active_use_case`、`candidate_use_cases`、`recent_messages`、`retrieved_knowledge`、`risk_flags`、`budget_state`、`allowed_actions`、`tool_schemas`、**`form_context`**（v0.2 新增 — pre-chat form 数据在 INIT 阶段即可用） | tech_spec §10.5 / tool_spec_v0.2 `form_context_ingestion` |
 | **use case registry lite schema** | use_case_id / name / description / example_user_requests / knowledge_scope / risk_level / allow_clarification / allow_bot_resolution / allowed_actions / escalation_conditions / outcome_class | tech_spec §9.2 |
 | **V1 tool set (agent_visible)** | `search_knowledge`、`resolve_article`、`get_customer_context`、`request_handover`、`record_outcome`。每个工具必有 stable name / clear description / parameter schema / permission boundary / standardized success-error payload | tech_spec §13.1, §13.2 / tool_spec §tools |
-| **V1 tool set (runtime_only，模型不可直接调用)** | `create_case_controlled`（仅 UC-H/UC-J/UC-K 允许）、`lookup_customer_account`（由 `get_customer_context` 组装）、`lookup_listing_or_ad`（由 `get_customer_context` 组装）。由 runtime 策略驱动，不暴露给模型上下文或 prompt。 | tool_spec §tools (visibility: runtime_only) |
+| **V1 tool set (runtime_only，模型不可直接调用，v0.2 = 4 个)** | `create_case_controlled`（仅 UC-H/UC-J/UC-K 允许）、`lookup_customer_account`（由 `get_customer_context` 组装）、`lookup_listing_or_ad`（由 `get_customer_context` 组装）、**`get_moderation_review_context`**（v0.2 新增，仅 UC-A/UC-FP，由 `lookup_listing_or_ad` 链式调用，提供广告删除/审核原因的 grounded 事实依据）。由 runtime 策略驱动，不暴露给模型上下文或 prompt。 | tool_spec_v0.2 §tools (visibility: runtime_only) |
+| **V1 runtime capabilities (non-tool，v0.2 新增)** | `fixed_script_library`（管理式模板库，为 UC-G/H/I/J/K 无 knowledge retrieval 场景 + 通用 opening/closing/escalation 提供固定话术）、`form_context_ingestion`（INIT 阶段解析 pre-chat form 数据写入 session state，自动触发 `get_customer_context`）、`tool_policy_enforcer`（每次 tool call 前检查 UC 可用性，violation 返回 `scope_blocked`）、`progress_placeholder`（tool call 延迟 >1.5s 时发送占位消息）。这些是 runtime 层内建能力，不是 LLM 可调用的工具。 | tool_spec_v0.2 §runtime_capabilities |
 | **human-only tools (Phase2 或人工触发)** | `moderation_enforcement_action`（删帖 / 限号 / 账号限制，critical risk）、`send_followup_email_or_async_update`（异步邮件更新，medium risk，V1.1 或人工触发）。Phase 1 Bot 不得直接或间接调用。 | tool_spec §tools (visibility: human_only) |
 | **per-UC 工具可用性矩阵** | 每个 tool 的 `allowed_use_cases` / `disallowed_use_cases` 作为硬约束；超范围调用由 runtime 拒绝并记录 `scope_blocked` | tool_spec §tools.*.allowed_use_cases |
 | **tool risk tier 与 runtime_policy** | low（knowledge）/ medium（composite read / controlled write）/ high（`create_case_controlled`）/ critical（`moderation_enforcement_action`）；每类风险对应 runtime policy（retries、must_log_*、must_validate_required_fields 等） | tool_spec §tools.*.risk_tier, runtime_policy |
@@ -66,6 +70,9 @@
 | **trace fields** | trace_id / session_id / turn_id / prompt_version / model_version / projection_version / active_use_case / action_selected / tool_calls / source_ids / outcome | tech_spec §17.2 |
 | **minimal funnel** | total sessions / understood / resolved by bot / escalated / abandoned / wrong containment / repeat-contact proxy / latency p50-p95 / cost per conversation | tech_spec §17.3 |
 | **NFR baselines** | FAQ answer p95 ≤ 5s；escalation request p95 ≤ 3s；median turns for solved FAQ ≤ 6；handover request 可重试；state write 可校验；degraded mode 落到安全升级；最小数据暴露；redacted logs；secret 隔离；retention 合规 | tech_spec §18 |
+| **Salesforce 平台硬约束（已确认）** | Enhanced Chat Web v1；自研 Bot **最多 50 次会话轮次**（超过必须 transfer to human）；Omni-Channel 标准通道；**Knowledge API 当前无开发 API 能力**（不可用于在线检索，knowledge grounding 完全依赖 pgvector 离线索引）；Pre-chat form 提交后**先创建 Case 再进入 Chat 路由**（Bot 的 "turn 0" = form data）；坐席最大并发 2 会话 | salesforce-part-spec.md |
+| **向量检索选型（已确认）** | **pgvector on Cloud SQL PostgreSQL**；chunk 策略 256–512 tokens sliding window + 10–20% overlap；article-level + chunk-level 双层表；Embedding 模型待选（Vertex AI / Gemini 系列）；索引类型待选（IVFFlat / HNSW） | problem_retrieval_solution_plan_pgvector.md |
+| **平台 API 基线（已确认）** | 196 REST 端点 / 14 微服务（bapi-server 80 / gumshield-api 38 / user-service / advert-service / livead-search 等）；tool_spec_v0.2 所有 `concrete_api_dependencies` 均已映射到实际端点 | platform_api_detailed_reference.md / tool_spec_v0.2 |
 | **eval suites (P0)** | Core E2E Suite + Control Sanity Suite + Grounding & Policy Suite + Handover Contract Suite | eval_spec §6.1 |
 | **eval suites (P1)** | harder drift / multi-turn issue switching / knowledge gap analytics / replay-driven bad-case mining | eval_spec §6.2 |
 | **launch gates (V1)** | active use case accuracy ≥ 85%；candidate recall ≥ 95%；groundedness pass rate ≥ 98%；critical policy violation = 0；escalation recall ≥ 95%；wrong containment ≤ 2%；handover completeness ≥ 98%；repeated same action rate below threshold；median turns for solved FAQ ≤ 6；FAQ answer p95 ≤ 5s | eval_spec §11 |
@@ -86,7 +93,7 @@
 | 升级触发条件细节 | `phase2_domain_realization_spec.md` §2.4 |
 | Knowledge scope 映射 | `phase2_domain_realization_spec.md` §2.5 |
 | 控制策略的领域 override | `phase2_domain_realization_spec.md` §2.6 |
-| per-UC 工具可用性矩阵与 runtime policy 细化 | `phase2_domain_realization_spec.md` §2.10（与 `customer_service_tool_spec_v0_1.yaml` 对齐）|
+| per-UC 工具可用性矩阵与 runtime policy 细化 | `phase2_domain_realization_spec.md` §2.10（与 `customer_service_tool_spec_v0_2.yaml` 对齐）|
 | 品牌口径与对话话术 | `phase1_solution_input_pack.md` §1.1（业务输入）+ `phase2_domain_realization_spec.md` §2.6（话术 override） |
 | 外部系统集成（Salesforce、GCP、Knowledge API） | `phase1_solution_input_pack.md` §1.4（工程约束）|
 | Bot 标识符采集策略（email / ad_id / phone 等 slot 优先级） | `phase2_domain_realization_spec.md` §2.6（clarification policy override）|

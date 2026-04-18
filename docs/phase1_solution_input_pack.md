@@ -7,9 +7,15 @@
 > - `PRD_biz_part.md`（business-only PRD: 系统角色、handling 状态机、A–F' 对话流、Salesforce 数据模型骨架）
 > - `case-data-stat.md`（120,367 条 Case 历史数据分析 — **Case Reason 维度**）
 > - `case-samples.md`（原始 Case 样本）
-> - `customer_service_conversation_samples_organized.xlsx`（**新增** — 499 条 Live Chat 会话，其中 262 条含完整 transcript；已按 use_case / risk_tier / design_bucket / escalation_signal 等结构化标注）
-> - `inferred_tool_candidates_from_human_conversations.xlsx`（**新增** — 从 262 条人工对话 transcript 反推的 10 类工具候选与 matched_sessions 证据）
-> - `customer_service_tool_spec_v0_1.yaml`（**新增** — V1 Tool Spec v0.1，定义 7 agent_visible + runtime_only + human_only 工具、per-UC 可用性矩阵、runtime policy）
+> - `customer_service_conversation_samples_organized.xlsx`（499 条 Live Chat 会话，其中 262 条含完整 transcript）
+> - `inferred_tool_candidates_from_human_conversations.xlsx`（从 262 条人工对话 transcript 反推的 10 类工具候选）
+> - `customer_service_tool_spec_v0_2.yaml`（**v4 更新** — V1 Tool Spec v0.2，含 concrete API mapping、pre-chat form integration、pgvector backend、`get_moderation_review_context` 新工具、`fixed_script_library` runtime capability）
+> - `salesforce-part-spec.md`（**v4 新增** — Salesforce 组织配置确认：Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form / 自定义对象）
+> - `problem_retrieval_solution_plan_pgvector.md`（**v4 新增** — pgvector 检索方案确认：分块策略 / 索引 / 在线检索 / Prompt 设计）
+> - `customer_service_agent-Common-Phrases.md`（**v4 新增** — 从 1.18 万条真实 transcript 提炼的客服标准话术指导，含开场/共情/等待/索取信息/升级/收尾 7 类模板）
+> - `FAQ-knowledge_include_help_url.csv`（**v4 新增** — 3,963 篇 Salesforce Knowledge 文章，含 Id / Title / Summary / Help_Site_URL__c；knowledge grounding 的主数据源）
+> - `platform_api_detailed_reference.md`（**v4 新增** — 196 REST 端点 / 14 微服务详细 API 参考；tool_spec v0.2 的 concrete_api_dependencies 源）
+> - `data/eval_datasets/*`（**v4 新增** — 已构建的 7 类 eval 数据集，共 601 session / 11,288 turns + 367 条 human review queue）
 > - `07-engineering-constraints.md`（Gumtree 平台代码库提取的工程基线）
 > - `customer_service_agent_tech_spec.md` §4 / `customer_service_agent_eval_spec.md`（规范层引用）
 
@@ -216,12 +222,16 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | 维度 | 内容 |
 |------|------|
 | **权威知识源** | Salesforce Knowledge（与 Help Centre 同步）|
+| **知识库规模（v4 已确认）** | **3,963 篇文章**（`FAQ-knowledge_include_help_url.csv`）；每篇含 Id / Title / Summary / UrlName / Description__c（HTML rich text）/ Help_Site_URL__c（canonical URL）|
 | **Grounding 内容范围** | Help Centre 文章、Community Standards / 政策页面、操作指南 |
+| **Knowledge API 状态（v4 已确认）** | **当前无可用开发 API**（`salesforce-part-spec.md`）— Salesforce Knowledge API 不可用于在线实时检索；Bot 的知识检索**完全依赖 pgvector 离线索引**，Salesforce Knowledge 仅作为元数据与发布状态的权威源（通过 article Id 查询发布状态） |
+| **检索后端（v4 已确认）** | **pgvector on Cloud SQL PostgreSQL**；chunk 策略 256–512 tokens sliding window + 10–20% overlap；article-level + chunk-level 双层表；在线检索 Top-2~3 chunks + Title + Summary → LLM 组装回复 |
 | **不能作为事实源** | 用户自由输入内容、未审批的 Git 内部文档、外部网站内容 |
-| **Freshness 要求** | 随 Salesforce Knowledge 发布状态同步 |
+| **Freshness 要求** | 随 Salesforce Knowledge 发布状态同步；pgvector 索引需定期 re-embed（文章变更时 incremental update，见 `problem_retrieval_solution_plan_pgvector.md` §3.5） |
 | **Ownership** | Knowledge & Content Ops 团队 |
-| **当前已知 gaps** | (1) Sub Reason / Case Reason 空白约 12%（15,113 条），需意图模型补全；(2) Help Centre 具体文章 ID/URL 与 use case 的精确映射尚未完成；(3) UC-FP-01 政策解释模板需合规终审；(4) UC-H/J/K 的 `create_case_controlled` required_fields 合约未定义（per-UC 必填 slot + queue 路由）；(5) UC-G 身份核验流程与 Bot 交接点未定义（哪些字段由 Bot 预采集、哪些必须人工）|
+| **当前已知 gaps** | (1) Sub Reason / Case Reason 空白约 12%（15,113 条），需意图模型补全；(2) ~~Help Centre 具体文章 ID/URL 与 use case 的精确映射尚未完成~~ → **部分可用**：`FAQ-knowledge_include_help_url.csv` 提供了全量 3,963 篇文章 ID + URL，但 **article → UC 映射**仍需构建（可从 title/URL heuristics 推导）；(3) UC-FP-01 政策解释模板需合规终审；(4) ~~UC-H/J/K 的 required_fields 合约~~ → **已有初版**（tool_spec_v0.2 §`per_uc_required_fields`），待合规终审；(5) UC-G 身份核验流程与 Bot 交接点未定义 |
 | **可选辅助索引** | Git 仓库内部文档（PRD §B-OP-01；需治理审批后建标签隔离 collection）|
+| **广告审核原因数据源（v4 新增）** | tool_spec_v0.2 新增 `get_moderation_review_context`（gumshield cs-review API），为 UC-FP 提供具体删除/审核原因的 grounded 事实依据，避免只能给 generic "policy violation" 解释 |
 
 ---
 
@@ -230,9 +240,10 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | 维度 | 内容 |
 |------|------|
 | **转人工接收方** | Customer Support Agents（通过 Salesforce Omni-Channel 路由）|
-| **人工系统 / queue** | Salesforce Service Console / Omni-Channel 既有队列 |
+| **人工系统 / queue（v4 已确认）** | 在线聊天 queue：**CS_NEW_chat**（坐席主动认领会话）；离线 Case queue：**CS_Cases_New**；坐席最大并发 **2** 会话 |
 | **Handover 后流程** | 坐席在同一 Messaging Session 线程中接续；坐席可见 intent / confidence / structured answers / articles_shown / Case Id（如有）/ transcript（完整或摘要，按性能与隐私评审）；对 UC-G/H/J/K 类已通过 `create_case_controlled` 创建 Case 的，坐席可直接基于 Case payload 继续；异步跟进（邮件）由坐席或 back-office 手动触发 `send_followup_email_or_async_update`，一期 Bot 不直接调 |
-| **工作时间限制** | 有离线时段 — out of hours 时 Bot 可继续 FAQ；复杂问题以 "log this for follow-up" 话术承接 |
+| **工作时间限制（v4 已确认）** | **判定逻辑**：检查 Messaging queue "New Chat" 是否有 agent 在线；有 → 工作时间；无 → 离线时段。离线时 Bot 可继续 FAQ；复杂问题以 "log this for follow-up" 话术承接，工单转到 **CS_Cases_New** queue 待坐席离线处理。tool_spec_v0.2 `request_handover` 增加 `is_business_hours` 输入 + `offline_logged` 状态 |
+| **Bot 最大会话轮次（v4 已确认）** | Enhanced Chat Web v1 约束：自研 Bot **最多 50 次会话轮次**，超过必须 transfer to human。此约束叠加在 tech_spec `max_total_bot_turns_before_forced_escalation` 之上（取两者中较小值） |
 | **SLA / TTFR** | 现有 AHT 469s；目标降低转人工后首响时间 |
 | **QA / Ops owner** | Customer Service Management + Knowledge Owners |
 | **Bad-case bank owner** | QA / Ops 团队，weekly review cadence |
@@ -262,11 +273,31 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 - **Bot → 人工**：一期必做。
 - **人工 → Bot**：一期不做（PRD 文档化预留 V1.x/V2 启用）。
 
-### 1.3.3 数据模型骨架（PRD §9，逻辑模型，命名以组织规范对齐）
+### 1.3.3 数据模型骨架（PRD §9 + `salesforce-part-spec.md` 确认）
 
+**PRD 逻辑模型（待 Salesforce Admin 确认是否采用）：**
 - `Bot_Session__c`：MessagingSession__c lookup、TrafficVariant__c、HandlingState__c（BOT/HUMAN/CLOSED）、PrimaryIntent__c、ContainmentOutcome__c（RESOLVED/ESCALATED/ABANDONED）、Case__c lookup
 - `Bot_Event__c`：Bot_Session__c lookup、EventType__c（INTENT / FAQ_SEARCH / ARTICLE_SHOWN / RESOLUTION_ASK / ESCALATION / CASE_CREATED）、Payload__c（脱敏 JSON）
 - Case 字段：使用现有 Contact Reason / 描述 / 产品 + 可选 `Bot_Context__c`（Long Text 存结构化 JSON 供坐席 UI 解析，需长度与 PII 评审）
+
+**已有自定义对象（v4 已确认）：**
+- `Chat_Message_Log__c`：记录 Bot 与客户之间的会话消息；字段：`Name`(Text80) / `Session_Id__c`(Text255) / `Direction__c`(Picklist: Inbound/Outbound) / `Sender_Type__c`(Picklist: Agent/Customer/Bot) / `Message_Text__c`(LongText 32768) / `Response_Text__c`(LongText 32768) / `Processed__c`(Checkbox) / `Created_Date__c`(DateTime)
+
+**Case 字段（v4 已确认，新版 pre-chat form 创建）：**
+- Record Type：`Customer Service`
+- 必填：`First Name` / `Last Name` / `Email` / `Topic Subject`（Picklist，11 值）/ `Description`
+- 选填：`Ad ID Number`
+- `Topic Subject` 可选值：Account Support / Ad Support / Delete My Account or Data / Delivery / Payments / Pro Contract / Account Manager Support / Ratings Reviews / Replies or Messaging / Report a Safety Issue / Technical Support
+
+**Bot 输出 JSON 结构（v4 已确认）：**
+```json
+{
+  "replyText": "Hello, how can I help you today?",
+  "intent": "TRANSFER_TO_HUMAN",
+  "shouldEndChat": false,
+  "additionalData": { "customerName": "John Doe" }
+}
+```
 
 ---
 
@@ -292,24 +323,19 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | **Salesforce 侧对象** | `Bot_Session__c` / `Bot_Event__c` / `Case` | 报表与坐席可见数据落在 Salesforce |
 | **不使用** | MongoDB、Cassandra（在 user-service / seller-service 用，但不适合 Bot 项目）|
 
-### 1.4.3 向量检索
+### 1.4.3 向量检索（v4 已确认选型）
 
-| 现状 | 说明 |
-|------|------|
-| **平台无已有向量检索基础设施** | 当前搜索为 Elasticsearch 8.x 关键词/分面（livead-search）；无 Pinecone / Weaviate / pgvector / Vertex AI Matching Engine 引用 |
-| **必须从零搭建** | FAQ 向量库为本项目新增能力 |
+| 维度 | 确认内容 |
+|------|---------|
+| **选型** | **pgvector on Cloud SQL PostgreSQL**（复用已有 Cloud SQL 基础设施，运维成本低；FAQ 规模 ~3,963 篇文章，不需要大规模 ANN）|
+| **分块策略** | 按语义段落或固定 token 窗口滑动重叠（256–512 tokens，重叠 10%–20%），避免切断表格/步骤列表 |
+| **数据模型** | 双层表：article-level（`article_id` / `title` / `summary` / 版本 / 发布状态 / 来源 URL）+ chunk-level（`chunk_id` / `article_id` / `chunk_index` / `chunk_text` / `embedding vector(dim)` / `token_count`）|
+| **索引** | 待定 IVFFlat 或 HNSW（数据量较小，先用 IVFFlat；需压测后确认）|
+| **在线检索** | Query Embedding → `ORDER BY embedding <=> query_embedding LIMIT 3` → 组装 Prompt（Query + Title + Summary + Top-2~3 chunks）→ LLM → 结构化回答 |
+| **Embedding 模型** | 待选（Vertex AI `text-embedding` / Gemini embedding 系列）；入库与在线 Query 必须同一模型 + 同一维度 |
+| **详细方案** | 见 `problem_retrieval_solution_plan_pgvector.md` |
 
-**候选方案（GCP-only 约束下）**：
-
-| 方案 | 优势 | 劣势 |
-|------|------|------|
-| **pgvector on Cloud SQL PostgreSQL** | 复用已有 Cloud SQL 基础设施，运维成本低 | 大规模 ANN 性能受限 |
-| **Vertex AI Vector Search** | 托管、原生 GCP、自动扩缩 | 供应商锁定，额外成本 |
-| **Self-hosted on GKE**（Qdrant / Weaviate）| 灵活，功能丰富 | 需自行运维，GKE 资源开销 |
-
-**Embedding 模型候选**：Google `text-embedding`（Vertex AI）/ Gemini embedding 系列；具体型号待选。
-
-**决策状态**：TBD — 需评估一期 FAQ 规模与 latency / cost 后选型。
+> **注**：Salesforce Knowledge API 当前不可用于在线检索（`salesforce-part-spec.md`）。Bot 的知识检索完全走 pgvector → Help_Site_URL__c 作为 canonical URL 展示。
 
 ### 1.4.4 事件流
 
@@ -402,16 +428,91 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | Analytics pipeline / Event sink | Kafka + Cloud Logging | Bot trace + session outcome；对应 tool_spec `record_outcome` |
 | Email notification service | 内部 / Salesforce Email-to-Case | 异步邮件模板发送；对应 tool_spec human_only `send_followup_email_or_async_update`（Phase 1 Bot 不直接调用）|
 
-### 1.4.13 Tool Layer Integration（与 `customer_service_tool_spec_v0_1.yaml` 对齐）
+### 1.4.13 Pre-chat Form & Case Creation Flow
+
+> 新增于 2026-04-17。基于当前系统实际流程确认。
+
+#### 系统流程
+
+用户在 Enhanced Chat widget 中首先填写 **pre-chat form**，表单提交后系统创建 Salesforce Case，再根据路由规则分配：
+
+```text
+用户打开 Chat widget
+  → 填写 Pre-chat Form（必填字段 + Description）
+  → 提交 → 系统创建 Case
+  → 路由判定：
+     ├─ 工作时间（9am–8pm Mon–Sun UK）→ Chat queue → 坐席接入 → Live Chat 会话
+     └─ 非工作时间 → Offline queue → 坐席离线处理（email 跟进）
+```
+
+**关键含义**：
+- 坐席在 console 中看到 Case 时，**已经知道用户的表单信息**（Subject / Description / Email 等），这解释了为什么 98.7% 的 transcript 中坐席先说话
+- 对 Bot 而言，**表单数据是 INIT 阶段的首个输入** — Bot 不需要等用户在对话中输入才开始工作
+- 非工作时间的表单提交不产生 LiveChatTranscript（只创建 Case → 离线 queue），因此**不在 `bq-results-*.csv` 数据集中**
+
+#### 老版表单 vs 新版表单
+
+| 字段 | 老版（当前数据集） | 新版（V1 上线时） | 对 Bot 的影响 |
+|------|-------------------|-----------------|-------------|
+| First Name | 无 | ✅ 必填 | Bot 可用名字称呼用户 |
+| Last Name | 无 | ✅ 必填 | 同上 |
+| Email | 非必填（`Subject` 字段） | ✅ 必填 | **Bot 无需再问 email** → `get_customer_context` 可在 INIT 阶段立即触发 |
+| Topic Subject | `Subject` 字段（下拉） | `Topic Subject`（下拉） | UC 预分类信号（低精度但有参考，见下方映射表） |
+| Ad ID Number | 无 | 选填 | 如果用户填了 → `lookup_listing_or_ad` 可在 INIT 阶段立即触发 |
+| Description | 部分有（95.2% 覆盖率） | ✅ 必填 | 用户意图首句，Bot 的主要分类输入 |
+
+#### Topic Subject → UC 映射参考（从历史数据推导）
+
+> 注：下方映射基于老版表单 `Subject` 字段的统计分布。新版表单的 `Topic Subject` 下拉选项可能有变化，需与产品确认。
+
+| Topic Subject 值 | Top 1 UC（占比）| Top 2 UC | Top 3 UC | 评估 |
+|------------------|---------------|---------|---------|------|
+| Account Support | UC-H (37%) | UC-C (11%) | UC-D (9%) | 低精度 — 什么都有 |
+| Ad Support | UC-H (62%) | UC-B (9%) | UC-C (5%) | 中精度 — UC-H 主导 |
+| Technical Support | UC-K (38%) | UC-H (21%) | UC-C (11%) | 中精度 |
+| Replies & Messaging | UC-C (68%) | UC-H (11%) | UC-J (9%) | 高精度 — UC-C 主导 |
+| Report a Safety Issue | UC-J (71%) | UNMAPPED (7%) | UC-I (5%) | 高精度 |
+| Delete my account / Data | UC-G (70%) | UC-H (22%) | — | 高精度 |
+| Payments | UC-H (30%) | UC-I (22%) | UC-J (14%) | 低精度 |
+| Ratings & Reviews | UC-C (31%) | UNMAPPED (24%) | UC-I (17%) | 低精度 |
+
+**设计建议**：
+- "Report a Safety Issue" 和 "Delete my account / Data" 可作为**强 UC 先验**（>70% 命中率），直接路由到 UC-J / UC-G
+- 其他 Topic Subject 只作为弱信号，必须结合 Description 文本做意图分类
+- 新版表单的 Topic Subject 下拉选项清单需要从产品方获取（可能与上表不同）
+
+#### 对 Bot 架构的影响
+
+1. **Context Projection INIT 阶段新增 form_context**：
+   ```json
+   {
+     "form_context": {
+       "first_name": "Hill",
+       "email": "hill@gmail.com",
+       "topic_subject": "Account Support",
+       "ad_id": null,
+       "description": "need check the status"
+     },
+     ...
+   }
+   ```
+
+2. **Identifier 采集策略变化**：新版表单 email 必填 → `get_customer_context` 可在 INIT/DISCOVER 立即调用（不再需要 `should_prompt_for_identifiers_when_missing` for email）
+
+3. **Clarification 需求下降**：老版表单时 25% 会话中坐席需要主动索取 email，新版表单后这部分 clarification 消失
+
+### 1.4.14 Tool Layer Integration（与 `customer_service_tool_spec_v0_2.yaml` 对齐）
 
 | 层 | 组件 | 说明 |
 |---|------|------|
-| **Agent-visible 工具（5 个）** | `search_knowledge` / `resolve_article` / `get_customer_context` / `request_handover` / `record_outcome` | 这些是 Bot 唯一可直接发起的 tool call 集；对应 schema 以 OpenAPI contract 落在 `/contract/bot-tools-openapi.yaml`（新建） |
-| **Runtime-only 工具（3 个）** | `create_case_controlled` / `lookup_customer_account` / `lookup_listing_or_ad` | 不暴露给 LLM prompt；由 Bot runtime 根据 use case policy 触发（例如 UC-H 达到 required_fields 完整 → 自动调 `create_case_controlled`）|
+| **Agent-visible 工具（5 个）** | `search_knowledge` / `resolve_article` / `get_customer_context` / `request_handover` / `record_outcome` | Bot 唯一可直接发起的 tool call 集；v0.2 增加了 concrete API endpoint mapping + `form_context` 输入 |
+| **Runtime-only 工具（v0.2 = 4 个）** | `create_case_controlled` / `lookup_customer_account` / `lookup_listing_or_ad` / **`get_moderation_review_context`**（v0.2 新增，由 `lookup_listing_or_ad` 链式调用，为 UC-A/UC-FP 提供广告审核/删除原因） | 不暴露给 LLM prompt；由 Bot runtime 根据 use case policy 触发 |
 | **Human-only 工具（2 个）** | `moderation_enforcement_action` / `send_followup_email_or_async_update` | 不在 Bot 服务调用栈内；由坐席控制台 / back-office workflow 触发 |
-| **Tool scope 治理** | 每次 tool call 前 runtime 检查 `active_use_case ∈ allowed_use_cases`，否则返回 `scope_blocked` 并记录事件 | runtime 实现 `tool_policy_enforcer` 组件 |
-| **Runtime policy 映射** | `must_log_article_candidates` / `must_track_article_shown` / `must_minimize_pii` / `must_return_safe_summary_only` / `should_prompt_for_identifiers_when_missing` / `must_preserve_same_thread` / `must_include_structured_summary` / `must_log_escalation_reason` / `must_be_called_on_close_or_escalation` | 落地为 runtime 组件里的硬编码 invariant + eval grader 验证 |
-| **Knowledge 文档仓库准入** | tool_spec `source_type` 枚举：`salesforce_knowledge` / `help_centre` / `approved_git_doc` | Git 内部文档须先过治理审批入列 approved collection，否则不允许作为 grounding 源 |
+| **Runtime capabilities（v0.2 新增，非 tool）** | `fixed_script_library`（固定话术模板库）/ `form_context_ingestion`（pre-chat form 解析 + 自动触发 context lookup）/ `tool_policy_enforcer`（UC scope enforcement）/ `progress_placeholder`（>1.5s 延迟时发送占位消息） | runtime 层内建能力，不暴露给 LLM |
+| **Tool scope 治理** | 每次 tool call 前 runtime 检查 `active_use_case ∈ allowed_use_cases`，否则返回 `scope_blocked` 并记录事件 | `tool_policy_enforcer` 组件，enforcement = `hard_block_with_event_log` |
+| **Runtime policy 映射** | v0.2 增加 `must_auto_trigger_on_form_context` / `must_verify_published_status` / `must_select_message_by_hours_and_reason` / `must_map_reason_to_public_policy` / `retry_on_failure` | 落地为 runtime 组件里的硬编码 invariant + eval grader 验证 |
+| **Concrete API dependencies（v0.2 已映射）** | 所有 tool 的 `concrete_api_dependencies` / `concrete_api_call_chain` 已映射到 `platform_api_detailed_reference.md` 中的实际端点（bapi-server / gumshield-api / user-service / advert-service / livead-search 等）| 14 微服务 / 196 端点；Bot 只使用 read 端点 + case create |
+| **Knowledge 文档仓库准入** | tool_spec `source_type` 枚举：`salesforce_knowledge` / `help_centre` / `approved_git_doc` | Git 内部文档须先过治理审批入列 approved collection |
 
 ---
 
@@ -419,18 +520,27 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 
 > 本章对齐 `customer_service_agent_eval_spec.md`，落地到 Gumtree 项目。
 
-### 1.5.1 数据集（eval_spec §7）
+### 1.5.1 数据集（eval_spec §7 — **v4：全部已构建**，见 `data/eval_datasets/DATASET_REPORT.md`）
 
-| 数据集 | 内容 / 构建来源 | 初始规模 |
-|--------|---------------|---------|
-| **Golden Use Case Dataset** | 基于 A–F' 高频场景 + UC-G/H/I/J/K intake 模式；每条含 task_id / channel / turns / expected: active_use_case, outcome_class, allowed_actions, forbidden_actions, escalation_required, expected_source_ids；初始样本来自 `case-samples.md` + `customer_service_conversation_samples_organized.xlsx` 第 05 sheet 的 43 条 curated examples + 第 01 sheet `design_bucket=self_serve_design` 的 30 条 | ≥ 43 + 30 = 73 条起步；目标 Phase 1 上线前 ≥ 150 条 |
-| **Clarification Dataset** | 模糊表达、缺失关键信息、query 过宽、同义表达；从 262 条 transcript 抽取坐席多次澄清的片段 | 目标 ≥ 40 条 |
-| **Escalation Dataset** | user explicitly asks for human、policy-required escalation、unsupported requests、insufficient grounding、repeated miss scenarios；初始来自 `design_bucket=escalation_design` 的 207 条样本 + `frustration_or_failure_mode` 7 条 curated | ≥ 50 条起步；目标 ≥ 120 条 |
-| **Drift Dataset (Lite)** | 补充信息但不换问题、中途插入新问题、新问题优先级更高；从多意图跨 UC 会话中筛选（如 UC-A → UC-FP、UC-D → UC-FP 路由）| 目标 ≥ 20 条 |
-| **Handover Dataset** | summary completeness、use case correctness、escalation reason correctness、transcript linkage；用 207 条 escalation_design 样本 + 真实人工坐席已触发 handover 的片段作为 reference | 目标 ≥ 60 条，覆盖全部 11 类 escalation reason |
-| **Intake / Tool Contract Dataset（新增）** | 验证 Bot 能按 tool_spec v0.1 `allowed_use_cases` / `disallowed_use_cases` 正确调用工具；每条含期望的 tool_call 序列（例如 UC-H 应 `get_customer_context` → `create_case_controlled` → `request_handover`），不应调用的工具（negative cases）| 目标 ≥ 40 条，覆盖 7 agent_visible 工具 |
-| **Bad-Case Bank** | 一期上线后从 weekly human review 与线上采样持续积累 + 262 条 transcript 中标注 `frustration_flag=True` / `likely_outcome=abandoned_or_timeout` / `escalation_signal=True` 的 63 条作为初始池 | ≥ 63 条 seeding；持续增长 |
-| **Missed-Session Dataset（新增）** | 用原始 499 条中 236 条 `status=Missed` 的会话元数据做 latency / abandonment 分析；Bot 首触达后哪些能被 deflection、哪些仍需 escalation 的对照基线 | 236 条历史基线 |
+> 数据来源：18,964 raw sessions → 6,835 cleaned → 601 sampled sessions / 11,288 turns + 367 条 human review queue。
+
+| 数据集 | 内容 / 构建来源 | **v4 实际规模** | 状态 |
+|--------|---------------|---------------|------|
+| **Golden Use Case Dataset** | 基于全 12 UC 高频场景；每条含 task_id / turns / expected UC / outcome / tool sequence | **150 sessions / 2,794 turns** | ✅ 已构建；覆盖全 12 UC + UNMAPPED（UC-C 46% 最大自然池；small UC 有 min-floor 采样） |
+| **Clarification Dataset** | 模糊表达、缺失关键信息、query 过宽、同义表达；标注澄清质量 | **60 sessions**（含 24 bad/over-clarified + 18 good/contained） | ✅ 已构建 |
+| **Escalation Dataset** | 全 12 UC 覆盖；18 种 escalation reason；user_requested / policy-required / frustration / insufficient_grounding | **150 sessions / 3,424 turns** | ✅ 已构建 |
+| **Drift / Control Dataset** | minor drift / soft shift / hard shift；99.7% 自然携带 frustration/escalation signal | **30 sessions / 782 turns** | ✅ 已构建 |
+| **Handover Dataset** | summary completeness / UC correctness / escalation reason correctness / transcript linkage | **76 sessions / 1,754 turns** | ✅ 已构建 |
+| **Intake / Tool Contract Dataset** | 验证 Bot 按 tool_spec v0.2 `allowed_use_cases` / `disallowed_use_cases` 正确调用工具；含期望 tool_call 序列 + negative cases | **50 sessions / 1,108 turns** | ✅ 已构建 |
+| **Bad-Case Bank** | frustration / abandoned / escalation-signal 会话；guardrail regression | **95 sessions / 2,026 turns** | ✅ 已构建 |
+| **Missed-Session Dataset** | 无 transcript 的沉没会话 metadata；Bot 首触达承接机会分析 | **2 sessions**（LiveChatTranscript 导出限制；需 Salesforce Case 导出补充） | ⚠️ 数据不足 |
+| **Human Review Queue** | quality_score ≥ 60 的会话，待人工标注 ground truth（UC / tool sequence / escalation rationale） | **367 sessions** | ⏳ 待标注（见 `HUMAN_REVIEW_GUIDE.md`）|
+
+**v4 关键发现**：
+- CSAT 覆盖率仅 1.9% — 不可用于数据集质量验证；需在 Bot 上线后启用 CSAT 采集
+- 仅 6 条 quality ≥ 80 的"高质量"transcript — 现实中"完美"会话极少，eval 应基于 quality ≥ 60 的 298 条
+- **新版 pre-chat form 影响 eval**：老版数据集中 25% 会话坐席需问 email → 新版表单 email 必填后此类 clarification 消失；Clarification Dataset 需在 Bot 上线后 re-review
+- **Human review 优先级**：P0 Golden(150) → P1 Intake/Tool(50) → P2 Handover(76) → P3 Bad-case(95) → P4 Drift(30)；每条约 10–15 分钟，建议 Product/Ops + QA + Salesforce 三角色分工
 
 ### 1.5.2 Release Threshold
 

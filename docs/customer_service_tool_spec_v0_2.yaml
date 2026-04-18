@@ -1,0 +1,1000 @@
+schema_version: '0.2'
+spec_type: customer_service_agent_tool_spec
+project:
+  name: Gumtree Customer Service Live Chat Bot
+  channel: salesforce_enhanced_chat_web
+  phase: V1
+  updated: '2026-04-17'
+  changelog_from_v0_1:
+    - concrete_api_mapping_from_platform_api_reference
+    - prechat_form_integration
+    - pgvector_retrieval_backend
+    - new_tool_get_moderation_review_context
+    - fixed_script_library_runtime_capability
+    - allowed_disallowed_matrix_fixes
+    - enriched_output_schemas
+
+principles:
+  tool_surface_strategy: small_and_strong
+  agent_pattern: single_agent_bounded_loop
+  grounding_policy: grounded_before_generative
+  escalation_policy: escalation_is_first_class
+  sensitive_write_actions: human_only_or_phase2
+
+use_cases:
+  - UC-A
+  - UC-B
+  - UC-C
+  - UC-D
+  - UC-E
+  - UC-F
+  - UC-FP
+  - UC-G
+  - UC-H
+  - UC-I
+  - UC-J
+  - UC-K
+
+# ============================================================
+# AGENT-VISIBLE TOOLS (5)
+# ============================================================
+
+tools:
+  # ---- 1. search_knowledge ----
+  - tool_name: search_knowledge
+    display_name: Search Knowledge
+    visibility: agent_visible
+    phase: V1
+    tool_class: knowledge_retrieval
+    risk_tier: low
+    purpose: >
+      Search FAQ vector store (pgvector) + Salesforce Knowledge metadata
+      and return grounded candidate sources for the active use case.
+    allowed_use_cases: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP]
+    disallowed_use_cases: [UC-G, UC-H, UC-I, UC-J, UC-K]
+    trigger_examples:
+      - user asks how to do something
+      - user asks why an ad is not visible
+      - user asks for policy or process explanation
+      - bot needs a grounded FAQ answer before responding
+    input_schema:
+      type: object
+      required: [query, use_case_id]
+      properties:
+        query:
+          type: string
+          description: Search query derived from user issue or form_context.description.
+        use_case_id:
+          type: string
+          enum: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP]
+        customer_locale:
+          type: string
+          default: en_GB
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 3
+        knowledge_scope:
+          type: array
+          items:
+            type: string
+    output_schema:
+      type: object
+      required: [results, faq_miss]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [source_id, title, snippet, canonical_url, score]
+            properties:
+              source_id:
+                type: string
+                description: "Salesforce Knowledge Article Id"
+              title:
+                type: string
+              snippet:
+                type: string
+              canonical_url:
+                type: string
+                description: "Help_Site_URL__c"
+              score:
+                type: number
+              source_type:
+                type: string
+                enum: [salesforce_knowledge, help_centre, approved_git_doc]
+              chunk_id:
+                type: string
+              article_id:
+                type: string
+        faq_miss:
+          type: boolean
+        retrieval_trace:
+          type: object
+    retrieval_backend:
+      type: pgvector_on_cloud_sql_postgresql
+      embedding_model: TBD_vertex_ai_or_gemini
+      chunk_strategy: sliding_window_256_512_tokens_overlap_10_20_pct
+      index_type: TBD_ivfflat_or_hnsw
+      score_threshold: TBD
+    concrete_api_dependencies:
+      - endpoint: POST /v1/faq/search
+        service: csagent_service
+        purpose: pgvector semantic search
+      - endpoint: Salesforce Knowledge API
+        service: salesforce
+        purpose: article metadata + publish status verification
+      - endpoint: Vertex AI text-embedding API
+        service: gcp
+        purpose: query embedding
+    failure_modes:
+      - no_results
+      - low_confidence_results
+      - knowledge_backend_timeout
+      - scope_blocked
+    runtime_policy:
+      max_retries: 1
+      on_no_results: allow_clarification_or_escalate
+      must_log_article_candidates: true
+
+  # ---- 2. resolve_article ----
+  - tool_name: resolve_article
+    display_name: Resolve Article
+    visibility: agent_visible
+    phase: V1
+    tool_class: knowledge_resolution
+    risk_tier: low
+    purpose: >
+      Convert candidate knowledge results into a customer-safe article package
+      with title, concise summary, canonical link, and usage boundary.
+    allowed_use_cases: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP]
+    disallowed_use_cases: [UC-G, UC-H, UC-I, UC-J, UC-K]
+    input_schema:
+      type: object
+      required: [source_ids, use_case_id]
+      properties:
+        source_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 3
+        use_case_id:
+          type: string
+          enum: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP]
+        summary_style:
+          type: string
+          enum: [concise, standard]
+          default: concise
+    output_schema:
+      type: object
+      required: [resolved_articles]
+      properties:
+        resolved_articles:
+          type: array
+          items:
+            type: object
+            required: [source_id, title, summary, canonical_url]
+            properties:
+              source_id:
+                type: string
+              title:
+                type: string
+              summary:
+                type: string
+              canonical_url:
+                type: string
+              safe_to_show:
+                type: boolean
+              usage_boundary:
+                type: string
+        article_shown_log_payload:
+          type: object
+    concrete_api_dependencies:
+      - endpoint: Salesforce Knowledge API (by article Id)
+        service: salesforce
+        purpose: article metadata + published status
+      - endpoint: Help_Site_URL__c field
+        service: salesforce
+        purpose: canonical URL resolution
+    failure_modes:
+      - invalid_source_id
+      - article_not_public
+      - summary_generation_blocked
+    runtime_policy:
+      must_track_article_shown: true
+      customer_output_pattern: title_plus_1_to_3_sentence_summary_plus_link
+      must_verify_published_status: true
+
+  # ---- 3. get_customer_context ----
+  - tool_name: get_customer_context
+    display_name: Get Customer Context
+    visibility: agent_visible
+    phase: V1
+    tool_class: composite_context_read
+    risk_tier: medium
+    purpose: >
+      Read minimum necessary customer, account, and listing context from
+      trusted systems. Returns safe structured summary. Composes
+      lookup_customer_account + lookup_listing_or_ad + get_moderation_review_context.
+    allowed_use_cases: [UC-A, UC-C, UC-D, UC-F, UC-FP, UC-K]
+    disallowed_use_cases: [UC-B, UC-E, UC-G, UC-H, UC-I, UC-J]
+    trigger_examples:
+      - pre-chat form provides email -> auto-trigger at INIT
+      - pre-chat form provides ad_id -> auto-trigger listing lookup
+      - user provides ad ID for listing visibility issue
+      - bot needs authoritative context before answering or escalating
+    input_schema:
+      type: object
+      required: [context_type]
+      properties:
+        context_type:
+          type: string
+          enum: [account, listing, combined]
+        email:
+          type: string
+        phone:
+          type: string
+        account_id:
+          type: string
+        listing_id:
+          type: string
+        ad_id:
+          type: string
+        use_case_id:
+          type: string
+        form_context:
+          type: object
+          description: "Pre-chat form data injected at INIT"
+          properties:
+            first_name:
+              type: string
+            last_name:
+              type: string
+            email:
+              type: string
+              description: "New form: mandatory"
+            topic_subject:
+              type: string
+            ad_id_number:
+              type: string
+              description: "New form: optional"
+            description:
+              type: string
+              description: "New form: mandatory"
+    output_schema:
+      type: object
+      required: [safe_summary]
+      properties:
+        safe_summary:
+          type: string
+        account_context:
+          type: object
+          properties:
+            account_id:
+              type: string
+            account_status:
+              type: string
+              enum: [ACTIVE, SUSPENDED, CLOSED, COLLECTION_AGENCY]
+            restriction_flags:
+              type: array
+              items:
+                type: string
+            blacklist_status:
+              type: object
+              properties:
+                is_blacklisted:
+                  type: boolean
+                reason:
+                  type: string
+            known_good:
+              type: boolean
+            last_login_date:
+              type: string
+              format: date-time
+            identity_match_confidence:
+              type: number
+        listing_context:
+          type: object
+          properties:
+            ad_id:
+              type: string
+            listing_status:
+              type: string
+            moderation_status:
+              type: string
+            visibility_reason:
+              type: string
+            moderation_review_reason:
+              type: string
+            deletion_reason_code:
+              type: string
+            known_good:
+              type: boolean
+        missing_identifiers:
+          type: array
+          items:
+            type: string
+    concrete_api_dependencies:
+      account_chain:
+        - endpoint: GET /api/emails/{email}/user
+          service: bapi-server
+        - endpoint: GET /users/{email}/user
+          service: user-service
+          note: fallback
+        - endpoint: GET /api/accounts/{accountId}
+          service: bapi-server
+        - endpoint: GET /api/accounts/{id}/emails
+          service: bapi-server
+        - endpoint: GET /api/users/{id}/known-good
+          service: gumshield-api
+        - endpoint: POST /api/blacklists/email/check
+          service: gumshield-api
+        - endpoint: GET /users/last-logged-in/{userId}
+          service: user-service
+      listing_chain:
+        - endpoint: GET /api/adverts/{id}
+          service: bapi-server
+        - endpoint: GET /api/adverts/by-advert-id/{advert-id}
+          service: advert-service
+          note: alternative
+        - endpoint: GET /api/adverts/{id}/features
+          service: bapi-server
+        - endpoint: GET /api/adverts/status/{id}
+          service: gumshield-api
+        - endpoint: GET /api/adverts/{id}/known-good
+          service: gumshield-api
+        - endpoint: GET /api/advert/{advertId}
+          service: livead-search
+        - endpoint: GET /api/accounts/{id}/adverts
+          service: bapi-server
+          note: list user ads
+      moderation_review_chain:
+        - endpoint: POST /api/cs-review/ad-id/
+          service: gumshield-api
+        - endpoint: POST /api/cs-review/latest/
+          service: gumshield-api
+    failure_modes:
+      - identifier_missing
+      - no_matching_record
+      - multiple_matches
+      - backend_timeout
+      - permission_denied
+    runtime_policy:
+      must_minimize_pii: true
+      must_return_safe_summary_only: true
+      should_prompt_for_identifiers_when_missing: true
+      must_auto_trigger_on_form_context: true
+
+  # ---- 4. request_handover ----
+  - tool_name: request_handover
+    display_name: Request Handover
+    visibility: agent_visible
+    phase: V1
+    tool_class: controlled_write_action
+    risk_tier: medium
+    purpose: >
+      Escalate the conversation to a human queue with structured handover
+      payload and customer-visible next-step messaging.
+    allowed_use_cases: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP, UC-G, UC-H, UC-I, UC-J, UC-K]
+    disallowed_use_cases: []
+    trigger_examples:
+      - user explicitly requests human
+      - faq miss threshold exceeded
+      - high-risk or out-of-scope issue detected
+      - customer frustration or negative sentiment
+      - intake complete for UC-G/H/I/J/K
+    input_schema:
+      type: object
+      required: [primary_use_case, summary, escalation_reason]
+      properties:
+        primary_use_case:
+          type: string
+        candidate_use_cases:
+          type: array
+          items:
+            type: string
+        intent_confidence:
+          type: number
+        summary:
+          type: string
+          maxLength: 500
+        customer_answers:
+          type: object
+        articles_shown:
+          type: array
+          items:
+            type: string
+        identifiers:
+          type: object
+        escalation_reason:
+          type: string
+          enum:
+            - user_requested
+            - faq_miss_threshold_exceeded
+            - clarification_budget_exhausted
+            - intake_complete_for_uc_g
+            - intake_complete_for_uc_h
+            - intake_complete_for_uc_i
+            - intake_complete_for_uc_j
+            - intake_complete_for_uc_k
+            - incomplete_intake
+            - payment_dispute_detected
+            - appeal_requires_human
+            - user_distress
+            - imminent_harm
+            - incorrect_deletion_appeal
+            - trust_safety_required
+            - account_compliance
+            - gdpr_intake
+            - identity_verification_required
+            - out_of_scope
+            - service_degraded
+            - turn_budget_exhausted
+            - tool_scope_blocked
+        case_id:
+          type: string
+        is_business_hours:
+          type: boolean
+    output_schema:
+      type: object
+      required: [handover_status]
+      properties:
+        handover_status:
+          type: string
+          enum: [queued, transferred, offline_logged, failed]
+        queue:
+          type: string
+        handover_id:
+          type: string
+        customer_next_step_message:
+          type: string
+    concrete_api_dependencies:
+      - endpoint: Salesforce Omni-Channel Transfer API
+        service: salesforce
+        purpose: route to queue
+      - endpoint: Salesforce Bot_Context__c field write
+        service: salesforce
+        purpose: persist handover payload
+      - endpoint: Salesforce Messaging Session API
+        service: salesforce
+        purpose: same-thread continuity
+    failure_modes:
+      - queue_unavailable
+      - handover_contract_invalid
+      - transfer_api_failure
+    runtime_policy:
+      must_preserve_same_thread: true
+      must_include_structured_summary: true
+      must_log_escalation_reason: true
+      must_select_message_by_hours_and_reason: true
+
+  # ---- 5. record_outcome ----
+  - tool_name: record_outcome
+    display_name: Record Outcome
+    visibility: agent_visible
+    phase: V1
+    tool_class: analytics_trace
+    risk_tier: low
+    purpose: >
+      Record session outcome, shown articles, escalation reason, and trace
+      metadata for reporting and evaluation.
+    allowed_use_cases: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP, UC-G, UC-H, UC-I, UC-J, UC-K]
+    disallowed_use_cases: []
+    input_schema:
+      type: object
+      required: [session_id, outcome, use_case_id]
+      properties:
+        session_id:
+          type: string
+        outcome:
+          type: string
+          enum:
+            - resolved
+            - escalated
+            - abandoned
+            - wrong_containment
+            - over_escalation
+            - unresolved_after_answer
+        use_case_id:
+          type: string
+        articles_shown:
+          type: array
+          items:
+            type: string
+        escalation_reason:
+          type: string
+        trace_metadata:
+          type: object
+    output_schema:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, failed]
+    concrete_api_dependencies:
+      - endpoint: Salesforce Bot_Session__c.ContainmentOutcome__c
+        service: salesforce
+        purpose: outcome persistence
+      - endpoint: Salesforce Bot_Event__c
+        service: salesforce
+        purpose: event log
+      - endpoint: Kafka (Avro) analytics topic
+        service: kafka
+        purpose: analytics pipeline
+      - endpoint: PostgreSQL session_outcomes table
+        service: csagent_db
+        purpose: local trace store
+    failure_modes:
+      - analytics_sink_unavailable
+      - trace_write_failed
+    runtime_policy:
+      must_be_called_on_close_or_escalation: true
+      retry_on_failure: true
+
+# ============================================================
+# RUNTIME-ONLY TOOLS (4, was 3 in v0.1)
+# ============================================================
+
+  # ---- 6. create_case_controlled ----
+  - tool_name: create_case_controlled
+    display_name: Create Case (Controlled)
+    visibility: runtime_only
+    phase: V1_limited
+    tool_class: controlled_write_action
+    risk_tier: high
+    purpose: >
+      Create a Salesforce Case for explicitly allowed categories when
+      required fields are present and policy permits.
+    allowed_use_cases: [UC-H, UC-J, UC-K]
+    disallowed_use_cases: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP, UC-G, UC-I]
+    input_schema:
+      type: object
+      required: [use_case_id, summary, required_fields]
+      properties:
+        use_case_id:
+          type: string
+          enum: [UC-H, UC-J, UC-K]
+        summary:
+          type: string
+        required_fields:
+          type: object
+        urgency:
+          type: string
+          enum: [normal, high, critical]
+        customer_identifiers:
+          type: object
+    per_uc_required_fields:
+      UC-H:
+        required: [ad_id_or_listing_url, registered_email, stated_reason_or_context]
+        queue_candidate: Ad Moderation / Appeal queue
+      UC-J:
+        required: [report_target, report_type, description]
+        optional: [contacted_police, evidence_references]
+        queue_candidate: Trust & Safety queue
+      UC-K:
+        required: [platform, repro_steps_or_error_message]
+        optional: [browser_or_app_version, screenshot_reference]
+        queue_candidate: Technical Support queue
+    output_schema:
+      type: object
+      required: [creation_status]
+      properties:
+        creation_status:
+          type: string
+          enum: [created, blocked, failed]
+        case_id:
+          type: string
+        queue:
+          type: string
+    concrete_api_dependencies:
+      - endpoint: Salesforce REST API POST /services/data/vXX.0/sobjects/Case
+        service: salesforce
+        purpose: case creation
+      - endpoint: Salesforce Assignment Rules / Omni-Channel queue
+        service: salesforce
+        purpose: queue routing
+    failure_modes:
+      - required_fields_missing
+      - policy_blocked
+      - salesforce_case_api_failed
+    runtime_policy:
+      model_direct_invocation_allowed: false
+      must_validate_required_fields: true
+      must_follow_use_case_policy: true
+
+  # ---- 7. lookup_customer_account ----
+  - tool_name: lookup_customer_account
+    display_name: Lookup Customer Account
+    visibility: runtime_only
+    phase: V1
+    tool_class: trusted_read
+    risk_tier: medium
+    purpose: >
+      Lookup customer account state using email, phone, or account_id.
+      Called internally by get_customer_context.
+    allowed_use_cases: [UC-D, UC-FP, UC-K]
+    disallowed_use_cases: [UC-G, UC-I, UC-J]
+    input_schema:
+      type: object
+      properties:
+        email:
+          type: string
+        phone:
+          type: string
+        account_id:
+          type: string
+    output_schema:
+      type: object
+      properties:
+        account_id:
+          type: string
+        user_id:
+          type: string
+        account_status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED, COLLECTION_AGENCY]
+        restriction_flags:
+          type: array
+          items:
+            type: string
+        blacklist_status:
+          type: object
+          properties:
+            is_blacklisted:
+              type: boolean
+            reason:
+              type: string
+        known_good:
+          type: boolean
+        last_login_date:
+          type: string
+          format: date-time
+        safe_summary:
+          type: string
+    concrete_api_call_chain:
+      - step: 1
+        endpoint: GET /api/emails/{email}/user
+        service: bapi-server
+        purpose: email to user/account resolution
+      - step: 1a
+        endpoint: GET /users/{email}/user
+        service: user-service
+        purpose: fallback user lookup
+      - step: 2
+        endpoint: GET /api/accounts/{accountId}
+        service: bapi-server
+        purpose: account details
+      - step: 3
+        endpoint: GET /api/users/{id}/known-good
+        service: gumshield-api
+        purpose: trust status
+      - step: 4
+        endpoint: POST /api/blacklists/email/check
+        service: gumshield-api
+        purpose: blacklist check
+      - step: 5
+        endpoint: GET /users/last-logged-in/{userId}
+        service: user-service
+        purpose: last login date
+    runtime_policy:
+      used_by: [get_customer_context]
+      agent_direct_invocation_allowed: false
+
+  # ---- 8. lookup_listing_or_ad ----
+  - tool_name: lookup_listing_or_ad
+    display_name: Lookup Listing or Ad
+    visibility: runtime_only
+    phase: V1
+    tool_class: trusted_read
+    risk_tier: medium
+    purpose: >
+      Lookup listing/ad state including moderation status and review reason.
+      Called internally by get_customer_context. Now also invokes
+      get_moderation_review_context for UC-A/UC-FP.
+    allowed_use_cases: [UC-A, UC-FP, UC-K]
+    disallowed_use_cases: [UC-G, UC-I, UC-J]
+    input_schema:
+      type: object
+      properties:
+        listing_id:
+          type: string
+        ad_id:
+          type: string
+        phone:
+          type: string
+        account_id:
+          type: string
+    output_schema:
+      type: object
+      properties:
+        ad_id:
+          type: string
+        listing_status:
+          type: string
+        moderation_status:
+          type: string
+        visibility_reason:
+          type: string
+        moderation_review_reason:
+          type: string
+        deletion_reason_code:
+          type: string
+        known_good:
+          type: boolean
+        category:
+          type: string
+        location:
+          type: string
+        safe_summary:
+          type: string
+    concrete_api_call_chain:
+      - step: 1
+        endpoint: GET /api/adverts/{id}
+        service: bapi-server
+        purpose: ad details
+      - step: 1a
+        endpoint: GET /api/adverts/by-advert-id/{advert-id}
+        service: advert-service
+        purpose: alternative lookup
+      - step: 2
+        endpoint: GET /api/adverts/{id}/features
+        service: bapi-server
+        purpose: paid features
+      - step: 3
+        endpoint: GET /api/adverts/status/{id}
+        service: gumshield-api
+        purpose: moderation status
+      - step: 4
+        endpoint: GET /api/adverts/{id}/known-good
+        service: gumshield-api
+        purpose: trust status
+      - step: 5
+        endpoint: POST /api/cs-review/ad-id/
+        service: gumshield-api
+        purpose: moderation review reason (v0.2 new)
+      - step: 6
+        endpoint: GET /api/advert/{advertId}
+        service: livead-search
+        purpose: search index state
+    runtime_policy:
+      used_by: [get_customer_context]
+      agent_direct_invocation_allowed: false
+
+  # ---- 9. get_moderation_review_context (NEW in v0.2) ----
+  - tool_name: get_moderation_review_context
+    display_name: Get Moderation Review Context
+    visibility: runtime_only
+    phase: V1
+    tool_class: trusted_read
+    risk_tier: medium
+    purpose: >
+      Retrieve ad moderation/review history and deletion reason from
+      gumshield cs-review. Provides grounded factual basis for UC-FP
+      (explain why ad was removed) and UC-A (explain visibility).
+      Called internally by lookup_listing_or_ad.
+    allowed_use_cases: [UC-A, UC-FP]
+    disallowed_use_cases: [UC-G, UC-H, UC-I, UC-J, UC-K]
+    motivation: >
+      UC-FP is highest volume UC (17.3%). Without specific deletion reason,
+      Bot can only give generic "policy violation" — low containment.
+      gumshield cs-review API exists as read-only queries.
+    input_schema:
+      type: object
+      required: [ad_id]
+      properties:
+        ad_id:
+          type: string
+        review_type:
+          type: string
+          enum: [latest, by_reason, all]
+          default: latest
+    output_schema:
+      type: object
+      properties:
+        has_review:
+          type: boolean
+        review_reason:
+          type: string
+        reason_code:
+          type: string
+        review_date:
+          type: string
+          format: date-time
+        reviewer_type:
+          type: string
+          enum: [automatic, manual]
+        safe_summary:
+          type: string
+    concrete_api_call_chain:
+      - step: 1
+        endpoint: POST /api/cs-review/latest/
+        service: gumshield-api
+        purpose: latest review decision
+      - step: 2
+        endpoint: POST /api/cs-review/ad-id/
+        service: gumshield-api
+        purpose: review records by ad ID
+      - step: 3
+        endpoint: POST /api/cs-review/id-by-reason/
+        service: gumshield-api
+        purpose: review records by reason
+      - step: 4
+        endpoint: GET /api/ad-screen-items/advert/{advert-id}
+        service: gumshield-rules
+        purpose: triggered screening rules
+    runtime_policy:
+      agent_direct_invocation_allowed: false
+      used_by: [lookup_listing_or_ad]
+      must_minimize_pii: true
+      must_return_safe_summary_only: true
+      must_map_reason_to_public_policy: true
+
+# ============================================================
+# HUMAN-ONLY TOOLS (2, unchanged)
+# ============================================================
+
+  # ---- 10. moderation_enforcement_action ----
+  - tool_name: moderation_enforcement_action
+    display_name: Moderation Enforcement Action
+    visibility: human_only
+    phase: Phase2_or_manual_only
+    tool_class: sensitive_write_action
+    risk_tier: critical
+    purpose: >
+      High-risk moderation/enforcement actions. Bot NEVER calls this.
+    allowed_use_cases: [UC-H, UC-J]
+    disallowed_use_cases: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP, UC-G, UC-I, UC-K]
+    concrete_api_mapping:
+      - endpoint: POST /api/cs/adverts/takedown
+        service: bapi-server
+      - endpoint: POST /api/cs/adverts/auto_reject
+        service: bapi-server
+      - endpoint: POST /api/cs/adverts/auto_delete
+        service: bapi-server
+      - endpoint: POST /api/cs/adverts/publish
+        service: bapi-server
+      - endpoint: POST /api/adverts/status
+        service: gumshield-api
+      - endpoint: POST /api/cs-review
+        service: gumshield-api
+      - endpoint: POST /api/user-reports
+        service: gumshield-api
+      - endpoint: POST /api/blacklists/email
+        service: gumshield-api
+      - endpoint: DELETE /api/blacklists/email
+        service: gumshield-api
+      - endpoint: POST /api/conversation/flag
+        service: gumshield-api
+    runtime_policy:
+      agent_direct_invocation_allowed: false
+      bot_direct_invocation_allowed: false
+      requires_human_authorization: true
+
+  # ---- 11. send_followup_email_or_async_update ----
+  - tool_name: send_followup_email_or_async_update
+    display_name: Send Follow-up Email or Async Update
+    visibility: human_only
+    phase: V1_1_or_manual_only
+    tool_class: async_notification
+    risk_tier: medium
+    purpose: >
+      Send email or async status update. V1 triggered by human/back-office only.
+    allowed_use_cases: [UC-G, UC-H, UC-I, UC-J, UC-K]
+    disallowed_use_cases: []
+    concrete_api_mapping:
+      - endpoint: Salesforce Email-to-Case / Email templates
+        service: salesforce
+      - endpoint: GET /gdpr/sar/{email}
+        service: braze-gateway
+        note: GDPR SAR context
+      - endpoint: DELETE /gdpr/ddr/{email}
+        service: braze-gateway
+        note: GDPR DDR
+    runtime_policy:
+      bot_direct_invocation_allowed: false
+      default_phase1_owner: human_or_backoffice
+
+# ============================================================
+# RUNTIME CAPABILITIES (non-tool)
+# ============================================================
+
+runtime_capabilities:
+  - name: fixed_script_library
+    type: template_store
+    purpose: >
+      Managed template library for fixed scripted responses.
+      Used by UC-G/H/I/J/K (no knowledge retrieval) and shared
+      opening/closing/escalation messages.
+    sources:
+      - BRD_section_6_3
+      - customer_service_agent_common_phrases_md
+      - phase2_per_uc_policy_overrides
+      - compliance_review_pending
+    categories:
+      - opening
+      - empathy
+      - hold_placeholder
+      - identifier_request
+      - resolution_check
+      - escalation_business_hours
+      - escalation_off_hours
+      - gdpr_intake
+      - appeal_intake
+      - dispute_disclaimer
+      - safety_intake
+      - tech_troubleshoot
+      - policy_explanation
+      - idle_close
+
+  - name: form_context_ingestion
+    type: session_init
+    purpose: >
+      Parse pre-chat form data at INIT stage. Write email/ad_id/description/
+      topic_subject into session state. Auto-trigger get_customer_context
+      when email is available.
+    trigger: session_start
+    inputs: [first_name, last_name, email, topic_subject, ad_id_number, description]
+
+  - name: tool_policy_enforcer
+    type: runtime_guard
+    purpose: >
+      Check active_use_case in tool.allowed_use_cases before every tool call.
+      Return scope_blocked on violation.
+    enforcement: hard_block_with_event_log
+
+  - name: progress_placeholder
+    type: ux_enhancement
+    purpose: >
+      Send "One moment while I look into this" message when tool call
+      latency exceeds 1.5s threshold.
+    threshold_ms: 1500
+
+# ============================================================
+# OPEN DECISIONS
+# ============================================================
+
+open_decisions:
+  - id: 1
+    item: final queue routing table by use case and operating hours
+    status: pending
+    owner: salesforce_admin_ops
+  - id: 2
+    item: create_case_controlled per-UC required_fields finalization
+    status: pending
+    owner: compliance_product
+  - id: 3
+    item: Help Centre article ID to UC mapping
+    status: partially_available
+    owner: knowledge_ops
+    note: FAQ-knowledge_include_help_url.csv has article IDs; UC mapping needed
+  - id: 4
+    item: knowledge allowlist governance for approved_git_doc
+    status: pending
+    owner: knowledge_ops
+  - id: 5
+    item: embedding model selection
+    status: pending
+    owner: engineering
+  - id: 6
+    item: pgvector index strategy (IVFFlat vs HNSW)
+    status: pending
+    owner: engineering
+  - id: 7
+    item: score_threshold for faq_miss determination
+    status: pending
+    owner: engineering_qa
+  - id: 8
+    item: gumshield cs-review API access approval for Bot service account
+    status: new
+    owner: security_gumshield_team
+  - id: 9
+    item: pre-chat form new version field names and Topic Subject dropdown options
+    status: new
+    owner: product
+  - id: 10
+    item: is_business_hours determination logic
+    status: pending
+    owner: operations
