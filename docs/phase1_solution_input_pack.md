@@ -13,7 +13,7 @@
 > - `salesforce-part-spec.md`（**v4 新增** — Salesforce 组织配置确认：Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form / 自定义对象）
 > - `problem_retrieval_solution_plan_pgvector.md`（**v4 新增** — pgvector 检索方案确认：分块策略 / 索引 / 在线检索 / Prompt 设计）
 > - `customer_service_agent-Common-Phrases.md`（**v4 新增** — 从 1.18 万条真实 transcript 提炼的客服标准话术指导，含开场/共情/等待/索取信息/升级/收尾 7 类模板）
-> - `FAQ-knowledge_include_help_url.csv`（**v4 新增** — 3,963 篇 Salesforce Knowledge 文章，含 Id / Title / Summary / Help_Site_URL__c；knowledge grounding 的主数据源）
+> - `FAQ-knowledge_include_help_url.csv`（**v4 新增** — 218 篇 Salesforce Knowledge 文章，含 Id / Title / Summary / Help_Site_URL__c；knowledge grounding 的主数据源）
 > - `platform_api_detailed_reference.md`（**v4 新增** — 196 REST 端点 / 14 微服务详细 API 参考；tool_spec v0.2 的 concrete_api_dependencies 源）
 > - `data/eval_datasets/*`（**v4 新增** — 已构建的 7 类 eval 数据集，共 601 session / 11,288 turns + 367 条 human review queue）
 > - `07-engineering-constraints.md`（Gumtree 平台代码库提取的工程基线）
@@ -157,8 +157,8 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | | queue performance | peak-time backlog 下降 / 响应时间改善 |
 | **自助采纳** | Help Centre usage via chat | bot 推送文章被点击的会话占比 |
 | | deflection rate | 接受自助答案后正常结束的客户占比 |
-| **客户体验** | CSAT for bot conversations | 不低于 baseline chat CSAT（具体阈值待业务定）|
-| | CSAT for escalated (bot→agent) | 不低于标准坐席 chat CSAT |
+| **客户体验** | CSAT for bot conversations | **Bot 直接 resolve 的会话：session 结束后通过邮件发送 CSAT 问卷（v5 已确认机制）**；具体分数阈值待 Support + Product + Data 确认 |
+| | CSAT for escalated (bot→agent) | **转人工的会话不下发 Bot CSAT**（避免与坐席 CSAT 混淆，v5 已确认）|
 | | drop-off rate | 在 Bot 流程中放弃的客户占比，需在阈值内 |
 | | AI 满意度（PRD §1.4）| 40%–70% |
 | | AI 参评数 / 参评率（PRD §1.4）| 80–90% / 7% |
@@ -170,10 +170,10 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 
 #### Go / No-Go 上线条件（BRD §5.1）
 
-- CSAT for bot journeys 不显著低于 baseline（>X 点跌幅前不扩流量）
+- CSAT for bot journeys（bot-resolved 会话 email CSAT）不显著低于 baseline（>X 点跌幅前不扩流量；X 阈值待 Support + Product + Data 确认）
 - Escalated journey CSAT 不显著下降
 - Drop-off rate 在可接受阈值内
-- 上述 X 阈值需 Support + Product + Data 共同确认（**仍待补**）
+- **流量分配策略（v6 已确认，基于 GrowthBook）**：开发阶段 100% 打开；prod 环境按 **10% → 20% → 50% → 100%** 渐进放量；分桶标识使用 `gbUserPseudoId`（Cookie `gt_gb_exp_uid`，UUID v4，365 天）；所有 coverage % / variant weights / rollout % 均在 **GrowthBook Dashboard** 配置下发，代码层面不硬编码阈值；每阶段扩量前需通过 release gate 检查（containment / CSAT / wrong_containment 等）
 
 ### 1.1.5 品牌口径与体验要求（BRD §6 + §C UI 要求）
 
@@ -222,14 +222,14 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | 维度 | 内容 |
 |------|------|
 | **权威知识源** | Salesforce Knowledge（与 Help Centre 同步）|
-| **知识库规模（v4 已确认）** | **3,963 篇文章**（`FAQ-knowledge_include_help_url.csv`）；每篇含 Id / Title / Summary / UrlName / Description__c（HTML rich text）/ Help_Site_URL__c（canonical URL）|
+| **知识库规模（v4 已确认，v6 修正）** | **218 篇文章**（`FAQ-knowledge_include_help_url.csv`）；每篇含 Id / Title / Summary / UrlName / Description__c（HTML rich text）/ Help_Site_URL__c（canonical URL）。注：原统计 3,963 系 CSV 行数（Description__c 含多行 HTML），实际文章数为 218 |
 | **Grounding 内容范围** | Help Centre 文章、Community Standards / 政策页面、操作指南 |
 | **Knowledge API 状态（v4 已确认）** | **当前无可用开发 API**（`salesforce-part-spec.md`）— Salesforce Knowledge API 不可用于在线实时检索；Bot 的知识检索**完全依赖 pgvector 离线索引**，Salesforce Knowledge 仅作为元数据与发布状态的权威源（通过 article Id 查询发布状态） |
 | **检索后端（v4 已确认）** | **pgvector on Cloud SQL PostgreSQL**；chunk 策略 256–512 tokens sliding window + 10–20% overlap；article-level + chunk-level 双层表；在线检索 Top-2~3 chunks + Title + Summary → LLM 组装回复 |
 | **不能作为事实源** | 用户自由输入内容、未审批的 Git 内部文档、外部网站内容 |
 | **Freshness 要求** | 随 Salesforce Knowledge 发布状态同步；pgvector 索引需定期 re-embed（文章变更时 incremental update，见 `problem_retrieval_solution_plan_pgvector.md` §3.5） |
 | **Ownership** | Knowledge & Content Ops 团队 |
-| **当前已知 gaps** | (1) Sub Reason / Case Reason 空白约 12%（15,113 条），需意图模型补全；(2) ~~Help Centre 具体文章 ID/URL 与 use case 的精确映射尚未完成~~ → **部分可用**：`FAQ-knowledge_include_help_url.csv` 提供了全量 3,963 篇文章 ID + URL，但 **article → UC 映射**仍需构建（可从 title/URL heuristics 推导）；(3) UC-FP-01 政策解释模板需合规终审；(4) ~~UC-H/J/K 的 required_fields 合约~~ → **已有初版**（tool_spec_v0.2 §`per_uc_required_fields`），待合规终审；(5) UC-G 身份核验流程与 Bot 交接点未定义 |
+| **当前已知 gaps** | (1) Sub Reason / Case Reason 空白约 12%（15,113 条），需意图模型补全；(2) ~~Help Centre 具体文章 ID/URL 与 use case 的精确映射尚未完成~~ → **初版已完成（v6）**：`data/knowledge/article_uc_mapping.csv` 已完成 218 篇文章的 auto-mapping（url_category 177 + title_keyword 37 + content_keyword 4）；`knowledge_base_articles.json` 已可用于 pgvector 入库；218 篇即为 CSV 全量（原 3,963 系行数误计），全部已完成初版映射（human review 后续校准）；(3) ~~UC-FP-01 政策解释模板需合规终审~~ → 已通过（v5）；(4) ~~UC-H/J/K required_fields 合约~~ → 已有初版（v4）；(5) ~~UC-G 身份核验流程~~ → GDPR intake 边界已确认（v5）|
 | **可选辅助索引** | Git 仓库内部文档（PRD §B-OP-01；需治理审批后建标签隔离 collection）|
 | **广告审核原因数据源（v4 新增）** | tool_spec_v0.2 新增 `get_moderation_review_context`（gumshield cs-review API），为 UC-FP 提供具体删除/审核原因的 grounded 事实依据，避免只能给 generic "policy violation" 解释 |
 
@@ -241,7 +241,7 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 |------|------|
 | **转人工接收方** | Customer Support Agents（通过 Salesforce Omni-Channel 路由）|
 | **人工系统 / queue（v4 已确认）** | 在线聊天 queue：**CS_NEW_chat**（坐席主动认领会话）；离线 Case queue：**CS_Cases_New**；坐席最大并发 **2** 会话 |
-| **Handover 后流程** | 坐席在同一 Messaging Session 线程中接续；坐席可见 intent / confidence / structured answers / articles_shown / Case Id（如有）/ transcript（完整或摘要，按性能与隐私评审）；对 UC-G/H/J/K 类已通过 `create_case_controlled` 创建 Case 的，坐席可直接基于 Case payload 继续；异步跟进（邮件）由坐席或 back-office 手动触发 `send_followup_email_or_async_update`，一期 Bot 不直接调 |
+| **Handover 后流程** | 坐席在同一 Messaging Session 线程中接续；坐席可见 intent / confidence / structured answers / articles_shown / Case Id（如有）/ transcript（完整或摘要，按性能与隐私评审）；对 UC-G/H/J/K 类已通过 `create_case_controlled` 创建 Case 的，坐席可直接基于 Case payload 继续；异步跟进（邮件）**遵循现有 Salesforce 人工 CS 系统的规则/模版/内容，Bot 不直接向用户发邮件**；由坐席或 back-office 通过 `send_followup_email_or_async_update`（human_only tool）触发 |
 | **工作时间限制（v4 已确认）** | **判定逻辑**：检查 Messaging queue "New Chat" 是否有 agent 在线；有 → 工作时间；无 → 离线时段。离线时 Bot 可继续 FAQ；复杂问题以 "log this for follow-up" 话术承接，工单转到 **CS_Cases_New** queue 待坐席离线处理。tool_spec_v0.2 `request_handover` 增加 `is_business_hours` 输入 + `offline_logged` 状态 |
 | **Bot 最大会话轮次（v4 已确认）** | Enhanced Chat Web v1 约束：自研 Bot **最多 50 次会话轮次**，超过必须 transfer to human。此约束叠加在 tech_spec `max_total_bot_turns_before_forced_escalation` 之上（取两者中较小值） |
 | **SLA / TTFR** | 现有 AHT 469s；目标降低转人工后首响时间 |
@@ -275,7 +275,7 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 
 ### 1.3.3 数据模型骨架（PRD §9 + `salesforce-part-spec.md` 确认）
 
-**PRD 逻辑模型（待 Salesforce Admin 确认是否采用）：**
+**PRD 逻辑模型（v5 已确认追加 Bot_Session__c / Bot_Event__c，升级为 session + event 显式状态模型）：**
 - `Bot_Session__c`：MessagingSession__c lookup、TrafficVariant__c、HandlingState__c（BOT/HUMAN/CLOSED）、PrimaryIntent__c、ContainmentOutcome__c（RESOLVED/ESCALATED/ABANDONED）、Case__c lookup
 - `Bot_Event__c`：Bot_Session__c lookup、EventType__c（INTENT / FAQ_SEARCH / ARTICLE_SHOWN / RESOLUTION_ASK / ESCALATION / CASE_CREATED）、Payload__c（脱敏 JSON）
 - Case 字段：使用现有 Contact Reason / 描述 / 产品 + 可选 `Bot_Context__c`（Long Text 存结构化 JSON 供坐席 UI 解析，需长度与 PII 评审）
@@ -327,11 +327,12 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 
 | 维度 | 确认内容 |
 |------|---------|
-| **选型** | **pgvector on Cloud SQL PostgreSQL**（复用已有 Cloud SQL 基础设施，运维成本低；FAQ 规模 ~3,963 篇文章，不需要大规模 ANN）|
+| **选型** | **pgvector on Cloud SQL PostgreSQL**（复用已有 Cloud SQL 基础设施，运维成本低；FAQ 规模 ~218 篇文章，不需要大规模 ANN）|
 | **分块策略** | 按语义段落或固定 token 窗口滑动重叠（256–512 tokens，重叠 10%–20%），避免切断表格/步骤列表 |
 | **数据模型** | 双层表：article-level（`article_id` / `title` / `summary` / 版本 / 发布状态 / 来源 URL）+ chunk-level（`chunk_id` / `article_id` / `chunk_index` / `chunk_text` / `embedding vector(dim)` / `token_count`）|
-| **索引** | 待定 IVFFlat 或 HNSW（数据量较小，先用 IVFFlat；需压测后确认）|
-| **在线检索** | Query Embedding → `ORDER BY embedding <=> query_embedding LIMIT 3` → 组装 Prompt（Query + Title + Summary + Top-2~3 chunks）→ LLM → 结构化回答 |
+| **Embedding 模型** | **Vertex AI `text-embedding-004`（GCP native，v6 已确认）**；768 维度；入库与在线 Query 必须使用同一模型与同一维度；通过自建微服务封装 Vertex AI API（离线批量 embed 后 bulk insert）|
+| **索引** | **HNSW + cosine（已确认，见 `problem_retrieval_solution_plan_pgvector.md` §7）**：`m=16, ef_construction=64`；查询 `hnsw.ef_search=100`，开 `hnsw.iterative_scan=relaxed_order`；客服知识库场景漏召回代价 > 建索引慢一点，HNSW 为首选 |
+| **在线检索** | ANN Top-20 → metadata filter（published / locale / market / audience）→ article-level 去重 → rerank Top-4~8 → 取 Top 4~6 组装 Prompt（Query + Title + Summary + chunks）→ LLM → 结构化回答；**faq_miss 两段式判定**：Retrieval Gate（候选质量 / metadata 命中）→ Answer Gate（`grounding_score < 3.5` 判弱命中/不可答）|
 | **Embedding 模型** | 待选（Vertex AI `text-embedding` / Gemini embedding 系列）；入库与在线 Query 必须同一模型 + 同一维度 |
 | **详细方案** | 见 `problem_retrieval_solution_plan_pgvector.md` |
 
@@ -402,12 +403,12 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 ### 1.4.10 代码仓库结构
 
 - **Multi-repo**：每个服务独立仓库。
-- **Bot 项目**：**新建 greenfield standalone repo**，遵循现有约定 — 独立 Helm chart、Jenkinsfile、Dockerfile、contract 目录。
+- **Bot 项目**：**已创建 greenfield standalone repo，repo 名称：`csagent`（v5 确认）**，遵循现有约定 — 独立 Helm chart、Jenkinsfile、Dockerfile、contract 目录。
 - **标准目录**：`/server`、`/helm-chart`、`/contract`。
 
 ### 1.4.11 合规与安全（BRD §D）
 
-- UK GDPR 合规；PII 脱敏（包括 transcript 与日志）。
+- UK GDPR 合规；**PII 脱敏规则遵循 GDPR 隐私保护要求执行（v5 已确认）**：transcript / 日志中 email / ad_id / phone 等字段需脱敏；`get_customer_context` 设计 `safe_summary` 以最小化 PII 暴露。
 - 不存储用户密码；不在 free text 中索取或存储敏感个人数据。
 - 索取识别信息（email / case number 等）时必须解释原因。
 - Chat transcript 按 Gumtree 数据保留策略存储。
@@ -534,7 +535,7 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | **Intake / Tool Contract Dataset** | 验证 Bot 按 tool_spec v0.2 `allowed_use_cases` / `disallowed_use_cases` 正确调用工具；含期望 tool_call 序列 + negative cases | **50 sessions / 1,108 turns** | ✅ 已构建 |
 | **Bad-Case Bank** | frustration / abandoned / escalation-signal 会话；guardrail regression | **95 sessions / 2,026 turns** | ✅ 已构建 |
 | **Missed-Session Dataset** | 无 transcript 的沉没会话 metadata；Bot 首触达承接机会分析 | **2 sessions**（LiveChatTranscript 导出限制；需 Salesforce Case 导出补充） | ⚠️ 数据不足 |
-| **Human Review Queue** | quality_score ≥ 60 的会话，待人工标注 ground truth（UC / tool sequence / escalation rationale） | **367 sessions** | ⏳ 待标注（见 `HUMAN_REVIEW_GUIDE.md`）|
+| **Human Review Queue** | quality_score ≥ 60 的会话；**v6 决策：当前阶段跳过人工标注，直接以现有 eval datasets（`csagent/data/eval_datasets/`）为 ground truth**；后续上线后根据真实 Bot 数据再做人工回标补充 | **367 sessions** | ✅ 决策已定（跳过当前人工标注）|
 
 **v4 关键发现**：
 - CSAT 覆盖率仅 1.9% — 不可用于数据集质量验证；需在 Bot 上线后启用 CSAT 采集
