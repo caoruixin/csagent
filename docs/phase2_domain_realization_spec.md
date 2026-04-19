@@ -614,9 +614,11 @@ tool_spec_mapping: UC-K
 
 > 对齐 tool_spec v0.2 的 `search_knowledge.allowed_use_cases` = UC-A/B/C/D/E/F/FP；其他 UC（UC-G/H/I/J/K）不启用 `search_knowledge`，只用固定话术模板（`fixed_script_library` runtime capability）。
 >
-> **关键约束（v4 已确认）**：Salesforce Knowledge API 当前**无可用开发 API 能力**（`salesforce-part-spec.md`）。Bot 知识检索完全依赖 **pgvector 离线索引**（3,963 篇文章，见 `FAQ-knowledge_include_help_url.csv`）。Salesforce Knowledge 仅用于 article Id → 发布状态验证（`resolve_article` 的 `must_verify_published_status` policy）。
+> **关键约束（v4 已确认，v6 修正文章数）**：Salesforce Knowledge API 当前**无可用开发 API 能力**（`salesforce-part-spec.md`）。Bot 知识检索完全依赖 **pgvector 离线索引**（218 篇文章，见 `FAQ-knowledge_include_help_url.csv`；原统计 3,963 系 CSV 行数，Description__c 含多行 HTML 导致虚高）。Salesforce Knowledge 仅用于 article Id → 发布状态验证（`resolve_article` 的 `must_verify_published_status` policy）。
 >
-> **UC-FP 增强（v0.2 新增）**：`get_moderation_review_context` 工具（runtime_only，gumshield cs-review API）为 UC-A/UC-FP 提供广告审核/删除的具体 reason_code，使 Bot 能给出 grounded 的"为什么被删"解释而非 generic "policy violation"。
+> **Article → UC 映射（v6 已完成初版）**：`data/knowledge/article_uc_mapping.csv`（218 篇自动映射，覆盖 UC-A/B/C/D/E/F/FP；mapping 方法：url_category 177 + title_keyword 37 + content_keyword 4）；`knowledge_base_articles.json` 已生成可用于 pgvector 入库；218 篇即为 CSV 全量文章（原 3,963 系行数误计），全部已完成初版映射。Embedding 模型：Vertex AI `text-embedding-004`（768 维，GCP native）。
+>
+> **UC-FP 增强（v0.2 新增）**：`get_moderation_review_context` 工具（runtime_only，gumshield cs-review API）为 UC-A/UC-FP 提供广告审核/删除的具体 reason_code，使 Bot 能给出 grounded 的"为什么被删"解释而非 generic "policy violation"；**dev/demo 阶段使用 mock 数据**，正式接入审批在 prod 部署前完成（v6）。
 
 | Use Case | 允许的 Knowledge 范围 | 期望 Evidence 类型 | `search_knowledge` 可调用？ |
 |----------|---------------------|------------------|------------------------|
@@ -722,7 +724,7 @@ escalation_policy:
 close_policy:
   - 明确标记 outcome（resolved / escalated / abandoned），写入 ContainmentOutcome__c
   - 记录完整 trace 字段
-  - 可选采集 CSAT
+  - **CSAT 采集（v5 已确认机制）**：bot 直接 resolve 的会话 → session 结束后通过邮件发送 CSAT 问卷；转人工的会话 → 不下发 Bot CSAT（避免与坐席 CSAT 混淆）
   - 一期会话结束语对齐 BRD tone：清晰、简洁、不过度道歉
 ```
 
@@ -825,15 +827,25 @@ discover_policy_override:
 
 clarification_policy_override:
   max_clarification_rounds: 2
-  required_intake_fields:
-    - registered_email  # 必填
-    - request_type      # enum: account_deletion / data_deletion / sar / other
+  # Bot 可采集（低风险、用于路由和初步建单的最小必要信息，v5 已确认）：
+  bot_collectable_fields:
+    - request_type          # enum: account_deletion / data_deletion / sar / other（必填）
+    - registered_email      # 必填（新版 pre-chat form 已提供，可直接使用）
+    - ad_id_if_relevant     # 选填（如请求涉及特定广告）
+    - problem_description   # 问题概述（pre-chat form description 已提供，一般无需再问）
+    - is_self_initiated     # 是否本人发起（是否代他人提交）
+    - callback_email        # 可回联邮箱（若与注册邮箱不同）
+  # 必须人工核验（Bot 绝不承诺已完成，v5 已确认边界）：
+  human_verification_required:
+    - identity_authenticity               # 身份真实性确认（防止代为提交，GDPR 合规要求）
+    - actual_data_erasure_or_sar_execution  # 实际数据删除 / SAR 执行操作（专用后台流程）
+    - proxy_or_agent_authorization        # 如非本人提交，需核验代理人授权
   optional_intake_fields:
     - additional_details
 
 resolution_policy_override:
   - **禁用 search_knowledge**（tool_spec disallowed）
-  - 使用固定话术库："Your request needs to be handled by our privacy team for identity verification. I'll pass your details on — you'll hear back by email within {SLA}."
+  - 使用固定话术库（已通过合规审批，v5）："Your request needs to be handled by our privacy team for identity verification. I'll pass your details on — you'll hear back by email within {SLA}."
   - 仅在用户要求"如何提交"时返回 Help Centre GDPR overview 的 static 链接（不作为 grounded answer）
 
 escalation_policy_override:
@@ -1051,7 +1063,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 | **敏感写操作只能由人触发** | `moderation_enforcement_action` / `send_followup_email_or_async_update` — Bot 永远不发起；`create_case_controlled` 由 runtime 按 use case policy 自动触发（非模型自由调用）| tool_spec visibility=human_only / runtime_only |
 | **最小信息暴露** | `get_customer_context` 必须返回 `safe_summary` 而非完整 account dump；transcript 与日志 redact PII | tool_spec runtime_policy.must_minimize_pii / must_return_safe_summary_only |
 | **品牌口径** | 命名 = "Gumtree Support Assistant"；语气 = friendly/clear/short；禁用 "AI"/"As an AI language model"/反复 sorry | prompt + style grader |
-| **GDPR / PII 保护** | 不在 free text 索取或存储敏感数据（密码、完整身份证号）；索取识别信息时解释原因（"so I can locate your account"）| clarification policy + redaction |
+| **GDPR / PII 保护** | 不在 free text 索取或存储敏感数据（密码、完整身份证号）；索取识别信息时解释原因（"so I can locate your account"）；**PII 脱敏规则遵循 GDPR 隐私保护要求执行（v5 已确认）**：transcript / 日志中 email / ad_id / phone 等字段脱敏；`get_customer_context` 设计 `safe_summary` 以最小化 PII 暴露 | clarification policy + redaction（GDPR-aligned）|
 | **identifier 收集标准** | 优先顺序：registered_email > ad_id / listing_id > phone；每次收集前必须解释原因；PII 按 schema 进入 state 并在 log 中 redact | 对齐 transcript 样本观察到的 126/499 标识符收集模式 |
 | **可恢复的 "Start again"** | 用户可随时重置会话 | UI 入口 + state reset action |
 | **WCAG 无障碍** | 文本要素满足基本可读性；菜单按钮可键盘操作 | UI 实现规范 |
@@ -1086,7 +1098,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 | **`get_moderation_review_context`** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `create_case_controlled` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
 
-> **v0.2 新增 `get_moderation_review_context`**（gumshield cs-review API）：仅 UC-A / UC-FP 允许。由 `lookup_listing_or_ad` 链式调用（step 5: `POST /api/cs-review/ad-id/`）。为 UC-FP 提供具体 `review_reason` / `reason_code` / `deletion_reason_code`，使 Bot 能 grounded 解释"为什么帖子被删"而非 generic "policy violation"。`must_map_reason_to_public_policy: true` — runtime 需将内部 reason_code 映射为公开政策解释后才暴露给 Bot。
+> **v0.2 新增 `get_moderation_review_context`**（gumshield cs-review API）：仅 UC-A / UC-FP 允许。由 `lookup_listing_or_ad` 链式调用（step 5: `POST /api/cs-review/ad-id/`）。为 UC-FP 提供具体 `review_reason` / `reason_code` / `deletion_reason_code`，使 Bot 能 grounded 解释"为什么帖子被删"而非 generic "policy violation"。`must_map_reason_to_public_policy: true` — runtime 需将内部 reason_code 映射为公开政策解释后才暴露给 Bot。**开发策略（v6 已确认）**：dev/demo 阶段使用 mock 数据开发和 debug；正式服务账号访问审批（dev + prod 环境）流程进行中，正式部署服务前完成配置。
 >
 > `lookup_*` + `get_moderation_review_context` 不被模型直接调用；由 `get_customer_context` 复合触发。
 >
@@ -1097,7 +1109,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 | Tool | 允许调用者 | 说明 |
 |------|-----------|------|
 | `moderation_enforcement_action` | 坐席 console / back-office | 删帖、限号、账号限制；tool_spec visibility=human_only，risk_tier=critical |
-| `send_followup_email_or_async_update` | 坐席 / back-office workflow | 异步邮件跟进；V1.1+ 或人工触发 |
+| `send_followup_email_or_async_update` | 坐席 / back-office workflow | 异步邮件跟进；**邮件发送规则/模版/内容遵循现有 Salesforce 人工 CS 系统（v5 已确认）；Bot 不直接向用户发送邮件** |
 
 ### 2.10.4 Per-UC Tool Call Sequence（期望模式，v0.2 含 form_context 触发）
 
@@ -1135,7 +1147,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 
 > **注**：`First Name` / `Last Name` / `Email` 来自 pre-chat form（新版表单必填），Bot 不需要再次索取。Bot 只需补充 per-UC 特有字段（ad_id / report_target / platform 等）。
 >
-> **Queue 路由**：v4 已确认 online → CS_NEW_chat（坐席主动认领），offline → CS_Cases_New。Phase 3 需确认是否需要 per-UC 专属 queue（如 Trust & Safety 专属 queue）或统一用 CS_Cases_New。
+> **Queue 路由（v5 已确认）**：所有 UC 转人工时遵循统一规则 — online（坐席在线）→ CS_NEW_chat；offline → CS_Cases_New。**不设 per-UC 专属 queue**（决策 #21 已关闭）。
 
 ### 2.10.6 Tool Runtime Policy 对照（对齐 tool_spec v0.2 `runtime_policy`）
 
@@ -1167,7 +1179,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 - ✅ 12 个 use case 的完整 schema（§2.2；UC-A/B/C/D/E/F/FP + UC-G/H/I/J/K）
 - ✅ Risk 分级（含 critical）与 forbidden automation 列表（§2.3）
 - ✅ 17 类 escalation triggers + reason codes（§2.4）
-- ✅ Use case → knowledge scope 映射框架（§2.5；**v4：Knowledge API 不可用已确认，pgvector 为唯一检索后端；3,963 篇文章 CSV 已可用**）
+- ✅ Use case → knowledge scope 映射框架（§2.5；**v4：Knowledge API 不可用已确认，pgvector 为唯一检索后端；218 篇文章 CSV 已可用，全量 UC 映射已完成初版**）
 - ✅ 通用 + per-UC 控制策略（§2.6；含 UC-G/H/I/J/K intake 策略 + **v4 pre-chat form integration**）
 - ✅ 5 类 outcome + ContainmentOutcome__c 映射（§2.7）
 - ✅ Handover payload JSON schema（§2.7）
@@ -1185,20 +1197,25 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 - ~~向量库选型~~ → pgvector on Cloud SQL 已确认
 - ~~Off-hours 策略~~ → 检查 New Chat queue agent 在线状态已确认
 - ~~Salesforce 自定义对象~~ → `Chat_Message_Log__c` 已存在
-- ~~Help Centre 文章清单~~ → `FAQ-knowledge_include_help_url.csv` 3,963 篇已可用
+- ~~Help Centre 文章清单~~ → `FAQ-knowledge_include_help_url.csv` 218 篇已可用（原 3,963 系 CSV 行数）
 - ~~create_case_controlled per-UC required_fields~~ → tool_spec v0.2 已定义初版
 
-**仍待补齐：**
-- UC-FP-01 / UC-H-01 安抚与解释话术**合规终审**
-- UC-G/H/I/J/K 固定话术库（`fixed_script_library`）**合规审批**
-- UC-G-01 GDPR intake 字段边界（哪些由 Bot 采集 vs 人工核验）
-- article → UC 映射（3,963 篇文章的 UC 分类标注）
-- Embedding 模型选型
-- pgvector 索引策略（IVFFlat vs HNSW）
-- faq_miss score_threshold 确定
-- gumshield cs-review API Bot 服务账号访问审批
-- Golden Dataset human review 标注（367 条 queue）
-- CSAT 采集机制与阈值
-- PII redaction 规则
-- 流量分配策略与 go/no-go 阈值
-- per-UC 专属 queue 是否需要（或统一 CS_Cases_New / CS_NEW_chat）
+**已解决（v5，2026-04-19）：**
+- ~~UC-FP-01 / UC-H-01 安抚与解释话术**合规终审**~~ → ✅ 审核通过（`fixed_script_library_v1.md` §2-3 为合规版本）
+- ~~UC-G/H/I/J/K 固定话术库（`fixed_script_library`）**合规审批**~~ → ✅ 审核通过（14 类模板 / 50+ 话术 / 禁止话术清单）
+- ~~UC-G-01 GDPR intake 字段边界~~ → ✅ Bot 采集 6 类最小必要字段（见 §2.6 UC-G-01 更新）；人工核验：身份真实性 / 实际数据删除执行 / 代理人授权
+- ~~CSAT 采集机制~~ → ✅ bot-resolved 会话：session 结束后邮件发送 CSAT；转人工 → 不下发 Bot CSAT（见 §2.6 close_policy）
+- ~~PII redaction 规则~~ → ✅ 遵循 GDPR 隐私保护要求执行（见 §2.9 Guardrails 更新）
+- ~~pgvector 索引策略（IVFFlat vs HNSW）~~ → ✅ HNSW + cosine 已确认（`m=16, ef_construction=64, ef_search=100`）
+- ~~faq_miss score_threshold~~ → ✅ 两段式判定（Retrieval Gate + Answer Gate `grounding_score < 3.5`）
+- ~~per-UC 专属 queue~~ → ✅ 统一规则：online → CS_NEW_chat，offline → CS_Cases_New（见 §2.10.5 更新）
+- ~~Bot_Session__c / Bot_Event__c 是否追加~~ → ✅ 确认追加创建，升级为 session + event 显式状态模型
+
+**已解决（v6，2026-04-19）：**
+- ~~Embedding 模型选型~~ → ✅ **Vertex AI `text-embedding-004`**（768 维，GCP native）
+- ~~流量分配策略与 go/no-go 阈值~~ → ✅ **GrowthBook** 管理；10% → 20% → 50% → 100% 渐进放量；代码不硬编码阈值（见 `docs/abtesing-policy.md`）
+- ~~article → UC 映射~~ → ✅ 初版已完成：`data/knowledge/article_uc_mapping.csv`（218 篇，auto-mapped）；`knowledge_base_articles.json` 已可用于 pgvector 入库
+- ~~gumshield cs-review API 访问审批~~ → ✅（Dev 阶段）mock 数据可先行开发；正式审批流程进行中，prod 部署前完成
+- ~~Golden Dataset human review 标注~~ → ✅ 当前阶段**跳过人工标注**，直接以 `csagent/data/eval_datasets/`（7 类数据集 601 sessions / 11,288 turns）为 ground truth
+
+**Phase 3 启动条件：✅ 全部阻塞项已解决，Phase 3 Detailed Technical Design 可以启动。**
