@@ -447,6 +447,9 @@ Before launch, model-based graders must be calibrated:
 | `active_use_case_accuracy` | % sessions where inferred UC = expected UC | ≥ 85% | Golden + Escalation datasets |
 | `candidate_use_case_recall` | % sessions where expected UC ∈ candidate set | ≥ 95% | Golden + Escalation datasets |
 | `form_routing_precision` | % sessions where `topic_subject` strong signal correctly routes | Track | Golden dataset |
+| `topic_subject_containment` | Per-Topic-Subject containment rate (业务 L1 评估维度) | Track per TS | All sessions |
+| `topic_uc_mismatch_rate` | % sessions where `form_topic_subject` primary UC ≠ `active_use_case` | Track | All sessions |
+| `oos_topic_handover_rate` | % sessions with handover-only Topic Subject (Delivery/ProContract/AccountMgr/RatingsReviews) | Track | All sessions |
 
 ### 6.2 Retrieval Metrics
 
@@ -744,6 +747,7 @@ After launch, weekly sample of real Bot sessions replayed:
 | Metric | Source | Alert Threshold |
 |--------|--------|----------------|
 | Containment rate (overall) | `session_outcomes` | Drop > 10% from baseline |
+| Containment rate (per Topic Subject) | `session_outcomes` grouped by `form_topic_subject` | Drop > 15% for any TS |
 | Containment rate (per UC) | `session_outcomes` | Drop > 15% for any UC |
 | Escalation rate (overall) | `session_outcomes` | Spike > 20% from baseline |
 | Abandonment rate | `session_outcomes` where `outcome=abandoned` | > 15% |
@@ -777,6 +781,17 @@ After launch, weekly sample of real Bot sessions replayed:
 | High-risk edge | 2 | UC-G/H/I/J boundary cases |
 
 **Output**: Each reviewed session tagged as `correct`, `acceptable`, or `failure`. Failures enter bad-case bank with root cause annotation.
+
+### 10.4 Eval Reporting Dimensions（v7 新增）
+
+评估报告需同时提供两个切面：
+
+| 维度 | 聚合字段 | 适用指标 | 使用者 |
+|------|---------|---------|--------|
+| **Topic Subject (L1)** | `form_topic_subject` | containment / CSAT / escalation / abandonment / handover completeness | 业务方（Product / Ops / Exec） |
+| **UC (L2)** | `active_use_case` | routing accuracy / grounding quality / tool compliance / intake completeness | 工程方（Agent 调优） |
+| **Topic Subject × UC** | 交叉 | 识别 "用户选了 A 但实际问的是 B" 的分布；`topic_uc_mismatch_rate` | 产品（意图分类优化） |
+| **OOS Topic Subject** | `form_topic_subject ∈ {Delivery, Pro Contract, Account Manager Support, Ratings Reviews}` | handover rate / Description → UC 命中率 | 产品（是否需要扩展 UC 覆盖） |
 
 ---
 

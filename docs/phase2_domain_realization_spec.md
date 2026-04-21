@@ -12,9 +12,12 @@
 将通用规范层（single agent + bounded loop + grounded before generative + escalation first-class + tool_surface = small_and_strong）映射为 Gumtree Customer Service 的具体业务控制模型。该层是后续 Detailed Technical Design 的业务契约依据。
 
 覆盖范围：
-- **12 个 V1 use case**（对齐 `customer_service_tool_spec_v0_1.yaml` §use_cases）：
+- **12 个 V1 use case**（对齐 `customer_service_tool_spec_v0_2.yaml` §use_cases），按 **Topic Subject → UC 两层分类** 组织：
+  - **L1 — Topic Subject**（Pre-chat Form 必填下拉，11 个值）：业务评估维度。其中 7 个有 UC 覆盖，4 个为 V1 handover-only（Delivery / Pro Contract / Account Manager Support / Ratings Reviews）。
+  - **L2 — UC**（Bot 意图分类结果）：Agent 路由/处理维度。每个 UC 有且仅有一个 `parent_topic_subject`。
   - **FAQ / grounded-answer 类（Bot 可 resolve）**：UC-A-01、UC-B-01、UC-C-01、UC-D-01、UC-E-01、UC-F-01、UC-FP-01
   - **Intake + Handover 类（Bot 不 resolve，只做结构化采集与移交）**：UC-G-01、UC-H-01、UC-I-01、UC-J-01、UC-K-01
+- **4 个 Handover-only Topic Subject**：Delivery / Pro Contract / Account Manager Support / Ratings Reviews — 不创建 UC，routing 层直接走固定话术 + `request_handover`（见 §2.11）
 - **风险分级**：low / medium / high / critical / forbidden
 - **升级矩阵**：12 类触发条件
 - **知识范围映射**
@@ -22,9 +25,11 @@
 - **结果定义与 Salesforce ContainmentOutcome__c 映射**
 - **跨 UC 路由 + drift 处理**
 - **Guardrails 落地**（含 BRD 品牌口径）
-- **per-UC 工具可用性矩阵（§2.10）**：对齐 tool_spec v0.1 的 `allowed_use_cases` / `disallowed_use_cases` / `runtime_policy`
+- **per-UC 工具可用性矩阵（§2.10）**：对齐 tool_spec v0.2 的 `allowed_use_cases` / `disallowed_use_cases` / `runtime_policy`
 
 > **命名约定**：Phase 2 use_case_id 使用 `UC-X-01` 后缀（预留同类多变体），tool_spec 使用 `UC-X`（粗粒度）。映射关系：`UC-X-01 ∈ UC-X`。Phase 2 的路由策略与 tool allowed_use_cases 检查以 `UC-X` 作为最粗一级；同类下若将来出现 `UC-X-02` 等细分，需单独声明 tool overrides。
+>
+> **Topic Subject 与 UC 的关系**：Topic Subject 是用户在 Pre-chat Form 中选择的业务分类（L1），UC 是 Bot 根据 Topic Subject + Description 做意图分类后的处理路径（L2）。每个 UC 有一个 `parent_topic_subject` 标识其在业务评估中的归属。UC 可以被跨 Topic Subject 激活（如用户选 "Account Support" 但描述的是 GDPR → UC-G-01），此时 `form_topic_subject` 保持用户原始选择不变，`active_use_case` 为实际路由目标。
 
 ---
 
@@ -37,6 +42,7 @@
 ```yaml
 use_case_id: UC-A-01
 name: Ad Status & Visibility
+parent_topic_subject: Ad Support
 description: >
   用户询问帖子/广告的状态：审核中、找不到、不显示、跨区展示、
   广告统计等。Bot 提供状态说明、类目/地区可见性解释、
@@ -76,6 +82,7 @@ outcome_class: resolve
 ```yaml
 use_case_id: UC-B-01
 name: Posting & Editing Guidance
+parent_topic_subject: Ad Support
 description: >
   用户询问如何发帖、编辑广告、修改类目/地区/图片/价格等。
   Bot 提供步骤化 FAQ 和深链到对应功能页。
@@ -114,6 +121,7 @@ outcome_class: resolve
 ```yaml
 use_case_id: UC-C-01
 name: Messages & Replies
+parent_topic_subject: Replies or Messaging
 description: >
   用户询问如何收发消息、回复广告、恢复已删消息、未收到回复等。
   Bot 提供操作路径 FAQ 和安全提示；对"恢复已删消息"明确不承诺。
@@ -151,6 +159,7 @@ outcome_class: resolve
 ```yaml
 use_case_id: UC-D-01
 name: Account & Login (Non-Sensitive)
+parent_topic_subject: Account Support
 description: >
   用户询问密码重置、登录问题、邮箱登录说明、Alerts/Favourites/
   Unsubscribe 等。Bot 提供自助链接和指引；拒绝存储密码、
@@ -193,6 +202,7 @@ outcome_class: resolve
 ```yaml
 use_case_id: UC-E-01
 name: General Product & Search
+parent_topic_subject: Technical Support
 description: >
   用户询问搜索功能使用、Gumtree 产品功能、功能反馈/投诉等。
   Bot 提供功能说明 FAQ 和反馈表单入口引导。
@@ -229,6 +239,7 @@ outcome_class: resolve
 ```yaml
 use_case_id: UC-F-01
 name: Payment Inquiry (Non-Dispute)
+parent_topic_subject: Payments
 description: >
   用户询问 Gumtree Payments 规则、到账时间、一般支付流程等。
   Bot 提供政策与流程类 FAQ 和免责声明（不构成财务/法律建议）；
@@ -268,6 +279,7 @@ outcome_class: resolve
 ```yaml
 use_case_id: UC-FP-01
 name: Correct Deletion / Compliance Takedown Explanation
+parent_topic_subject: Ad Support
 description: >
   用户询问帖子被删原因，命中"Correct Deletion / 合规下架"子类
   （TMX/Filter Correct Deletion、Deleted/Blacklisted Correctly、
@@ -312,6 +324,7 @@ outcome_class: resolve
 ```yaml
 use_case_id: UC-G-01
 name: GDPR / Data Deletion Intake
+parent_topic_subject: Delete My Account or Data
 description: >
   用户请求账号删除、数据删除（Right to Erasure）、SAR、数据访问请求。
   V1 Bot 不执行 GDPR 合规动作（身份核验、数据擦除、SAR 响应由
@@ -350,6 +363,7 @@ tool_spec_mapping: UC-G          # 对应 customer_service_tool_spec_v0_1.yaml
 ```yaml
 use_case_id: UC-H-01
 name: Incorrect Deletion Appeal / Ad Removal Appeal
+parent_topic_subject: Ad Support
 description: >
   用户声称广告被错误删除、误判违规、账户被错误限制，申诉复核。
   Chat 样本中占比最高（116/262 ≈ 44%）。V1 Bot 不做裁决或恢复，
@@ -393,6 +407,7 @@ tool_spec_mapping: UC-H
 ```yaml
 use_case_id: UC-I-01
 name: Refund / Payment Dispute Intake
+parent_topic_subject: Payments
 description: >
   用户关于 Gumtree Payments 的退款、未收到货 / INAD、扣款错误、
   chargeback 等争议。V1 Bot 不做规则判定、不做金额裁决，
@@ -431,6 +446,7 @@ tool_spec_mapping: UC-I
 ```yaml
 use_case_id: UC-J-01
 name: Trust & Safety / Fraud Report Intake
+parent_topic_subject: Report a Safety Issue
 description: >
   用户举报他人诈骗、可疑广告、被骗、账户被冒用、骚扰等。
   Chat 样本中 25 条（9.5%，risk_tier=critical）。V1 Bot 做
@@ -473,6 +489,7 @@ tool_spec_mapping: UC-J
 ```yaml
 use_case_id: UC-K-01
 name: Technical Issue Intake
+parent_topic_subject: Technical Support
 description: >
   用户报告功能异常、无法登录、搜索结果错误、支付页 bug、
   应用崩溃等技术问题。V1 Bot 做轻量排障澄清（2 轮内）+
@@ -762,9 +779,47 @@ resolution_policy_override:
   - "恢复已删消息"→ 明确话术"无法保证恢复" + Help Centre 链接，**绝不承诺**找回
   - 声称被骗/举报用户 → J 类，结构化举报入口或转人工，Bot 不裁决
 
+# v0.2.1 新增：消息诊断路径（"收不到回复" / "消息发不出去" 类场景）
+# 参考 case 570Q5000008oMIVIA2（坐席查账户限制→查广告状态→查消息审核→实时验证投递）
+diagnostic_resolution_path:
+  trigger: >
+    用户描述涉及 "can't get replies" / "not receiving messages" /
+    "messages not working" / "nobody replies" 等消息投递类问题
+  step_1_account_check:
+    tool: get_customer_context(account)  # 调用 lookup_customer_account
+    if_restricted: >
+      解释账户限制状态 + 可能影响消息功能
+      → "I can see there's a restriction on your account that may affect messaging.
+         Let me connect you to the team for further investigation."
+      → escalate(reason: account_compliance)
+  step_2_ad_check:
+    tool: get_customer_context(listing)  # 调用 lookup_listing_or_ad
+    condition: 用户提供了 ad_id
+    if_ad_inactive: >
+      解释广告已下架/过期
+      → "The ad you're trying to message (ID: {ad_id}) is no longer active,
+         so it can't receive new messages."
+      → resolution_check
+  step_3_message_moderation_check:
+    tool: get_customer_context(message_moderation)  # 调用 get_message_moderation_context
+    if_has_blocked_messages: >
+      告知消息可能被安全过滤器标记
+      → "It looks like some of your messages may have been flagged by our
+         safety filters. I'll connect you to the team to look into this."
+      → escalate(reason: message_moderation_block)
+  step_4_all_clean:
+    action: >
+      账户正常 + 广告正常 + 消息无拦截 → FAQ 解答
+      → "I've checked and your account has no restrictions.
+         Your messages are going through normally — the seller may
+         not have replied yet. Double ticks (✓✓) mean your message
+         was delivered."
+      → search_knowledge(messaging FAQ) → resolution_check
+
 escalation_policy_override:
   - 用户坚持要求恢复已删消息 → 转人工
   - 涉及被骗指控 → 立即转人工
+  - 消息审核拦截检测到 → 转人工（Bot 不能解除消息拦截）
 ```
 
 ### UC-D-01 特定策略（PRD §1.6.2.1 D）
@@ -1093,14 +1148,19 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 
 | Tool \\ UC | UC-A | UC-B | UC-C | UC-D | UC-E | UC-F | UC-FP | UC-G | UC-H | UC-I | UC-J | UC-K |
 |-----------|:---:|:---:|:---:|:---:|:---:|:---:|:----:|:---:|:---:|:---:|:---:|:---:|
-| `lookup_customer_account` | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `lookup_listing_or_ad` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `lookup_customer_account` | ❌ | ❌ | **✅** | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `lookup_listing_or_ad` | ✅ | ❌ | **✅** | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | **`get_moderation_review_context`** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **`get_message_moderation_context`** | ❌ | ❌ | **✅** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `create_case_controlled` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
 
 > **v0.2 新增 `get_moderation_review_context`**（gumshield cs-review API）：仅 UC-A / UC-FP 允许。由 `lookup_listing_or_ad` 链式调用（step 5: `POST /api/cs-review/ad-id/`）。为 UC-FP 提供具体 `review_reason` / `reason_code` / `deletion_reason_code`，使 Bot 能 grounded 解释"为什么帖子被删"而非 generic "policy violation"。`must_map_reason_to_public_policy: true` — runtime 需将内部 reason_code 映射为公开政策解释后才暴露给 Bot。**开发策略（v6 已确认）**：dev/demo 阶段使用 mock 数据开发和 debug；正式服务账号访问审批（dev + prod 环境）流程进行中，正式部署服务前完成配置。
 >
-> `lookup_*` + `get_moderation_review_context` 不被模型直接调用；由 `get_customer_context` 复合触发。
+> **v0.2.1 新增 `get_message_moderation_context`**（message-moderation-history 微服务）：仅 UC-C 允许。由 `get_customer_context` 在 UC-C 消息诊断场景下链式调用（`POST /history/moderation/search`）。判断用户消息是否被平台审核拦截，使 Bot 能区分"消息已投递等待对方回复" vs "消息被审核拦截"。
+>
+> **v0.2.1 矩阵修复**：`lookup_customer_account` / `lookup_listing_or_ad` 新增 UC-C（修复 v0.2 中 `get_customer_context` 允许 UC-C 但子工具不允许的不一致）。
+>
+> `lookup_*` + `get_moderation_review_context` + `get_message_moderation_context` 不被模型直接调用；由 `get_customer_context` 复合触发。
 >
 > `create_case_controlled` 由 runtime 根据 UC-H/J/K 的 `intake_complete` 条件自动触发。
 
@@ -1119,7 +1179,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 |----------|-------------------|
 | UC-A-01 | [INIT: auto `get_customer_context`(listing, from form email+ad_id)] → `search_knowledge` → `resolve_article` → `record_outcome` |
 | UC-B-01 | `search_knowledge` → `resolve_article` → `record_outcome`（`get_customer_context` 对 UC-B 禁用）|
-| UC-C-01 | [INIT: auto `get_customer_context`(account)] → `search_knowledge` → `resolve_article` → `record_outcome` |
+| UC-C-01 | [INIT: auto `get_customer_context`(combined: account+listing+message_moderation)] → IF restricted/blocked/ad_inactive → explain + escalate option；IF clean → `search_knowledge` → `resolve_article` → `record_outcome` |
 | UC-D-01 | [INIT: auto `get_customer_context`(account)] → `search_knowledge` → `resolve_article` → `record_outcome` |
 | UC-E-01 | `search_knowledge` → `resolve_article` → `record_outcome`（`get_customer_context` 对 UC-E 禁用）|
 | UC-F-01 | [INIT: auto `get_customer_context`(listing)] → `search_knowledge` → `resolve_article` → `record_outcome` |
@@ -1172,11 +1232,109 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 
 ---
 
-## 2.11 Phase 2 → Phase 3 移交清单
+## 2.11 Topic Subject 路由策略（v7 新增）
+
+> **背景**：Pre-chat Form 的 Topic Subject 是用户必填下拉字段（11 个标准值），与 UC 是 L1→L2 的层级关系。本节定义 Topic Subject 层面的路由策略，补充 §2.8 的 UC 间路由规则。
+
+### 2.11.1 Topic Subject → UC 映射总表
+
+| Topic Subject (L1) | UC (L2) | UC 类型 | 消歧策略 |
+|---|---|---|---|
+| **Account Support** | UC-D-01 | FAQ-resolvable | 1:1；但需检测 UC-H/UC-G spillover（历史 37% 实际为 UC-H） |
+| **Ad Support** | UC-A-01, UC-B-01, UC-FP-01, UC-H-01 | Mixed | 需 Description 消歧：状态查询→A / 发帖编辑→B / 被删+理解→FP / 被删+申诉→H |
+| **Delete My Account or Data** | UC-G-01 | Intake+Handover | 强先验（70%+），可直接路由 |
+| **Delivery** | （无 UC） | Handover-only | §9.1 固定话术 → `request_handover` |
+| **Payments** | UC-F-01, UC-I-01 | Mixed | 需 Description 消歧：规则/流程咨询→F / 退款/争议/扣款错误→I |
+| **Pro Contract** | （无 UC） | Handover-only | §9.2 固定话术 → `request_handover` |
+| **Account Manager Support** | （无 UC） | Handover-only | §9.3 固定话术 → `request_handover` |
+| **Ratings Reviews** | （无 UC） | Handover-only | §9.4 固定话术 → `request_handover` |
+| **Replies or Messaging** | UC-C-01 | FAQ-resolvable | 1:1 |
+| **Report a Safety Issue** | UC-J-01 | Intake+Case+Handover | 强先验（71%+），可直接路由 |
+| **Technical Support** | UC-E-01, UC-K-01 | Mixed | 需 Description 消歧：功能使用/搜索方法→E / 故障/报错/无法操作→K |
+
+### 2.11.2 两阶段意图分类
+
+```
+Stage 1: Topic Subject 先验路由
+  ├─ 强先验（>70%）→ 直接路由到 UC，DISCOVER 阶段确认
+  │   - "Delete My Account or Data" → UC-G-01
+  │   - "Report a Safety Issue" → UC-J-01
+  ├─ Handover-only（4 个）→ 检查 Description 是否能路由到已有 UC
+  │   ├─ 若 Description 匹配已有 UC → 路由到该 UC（忽略 Topic Subject 先验）
+  │   └─ 若 Description 不匹配 → 固定话术 + request_handover
+  └─ 弱先验（≤70%）→ 进入 Stage 2
+
+Stage 2: Description 文本分类（在 Topic Subject 对应的 UC 候选集内）
+  ├─ "Ad Support" → {UC-A, UC-B, UC-FP, UC-H} 四选一
+  ├─ "Payments" → {UC-F, UC-I} 二选一
+  ├─ "Technical Support" → {UC-E, UC-K} 二选一
+  ├─ "Account Support" → {UC-D}（+ spillover 检测：UC-H/UC-G/UC-FP）
+  ├─ "Replies or Messaging" → {UC-C}（+ spillover 检测：UC-J）
+  └─ 若分类结果指向其他 Topic Subject 的 UC → 跨 UC 路由（§2.8 规则不变）
+```
+
+### 2.11.3 Topic Subject 内 UC 消歧关键信号
+
+| Topic Subject | UC 消歧 | 关键文本信号 |
+|---|---|---|
+| **Ad Support** | UC-A vs UC-B vs UC-FP vs UC-H | "where is my ad" / "not showing" → A；"how to post" / "edit" → B；"removed" + 无申诉意图 → FP；"removed" + "appeal" / "incorrect" / "unfair" → H |
+| **Payments** | UC-F vs UC-I | "how does payment work" / "fees" → F；"refund" / "not received" / "chargeback" / "dispute" → I |
+| **Technical Support** | UC-E vs UC-K | "how does search work" / "features" / "feedback" → E；"crash" / "error" / "bug" / "can't login" / "not working" → K |
+| **Account Support** | UC-D + spillover | "password" / "login" / "settings" → D；"banned" / "restricted" → FP/H；"delete account" / "GDPR" → G |
+
+### 2.11.4 Handover-only Topic Subject 处理规则
+
+当 `form_context.topic_subject ∈ {Delivery, Pro Contract, Account Manager Support, Ratings Reviews}` 时：
+
+1. **INIT 阶段**：正常解析 form_context，设 `form_topic_subject` = 用户选择值
+2. **DISCOVER 阶段**：先用 Description 文本做意图分类
+   - 若 Description 匹配已有 UC（如 Delivery + "scammed" → UC-J-01）→ 路由到该 UC，正常流程
+   - 若 Description 不匹配任何 UC → 标记 `active_use_case = OUT_OF_V1_SCOPE`
+3. **RESOLVE 阶段**（OUT_OF_V1_SCOPE）：
+   - 输出对应 Topic Subject 的固定话术（`fixed_script_library` §9.1–9.4）
+   - 立即调用 `request_handover`
+4. **Observability**：
+   - `Bot_Event__c.EventType__c = OUT_OF_SCOPE_HANDOVER`
+   - `Bot_Event__c.Payload__c` 含 `{ "topic_subject": "...", "description_snippet": "...", "matched_uc": null }`
+   - 用于后续分析是否需要扩展 UC 覆盖
+
+### 2.11.5 Session State 新增字段
+
+```yaml
+form_topic_subject:
+  type: string
+  description: 用户在 Pre-chat Form 中选择的 Topic Subject 原始值（不可变）
+  source: form_context.topic_subject
+  enum:
+    - Account Support
+    - Ad Support
+    - Delete My Account or Data
+    - Delivery
+    - Payments
+    - Pro Contract
+    - Account Manager Support
+    - Ratings Reviews
+    - Replies or Messaging
+    - Report a Safety Issue
+    - Technical Support
+```
+
+### 2.11.6 Handover Payload 新增字段
+
+```yaml
+# 在 §2.7 handover payload 基础上增加
+form_topic_subject: "Account Support"   # 用户表单原始选择
+topic_uc_mismatch: true                 # 当 form_topic_subject 的 primary UC ≠ active_use_case 时为 true
+```
+
+---
+
+## 2.12 Phase 2 → Phase 3 移交清单
 
 进入 Phase 3 Detailed Technical Design 之前，本 Phase 2 输出已固定的契约项：
 
-- ✅ 12 个 use case 的完整 schema（§2.2；UC-A/B/C/D/E/F/FP + UC-G/H/I/J/K）
+- ✅ 12 个 use case 的完整 schema + `parent_topic_subject` 字段（§2.2；UC-A/B/C/D/E/F/FP + UC-G/H/I/J/K）
+- ✅ **Topic Subject → UC 两层分类 + 路由策略（§2.11；v7 新增 — 11 Topic Subject 映射 + 4 handover-only TS + 两阶段意图分类 + UC-E 归属 Technical Support）**
 - ✅ Risk 分级（含 critical）与 forbidden automation 列表（§2.3）
 - ✅ 17 类 escalation triggers + reason codes（§2.4）
 - ✅ Use case → knowledge scope 映射框架（§2.5；**v4：Knowledge API 不可用已确认，pgvector 为唯一检索后端；218 篇文章 CSV 已可用，全量 UC 映射已完成初版**）
