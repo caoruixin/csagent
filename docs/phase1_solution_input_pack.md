@@ -35,32 +35,37 @@
 
 ### 1.1.2 Scope
 
-#### In-scope 场景（Phase 1，代号 A–F'，按 PRD §1.6.2 量级）
+#### In-scope 场景（Phase 1，按 Topic Subject → UC 两层分类，v7 更新）
 
-**按全量 Case Reason 体量**：
+**按 Topic Subject 聚合（对齐 Pre-chat Form 必填下拉 11 值）**：
 
-| 代号 | 类别 | 案例量 | 占比 |
-|------|------|-------|------|
-| A | 帖子/广告状态与可见性 | 5,506 | 4.6% |
-| B | 发帖与编辑指引 | 3,160 | 2.6% |
-| C | 消息与回复 | 2,627 | 2.2% |
-| D | 账户与登录-非敏感执行 | 4,906 | 4.1% |
-| E | 通用产品与搜索 | 3,811 | 3.2% |
-| F | 支付咨询-非争议执行 | 488 | 0.4% |
-| F' | 正确删除/合规下架话术 | 20,875 | 17.3% |
-| **合计 Phase 1 可承接** | — | **41,373** | **34.4%（占全库）/ 53.8%（占 Chat+Email 渠道）** |
+| Topic Subject | UC(s) | UC 类别 | 估算案例量 | 占比 |
+|---|---|---|---|---|
+| **Ad Support** | UC-A (Status) / UC-B (Posting) / UC-FP (Correct Deletion) / UC-H (Appeal) | FAQ + Intake | ~33,541 | 27.9% |
+| **Account Support** | UC-D (Account & Login) | FAQ | ~4,906 | 4.1% |
+| **Delete My Account or Data** | UC-G (GDPR) | Intake+Handover | ~29,638 | 24.6% |
+| **Payments** | UC-F (Inquiry) / UC-I (Dispute) | FAQ + Intake | ~3,488 | 2.9% |
+| **Replies or Messaging** | UC-C (Messages) | FAQ | ~2,627 | 2.2% |
+| **Report a Safety Issue** | UC-J (Trust & Safety) | Intake+Handover | ~6,238 | 5.2% |
+| **Technical Support** | UC-E (Product FAQ) / UC-K (Technical Issue) | FAQ + Intake | ~10,852 | 9.0% |
+| **Delivery** | （无 UC → handover） | Handover-only | ~1,200 | 1.0% |
+| **Pro Contract** | （无 UC → handover） | Handover-only | ~300 | 0.2% |
+| **Account Manager Support** | （无 UC → handover） | Handover-only | ~300 | 0.2% |
+| **Ratings Reviews** | （无 UC → handover） | Handover-only | ~1,500 | 1.2% |
 
-#### Out-of-V1-Bot-Resolution 但需 intake + handover 的 Phase 1 场景（新增，对齐 tool_spec UC-G/H/I/J/K）
+**FAQ-resolvable UC 合计**（UC-A/B/C/D/E/F/FP）：**~41,373（34.4% 占全库 / 53.8% 占 Chat+Email 渠道）**
 
-> 说明：tool_spec v0.1 将 UC-G / UC-H / UC-I / UC-J / UC-K 也列入 V1 use case registry，但 `allow_bot_resolution=false`；Bot 承接职责是**结构化 intake + `request_handover` + 对 UC-H/J/K 调 `create_case_controlled`**，不做自主回答或裁决。
+#### Out-of-V1-Bot-Resolution 但需 intake + handover 的 Phase 1 场景（对齐 tool_spec UC-G/H/I/J/K）
 
-| 代号 | 类别 | 案例量 | 占比 | V1 Bot 职责 |
-|------|------|-------|-----|-----------|
-| G | GDPR / 账号与数据 | ~30,000 | ~24.6% | 识别意图 → 固定话术解释流程 → 请求身份核验信息（由人工流程进行）→ handover |
-| H | 删帖与误删申诉 | ~4,000 | ~3.3% | 收集 ad_id / email + 申诉原因 → `create_case_controlled` → handover |
-| I | 支付退款与争议 | ~3,000 | ~2.5% | 固定话术（Bot 不做规则判定）+ 收集 order/payment 标识 → handover |
-| J | 信任与安全 | ~6,238 | 5.2% | 结构化举报采集（举报对象 / ad_id / 描述）→ `create_case_controlled` → handover |
-| K | 技术故障 | ~7,041 | 5.8% | 基本排障澄清（2 轮上限）→ 若无法解决 → `create_case_controlled` → handover |
+> 说明：tool_spec v0.2 将 UC-G / UC-H / UC-I / UC-J / UC-K 列入 V1 use case registry，但 `allow_bot_resolution=false`；Bot 承接职责是**结构化 intake + `request_handover` + 对 UC-H/J/K 调 `create_case_controlled`**，不做自主回答或裁决。
+
+| Topic Subject | UC | 类别 | 案例量 | 占比 | V1 Bot 职责 |
+|---|---|------|-------|-----|-----------|
+| Delete My Account or Data | UC-G | GDPR / 账号与数据 | ~30,000 | ~24.6% | 识别意图 → 固定话术解释流程 → 请求身份核验信息（由人工流程进行）→ handover |
+| Ad Support | UC-H | 删帖与误删申诉 | ~4,000 | ~3.3% | 收集 ad_id / email + 申诉原因 → `create_case_controlled` → handover |
+| Payments | UC-I | 支付退款与争议 | ~3,000 | ~2.5% | 固定话术（Bot 不做规则判定）+ 收集 order/payment 标识 → handover |
+| Report a Safety Issue | UC-J | 信任与安全 | ~6,238 | 5.2% | 结构化举报采集（举报对象 / ad_id / 描述）→ `create_case_controlled` → handover |
+| Technical Support | UC-K | 技术故障 | ~7,041 | 5.8% | 基本排障澄清（2 轮上限）→ 若无法解决 → `create_case_controlled` → handover |
 
 #### 活体 Chat 样本分布（对齐 `customer_service_conversation_samples_organized.xlsx`，262 条 transcript）
 
@@ -462,25 +467,28 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | Ad ID Number | 无 | 选填 | 如果用户填了 → `lookup_listing_or_ad` 可在 INIT 阶段立即触发 |
 | Description | 部分有（95.2% 覆盖率） | ✅ 必填 | 用户意图首句，Bot 的主要分类输入 |
 
-#### Topic Subject → UC 映射参考（从历史数据推导）
+#### Topic Subject → UC 正式映射（v7 确认，对齐 phase2 §2.11）
 
-> 注：下方映射基于老版表单 `Subject` 字段的统计分布。新版表单的 `Topic Subject` 下拉选项可能有变化，需与产品确认。
+> 新版 Pre-chat Form 已上线（11 个标准 Topic Subject 必填下拉）。映射关系为 **Topic Subject (L1) → UC (L2) 两层分类**，每个 UC 有唯一 `parent_topic_subject`。
 
-| Topic Subject 值 | Top 1 UC（占比）| Top 2 UC | Top 3 UC | 评估 |
-|------------------|---------------|---------|---------|------|
-| Account Support | UC-H (37%) | UC-C (11%) | UC-D (9%) | 低精度 — 什么都有 |
-| Ad Support | UC-H (62%) | UC-B (9%) | UC-C (5%) | 中精度 — UC-H 主导 |
-| Technical Support | UC-K (38%) | UC-H (21%) | UC-C (11%) | 中精度 |
-| Replies & Messaging | UC-C (68%) | UC-H (11%) | UC-J (9%) | 高精度 — UC-C 主导 |
-| Report a Safety Issue | UC-J (71%) | UNMAPPED (7%) | UC-I (5%) | 高精度 |
-| Delete my account / Data | UC-G (70%) | UC-H (22%) | — | 高精度 |
-| Payments | UC-H (30%) | UC-I (22%) | UC-J (14%) | 低精度 |
-| Ratings & Reviews | UC-C (31%) | UNMAPPED (24%) | UC-I (17%) | 低精度 |
+| Topic Subject | UC 候选集 | 先验强度 | 消歧策略 | 历史 UC 分布（参考） |
+|---|---|---|---|---|
+| **Delete My Account or Data** | UC-G | 强（70%+） | 直接路由 | UC-G 70% / UC-H 22% |
+| **Report a Safety Issue** | UC-J | 强（71%+） | 直接路由 | UC-J 71% / UNMAPPED 7% |
+| **Replies or Messaging** | UC-C | 中 | 1:1 + spillover 检测（UC-J） | UC-C 68% / UC-H 11% |
+| **Account Support** | UC-D | 弱 | 需 Description 消歧；历史 37% 实际为 UC-H | UC-H 37% / UC-C 11% / UC-D 9% |
+| **Ad Support** | UC-A / UC-B / UC-FP / UC-H | 弱 | 4 UC 消歧：状态→A / 发帖→B / 被删+理解→FP / 被删+申诉→H | UC-H 62% / UC-B 9% |
+| **Payments** | UC-F / UC-I | 弱 | 2 UC 消歧：咨询→F / 争议→I | UC-H 30% / UC-I 22% |
+| **Technical Support** | UC-E / UC-K | 中 | 2 UC 消歧：功能FAQ→E / 故障intake→K | UC-K 38% / UC-H 21% |
+| **Delivery** | （无 UC） | — | 固定话术 → handover；若 Description 含 scam 信号→UC-J | — |
+| **Pro Contract** | （无 UC） | — | 固定话术 → handover | — |
+| **Account Manager Support** | （无 UC） | — | 固定话术 → handover | — |
+| **Ratings Reviews** | （无 UC） | — | 固定话术 → handover；若 Description 含技术故障信号→UC-K | UC-C 31% / UNMAPPED 24% |
 
-**设计建议**：
-- "Report a Safety Issue" 和 "Delete my account / Data" 可作为**强 UC 先验**（>70% 命中率），直接路由到 UC-J / UC-G
-- 其他 Topic Subject 只作为弱信号，必须结合 Description 文本做意图分类
-- 新版表单的 Topic Subject 下拉选项清单需要从产品方获取（可能与上表不同）
+**路由规则**（详见 phase2 §2.11.2）：
+- **强先验**（>70%）："Delete My Account or Data" → UC-G / "Report a Safety Issue" → UC-J — DISCOVER 阶段直接路由
+- **Handover-only**（4 个）：先用 Description 检测是否匹配已有 UC；不匹配则固定话术 + handover
+- **弱先验**（≤70%）：必须结合 Description 文本在 UC 候选集内做意图分类
 
 #### 对 Bot 架构的影响
 

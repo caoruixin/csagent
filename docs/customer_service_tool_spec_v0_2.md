@@ -47,23 +47,24 @@ Bot LLM prompt 中可见、可直接发起调用的工具。
 | 4 | `request_handover` | controlled_write_action | medium | V1 |
 | 5 | `record_outcome` | analytics_trace | low | V1 |
 
-### 2.2 Runtime-Only Tools (4) — v0.1 was 3, +1 new
+### 2.2 Runtime-Only Tools (5) — v0.1 was 3, +1 in v0.2, +1 in v0.2.1
 
 Bot runtime 根据 use case policy 自动触发，不暴露给 LLM prompt。
 
 | # | Tool Name | Class | Risk | V1 Phase | 变更 |
 |---|-----------|-------|------|----------|------|
 | 6 | `create_case_controlled` | controlled_write_action | high | V1_limited | unchanged |
-| 7 | `lookup_customer_account` | trusted_read | medium | V1 | output enriched |
-| 8 | `lookup_listing_or_ad` | trusted_read | medium | V1 | output enriched |
-| 9 | `get_moderation_review_context` | trusted_read | medium | V1 | **NEW** |
+| 7 | `lookup_customer_account` | trusted_read | medium | V1 | output enriched; **v0.2.1: UC-C added to allowed** |
+| 8 | `lookup_listing_or_ad` | trusted_read | medium | V1 | output enriched; **v0.2.1: UC-C added to allowed** |
+| 9 | `get_moderation_review_context` | trusted_read | medium | V1 | **NEW in v0.2** |
+| 10 | `get_message_moderation_context` | trusted_read | medium | V1 | **NEW in v0.2.1** — UC-C messaging diagnostic |
 
 ### 2.3 Human-Only Tools (2) — unchanged
 
 | # | Tool Name | Class | Risk |
 |---|-----------|-------|------|
-| 10 | `moderation_enforcement_action` | sensitive_write_action | critical |
-| 11 | `send_followup_email_or_async_update` | async_notification | medium |
+| 11 | `moderation_enforcement_action` | sensitive_write_action | critical |
+| 12 | `send_followup_email_or_async_update` | async_notification | medium |
 
 ### 2.4 Runtime Capabilities (non-tool, system-level)
 
@@ -712,7 +713,7 @@ must_follow_use_case_policy: true
 
 **Purpose**: 通过 email/phone/account_id 查找客户账户状态。由 `get_customer_context` 内部调用。
 
-**Allowed UCs**: UC-D, UC-FP, UC-K (via get_customer_context)
+**Allowed UCs**: UC-C, UC-D, UC-FP, UC-K (via get_customer_context) — **v0.2.1: added UC-C** (messaging diagnostic needs account restriction check; fixes matrix inconsistency with `get_customer_context.allowed_use_cases`)
 **Disallowed UCs**: UC-G, UC-I, UC-J
 
 **Input Schema** (unchanged):
@@ -777,7 +778,7 @@ properties:
 
 **Purpose**: 通过 ad_id/listing_id 查找广告状态、审核状态、可见性原因。由 `get_customer_context` 内部调用。
 
-**Allowed UCs**: UC-A, UC-FP, UC-K (via get_customer_context)
+**Allowed UCs**: UC-A, UC-C, UC-FP, UC-K (via get_customer_context) — **v0.2.1: added UC-C** ("can't get replies to specific ad" needs ad status check; read-only, risk unchanged)
 **Disallowed UCs**: UC-G, UC-I, UC-J
 
 **Output Schema (v0.2 enriched)**:
@@ -899,7 +900,76 @@ must_map_reason_to_public_policy: true  # reason_code → Community Standards �
 
 ---
 
-### 3.10 `moderation_enforcement_action` (human_only, unchanged)
+### 3.10 `get_message_moderation_context` — NEW in v0.2.1
+
+**Visibility**: runtime_only | **Risk**: medium | **Phase**: V1
+
+**Purpose**: 查询用户近期消息是否被平台消息审核系统拦截。为 UC-C（消息与回复）提供 grounded 诊断依据：区分"消息已正常投递但对方未回复" vs "消息被审核过滤器拦截"。由 `get_customer_context` 在 `active_use_case = UC-C` 时链式调用。
+
+**Allowed UCs**: UC-C (via get_customer_context)
+**Disallowed UCs**: UC-A, UC-B, UC-D, UC-E, UC-F, UC-FP, UC-G, UC-H, UC-I, UC-J, UC-K
+
+**Motivation**:
+- UC-C "收不到回复" 是常见支持场景（参考 case 570Q5000008oMIVIA2）
+- 人工坐席处理此类问题时会检查：账户限制 → 广告状态 → 消息审核历史
+- 无消息审核查询时，Bot 只能说"账户没问题"但无法排除消息级拦截
+- `message-moderation-history` 微服务提供只读搜索 API，与广告审核查询 `get_moderation_review_context` 完全同构
+
+**Input Schema**:
+```yaml
+type: object
+required: [email]
+properties:
+  email:
+    type: string
+    description: "用户 email（from form_context）"
+  conversation_id:
+    type: string
+    description: "可选 — 如果用户提供了具体对话/广告 ID"
+  lookback_days:
+    type: integer
+    default: 7
+    description: "向前搜索天数"
+```
+
+**Output Schema**:
+```yaml
+type: object
+properties:
+  has_blocked_messages:
+    type: boolean
+  blocked_count:
+    type: integer
+    description: "lookback 期间被拦截的消息数"
+  latest_block_reason:
+    type: string
+    description: "最近一条被拦截消息的审核原因"
+  moderation_decision:
+    type: string
+    enum: [VALID, BLOCKED, PENDING, UNKNOWN]
+  safe_summary:
+    type: string
+    description: "可注入 context projection 的脱敏摘要"
+```
+
+**Concrete API Dependencies**:
+| Step | API Endpoint | Service | 说明 |
+|------|-------------|---------|------|
+| 1. Search by email | `POST /history/moderation/search` | message-moderation-history | filter: `field=EMAIL, value={email}` + `field=STATUS, operator=EQ, value=BLOCKED` |
+| 2. Search by conversation | `POST /history/moderation/search` | message-moderation-history | filter: `field=CONVERSATION_ID, value={conversation_id}`（可选） |
+
+**Runtime Policy**:
+```yaml
+agent_direct_invocation_allowed: false
+used_by: [get_customer_context]
+must_minimize_pii: true
+must_return_safe_summary_only: true
+retry_on_failure: true
+```
+
+---
+
+### 3.11 `moderation_enforcement_action` (human_only, unchanged)
 
 **Visibility**: human_only | **Risk**: critical | **Phase**: Phase2_or_manual_only
 
@@ -922,7 +992,7 @@ must_map_reason_to_public_policy: true  # reason_code → Community Standards �
 
 ---
 
-### 3.11 `send_followup_email_or_async_update` (human_only, unchanged)
+### 3.12 `send_followup_email_or_async_update` (human_only, unchanged)
 
 **Visibility**: human_only | **Risk**: medium | **Phase**: V1_1_or_manual_only
 
@@ -947,14 +1017,17 @@ must_map_reason_to_public_policy: true  # reason_code → Community Standards �
 | `request_handover` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `record_outcome` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-## 5. Runtime-Only Tool × Use Case Matrix (v0.2)
+## 5. Runtime-Only Tool × Use Case Matrix (v0.2.1)
 
 | Tool \\ UC | UC-A | UC-B | UC-C | UC-D | UC-E | UC-F | UC-FP | UC-G | UC-H | UC-I | UC-J | UC-K |
 |-----------|:---:|:---:|:---:|:---:|:---:|:---:|:----:|:---:|:---:|:---:|:---:|:---:|
-| `lookup_customer_account` | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `lookup_listing_or_ad` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `lookup_customer_account` | ❌ | ❌ | **✅** | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `lookup_listing_or_ad` | ✅ | ❌ | **✅** | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | `get_moderation_review_context` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **`get_message_moderation_context`** | ❌ | ❌ | **✅** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `create_case_controlled` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
+
+> **v0.2.1 变更**：UC-C 新增 `lookup_customer_account` + `lookup_listing_or_ad` + `get_message_moderation_context`（消息审核诊断链路），修复矩阵不一致并增强消息场景的 grounded 诊断能力。
 
 ---
 
@@ -964,7 +1037,7 @@ must_map_reason_to_public_policy: true  # reason_code → Community Standards �
 |----------|-----------------|------|
 | UC-A-01 | `get_customer_context`(listing, **auto from form_context.ad_id**) → `search_knowledge` → `resolve_article` → confirmation → `record_outcome` | v0.2: auto-trigger from pre-chat form |
 | UC-B-01 | `search_knowledge` → `resolve_article` → confirmation → `record_outcome` | unchanged |
-| UC-C-01 | `get_customer_context`(account)? → `search_knowledge` → `resolve_article` → confirmation → `record_outcome` | unchanged |
+| UC-C-01 | `get_customer_context`(**combined: account+listing+message_moderation**, auto from form) → IF restricted/blocked/ad_inactive → explain + escalate option; IF clean → `search_knowledge` → `resolve_article` → confirmation → `record_outcome` | **v0.2.1: diagnostic path with account+ad+message moderation checks** |
 | UC-D-01 | `get_customer_context`(account, **auto from form_context.email**) → `search_knowledge` → `resolve_article` → confirmation → `record_outcome` | v0.2: auto-trigger |
 | UC-E-01 | `search_knowledge` → `resolve_article` → confirmation → `record_outcome` | unchanged |
 | UC-F-01 | `get_customer_context`(listing)? → `search_knowledge` → `resolve_article` → confirmation → `record_outcome` | unchanged |
@@ -1064,3 +1137,4 @@ The following platform APIs from `platform_api_detailed_reference.md` are **inte
 |---------|------|--------|---------|
 | v0.1 | 2026-04-01 | — | Initial tool spec |
 | v0.2 | 2026-04-17 | — | API mapping 具化; pre-chat form integration; new `get_moderation_review_context`; pgvector architecture; fixed_script_library; allowed/disallowed matrix fixes; Common Phrases alignment |
+| v0.2.1 | 2026-04-21 | — | UC-C messaging diagnostic: `lookup_customer_account` + `lookup_listing_or_ad` added UC-C to allowed (matrix fix); new `get_message_moderation_context` runtime-only tool; UC-C tool call sequence updated to diagnostic path; parent_topic_subject per UC; handover-only Topic Subjects |

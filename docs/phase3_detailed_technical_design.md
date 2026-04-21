@@ -244,7 +244,8 @@ CREATE TABLE bot_sessions (
     last_action         TEXT,
     
     -- Context
-    form_context        JSONB,                      -- pre-chat form data
+    form_topic_subject  TEXT,                        -- Pre-chat Form Topic Subject 原始值（不可变；业务评估 L1 维度）
+    form_context        JSONB,                      -- pre-chat form data (full)
     customer_context    JSONB,                       -- safe_summary from get_customer_context
     listing_context     JSONB,                       -- safe_summary from lookup_listing_or_ad
     moderation_context  JSONB,                       -- from get_moderation_review_context
@@ -405,12 +406,18 @@ INIT ─────────────────────────
   ▼                                                               │
 DISCOVER ──────────────────────────────────────┐                  │
   │                                             │                  │
-  │ infer active_use_case from                  │ any escalation   │
-  │   form_context.topic_subject +              │ trigger hit      │
-  │   form_context.description +                │ ───────────┐     │
-  │   user first message                        │            │     │
+  │ Two-stage UC routing (phase2 §2.11):        │ any escalation   │
+  │   Stage 1: topic_subject prior              │ trigger hit      │
+  │     strong (>70%): direct route UC-G/J      │ ───────────┐     │
+  │     handover-only (4 TS): check desc ���      │            │     │
+  │       match UC �� route; else → OOS handover │            │     │
+  │     weak: → Stage 2                         │            │     │
+  │   Stage 2: description classification       │            │     │
+  │     within topic_subject UC candidate set   │            │     │
+  │     + cross-TS spillover detection          │            │     │
   │                                             │            │     │
   │ if ambiguous → ask_user (clarify)           │            │     │
+  │ if OOS topic → fixed_script → ESCALATE      │            │     ��
   │ if high-risk UC detected → set risk_flags   │            │     │
   │ if intake-only UC → phase = RESOLVE(intake) │            │     │
   │ if FAQ UC → phase = RESOLVE(faq)            │            │     │
