@@ -1,0 +1,15 @@
+{
+  "case_id": "CASE-SEED-002",
+  "use_case_id": "UC-ACCOUNT-ISSUE",
+  "subject": "Cannot access my account",
+  "description": "I am unable to log in to my Gumtree account. I have tried resetting my password but the reset email never arrives.",
+  "contact_email": "john.doe@example.com",
+  "ad_id": null,
+  "status": "New",
+  "queue_name": "Account_Support_Queue",
+  "intake_fields": {
+    "issue_type": "login_failure",
+    "password_reset_attempted": true,
+    "last_successful_login": "2025-12-01"
+  }
+}

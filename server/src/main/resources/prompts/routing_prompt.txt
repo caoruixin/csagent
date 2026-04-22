@@ -1,0 +1,8 @@
+Classify this customer inquiry into one of these use cases:
+{uc_candidates}
+
+Customer's form topic: {topic_subject}
+Customer's description: {description}
+
+Respond in JSON:
+{"use_case": "UC-X", "confidence": 0.0-1.0, "reasoning": "..."}

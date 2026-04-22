@@ -1,0 +1,100 @@
+use-cases:
+  UC-A:
+    name: "Ad Status & Visibility"
+    topic-subjects: ["Ad Support"]
+    risk-level: LOW
+    allow-bot-resolution: true
+    path: FAQ
+  UC-B:
+    name: "Posting & Editing Guidance"
+    topic-subjects: ["Ad Support"]
+    risk-level: LOW
+    allow-bot-resolution: true
+    path: FAQ
+  UC-C:
+    name: "Messages & Replies"
+    topic-subjects: ["Replies or Messaging"]
+    risk-level: LOW
+    allow-bot-resolution: true
+    path: FAQ
+  UC-D:
+    name: "Account & Login"
+    topic-subjects: ["Account Support"]
+    risk-level: LOW
+    allow-bot-resolution: true
+    path: FAQ
+  UC-E:
+    name: "General Product & Search"
+    topic-subjects: ["Technical Support"]
+    risk-level: LOW
+    allow-bot-resolution: true
+    path: FAQ
+  UC-F:
+    name: "Payment Inquiry"
+    topic-subjects: ["Payments"]
+    risk-level: MEDIUM
+    allow-bot-resolution: true
+    path: FAQ
+  UC-FP:
+    name: "Correct Deletion Explanation"
+    topic-subjects: ["Ad Support"]
+    risk-level: MEDIUM
+    allow-bot-resolution: true
+    path: FAQ
+  UC-G:
+    name: "GDPR / Data Deletion"
+    topic-subjects: ["Delete My Account or Data"]
+    risk-level: HIGH
+    allow-bot-resolution: false
+    path: INTAKE
+  UC-H:
+    name: "Ad Removal Appeal"
+    topic-subjects: ["Ad Support"]
+    risk-level: HIGH
+    allow-bot-resolution: false
+    path: INTAKE
+  UC-I:
+    name: "Refund / Payment Dispute"
+    topic-subjects: ["Payments"]
+    risk-level: HIGH
+    allow-bot-resolution: false
+    path: INTAKE
+  UC-J:
+    name: "Trust & Safety Report"
+    topic-subjects: ["Report a Safety Issue"]
+    risk-level: CRITICAL
+    allow-bot-resolution: false
+    path: INTAKE
+  UC-K:
+    name: "Technical Issue Intake"
+    topic-subjects: ["Technical Support"]
+    risk-level: MEDIUM
+    allow-bot-resolution: false
+    path: INTAKE
+
+out-of-scope:
+  OUT_OF_SCOPE_DELIVERY:
+    topic-subject: "Delivery"
+  OUT_OF_SCOPE_PRO_CONTRACT:
+    topic-subject: "Pro Contract"
+  OUT_OF_SCOPE_RATINGS_REVIEWS:
+    topic-subject: "Ratings Reviews"
+  OUT_OF_SCOPE_ACCOUNT_MANAGER:
+    topic-subject: "Account Manager Support"
+
+strong-prior-topics:
+  "Delete My Account or Data": "UC-G"
+  "Report a Safety Issue": "UC-J"
+  "Replies or Messaging": "UC-C"
+
+weak-prior-topics:
+  - "Account Support"
+  - "Ad Support"
+  - "Payments"
+  - "Technical Support"
+
+handover-only-topics:
+  - "Delivery"
+  - "Pro Contract"
+  - "Ratings Reviews"
+  - "Account Manager Support"

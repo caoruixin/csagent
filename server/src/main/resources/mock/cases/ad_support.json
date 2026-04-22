@@ -1,0 +1,15 @@
+{
+  "case_id": "CASE-SEED-001",
+  "use_case_id": "UC-AD-REMOVAL",
+  "subject": "My ad was removed unfairly",
+  "description": "I posted a listing for a vintage watch and it was removed without explanation. I believe this was done in error.",
+  "contact_email": "jane.suspended@example.com",
+  "ad_id": "AD-1002",
+  "status": "New",
+  "queue_name": "Ad_Support_Queue",
+  "intake_fields": {
+    "ad_id": "AD-1002",
+    "removal_reason_shown": "policy_violation",
+    "user_agrees_with_removal": false
+  }
+}
