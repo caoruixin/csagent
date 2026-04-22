@@ -23,12 +23,12 @@
 
 | 阶段 | 状态 | 产出文件 |
 |------|------|---------|
-| Phase 0 — Freeze Normative Layer | ✅ 已完成（v6）| [`phase0_normative_freeze.md`](./phase0_normative_freeze.md) |
-| Phase 1 — Build Solution Input Pack | ✅ 已完成（v6）| [`phase1_solution_input_pack.md`](./phase1_solution_input_pack.md) |
-| Phase 2 — Produce Domain Realization Spec | ✅ 已完成（v6）| [`phase2_domain_realization_spec.md`](./phase2_domain_realization_spec.md) |
-| Phase 3 — Produce Detailed Technical Design | ✅ 已完成（v1）| [`phase3_detailed_technical_design.md`](./phase3_detailed_technical_design.md) |
+| Phase 0 — Freeze Normative Layer | ✅ 已完成（v6; v8 HR 完成反映）| [`phase0_normative_freeze.md`](./phase0_normative_freeze.md) |
+| Phase 1 — Build Solution Input Pack | ✅ 已完成（v6; v8 HR 完成反映）| [`phase1_solution_input_pack.md`](./phase1_solution_input_pack.md) |
+| Phase 2 — Produce Domain Realization Spec | ✅ 已完成（v6; v8 HR 完成反映）| [`phase2_domain_realization_spec.md`](./phase2_domain_realization_spec.md) |
+| Phase 3 — Produce Detailed Technical Design | ✅ 已完成（v1; v8 HR 完成反映）| [`phase3_detailed_technical_design.md`](./phase3_detailed_technical_design.md) |
 | Phase 4 — Coding Agent Implementation Packet | ✅ 已完成（v1）| [`phase4_coding_agent_implementation_packet.md`](./phase4_coding_agent_implementation_packet.md) |
-| Phase 5 — Eval / Release / Feedback Loop | ✅ 已完成（v1）| [`phase5_evaluation_design.md`](./phase5_evaluation_design.md) |
+| Phase 5 — Eval / Release / Feedback Loop | ✅ 已完成（v1; v8 HR 完成反映）| [`phase5_evaluation_design.md`](./phase5_evaluation_design.md) |
 
 本 workbook 保留作为**阶段模板与索引**；每个阶段的实际产出在独立文件中维护，便于 review 与迭代。
 
@@ -55,7 +55,7 @@
 | [`customer_service_agent-Common-Phrases.md`](./customer_service_agent-Common-Phrases.md) | **v4 新增** — 从 1.18 万条 transcript 提炼的标准话术指导（7 类模板）|
 | [`FAQ-knowledge_include_help_url.csv`](./FAQ-knowledge_include_help_url.csv) | **v4 新增，v6 修正** — 218 篇 Salesforce Knowledge 文章（Id / Title / Summary / Help_Site_URL__c）。原统计 3,963 系 CSV 行数（Description__c 含多行 HTML），实际文章数 218 |
 | [`platform_api_detailed_reference.md`](./platform_api_detailed_reference.md) | **v4 新增** — 196 REST 端点 / 14 微服务详细 API 参考 |
-| [`fixed_script_library_v1.md`](./fixed_script_library_v1.md) | **v4 新增** — Bot V1 固定话术模板库（14 类 / 50+ 模板 / 禁止话术清单），从 1,230+ 条真实 agent 消息提炼 |
+| [`fixed_script_library_v1.md`](./fixed_script_library_v1.md) | **v4 新增** — Bot V1 固定话术模板库（14 类 / 50+ 模板 / 禁止话术清单），从 1,230+ 条真实 agent 消息提炼；合规审批已通过（v5, 2026-04-19）|
 | [`07-engineering-constraints.md`](./07-engineering-constraints.md) | Gumtree 平台代码库提取的工程基线 |
 
 ---
@@ -367,7 +367,7 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
   - **流量分配策略确认**：GrowthBook 管理，10%→20%→50%→100% 渐进放量；代码不硬编码阈值
   - **Article → UC 映射初版完成**：`data/knowledge/article_uc_mapping.csv`（218 篇 auto-mapped）+ `knowledge_base_articles.json`（见 `data/knowledge/mapping_summary_report.md`）
   - **gumshield API dev-phase 方案**：mock 数据先行开发和 debug；正式接入审批流程进行中，prod 部署前完成
-  - **Human review 决策**：当前跳过 367 条 queue 人工标注；直接以 `csagent/data/eval_datasets/`（7 类 datasets / 601 sessions / 11,288 turns）为 ground truth
+  - **Human review 决策**：~~当前跳过 367 条 queue 人工标注~~ **v8 更新（2026-04-22）：367 sessions 已全部标注完成**（`data/human_review_annotations_2026-04-22_complete.csv`）；作为 supplementary ground truth 用于 eval 校准，主 ground truth 仍为 `csagent/data/eval_datasets/`（7 类 datasets / 601 sessions / 11,288 turns）
 - **Phase 3 启动条件达成**：§6.4 所有阻塞项已解决
 
 最近一次迭代（v5，2026-04-19）主要更新（基于合规审批结果 + GDPR/PII 决策 + repo 创建 + pgvector 索引策略 + CSAT 机制确认 + queue routing 统一 + Bot_Session__c 追加决策）：
@@ -405,7 +405,7 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
   - §1.4.3 向量检索：从 TBD 升级为 **已确认 pgvector on Cloud SQL**（含分块策略 / 双层表 / 在线检索流程）
   - §1.4.13（用户已新增）Pre-chat Form & Case Creation Flow
   - §1.4.14 Tool Layer：升级对齐 v0.2（4 runtime-only 工具 / runtime capabilities / concrete API dependencies / 新增 runtime policies）
-  - §1.5.1 Eval 数据集：从"目标规模"升级为 **全部已构建**（601 sessions / 11,288 turns + 367 human review queue）；标注数据质量发现
+  - §1.5.1 Eval 数据集：从"目标规模"升级为 **全部已构建**（601 sessions / 11,288 turns + 367 human review queue，**v8 已全部标注完成**）；标注数据质量发现
 - **Phase 2**：
   - §2.5 Knowledge Scope Map：新增 Knowledge API 不可用说明 + pgvector 为唯一后端 + `get_moderation_review_context` 对 UC-FP 增强
   - §2.6（用户已新增）通用 discover_policy 的 pre-chat form integration（form_context_usage / strong_routing_signals / weak_routing_signals）+ clarification_policy 的新版表单影响
@@ -426,7 +426,7 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
 - **标准话术指导（v4 新增）**: `customer_service_agent-Common-Phrases.md`（从 1.18 万条 transcript 提炼）
 - **Knowledge 文章库（v4 新增，v6 修正）**: `FAQ-knowledge_include_help_url.csv`（218 篇文章；原 3,963 系 CSV 行数）
 - **平台 API 参考（v4 新增）**: `platform_api_detailed_reference.md`（196 端点 / 14 微服务）
-- **Eval 数据集（v4 新增）**: `data/eval_datasets/*`（7 类数据集，601 sessions / 11,288 turns + 367 条 human review queue）
+- **Eval 数据集（v4 新增）**: `data/eval_datasets/*`（7 类数据集，601 sessions / 11,288 turns + **367 sessions human review 已完成标注 v8**）
 - **工程约束**: `07-engineering-constraints.md`
 - **阶段产出**: `phase0_normative_freeze.md`、`phase1_solution_input_pack.md`、`phase2_domain_realization_spec.md`
 
@@ -440,7 +440,7 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
 | 4 | `create_case_controlled` per-UC required_fields | **tool_spec v0.2 已定义初版**（UC-H / UC-J / UC-K）；queue 统一用 CS_NEW_chat / CS_Cases_New | `customer_service_tool_spec_v0_2.yaml` §per_uc_required_fields |
 | 6 | Salesforce 组织配置确认 | **Enhanced Chat Web v1 / Omni-Channel 标准 / Knowledge API 无 / max 50 turns / 坐席并发 2** | `salesforce-part-spec.md` |
 | 7 | 向量库选型 | **pgvector on Cloud SQL PostgreSQL 已确认** | `problem_retrieval_solution_plan_pgvector.md` |
-| 9 | Golden Dataset 扩充 | **7 类数据集全部已构建**（601 sessions / 11,288 turns）；367 条 human review queue 待标注 | `data/eval_datasets/DATASET_REPORT.md` |
+| 9 | Golden Dataset 扩充 | **7 类数据集全部已构建**（601 sessions / 11,288 turns）；**v8：367 sessions human review 已全部标注完成** | `data/eval_datasets/DATASET_REPORT.md` |
 | 11 | Off-hours 策略 | **检查 New Chat queue agent 在线状态**；离线时 Case → CS_Cases_New；Bot 给 offline 话术 | `salesforce-part-spec.md` |
 | 12 | Salesforce 自定义对象命名 | **`Chat_Message_Log__c` 已存在**；Bot_Session__c / Bot_Event__c 待 Salesforce Admin 确认是否追加 | `salesforce-part-spec.md` |
 
@@ -467,7 +467,7 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
 | 10 | 流量分配策略与 go/no-go 阈值 | **GrowthBook** 管理；10%→20%→50%→100% 渐进放量；代码不硬编码阈值（见 `docs/abtesing-policy.md`）| `phase1_solution_input_pack.md` §1.1.4 Go/No-Go |
 | 17 | article → UC 映射（218 篇文章 UC 分类标注）| **初版已完成**：`data/knowledge/article_uc_mapping.csv`（218 篇全量 auto-mapped，0 unmatched）+ `knowledge_base_articles.json`（pgvector 入库就绪）；详见 `data/knowledge/mapping_summary_report.md` | `phase2_domain_realization_spec.md` §2.5 |
 | 19 | gumshield cs-review API Bot 服务账号访问审批 | **Dev/demo 阶段**：使用 mock 数据开发和 debug；**正式审批**：流程进行中，prod 部署前完成配置（非阻塞 Phase 3 设计）| `phase2_domain_realization_spec.md` §2.10.2 |
-| 20 | Golden Dataset human review 标注完成（367 条 queue）| **当前阶段跳过人工标注**；直接以 `csagent/data/eval_datasets/`（7 类数据集 / 601 sessions / 11,288 turns）为 ground truth；上线后补充真实 Bot 数据回标 | `phase1_solution_input_pack.md` §1.5.1 |
+| 20 | Golden Dataset human review 标注完成（367 条 queue）| ~~当前阶段跳过人工标注~~ **v8 更新（2026-04-22）：367 sessions 已全部标注完成**（`data/human_review_annotations_2026-04-22_complete.csv`）；作为 supplementary ground truth 用于 eval 校准 | `phase1_solution_input_pack.md` §1.5.1 / `phase5_evaluation_design.md` |
 
 ### 🟢 仍待补齐：无
 

@@ -12,12 +12,13 @@
 将通用规范层（single agent + bounded loop + grounded before generative + escalation first-class + tool_surface = small_and_strong）映射为 Gumtree Customer Service 的具体业务控制模型。该层是后续 Detailed Technical Design 的业务契约依据。
 
 覆盖范围：
-- **12 个 V1 use case**（对齐 `customer_service_tool_spec_v0_2.yaml` §use_cases），按 **Topic Subject → UC 两层分类** 组织：
+- **12 个 V1 use case + 3 个 OUT_OF_SCOPE 分类**（对齐 `customer_service_tool_spec_v0_2.yaml` §use_cases + v8 human review 发现），按 **Topic Subject → UC 两层分类** 组织：
   - **L1 — Topic Subject**（Pre-chat Form 必填下拉，11 个值）：业务评估维度。其中 7 个有 UC 覆盖，4 个为 V1 handover-only（Delivery / Pro Contract / Account Manager Support / Ratings Reviews）。
   - **L2 — UC**（Bot 意图分类结果）：Agent 路由/处理维度。每个 UC 有且仅有一个 `parent_topic_subject`。
   - **FAQ / grounded-answer 类（Bot 可 resolve）**：UC-A-01、UC-B-01、UC-C-01、UC-D-01、UC-E-01、UC-F-01、UC-FP-01
   - **Intake + Handover 类（Bot 不 resolve，只做结构化采集与移交）**：UC-G-01、UC-H-01、UC-I-01、UC-J-01、UC-K-01
-- **4 个 Handover-only Topic Subject**：Delivery / Pro Contract / Account Manager Support / Ratings Reviews — 不创建 UC，routing 层直接走固定话术 + `request_handover`（见 §2.11）
+  - **OUT_OF_SCOPE 分类（v8 新增）**：`OUT_OF_SCOPE_RATINGS_REVIEWS`、`OUT_OF_SCOPE_DELIVERY`、`OUT_OF_SCOPE_PRO_CONTRACT` — handover-only Topic Subject 中 Description 不匹配任何已有 UC 的会话，全部 100% escalation
+- **4 个 Handover-only Topic Subject**：Delivery / Pro Contract / Account Manager Support / Ratings Reviews — 不创建 UC，routing 层直接走固定话术 + `request_handover`（见 §2.11）；**v8 human review 确认 19 条映射到 OUT_OF_SCOPE，其中 OUT_OF_SCOPE_RATINGS_REVIEWS 占 13 条（68.4%）**
 - **风险分级**：low / medium / high / critical / forbidden
 - **升级矩阵**：12 类触发条件
 - **知识范围映射**
@@ -125,13 +126,17 @@ parent_topic_subject: Replies or Messaging
 description: >
   用户询问如何收发消息、回复广告、恢复已删消息、未收到回复等。
   Bot 提供操作路径 FAQ 和安全提示；对"恢复已删消息"明确不承诺。
+# v8 HR 数据：104 条（28.3%，HR 中最大 UC）；resolve 62 / escalate 42（40.4% escalation rate）
+# HR 主要 escalation triggers：user_distress(24) > clarification_budget_exhausted(13) > user_requested(5)
+# HR secondary UCs：UC-D / UC-K 常作为 secondary
+# HR grounding_required: 59.6%；frustration: 98.1%；risk: low
 example_user_requests:
   - "How do I reply to an ad?"
   - "I'm not getting any replies"
   - "Can I recover deleted messages?"
   - "How to check my inbox?"
   - "I can't see the reply button"
-case_volume: 2627   # 占全库 2.2%
+case_volume: 2627   # 占全库 2.2%（但 v8 HR 中占 28.3%，Chat 渠道占比远高于全量）
 knowledge_scope:
   - help_centre_messaging
   - help_centre_inbox
@@ -413,6 +418,14 @@ description: >
   chargeback 等争议。V1 Bot 不做规则判定、不做金额裁决，
   仅做 intake（email / 订单或广告 id / 问题描述）+ 固定话术
   （"此类问题需人工处理"）+ handover。Chat 样本中占 50 条（19%）。
+# v8 HR 警告：UC-I 校正率 52.4%（11/21 被重分类）——
+#   → UC-H: 4 条（误删申诉被错误标记为支付争议）
+#   → UC-J: 3 条（欺诈举报被错误标记为支付争议）
+#   → OUT_OF_SCOPE_RATINGS_REVIEWS: 3 条
+# v8 HR 数据（校正后）：20 条（5.4%）；100% escalation；risk=high
+# HR 设计含义：Bot 在 DISCOVER 阶段需特别注意 UC-I vs UC-H 边界：
+#   "ad removed" + "refund" → UC-I 而非 UC-H（支付争议而非误删申诉）
+#   "scam" + "refund" → UC-J 而非 UC-I（欺诈举报而非支付争议）
 example_user_requests:
   - "I want a refund for a payment"
   - "Why does Gumtree continue to ignore my emails?"
@@ -588,26 +601,28 @@ tool_spec_mapping: UC-K
 
 ## 2.4 Escalation Matrix
 
-| 触发条件 | 触发类型 | 适用 Use Case | 处理行为 |
-|----------|---------|--------------|---------|
-| **user_requests_human** | 用户主动请求 | 全部 | 立即进入 ESCALATE，记录 `escalation_reason: user_requested`，构建 handover payload |
-| **faq_miss_ge_2** | 检索失败阈值 | UC-A/B/C/D/E/F/FP（allow_bot_resolution=true 的 UC）| 自动升级，`escalation_reason: faq_miss_threshold_exceeded` |
-| **clarification_budget_exhausted** | 澄清预算耗尽（2 轮）| 全部 | 自动升级，`escalation_reason: clarification_budget_exhausted` |
-| **intake_complete** | intake 必要字段齐备 | UC-G/H/I/J/K | **立即** handover；对 UC-H/J/K 先调 `create_case_controlled` 再 handover，`escalation_reason: intake_complete_for_<uc>` |
-| **intake_required_fields_missing_after_max_attempts** | intake 收集失败 | UC-G/H/I/J/K | 仍 handover 并在 payload 中标注 `missing_identifiers`，`escalation_reason: incomplete_intake` |
-| **issue_involves_refund_or_dispute** | 争议类子场景 | UC-F-01 → 降判 UC-I-01 | 立即升级（不尝试解决），`escalation_reason: payment_dispute_detected` |
-| **user_requests_appeal_or_review** | 申诉/复核请求 | UC-FP-01 → 降判 UC-H-01 | 给固定话术后降判为 UC-H-01，走 intake+case 流程，`escalation_reason: appeal_requires_human` |
-| **user_expresses_strong_emotion** | 情绪激动/威胁 | 全部（特别 UC-FP-01 / UC-H-01）| 安抚话术（不使用 "I understand how you feel"）+ 升级，`escalation_reason: user_distress` |
-| **any_imminent_harm_signal** | 人身威胁 / 紧急安全 | UC-J-01 | 立即升级 + 高优 queue，`escalation_reason: imminent_harm` |
-| **issue_classified_as_incorrect_deletion** | 误删类别 | UC-FP-01, UC-A-01 → 路由到 UC-H-01 | 降判为 UC-H-01（intake + case），`escalation_reason: incorrect_deletion_appeal` |
-| **issue_involves_fraud_or_scam** | 欺诈/诈骗 | UC-C-01, UC-E-01 → 路由到 UC-J-01 | 切换到 UC-J-01 结构化 intake，`escalation_reason: trust_safety_required` |
-| **issue_involves_account_ban** | 账号被封/黑名单 | UC-D-01 → 路由到 UC-FP-01 或 UC-H-01 | 切换到对应 UC，`escalation_reason: account_compliance` |
-| **gdpr_or_data_request_detected** | 数据删除 / SAR | 任意 → 路由到 UC-G-01 | 切换到 UC-G-01 intake，`escalation_reason: gdpr_intake` |
-| **identity_verification_required** | 需身份核验 | UC-G-01, UC-D-01 | Bot 不做核验，立即升级，`escalation_reason: identity_verification_required` |
-| **out_of_scope_intent** | 非 V1 覆盖意图 | 全部 | 固定引导话术 + 转人工，`escalation_reason: out_of_scope` |
-| **service_degraded** | 系统降级 | 全部 | 安全升级，`escalation_reason: service_degraded` |
-| **max_bot_turns_exceeded** | Bot 轮数超限 | 全部 | 强制升级，`escalation_reason: turn_budget_exhausted` |
-| **tool_scope_blocked** | 模型尝试调用超范围工具 | 全部 | runtime 拒绝调用 + 升级，`escalation_reason: tool_scope_blocked`（用于 Guardrail grader）|
+> **v8 HR 数据验证**：367 条标注中 218 条（59.4%）应 escalate，149 条（40.6%）可 resolve。Escalation trigger 分布：user_requested 43(19.7%) / user_distress 36(16.5%) / appeal_requires_human 36(16.5%) / clarification_budget_exhausted 31(14.2%) / trust_safety_required 23(10.6%) / out_of_scope 16(7.3%) / payment_dispute_detected 16(7.3%) / gdpr_intake 15(6.9%) / intake_complete_for_uc_k 2(0.9%)。**Trigger 与 UC 强绑定验证**：appeal_requires_human→UC-H(100%), trust_safety_required→UC-J(100%), payment_dispute_detected→UC-I(100%), gdpr_intake→UC-G(100%), out_of_scope→OOS(100%)。
+
+| 触发条件 | 触发类型 | 适用 Use Case | 处理行为 | **HR 频次** |
+|----------|---------|--------------|---------|------------|
+| **user_requests_human** | 用户主动请求 | 全部 | 立即进入 ESCALATE，记录 `escalation_reason: user_requested`，构建 handover payload | **43 (19.7%)** |
+| **faq_miss_ge_2** | 检索失败阈值 | UC-A/B/C/D/E/F/FP（allow_bot_resolution=true 的 UC）| 自动升级，`escalation_reason: faq_miss_threshold_exceeded` | — |
+| **clarification_budget_exhausted** | 澄清预算耗尽（2 轮）| 全部 | 自动升级，`escalation_reason: clarification_budget_exhausted` | **31 (14.2%)** |
+| **intake_complete** | intake 必要字段齐备 | UC-G/H/I/J/K | **立即** handover；对 UC-H/J/K 先调 `create_case_controlled` 再 handover，`escalation_reason: intake_complete_for_<uc>` | **2 (0.9%)** |
+| **intake_required_fields_missing_after_max_attempts** | intake 收集失败 | UC-G/H/I/J/K | 仍 handover 并在 payload 中标注 `missing_identifiers`，`escalation_reason: incomplete_intake` | — |
+| **issue_involves_refund_or_dispute** | 争议类子场景 | UC-F-01 → 降判 UC-I-01 | 立即升级（不尝试解决），`escalation_reason: payment_dispute_detected` | **16 (7.3%)** |
+| **user_requests_appeal_or_review** | 申诉/复核请求 | UC-FP-01 → 降判 UC-H-01 | 给固定话术后降判为 UC-H-01，走 intake+case 流程，`escalation_reason: appeal_requires_human` | **36 (16.5%)** |
+| **user_expresses_strong_emotion** | 情绪激动/威胁 | 全部（特别 UC-FP-01 / UC-H-01）| 安抚话术（不使用 "I understand how you feel"）+ 升级，`escalation_reason: user_distress` | **36 (16.5%)** |
+| **any_imminent_harm_signal** | 人身威胁 / 紧急安全 | UC-J-01 | 立即升级 + 高优 queue，`escalation_reason: imminent_harm` | — |
+| **issue_classified_as_incorrect_deletion** | 误删类别 | UC-FP-01, UC-A-01 → 路由到 UC-H-01 | 降判为 UC-H-01（intake + case），`escalation_reason: incorrect_deletion_appeal` | — |
+| **issue_involves_fraud_or_scam** | 欺诈/诈骗 | UC-C-01, UC-E-01 → 路由到 UC-J-01 | 切换到 UC-J-01 结构化 intake，`escalation_reason: trust_safety_required` | **23 (10.6%)** |
+| **issue_involves_account_ban** | 账号被封/黑名单 | UC-D-01 → 路由到 UC-FP-01 或 UC-H-01 | 切换到对应 UC，`escalation_reason: account_compliance` | — |
+| **gdpr_or_data_request_detected** | 数据删除 / SAR | 任意 → 路由到 UC-G-01 | 切换到 UC-G-01 intake，`escalation_reason: gdpr_intake` | **15 (6.9%)** |
+| **identity_verification_required** | 需身份核验 | UC-G-01, UC-D-01 | Bot 不做核验，立即升级，`escalation_reason: identity_verification_required` | — |
+| **out_of_scope_intent** | 非 V1 覆盖意图 | 全部（含 OUT_OF_SCOPE_* 分类） | 固定引导话术 + 转人工，`escalation_reason: out_of_scope` | **16 (7.3%)** |
+| **service_degraded** | 系统降级 | 全部 | 安全升级，`escalation_reason: service_degraded` | — |
+| **max_bot_turns_exceeded** | Bot 轮数超限 | 全部 | 强制升级，`escalation_reason: turn_budget_exhausted` | — |
+| **tool_scope_blocked** | 模型尝试调用超范围工具 | 全部 | runtime 拒绝调用 + 升级，`escalation_reason: tool_scope_blocked`（用于 Guardrail grader）| — |
 
 ### 升级话术要求（BRD §6.3）
 
@@ -691,13 +706,17 @@ discover_policy:
     - email（必填）→ 立即触发 get_customer_context（不再需要对话中问 email）
     - ad_id_number（选填）→ 若有值则同时触发 listing lookup
     - first_name → 用于 Bot 开场称呼（"Hi {first_name}, ..."）
-  strong_routing_signals:
-    - topic_subject = "Report a Safety Issue" → UC-J 先验 (71%)
-    - topic_subject = "Delete my account / Data" → UC-G 先验 (70%)
-  weak_routing_signals:
-    - topic_subject = "Account Support" → 必须结合 description 再分类（37% UC-H / 11% UC-C / 9% UC-D）
-    - topic_subject = "Ad Support" → 偏 UC-H 但需 description 确认
-    - topic_subject = "Payments" → 多 UC 混合，需 description 确认
+  strong_routing_signals:  # v8 HR 验证：强先验 = HR 路由准确率 ≥85%
+    - topic_subject = "Report a Safety Issue" → UC-J 先验 (HR 85.7%)
+    - topic_subject = "Replies or Messaging" → UC-C 先验 (HR 89.7%)  # v8 升级为强先验
+    - topic_subject = "Delete my account / Data" → UC-G 先验 (70%，HR 样本不足待验证)
+  weak_routing_signals:  # v8 HR 验证：弱先验 = HR 路由准确率 <70%
+    - topic_subject = "Account Support" → ⚠️ HR 仅 18.2% 准确率；必须全候选集 description 分类（UC-D 仅 9%！）
+    - topic_subject = "Ad Support" → HR 53.4%；偏 UC-H 但需 description 确认
+    - topic_subject = "Payments" → HR 46.7%；UC-I 校正率 52.4%，需强化 UC-I vs UC-H 边界
+    - topic_subject = "Technical Support" → HR 39.1%；UC-K vs UC-E 消歧
+  fallback_routing_signals:  # v8 新增
+    - topic_subject = "UNKNOWN" 或缺失 → HR 37 条全部不匹配；直接进入 Description-only 全候选集分类
   # ── 原有 discover 逻辑 ──
   - 入口：form_context.topic_subject + form_context.description → 意图 + 置信度
   - 若 form 信号不足 → 菜单主题选择 或 自由文本补充 → 意图 + 置信度
@@ -1097,9 +1116,12 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 
 ### Drift 处理规则（继承 tech_spec §11.6）
 
-- **minor drift**：用户补充信息但不切换问题 → 保持当前 use case，追加上下文。
-- **soft shift**：用户引入新问题 → 允许切 active_use_case，但在 state 中保留未解决的 primary issue 标记（防 issue loss）。
-- **hard shift**：新问题属于高风险或优先级更高 → 直接升级或切换策略。
+- **minor drift**：用户补充信息但不切换问题 → 保持当前 use case，追加上下文。**v8 HR 数据：仅 1.6%（6/367）— 极少见，大多数对话都涉及 topic 变化。**
+- **soft shift**：用户引入新问题 → 允许切 active_use_case，但在 state 中保留未解决的 primary issue 标记（防 issue loss）。**v8 HR 数据：41.4%（152/367）— 第二大类；40.1% 导致 escalation。** 90.2% 的会话有 ≥1 secondary UC（36.8% 有 ≥3），soft shift 处理是 Bot 的核心能力。
+- **hard shift**：新问题属于高风险或优先级更高 → 直接升级或切换策略。**v8 HR 数据：47.1%（173/367）— 最大类；82.7% 导致 escalation。** hard_shift 与 escalation 强相关，Bot 检测到 hard shift 时应倾向于快速 escalate 而非尝试继续 resolve。
+- **none**：无 drift。**v8 HR 数据：仅 9.8%（36/367）— 无 drift 的纯净会话极少，30.6% 仍需 escalation。**
+
+> **v8 设计影响**：90.2% 的会话有 drift，多意图处理不是 edge case 而是 **default case**。`candidate_use_cases` 数组的管理和 issue preservation 必须作为核心 runtime 能力而非可选特性。
 
 ---
 
@@ -1236,42 +1258,60 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 
 > **背景**：Pre-chat Form 的 Topic Subject 是用户必填下拉字段（11 个标准值），与 UC 是 L1→L2 的层级关系。本节定义 Topic Subject 层面的路由策略，补充 §2.8 的 UC 间路由规则。
 
-### 2.11.1 Topic Subject → UC 映射总表
+### 2.11.1 Topic Subject → UC 映射总表（v8 更新：含 Human Review 路由准确率）
 
-| Topic Subject (L1) | UC (L2) | UC 类型 | 消歧策略 |
-|---|---|---|---|
-| **Account Support** | UC-D-01 | FAQ-resolvable | 1:1；但需检测 UC-H/UC-G spillover（历史 37% 实际为 UC-H） |
-| **Ad Support** | UC-A-01, UC-B-01, UC-FP-01, UC-H-01 | Mixed | 需 Description 消歧：状态查询→A / 发帖编辑→B / 被删+理解→FP / 被删+申诉→H |
-| **Delete My Account or Data** | UC-G-01 | Intake+Handover | 强先验（70%+），可直接路由 |
-| **Delivery** | （无 UC） | Handover-only | §9.1 固定话术 → `request_handover` |
-| **Payments** | UC-F-01, UC-I-01 | Mixed | 需 Description 消歧：规则/流程咨询→F / 退款/争议/扣款错误→I |
-| **Pro Contract** | （无 UC） | Handover-only | §9.2 固定话术 → `request_handover` |
-| **Account Manager Support** | （无 UC） | Handover-only | §9.3 固定话术 → `request_handover` |
-| **Ratings Reviews** | （无 UC） | Handover-only | §9.4 固定话术 → `request_handover` |
-| **Replies or Messaging** | UC-C-01 | FAQ-resolvable | 1:1 |
-| **Report a Safety Issue** | UC-J-01 | Intake+Case+Handover | 强先验（71%+），可直接路由 |
-| **Technical Support** | UC-E-01, UC-K-01 | Mixed | 需 Description 消歧：功能使用/搜索方法→E / 故障/报错/无法操作→K |
+> **v8 关键发现**：367 条 human review 标注显示 Topic Subject → UC 路由整体准确率仅 **34.9%**。"Account Support" 占样本 46.3% 但路由准确率仅 18.2%，是最大的 misrouting 源（139/239 错误路由来自该 Topic Subject）。设计必须将 Topic Subject 视为弱信号，Description 文本分类为主。
 
-### 2.11.2 两阶段意图分类
+| Topic Subject (L1) | UC (L2) | UC 类型 | 消歧策略 | **HR 路由准确率** | **HR 样本量** |
+|---|---|---|---|---|---|
+| **Account Support** | UC-D-01（+ 重度 spillover：UC-H/UC-C/UC-G/UC-FP/UC-J/UC-I/UC-K/UC-A/UC-B/UC-E/OOS） | FAQ-resolvable | ⚠️ **1:多（实测仅 9% 为真正 UC-D）**；必须以 Description 消歧；历史 spillover 覆盖全部 12 UC + OOS | **18.2%** ⚠️ | 170 |
+| **Ad Support** | UC-A-01, UC-B-01, UC-FP-01, UC-H-01 | Mixed | 需 Description 消歧：状态查询→A / 发帖编辑→B / 被删+理解→FP / 被删+申诉→H | **53.4%** | 58 |
+| **Delete My Account or Data** | UC-G-01 | Intake+Handover | 强先验（70%+），可直接路由 | N/A（HR 样本标注为 UNKNOWN） | — |
+| **Delivery** | （无 UC → OUT_OF_SCOPE_DELIVERY） | Handover-only | §9.1 固定话术 → `request_handover`；但需检测 Description 是否匹配其他 UC | **50.0%** | 6 |
+| **Payments** | UC-F-01, UC-I-01 | Mixed | 需 Description 消歧：规则/流程咨询→F / 退款/争议/扣款错误→I；**注：UC-I 校正率 52.4%**，多被重分类为 UC-H/UC-J | **46.7%** | 15 |
+| **Pro Contract** | （无 UC → OUT_OF_SCOPE_PRO_CONTRACT） | Handover-only | §9.2 固定话术 → `request_handover` | **100%** | 2 |
+| **Account Manager Support** | （无 UC） | Handover-only | §9.3 固定话术 → `request_handover` | N/A | — |
+| **Ratings Reviews** | （无 UC → OUT_OF_SCOPE_RATINGS_REVIEWS） | Handover-only | §9.4 固定话术 → `request_handover`；**HR 发现 13 条 OOS 中最大类** | **100%** | 13 |
+| **Replies or Messaging** | UC-C-01 | FAQ-resolvable | 1:1 + spillover 检测 | **89.7%** | 29 |
+| **Report a Safety Issue** | UC-J-01 | Intake+Case+Handover | 强先验（71%+），可直接路由 | **85.7%** | 7 |
+| **Technical Support** | UC-E-01, UC-K-01 | Mixed | 需 Description 消歧：功能使用/搜索方法→E / 故障/报错/无法操作→K | **39.1%** | 23 |
+| **UNKNOWN** | （无映射） | Fallback | 表单缺失或非标 Topic Subject → Description-only 分类 | **0%** | 37 |
+
+### 2.11.2 两阶段意图分类（v8 更新：基于 Human Review 校准）
+
+> **v8 核心变更**：Human Review 数据证实 "Account Support" 的 spillover 覆盖全部 12 UC + OOS，Stage 2 的候选集必须扩大。此外，UNKNOWN Topic Subject（37 条）需要 fallback 路径。
 
 ```
 Stage 1: Topic Subject 先验路由
-  ├─ 强先验（>70%）→ 直接路由到 UC，DISCOVER 阶段确认
+  ├─ 强先验（>70%，HR 验证 ≥85.7%）→ 直接路由到 UC，DISCOVER 阶段确认
   │   - "Delete My Account or Data" → UC-G-01
-  │   - "Report a Safety Issue" → UC-J-01
+  │   - "Report a Safety Issue" → UC-J-01（HR 85.7%）
+  │   - "Replies or Messaging" → UC-C-01（HR 89.7%，v8 升级为强先验）
   ├─ Handover-only（4 个）→ 检查 Description 是否能路由到已有 UC
   │   ├─ 若 Description 匹配已有 UC → 路由到该 UC（忽略 Topic Subject 先验）
-  │   └─ 若 Description 不匹配 → 固定话术 + request_handover
+  │   └─ 若 Description 不匹配 → 标记 OUT_OF_SCOPE_{TOPIC} + 固定话术 + request_handover
+  ├─ UNKNOWN / 缺失（HR 37 条，0% 准确率）→ 直接进入 Stage 2 全候选集分类
   └─ 弱先验（≤70%）→ 进入 Stage 2
 
-Stage 2: Description 文本分类（在 Topic Subject 对应的 UC 候选集内）
-  ├─ "Ad Support" → {UC-A, UC-B, UC-FP, UC-H} 四选一
-  ├─ "Payments" → {UC-F, UC-I} 二选一
-  ├─ "Technical Support" → {UC-E, UC-K} 二选一
-  ├─ "Account Support" → {UC-D}（+ spillover 检测：UC-H/UC-G/UC-FP）
-  ├─ "Replies or Messaging" → {UC-C}（+ spillover 检测：UC-J）
+Stage 2: Description 文本分类
+  ├─ "Ad Support"（HR 53.4%）→ {UC-A, UC-B, UC-FP, UC-H} 四选一
+  ├─ "Payments"（HR 46.7%）→ {UC-F, UC-I} 二选一
+  │   ⚠️ v8 警告：UC-I 校正率 52.4%，需强化 UC-I vs UC-H 边界检测
+  ├─ "Technical Support"（HR 39.1%）→ {UC-E, UC-K} 二选一
+  ├─ "Account Support"（HR 18.2% ⚠️）→ 全候选集分类（不限于 UC-D）
+  │   v8 实测 UC 分布：UC-H 37% / UC-C 11% / UC-D 9% / UC-G 8% / UC-FP 7% / ...
+  │   → 对 "Account Support" 跳过候选集限制，直接做全 UC 分类
   └─ 若分类结果指向其他 Topic Subject 的 UC → 跨 UC 路由（§2.8 规则不变）
 ```
+
+**v8 新增：Account Support 专项处理**
+
+由于 "Account Support" 的路由准确率极低（18.2%），且实际 UC 分布覆盖全部 UC，对该 Topic Subject 采用特殊策略：
+
+1. **跳过 Stage 1 先验**：不假设 UC-D，直接进入全候选集 Description 分类
+2. **增加 spillover 检测权重**：对 UC-H（37%）、UC-C（11%）、UC-G（8%）等高频 spillover UC 降低分类阈值
+3. **分类信心不足时**（confidence < 0.6）：使用 `ask_user` 澄清 1 轮，而非默认 UC-D
+4. **Observability**：记录 `topic_uc_mismatch` 事件，用于持续优化分类器
 
 ### 2.11.3 Topic Subject 内 UC 消歧关键信号
 
@@ -1282,21 +1322,28 @@ Stage 2: Description 文本分类（在 Topic Subject 对应的 UC 候选集内�
 | **Technical Support** | UC-E vs UC-K | "how does search work" / "features" / "feedback" → E；"crash" / "error" / "bug" / "can't login" / "not working" → K |
 | **Account Support** | UC-D + spillover | "password" / "login" / "settings" → D；"banned" / "restricted" → FP/H；"delete account" / "GDPR" → G |
 
-### 2.11.4 Handover-only Topic Subject 处理规则
+### 2.11.4 Handover-only Topic Subject 处理规则（v8 更新：含 OUT_OF_SCOPE 分类）
+
+> **v8 HR 数据**：19 条映射到 OUT_OF_SCOPE 分类 — OUT_OF_SCOPE_RATINGS_REVIEWS(13) / OUT_OF_SCOPE_DELIVERY(3) / OUT_OF_SCOPE_PRO_CONTRACT(3)。全部 100% escalation，risk_level=medium。OUT_OF_SCOPE_RATINGS_REVIEWS 是最大的 OOS 类别，建议后续版本评估是否需要新建 UC 覆盖。
 
 当 `form_context.topic_subject ∈ {Delivery, Pro Contract, Account Manager Support, Ratings Reviews}` 时：
 
 1. **INIT 阶段**：正常解析 form_context，设 `form_topic_subject` = 用户选择值
 2. **DISCOVER 阶段**：先用 Description 文本做意图分类
    - 若 Description 匹配已有 UC（如 Delivery + "scammed" → UC-J-01）→ 路由到该 UC，正常流程
-   - 若 Description 不匹配任何 UC → 标记 `active_use_case = OUT_OF_V1_SCOPE`
-3. **RESOLVE 阶段**（OUT_OF_V1_SCOPE）：
+   - 若 Description 不匹配任何 UC → 标记具体 OUT_OF_SCOPE 分类：
+     - `active_use_case = OUT_OF_SCOPE_RATINGS_REVIEWS`（Ratings Reviews → 不匹配）
+     - `active_use_case = OUT_OF_SCOPE_DELIVERY`（Delivery → 不匹配）
+     - `active_use_case = OUT_OF_SCOPE_PRO_CONTRACT`（Pro Contract → 不匹配）
+     - `active_use_case = OUT_OF_SCOPE_ACCOUNT_MANAGER`（Account Manager Support → 不匹配）
+3. **RESOLVE 阶段**（OUT_OF_SCOPE_*）：
    - 输出对应 Topic Subject 的固定话术（`fixed_script_library` §9.1–9.4）
-   - 立即调用 `request_handover`
+   - 立即调用 `request_handover`（`escalation_reason: out_of_scope`）
 4. **Observability**：
    - `Bot_Event__c.EventType__c = OUT_OF_SCOPE_HANDOVER`
-   - `Bot_Event__c.Payload__c` 含 `{ "topic_subject": "...", "description_snippet": "...", "matched_uc": null }`
+   - `Bot_Event__c.Payload__c` 含 `{ "topic_subject": "...", "description_snippet": "...", "matched_uc": null, "oos_category": "OUT_OF_SCOPE_RATINGS_REVIEWS" }`
    - 用于后续分析是否需要扩展 UC 覆盖
+   - **v8 建议**：监控 OUT_OF_SCOPE_RATINGS_REVIEWS 频次；若超过阈值，考虑在 V1.1 新建 UC-L（Ratings & Reviews）
 
 ### 2.11.5 Session State 新增字段
 
@@ -1333,8 +1380,8 @@ topic_uc_mismatch: true                 # 当 form_topic_subject 的 primary UC 
 
 进入 Phase 3 Detailed Technical Design 之前，本 Phase 2 输出已固定的契约项：
 
-- ✅ 12 个 use case 的完整 schema + `parent_topic_subject` 字段（§2.2；UC-A/B/C/D/E/F/FP + UC-G/H/I/J/K）
-- ✅ **Topic Subject → UC 两层分类 + 路由策略（§2.11；v7 新增 — 11 Topic Subject 映射 + 4 handover-only TS + 两阶段意图分类 + UC-E 归属 Technical Support）**
+- ✅ 12 个 use case + 3 个 OUT_OF_SCOPE 分类的完整 schema + `parent_topic_subject` 字段（§2.2；UC-A/B/C/D/E/F/FP + UC-G/H/I/J/K + OUT_OF_SCOPE_RATINGS_REVIEWS/DELIVERY/PRO_CONTRACT）
+- ✅ **Topic Subject → UC 两层分类 + 路由策略（§2.11；v7 初版 + v8 Human Review 校准 — HR 路由准确率数据 + Account Support 专项处理 + UNKNOWN fallback）**
 - ✅ Risk 分级（含 critical）与 forbidden automation 列表（§2.3）
 - ✅ 17 类 escalation triggers + reason codes（§2.4）
 - ✅ Use case → knowledge scope 映射框架（§2.5；**v4：Knowledge API 不可用已确认，pgvector 为唯一检索后端；218 篇文章 CSV 已可用，全量 UC 映射已完成初版**）
@@ -1344,7 +1391,7 @@ topic_uc_mismatch: true                 # 当 form_topic_subject 的 primary UC 
 - ✅ 跨 UC 路由规则 + drift 语义（§2.8）
 - ✅ Guardrails 领域落地（§2.9；**v4 对齐 Common-Phrases 文档 + fixed_script_library**）
 - ✅ **Per-UC tool allocation 矩阵 + runtime policy（§2.10；v4 对齐 tool_spec v0.2 — 含 `get_moderation_review_context` 新工具 + runtime capabilities + confirmed Salesforce Case 字段）**
-- ✅ **7 类 eval 数据集已构建（§phase1 1.5.1）+ 367 条 human review queue 待标注**
+- ✅ **7 类 eval 数据集已构建（§phase1 1.5.1）+ 367 条 human review 全量标注完成（v8）**
 
 **Phase 3 需要在此基础上产出的是实现层细节**（Runtime / State Model 实例化 / Tool 实现 / Integration 详细 / Observability schema 实例 / NFR 验证方式等），不应反向修改本 Phase 2 已固定的契约项。
 
@@ -1375,5 +1422,9 @@ topic_uc_mismatch: true                 # 当 form_topic_subject 的 primary UC 
 - ~~article → UC 映射~~ → ✅ 初版已完成：`data/knowledge/article_uc_mapping.csv`（218 篇，auto-mapped）；`knowledge_base_articles.json` 已可用于 pgvector 入库
 - ~~gumshield cs-review API 访问审批~~ → ✅（Dev 阶段）mock 数据可先行开发；正式审批流程进行中，prod 部署前完成
 - ~~Golden Dataset human review 标注~~ → ✅ 当前阶段**跳过人工标注**，直接以 `csagent/data/eval_datasets/`（7 类数据集 601 sessions / 11,288 turns）为 ground truth
+
+**已解决（v8，2026-04-22）：**
+- ~~Golden Dataset human review 标注~~ → ✅ **367 条全量标注完成**（`data/human_review_annotations_2026-04-22_complete.csv`）
+- **v8 关键影响**：(1) Topic Subject 路由准确率仅 34.9%，"Account Support" 18.2%（§2.11 已更新路由策略）；(2) 新增 3 类 OUT_OF_SCOPE 分类（§2.1 已更新）；(3) UC-I 校正率 52.4%（§2.11 已增加边界检测警告）；(4) 90.2% 会话有 drift（§2.8 已更新 drift 分布数据）；(5) Escalation trigger 与 UC 强绑定（§2.4 已增加 HR 频次数据）
 
 **Phase 3 启动条件：✅ 全部阻塞项已解决，Phase 3 Detailed Technical Design 可以启动。**

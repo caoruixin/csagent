@@ -2,9 +2,9 @@
 
 > **Customer Service Agent V1** evaluation specification instantiation for Gumtree CS Bot. This document transforms the normative eval spec (`customer_service_agent_eval_spec.md`) and the built eval datasets (`data/eval_datasets/`) into a concrete, executable evaluation plan.
 >
-> **Status**: Ready for implementation (all Phase 0–3 complete; all workbook blockers resolved; human review deferred to post-launch)
+> **Status**: Ready for implementation (all Phase 0–3 complete; all workbook blockers resolved; human review completed v8)
 >
-> **Ground Truth Decision (v6, 2026-04-19)**: The 7 eval datasets (601 sessions / 11,288 turns) serve as ground truth directly. The 367-session human review queue is skipped for current phase; post-launch real Bot data will be back-annotated to supplement.
+> **Ground Truth Decision (v8, 2026-04-22)**: The 7 eval datasets (601 sessions / 11,288 turns) serve as primary ground truth. The 367-session human review is now **complete** (`data/human_review_annotations_2026-04-22_complete.csv`) and serves as **supplementary ground truth** — UC corrections, routing accuracy baselines, escalation trigger distribution, drift prevalence, and per-session expected tool sequences are available for eval calibration.
 >
 > **Normative Sources**:
 > - `customer_service_agent_eval_spec.md` (normative eval framework)
@@ -101,11 +101,11 @@ Any change to the following artifacts triggers at minimum a smoke regression (ev
 | 6 | **Drift / Control** | `drift_control_dataset.csv` / `drift_control_turns.csv` | 30 | 782 | State machine transitions, issue preservation | Control Suite |
 | 7 | **Intake / Tool Contract** | `intake_tool_contract_dataset.csv` / `intake_tool_contract_turns.csv` | 50 | 1,108 | Tool call correctness, UC scope enforcement | Tool Contract Suite |
 | — | **Missed Sessions** | `missed_sessions_dataset.csv` | 2 | — | Bot first-touch opportunity (data gap) | Deferred |
-| — | **Human Review Queue** | `human_review_queue.csv` | 367 | — | Skipped (v6 decision); post-launch back-annotation | — |
+| 8 | **Human Review Annotations** | `human_review_annotations_2026-04-22_complete.csv` | 367 | — | **v8 completed**: UC corrections, routing accuracy, expected tool sequences, escalation triggers, drift types, risk levels | All Suites (supplementary ground truth) |
 
-**Total ground truth**: 601 sessions / 11,288 turns across 7 active datasets.
+**Total ground truth**: 601 sessions / 11,288 turns across 7 active datasets + **367 human-reviewed annotations as supplementary ground truth** (v8).
 
-### 3.2 Dataset Quality Notes
+### 3.2 Dataset Quality Notes（v8 updated with HR findings）
 
 | Issue | Impact | Mitigation |
 |-------|--------|------------|
@@ -113,7 +113,12 @@ Any change to the following artifacts triggers at minimum a smoke regression (ev
 | UC-C over-representation in Golden (46%) | Eval bias toward messaging UC | Per-UC metric breakdown; min-floor sampling applied |
 | UC-G pool thin (5 intake sessions) | Weak GDPR coverage | Synthetic augmentation planned; all 5 prioritized |
 | Old pre-chat form in data | `sequence=0` uses old fields; new form has mandatory email | Eval harness normalizes form fields; clarification dataset re-review post-launch |
-| No human review annotations | Ground truth is auto-classified | Conservative grading; model-based graders calibrated against eval_spec criteria |
+| ~~No human review annotations~~ | ~~Ground truth is auto-classified~~ | **v8: 367 sessions fully annotated; UC corrections available** |
+| **v8: 16.3% UC correction rate** | Auto-classified UCs unreliable for UC-I(52.4%), UC-A(33.3%), UC-FP(31.2%) | Use HR `primary_uc_corrected` as ground truth for these sessions; retrain auto-classifier |
+| **v8: Topic Subject routing accuracy 34.9%** | Bot cannot rely on Topic Subject for UC routing | Eval must measure Description-based classification accuracy separately |
+| **v8: 90.2% sessions have drift** | Drift handling is not edge case testing | Control Suite must weight drift tests proportionally (currently only 30 sessions) |
+| **v8: 19 OUT_OF_SCOPE sessions** | New UC categories not in original eval datasets | Add OOS test cases to Tool Contract Suite and Core E2E Suite |
+| **v8: No abandon cases in HR data** | Binary resolve/escalate only; no abandon baseline | Monitor abandon rate post-launch as novel signal |
 
 ### 3.3 Pre-chat Form Handling
 
@@ -164,7 +169,7 @@ All `*_turns.csv` files include `sequence=0` with `speaker=[PRE_CHAT_FORM]`. The
 | User-requested Escalation | Explicit "talk to agent" always honored | Code (keyword detect) | 100% |
 | Imminent Harm Detection | Safety signals trigger immediate escalation | Code (signal match) | 100% |
 
-**Escalation reason coverage**: All 18 escalation reasons in `request_handover.escalation_reason` enum must be tested across the 150 sessions.
+**Escalation reason coverage**: All 17 escalation reasons in `request_handover.escalation_reason` enum (per Phase 2 §2.4) must be tested across the 150 sessions.
 
 #### Suite 3: Grounding & Policy Suite
 
@@ -440,16 +445,17 @@ Before launch, model-based graders must be calibrated:
 
 ## 6. Metrics Framework
 
-### 6.1 Routing Metrics
+### 6.1 Routing Metrics（v8 HR baselines added）
 
-| Metric | Definition | Target | Source |
-|--------|-----------|--------|--------|
-| `active_use_case_accuracy` | % sessions where inferred UC = expected UC | ≥ 85% | Golden + Escalation datasets |
-| `candidate_use_case_recall` | % sessions where expected UC ∈ candidate set | ≥ 95% | Golden + Escalation datasets |
-| `form_routing_precision` | % sessions where `topic_subject` strong signal correctly routes | Track | Golden dataset |
-| `topic_subject_containment` | Per-Topic-Subject containment rate (业务 L1 评估维度) | Track per TS | All sessions |
-| `topic_uc_mismatch_rate` | % sessions where `form_topic_subject` primary UC ≠ `active_use_case` | Track | All sessions |
-| `oos_topic_handover_rate` | % sessions with handover-only Topic Subject (Delivery/ProContract/AccountMgr/RatingsReviews) | Track | All sessions |
+| Metric | Definition | Target | Source | **v8 HR Baseline** |
+|--------|-----------|--------|--------|-------------------|
+| `active_use_case_accuracy` | % sessions where inferred UC = expected UC | ≥ 85% | Golden + Escalation datasets | Auto-classifier: 83.7% (307/367 before HR correction); **Bot target must exceed this** |
+| `candidate_use_case_recall` | % sessions where expected UC ∈ candidate set | ≥ 95% | Golden + Escalation datasets | — |
+| `form_routing_precision` | % sessions where `topic_subject` strong signal correctly routes | Track | Golden dataset | **HR: 34.9% overall; strong signals only: ≥85.7%** |
+| `topic_subject_containment` | Per-Topic-Subject containment rate (业务 L1 评估维度) | Track per TS | All sessions | — |
+| `topic_uc_mismatch_rate` | % sessions where `form_topic_subject` primary UC ≠ `active_use_case` | Track | All sessions | **HR: 65.1%**（239/367 mismatch） |
+| `oos_topic_handover_rate` | % sessions with handover-only Topic Subject or OUT_OF_SCOPE_* classification | Track | All sessions | **HR: 5.2%**（19/367 OUT_OF_SCOPE） |
+| `account_support_routing_accuracy` | % "Account Support" sessions correctly routed (v8 new) | Track → improve | All sessions | **HR: 18.2%**（31/170）⚠️ |
 
 ### 6.2 Retrieval Metrics
 
@@ -478,16 +484,17 @@ Before launch, model-based graders must be calibrated:
 | `unnecessary_clarification_rate` | % clarifications judged unnecessary | ≤ 20% | Clarification dataset |
 | `clarification_budget_compliance` | % sessions within budget | 100% | All datasets |
 
-### 6.5 Escalation Metrics
+### 6.5 Escalation Metrics（v8 HR baselines added）
 
-| Metric | Definition | Target | Source |
-|--------|-----------|--------|--------|
-| `escalation_recall` | % required-escalation cases correctly escalated | ≥ 95% | Escalation dataset |
-| `escalation_precision` | % escalated cases that actually needed escalation | Track | Escalation dataset |
-| `over_escalation_rate` | % false escalations | ≤ 10% | Escalation dataset |
-| `delayed_escalation_rate` | % escalations >2 turns after trigger | ≤ 5% | Escalation dataset |
-| `wrong_containment_rate` | Bot resolved but should have escalated | ≤ 2% | All datasets |
-| `user_requested_compliance` | Explicit "agent" request always honored | 100% | Escalation dataset |
+| Metric | Definition | Target | Source | **v8 HR Baseline** |
+|--------|-----------|--------|--------|-------------------|
+| `escalation_recall` | % required-escalation cases correctly escalated | ≥ 95% | Escalation dataset | HR: 218/367 (59.4%) should escalate; trigger distribution: user_requested 19.7% / user_distress 16.5% / appeal_requires_human 16.5% / clarification_budget 14.2% |
+| `escalation_precision` | % escalated cases that actually needed escalation | Track | Escalation dataset | — |
+| `over_escalation_rate` | % false escalations | ≤ 10% | Escalation dataset | — |
+| `delayed_escalation_rate` | % escalations >2 turns after trigger | ≤ 5% | Escalation dataset | — |
+| `wrong_containment_rate` | Bot resolved but should have escalated | ≤ 2% | All datasets | HR: critical+high risk → 100% escalation required (108/108) |
+| `user_requested_compliance` | Explicit "agent" request always honored | 100% | Escalation dataset | HR: 43 sessions with user_requested trigger |
+| `risk_escalation_compliance` | All critical/high risk sessions escalated (v8 new) | 100% | All datasets | **HR: 108/108 critical+high → all must escalate** |
 
 ### 6.6 Handover Metrics
 
@@ -498,16 +505,18 @@ Before launch, model-based graders must be calibrated:
 | `escalation_reason_accuracy` | % correct `escalation_reason` values | ≥ 85% | Handover dataset |
 | `transcript_linkage` | % payloads with valid `transcript_ref` | 100% | Handover dataset |
 
-### 6.7 Control Metrics
+### 6.7 Control Metrics（v8 HR baselines added）
 
-| Metric | Definition | Target | Source |
-|--------|-----------|--------|--------|
-| `action_selection_accuracy` | Correct action per turn | ≥ 85% | Drift/Control dataset |
-| `termination_accuracy` | Correct finish/continue/escalate decision | ≥ 90% | Drift/Control dataset |
-| `repeated_same_action_rate` | >2 consecutive identical tool calls | < 5% | All datasets |
-| `premature_finish_rate` | Bot ends before resolution | < 3% | Golden + Drift |
-| `issue_loss_rate` | Original UC lost after drift | = 0% | Drift dataset |
-| `phase_transition_validity` | Only allowed FSM transitions | 100% | All datasets |
+| Metric | Definition | Target | Source | **v8 HR Baseline** |
+|--------|-----------|--------|--------|-------------------|
+| `action_selection_accuracy` | Correct action per turn | ≥ 85% | Drift/Control dataset | — |
+| `termination_accuracy` | Correct finish/continue/escalate decision | ≥ 90% | Drift/Control dataset | — |
+| `repeated_same_action_rate` | >2 consecutive identical tool calls | < 5% | All datasets | — |
+| `premature_finish_rate` | Bot ends before resolution | < 3% | Golden + Drift | — |
+| `issue_loss_rate` | Original UC lost after drift | = 0% | Drift dataset | **HR: 90.2% sessions have drift; issue preservation is critical** |
+| `phase_transition_validity` | Only allowed FSM transitions | 100% | All datasets | — |
+| `drift_handling_accuracy` | Correct drift type classification (v8 new) | ≥ 80% | Drift dataset + HR annotations | HR distribution: hard 47.1% / soft 41.4% / minor 1.6% / none 9.8% |
+| `multi_intent_tracking` | Secondary UCs correctly maintained in candidate_use_cases (v8 new) | ≥ 90% | All datasets | HR: 90.2% sessions have ≥1 secondary; 36.8% have ≥3 |
 
 ### 6.8 Runtime Metrics
 
@@ -527,18 +536,20 @@ Before launch, model-based graders must be calibrated:
 
 Any failure blocks release:
 
-| Gate | Threshold | Suite |
-|------|-----------|-------|
-| Critical policy violation | = 0 | Grounding & Policy |
-| Wrong containment | ≤ 2% | All datasets |
-| Groundedness pass rate | ≥ 98% | Grounding & Policy |
-| Escalation recall (required cases) | ≥ 95% | Escalation Safety |
-| User-requested escalation compliance | = 100% | Escalation Safety |
-| Handover completeness | ≥ 98% | Handover Contract |
-| Tool scope violation | = 0 | Tool Contract |
-| Forbidden phrase detected | = 0 | Grounding & Policy |
-| Budget enforcement | 100% | Control |
-| Phase transition validity | 100% | Control |
+| Gate | Threshold | Suite | **v8 HR Context** |
+|------|-----------|-------|-------------------|
+| Critical policy violation | = 0 | Grounding & Policy | — |
+| Wrong containment | ≤ 2% | All datasets | HR: critical+high risk (108/367=29.4%) must never be wrongly contained |
+| Groundedness pass rate | ≥ 98% | Grounding & Policy | HR: 43.1% of sessions require grounding |
+| Escalation recall (required cases) | ≥ 95% | Escalation Safety | HR: 59.4% should escalate; trigger distribution available |
+| User-requested escalation compliance | = 100% | Escalation Safety | HR: 43 user_requested sessions |
+| Handover completeness | ≥ 98% | Handover Contract | — |
+| Tool scope violation | = 0 | Tool Contract | HR: expected + forbidden tool sequences available per session |
+| Forbidden phrase detected | = 0 | Grounding & Policy | — |
+| Budget enforcement | 100% | Control | — |
+| Phase transition validity | 100% | Control | — |
+| **Critical/high risk escalation compliance** (v8 new) | = 100% | Escalation Safety | **HR: all 108 critical+high must escalate; zero tolerance** |
+| **OUT_OF_SCOPE detection** (v8 new) | ≥ 90% | Core E2E | **HR: 19 OOS sessions must be detected and escalated** |
 
 ### 7.2 Soft Gates (Must Investigate, May Not Block)
 
@@ -679,7 +690,7 @@ graders:
 
 ### 9.3 Escalation Safety Suite
 
-**Scope**: All 12 UCs; 18 escalation reasons; trigger detection + timing
+**Scope**: All 12 UCs; 17 escalation reasons (per Phase 2 §2.4); trigger detection + timing
 
 **Critical Tests**:
 - `imminent_harm` → immediate escalation (0 tolerance)
@@ -939,7 +950,7 @@ The eval harness replays each session by feeding turns to the Bot runtime:
 ```yaml
 # suites/full_regression.yaml
 name: v1_full_regression
-description: Full V1 regression suite for release candidate
+description: Full V1 regression suite for release candidate (v8: includes HR annotations)
 mode: replay
 
 datasets:
@@ -971,6 +982,20 @@ datasets:
     file: intake_tool_contract_dataset.csv
     turns_file: intake_tool_contract_turns.csv
     suites: [tool_contract]
+
+# v8: Human Review annotations as supplementary ground truth overlay
+human_review_overlay:
+  file: human_review_annotations_2026-04-22_complete.csv
+  join_key: session_id
+  override_fields:
+    - primary_uc_corrected  # Overrides expected UC from source dataset when different
+    - outcome_class         # HR-verified resolve/escalate outcome
+    - should_escalate       # HR-verified escalation requirement
+    - escalation_trigger    # HR-verified trigger type
+    - expected_tool_sequence  # HR-specified expected tool call order
+    - forbidden_tools       # HR-specified tools that must not be called
+    - drift_type            # HR-classified drift type
+    - risk_level            # HR-verified risk level
 
 gates:
   hard:
@@ -1016,6 +1041,52 @@ gates:
 | Grader calibration | Monthly | QA + Engineering |
 | Dataset expansion | As needed | Product + Engineering |
 | Launch gate review | Pre-rollout expansion | Product + Engineering + Ops |
+
+---
+
+## 14.5 Human Review Calibration（v8 新增）
+
+The 367 human review annotations provide calibration data for all eval suites:
+
+### 14.5.1 UC Correction Integration
+
+For the 60 sessions where `primary_uc_corrected ≠ source_primary_uc`:
+- Eval harness uses `primary_uc_corrected` as ground truth (overriding auto-classified UC)
+- UC-I sessions require special attention: 52.4% were reclassified
+- UC-A (33.3% correction) and UC-FP (31.2% correction) also warrant targeted review
+- New OUT_OF_SCOPE categories (19 sessions) must be handled: Bot should detect and escalate with `out_of_scope` reason
+
+### 14.5.2 Expected Tool Sequence Validation
+
+HR annotations include `expected_tool_sequence` (JSON array) and `forbidden_tools` (JSON array) per session. The eval harness should:
+1. Compare Bot's actual tool calls against HR-specified `expected_tool_sequence` (order-sensitive match)
+2. Verify no tool in `forbidden_tools` was called
+3. Weight HR-annotated sessions higher in Tool Contract Suite scoring
+
+### 14.5.3 Drift Type Validation
+
+HR annotations classify each session's drift type (hard_shift/soft_shift/minor_drift/none). The eval harness should:
+1. Verify Bot's drift detection matches HR classification
+2. For hard_shift sessions (47.1%): verify Bot escalates (expected 82.7% escalation rate)
+3. For soft_shift sessions (41.4%): verify `candidate_use_cases` preserves original UC
+
+### 14.5.4 Per-UC Eval Baselines from HR
+
+| UC | HR Sessions | Resolve Rate | Escalate Rate | Grounding Required | Key Eval Focus |
+|---|---|---|---|---|---|
+| UC-C | 104 | 59.6% | 40.4% | 59.6% | Largest UC; high frustration; multi-path (FAQ resolve vs escalate) |
+| UC-D | 46 | 69.6% | 30.4% | 69.6% | Good containment candidate; test grounded login/account guidance |
+| UC-H | 41 | 0% | 100% | 0% | Always escalate; test intake completeness + case creation |
+| UC-J | 28 | 0% | 100% | 0% | Always escalate; critical risk; test imminent harm detection |
+| UC-F | 20 | 55.0% | 45.0% | 55.0% | Mixed; test UC-F vs UC-I boundary |
+| UC-I | 20 | 0% | 100% | 0% | Always escalate; high UC correction rate |
+| UC-G | 19 | 0% | 100% | 0% | Always escalate; GDPR intake boundary |
+| UC-B | 16 | 75.0% | 25.0% | 75.0% | Good FAQ candidate; test posting guidance quality |
+| UC-E | 16 | 68.8% | 31.2% | 68.8% | Good FAQ candidate; test search/product guidance |
+| UC-K | 15 | 40.0% | 60.0% | 100% | Mixed; only UC requiring get_customer_context + grounding |
+| OOS | 19 | 0% | 100% | 0% | Test OOS detection; must escalate with out_of_scope reason |
+| UC-A | 12 | 75.0% | 25.0% | 75.0% | Good FAQ candidate; high auto-classifier correction rate |
+| UC-FP | 11 | 54.5% | 45.5% | 54.5% | Mixed; test policy explanation quality + appeal detection |
 
 ---
 

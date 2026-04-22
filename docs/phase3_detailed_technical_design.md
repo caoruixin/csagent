@@ -5,7 +5,8 @@
 > **前置输入（全部已固定）**:
 > - `phase0_normative_freeze.md`（V1 规范冻结层 — 不可漂移的内核约束）
 > - `phase1_solution_input_pack.md`（业务 / 领域 / 运营 / 工程 / Eval 完整输入）
-> - `phase2_domain_realization_spec.md`（12 UC registry / risk matrix / escalation matrix / knowledge scope / control policy / tool allocation / guardrails）
+> - `phase2_domain_realization_spec.md`（12 UC + 3 OUT_OF_SCOPE registry / risk matrix / escalation matrix / knowledge scope / control policy / tool allocation / guardrails）
+> - `data/human_review_annotations_2026-04-22_complete.csv`（**v8 新增** — 367 条 human review 标注，校准 UC 分类 / 路由 / drift / escalation 设计）
 > - `customer_service_tool_spec_v0_2.yaml`（V1 Tool Spec v0.2）
 > - `salesforce-part-spec.md` / `problem_retrieval_solution_plan_pgvector.md` / `07-engineering-constraints.md` / `platform_api_detailed_reference.md`
 > - `data/knowledge/knowledge_base_articles.json` + `article_uc_mapping.csv`（218 篇文章 + UC 映射）
@@ -97,7 +98,7 @@
 | **Control Kernel** | 状态机推进（INIT→DISCOVER→RESOLVE→CONFIRM→CLOSE/ESCALATE）；budget 管理；drift detection | Stateless per-turn evaluation against session state |
 | **Context Builder** | 每轮构造最小充分 projected context → LLM prompt | Template engine + state reader |
 | **LLM Invocation Layer** | 调用 Vertex AI Gemini；解析结构化输出（action + parameters）| Vertex AI Java SDK |
-| **Tool Dispatcher** | 路由 tool call 到具体实现；schema validation；policy enforcement | Spring Bean routing + JSON Schema validator |
+| **Tool Dispatcher** | 路由 tool call 到具体实现；schema validation；policy enforcement；5 agent-visible + 5 runtime-only tools (v0.2.1) | Spring Bean routing + JSON Schema validator |
 | **Tool Policy Enforcer** | 每次 tool call 前检查 `active_use_case ∈ allowed_use_cases`；violation → `scope_blocked` | Pre-dispatch interceptor |
 | **Handover Module** | 构建 handover payload → Salesforce Omni-Channel Transfer → 写 Bot_Context__c | Salesforce REST API client |
 | **Script Library** | 固定话术模板管理与渲染（14 类 / 50+ 模板）| Template store + variable interpolation |
@@ -188,7 +189,7 @@ User arrives at Help Centre
 | `Case__c` | Lookup(Case) | Link to pre-chat-form-created Case |
 | `TrafficVariant__c` | Picklist | GrowthBook variant: `control` / `bot_v1` |
 | `HandlingState__c` | Picklist | `BOT_HANDLING` / `QUEUE_TO_HUMAN` / `HUMAN_HANDLING` / `CLOSED` |
-| `PrimaryIntent__c` | Text(50) | e.g. `UC-FP-01` |
+| `PrimaryIntent__c` | Text(50) | e.g. `UC-FP-01` or `OUT_OF_SCOPE_RATINGS_REVIEWS` (v8: includes OOS categories) |
 | `CandidateIntents__c` | Text(255) | JSON array of candidate UC IDs |
 | `IntentConfidence__c` | Number(4,2) | 0.00–1.00 |
 | `ContainmentOutcome__c` | Picklist | `RESOLVED` / `ESCALATED` / `ABANDONED` / `WRONG_CONTAINMENT` |
@@ -207,7 +208,7 @@ User arrives at Help Centre
 |-------|------|-------------|
 | `Name` | Auto Number | Event record name |
 | `Bot_Session__c` | Lookup(Bot_Session__c) | Parent session |
-| `EventType__c` | Picklist | `SESSION_STARTED` / `USE_CASE_INFERRED` / `RETRIEVAL_EXECUTED` / `ARTICLE_SHOWN` / `CLARIFICATION_ASKED` / `ESCALATION_REQUESTED` / `CASE_CREATED` / `OUTCOME_RECORDED` / `SESSION_CLOSED` / `TOOL_SCOPE_BLOCKED` |
+| `EventType__c` | Picklist | `SESSION_STARTED` / `USE_CASE_INFERRED` / `RETRIEVAL_EXECUTED` / `ARTICLE_SHOWN` / `CLARIFICATION_ASKED` / `ESCALATION_REQUESTED` / `CASE_CREATED` / `OUTCOME_RECORDED` / `SESSION_CLOSED` / `TOOL_SCOPE_BLOCKED` / `OUT_OF_SCOPE_HANDOVER` (v8) / `GUARDRAIL_VIOLATION` |
 | `TurnIndex__c` | Number | Turn sequence in session |
 | `Payload__c` | LongText(32768) | JSON (PII-redacted) |
 | `CreatedDate` | DateTime | Auto |
@@ -232,8 +233,8 @@ CREATE TABLE bot_sessions (
     traffic_variant     TEXT NOT NULL DEFAULT 'bot_v1',
     handling_state      TEXT NOT NULL DEFAULT 'BOT_HANDLING',
     current_phase       TEXT NOT NULL DEFAULT 'INIT',
-    active_use_case     TEXT,                       -- e.g. 'UC-FP-01'
-    candidate_use_cases TEXT[],                     -- e.g. {'UC-A-01','UC-FP-01'}
+    active_use_case     TEXT,                       -- e.g. 'UC-FP-01' or 'OUT_OF_SCOPE_RATINGS_REVIEWS' (v8: includes OOS categories)
+    candidate_use_cases TEXT[],                     -- e.g. {'UC-A-01','UC-FP-01'}; v8 HR: 90.2% sessions have ≥1 secondary UC
     intent_confidence   NUMERIC(4,2),
     
     -- Budgets & Counters
@@ -406,8 +407,9 @@ INIT ─────────────────────────
   ▼                                                               │
 DISCOVER ──────────────────────────────────────┐                  │
   │                                             │                  │
-  │ Two-stage UC routing (phase2 §2.11):        │ any escalation   │
-  │   Stage 1: topic_subject prior              │ trigger hit      │
+  │ Two-stage UC routing (phase2 §2.11,          │ any escalation   │
+  │   v8 HR-calibrated):                        │ trigger hit      │
+  │   Stage 1: topic_subject prior              │                  │
   │     strong (>70%): direct route UC-G/J      │ ───────────┐     │
   │     handover-only (4 TS): check desc ���      │            │     │
   │       match UC �� route; else → OOS handover │            │     │
@@ -505,15 +507,23 @@ ESCALATE ◄─── (reachable from any phase via escalation triggers)
 | `max_total_bot_turns_before_forced_escalation` | **25** | Combined with Salesforce hard limit of 50 turns (Bot ≤ 25, leave room for handover messaging). Takes `min(25, 50 - overhead)` |
 | Re-retrieval attempts after "not resolved" | **1** | CONFIRM → RESOLVE retry; only once with reformulated query |
 
-### 3.3.5 Drift Handling Implementation
+### 3.3.5 Drift Handling Implementation（v8 HR-calibrated）
 
-| Drift Type | Detection | Action |
-|------------|-----------|--------|
-| **Minor drift** | User message adds details but intent unchanged (cosine similarity to original query > 0.85) | Keep active_use_case; append info to session state; continue current phase |
-| **Soft shift** | User introduces new topic (intent classifier returns different UC with confidence > 0.6) | Update `active_use_case`; move old UC to `candidate_use_cases`; retain unresolved flag; re-enter DISCOVER |
-| **Hard shift** | New topic is high-risk (UC-G/H/I/J), or user explicitly requests human, or imminent harm signal | Immediately ESCALATE with both original and new UC in payload |
+> **v8 HR 关键数据**：90.2% 的会话存在 drift — hard_shift 47.1% / soft_shift 41.4% / minor_drift 1.6% / none 9.8%。多意图处理是 **default case** 而非 edge case。90.2% 会话有 ≥1 secondary UC；36.8% 有 ≥3 secondary UCs。
+
+| Drift Type | Detection | Action | **HR 频次** | **HR Escalation Rate** |
+|------------|-----------|--------|------------|----------------------|
+| **Minor drift** | User message adds details but intent unchanged (cosine similarity to original query > 0.85) | Keep active_use_case; append info to session state; continue current phase | **1.6%（6/367）** | 50% |
+| **Soft shift** | User introduces new topic (intent classifier returns different UC with confidence > 0.6) | Update `active_use_case`; move old UC to `candidate_use_cases`; retain unresolved flag; re-enter DISCOVER | **41.4%（152/367）** | **40.1%** |
+| **Hard shift** | New topic is high-risk (UC-G/H/I/J), or user explicitly requests human, or imminent harm signal | Immediately ESCALATE with both original and new UC in payload | **47.1%（173/367）** | **82.7%** |
 
 **Issue preservation**: when soft shift occurs, the `candidate_use_cases` array retains the previous `active_use_case`. The handover payload always includes both if session ends in ESCALATE.
+
+**v8 Design implications**:
+- `candidate_use_cases` management is a **core runtime capability** — 90.2% of sessions need it
+- Hard shift → ESCALATE is the dominant pattern (82.7%); runtime should optimize this path
+- The most common secondary UCs are UC-K(179 appearances), UC-B(114), UC-D(111) — these appear as context even when not the primary intent
+- For "Account Support" sessions (46.3% of HR data), drift is nearly universal because the primary UC is often misclassified initially
 
 ---
 
@@ -638,9 +648,16 @@ These are never exposed to LLM prompt. Triggered by runtime logic based on UC po
 | Ad ID Number | `intake_fields.ad_id` (if available) |
 | Bot_Context__c | Full handover JSON |
 
-#### `lookup_customer_account` / `lookup_listing_or_ad` / `get_moderation_review_context`
+#### `lookup_customer_account` / `lookup_listing_or_ad` / `get_moderation_review_context` / `get_message_moderation_context`
 
 Internally invoked by `get_customer_context` — see §3.4.1.3. No separate external surface.
+
+**`get_message_moderation_context`** (v0.2.1 新���，V1 scope confirmed):
+- **Allowed UCs**: UC-C only
+- **Trigger**: `get_customer_context` in UC-C messaging diagnostic scenarios (user reports "can't get replies" / "messages not working")
+- **API**: `POST /history/moderation/search` → message-moderation-history microservice
+- **Purpose**: Determine if user's messages are being blocked by platform safety filters vs. simply unread by recipients
+- **Output**: `has_blocked_messages` flag + count + reason summary → feeds into UC-C diagnostic resolution path (Phase 2 §2.6 UC-C-01)
 
 ### 3.4.3 Runtime Capabilities (Non-Tool)
 
@@ -841,6 +858,8 @@ Written to `Case.Bot_Context__c` (LongText) as JSON:
   },
   "total_bot_turns": 4,
   "handling_duration_seconds": 45,
+  "form_topic_subject": "Ad Support",
+  "topic_uc_mismatch": false,
   "prompt_version": "v1.0.3",
   "model_version": "gemini-2.0-flash"
 }
@@ -1184,7 +1203,9 @@ Response: { "status": "UP" | "DOWN", "checks": {...} }
 
 ## 3.12 Release Criteria for V1
 
-Inherited from `phase0_normative_freeze.md` §0.3, with Gumtree-specific instantiation:
+Inherited from `phase0_normative_freeze.md` §0.3, with Gumtree-specific instantiation.
+
+> **v8 HR calibration note**: Human review of 367 sessions revealed Topic Subject routing accuracy of only 34.9%. The `active_use_case_accuracy ≥ 85%` gate measures Bot's **Description-based classification** accuracy (not Topic Subject → UC routing). The UC correction rate of 16.3% in auto-classified data sets a quality baseline — Bot must do better than the original auto-classifier.
 
 | Gate | Threshold | Measurement |
 |------|-----------|-------------|
@@ -1217,7 +1238,7 @@ Phase 4 (Coding Agent Implementation Packet) receives:
 | Runtime architecture + component breakdown | ✅ This document §3.1 |
 | State model DDL (PostgreSQL + Salesforce) | ✅ §3.2 |
 | Control kernel state machine + budgets + transitions | ✅ §3.3 |
-| Tool implementation specs (all 11 tools + 4 capabilities) | ✅ §3.4 |
+| Tool implementation specs (all 12 tools: 5 agent-visible + 5 runtime-only + 2 human-only; + 4 capabilities) | ✅ §3.4 |
 | pgvector schema + retrieval pipeline + embedding config | ✅ §3.5 |
 | Handover payload schema + routing + UX | ✅ §3.6 |
 | Guardrails implementation (forbidden phrases, PII, versioning) | ✅ §3.7 |
@@ -1225,5 +1246,11 @@ Phase 4 (Coding Agent Implementation Packet) receives:
 | NFR targets + implementation approach | ✅ §3.9 |
 | API contracts (inbound, search, health) | ✅ §3.11 |
 | Release criteria with thresholds | ✅ §3.12 |
+
+**v8 additions from human review**:
+- OUT_OF_SCOPE category handling in state machine (§3.3.1) + session state (§3.2.2) + events (§3.2.1)
+- Drift handling calibrated with HR distribution data (§3.3.5): 90.2% drift prevalence
+- "Account Support" special routing path requiring full-candidate-set classification (phase2 §2.11.2)
+- Human review annotations as supplementary ground truth for eval datasets (phase5)
 
 **Phase 4 will produce**: module breakdown, delivery order, required contracts (DB schema DDL, API OpenAPI specs, tool schema files, trace/event Avro schemas, config YAML schemas), required tests, and done criteria.

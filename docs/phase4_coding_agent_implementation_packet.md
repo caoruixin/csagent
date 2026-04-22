@@ -4,7 +4,14 @@
 >
 > **Status**: Plan only — implementation starts after user confirmation.
 >
-> **Inputs**: `phase3_detailed_technical_design.md` (runtime / state / control / tools / knowledge / handover / guardrails / observability / NFR), `phase5_evaluation_design.md` (eval harness / graders / suites / gates), `customer_service_tool_spec_v0_2.yaml`, eval datasets (601 sessions / 11,288 turns)
+> **Inputs**: `phase3_detailed_technical_design.md` (runtime / state / control / tools / knowledge / handover / guardrails / observability / NFR), `phase5_evaluation_design.md` (eval harness / graders / suites / gates), `customer_service_tool_spec_v0_2.yaml`, eval datasets (601 sessions / 11,288 turns), `data/human_review_annotations_2026-04-22_complete.csv` (**v8 新增** — 367 条 human review 标注，校准 UC 分类 / 路由 / drift / escalation)
+>
+> **v8 Human Review Impact on Implementation**:
+> - Topic Subject 路由准确率仅 34.9% — "Account Support"(18.2%) 需全候选集分类
+> - UC 校正率 16.3%（UC-I 52.4%）— Bot Description-based 分类必须优于自动分类器
+> - 90.2% 会话有 drift（hard_shift 47.1% / soft_shift 41.4%）— 多意图追踪是核心能力
+> - 3+1 个 OUT_OF_SCOPE 分类需 runtime 处理
+> - `get_message_moderation_context`（v0.2.1）已确认 V1 scope → runtime-only tools = 5
 
 ---
 
@@ -16,7 +23,7 @@
 - **Knowledge pipeline**: offline ingestion (218 articles → chunk → embed → pgvector) + online retrieval (ANN → rerank → faq_miss)
 - **Salesforce integration**: inbound webhook, Case read, Omni-Channel transfer, Bot_Session__c / Bot_Event__c write
 - **Core runtime**: control kernel (INIT → DISCOVER → RESOLVE → CONFIRM → CLOSE / ESCALATE), context projection, LLM invocation (Vertex AI Gemini)
-- **Tool layer**: 5 agent-visible + 4 runtime-only tools with policy enforcement
+- **Tool layer**: 5 agent-visible + 5 runtime-only tools (v0.2.1, including `get_message_moderation_context` for UC-C) with policy enforcement
 - **Guardrails**: fixed_script_library (14 categories / 50+ templates), forbidden phrase detection, PII redaction
 - **Observability**: structured events, per-turn traces, Kafka publishing, Salesforce sync
 - **Eval harness**: dataset loader, session simulator, code + model graders, CI gate integration
@@ -94,9 +101,9 @@ Response: { reply_text, intent, should_end_chat, additional_data }
 
 | Aspect | Detail |
 |--------|--------|
-| **What** | Session lifecycle manager, form_context_ingestion, Control Kernel (state machine with 6 phases + transitions from §3.3), budget enforcement, drift detection, context projection (§3.2.6), LLM invocation (Vertex AI Gemini structured output) |
+| **What** | Session lifecycle manager, form_context_ingestion, Control Kernel (state machine with 6 phases + transitions from §3.3), budget enforcement, drift detection (v8: 90.2% sessions have drift — this is core, not edge case), context projection (§3.2.6), LLM invocation (Vertex AI Gemini structured output), **two-stage UC routing** (v8: Topic Subject weak signal → Description classification; Account Support needs full-candidate-set classification), **OUT_OF_SCOPE detection** (v8: 4 OOS categories → fixed_script → ESCALATE) |
 | **Output** | Given a user message + session state → produces action decision + bot response |
-| **Key files** | `SessionManager`, `FormContextIngestionService`, `ControlKernel` (phase evaluator + budget checker + drift detector), `ContextProjectionBuilder`, `LlmInvocationService`, `ActionParser` |
+| **Key files** | `SessionManager`, `FormContextIngestionService`, `ControlKernel` (phase evaluator + budget checker + drift detector), `ContextProjectionBuilder`, `LlmInvocationService`, `ActionParser`, `UseCaseRouter` (v8: two-stage classification with Account Support special handling) |
 | **Dependencies** | M1 (state store), M3 (session init from SF) |
 
 **Control kernel phases**: INIT → DISCOVER → RESOLVE → CONFIRM → CLOSE / ESCALATE
@@ -112,21 +119,23 @@ Response: { reply_text, intent, should_end_chat, additional_data }
 
 | Aspect | Detail |
 |--------|--------|
-| **What** | Tool Dispatcher with pre-dispatch Policy Enforcer; implementations for all 9 V1 tools (5 agent-visible + 4 runtime-only) |
+| **What** | Tool Dispatcher with pre-dispatch Policy Enforcer; implementations for all 10 V1 tools (5 agent-visible + 5 runtime-only, v0.2.1) |
 | **Output** | Any tool callable by name; scope violations rejected with `scope_blocked`; runtime-only tools triggered by policy, not LLM |
-| **Key files** | `ToolDispatcher`, `ToolPolicyEnforcer`, `SearchKnowledgeTool`, `ResolveArticleTool`, `GetCustomerContextTool` (composite), `RequestHandoverTool`, `RecordOutcomeTool`, `CreateCaseControlledTool` (runtime-only), `LookupCustomerAccountService`, `LookupListingOrAdService`, `GetModerationReviewContextService` |
+| **Key files** | `ToolDispatcher`, `ToolPolicyEnforcer`, `SearchKnowledgeTool`, `ResolveArticleTool`, `GetCustomerContextTool` (composite), `RequestHandoverTool`, `RecordOutcomeTool`, `CreateCaseControlledTool` (runtime-only), `LookupCustomerAccountService`, `LookupListingOrAdService`, `GetModerationReviewContextService`, `GetMessageModerationContextService` (v0.2.1, UC-C only) |
 | **Dependencies** | M2 (knowledge search), M3 (Salesforce APIs), M4 (control kernel for policy) |
 
-**Per-UC tool matrix enforcement** (from §2.10):
+**Per-UC tool matrix enforcement** (from §2.10, v0.2.1):
 - `search_knowledge` / `resolve_article`: only UC-A/B/C/D/E/F/FP
 - `get_customer_context`: only UC-A/C/D/F/FP/K
 - `create_case_controlled`: only UC-H/J/K (runtime-only)
-- `request_handover` / `record_outcome`: all UCs
+- `get_message_moderation_context`: only UC-C (v0.2.1, runtime-only, chained from `get_customer_context`)
+- `request_handover` / `record_outcome`: all UCs + OUT_OF_SCOPE_* categories
 
-**Internal API chains** (from tool_spec v0.2):
+**Internal API chains** (from tool_spec v0.2.1):
 - Account chain: bapi-server → user-service → gumshield-api (6 endpoints)
 - Listing chain: bapi-server → advert-service → gumshield-api → livead-search (7 endpoints)
 - Moderation review: gumshield-api cs-review (mock in dev, real in prod)
+- Message moderation: message-moderation-history `POST /history/moderation/search` (v0.2.1, UC-C only)
 
 ### M6: Guardrails & UX
 
@@ -138,7 +147,7 @@ Response: { reply_text, intent, should_end_chat, additional_data }
 | **Dependencies** | M4 (control kernel invokes guardrails) |
 | **Data inputs** | `fixed_script_library_v1.md` → converted to YAML template files |
 
-**Template categories** (14): opening, empathy, hold_placeholder, identifier_request, resolution_check, escalation_business_hours, escalation_off_hours, gdpr_intake, appeal_intake, dispute_disclaimer, safety_intake, tech_troubleshoot, policy_explanation, idle_close
+**Template categories** (14 + OOS): opening, empathy, hold_placeholder, identifier_request, resolution_check, escalation_business_hours, escalation_off_hours, gdpr_intake, appeal_intake, dispute_disclaimer, safety_intake, tech_troubleshoot, policy_explanation, idle_close + **OOS templates** (v8: `oos_delivery`, `oos_pro_contract`, `oos_account_manager`, `oos_ratings_reviews`, `oos_generic` — from `fixed_script_library_v1.md` §9)
 
 ### M7: Observability
 
@@ -149,7 +158,7 @@ Response: { reply_text, intent, should_end_chat, additional_data }
 | **Key files** | `EventEmitter`, `TraceWriter`, `KafkaEventPublisher`, `SalesforceEventSync`, `MetricsService`, `PiiSafeLogFilter` |
 | **Dependencies** | M1 (DB + Kafka config), M3 (SF sync) |
 
-**Events**: SESSION_STARTED, USE_CASE_INFERRED, RETRIEVAL_EXECUTED, ARTICLE_SHOWN, CLARIFICATION_ASKED, ESCALATION_REQUESTED, CASE_CREATED, OUTCOME_RECORDED, SESSION_CLOSED, TOOL_SCOPE_BLOCKED, GUARDRAIL_VIOLATION
+**Events**: SESSION_STARTED, USE_CASE_INFERRED, RETRIEVAL_EXECUTED, ARTICLE_SHOWN, CLARIFICATION_ASKED, ESCALATION_REQUESTED, CASE_CREATED, OUTCOME_RECORDED, SESSION_CLOSED, TOOL_SCOPE_BLOCKED, GUARDRAIL_VIOLATION, OUT_OF_SCOPE_HANDOVER (v8)
 
 ### M8: Eval Harness
 
@@ -159,7 +168,7 @@ Response: { reply_text, intent, should_end_chat, additional_data }
 | **Output** | `./eval/` directory; `mvn verify -Peval-smoke` runs smoke suite in CI; full regression runnable as standalone |
 | **Key files** | `eval/harness/`, `eval/graders/code/`, `eval/graders/model/`, `eval/metrics/`, `eval/suites/*.yaml` |
 | **Dependencies** | M4+M5+M6 (bot runtime to test against), eval datasets |
-| **Data inputs** | `csagent/data/eval_datasets/` (7 CSV pairs, 601 sessions) |
+| **Data inputs** | `data/eval_datasets/` (7 CSV pairs, 601 sessions) + `data/human_review_annotations_2026-04-22_complete.csv` (367 HR-annotated sessions as supplementary ground truth, v8) |
 | **Language** | Python (eval harness) or Java (if team prefers same stack); Python recommended for grader flexibility |
 
 **CI integration**: Jenkins pipeline adds eval stage after build + unit tests; PR → smoke (75 sessions, ≤5min); RC → full (601 sessions, ≤30min).
@@ -204,7 +213,7 @@ Phase  1 (Foundation)           Phase 2 (Core Capabilities)          Phase 3 (In
 | **2a** | **M2: Knowledge Pipeline** | Yes (with M3) | M1 | 218 articles indexed; `/v1/faq/search` working |
 | **2b** | **M3: Salesforce Integration** | Yes (with M2) | M1 | Inbound webhook + Case read + transfer API |
 | **3** | **M4: Core Runtime** | — | M1, M2 stub, M3 stub | State machine + context projection + LLM invocation |
-| **4a** | **M5: Tool Layer** | Yes (with M6, M7) | M2, M3, M4 | All 9 tools dispatchable with policy enforcement |
+| **4a** | **M5: Tool Layer** | Yes (with M6, M7) | M2, M3, M4 | All 10 tools (v0.2.1) dispatchable with policy enforcement |
 | **4b** | **M6: Guardrails & UX** | Yes (with M5, M7) | M4 | Script library + forbidden phrase + PII + placeholder |
 | **4c** | **M7: Observability** | Yes (with M5, M6) | M1, M3 | Events + traces + Kafka + metrics |
 | **5** | **M8: Eval Harness** | — | M4, M5, M6 | Smoke suite passing; full regression runnable |
@@ -248,7 +257,7 @@ Phase  1 (Foundation)           Phase 2 (Core Capabilities)          Phase 3 (In
 
 ### 4.4.3 Tool Schemas
 
-Source: `customer_service_tool_spec_v0_2.yaml` — all 11 tools with input/output JSON Schema.
+Source: `customer_service_tool_spec_v0_2.yaml` (v0.2.1) — all 12 tools (5 agent-visible + 5 runtime-only + 2 human-only) with input/output JSON Schema.
 
 ### 4.4.4 Trace / Event Schemas
 
@@ -262,7 +271,7 @@ Source: `customer_service_tool_spec_v0_2.yaml` — all 11 tools with input/outpu
 
 | Config | Format | What It Controls |
 |--------|--------|-----------------|
-| `use-case-registry.yaml` | YAML | 12 UC definitions (from Phase 2 §2.2) |
+| `use-case-registry.yaml` | YAML | 12 UC + 4 OUT_OF_SCOPE definitions (from Phase 2 §2.2 + v8 HR OOS categories: OUT_OF_SCOPE_RATINGS_REVIEWS / DELIVERY / PRO_CONTRACT / ACCOUNT_MANAGER) |
 | `control-policy.yaml` | YAML | Budgets, phase transitions, drift thresholds |
 | `tool-policy.yaml` | YAML | Per-UC allowed/disallowed tool matrix |
 | `escalation-triggers.yaml` | YAML | 17 escalation trigger conditions + reason codes |
@@ -280,8 +289,8 @@ Source: `customer_service_tool_spec_v0_2.yaml` — all 11 tools with input/outpu
 | **M1** | Health endpoint, config loading, DB migration | Cloud SQL connectivity | — |
 | **M2** | Chunking logic, embedding mock, ANN query, rerank, faq_miss gate | Vertex AI embedding (staging), pgvector search E2E | — |
 | **M3** | SF payload parsing, OAuth token refresh, transfer request builder | SF sandbox: create session, read case, write event | Pact: inbound webhook contract |
-| **M4** | Phase transitions (all 12 from §3.3.2), budget enforcement (each budget), drift detection (3 types), context projection (field presence + PII exclusion) | Full turn cycle with mocked tools | — |
-| **M5** | Per-tool input validation, output schema, UC scope matrix (all 60 cells from §2.10.1–2), tool chain composition (get_customer_context → lookup_*) | Internal API calls (mock or staging) | Pact: internal API contracts |
+| **M4** | Phase transitions (all 12 from §3.3.2), budget enforcement (each budget), drift detection (3 types; v8: 90.2% prevalence — must be robust), context projection (field presence + PII exclusion), **two-stage UC routing** (v8: Account Support full-candidate-set classification), **OUT_OF_SCOPE detection and handling** (v8: 4 OOS categories → fixed_script → ESCALATE) | Full turn cycle with mocked tools | — |
+| **M5** | Per-tool input validation, output schema, UC scope matrix (all 72 cells from §2.10.1–2 including OOS), tool chain composition (get_customer_context → lookup_* / get_message_moderation_context), **v0.2.1 get_message_moderation_context** (UC-C only) | Internal API calls (mock or staging) | Pact: internal API contracts |
 | **M6** | Template rendering (all 50+ templates), variable interpolation, forbidden phrase detection (all 9 categories), PII regex (email/phone/name), placeholder timing | — | — |
 | **M7** | Event emission (11 types), trace schema validation, Kafka serialization, PII filter in logs | Kafka topic write, SF event sync | Avro schema compatibility |
 | **M8** | Dataset loading (all 7), grader logic (12 code graders), metrics aggregation, gate evaluation | Full smoke suite (75 sessions) | — |
@@ -314,6 +323,11 @@ Source: `customer_service_tool_spec_v0_2.yaml` — all 11 tools with input/outpu
 | 13 | Soft shift → original UC preserved in candidate_use_cases | M4 | Unit |
 | 14 | Pre-chat form email → auto-trigger get_customer_context | M4+M5 | Integration |
 | 15 | GrowthBook flag off → user routed to human (no bot) | M9 | Integration |
+| 16 | OUT_OF_SCOPE Topic Subject → fixed_script → immediate escalation (v8) | M4+M6 | Unit |
+| 17 | "Account Support" Topic Subject → full-candidate-set Description classification (v8) | M4 | Unit |
+| 18 | Hard shift detected → ESCALATE (v8: 82.7% of hard shifts escalate) | M4 | Unit |
+| 19 | UC-C messaging diagnostic → get_message_moderation_context chain (v0.2.1) | M5 | Integration |
+| 20 | HR-corrected UC ground truth: UC-I session correctly identified as UC-H | M4+M8 | Eval |
 
 ---
 
@@ -321,12 +335,12 @@ Source: `customer_service_tool_spec_v0_2.yaml` — all 11 tools with input/outpu
 
 ### Implementation Complete When
 
-- [ ] All 9 modules (M1–M9) implemented and passing unit + integration tests
+- [ ] All 9 modules (M1–M9) implemented and passing unit + integration tests (M5 includes all 10 tools: 5 agent-visible + 5 runtime-only)
 - [ ] DB migrations applied cleanly on fresh database
 - [ ] 218 articles indexed in pgvector with HNSW index
 - [ ] Eval smoke suite (75 sessions) passes all Hard Gates in CI
 - [ ] Eval full regression (601 sessions) passes all Hard + Soft Gates
-- [ ] All 15 critical test scenarios (§4.5) green
+- [ ] All 20 critical test scenarios (§4.5, including 5 v8 HR-driven scenarios) green
 - [ ] Helm chart deploys to GKE staging with health checks passing
 - [ ] Salesforce sandbox: inbound → bot response → transfer to human verified
 - [ ] GrowthBook flag toggles bot on/off correctly
@@ -386,7 +400,8 @@ csagent/
 │   ├── suites/                  # smoke.yaml, full_regression.yaml, nightly.yaml
 │   └── reports/                 # CI report, dashboard export
 ├── data/
-│   ├── eval_datasets/           # 7 CSV pairs (symlink to csagent repo)
+│   ├── eval_datasets/           # 7 CSV pairs (601 sessions / 11,288 turns)
+│   ├── human_review_annotations_2026-04-22_complete.csv  # v8: 367 HR-annotated sessions
 │   └── knowledge/               # knowledge_base_articles.json, article_uc_mapping.csv
 ├── helm-chart/                  # Helm chart for GKE deployment
 ├── contract/                    # OpenAPI specs, Avro schemas, Pact contracts

@@ -4,7 +4,7 @@
 >
 > **Sources**: 从 eval_datasets 中 1,230+ 条真实 agent 消息提炼，对齐 `customer_service_agent-Common-Phrases.md`（1.18 万条对话归纳）+ BRD §6.3 品牌口径。
 >
-> **Approval Status**: DRAFT — 需合规 + 产品终审后方可上线（对应 workbook §6.4 #2 和 #3）。
+> **Approval Status**: APPROVED — 合规审批已通过（v5, 2026-04-19）；14 类模板 / 50+ 话术 / 禁止话术清单均已终审确认（对应 workbook §6.4 #2 和 #3 已解决）。
 >
 > **Usage**: Runtime 在 context projection 时注入对应 UC 的模板；Bot 不自由生成，而是选择模板 + 填充变量。
 
@@ -466,5 +466,5 @@
 
 | Version | Date | Changes |
 |---------|------|---------|
-| v1 DRAFT | 2026-04-18 | Initial extraction from 1,230+ agent messages across eval_datasets; 14 template categories; 50+ templates; forbidden phrases list |
+| v1 | 2026-04-18 | Initial extraction from 1,230+ agent messages across eval_datasets; 14 template categories; 50+ templates; forbidden phrases list. Compliance approval passed (v5, 2026-04-19) |
 | v1.1 | 2026-04-21 | Added §9 Out-of-Scope Topic Subject templates (Delivery / Pro Contract / Account Manager Support / Ratings Reviews); updated Template Selection Matrix to include OOS rows |
