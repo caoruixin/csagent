@@ -1,6 +1,9 @@
 # OS artifacts
 .DS_Store
 
+# Local environment files
+.env.local
+
 # Data files (large CSVs, Excel, filtered output)
 data/
 
