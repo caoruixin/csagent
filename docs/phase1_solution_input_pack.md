@@ -16,6 +16,7 @@
 > - `FAQ-knowledge_include_help_url.csv`（**v4 新增** — 218 篇 Salesforce Knowledge 文章，含 Id / Title / Summary / Help_Site_URL__c；knowledge grounding 的主数据源）
 > - `platform_api_detailed_reference.md`（**v4 新增** — 196 REST 端点 / 14 微服务详细 API 参考；tool_spec v0.2 的 concrete_api_dependencies 源）
 > - `data/eval_datasets/*`（**v4 新增** — 已构建的 7 类 eval 数据集，共 601 session / 11,288 turns + 367 条 human review queue）
+> - `data/human_review_annotations_2026-04-22_complete.csv`（**v8 新增** — 367 条 human review 标注完成，含 UC 校正 / 路由准确率 / 升级触发 / drift 类型 / 风险等级 / 期望工具序列 / 禁止工具 / grounding 需求 / 质量备注等全维度标注）
 > - `07-engineering-constraints.md`（Gumtree 平台代码库提取的工程基线）
 > - `customer_service_agent_tech_spec.md` §4 / `customer_service_agent_eval_spec.md`（规范层引用）
 
@@ -39,19 +40,21 @@
 
 **按 Topic Subject 聚合（对齐 Pre-chat Form 必填下拉 11 值）**：
 
-| Topic Subject | UC(s) | UC 类别 | 估算案例量 | 占比 |
-|---|---|---|---|---|
-| **Ad Support** | UC-A (Status) / UC-B (Posting) / UC-FP (Correct Deletion) / UC-H (Appeal) | FAQ + Intake | ~33,541 | 27.9% |
-| **Account Support** | UC-D (Account & Login) | FAQ | ~4,906 | 4.1% |
-| **Delete My Account or Data** | UC-G (GDPR) | Intake+Handover | ~29,638 | 24.6% |
-| **Payments** | UC-F (Inquiry) / UC-I (Dispute) | FAQ + Intake | ~3,488 | 2.9% |
-| **Replies or Messaging** | UC-C (Messages) | FAQ | ~2,627 | 2.2% |
-| **Report a Safety Issue** | UC-J (Trust & Safety) | Intake+Handover | ~6,238 | 5.2% |
-| **Technical Support** | UC-E (Product FAQ) / UC-K (Technical Issue) | FAQ + Intake | ~10,852 | 9.0% |
-| **Delivery** | （无 UC → handover） | Handover-only | ~1,200 | 1.0% |
-| **Pro Contract** | （无 UC → handover） | Handover-only | ~300 | 0.2% |
-| **Account Manager Support** | （无 UC → handover） | Handover-only | ~300 | 0.2% |
-| **Ratings Reviews** | （无 UC → handover） | Handover-only | ~1,500 | 1.2% |
+| Topic Subject | UC(s) | UC 类别 | 估算案例量 | 占比 | **HR 路由准确率** |
+|---|---|---|---|---|---|
+| **Ad Support** | UC-A (Status) / UC-B (Posting) / UC-FP (Correct Deletion) / UC-H (Appeal) | FAQ + Intake | ~33,541 | 27.9% | **53.4%** |
+| **Account Support** | UC-D (Account & Login) | FAQ | ~4,906 | 4.1% | **18.2%** ⚠️ |
+| **Delete My Account or Data** | UC-G (GDPR) | Intake+Handover | ~29,638 | 24.6% | N/A（HR 样本中标注为 UNKNOWN） |
+| **Payments** | UC-F (Inquiry) / UC-I (Dispute) | FAQ + Intake | ~3,488 | 2.9% | **46.7%** |
+| **Replies or Messaging** | UC-C (Messages) | FAQ | ~2,627 | 2.2% | **89.7%** |
+| **Report a Safety Issue** | UC-J (Trust & Safety) | Intake+Handover | ~6,238 | 5.2% | **85.7%** |
+| **Technical Support** | UC-E (Product FAQ) / UC-K (Technical Issue) | FAQ + Intake | ~10,852 | 9.0% | **39.1%** |
+| **Delivery** | （无 UC → handover） | Handover-only | ~1,200 | 1.0% | **50.0%** |
+| **Pro Contract** | （无 UC → handover） | Handover-only | ~300 | 0.2% | **100%** |
+| **Account Manager Support** | （无 UC → handover） | Handover-only | ~300 | 0.2% | N/A |
+| **Ratings Reviews** | （无 UC → handover） | Handover-only | ~1,500 | 1.2% | **100%** |
+
+> **v8 — Human Review 路由准确率发现**：Topic Subject → UC 的路由准确率整体仅 **34.9%**（367 条标注中 239 条不匹配）。"Account Support" 是最大的 catch-all 桶（占样本 46.3%），实际 UC 分布极为分散（UC-H 37% / UC-C 11% / UC-D 仅 9%）。Bot 的 UC 分类器**不能依赖 Topic Subject 作为确定性路由键**，必须以 Description 文本分类为主。详见 Phase 2 §2.11 更新。
 
 **FAQ-resolvable UC 合计**（UC-A/B/C/D/E/F/FP）：**~41,373（34.4% 占全库 / 53.8% 占 Chat+Email 渠道）**
 
@@ -137,6 +140,14 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 - **Sub Reason / Case Reason 空白率**：12%（约 15,113 条）— 需意图模型补全，否则易落入"未知 → 转人工"。
 - **历史 bad cases**：已有 262 条 transcript 中标注为 `frustration_flag=True` 或 `likely_outcome=abandoned_or_timeout` 的会话作为 bad-case bank 初始池；上线后持续累积。
 - **真实数据来源**：Salesforce Case 报表 `report1768917670361.xlsb` + Live Chat Session 导出样本（conversation_samples_organized.xlsx 来源文件约 500 行原始数据）。
+- **Human Review 标注结果（v8 新增）**：`data/human_review_annotations_2026-04-22_complete.csv`（367 条全量标注完成）
+  - **UC 校正率 16.3%**（60/367 条的 `primary_uc_corrected ≠ source_primary_uc`）：UC-I 校正率最高 52.4%（多为 UC-H/UC-J），UC-A 33.3%，UC-FP 31.2%
+  - **新增 3 类 OUT_OF_SCOPE 分类**：`OUT_OF_SCOPE_RATINGS_REVIEWS`(13) / `OUT_OF_SCOPE_DELIVERY`(3) / `OUT_OF_SCOPE_PRO_CONTRACT`(3)，全部 100% escalation
+  - **Per-UC 校正后分布**：UC-C 104(28.3%) > UC-D 46(12.5%) > UC-H 41(11.2%) > UC-J 28(7.6%) > UC-F 20 / UC-I 20 > UC-G 19 > UC-B 16 / UC-E 16 > UC-K 15 > OOS_RR 13 > UC-A 12 > UC-FP 11
+  - **多意图普遍**：90.2% 会话含 ≥1 secondary UC；36.8% 含 ≥3 secondary UCs。最常见 secondary：UC-K(179) > UC-B(114) > UC-D(111)
+  - **Drift 极为普遍**：90.2% 会话有 drift（hard_shift 47.1% / soft_shift 41.4% / minor_drift 1.6%）；hard_shift 82.7% 导致 escalation
+  - **Frustration 几乎普遍**：96.5% 标注 has_frustration=true（dominated by `legal_threat_or_complaint` 56.2%）
+  - **Risk → Escalation 完美预测**：critical(28/28) + high(80/80) 全部 escalate；low 仅 35.1% escalate
 
 #### 关键对话模式（从 262 条 transcript 抽象）
 
@@ -234,7 +245,7 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | **不能作为事实源** | 用户自由输入内容、未审批的 Git 内部文档、外部网站内容 |
 | **Freshness 要求** | 随 Salesforce Knowledge 发布状态同步；pgvector 索引需定期 re-embed（文章变更时 incremental update，见 `problem_retrieval_solution_plan_pgvector.md` §3.5） |
 | **Ownership** | Knowledge & Content Ops 团队 |
-| **当前已知 gaps** | (1) Sub Reason / Case Reason 空白约 12%（15,113 条），需意图模型补全；(2) ~~Help Centre 具体文章 ID/URL 与 use case 的精确映射尚未完成~~ → **初版已完成（v6）**：`data/knowledge/article_uc_mapping.csv` 已完成 218 篇文章的 auto-mapping（url_category 177 + title_keyword 37 + content_keyword 4）；`knowledge_base_articles.json` 已可用于 pgvector 入库；218 篇即为 CSV 全量（原 3,963 系行数误计），全部已完成初版映射（human review 后续校准）；(3) ~~UC-FP-01 政策解释模板需合规终审~~ → 已通过（v5）；(4) ~~UC-H/J/K required_fields 合约~~ → 已有初版（v4）；(5) ~~UC-G 身份核验流程~~ → GDPR intake 边界已确认（v5）|
+| **当前已知 gaps** | (1) Sub Reason / Case Reason 空白约 12%（15,113 条），需意图模型补全；(2) ~~Help Centre 具体文章 ID/URL 与 use case 的精确映射尚未完成~~ → **初版已完成（v6）**；(3) ~~UC-FP-01 政策解释模板需合规终审~~ → 已通过（v5）；(4) ~~UC-H/J/K required_fields 合约~~ → 已有初版（v4）；(5) ~~UC-G 身份核验流程~~ → GDPR intake 边界已确认（v5）；(6) **v8 新增 — UC 分类器在 "Account Support" Topic Subject 下准确率仅 18.2%，需专项优化 Description-based classification**；(7) **v8 新增 — UC-I 自动分类准确率仅 47.6%（52.4% 被人工校正为 UC-H/UC-J/OOS），需重新审视 UC-I 与 UC-H 的边界特征** |
 | **可选辅助索引** | Git 仓库内部文档（PRD §B-OP-01；需治理审批后建标签隔离 collection）|
 | **广告审核原因数据源（v4 新增）** | tool_spec_v0.2 新增 `get_moderation_review_context`（gumshield cs-review API），为 UC-FP 提供具体删除/审核原因的 grounded 事实依据，避免只能给 generic "policy violation" 解释 |
 
@@ -543,13 +554,23 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | **Intake / Tool Contract Dataset** | 验证 Bot 按 tool_spec v0.2 `allowed_use_cases` / `disallowed_use_cases` 正确调用工具；含期望 tool_call 序列 + negative cases | **50 sessions / 1,108 turns** | ✅ 已构建 |
 | **Bad-Case Bank** | frustration / abandoned / escalation-signal 会话；guardrail regression | **95 sessions / 2,026 turns** | ✅ 已构建 |
 | **Missed-Session Dataset** | 无 transcript 的沉没会话 metadata；Bot 首触达承接机会分析 | **2 sessions**（LiveChatTranscript 导出限制；需 Salesforce Case 导出补充） | ⚠️ 数据不足 |
-| **Human Review Queue** | quality_score ≥ 60 的会话；**v6 决策：当前阶段跳过人工标注，直接以现有 eval datasets（`csagent/data/eval_datasets/`）为 ground truth**；后续上线后根据真实 Bot 数据再做人工回标补充 | **367 sessions** | ✅ 决策已定（跳过当前人工标注）|
+| **Human Review Queue** | quality_score ≥ 60 的会话；**v8 更新：367 条已全量完成 human review 标注**（`data/human_review_annotations_2026-04-22_complete.csv`）；标注维度含 UC 校正、路由准确率、升级触发、drift 类型、风险等级、期望工具序列、禁止工具、grounding 需求、质量备注等 | **367 sessions** | ✅ **已完成**（v8 human review 全量标注） |
 
 **v4 关键发现**：
 - CSAT 覆盖率仅 1.9% — 不可用于数据集质量验证；需在 Bot 上线后启用 CSAT 采集
 - 仅 6 条 quality ≥ 80 的"高质量"transcript — 现实中"完美"会话极少，eval 应基于 quality ≥ 60 的 298 条
 - **新版 pre-chat form 影响 eval**：老版数据集中 25% 会话坐席需问 email → 新版表单 email 必填后此类 clarification 消失；Clarification Dataset 需在 Bot 上线后 re-review
-- **Human review 优先级**：P0 Golden(150) → P1 Intake/Tool(50) → P2 Handover(76) → P3 Bad-case(95) → P4 Drift(30)；每条约 10–15 分钟，建议 Product/Ops + QA + Salesforce 三角色分工
+- ~~**Human review 优先级**：P0 Golden(150) → P1 Intake/Tool(50) → P2 Handover(76) → P3 Bad-case(95) → P4 Drift(30)；每条约 10–15 分钟，建议 Product/Ops + QA + Salesforce 三角色分工~~ → **v8 已完成**
+
+**v8 关键发现（Human Review 标注完成后）**：
+- **UC 分类准确率需重新校准**：16.3% 会话的 UC 被人工校正（UC-I 校正率 52.4%，UC-A 33.3%），原自动分类器在高风险/复杂场景下可靠性不足
+- **Topic Subject 路由准确率仅 34.9%**：Bot 必须以 Description 文本为主要分类信号，Topic Subject 仅作为弱先验
+- **"Account Support" 是 catch-all 桶**：占样本 46.3%（170/367），但实际 UC 分布涵盖全部 12 UC + OUT_OF_SCOPE；其中仅 9% 为真正的 UC-D
+- **多意图会话为常态**：90.2% 会话含 secondary UC，设计必须原生支持 multi-intent tracking
+- **Drift 极为普遍**（90.2%），hard_shift（47.1%）与 escalation 强相关（82.7%）
+- **新增 OUT_OF_SCOPE 类别**：19 条映射到 3 个 handover-only Topic Subject 的专属 OOS 分类，需在 UC registry 中显式处理
+- **Escalation trigger 与 UC 强绑定**：appeal_requires_human → UC-H(100%), trust_safety_required → UC-J(100%), payment_dispute_detected → UC-I(100%), gdpr_intake → UC-G(100%)
+- **form_provides_email = 100%**：新版表单所有会话均提供 email，86% 可跳过 identifier 采集（bot_can_skip_identifier_ask=true）
 
 ### 1.5.2 Release Threshold
 

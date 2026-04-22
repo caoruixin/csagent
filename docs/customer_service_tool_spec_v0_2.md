@@ -196,7 +196,7 @@ Online Retrieval:
 max_retries: 1
 on_no_results: allow_clarification_or_escalate
 must_log_article_candidates: true
-score_threshold: TBD  # 低于此分数标记 faq_miss
+score_threshold: "See Phase 3 §3.5.3: Retrieval Gate cosine_similarity < 0.3 → retrieval_miss; Answer Gate grounding_score < 3.5 → faq_miss"
 ```
 
 ---
@@ -1124,7 +1124,7 @@ The following platform APIs from `platform_api_detailed_reference.md` are **inte
 | 4 | Knowledge allowlist governance for approved_git_doc | Pending | Knowledge Ops |
 | 5 | Embedding model selection (Vertex AI text-embedding vs Gemini embedding) | Pending | Engineering |
 | 6 | pgvector index strategy (IVFFlat vs HNSW) | Pending | Engineering |
-| 7 | `score_threshold` for faq_miss determination | Pending | Engineering + QA |
+| 7 | `score_threshold` for faq_miss determination | **Resolved (v5)** — Phase 3 §3.5.3: Retrieval Gate cosine_similarity < 0.3 → retrieval_miss; Answer Gate grounding_score < 3.5 → faq_miss | Engineering + QA |
 | 8 | `get_moderation_review_context` — gumshield cs-review API access approval for Bot service account | **NEW** | Security + gumshield team |
 | 9 | Pre-chat form new version field names (Topic Subject dropdown options) | **NEW** | Product |
 | 10 | `is_business_hours` determination logic (9am-8pm Mon-Sun UK?) | Pending | Operations |
