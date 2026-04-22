@@ -1,0 +1,15 @@
+{
+  "case_id": "CASE-SEED-003",
+  "use_case_id": "UC-GDPR-REQUEST",
+  "subject": "Request to delete my personal data",
+  "description": "Under GDPR, I would like to request the deletion of all my personal data held by Gumtree. Please process this request within the statutory timeframe.",
+  "contact_email": "john.doe@example.com",
+  "ad_id": null,
+  "status": "New",
+  "queue_name": "Privacy_Queue",
+  "intake_fields": {
+    "request_type": "data_deletion",
+    "identity_verified": false,
+    "gdpr_article": "Article 17 - Right to Erasure"
+  }
+}

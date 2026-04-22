@@ -1,0 +1,205 @@
+# Fixed Script Library v1 — Bot Template Library
+# Source: docs/fixed_script_library_v1.md (approved v5, 2026-04-19)
+# 14 categories / 50+ templates / forbidden phrases list
+
+templates:
+
+  # ============================================================
+  # 1. Shared Templates (all UCs)
+  # ============================================================
+
+  opening:
+    pattern: "Hi {first_name} \u2014 I'm the Gumtree Support Assistant. I can help with common questions, or connect you to the team."
+    variables: [first_name]
+
+  hold_placeholder:
+    short:
+      pattern: "One moment while I look into this for you."
+    medium:
+      pattern: "Thanks for your patience \u2014 I'm checking your details now."
+    long:
+      pattern: "I'm still looking into this for you. Just a moment longer."
+
+  identifier_request:
+    email:
+      pattern: "Could you confirm your registered email address so I can locate your account?"
+    ad_id:
+      pattern: "Could you share your ad ID? You'll find it at the bottom left of your ad description \u2014 it's a 10-digit number."
+
+  resolution_check:
+    ask:
+      pattern: "Did that answer your question?"
+    yes:
+      pattern: "Great \u2014 anything else I can help with?"
+    no:
+      pattern: "No problem \u2014 I'll connect you to the team."
+
+  escalation_business_hours:
+    pattern: "I'll pass this to an agent now. I'll share what you've told me so you don't need to repeat yourself."
+
+  escalation_off_hours:
+    pattern: "The team is currently offline. I've logged your details for follow-up \u2014 you'll hear back by email within {SLA_HOURS} hours."
+    variables: [SLA_HOURS]
+
+  idle_warning:
+    pattern: "Are you still there? I'll close this chat shortly if there's no response \u2014 feel free to reach out again anytime."
+
+  idle_close:
+    pattern: "As this chat has been idle, I'll close it now. Thanks for contacting Gumtree \u2014 feel free to reach out again whenever you need help."
+
+  closing:
+    pattern: "Thanks for contacting Gumtree. Feel free to reach out anytime if you need further help."
+
+  # ============================================================
+  # 2. UC-FP Templates — Policy Explanation
+  # ============================================================
+
+  fp_empathy:
+    pattern: "I'm sorry to hear your ad was removed. Let me look into what happened."
+
+  fp_specific_reason:
+    pattern: "Your ad was removed because {SPECIFIC_REASON}. You can review our posting policies here: {POLICY_URL}"
+    variables: [SPECIFIC_REASON, POLICY_URL]
+
+  fp_no_reason_available:
+    pattern: "The system flagged your ad for review and it was removed. I'm not able to confirm the exact reason, but I can connect you to our team for a full investigation. You'll hear back by email within {SLA_HOURS} hours."
+    variables: [SLA_HOURS]
+
+  fp_repost_guidance:
+    pattern: "If you'd like to repost, please make sure your ad meets our posting guidelines: {POLICY_URL}. Remove any flagged content and try again."
+    variables: [POLICY_URL]
+
+  fp_appeal_redirect:
+    pattern: "I understand you'd like to appeal the removal. Let me help you get this reviewed by our team \u2014 I'll need a few details from you."
+
+  fp_complaint_redirect:
+    pattern: "You can submit a formal complaint by emailing {COMPLAINT_EMAIL}. We'll acknowledge it within 1 business day and aim to respond within 7 business days."
+    variables: [COMPLAINT_EMAIL]
+
+  # ============================================================
+  # 3. UC-H Templates — Appeal Intake
+  # ============================================================
+
+  h_empathy:
+    pattern: "I'm sorry to hear your ad was removed. Let me help you get this looked into by our team."
+
+  h_intake_prompt:
+    pattern: "To get this reviewed, could you confirm:\n1. Your ad ID (the 10-digit number at the bottom of your ad)\n2. A brief description of what happened"
+
+  h_intake_complete_case_created:
+    pattern: "Thanks for those details. I've created a case ({CASE_NUMBER}) for our {TEAM_NAME} team. You'll hear back by email within {SLA_HOURS} hours."
+    variables: [CASE_NUMBER, TEAM_NAME, SLA_HOURS]
+
+  h_account_blocked_escalate:
+    pattern: "I can see there's a hold on your account that needs further investigation. I'll pass this to our specialist team \u2014 you'll hear back by email within {SLA_HOURS} hours."
+    variables: [SLA_HOURS]
+
+  h_frustration_ack:
+    pattern: "I completely understand your frustration, and I want to assure you this is being taken seriously. Let me connect you to our team right away."
+
+  h_cannot_reinstate:
+    pattern: "I'm not able to change this directly, but our specialist team will review your case and get back to you by email."
+
+  # ============================================================
+  # 4. UC-G Templates — GDPR / Data Deletion
+  # ============================================================
+
+  g_process_explanation:
+    pattern: "Account and data deletion requests are handled by our privacy team for identity verification. I'll pass your details on \u2014 you'll hear back by email within {SLA_HOURS} hours."
+    variables: [SLA_HOURS]
+
+  g_intake_prompt:
+    pattern: "To process your request, could you confirm:\n1. What type of request this is (account deletion, data deletion, or data access request)\n2. Any additional details about what you'd like deleted"
+
+  g_identity_verification_required:
+    pattern: "You'll need to verify your identity before we can process this \u2014 our privacy team will send you the next steps by email."
+
+  g_timeline:
+    pattern: "Account deletions can take up to 30 calendar days. Our privacy team will keep you updated by email."
+
+  g_alternative_submission:
+    pattern: "You can also submit your request directly by emailing {PRIVACY_EMAIL}."
+    variables: [PRIVACY_EMAIL]
+
+  # ============================================================
+  # 5. UC-I Templates — Payment Dispute
+  # ============================================================
+
+  i_disclaimer:
+    pattern: "Payment disputes are handled by our specialist team. I'll pass on what you've told me so they can investigate."
+
+  i_intake_prompt:
+    pattern: "To help our team look into this, could you confirm:\n1. Your ad ID or order reference\n2. A brief description of the issue"
+
+  i_refund_policy_link:
+    pattern: "You can find more about our refund process here: https://www.gumtree.com/info/safety/p/payments/will-my-payments-be-refunded/"
+
+  i_escalation:
+    pattern: "I've passed your details to our payments team. You'll hear back by email within {SLA_HOURS} hours."
+    variables: [SLA_HOURS]
+
+  # ============================================================
+  # 6. UC-J Templates — Trust & Safety
+  # ============================================================
+
+  j_acknowledgment:
+    pattern: "Thank you for reporting this. I'll gather a few details and pass them to our Trust & Safety team for review."
+
+  j_intake_prompt:
+    pattern: "To help us investigate, please share:\n1. The ad ID or link related to this report\n2. What happened (as much detail as you can)\n3. Whether you've contacted the police"
+
+  j_police_guidance:
+    pattern: "We'd also recommend reporting this to the police. You can contact Report Fraud on 0300 123 2040 or visit https://www.reportfraud.police.uk/"
+
+  j_action_taken:
+    pattern: "I've passed your report to our Trust & Safety team. They'll investigate and take any necessary action."
+
+  j_safety_links:
+    pattern: "For safety tips, visit our Safety Hub: https://www.gumtree.com/info/safety/ and Help Desk: https://help.gumtree.com/s/safety"
+
+  j_law_enforcement_info:
+    pattern: "If you've filed a police report, the investigating officer can contact our Law Enforcement Liaison at {LAW_ENFORCEMENT_EMAIL}."
+    variables: [LAW_ENFORCEMENT_EMAIL]
+
+  j_imminent_harm:
+    pattern: "I'm connecting you to our safety team right away. If you're in immediate danger, please contact the police on 999."
+
+  # ============================================================
+  # 7. UC-K Templates — Technical Troubleshoot
+  # ============================================================
+
+  k_basic_troubleshoot:
+    pattern: "A few quick things to try:\n1. Clear your browser's cache and cookies\n2. Make sure your browser or app is updated to the latest version\n3. Try using a different browser\n\nHere's a guide on clearing cache: https://help.gumtree.com/s/technical-issues?cat=Troubleshooting&article=Clearing-Cookies-and-Cache2"
+
+  k_platform_check:
+    pattern: "Are you using the website or the mobile app?"
+
+  k_known_issue:
+    pattern: "We're aware of this issue and our technical team is looking into it. We don't have a timeframe yet, but we'll update you as soon as we can."
+
+  k_escalation:
+    pattern: "I'll create a case for our technical team to investigate further. You'll hear back by email within {SLA_HOURS} hours."
+    variables: [SLA_HOURS]
+
+  k_screenshot_request:
+    pattern: "Could you send a screenshot or short recording of the issue to {SUPPORT_EMAIL}? That will help our technical team investigate."
+    variables: [SUPPORT_EMAIL]
+
+  # ============================================================
+  # 9. Out-of-Scope Topic Subject Templates
+  # ============================================================
+
+  oos_delivery:
+    pattern: "Thanks for reaching out about a delivery issue. Gumtree is a classifieds platform, so delivery arrangements are made directly between buyers and sellers. I'll connect you to our team who can advise further."
+
+  oos_pro_contract:
+    pattern: "Pro Contract queries are handled by our dedicated business support team. I'll pass your details over so they can help."
+
+  oos_account_manager:
+    pattern: "Account manager queries need our business support team. Let me connect you now."
+
+  oos_ratings_reviews:
+    pattern: "Review and rating queries need to be looked at by our team directly. I'll pass this over now so they can help."
+
+  oos_generic:
+    pattern: "This isn't something I can help with directly, but I'll connect you to the team. I'll share what you've told me so you don't have to repeat yourself."
