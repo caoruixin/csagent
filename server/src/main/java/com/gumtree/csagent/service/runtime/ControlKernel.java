@@ -5,13 +5,14 @@ import com.gumtree.csagent.model.*;
 import com.gumtree.csagent.model.DriftResult.DriftType;
 import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotTurnRepository;
+import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
+import com.gumtree.csagent.service.tools.ToolResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Main orchestration engine for processing user messages.
@@ -30,6 +31,9 @@ public class ControlKernel {
     private final PhaseEvaluator phaseEvaluator;
     private final ControlPolicyService controlPolicy;
     private final ObjectMapper objectMapper;
+    private final CreateCaseControlledTool createCaseTool;
+    private final EventEmitter eventEmitter;
+    private final ContextProjectionBuilder contextProjectionBuilder;
 
     public ControlKernel(BotTurnRepository turnRepository,
                          BotEventRepository eventRepository,
@@ -37,7 +41,10 @@ public class ControlKernel {
                          DriftDetector driftDetector,
                          PhaseEvaluator phaseEvaluator,
                          ControlPolicyService controlPolicy,
-                         ObjectMapper objectMapper) {
+                         ObjectMapper objectMapper,
+                         CreateCaseControlledTool createCaseTool,
+                         EventEmitter eventEmitter,
+                         ContextProjectionBuilder contextProjectionBuilder) {
         this.turnRepository = turnRepository;
         this.eventRepository = eventRepository;
         this.budgetChecker = budgetChecker;
@@ -45,6 +52,9 @@ public class ControlKernel {
         this.phaseEvaluator = phaseEvaluator;
         this.controlPolicy = controlPolicy;
         this.objectMapper = objectMapper;
+        this.createCaseTool = createCaseTool;
+        this.eventEmitter = eventEmitter;
+        this.contextProjectionBuilder = contextProjectionBuilder;
     }
 
     /**
@@ -148,13 +158,12 @@ public class ControlKernel {
         long latencyMs = System.currentTimeMillis() - startTime;
         recordTurn(session, userMessage, phaseResult, phaseBefore, phaseAfter, latencyMs);
 
-        // Step 10: Emit events
+        // Step 10: Emit events (escalation events only — CLOSE events
+        // are already emitted by PhaseEvaluator.evaluateClose())
         if (phaseResult.shouldEscalate()) {
-            emitEvent(session, "ESCALATION_REQUESTED", session.getTotalBotTurns(),
-                    String.format("{\"reason\":\"%s\"}", phaseResult.escalationReason()));
-        }
-        if (phaseResult.shouldClose()) {
-            emitEvent(session, "SESSION_CLOSED", session.getTotalBotTurns(), "{}");
+            eventEmitter.emitEscalationRequested(session.getSessionId(), session.getTotalBotTurns(),
+                    phaseResult.escalationReason());
+            eventEmitter.emitOutcomeRecorded(session.getSessionId(), "ESCALATED", session.getActiveUseCase());
         }
 
         boolean shouldEndChat = "CLOSE".equals(phaseAfter) || "ESCALATE".equals(phaseAfter);
@@ -176,6 +185,9 @@ public class ControlKernel {
         session.setContainmentOutcome("ESCALATED");
 
         long latencyMs = System.currentTimeMillis() - startTime;
+
+        // Create case for intake UCs (UC-H/J/K) even on forced escalation
+        createCaseIfNeeded(session);
 
         // Record the turn
         BotTurn turn = BotTurn.builder()
@@ -209,6 +221,58 @@ public class ControlKernel {
         session.setLastAction(action);
     }
 
+    /**
+     * Create a case for intake UCs (UC-H, UC-J, UC-K) during forced escalation.
+     * Non-blocking: failures logged but don't prevent escalation.
+     */
+    private void createCaseIfNeeded(BotSession session) {
+        String activeUc = session.getActiveUseCase();
+        Set<String> caseCreationUcs = Set.of("UC-H", "UC-J", "UC-K");
+        if (activeUc == null || !caseCreationUcs.contains(activeUc)) {
+            return;
+        }
+        if (session.getCaseId() != null && !session.getCaseId().isBlank()) {
+            return; // Case already created
+        }
+
+        try {
+            Map<String, Object> params = new LinkedHashMap<>();
+            String subject = switch (activeUc) {
+                case "UC-H" -> "Ad Support - Appeal";
+                case "UC-J" -> "Report a Safety Issue";
+                case "UC-K" -> "Technical Support Request";
+                default -> activeUc + " case";
+            };
+            params.put("subject", subject);
+
+            // Extract fields from form context
+            if (session.getFormContext() != null) {
+                try {
+                    com.fasterxml.jackson.databind.JsonNode formNode = objectMapper.readTree(session.getFormContext());
+                    if (formNode.has("description")) params.put("description", formNode.get("description").asText());
+                    if (formNode.has("email")) params.put("email", formNode.get("email").asText());
+                    if (formNode.has("ad_id")) params.put("ad_id", formNode.get("ad_id").asText());
+                } catch (Exception e) {
+                    params.put("description", "Escalated session " + session.getSessionId());
+                }
+            } else {
+                params.put("description", "Escalated session " + session.getSessionId());
+            }
+
+            ToolResult result = createCaseTool.execute(session, params);
+            if (result.isSuccess() && result.getData() != null) {
+                String caseId = (String) result.getData().get("case_id");
+                if (caseId != null) {
+                    session.setCaseId(caseId);
+                    log.info("Session {}: case created during forced escalation: {}", session.getSessionId(), caseId);
+                    eventEmitter.emitCaseCreated(session.getSessionId(), session.getTotalBotTurns(), caseId, activeUc);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Session {}: case creation during forced escalation failed: {}", session.getSessionId(), e.getMessage());
+        }
+    }
+
     private void recordTurn(BotSession session, String userMessage,
                              PhaseEvaluator.PhaseResult phaseResult,
                              String phaseBefore, String phaseAfter, long latencyMs) {
@@ -233,11 +297,18 @@ public class ControlKernel {
                         .toArray(String[]::new);
             }
 
+            // Build projected context for trace persistence
+            List<BotTurn> historyForProjection = turnRepository.findBySessionIdOrderByTurnIndex(session.getSessionId());
+            List<KnowledgeHit> knowledgeHits = phaseResult.knowledgeHits();
+            String projectedContext = contextProjectionBuilder.buildProjection(
+                    session, historyForProjection, knowledgeHits, userMessage);
+
             BotTurn turn = BotTurn.builder()
                     .turnId(UUID.randomUUID().toString())
                     .sessionId(session.getSessionId())
                     .turnIndex(session.getTotalBotTurns())
                     .userMessage(userMessage)
+                    .projectedContext(projectedContext)
                     .llmRawResponse(llmRawResponse)
                     .actionSelected(actionSelected)
                     .actionParameters(actionParams)
@@ -249,6 +320,22 @@ public class ControlKernel {
                     .latencyMs((int) latencyMs)
                     .createdAt(OffsetDateTime.now())
                     .build();
+
+            // D12.4: Populate tool_calls if knowledge was retrieved
+            if (phaseResult.knowledgeHits() != null && !phaseResult.knowledgeHits().isEmpty()) {
+                try {
+                    List<Map<String, Object>> toolCallsList = new ArrayList<>();
+                    Map<String, Object> searchCall = new LinkedHashMap<>();
+                    searchCall.put("tool_name", "search_knowledge");
+                    searchCall.put("status", "success");
+                    searchCall.put("result_count", phaseResult.knowledgeHits().size());
+                    toolCallsList.add(searchCall);
+                    turn.setToolCalls(objectMapper.writeValueAsString(toolCallsList));
+                } catch (Exception ex) {
+                    log.warn("Failed to serialize tool_calls: {}", ex.getMessage());
+                }
+            }
+
             turnRepository.save(turn);
 
         } catch (Exception e) {

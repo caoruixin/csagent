@@ -12,6 +12,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,7 +31,10 @@ public class DashScopeEmbeddingClient implements EmbeddingClient {
 
     public DashScopeEmbeddingClient(LlmProperties llmProperties, ObjectMapper objectMapper) {
         this.llmProperties = llmProperties;
-        this.restTemplate = new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);   // 5 seconds connect timeout
+        factory.setReadTimeout(10000);      // 10 seconds read timeout (embeddings are fast)
+        this.restTemplate = new RestTemplate(factory);
         this.objectMapper = objectMapper;
     }
 

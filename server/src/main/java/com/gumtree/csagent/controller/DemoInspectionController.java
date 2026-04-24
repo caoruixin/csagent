@@ -23,9 +23,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.gumtree.csagent.repository.MockHandoverLogRepository;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -37,6 +40,7 @@ public class DemoInspectionController {
     private final MockGumtreeApiService gumtreeApiService;
     private final BotSessionRepository sessionRepository;
     private final BotEventRepository eventRepository;
+    private final MockHandoverLogRepository handoverLogRepository;
     private final MockProperties mockProperties;
     private final LocalEventStore localEventStore;
 
@@ -44,12 +48,14 @@ public class DemoInspectionController {
                                     MockGumtreeApiService gumtreeApiService,
                                     BotSessionRepository sessionRepository,
                                     BotEventRepository eventRepository,
+                                    MockHandoverLogRepository handoverLogRepository,
                                     MockProperties mockProperties,
                                     LocalEventStore localEventStore) {
         this.salesforceService = salesforceService;
         this.gumtreeApiService = gumtreeApiService;
         this.sessionRepository = sessionRepository;
         this.eventRepository = eventRepository;
+        this.handoverLogRepository = handoverLogRepository;
         this.mockProperties = mockProperties;
         this.localEventStore = localEventStore;
     }
@@ -62,6 +68,12 @@ public class DemoInspectionController {
     @GetMapping("/handover-logs")
     public ResponseEntity<List<MockHandoverLog>> listHandoverLogs() {
         return ResponseEntity.ok(salesforceService.findAllHandoverLogs());
+    }
+
+    @GetMapping("/handover-logs/{id}")
+    public ResponseEntity<MockHandoverLog> getHandoverLog(@PathVariable("id") String id) {
+        Optional<MockHandoverLog> logOpt = handoverLogRepository.findById(id);
+        return logOpt.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/sessions")

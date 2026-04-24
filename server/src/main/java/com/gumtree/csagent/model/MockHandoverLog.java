@@ -32,6 +32,12 @@ public class MockHandoverLog {
     @Column(name = "transfer_result", nullable = false)
     private String transferResult;
 
+    @Column(name = "customer_message")
+    private String customerMessage;
+
+    @Column(name = "transcript", columnDefinition = "jsonb")
+    private String transcript;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 }

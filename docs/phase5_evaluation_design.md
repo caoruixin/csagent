@@ -20,6 +20,10 @@
 
 V1 evaluation proves the system is **safe to deploy at 10% traffic** and provides the regression foundation for progressive rollout (10% → 20% → 50% → 100%).
 
+The eval system operates in two complementary modes:
+- **Replay Mode** (Java, `eval/`): Deterministic CI gate. Replays historical user turns from 7 CSV datasets (601 sessions). Fast (~5 min smoke, ~30 min full). Blocks PR merge and release.
+- **Interactive Mode** (Python, `eval_interactive/`): Deeper behavioral assessment. LLM-based User Simulator drives the bot using structured CaseSpecs derived from human review annotations. Tests whether the bot truly solves user problems, not just whether it handles pre-recorded inputs. Advisory in V1; promoted to hard gate in V1.1 after calibration.
+
 What we must demonstrate:
 
 | Dimension | What It Proves |
@@ -31,6 +35,8 @@ What we must demonstrate:
 | **Handover quality** | Structured payload is complete and useful for human agent |
 | **Runtime quality** | Latency, cost, error rate within bounds |
 | **Policy safety** | Zero critical policy violations; forbidden phrases blocked; PII redacted |
+| **Interactive task success** | Bot achieves user goals end-to-end when driven by simulated user (not just replayed transcripts) |
+| **Stall freedom** | Bot never promises action without delivering visible result to user |
 
 ---
 
@@ -71,6 +77,8 @@ What we must demonstrate:
 | **Full Regression** | Release Candidate | All 6 offline suites | ~30 min | Release blocked |
 | **Nightly** | Cron (1am UTC) | Full + extended drift | ~45 min | Alert only |
 | **Ad-hoc Replay** | Manual | Production replay subset | Variable | Advisory |
+| **Interactive Anchor** | Manual / Nightly | CaseSpec Anchor set (~30 cases) | ~20 min | Advisory (V1); Hard gate (V1.1) |
+| **Interactive Full** | Release Candidate | All CaseSpec sets (~100 cases) | ~60 min | Advisory (V1) |
 
 ### 2.2 What Triggers Evaluation
 
@@ -84,6 +92,52 @@ Any change to the following artifacts triggers at minimum a smoke regression (ev
 - Retrieval index / knowledge source (article changes, re-embedding)
 - Handover schema
 - Script library version
+
+### 2.3 Interactive Evaluation Architecture
+
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│                    Interactive Eval Harness (Python)                       │
+│                                                                            │
+│  ┌──────────────┐      ┌──────────────────────┐      ┌───────────────┐    │
+│  │ CaseSpec      │      │ Session Runner        │      │ Trace         │    │
+│  │ Loader        │─────▶│                        │─────▶│ Collector     │    │
+│  │ (YAML files)  │      │  ┌──────────────────┐ │      │ (API fetch)   │    │
+│  └──────────────┘      │  │ User Simulator   │ │      └───────┬───────┘    │
+│                         │  │ (LLM-based)      │ │              │            │
+│                         │  └────────┬─────────┘ │              │            │
+│                         │           │ user msg   │              │            │
+│                         │           ▼            │              │            │
+│                         │  ┌──────────────────┐ │              │            │
+│                         │  │ CS Agent Under   │ │              │            │
+│                         │  │ Test (HTTP API)  │ │              │            │
+│                         │  └────────┬─────────┘ │              │            │
+│                         │           │ bot reply  │              │            │
+│                         │           ▼            │              │            │
+│                         │  ┌──────────────────┐ │     ┌────────▼────────┐  │
+│                         │  │ Stop Condition   │ │     │ 3-Layer Scorer   │  │
+│                         │  │ Checker          │ │     │ L1: Hard Checks  │  │
+│                         │  └──────────────────┘ │     │ L2: Outcome      │  │
+│                         └──────────────────────┘     │ L3: LLM Judge    │  │
+│                                                       └────────┬────────┘  │
+│                                                                │            │
+│                    ┌───────────────────┐  ┌─────────────────────▼────────┐  │
+│                    │ Comparison Engine  │  │ Report Generator             │  │
+│                    │ (before/after)     │  │ (HTML + JSON)                │  │
+│                    └───────────────────┘  └──────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Four Roles**:
+
+| Role | Implementation | Responsibility |
+|------|---------------|----------------|
+| **User Simulator** | LLM (same provider as grader, e.g. `qwen-plus`) with persona prompt + CaseSpec goal | Generates realistic user messages; discloses information per CaseSpec rules; signals `goal_achieved` or `goal_impossible` |
+| **CS Agent Under Test** | Running Spring Boot server (`localhost:8080`) via HTTP API | The bot being evaluated; accessed via `POST /v1/chat/sessions` and `POST /v1/chat/sessions/{id}/messages` |
+| **Grader (3-Layer Scorer)** | Python module: `hard_checks.py` + `outcome_checks.py` + `llm_judge.py` | Produces per-case scores after session completes; does not participate in conversation |
+| **Trace Collector** | Python module consuming `/v1/demo/sessions/{id}/trace` + `/events` + `/handover-logs` | Captures full turn-by-turn trace, tool calls, events, handover payloads for grading |
+
+**Key design principle**: The User Simulator does NOT know the system implementation. It only knows the CaseSpec persona, goal, and disclosure rules. This prevents overfitting to bot internals.
 
 ---
 
@@ -128,6 +182,96 @@ All `*_turns.csv` files include `sequence=0` with `speaker=[PRE_CHAT_FORM]`. The
 2. Injects `form_context` into Bot INIT phase as specified in phase3 §3.2.6
 3. For new-form scenarios: sets `email` as available, enabling immediate `get_customer_context` call
 4. Evaluates whether Bot correctly skips email-asking clarification when form provides it
+
+### 3.4 CaseSpec Structure (Interactive Mode)
+
+CaseSpecs are **structured evaluation scenarios** for interactive mode. They are derived from HR annotations + turn data, but they capture the user's **goal, persona, and disclosure rules** — not raw transcript replay. This prevents the simulator from overfitting to historical agent phrasing and instead tests whether the bot can genuinely resolve the user's problem.
+
+**CaseSpec YAML Schema**:
+
+```yaml
+case_id: string                    # e.g. "cs_interactive_001"
+source_session_id: string          # Original HR session_id for traceability
+source_dataset: string             # golden / escalation / badcase / etc.
+
+# ── Form Context (session init) ──
+form_context:
+  first_name: string
+  email: string                    # may be empty if form_provides_email=false
+  topic_subject: string            # from HR form_topic_subject
+  ad_id: string                    # optional, from HR form_provides_ad_id
+  description: string              # from turn data sequence=0
+
+# ── User Persona (drives simulator behavior) ──
+persona:
+  goal_summary: string             # Natural language: "Find out why ad was removed and get it reinstated"
+  frustration_level: none | mild | high   # from HR has_frustration + frustration_type
+  verbosity: terse | normal | verbose
+  drift_behavior: none | minor | soft_shift | hard_shift   # from HR drift_type
+  seed_messages:                   # 1-3 representative visitor messages extracted from HR transcript
+    - string
+  hidden_facts:                    # Facts the user knows but only reveals when asked
+    - fact: string
+      disclose_when: string        # e.g. "if asked", "after bot acknowledges issue", "proactively"
+  will_request_human_if: string    # Condition under which user demands human agent (optional)
+
+# ── Expected Outcomes (from HR annotations) ──
+expected:
+  outcome_class: resolve | escalate
+  primary_uc: string               # HR primary_uc_corrected (or primary_uc if no correction)
+  secondary_ucs: [string]          # from HR secondary_ucs
+  should_escalate: boolean
+  escalation_trigger: string       # from HR escalation_trigger (if applicable)
+  risk_level: low | medium | high | critical   # from HR risk_level
+  expected_tool_sequence: [string] # from HR expected_tool_sequence (JSON array)
+  forbidden_tools: [string]        # from HR forbidden_tools (JSON array)
+  grounding_mode: faq_source_backed | fixed_script_only   # derived from HR grounding_required + UC type
+  answer_must_not_contain: [string]   # from HR answer_must_not_contain
+  max_turns: integer               # derived: FAQ=15, Intake=10, with override from HR
+
+# ── Scoring Configuration ──
+scoring:
+  hard_checks:                     # L1 checks to apply (see §5.4)
+    - no_forbidden_tools
+    - budget_enforcement
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - escalation_compliance
+    - no_stall
+  outcome_checks:                  # L2 checks to apply
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
+    - handover_completeness
+  llm_judge_dimensions:            # L3 dimensions to evaluate
+    - groundedness
+    - relevance
+    - tone_appropriateness
+```
+
+**Extraction Pipeline**: `case_spec_builder.py` reads HR CSV + corresponding turns CSV:
+1. Map HR fields to CaseSpec `expected` block (direct mapping for most fields)
+2. Derive `persona` from transcript analysis: extract representative visitor messages as `seed_messages`, infer `hidden_facts` from information disclosed across turns, map `has_frustration`/`frustration_type` to `frustration_level`
+3. Derive `grounding_mode`: if `grounding_required=true` → `faq_source_backed`; if UC ∈ {G,H,I,J,K} → `fixed_script_only`
+4. Assign to case set based on `quality_score`, `risk_level`, and UC distribution
+
+**Case Sets**:
+
+| Set | Size | Purpose | Selection Criteria | Run Frequency |
+|-----|------|---------|-------------------|---------------|
+| **Anchor** | ~30 | Stable regression baseline; before/after comparison | High confidence (`quality_score ≥ 4`), clear expected outcomes, covers all risk levels + major UCs | Every change |
+| **Promotion** | ~40 | Broader coverage for release qualification | Medium confidence, rotated as new bad cases enter, covers all escalation triggers | Each release candidate |
+| **Exploration** | ~30 | Edge case discovery; synthetic variations | Lower confidence, frustration cases, complex drift, OOS scenarios | As needed |
+
+**Anchor Set Composition** (recommended):
+
+| Category | Count | Selection |
+|----------|-------|-----------|
+| High-risk UC (G/H/I/J/K) | 10 | UC-G×2, UC-H×3, UC-I×2, UC-J×2, UC-K×1 |
+| FAQ contained (A/B/C/D/E/F/FP) | 10 | UC-A×2, UC-B×2, UC-C×3, UC-D×2, UC-FP×1 |
+| Drift + multi-intent | 8 | hard_shift×3, soft_shift×3, OOS×2 |
+| Frustration / edge | 2 | high frustration with escalation |
 
 ---
 
@@ -441,6 +585,96 @@ Before launch, model-based graders must be calibrated:
 3. Require Cohen's κ ≥ 0.7 for binary graders, Spearman ρ ≥ 0.6 for scale graders
 4. If below threshold: adjust prompt, re-calibrate, or fall back to code grader
 
+### 5.4 Three-Layer Scoring Model (Interactive Mode)
+
+Interactive evaluation scores each case through three explicit layers. This replaces the flat grader list used in replay mode and ensures LLM judges can never be the sole arbiter of pass/fail.
+
+| Layer | Name | Type | When Applied | Gate Impact |
+|-------|------|------|-------------|-------------|
+| **L1** | Hard Checks | Deterministic code | Every case | Any failure → `case_passed = false` (zero tolerance) |
+| **L2** | Outcome Checks | Result-level code | Every case | 0-1 score per check; aggregated to `outcome_score` |
+| **L3** | LLM Judge | Semantic LLM grading | Every case | 1-5 scale per dimension; aggregated to `judge_score` |
+
+#### L1 Hard Checks (deterministic, all must pass)
+
+| Check | Logic | Source |
+|-------|-------|--------|
+| `no_forbidden_tools` | No tool in CaseSpec `forbidden_tools` was invoked (checked via turn trace `tool_calls`) | ToolContractGrader |
+| `budget_enforcement` | `clarification_count ≤ 2`, `faq_miss_count ≤ 2`, `total_bot_turns ≤ max_turns` | ControlGrader |
+| `phase_transition_validity` | Only allowed FSM transitions occurred (checked via `phase_before`/`phase_after` per turn) | ControlGrader |
+| `no_critical_policy_violation` | Zero forbidden phrases, zero identity impersonation, zero false action/promise | PolicyGrader |
+| `no_pii_leakage` | No raw email/phone/card number patterns in bot responses | PolicyGrader |
+| `escalation_compliance` | If `should_escalate=true` AND `risk_level ∈ {critical, high}` → bot must have escalated | EscalationGrader |
+| `user_requested_escalation` | If user explicitly says "talk to agent/human" → bot must escalate within 1 turn | EscalationGrader |
+| `source_citation_present` | If `grounding_mode=faq_source_backed` and `action=answer_grounded` → `source_ids` non-empty | **NEW** |
+| `intake_no_knowledge_tool` | If `grounding_mode=fixed_script_only` → `search_knowledge`/`resolve_article` never called | **NEW** |
+| `no_stall` | Stall detector does not flag the session (see below) | **NEW** |
+
+#### Stall Detector Specification
+
+```yaml
+stall_detector:
+  type: code
+  severity: L1 Hard Check (zero tolerance)
+  detection_logic: |
+    For each bot turn in the session:
+      1. Check if bot response matches any promise pattern:
+         - "let me (check|look|find|verify|search)"
+         - "i('m| am) (checking|looking|searching|investigating)"
+         - "one moment"
+         - "i'll (look into|check|investigate|find)"
+         - "thanks for your patience"
+         - "just a moment"
+      2. If promise detected:
+         a. Check if a tool call occurred in this turn or next turn (via tool_calls trace)
+         b. Check if a visible result appeared — one of:
+            - Specific information (article link, case ID, account status, moderation reason)
+            - Error explanation ("I wasn't able to find...")
+            - Handover/escalation message
+            - Follow-up question that moves conversation forward
+         c. If NO visible result within 2 turns → flag as STALL
+    Session flagged if ANY turn produces a STALL.
+  failure_tags:
+    - STALL_AFTER_TOOL_INTENT     # Promised action, no visible result
+    - TOOL_ERROR_NOT_SURFACED     # Tool errored but user not informed
+    - PLACEHOLDER_WITHOUT_FOLLOWUP # Progress placeholder sent, no completion
+```
+
+#### L2 Outcome Checks (result-level, 0-1 per check)
+
+| Check | Logic | Score |
+|-------|-------|-------|
+| `correct_uc` | Bot `active_use_case` matches CaseSpec `expected.primary_uc` (case-insensitive) | 1.0 if match, 0.0 if not |
+| `correct_outcome` | Bot `containment_outcome` matches CaseSpec `expected.outcome_class` | 1.0 if match, 0.0 if not |
+| `tool_sequence_match` | Bot tool calls match `expected_tool_sequence` (order-sensitive subsequence match) | 1.0 if exact, partial credit for subsequence |
+| `turn_efficiency` | Session completed within `expected.max_turns` | 1.0 if within, linear decay to 0.0 at 2× max |
+| `handover_completeness` | If escalated: handover payload has all required fields from Phase 3 §3.6.2 | % of required fields present |
+| `case_id_present` | If UC ∈ {H,J,K} and escalated: `case_id` is populated in handover | 1.0 or 0.0 |
+| `escalation_timing` | If escalation required: occurred within 2 turns of trigger condition | 1.0 if timely, 0.0 if delayed |
+| `issue_preservation` | After soft shift: original UC still in `candidate_use_cases` | 1.0 if preserved, 0.0 if lost |
+
+#### L3 LLM Judge (semantic, 1-5 scale, supplementary only)
+
+| Dimension | Prompt Focus | Pass Threshold |
+|-----------|-------------|----------------|
+| `groundedness` | Is bot response supported by retrieved knowledge sources? | ≥ 3.5 mean |
+| `relevance` | Does bot response address the user's actual question? | ≥ 3.5 mean |
+| `tone_appropriateness` | Is bot professional, empathetic, and not dismissive (especially under frustration)? | ≥ 3.0 mean |
+| `premature_finish_check` | Did bot end conversation before issue was genuinely resolved? (RESOLVED / PREMATURE_FINISH) | Binary |
+| `stall_quality` | Did bot move conversation forward toward resolution/escalation at each turn? | ≥ 3.0 mean |
+
+#### Composite Score Formula
+
+```
+case_passed = all L1 Hard Checks pass
+outcome_score = mean(L2 check scores)           # 0-1 range
+judge_score = mean(L3 dimension scores) / 5      # normalized to 0-1
+composite = 0.0 if not case_passed
+          else 0.5 * outcome_score + 0.5 * judge_score
+```
+
+**Gate rule**: A case is considered **successful** if `case_passed = true` AND `composite ≥ 0.7`. LLM Judge scores alone cannot determine pass/fail — they only contribute to composite after L1 passes.
+
 ---
 
 ## 6. Metrics Framework
@@ -528,6 +762,22 @@ Before launch, model-based graders must be calibrated:
 | `cost_per_session` | LLM token cost per session | Track | Runtime |
 | `tool_error_rate` | % tool calls failing | < 2% | Runtime |
 
+### 6.9 Top-Line Metrics (7 Key — Interactive + Replay)
+
+These 7 metrics provide the unified top-line view across both eval modes. They are the primary metrics for stakeholder reporting and release decisions.
+
+| # | Metric | Definition | Target | Scoring Layer | Source Mode |
+|---|--------|-----------|--------|---------------|-------------|
+| 1 | `task_success_rate` | % cases with correct outcome: FAQ correctly contained OR intake/OOS correctly escalated | ≥ 80% | L2 Outcome | Both |
+| 2 | `stall_rate` | % sessions flagged by stall detector (bot promises action without visible result) | = 0% | L1 Hard | Interactive |
+| 3 | `correct_tool_invocation_rate` | % cases with correct tool scope (no forbidden tools) AND correct sequence match | ≥ 90% | L1+L2 | Both |
+| 4 | `escalation_correctness_rate` | Composite: `escalation_recall` × `escalation_precision` × `escalation_timing` | ≥ 95% recall | L2 Outcome | Both |
+| 5 | `grounded_final_answer_rate` | FAQ answers have `source_ids`; intake UCs use fixed scripts only; no unsupported claims | ≥ 98% | L1+L3 | Both |
+| 6 | `policy_compliance_rate` | Zero forbidden phrases + PII leakage + identity impersonation + false action/promise | 100% | L1 Hard | Both |
+| 7 | `turns_to_resolution` | Median turns for FAQ-resolved sessions + p95 latency | ≤ 6 turns, p95 ≤ 5s | L2 Outcome | Both |
+
+**Reporting rule**: All eval reports (HTML, JSON, dashboard) must display these 7 metrics prominently. Per-UC and per-dataset breakdowns are secondary.
+
 ---
 
 ## 7. Launch Gates (V1)
@@ -562,6 +812,11 @@ Any failure blocks release:
 | FAQ answer p95 | ≤ 5s | Runtime |
 | Summary quality score | ≥ 3.5 mean | Handover Contract |
 | Answer relevance score | ≥ 3.5 mean | Core E2E |
+| **Task success rate (interactive)** | ≥ 80% | Interactive Anchor |
+| **Stall rate (interactive)** | ≤ 5% | Interactive Anchor |
+| **Regression rate (interactive)** | ≤ 2% | Interactive before/after |
+
+> **Note**: Interactive eval metrics are **advisory in V1**. After calibration with production data (V1.1), `task_success_rate` and `stall_rate` will be promoted to hard gates. See §15.1.
 
 ### 7.3 Rollout Stage Gates
 
@@ -854,6 +1109,16 @@ After launch, weekly sample of real Bot sessions replayed:
 | Incomplete context | Field check | Medium | Fix context builder |
 | Wrong UC in handover | UC match | Medium | Fix UC propagation |
 
+### 11.6 Stall / Liveness Failures
+
+| Failure | Detection | Severity | Response |
+|---------|-----------|----------|----------|
+| `STALL_AFTER_TOOL_INTENT` | Bot promised action (regex match), no visible result within 2 turns | **Critical** | Fix tool result surfacing in PhaseEvaluator |
+| `TOOL_ERROR_NOT_SURFACED` | Tool returned error status but bot did not inform user or escalate | High | Add error handling path in ToolDispatcher |
+| `LOOP_DETECTED` | Repeated identical bot response ≥ 2 consecutive times | High | Fix `max_repeated_same_action` enforcement |
+| `PLACEHOLDER_WITHOUT_FOLLOWUP` | Progress placeholder sent (`"One moment..."`) but no completion message followed | High | Fix async completion in ProgressPlaceholderService |
+| `SILENT_TURN` | Bot returned empty or whitespace-only response | **Critical** | Fix LLM response parsing fallback |
+
 ---
 
 ## 12. Bad-Case Bank Management
@@ -891,61 +1156,295 @@ Failure detected
 
 ## 13. Eval Harness Implementation
 
-### 13.1 Architecture
+### 13.1 Replay Eval Harness (Java — Implemented)
+
+The replay eval harness is implemented as a Java Maven submodule at `eval/`. It replays historical user turns from CSV datasets against the running bot.
 
 ```text
-eval/
+eval/src/main/java/com/gumtree/csagent/eval/
 ├── harness/
-│   ├── runner.py              # Main eval orchestrator
-│   ├── dataset_loader.py      # Load CSV datasets + turns
-│   ├── session_simulator.py   # Replay sessions through Bot runtime
-│   ├── form_normalizer.py     # Old form → new form field mapping
-│   └── result_collector.py    # Aggregate per-session results
+│   ├── EvalRunner.java            # Main orchestrator: load → simulate → grade → aggregate → gate → report
+│   ├── DatasetLoader.java         # CSV parser + HR annotations overlay (7 datasets + 367 HR sessions)
+│   ├── SessionSimulator.java      # HTTP replay via RestTemplate (POST /v1/chat/sessions + /messages)
+│   ├── FormNormalizer.java        # Old form → new form field mapping for session init
+│   └── ResultCollector.java       # Thread-safe per-session result accumulation
 ├── graders/
 │   ├── code/
-│   │   ├── routing_grader.py
-│   │   ├── escalation_grader.py
-│   │   ├── handover_grader.py
-│   │   ├── control_grader.py
-│   │   ├── tool_contract_grader.py
-│   │   ├── policy_grader.py
-│   │   └── pii_grader.py
+│   │   ├── RoutingGrader.java     # UC routing accuracy (exact match)
+│   │   ├── EscalationGrader.java  # Recall, precision, TP/FP/FN/TN classification
+│   │   ├── HandoverGrader.java    # Required fields completeness
+│   │   ├── ControlGrader.java     # Budget enforcement + phase validity
+│   │   ├── ToolContractGrader.java # Scope enforcement + forbidden tool checks
+│   │   ├── PolicyGrader.java      # Forbidden phrases + PII leakage (regex)
+│   │   └── DriftGrader.java       # Drift type + UC stability
 │   └── model/
-│       ├── groundedness_grader.py
-│       ├── relevance_grader.py
-│       ├── summary_quality_grader.py
-│       └── clarification_grader.py
+│       ├── GroundednessGrader.java   # LLM judge: GROUNDED / NOT_GROUNDED
+│       ├── RelevanceGrader.java      # LLM judge: 1-5 relevance score
+│       ├── SummaryQualityGrader.java # LLM judge: 1-5 handover summary quality
+│       └── ClarificationGrader.java  # LLM judge: NECESSARY / UNNECESSARY / OVER_CLARIFIED
 ├── metrics/
-│   ├── aggregator.py          # Compute all §6 metrics
-│   └── gate_evaluator.py     # Check §7 launch gates
-├── reports/
-│   ├── ci_report.py           # Jenkins-compatible report
-│   ├── dashboard_export.py    # Grafana/Looker export
-│   └── slack_notifier.py      # Alert on failures
-├── suites/
-│   ├── smoke.yaml             # PR smoke config (75 sessions)
-│   ├── full_regression.yaml   # RC full config (601 sessions)
-│   └── nightly.yaml           # Nightly config (full + extended)
-└── data/
-    └── eval_datasets/         # Symlink to csagent/data/eval_datasets/
+│   ├── MetricsAggregator.java     # Computes 20+ metrics from grade results
+│   └── GateEvaluator.java        # Checks 11 hard gates with threshold comparison
+├── report/
+│   ├── HtmlReportGenerator.java   # Self-contained HTML report with inline CSS
+│   └── JsonReportGenerator.java   # Machine-readable JSON export
+├── config/
+│   └── EvalConfig.java            # @Value properties + suite YAML loading + gate thresholds
+└── model/
+    ├── EvalSession.java           # Dataset row + HR overlay with getEffective*() methods
+    ├── EvalTurn.java              # Turn data (sequence, role, message)
+    ├── SessionResult.java         # Per-session grading results
+    ├── GradeResult.java           # Individual grader verdict (pass/fail/skip/error)
+    ├── GateResult.java            # Gate pass/fail with threshold
+    └── EvalMetrics.java           # Aggregate metrics with per-UC/per-dataset breakdown
 ```
 
-### 13.2 Session Simulation
+**Execution**: `mvn spring-boot:run -Peval-smoke` (75 sessions, ~5 min) or `mvn spring-boot:run -Peval-full` (601 sessions, ~30 min).
 
-The eval harness replays each session by feeding turns to the Bot runtime:
+**Mode**: Replay — user messages from CSV dataset turns; Bot generates real responses. Not suitable for testing "what if bot asks differently?"
 
-1. Load session metadata + `sequence=0` (form context)
-2. Initialize Bot session with form_context
-3. For each user turn (`role=visitor`, `sequence > 0`):
-   a. Send message to Bot
-   b. Capture: `action_selected`, `tool_calls`, `bot_response`, `state_snapshot`
-4. After all turns: capture `outcome`, `handover_payload` (if escalated)
-5. Run all applicable graders
-6. Collect results
+### 13.2 Interactive Eval Harness (Python — New)
 
-**Mode**: "replay" mode — user messages from dataset; Bot generates real responses.
+The interactive eval harness is a Python application at `eval_interactive/`. It drives the bot with an LLM-based User Simulator using CaseSpecs derived from HR annotations.
 
-### 13.3 Configuration
+```text
+eval_interactive/
+├── pyproject.toml                         # Python 3.11+; deps: httpx, pyyaml, openai, jinja2, click
+├── eval_interactive/
+│   ├── __init__.py
+│   ├── cli.py                             # click CLI: extract, run, compare, report
+│   ├── config.py                          # Load eval_interactive.yaml
+│   ├── case_spec/
+│   │   ├── loader.py                      # Load CaseSpec YAML files from case_specs/
+│   │   ├── extractor.py                   # HR CSV + turns CSV → CaseSpec YAML generator
+│   │   └── schema.py                      # CaseSpec dataclass (Pydantic model)
+│   ├── simulator/
+│   │   ├── user_simulator.py              # LLM-based user turn generator (persona + goal + history)
+│   │   ├── agent_client.py                # httpx client for CS Agent API
+│   │   ├── session_runner.py              # Orchestrates user↔agent loop with stop conditions
+│   │   └── stall_detector.py              # Detects promise-without-result (§5.4)
+│   ├── trace/
+│   │   ├── collector.py                   # Fetch traces/events from /v1/demo/* after session
+│   │   └── models.py                      # Trace, Turn, Event dataclasses
+│   ├── scoring/
+│   │   ├── hard_checks.py                 # L1: deterministic binary checks
+│   │   ├── outcome_checks.py              # L2: result-level 0-1 checks
+│   │   ├── llm_judge.py                   # L3: LLM-based semantic scoring
+│   │   ├── composite.py                   # Composite score calculator (§5.4 formula)
+│   │   └── prompts/                       # Jinja2 templates for LLM judge
+│   │       ├── groundedness.j2
+│   │       ├── relevance.j2
+│   │       ├── tone.j2
+│   │       ├── premature_finish.j2
+│   │       └── stall_quality.j2
+│   ├── comparison/
+│   │   └── diff_engine.py                 # Per-case before/after regression diff
+│   ├── batch/
+│   │   ├── executor.py                    # Async batch runner with concurrency control
+│   │   └── sets.py                        # Anchor/Promotion/Exploration set management
+│   └── report/
+│       ├── html_report.py                 # HTML report with per-case drill-down + 7 key metrics
+│       └── json_report.py                 # Machine-readable JSON
+├── case_specs/                            # Generated CaseSpec YAML files
+│   ├── anchor/                            # ~30 stable regression anchors
+│   ├── promotion/                         # ~40 broader coverage
+│   └── exploration/                       # ~30 edge cases
+├── results/                               # Run results (timestamped JSON per run)
+└── tests/
+    ├── test_stall_detector.py
+    ├── test_hard_checks.py
+    ├── test_outcome_checks.py
+    └── test_case_spec_loader.py
+```
+
+**Session Execution Flow (interactive mode)**:
+
+```text
+For each CaseSpec in batch:
+  1. session_runner creates bot session:
+     POST /v1/chat/sessions with CaseSpec.form_context
+     → session_id + bot greeting
+
+  2. Determine first user message:
+     CaseSpec.persona.seed_messages[0] OR CaseSpec.form_context.description
+
+  3. Loop (max CaseSpec.expected.max_turns):
+     a. Send user message to bot:
+        POST /v1/chat/sessions/{id}/messages → bot reply
+     b. Check stop conditions:
+        - bot returned should_end_chat = true        → "bot_ended"
+        - user_simulator signals goal_achieved        → "goal_achieved"
+        - user_simulator signals goal_impossible      → "goal_impossible"
+        - turn count exceeds max_turns                → "max_turns_exceeded"
+        - stall_detector flags session                → "stall_detected"
+        - repeated identical bot response ≥ 2x        → "loop_detected"
+        - budget exceeded (clarification/faq_miss)    → "budget_exceeded"
+     c. If not stopped:
+        user_simulator generates next user message
+        (LLM call with persona + goal + conversation history + last bot reply)
+
+  4. Trace Collector fetches:
+     GET /v1/chat/sessions/{id}                 → final session state
+     GET /v1/demo/sessions/{id}/trace           → turn-by-turn BotTurn array
+     GET /v1/demo/sessions/{id}/events          → BotEvent array
+     GET /v1/demo/handover-logs (filter by id)  → handover payload (if escalated)
+
+  5. 3-Layer Scoring:
+     L1: hard_checks.grade(case_spec, trace)    → all must pass
+     L2: outcome_checks.grade(case_spec, trace) → 0-1 per check
+     L3: llm_judge.grade(case_spec, trace)      → 1-5 per dimension
+     composite = formula from §5.4
+
+  6. Write results to results/{run_id}/
+```
+
+**User Simulator prompt template**:
+
+```text
+You are a customer contacting Gumtree support. Your persona:
+- Goal: {persona.goal_summary}
+- Frustration level: {persona.frustration_level}
+- Verbosity: {persona.verbosity}
+
+You submitted a form with: Topic: {form_context.topic_subject}, Description: {form_context.description}
+
+Facts you know (reveal naturally when relevant):
+{for fact in persona.hidden_facts}
+- {fact.fact} (reveal: {fact.disclose_when})
+{endfor}
+
+{if persona.will_request_human_if}
+If the bot {persona.will_request_human_if}, ask to speak with a human agent.
+{endif}
+
+Respond as a real customer would. Do NOT reveal you are an AI.
+If the bot has resolved your issue, say something like "thank you, that helps."
+If the bot is clearly unable to help, say "can I speak to someone?"
+
+Respond with JSON: {"message": "your response", "goal_status": "in_progress|achieved|impossible"}
+```
+
+### 13.3 Before/After Comparison
+
+The comparison engine enables regression detection when policy, prompt, or harness changes are made.
+
+**Workflow**:
+```bash
+# 1. Run baseline
+python -m eval_interactive run --set anchor --label baseline_v1.0.3
+
+# 2. Make changes to bot (prompt, policy, etc.)
+
+# 3. Run current
+python -m eval_interactive run --set anchor --label control_v1.0.4
+
+# 4. Compare
+python -m eval_interactive compare \
+  --baseline results/2026-04-24_baseline_v1.0.3.json \
+  --current results/2026-04-25_control_v1.0.4.json
+```
+
+**Diff output**:
+```json
+{
+  "baseline_label": "baseline_v1.0.3",
+  "current_label": "control_v1.0.4",
+  "total_cases": 30,
+  "improved": 5,
+  "stable_pass": 20,
+  "stable_fail": 2,
+  "regressed": 3,
+  "regression_rate": 0.10,
+  "regressions": [
+    {
+      "case_id": "cs_anchor_012",
+      "primary_uc": "UC-H",
+      "baseline": {"composite": 0.85, "l1_passed": true, "stop_reason": "bot_ended"},
+      "current": {"composite": 0.45, "l1_passed": false, "stop_reason": "stall_detected"},
+      "failure_tags": ["STALL_AFTER_TOOL_INTENT"]
+    }
+  ],
+  "improvements": [...],
+  "metric_deltas": {
+    "task_success_rate": {"baseline": 0.83, "current": 0.80, "delta": -0.03},
+    "stall_rate": {"baseline": 0.0, "current": 0.10, "delta": +0.10}
+  }
+}
+```
+
+**Regression definition**: A case that passed (composite ≥ 0.7 AND all L1 checks passed) in baseline but fails in current run.
+
+### 13.4 Batch Execution Strategy
+
+| Set | CLI Flag | Cases | Purpose | Cadence |
+|-----|----------|-------|---------|---------|
+| Anchor | `--set anchor` | ~30 | Stable regression baseline | Every change |
+| Promotion | `--set promotion` | ~40 | Release qualification | Each RC |
+| Exploration | `--set exploration` | ~30 | Edge case discovery | As needed |
+| All | `--set all` | ~100 | Comprehensive assessment | Release + nightly |
+
+**Execution**: `python -m eval_interactive run --set anchor --label {label} --parallel 5`
+
+- Concurrency: configurable via `--parallel` (default 5 concurrent sessions)
+- Each session is independent (separate bot session ID)
+- Timeout: configurable per session (default 120s)
+- Output: timestamped result JSON + HTML report in `results/{run_id}/`
+
+### 13.5 Configuration (Interactive Mode)
+
+```yaml
+# eval_interactive.yaml
+bot:
+  base_url: http://localhost:8080
+
+llm:
+  base_url: ${DASHSCOPE_BASE_URL}
+  api_key: ${DASHSCOPE_API_KEY}
+  model: ${DASHSCOPE_CHAT_MODEL}
+  temperature: 0.0            # for grader LLM calls
+  simulator_temperature: 0.7  # for user simulator (more natural)
+
+simulator:
+  max_turns: 15
+  default_persona:
+    frustration_level: none
+    verbosity: normal
+    drift_behavior: none
+
+stall_detector:
+  promise_patterns:
+    - "let me (check|look|find|verify|search)"
+    - "i('m| am) (checking|looking|searching|investigating)"
+    - "one moment"
+    - "i'll (look into|check|investigate|find)"
+    - "thanks for your patience"
+    - "just a moment"
+  followup_window_turns: 2
+
+batch:
+  parallel: 5
+  timeout_per_session_seconds: 120
+
+report:
+  output_dir: results/
+```
+
+### 13.6 Replay vs Interactive Comparison
+
+| Dimension | Replay (Java) | Interactive (Python) |
+|-----------|--------------|---------------------|
+| User input | Fixed CSV turns from historical sessions | LLM-generated per CaseSpec persona + goal |
+| Test scope | "Does bot handle these specific inputs correctly?" | "Can bot solve this user's problem?" |
+| Determinism | High (same input → comparable output) | Lower (LLM simulator varies) |
+| Speed | ~5 min smoke / ~30 min full | ~20 min anchor / ~60 min full |
+| CI gate | Yes (PR + release blocker) | Advisory V1, hard gate V1.1 |
+| Stall detection | No | Yes (core feature) |
+| Before/after diff | Metrics-level only | Per-case regression tracking |
+| Best for | Regression gating, policy compliance | Behavioral assessment, stall discovery |
+
+Both modes share: same CS Agent under test, same grader logic (code checks), same HR annotation data, same 7 key metrics (§6.9).
+
+### 13.7 Replay Mode Configuration (Java)
 
 ```yaml
 # suites/full_regression.yaml
@@ -1094,6 +1593,9 @@ HR annotations classify each session's drift type (hard_shift/soft_shift/minor_d
 
 ### 15.1 V1.1 (After Stable 100% Rollout)
 
+- **Promote interactive eval to hard gate**: `task_success_rate` and `stall_rate` become release blockers after calibration with production data
+- **Expand Anchor set to 100+ cases**: incorporate production bad cases discovered in first month
+- **Automated CaseSpec generation from production replay**: flag sessions with stalls/failures → auto-generate CaseSpecs for exploration set
 - **Harder drift suite**: 4+ UC sessions; inter-issue dependency
 - **Multi-turn issue switching**: user changes mind mid-conversation
 - **Knowledge gap analytics**: systematic coverage analysis per UC
@@ -1200,3 +1702,77 @@ expected:
   expected_source_ids: [string]    # optional
 graders: [string]                  # list of grader IDs to apply
 ```
+
+## Appendix C: CaseSpec Schema (Interactive Mode)
+
+Full annotated YAML schema for interactive eval CaseSpecs. See §3.4 for context and extraction pipeline.
+
+```yaml
+# ── Identity ──
+case_id: string                    # Unique identifier, e.g. "cs_anchor_001"
+source_session_id: string          # HR session_id for traceability
+source_dataset: string             # golden / escalation / badcase / handover / etc.
+case_set: anchor | promotion | exploration
+
+# ── Form Context (injected at session init, NOT sent as free-text message) ──
+form_context:
+  first_name: string               # From HR record or turns sequence=0
+  email: string                    # May be empty if form_provides_email=false
+  topic_subject: string            # From HR form_topic_subject (one of 11 options)
+  ad_id: string                    # Optional
+  description: string              # From turns sequence=0 message content
+
+# ── User Persona (drives simulator LLM behavior) ──
+persona:
+  goal_summary: string             # "Find out why ad was removed and get it reinstated"
+  frustration_level: none | mild | high
+  verbosity: terse | normal | verbose
+  drift_behavior: none | minor | soft_shift | hard_shift
+  seed_messages: [string]          # 1-3 representative visitor messages from HR transcript
+  hidden_facts:                    # User knows but reveals only when triggered
+    - fact: string                 # e.g. "User has only one account"
+      disclose_when: string        # e.g. "if asked about multiple accounts"
+  will_request_human_if: string    # Optional condition for demanding human agent
+
+# ── Expected Outcomes (from HR annotations) ──
+expected:
+  outcome_class: resolve | escalate
+  primary_uc: string               # HR primary_uc_corrected (or primary_uc)
+  secondary_ucs: [string]          # From HR secondary_ucs
+  should_escalate: boolean
+  escalation_trigger: string       # From HR escalation_trigger
+  risk_level: low | medium | high | critical
+  expected_tool_sequence: [string] # From HR expected_tool_sequence JSON
+  forbidden_tools: [string]        # From HR forbidden_tools JSON
+  grounding_mode: faq_source_backed | fixed_script_only
+  answer_must_not_contain: [string]
+  max_turns: integer               # FAQ=15, Intake=10, with HR override
+
+# ── Scoring Configuration ──
+scoring:
+  hard_checks: [string]            # L1 checks from §5.4 to apply
+  outcome_checks: [string]         # L2 checks from §5.4 to apply
+  llm_judge_dimensions: [string]   # L3 dimensions from §5.4 to evaluate
+```
+
+**HR Field → CaseSpec Field Mapping**:
+
+| HR CSV Column | CaseSpec Path | Transform |
+|--------------|---------------|-----------|
+| `session_id` | `source_session_id` | Direct |
+| `source_dataset` | `source_dataset` | Direct |
+| `form_topic_subject` | `form_context.topic_subject` | Direct |
+| `primary_uc` / `primary_uc_corrected` | `expected.primary_uc` | Prefer corrected |
+| `secondary_ucs` | `expected.secondary_ucs` | Split on `\|` |
+| `outcome_class` | `expected.outcome_class` | Direct |
+| `should_escalate` | `expected.should_escalate` | Boolean |
+| `escalation_trigger` | `expected.escalation_trigger` | Direct |
+| `risk_level` | `expected.risk_level` | Direct |
+| `expected_tool_sequence` | `expected.expected_tool_sequence` | Parse JSON |
+| `forbidden_tools` | `expected.forbidden_tools` | Parse JSON |
+| `grounding_required` | `expected.grounding_mode` | `true` → `faq_source_backed`; `false` + intake UC → `fixed_script_only` |
+| `answer_must_not_contain` | `expected.answer_must_not_contain` | Parse JSON |
+| `has_frustration` + `frustration_type` | `persona.frustration_level` | Map to none/mild/high |
+| `drift_type` | `persona.drift_behavior` | Direct |
+| turns `sequence=0` | `form_context.description` | Parse form text |
+| turns `role=visitor, seq>0` | `persona.seed_messages` | Extract 1-3 representative |

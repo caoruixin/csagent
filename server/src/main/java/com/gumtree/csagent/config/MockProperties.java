@@ -8,4 +8,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class MockProperties {
 
     private boolean businessHours = true;
+    private int toolLatencyMs = 0;
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gumtree.csagent.model.*;
 import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotSessionRepository;
+import com.gumtree.csagent.repository.BotTurnRepository;
 import com.gumtree.csagent.repository.MockHandoverLogRepository;
 import com.gumtree.csagent.repository.SessionOutcomeRepository;
 import com.gumtree.csagent.service.runtime.UseCaseRouter.RoutingResult;
@@ -27,6 +28,7 @@ public class SessionManager {
     private final BotEventRepository eventRepository;
     private final SessionOutcomeRepository outcomeRepository;
     private final MockHandoverLogRepository handoverLogRepository;
+    private final BotTurnRepository botTurnRepository;
     private final FormContextIngestionService formIngestion;
     private final UseCaseRouter useCaseRouter;
     private final ControlKernel controlKernel;
@@ -38,6 +40,7 @@ public class SessionManager {
                           BotEventRepository eventRepository,
                           SessionOutcomeRepository outcomeRepository,
                           MockHandoverLogRepository handoverLogRepository,
+                          BotTurnRepository botTurnRepository,
                           FormContextIngestionService formIngestion,
                           UseCaseRouter useCaseRouter,
                           ControlKernel controlKernel,
@@ -48,6 +51,7 @@ public class SessionManager {
         this.eventRepository = eventRepository;
         this.outcomeRepository = outcomeRepository;
         this.handoverLogRepository = handoverLogRepository;
+        this.botTurnRepository = botTurnRepository;
         this.formIngestion = formIngestion;
         this.useCaseRouter = useCaseRouter;
         this.controlKernel = controlKernel;
@@ -347,10 +351,18 @@ public class SessionManager {
 
             String payloadJson = objectMapper.writeValueAsString(payload);
 
+            // Build customer message (escalation summary shown to user)
+            String customerMessage = buildCustomerMessage(session);
+
+            // Build conversation transcript from bot turns
+            String transcriptJson = buildTranscriptJson(session.getSessionId());
+
             MockHandoverLog handoverLog = MockHandoverLog.builder()
                     .logId(UUID.randomUUID().toString())
                     .sessionId(session.getSessionId())
                     .handoverPayload(payloadJson)
+                    .customerMessage(customerMessage)
+                    .transcript(transcriptJson)
                     .transferResult("mock_transfer")
                     .createdAt(OffsetDateTime.now())
                     .build();
@@ -360,6 +372,47 @@ public class SessionManager {
 
         } catch (Exception e) {
             log.error("Session {}: failed to record handover: {}", session.getSessionId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Build the customer-facing escalation message.
+     */
+    private String buildCustomerMessage(BotSession session) {
+        String reason = session.getEscalationReason();
+        if (reason != null && reason.startsWith("out_of_scope")) {
+            return "Your inquiry requires assistance from a specialist. You have been connected to a human agent.";
+        }
+        return "This conversation has been transferred to a human agent who can better assist you.";
+    }
+
+    /**
+     * Build a JSON array of transcript entries from bot turns for the session.
+     */
+    private String buildTranscriptJson(String sessionId) {
+        try {
+            List<BotTurn> turns = botTurnRepository.findBySessionIdOrderByTurnIndex(sessionId);
+            List<Map<String, Object>> transcript = new ArrayList<>();
+            for (BotTurn turn : turns) {
+                if (turn.getUserMessage() != null && !turn.getUserMessage().isBlank()) {
+                    Map<String, Object> userEntry = new LinkedHashMap<>();
+                    userEntry.put("role", "user");
+                    userEntry.put("message", turn.getUserMessage());
+                    userEntry.put("turn_index", turn.getTurnIndex());
+                    transcript.add(userEntry);
+                }
+                if (turn.getBotResponse() != null && !turn.getBotResponse().isBlank()) {
+                    Map<String, Object> botEntry = new LinkedHashMap<>();
+                    botEntry.put("role", "bot");
+                    botEntry.put("message", turn.getBotResponse());
+                    botEntry.put("turn_index", turn.getTurnIndex());
+                    transcript.add(botEntry);
+                }
+            }
+            return objectMapper.writeValueAsString(transcript);
+        } catch (Exception e) {
+            log.warn("Session {}: failed to build transcript: {}", sessionId, e.getMessage());
+            return "[]";
         }
     }
 

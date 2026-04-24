@@ -15,6 +15,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -32,12 +33,33 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
 
     public OpenAiCompatibleLlmClient(LlmProperties llmProperties, ObjectMapper objectMapper) {
         this.llmProperties = llmProperties;
-        this.restTemplate = new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);   // 5 seconds connect timeout
+        factory.setReadTimeout(30000);      // 30 seconds read timeout (LLM can be slow)
+        this.restTemplate = new RestTemplate(factory);
         this.objectMapper = objectMapper;
     }
 
     @Override
     public LlmResponse chat(LlmRequest request) {
+        // Try up to 2 times (initial + 1 retry) for transient failures
+        Exception lastException = null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                return doChat(request);
+            } catch (RestClientException e) {
+                lastException = e;
+                if (attempt == 0) {
+                    log.warn("LLM API call failed on attempt 1, retrying in 500ms: {}", e.getMessage());
+                    try { Thread.sleep(500); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+                }
+            }
+        }
+        log.error("LLM API call failed after 2 attempts", lastException);
+        throw new RuntimeException("LLM API call failed after retry", lastException);
+    }
+
+    private LlmResponse doChat(LlmRequest request) {
         long startTime = System.currentTimeMillis();
 
         LlmProperties.DashScopeProperties config = llmProperties.getDashscope();
@@ -67,8 +89,7 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
             return parseResponse(response.getBody(), latencyMs);
 
         } catch (RestClientException e) {
-            log.error("LLM API call failed: {}", e.getMessage(), e);
-            throw new RuntimeException("LLM API call failed", e);
+            throw e; // Let retry loop handle RestClientException
         } catch (Exception e) {
             log.error("Error processing LLM request: {}", e.getMessage(), e);
             throw new RuntimeException("Error processing LLM request", e);
