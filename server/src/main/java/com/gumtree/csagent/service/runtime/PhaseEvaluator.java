@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gumtree.csagent.model.*;
 import com.gumtree.csagent.service.guardrails.ScriptLibraryService;
 import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
+import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
+import com.gumtree.csagent.service.tools.ToolDispatcher;
+import com.gumtree.csagent.service.tools.ToolResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -58,6 +62,9 @@ public class PhaseEvaluator {
     private final ContextProjectionBuilder contextProjection;
     private final ActionParser actionParser;
     private final ObjectMapper objectMapper;
+    private final CreateCaseControlledTool createCaseTool;
+    private final EventEmitter eventEmitter;
+    private final ToolDispatcher toolDispatcher;
 
     public PhaseEvaluator(UseCaseRegistryService useCaseRegistry,
                           KnowledgeSearchService knowledgeSearchService,
@@ -65,7 +72,10 @@ public class PhaseEvaluator {
                           LlmInvocationService llmInvocation,
                           ContextProjectionBuilder contextProjection,
                           ActionParser actionParser,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          CreateCaseControlledTool createCaseTool,
+                          EventEmitter eventEmitter,
+                          ToolDispatcher toolDispatcher) {
         this.useCaseRegistry = useCaseRegistry;
         this.knowledgeSearchService = knowledgeSearchService;
         this.scriptLibrary = scriptLibrary;
@@ -73,6 +83,9 @@ public class PhaseEvaluator {
         this.contextProjection = contextProjection;
         this.actionParser = actionParser;
         this.objectMapper = objectMapper;
+        this.createCaseTool = createCaseTool;
+        this.eventEmitter = eventEmitter;
+        this.toolDispatcher = toolDispatcher;
     }
 
     /**
@@ -120,6 +133,14 @@ public class PhaseEvaluator {
         // Track clarification
         if ("ask_user".equals(action.getAction())) {
             session.setClarificationCount(session.getClarificationCount() + 1);
+            eventEmitter.emitClarificationAsked(session.getSessionId(), session.getTotalBotTurns(),
+                    session.getClarificationCount());
+        }
+
+        // If LLM determined escalation (e.g. safe fallback during API failure), escalate immediately
+        if ("escalate_human".equals(action.getAction())) {
+            return PhaseResult.escalate(session, action.getUserMessage(),
+                "llm_determined_escalation");
         }
 
         return PhaseResult.respond(session, action, llmResponse, null);
@@ -149,9 +170,27 @@ public class PhaseEvaluator {
     private PhaseResult resolveFaq(BotSession session, String userMessage,
                                     List<BotTurn> conversationHistory,
                                     UseCaseRegistryService.UseCaseDefinition ucDef) {
-        // Step 1: Search knowledge base
+        // Step 1: Search knowledge base via ToolDispatcher for policy enforcement
         List<String> ucTags = List.of(ucDef.ucId());
-        KnowledgeSearchResult searchResult = knowledgeSearchService.search(userMessage, ucTags);
+        KnowledgeSearchResult searchResult;
+
+        ToolResult toolResult = toolDispatcher.dispatch("search_knowledge", session,
+                Map.of("query", userMessage, "uc_tags", ucTags));
+
+        if (!toolResult.isSuccess()) {
+            log.warn("Session {}: search_knowledge blocked or failed: {}",
+                    session.getSessionId(), toolResult.getErrorMessage());
+            return PhaseResult.escalate(session,
+                    "I need to connect you with a specialist who can help with this.",
+                    "tool_scope_blocked");
+        }
+
+        searchResult = reconstructSearchResult(toolResult.getData());
+
+        // Emit RETRIEVAL_EXECUTED event
+        eventEmitter.emitRetrievalExecuted(session.getSessionId(), session.getTotalBotTurns(),
+                userMessage, searchResult.isFaqMiss(),
+                searchResult.getHits() != null ? searchResult.getHits().size() : 0);
 
         // Step 2: Check for FAQ miss
         if (searchResult.isFaqMiss()) {
@@ -198,11 +237,48 @@ public class PhaseEvaluator {
             } else {
                 session.setArticlesShown(sourceIds);
             }
+
+            // Emit ARTICLE_SHOWN event for each hit
+            for (KnowledgeHit hit : searchResult.getHits()) {
+                eventEmitter.emitArticleShown(session.getSessionId(), session.getTotalBotTurns(),
+                        hit.getSourceId(), hit.getTitle());
+            }
         }
 
         // If the LLM responded with answer_grounded, transition to CONFIRM
         if ("answer_grounded".equals(action.getAction()) || "finish".equals(action.getAction())) {
-            return PhaseResult.transitionWithResponse(session, "CONFIRM", action, llmResponse, "answer_provided");
+            return PhaseResult.transitionWithResponse(session, "CONFIRM", action, llmResponse, "answer_provided", searchResult.getHits());
+        }
+
+        // Defense-in-depth: if LLM returned retrieve_knowledge despite knowledge being
+        // pre-loaded in context, re-invoke once with an explicit grounding instruction.
+        // This adds latency (double LLM call) but prevents the user from seeing
+        // an intermediate "Let me check..." message with no follow-up.
+        if ("retrieve_knowledge".equals(action.getAction())) {
+            log.warn("Session {}: LLM returned retrieve_knowledge despite pre-loaded knowledge. "
+                    + "Re-invoking with explicit grounding instruction.", session.getSessionId());
+
+            String retryProjection = contextProjection.buildProjection(
+                    session, conversationHistory, searchResult.getHits(), userMessage);
+            String groundingOverride = "IMPORTANT: Knowledge articles have already been retrieved "
+                    + "and are included in this context under 'knowledge_hits'. "
+                    + "You MUST use action 'answer_grounded' now and compose a helpful response "
+                    + "based on the provided knowledge snippets. Do NOT return 'retrieve_knowledge'.";
+            LlmResponse retryResponse = llmInvocation.invokeChat(
+                    retryProjection, groundingOverride + "\n\nUser question: " + userMessage);
+            ParsedAction retryAction = actionParser.parse(retryResponse.getContent());
+
+            if ("answer_grounded".equals(retryAction.getAction()) || "finish".equals(retryAction.getAction())) {
+                return PhaseResult.transitionWithResponse(session, "CONFIRM", retryAction, retryResponse, "answer_provided_retry", searchResult.getHits());
+            }
+            // If still not answer_grounded, use whatever message the LLM produced
+            return PhaseResult.respond(session, retryAction, retryResponse, searchResult.getHits());
+        }
+
+        // If LLM determined escalation (e.g. safe fallback during API failure), escalate immediately
+        if ("escalate_human".equals(action.getAction())) {
+            return PhaseResult.escalate(session, action.getUserMessage(),
+                "llm_determined_escalation");
         }
 
         return PhaseResult.respond(session, action, llmResponse, searchResult.getHits());
@@ -217,8 +293,10 @@ public class PhaseEvaluator {
         String prefix = INTAKE_TEMPLATE_PREFIX.getOrDefault(activeUc, activeUc.toLowerCase().replace("uc-", ""));
         Map<String, String> vars = buildIntakeVariables(session, activeUc);
 
-        // On the first intake turn, send the opening + intake prompt template
-        if (conversationHistory.isEmpty() || session.getTotalBotTurns() <= 1) {
+        // On the first intake turn, send the opening + intake prompt template.
+        // Guard: use lastAction — if it's already set, the opening template was already sent.
+        // (conversationHistory may be empty because BotTurns are persisted after response)
+        if (session.getLastAction() == null) {
             String empathy = null;
             List<String> openingKeys = INTAKE_OPENING_TEMPLATES.getOrDefault(activeUc, List.of());
             for (String key : openingKeys) {
@@ -247,13 +325,29 @@ public class PhaseEvaluator {
                     null, null);
         }
 
-        // Subsequent turns: use LLM to decide if intake is complete or more info needed
+        // Subsequent turns: use LLM to decide if intake is complete or more info needed.
+        // Prepend an intake-specific instruction so the LLM knows NOT to search knowledge
+        // and instead focuses on collecting remaining fields or escalating.
+        String intakeInstruction = "You are collecting information for a " + UC_TEAM_NAME.getOrDefault(activeUc, "support")
+                + " case (use case " + activeUc + "). "
+                + "You must ONLY use action 'ask_user' to collect remaining required details, "
+                + "or 'escalate_human' when you have enough information to hand over to the team. "
+                + "Do NOT use 'retrieve_knowledge' — this is an intake flow, not a FAQ flow. "
+                + "Acknowledge what the user provided, then ask for anything still missing or escalate.";
+
         String projection = contextProjection.buildProjection(session, conversationHistory, null, userMessage);
-        LlmResponse llmResponse = llmInvocation.invokeChat(projection, userMessage);
+        LlmResponse llmResponse = llmInvocation.invokeChat(
+                projection, intakeInstruction + "\n\nUser message: " + userMessage);
         ParsedAction action = actionParser.parse(llmResponse.getContent());
 
         // If the LLM says escalate or finish, we escalate with intake-complete template
         if ("escalate_human".equals(action.getAction()) || "finish".equals(action.getAction())) {
+            // Create case for UC-H/J/K before escalation
+            createCaseIfAllowed(session, activeUc);
+
+            // Rebuild vars after case creation (CASE_NUMBER may have changed)
+            vars = buildIntakeVariables(session, activeUc);
+
             String completeTemplate = scriptLibrary.renderTemplate(prefix + "_escalation", vars);
             if (completeTemplate == null) {
                 completeTemplate = scriptLibrary.renderTemplate(prefix + "_intake_complete_case_created", vars);
@@ -262,7 +356,79 @@ public class PhaseEvaluator {
             return PhaseResult.escalate(session, msg, "intake_complete");
         }
 
+        // Defense-in-depth: if LLM returned retrieve_knowledge in intake mode,
+        // map it to ask_user — the bot should acknowledge what the user gave
+        // and ask for remaining intake fields, not try to search.
+        if ("retrieve_knowledge".equals(action.getAction()) || "answer_grounded".equals(action.getAction())) {
+            log.warn("Session {}: LLM returned '{}' in intake mode for {}. "
+                    + "Re-invoking to collect intake fields.", session.getSessionId(), action.getAction(), activeUc);
+
+            String retryInstruction = "IMPORTANT: This is an INTAKE case for " + UC_TEAM_NAME.getOrDefault(activeUc, "support")
+                    + ". You CANNOT search knowledge or provide answers. "
+                    + "The user just said: \"" + userMessage + "\". "
+                    + "Acknowledge what they provided, then either: "
+                    + "(1) use 'ask_user' to collect any remaining details needed, or "
+                    + "(2) use 'escalate_human' if you have enough info to pass to the team.";
+            LlmResponse retryResponse = llmInvocation.invokeChat(projection, retryInstruction);
+            ParsedAction retryAction = actionParser.parse(retryResponse.getContent());
+
+            if ("escalate_human".equals(retryAction.getAction()) || "finish".equals(retryAction.getAction())) {
+                // Create case for UC-H/J/K before escalation
+                createCaseIfAllowed(session, activeUc);
+
+                // Rebuild vars after case creation
+                vars = buildIntakeVariables(session, activeUc);
+
+                String tmpl = scriptLibrary.renderTemplate(prefix + "_escalation", vars);
+                String msg = tmpl != null ? tmpl : retryAction.getUserMessage();
+                return PhaseResult.escalate(session, msg, "intake_complete");
+            }
+            return PhaseResult.respond(session, retryAction, retryResponse, null);
+        }
+
+        // If LLM determined escalation (e.g. safe fallback during API failure), escalate immediately
+        if ("escalate_human".equals(action.getAction())) {
+            return PhaseResult.escalate(session, action.getUserMessage(),
+                "llm_determined_escalation");
+        }
+
         return PhaseResult.respond(session, action, llmResponse, null);
+    }
+
+    /**
+     * Reconstruct a {@link KnowledgeSearchResult} from the map returned by
+     * {@link com.gumtree.csagent.service.tools.SearchKnowledgeTool}.
+     * The tool serialises the result as a flat map with keys: faq_miss, retrieval_miss, answer_miss, hits.
+     */
+    @SuppressWarnings("unchecked")
+    private KnowledgeSearchResult reconstructSearchResult(Map<String, Object> data) {
+        boolean faqMiss = Boolean.TRUE.equals(data.get("faq_miss"));
+        boolean retrievalMiss = Boolean.TRUE.equals(data.get("retrieval_miss"));
+        boolean answerMiss = Boolean.TRUE.equals(data.get("answer_miss"));
+
+        List<KnowledgeHit> hits = new ArrayList<>();
+        Object rawHits = data.get("hits");
+        if (rawHits instanceof List<?> hitList) {
+            for (Object item : hitList) {
+                if (item instanceof Map<?, ?> hitMap) {
+                    Map<String, Object> m = (Map<String, Object>) hitMap;
+                    hits.add(KnowledgeHit.builder()
+                            .sourceId((String) m.get("source_id"))
+                            .title((String) m.get("title"))
+                            .snippet((String) m.get("snippet"))
+                            .canonicalUrl((String) m.get("canonical_url"))
+                            .score(m.get("score") instanceof Number n ? n.doubleValue() : 0.0)
+                            .build());
+                }
+            }
+        }
+
+        return KnowledgeSearchResult.builder()
+                .faqMiss(faqMiss)
+                .retrievalMiss(retrievalMiss)
+                .answerMiss(answerMiss)
+                .hits(hits)
+                .build();
     }
 
     /**
@@ -303,6 +469,62 @@ public class PhaseEvaluator {
             log.warn("Session {}: failed to extract '{}' from formContext: {}",
                     session.getSessionId(), fieldName, e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Create a case via CreateCaseControlledTool for intake UCs that require it (UC-H, UC-J, UC-K).
+     * Stores the case_id in the session. Non-blocking: failures are logged but do not prevent escalation.
+     */
+    private void createCaseIfAllowed(BotSession session, String activeUc) {
+        Set<String> caseCreationUcs = Set.of("UC-H", "UC-J", "UC-K");
+        if (!caseCreationUcs.contains(activeUc)) {
+            return;
+        }
+
+        try {
+            Map<String, Object> params = new LinkedHashMap<>();
+
+            // Build case fields from session context
+            String email = extractFormField(session, "email");
+            String description = extractFormField(session, "description");
+            String adId = extractFormField(session, "ad_id");
+
+            // Subject per UC
+            String subject = switch (activeUc) {
+                case "UC-H" -> "Ad Support - Appeal";
+                case "UC-J" -> "Report a Safety Issue";
+                case "UC-K" -> "Technical Support Request";
+                default -> activeUc + " case";
+            };
+
+            params.put("subject", subject);
+            if (description != null) params.put("description", description);
+            if (email != null) params.put("email", email);
+            if (adId != null) params.put("ad_id", adId);
+
+            ToolResult result = createCaseTool.execute(session, params);
+
+            if (result.isSuccess() && result.getData() != null) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) result.getData();
+                String caseId = (String) data.get("case_id");
+                if (caseId != null) {
+                    session.setCaseId(caseId);
+                    log.info("Session {}: case created for {}: caseId={}",
+                            session.getSessionId(), activeUc, caseId);
+
+                    // Emit CASE_CREATED event
+                    eventEmitter.emitCaseCreated(session.getSessionId(),
+                            session.getTotalBotTurns(), caseId, activeUc);
+                }
+            } else {
+                log.warn("Session {}: create_case_controlled failed for {}",
+                        session.getSessionId(), activeUc);
+            }
+        } catch (Exception e) {
+            log.warn("Session {}: case creation failed (non-blocking) for {}: {}",
+                    session.getSessionId(), activeUc, e.getMessage());
         }
     }
 
@@ -347,6 +569,11 @@ public class PhaseEvaluator {
     private PhaseResult evaluateClose(BotSession session) {
         session.setHandlingState("CLOSED");
         session.setContainmentOutcome("RESOLVED");
+
+        // Emit OUTCOME_RECORDED and SESSION_CLOSED events
+        eventEmitter.emitOutcomeRecorded(session.getSessionId(), "RESOLVED", session.getActiveUseCase());
+        eventEmitter.emitSessionClosed(session.getSessionId(), "RESOLVED");
+
         return PhaseResult.close(session,
                 "I'm glad I could help! If you have any other questions, feel free to start a new chat. Have a great day!");
     }
@@ -409,8 +636,17 @@ public class PhaseEvaluator {
                     reason, false, false, null, action.getUserMessage());
         }
 
+        static PhaseResult transitionWithResponse(BotSession session, String nextPhase,
+                                                    ParsedAction action, LlmResponse llmResponse,
+                                                    String reason, List<KnowledgeHit> knowledgeHits) {
+            return new PhaseResult(nextPhase, action, llmResponse, knowledgeHits,
+                    reason, false, false, null, action.getUserMessage());
+        }
+
         static PhaseResult escalate(BotSession session, String message, String reason) {
             session.setEscalationReason(reason);
+            session.setHandlingState("QUEUE_TO_HUMAN");
+            session.setContainmentOutcome("ESCALATED");
             return new PhaseResult("ESCALATE", null, null, null,
                     reason, false, true, reason, message);
         }

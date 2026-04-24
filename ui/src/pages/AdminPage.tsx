@@ -2,14 +2,14 @@ import { useState, type CSSProperties } from 'react';
 import type { AdminTab } from '../types';
 import SessionList from '../components/admin/SessionList';
 import TraceViewer from '../components/admin/TraceViewer';
-import HandoverLogViewer from '../components/admin/HandoverLogViewer';
+import HandoverQueueView from '../components/admin/HandoverQueueView';
 import EventTimeline from '../components/admin/EventTimeline';
 import MetricsDashboard from '../components/admin/MetricsDashboard';
 
 const TABS: { key: AdminTab; label: string }[] = [
   { key: 'sessions', label: 'Sessions' },
   { key: 'traces', label: 'Traces' },
-  { key: 'handover', label: 'Handover Logs' },
+  { key: 'handover', label: 'Handover Queue' },
   { key: 'events', label: 'Events' },
   { key: 'metrics', label: 'Metrics' },
 ];
@@ -87,7 +87,7 @@ export default function AdminPage() {
               Select a session from the Sessions tab to view its trace.
             </div>
           )}
-          {activeTab === 'handover' && <HandoverLogViewer />}
+          {activeTab === 'handover' && <HandoverQueueView />}
           {activeTab === 'events' && <EventTimeline />}
           {activeTab === 'metrics' && <MetricsDashboard />}
         </div>

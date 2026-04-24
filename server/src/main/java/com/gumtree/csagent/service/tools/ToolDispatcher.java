@@ -1,6 +1,8 @@
 package com.gumtree.csagent.service.tools;
 
+import com.gumtree.csagent.config.MockProperties;
 import com.gumtree.csagent.model.BotSession;
+import com.gumtree.csagent.service.guardrails.ProgressPlaceholderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -17,10 +19,16 @@ import java.util.Map;
 public class ToolDispatcher {
 
     private final ToolPolicyEnforcer policyEnforcer;
+    private final ProgressPlaceholderService placeholderService;
+    private final MockProperties mockProperties;
     private final Map<String, Tool> toolRegistry = new LinkedHashMap<>();
 
-    public ToolDispatcher(ToolPolicyEnforcer policyEnforcer, List<Tool> tools) {
+    public ToolDispatcher(ToolPolicyEnforcer policyEnforcer, List<Tool> tools,
+                          ProgressPlaceholderService placeholderService,
+                          MockProperties mockProperties) {
         this.policyEnforcer = policyEnforcer;
+        this.placeholderService = placeholderService;
+        this.mockProperties = mockProperties;
         for (Tool tool : tools) {
             toolRegistry.put(tool.getName(), tool);
             log.debug("Registered tool: {}", tool.getName());
@@ -55,10 +63,36 @@ public class ToolDispatcher {
                     activeUseCase != null ? activeUseCase : "none"));
         }
 
-        // 3. Execute
+        // 3. Execute with latency tracking and optional artificial delay
         try {
+            long toolStart = System.currentTimeMillis();
+
+            // Optional artificial delay for demo/testing placeholder behavior
+            int artificialDelay = mockProperties.getToolLatencyMs();
+            if (artificialDelay > 0) {
+                try {
+                    Thread.sleep(artificialDelay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+
             ToolResult result = tool.execute(session, parameters);
-            log.info("Tool '{}' completed: success={}", toolName, result.isSuccess());
+            long toolLatency = System.currentTimeMillis() - toolStart;
+
+            // Track latency on result
+            result.setLatencyMs(toolLatency);
+
+            // Log if placeholder threshold exceeded
+            if (toolLatency > 1500) {
+                String placeholder = placeholderService.getPlaceholder();
+                log.info("Tool '{}' took {}ms (>1500ms threshold). Placeholder: '{}'",
+                        toolName, toolLatency, placeholder);
+                result.setPlaceholderSent(true);
+                result.setPlaceholderMessage(placeholder);
+            }
+
+            log.info("Tool '{}' completed: success={}, latency={}ms", toolName, result.isSuccess(), toolLatency);
             return result;
         } catch (Exception e) {
             log.error("Tool '{}' failed with exception: {}", toolName, e.getMessage(), e);

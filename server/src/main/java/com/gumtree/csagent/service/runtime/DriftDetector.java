@@ -59,7 +59,7 @@ public class DriftDetector {
             for (String keyword : dk.keywords) {
                 if (lowerMessage.contains(keyword)) {
                     // Only trigger if it suggests a DIFFERENT use case
-                    if (activeUc == null || !dk.targetUc.equals(activeUc)) {
+                    if (activeUc != null && !dk.targetUc.equals(activeUc)) {
                         log.info("Session {}: hard shift detected via keyword '{}' -> {}",
                                 session.getSessionId(), keyword, dk.targetUc);
                         return DriftResult.builder()

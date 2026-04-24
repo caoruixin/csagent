@@ -19,6 +19,9 @@ public class ToolResult {
     private boolean success;
     private Map<String, Object> data;
     private String errorMessage;
+    private long latencyMs;
+    private boolean placeholderSent;
+    private String placeholderMessage;
 
     public static ToolResult ok(Map<String, Object> data) {
         return ToolResult.builder().success(true).data(data).build();

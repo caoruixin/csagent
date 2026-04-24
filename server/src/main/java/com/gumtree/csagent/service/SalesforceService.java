@@ -18,5 +18,10 @@ public interface SalesforceService {
 
     String requestHandover(String sessionId, Map<String, Object> handoverPayload);
 
+    default String requestHandover(String sessionId, Map<String, Object> handoverPayload,
+                                   String customerMessage, String transcript) {
+        return requestHandover(sessionId, handoverPayload);
+    }
+
     List<MockCase> findCasesBySessionId(String sessionId);
 }

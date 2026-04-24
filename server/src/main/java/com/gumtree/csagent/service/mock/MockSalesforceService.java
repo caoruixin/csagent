@@ -73,6 +73,11 @@ public class MockSalesforceService implements SalesforceService {
     }
 
     public String requestHandover(String sessionId, Map<String, Object> handoverPayload) {
+        return requestHandover(sessionId, handoverPayload, null, null);
+    }
+
+    public String requestHandover(String sessionId, Map<String, Object> handoverPayload,
+                                  String customerMessage, String transcript) {
         String logId = "LOG-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         String transferResult = mockProperties.isBusinessHours() ? "transferred" : "offline_logged";
 
@@ -88,6 +93,8 @@ public class MockSalesforceService implements SalesforceService {
                 .logId(logId)
                 .sessionId(sessionId)
                 .handoverPayload(payloadJson)
+                .customerMessage(customerMessage)
+                .transcript(transcript)
                 .transferResult(transferResult)
                 .createdAt(OffsetDateTime.now())
                 .build();

@@ -8,6 +8,7 @@ import type {
   TraceResponse,
   SessionEvent,
   HandoverLog,
+  TranscriptEntry,
   FunnelMetrics,
   PerUCMetric,
   DemoCase,
@@ -94,6 +95,13 @@ function mapEvent(e: any): SessionEvent {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapHandoverLog(h: any): HandoverLog {
   const payload = typeof h.handoverPayload === 'string' ? tryParse(h.handoverPayload) : (h.handoverPayload ?? h.payload ?? {});
+  const rawTranscript = h.transcript ?? h.transcriptJson;
+  let transcript: TranscriptEntry[] | undefined;
+  if (rawTranscript) {
+    try {
+      transcript = typeof rawTranscript === 'string' ? JSON.parse(rawTranscript) : rawTranscript;
+    } catch { transcript = undefined; }
+  }
   return {
     log_id: h.logId ?? h.log_id ?? '',
     session_id: h.sessionId ?? h.session_id ?? '',
@@ -101,6 +109,8 @@ function mapHandoverLog(h: any): HandoverLog {
     priority: h.transferResult ?? h.priority ?? 'normal',
     reason: (payload.escalation_reason as string) ?? h.reason ?? '',
     payload,
+    customer_message: h.customerMessage ?? h.customer_message ?? undefined,
+    transcript,
     created_at: h.createdAt ?? h.created_at ?? '',
   };
 }
@@ -162,6 +172,11 @@ export async function getEvents(sessionId: string): Promise<SessionEvent[]> {
 export async function getHandoverLogs(): Promise<HandoverLog[]> {
   const res = await api.get('/demo/handover-logs');
   return (res.data ?? []).map(mapHandoverLog);
+}
+
+export async function getHandoverLogById(id: string): Promise<HandoverLog> {
+  const res = await api.get(`/demo/handover-logs/${id}`);
+  return mapHandoverLog(res.data);
 }
 
 export async function getFunnelMetrics(): Promise<FunnelMetrics> {

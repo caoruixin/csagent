@@ -87,7 +87,15 @@ export interface HandoverLog {
   priority: string;
   reason: string;
   payload: Record<string, unknown>;
+  customer_message?: string;
+  transcript?: TranscriptEntry[];
   created_at: string;
+}
+
+export interface TranscriptEntry {
+  role: 'user' | 'bot';
+  message: string;
+  turn_index: number;
 }
 
 export interface FunnelMetrics {

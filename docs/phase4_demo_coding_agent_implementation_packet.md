@@ -103,7 +103,8 @@ VITE_API_BASE_URL=http://localhost:8080
 - **Mock Salesforce layer**: case CRUD, session management, handover payload logging — all local PostgreSQL, fully inspectable
 - **Mock Gumtree APIs**: account lookup, listing lookup, moderation review, message moderation — JSON fixture-based
 - **Observability (local)**: structured events → local PostgreSQL; trace viewer; per-turn traces; funnel metrics — no Kafka (direct DB)
-- **Eval harness (Java)**: dataset loader, session simulator, code + model graders, gate evaluator, HTML/JSON report — runs as Maven test profile or standalone JAR
+- **Eval harness (Java replay)**: dataset loader, session simulator, code + model graders, gate evaluator, HTML/JSON report — runs as Maven test profile or standalone JAR
+- **Interactive eval harness (Python)**: CaseSpec-driven interactive evaluation with LLM-based user simulation, 3-layer scoring (Hard Checks → Outcome Checks → LLM Judge), stall detection, before/after comparison, and batch execution — runs as Python CLI (`eval_interactive/`)
 
 ### This demo does NOT cover
 
@@ -113,6 +114,7 @@ VITE_API_BASE_URL=http://localhost:8080
 - GrowthBook feature flags (always-on)
 - Email CSAT surveys
 - Multi-user concurrent load testing
+- Interactive eval as CI hard gate (advisory in V1; see Phase 5 §15.1 for promotion plan)
 
 ---
 
@@ -335,11 +337,11 @@ POST /v1/chat/sessions/{id}/messages      # User message → { reply_text, inten
 GET  /v1/chat/sessions/{id}               # Get current session state
 ```
 
-### DM9: Eval Harness (Java)
+### DM9: Eval Harness (Java Replay)
 
 | Aspect | Detail |
 |--------|--------|
-| **What** | Java-based eval framework, runs as Maven test profile (`mvn verify -Peval-smoke`) or standalone Spring Boot runner. Loads 7 CSV dataset pairs + 367 HR annotations. Replays sessions via HTTP to bot runtime. Runs code-based graders (12 types) + model-based graders (4 types, using same `LlmClient`). Computes all Phase 5 §6 metrics. Evaluates Phase 5 §7 gates. Generates HTML + JSON report |
+| **What** | Java-based replay eval framework for CI gate. Runs as Maven test profile (`mvn verify -Peval-smoke`) or standalone Spring Boot runner. Loads 7 CSV dataset pairs + 367 HR annotations. Replays sessions via HTTP to bot runtime. Runs code-based graders (12 types) + model-based graders (4 types, using same `LlmClient`). Computes all Phase 5 §6 metrics. Evaluates Phase 5 §7 gates. Generates HTML + JSON report. **See DM11 (§D13) for interactive eval.** |
 | **Output** | `mvn verify -Peval-smoke` → 75 sessions, ~5min, all hard gates checked; `mvn verify -Peval-full` → 601 sessions, ~30min, full report |
 | **Key files** | `eval/` Maven submodule |
 
@@ -438,6 +440,10 @@ backend:    mvn spring-boot:run -Dspring-boot.run.profiles=local
 frontend:   cd ui && npm run dev
 eval-smoke: mvn verify -Peval-smoke
 eval-full:  mvn verify -Peval-full
+eval-extract:  cd eval_interactive && python -m eval_interactive extract --hr-csv ../data/human_review_annotations_*.csv --turns-dir ../data/eval_datasets/ --output case_specs/
+eval-anchor:   cd eval_interactive && python -m eval_interactive run --set anchor
+eval-full-interactive: cd eval_interactive && python -m eval_interactive run --set all
+eval-compare:  cd eval_interactive && python -m eval_interactive compare --baseline $(BASELINE) --current $(CURRENT)
 demo:       make setup && make build && make ingest && make backend & make frontend
 ```
 
@@ -496,7 +502,8 @@ Phase 1 (Foundation)         Phase 2 (Intelligence)       Phase 3 (Experience)
 | **4b** | **DM6: Guardrails** | Yes | DM4 | Script library + forbidden phrases + PII |
 | **4c** | **DM7: Observability** | Yes | DM1 | Events + traces + inspection endpoints |
 | **5a** | **DM8: Chat UI** | Yes (with DM9) | DM4 | Chat widget + admin panel |
-| **5b** | **DM9: Eval** | Yes (with DM8) | DM4-6 | Smoke suite passing; full regression runnable |
+| **5b** | **DM9: Eval (Java Replay)** | Yes (with DM8) | DM4-6 | Smoke suite passing; full regression runnable |
+| **5c** | **DM11: Interactive Eval (Python)** | Yes (with DM8-10) | DM4, DM7 | Interactive harness runnable; CaseSpec extraction; stall detector; before/after comparison |
 | **6** | **DM10: E2E** | — | All | Demo scenarios verified; stakeholder-ready |
 
 **Critical path**: DM1 → DM4 → DM5 → DM8+DM9 → DM10
@@ -554,6 +561,7 @@ Phase 1 (Foundation)         Phase 2 (Intelligence)       Phase 3 (Experience)
 | **DM7** | 12 event types, trace schema | DB event write |
 | **DM8** | React component rendering | — |
 | **DM9** | Dataset loading (7+HR), 12 code graders, 4 model graders, metrics, gates | Smoke suite against running bot |
+| **DM11** | CaseSpec loader, stall detector, hard checks, outcome checks, composite scoring, diff engine | 10-case anchor run against running bot; before/after comparison with synthetic baseline |
 
 **12 Critical test scenarios**: see DM10 demo scenarios table — each must pass.
 
@@ -577,6 +585,18 @@ Phase 1 (Foundation)         Phase 2 (Intelligence)       Phase 3 (Experience)
 - [ ] PII redacted in `bot_turns.projected_context` and `bot_events.payload`
 - [ ] OUT_OF_SCOPE topics correctly route to handover
 - [ ] LLM / embedding / mock switchable by Spring profile (no code changes)
+
+### Interactive Eval Ready (DM11)
+
+- [ ] `eval_interactive/` directory exists with all modules from Phase 5 §13.2
+- [ ] `python -m eval_interactive extract` generates CaseSpec YAMLs from HR CSV + turns
+- [ ] Anchor set (~30 cases) defined in `case_specs/anchor/`
+- [ ] `python -m eval_interactive run --set anchor` completes all cases against running bot
+- [ ] Stall detector correctly flags synthetic stall case; does not false-positive on clean case
+- [ ] 3-layer scoring produces: L1 hard check pass/fail, L2 outcome scores, L3 LLM judge scores
+- [ ] `python -m eval_interactive compare` produces regression report between two runs
+- [ ] HTML report displays 7 key metrics (Phase 5 §6.9) with per-case drill-down
+- [ ] Java eval (`mvn verify -Peval-smoke`) continues to pass — no interference
 
 ### Stakeholder Demo Ready
 
@@ -623,16 +643,35 @@ csagent/
 │   │   └── application-local.yml
 │   ├── src/test/java/                        # Unit + integration tests
 │   └── pom.xml
-├── eval/                                     # Java eval harness (Maven submodule)
+├── eval/                                     # Java replay eval harness (Maven submodule, CI gate)
 │   ├── src/main/java/com/gumtree/csagent/eval/
 │   │   ├── harness/                          # EvalRunner, DatasetLoader, SessionSimulator
-│   │   ├── graders/code/                     # 12 code-based graders
+│   │   ├── graders/code/                     # 7 code-based grader files (12 checks)
 │   │   ├── graders/model/                    # 4 model-based graders (via LlmClient)
 │   │   ├── metrics/                          # MetricsAggregator, GateEvaluator
 │   │   └── report/                           # HTML + JSON report generators
 │   ├── src/main/resources/suites/            # smoke.yaml, full-regression.yaml
 │   ├── src/test/java/                        # Grader unit tests
 │   └── pom.xml
+├── eval_interactive/                          # Python interactive eval harness (Phase 5 §13.2)
+│   ├── pyproject.toml                         # Python 3.11+; httpx, pyyaml, openai, jinja2, click
+│   ├── eval_interactive/
+│   │   ├── cli.py                             # click CLI: extract, run, compare, report
+│   │   ├── case_spec/                         # loader.py, extractor.py, schema.py
+│   │   ├── simulator/                         # user_simulator.py, agent_client.py, session_runner.py
+│   │   ├── trace/                             # collector.py, models.py
+│   │   ├── scoring/                           # hard_checks.py, outcome_checks.py, llm_judge.py,
+│   │   │                                      # stall_detector.py, composite.py
+│   │   ├── comparison/                        # diff_engine.py (before/after regression diff)
+│   │   ├── batch/                             # executor.py, sets.py (anchor/promotion/exploration)
+│   │   └── report/                            # html_report.py, json_report.py
+│   ├── case_specs/                            # Generated CaseSpec YAMLs
+│   │   ├── anchor/                            # ~30 stable regression cases
+│   │   ├── promotion/                         # ~40 broader coverage
+│   │   └── exploration/                       # ~30 edge cases
+│   ├── results/                               # Run results (JSON per run)
+│   ├── eval_interactive.yaml                  # Main configuration
+│   └── tests/                                 # pytest
 ├── ui/                                       # React + Vite + TypeScript frontend
 │   ├── src/
 │   │   ├── components/chat/                  # ChatWidget, PreChatForm, MessageBubble, etc.
@@ -650,6 +689,726 @@ csagent/
 ├── .env.local
 └── pom.xml                                   # Parent POM (server + eval modules)
 ```
+
+---
+
+## D11. Iteration 1 — Tool Layer Wiring ("Bot 变聪明")
+
+> **Goal**: Wire the already-implemented tool layer into the runtime control loop so the Bot can see customer account/listing/moderation context and provide personalized, grounded responses instead of generic FAQ answers.
+>
+> **Scope**: Local demo only. All Gumtree/Salesforce APIs remain mocked via `MockGumtreeApiService` / `MockSalesforceService`. No external integration changes.
+>
+> **Prerequisite**: D0–D10 complete (current demo baseline).
+
+### D11.0 Gap Summary (Design vs Current Implementation)
+
+The following features are **fully specified in Phase 3** and **have implementation code** (tool classes, dispatcher, policy enforcer) but are **not wired** into the runtime control loop:
+
+| Gap | Design Reference | Current Code Status | Impact |
+|-----|-----------------|-------------------|--------|
+| `get_customer_context` not auto-triggered on session creation | Phase 3 §3.1.4 step 2b, §3.4.1.3, §3.4.3 | `GetCustomerContextTool.java` complete; `FormContextIngestionService.ingest()` does NOT call it | LLM has no account/listing/moderation context — `session.customerContext` always NULL; responses are generic |
+| Context projection missing 5 contract fields | Phase 3 §3.2.6 | `ContextProjectionBuilder` omits `allowed_actions`, `tool_schemas`, `task_summary`, `risk_flags`, `budget_state` | LLM lacks action-space awareness and budget visibility; contributes to action mismatch (e.g., `retrieve_knowledge` in intake) |
+| `create_case_controlled` not called on intake completion | Phase 3 §3.3.1, §3.4.2 | `CreateCaseControlledTool.java` complete; `PhaseEvaluator.resolveIntake()` escalates without case creation | Handover payload has no `case_id` for UC-H/J/K; agent must create case manually |
+
+### D11.1 get_customer_context Auto-Trigger
+
+**Where**: `FormContextIngestionService.ingest()` — append after form context is saved to session.
+
+**Trigger condition**: `form_context.email` is present AND `active_use_case` (or any candidate UC) is in `get_customer_context.allowed_use_cases` (UC-A/C/D/F/FP/K). If `active_use_case` is not yet set (INIT phase), check whether any `candidate_use_cases` overlap with allowed UCs.
+
+**Implementation spec**:
+
+```
+FormContextIngestionService.ingest(session, firstName, email, topicSubject, adId, description)
+  │
+  ├─ [existing] sanitize, build formContext JSON, set candidateUseCases
+  │
+  └─ [NEW] Auto-trigger customer context lookup:
+       │
+       ├─ Check: email present? YES
+       │  Check: any candidateUC ∈ {UC-A,UC-C,UC-D,UC-F,UC-FP,UC-K}? YES
+       │
+       ├─ Call GetCustomerContextTool.execute(session, {email, ad_id})
+       │   └─ Internally calls (all via MockGumtreeApiService):
+       │       ├─ getAccountByEmail(email) → sanitized account summary
+       │       ├─ getListingByAdId(adId) → sanitized listing summary (if ad_id present)
+       │       └─ getModerationReview(adId) → review reason (if listing status=removed/moderated)
+       │
+       ├─ Store results:
+       │   ├─ session.customerContext = result.data.account (JSONB)
+       │   ├─ session.listingContext = result.data.listing (JSONB, if present)
+       │   └─ session.moderationContext = result.data.moderation_review (JSONB, if present)
+       │
+       └─ On failure: log warning, continue (non-blocking — session proceeds without context)
+```
+
+**Dependencies**:
+- Inject `GetCustomerContextTool` into `FormContextIngestionService` constructor
+- `MockGumtreeApiService` already provides fixture-based responses — no mock changes needed
+- `ObjectMapper` for JSON serialization of tool result to session fields
+
+**Verification**:
+- After session creation, `GET /v1/chat/sessions/{id}` returns non-null `customerContext`
+- Demo scenario #3 (UC-FP "Why was my ad removed?"): bot response includes specific moderation reason (e.g., "multiple accounts") instead of generic "policy violation"
+- Demo scenario #5 (UC-D "I can't log in"): bot response references account status
+
+### D11.2 Context Projection Enhancement
+
+**Where**: `ContextProjectionBuilder.buildProjection()` — add 5 missing fields from Phase 3 §3.2.6 contract.
+
+**New fields**:
+
+```json
+{
+  "task_summary": "User asks why their ad was removed. UC-FP detected with high confidence.",
+  "allowed_actions": ["retrieve_knowledge", "answer_grounded", "ask_user", "escalate_human", "finish"],
+  "risk_flags": ["medium"],
+  "budget_state": {
+    "total_bot_turns": 3,
+    "max_bot_turns": 15,
+    "clarification_count": 0,
+    "max_clarification": 2,
+    "faq_miss_count": 0,
+    "max_faq_miss": 2
+  },
+  "tool_schemas": ["search_knowledge", "resolve_article", "get_customer_context"]
+}
+```
+
+**Implementation spec**:
+
+| Field | Source | Logic |
+|-------|--------|-------|
+| `task_summary` | session state | `"User inquiry about {formTopicSubject}. {activeUseCase} detected with {intentConfidence} confidence. Current phase: {currentPhase}."` |
+| `allowed_actions` | phase + UC type | INTAKE UCs: `["ask_user", "escalate_human"]`; FAQ UCs in RESOLVE: `["retrieve_knowledge", "answer_grounded", "ask_user", "escalate_human", "finish"]`; CONFIRM: `["answer_grounded", "escalate_human", "finish"]` |
+| `risk_flags` | UC registry | Read `risk_level` from `use-case-registry.yaml` for active UC |
+| `budget_state` | session counters | Read `totalBotTurns`, `clarificationCount`, `faqMissCount` + max values from `ControlPolicyService` |
+| `tool_schemas` | tool policy | `ToolPolicyEnforcer.getVisibleToolsForUc(activeUseCase)` — returns tool names allowed for this UC |
+
+**Key benefit**: `allowed_actions` per phase eliminates the action mismatch bug (LLM returning `retrieve_knowledge` in intake mode) at the projection level, complementing the instruction-based fix already in `PhaseEvaluator.resolveIntake()`.
+
+### D11.3 create_case_controlled Integration
+
+**Where**: `PhaseEvaluator.resolveIntake()` — insert before `PhaseResult.escalate()` when intake is complete.
+
+**Trigger condition**: LLM returns `escalate_human` or `finish` for UC ∈ {UC-H, UC-J, UC-K}.
+
+**Implementation spec**:
+
+```
+resolveIntake() — escalation path (existing lines 293-299):
+  │
+  ├─ [existing] LLM returns escalate_human or finish
+  │
+  ├─ [NEW] If activeUC ∈ {UC-H, UC-J, UC-K}:
+  │   │
+  │   ├─ Build case fields from session:
+  │   │   ├─ first_name, email ← formContext
+  │   │   ├─ topic_subject ← UC-H:"Ad Support" / UC-J:"Report a Safety Issue" / UC-K:"Technical Support"
+  │   │   ├─ description ← assembled from intake_fields + session summary
+  │   │   ├─ ad_id ← formContext.ad_id (if available)
+  │   │   └─ bot_context ← handover payload JSON
+  │   │
+  │   ├─ CreateCaseControlledTool.execute(session, caseFields)
+  │   │   └─ Validates required fields per UC (Phase 2 §2.10.5)
+  │   │   └─ Writes to mock_cases table (MockSalesforceService)
+  │   │   └─ Returns case_id
+  │   │
+  │   ├─ session.caseId = result.caseId
+  │   │
+  │   └─ Emit CASE_CREATED event with {case_id, use_case_id, topic_subject}
+  │
+  ├─ [existing] Render escalation template (with {CASE_NUMBER} now populated)
+  └─ [existing] PhaseResult.escalate(msg, "intake_complete")
+```
+
+**Dependencies**:
+- Inject `CreateCaseControlledTool` into `PhaseEvaluator` constructor
+- Inject `BotEventRepository` (or `EventEmitter`) for CASE_CREATED event
+- `MockSalesforceService.createCase()` already writes to `mock_cases` — no mock changes needed
+
+**Verification**:
+- Demo scenario #4 (UC-H): handover payload contains `case_id`; `mock_cases` table has new row
+- Demo scenario #7 (UC-J): same
+- Demo scenario #8 (UC-I): NO case creation (UC-I not in allowed set)
+- Escalation template renders `{CASE_NUMBER}` with actual case ID
+
+### D11.4 Eval Validation
+
+After Iteration 1, run `eval-smoke` and verify:
+- `handover_completeness` improves (case_id populated for UC-H/J/K)
+- `groundedness_pass_rate` does not regress
+- `routing_accuracy` does not regress
+- No new `tool_scope_violation` (case creation only for UC-H/J/K)
+
+---
+
+## D12. Iteration 2 — Harness Completion ("架构对齐")
+
+> **Goal**: Wire `ToolDispatcher` into the control loop so all tool calls go through policy enforcement; integrate `progress_placeholder`; complete event emission; add **Human Agent Queue** tab to admin panel for handover inspection.
+>
+> **Scope**: Local demo only. All external APIs remain mocked.
+>
+> **Prerequisite**: D11 complete.
+
+### D12.1 ToolDispatcher Integration into Control Loop
+
+**Current state**: `PhaseEvaluator.resolveFaq()` calls `KnowledgeSearchService.search()` directly (line 154), bypassing `ToolDispatcher` and `ToolPolicyEnforcer`.
+
+**Target state**: All tool invocations go through `ToolDispatcher.dispatch()`, which applies policy enforcement before execution.
+
+**Implementation spec**:
+
+```
+BEFORE (current):
+  resolveFaq() line 154:
+    KnowledgeSearchResult searchResult = knowledgeSearchService.search(userMessage, ucTags);
+
+AFTER:
+  resolveFaq():
+    ToolResult toolResult = toolDispatcher.dispatch("search_knowledge", session,
+        Map.of("query", userMessage, "uc_tags", ucTags));
+
+    if (toolResult.isError() && "scope_blocked".equals(toolResult.getErrorCode())) {
+        // UC not allowed to search knowledge — escalate
+        return PhaseResult.escalate(session, "...", "tool_scope_blocked");
+    }
+
+    KnowledgeSearchResult searchResult = (KnowledgeSearchResult) toolResult.getData();
+```
+
+**Changes required**:
+
+| Component | Change |
+|-----------|--------|
+| `PhaseEvaluator` | Inject `ToolDispatcher`; replace direct `knowledgeSearchService.search()` with `toolDispatcher.dispatch("search_knowledge", ...)` |
+| `SearchKnowledgeTool` | Ensure `execute()` returns `KnowledgeSearchResult` wrapped in `ToolResult.ok(data)` |
+| `ToolDispatcher.dispatch()` | Add latency tracking; emit `TOOL_SCOPE_BLOCKED` event on policy violation (existing code, just needs to be reachable) |
+| `ControlKernel` | No changes (ToolDispatcher is used inside PhaseEvaluator, not ControlKernel directly) |
+
+**Verification**:
+- INTAKE UCs (UC-G/H/I/J/K) attempting `search_knowledge` → `scope_blocked` event logged
+- FAQ UCs → search works as before
+- `ToolContractGrader` in eval detects scope violations
+
+### D12.2 progress_placeholder Integration
+
+**Where**: `ToolDispatcher.dispatch()` — wrap tool execution in async timeout.
+
+**Implementation spec**:
+
+```
+ToolDispatcher.dispatch(toolName, session, params):
+  │
+  ├─ Policy check (existing)
+  │
+  ├─ [NEW] Start timer
+  │
+  ├─ Execute tool
+  │   │
+  │   └─ If latency > 1500ms:
+  │       └─ Send ProgressPlaceholderService.getPlaceholder() to user
+  │           (via callback or injected response sender)
+  │
+  └─ Return ToolResult
+```
+
+**Placeholder messages** (round-robin, from existing `ProgressPlaceholderService`):
+1. "One moment while I look into this for you."
+2. "Thanks for your patience — I'm checking your details now."
+3. "I'm still looking into this for you. Just a moment longer."
+
+**Threshold**: 1500ms (Phase 3 §3.4.3).
+
+**Note**: In the local demo with mock APIs, tool latency is typically <50ms. To verify this feature:
+- Add `mock.tool_latency_ms=2000` config option in `application-local.yml` (defaults to 0)
+- When set, `MockGumtreeApiService` adds artificial delay
+- This allows demo/eval of placeholder behavior without real API latency
+
+### D12.3 Event Emission Completeness
+
+**Current gaps**: Several event types defined in Phase 3 §3.8.1 are never emitted.
+
+| Event Type | Current Status | Fix |
+|------------|---------------|-----|
+| `RETRIEVAL_EXECUTED` | Not emitted | Emit from `SearchKnowledgeTool.execute()` after KB search: `{query_hash, result_count, top_score, faq_miss, latency_ms}` |
+| `ARTICLE_SHOWN` | Not emitted | Emit from `ResolveArticleTool.execute()`: `{source_ids[], canonical_urls[]}` |
+| `CASE_CREATED` | Not emitted | Emit from D11.3 case creation: `{case_id, use_case_id, topic_subject}` |
+| `CLARIFICATION_ASKED` | Not emitted | Emit from `PhaseEvaluator.evaluateDiscover()` when `ask_user` action: `{clarification_count, question_topic}` |
+| `OUTCOME_RECORDED` | Partially emitted | Add to `RecordOutcomeTool.execute()` or `SessionManager.recordOutcome()` |
+
+**Implementation**: Each emission is a one-line call to the existing `BotEventRepository.save()` pattern used throughout the codebase. No new infrastructure needed.
+
+**Verification**: Admin panel Event Timeline tab shows all 12 event types for a complete session lifecycle.
+
+### D12.4 Turn Log Enhancement
+
+**Where**: `ControlKernel.recordTurn()` — add `tool_calls` field.
+
+**Current state**: `BotTurn.toolCalls` field exists in the entity and DB schema but is never populated.
+
+**Implementation spec**:
+
+```
+recordTurn() — after PhaseResult returned:
+  │
+  ├─ [NEW] If tool was dispatched during this turn:
+  │   Build tool_calls JSON array:
+  │   [{
+  │     "tool_name": "search_knowledge",
+  │     "latency_ms": 320,
+  │     "status": "success",
+  │     "result_count": 3,
+  │     "faq_miss": false
+  │   }]
+  │
+  └─ Save to BotTurn.toolCalls (JSONB)
+```
+
+**Approach**: `ToolDispatcher.dispatch()` records each invocation to a thread-local or request-scoped `ToolCallLog`. `ControlKernel.recordTurn()` reads the log and serializes to `tool_calls` JSONB. Clear the log after each turn.
+
+### D12.5 Human Agent Queue Tab (Admin Panel)
+
+**Purpose**: Stakeholders and QA can inspect every handover — the full payload, the bot's escalation reasoning, and the message the customer would see. Replaces the current basic `HandoverLogViewer` with a richer, queue-style interface.
+
+**Route**: `http://localhost:5173/admin` → "Handover Queue" tab (rename existing "Handover Logs" tab).
+
+**Data source**: `GET /v1/demo/handover-logs` (existing endpoint, returns `mock_handover_log` rows).
+
+**UI spec**:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Admin Panel > Handover Queue                                        │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │ Filter: [All UCs ▼] [All Reasons ▼] [Date range]  [Search] │    │
+│  └──────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  ┌────┬──────────┬────────┬───────────────────┬───────┬──────────┐  │
+│  │ #  │ Session  │ UC     │ Escalation Reason │ Turns │ Time     │  │
+│  ├────┼──────────┼────────┼───────────────────┼───────┼──────────┤  │
+│  │ 1  │ 550e8401 │ UC-H   │ intake_complete   │ 4     │ 14:32    │  │
+│  │ 2  │ 550e8402 │ UC-J   │ trust_safety_req  │ 3     │ 14:28    │  │
+│  │ 3  │ 550e8403 │ UC-A   │ faq_miss_exceeded │ 6     │ 14:15    │  │
+│  │ 4  │ 550e8404 │ OOS_DL │ out_of_scope      │ 1     │ 14:10    │  │
+│  └────┴──────────┴────────┴───────────────────┴───────┴──────────┘  │
+│                                                                      │
+│  ══════════ Selected: #1 (550e8401) ═══════════════════════════════  │
+│                                                                      │
+│  ┌─── Summary ──────────────────────────────────────────────────┐   │
+│  │ UC: UC-H (Ad Removal Appeal)                                  │   │
+│  │ Escalation Reason: intake_complete                            │   │
+│  │ Case ID: CS-550E8401                                          │   │
+│  │ Confidence: 0.92                                              │   │
+│  │ Bot Turns: 4 | Clarifications: 1 | FAQ Misses: 0             │   │
+│  │ Duration: 45s                                                 │   │
+│  └───────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌─── Customer Message (what user saw) ─────────────────────────┐   │
+│  │ "Thanks for those details. I've created a case (CS-550E8401)  │   │
+│  │  for our Ad Support team. You'll hear back by email within    │   │
+│  │  24-48 hours."                                                │   │
+│  └───────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌─── Handover Payload (JSON, what agent receives) ─────────────┐   │
+│  │ {                                                              │   │
+│  │   "version": "1.0",                                           │   │
+│  │   "session_id": "550e8401",                                   │   │
+│  │   "primary_use_case": "UC-H",                                 │   │
+│  │   "candidate_use_cases": ["UC-FP"],                           │   │
+│  │   "current_status": "intake_complete",                        │   │
+│  │   "summary": "User reports ad 1487477877 was incorrectly...", │   │
+│  │   "case_id": "CS-550E8401",                                   │   │
+│  │   "escalation_reason": "intake_complete",                     │   │
+│  │   "identifiers_collected": { "email": "...", "ad_id": "..." },│   │
+│  │   "intake_fields": { "stated_reason": "..." },                │   │
+│  │   "total_bot_turns": 4,                                       │   │
+│  │   "form_topic_subject": "Ad Support",                         │   │
+│  │   "topic_uc_mismatch": false,                                 │   │
+│  │   ...                                                         │   │
+│  │ }                                                              │   │
+│  └───────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌─── Conversation Transcript ──────────────────────────────────┐   │
+│  │ [Bot]  Hi Jane! I'm here to help...                           │   │
+│  │ [User] My ad was removed unfairly                             │   │
+│  │ [Bot]  I'm sorry to hear that. Could you confirm your ad ID?  │   │
+│  │ [User] 1487477877                                             │   │
+│  │ [Bot]  Thanks. Could you describe what happened?              │   │
+│  │ [User] I'm selling a laptop, didn't break any rules           │   │
+│  │ [Bot]  I've created a case for our Ad Support team...         │   │
+│  └───────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Backend changes**:
+
+| Change | Detail |
+|--------|--------|
+| `mock_handover_log` table | Add column `customer_message TEXT` — the escalation message shown to the user |
+| `mock_handover_log` table | Add column `transcript JSONB` — array of `{role, message, turn_index}` for the session |
+| `SessionManager.recordHandover()` | Populate `customer_message` from the escalation response text |
+| `SessionManager.recordHandover()` | Populate `transcript` by querying `bot_turns` for the session and building `[{role, message}]` array |
+| `DemoInspectionController` | Update `GET /v1/demo/handover-logs` response to include `customer_message` and `transcript` |
+| `DemoInspectionController` | Add `GET /v1/demo/handover-logs/{id}` for single handover detail |
+
+**Frontend changes**:
+
+| Component | Change |
+|-----------|--------|
+| `AdminPage.tsx` | Rename "Handover Logs" tab → "Handover Queue" |
+| `HandoverQueueView.tsx` (new) | Replace `HandoverLogViewer.tsx` — list + detail layout as shown above |
+| `HandoverDetail.tsx` (new) | Summary card + customer message card + JSON payload viewer + transcript viewer |
+| `HandoverFilters.tsx` (new) | UC filter dropdown, escalation reason filter, date range |
+
+**DB migration**:
+
+```sql
+-- V8__add_handover_detail_columns.sql
+ALTER TABLE mock_handover_log ADD COLUMN customer_message TEXT;
+ALTER TABLE mock_handover_log ADD COLUMN transcript JSONB;
+```
+
+### D12.6 Updated Done Criteria
+
+In addition to D6 done criteria, after D11+D12:
+
+**Iteration 1 (D11) — "Bot 变聪明"**:
+
+- [ ] `session.customerContext` populated after session creation when email present and UC allows
+- [ ] Demo scenario #3 (UC-FP): bot cites specific moderation reason from `moderation_context`
+- [ ] Demo scenario #5 (UC-D): bot references account status from `customer_context`
+- [ ] Context projection includes `allowed_actions`, `task_summary`, `budget_state`, `risk_flags`, `tool_schemas`
+- [ ] `create_case_controlled` fires for UC-H/J/K on intake completion; `mock_cases` table has new row
+- [ ] Demo scenario #4 (UC-H): handover payload contains populated `case_id`
+- [ ] Demo scenario #8 (UC-I): NO case creation (UC-I not in allowed set)
+- [ ] Escalation template renders `{CASE_NUMBER}` with actual case ID from `create_case_controlled`
+- [ ] `eval-smoke` passes all hard gates; no regressions in routing/groundedness/escalation
+
+**Iteration 2 (D12) — "Harness 变完整"**:
+
+- [ ] All `search_knowledge` calls go through `ToolDispatcher.dispatch()` with policy enforcement
+- [ ] INTAKE UCs attempting `search_knowledge` via ToolDispatcher → `scope_blocked` event logged
+- [ ] `mock.tool_latency_ms` config: when set >1500, progress placeholder message sent
+- [ ] All 12 event types emitted for a complete session lifecycle (verify via Event Timeline tab)
+- [ ] `bot_turns.tool_calls` JSONB populated for turns that invoke tools
+- [ ] Admin panel "Handover Queue" tab: list view with UC/reason filters
+- [ ] Handover Queue detail view: summary + customer message + JSON payload + conversation transcript
+- [ ] `mock_handover_log` contains `customer_message` and `transcript` for every escalated session
+- [ ] `eval-full` produces complete report with all hard gates checked
+
+---
+
+## D13. DM11 — Interactive Eval Harness ("交互式评估")
+
+> **Goal**: Build a Python-based interactive evaluation harness that complements the Java replay eval. It drives the CS Agent with an LLM-based User Simulator using structured CaseSpecs derived from human review data, applies 3-layer scoring, detects stalls, and compares results across runs.
+>
+> **Scope**: Local demo. Uses same CS Agent at `localhost:8080`.
+>
+> **Prerequisite**: D11 complete (bot must have working tool integration).
+>
+> **Tech**: Python 3.11+, httpx, pyyaml, openai (for LLM API), jinja2, click
+>
+> **Design Reference**: Phase 5 §2.3, §3.4, §5.4, §6.9, §13.2–13.5
+
+### D13.1 CaseSpec Extraction from HR Data
+
+**Where**: `eval_interactive/eval_interactive/case_spec/extractor.py`
+
+**Input**:
+- `data/human_review_annotations_*.csv` (367 sessions, headers: `session_id`, `case_id`, `source_dataset`, `form_topic_subject`, `primary_uc`, `secondary_ucs`, `outcome_class`, `expected_tool_sequence`, `forbidden_tools`, `should_escalate`, `escalation_trigger`, `risk_level`, `drift_type`, `has_frustration`, `frustration_type`, `grounding_required`, `answer_must_not_contain`, `quality_score`, etc.)
+- `data/eval_datasets/*_turns.csv` (turn data: `conversation_id`, `case_id`, `sequence`, `role`, `speaker`, `message_redacted`)
+
+**Output**: YAML files in `case_specs/{anchor,promotion,exploration}/`
+
+**Implementation spec**:
+
+```
+extractor.py:
+  │
+  ├─ For each HR row:
+  │   ├─ Find matching turns by session_id / case_id
+  │   ├─ Extract form_context from sequence=0 (parse "[Form] Subject:... | Description:...")
+  │   ├─ Extract seed_messages: first 1-3 visitor turns (sequence > 0, role = visitor)
+  │   ├─ Map HR fields to CaseSpec expected block (see Phase 5 Appendix C)
+  │   ├─ Derive persona:
+  │   │   ├─ frustration_level: none if !has_frustration, mild if frustration_type=general, high if litigation/threat
+  │   │   ├─ drift_behavior: direct from drift_type
+  │   │   └─ verbosity: infer from message lengths (< 20 chars → terse, > 100 → verbose, else normal)
+  │   ├─ Derive grounding_mode:
+  │   │   ├─ grounding_required=true → faq_source_backed
+  │   │   └─ UC ∈ {G,H,I,J,K} → fixed_script_only
+  │   └─ Write CaseSpec YAML
+  │
+  └─ Assign to case sets:
+      ├─ anchor: quality_score ≥ 4, clear expected outcome, balanced UC coverage (~30)
+      ├─ promotion: medium confidence, broader coverage (~40)
+      └─ exploration: edge cases, frustration, complex drift (~30)
+```
+
+**CLI**: `python -m eval_interactive extract --hr-csv <path> --turns-dir <path> --output case_specs/`
+
+### D13.2 User Simulator
+
+**Where**: `eval_interactive/eval_interactive/simulator/user_simulator.py`
+
+**Implementation**: LLM-based user turn generator. Uses same `DASHSCOPE_*` or `KIMI_*` credentials from `.env.local`.
+
+**System prompt** (Jinja2 template):
+
+```text
+You are a customer contacting Gumtree support.
+
+Your persona:
+- Goal: {{ persona.goal_summary }}
+- Frustration level: {{ persona.frustration_level }}
+- Style: {{ persona.verbosity }}
+
+You submitted a form with:
+- Topic: {{ form_context.topic_subject }}
+- Description: {{ form_context.description }}
+
+Facts you know (reveal naturally when relevant):
+{% for fact in persona.hidden_facts %}
+- {{ fact.fact }} (reveal: {{ fact.disclose_when }})
+{% endfor %}
+
+{% if persona.will_request_human_if %}
+If the bot {{ persona.will_request_human_if }}, ask to speak with a human agent.
+{% endif %}
+
+Rules:
+- Respond as a real customer would. Do NOT reveal you are an AI.
+- If the bot has resolved your issue, say something like "thank you, that helps."
+- If the bot is clearly unable to help after multiple attempts, say "can I speak to someone?"
+- Keep responses concise (1-3 sentences).
+
+Respond with JSON: {"message": "your response", "goal_status": "in_progress|achieved|impossible"}
+```
+
+**Input per turn**: CaseSpec + full conversation history + last bot reply
+**Output**: `{"message": str, "goal_status": str}`
+**LLM config**: `temperature=0.7` (more natural than grader calls)
+
+### D13.3 Session Runner
+
+**Where**: `eval_interactive/eval_interactive/simulator/session_runner.py`
+
+**Orchestrates** the user↔bot loop:
+
+```
+run_session(case_spec, agent_client, user_simulator, stall_detector):
+  │
+  ├─ Create bot session: POST /v1/chat/sessions with case_spec.form_context
+  │   → session_id, bot_greeting
+  │
+  ├─ First user message:
+  │   case_spec.persona.seed_messages[0] OR case_spec.form_context.description
+  │
+  ├─ Loop (turn = 1 to case_spec.expected.max_turns):
+  │   ├─ POST /v1/chat/sessions/{id}/messages with user_msg
+  │   │   → bot_reply, should_end_chat, additional_data
+  │   │
+  │   ├─ Record turn: {user_msg, bot_reply, latency_ms, raw_response}
+  │   │
+  │   ├─ Check stop conditions (in priority order):
+  │   │   1. should_end_chat = true              → stop_reason = "bot_ended"
+  │   │   2. turn >= max_turns                   → stop_reason = "max_turns_exceeded"
+  │   │   3. stall_detector.detect(transcript)   → stop_reason = "stall_detected"
+  │   │   4. last 2 bot replies identical         → stop_reason = "loop_detected"
+  │   │
+  │   ├─ If not stopped:
+  │   │   user_simulator.generate_next(case_spec, transcript, bot_reply)
+  │   │   → {message, goal_status}
+  │   │   ├─ goal_status = "achieved"            → stop_reason = "goal_achieved"
+  │   │   ├─ goal_status = "impossible"           → stop_reason = "goal_impossible"
+  │   │   └─ goal_status = "in_progress"          → continue with message as next user_msg
+  │   │
+  │   └─ turn++
+  │
+  └─ Return SessionTrace: {session_id, transcript, stop_reason, total_turns, elapsed_ms}
+```
+
+### D13.4 Trace Collector
+
+**Where**: `eval_interactive/eval_interactive/trace/collector.py`
+
+After session completes, fetches full trace from CS Agent API:
+
+| Endpoint | Data Collected |
+|----------|---------------|
+| `GET /v1/chat/sessions/{id}` | Final session state: `activeUseCase`, `candidateUseCases`, `containmentOutcome`, `escalationReason`, `totalBotTurns`, `clarificationCount`, `faqMissCount`, `formContext`, `customerContext`, `articlesShown`, `currentPhase` |
+| `GET /v1/demo/sessions/{id}/trace` | Per-turn: `actionSelected`, `toolCalls` (JSONB), `sourceIds`, `phaseBefore`/`phaseAfter`, `projectedContext`, `latencyMs` |
+| `GET /v1/demo/sessions/{id}/events` | Event timeline: `eventType`, `turnIndex`, `payload` (all 12 types) |
+| `GET /v1/demo/handover-logs` | If escalated: `handoverPayload` (JSON with all Phase 3 §3.6.2 fields), `customerMessage`, `transcript` |
+
+**Output**: Structured `TraceData` object combining all sources, ready for scoring.
+
+### D13.5 3-Layer Scoring Implementation
+
+**Where**: `eval_interactive/eval_interactive/scoring/`
+
+See Phase 5 §5.4 for full specification. Implementation:
+
+**`hard_checks.py`** — L1 deterministic checks:
+- Iterates `case_spec.scoring.hard_checks` list
+- Each check reads trace data and returns `pass` / `fail` with detail
+- ANY failure → `case_passed = false`
+- Key checks: `no_forbidden_tools` (reads `tool_calls` from turn trace), `budget_enforcement` (reads session counters), `no_stall` (calls `stall_detector`)
+
+**`outcome_checks.py`** — L2 result-level checks:
+- Each check returns float 0.0-1.0
+- `correct_uc`: compare `trace.session_state.activeUseCase` vs `case_spec.expected.primary_uc`
+- `correct_outcome`: compare `trace.session_state.containmentOutcome` vs `case_spec.expected.outcome_class`
+- `tool_sequence_match`: compare actual tool calls from turn trace vs `case_spec.expected.expected_tool_sequence`
+
+**`llm_judge.py`** — L3 semantic scoring:
+- For each dimension in `case_spec.scoring.llm_judge_dimensions`:
+  - Load Jinja2 prompt template from `scoring/prompts/`
+  - Render with conversation transcript + trace data
+  - Call LLM (same provider, `temperature=0.0`)
+  - Parse 1-5 score from response
+
+**`stall_detector.py`** — Promise-without-result detection:
+- Scans bot responses for promise patterns (configurable regex list)
+- Cross-references with `tool_calls` from turn trace
+- Checks if visible result appeared within `followup_window_turns`
+- Returns `StallResult: {detected: bool, turn_index: int, pattern_matched: str}`
+
+**`composite.py`** — Score aggregation:
+```python
+def compute_composite(l1_passed: bool, l2_scores: list[float], l3_scores: list[float]) -> float:
+    if not l1_passed:
+        return 0.0
+    outcome_score = mean(l2_scores) if l2_scores else 0.0
+    judge_score = (mean(l3_scores) / 5.0) if l3_scores else 0.0
+    return 0.5 * outcome_score + 0.5 * judge_score
+```
+
+### D13.6 Before/After Comparison
+
+**Where**: `eval_interactive/eval_interactive/comparison/diff_engine.py`
+
+**Input**: Two result JSON files (baseline + current)
+**Output**: Diff report (JSON + human-readable summary)
+
+**Logic**:
+1. Load both result files, join by `case_id`
+2. For each case, classify as:
+   - **Improved**: failed in baseline, passed in current
+   - **Stable pass**: passed in both
+   - **Stable fail**: failed in both
+   - **Regressed**: passed in baseline, failed in current
+3. Compute `regression_rate = regressed / total`
+4. Compute metric deltas for all 7 key metrics
+5. List failure tag changes (new failures, resolved failures)
+
+**CLI**: `python -m eval_interactive compare --baseline <path> --current <path>`
+
+### D13.7 Batch Executor
+
+**Where**: `eval_interactive/eval_interactive/batch/executor.py`
+
+**Implementation**:
+- Uses `asyncio` + `httpx.AsyncClient` for concurrent sessions
+- Configurable parallelism via `--parallel` flag (default 5)
+- Each CaseSpec runs independently (separate bot session)
+- Progress output via `click.progressbar` or `tqdm`
+- Timeout per session: configurable (default 120s)
+
+**CLI**:
+```bash
+python -m eval_interactive run --set anchor --label baseline_v1.0.3 --parallel 5
+python -m eval_interactive run --set all --label release_v1.0.4
+```
+
+**Set management** (`batch/sets.py`):
+- Reads CaseSpec YAML files from `case_specs/{anchor,promotion,exploration}/`
+- `--set anchor` → only `case_specs/anchor/*.yaml`
+- `--set all` → all three directories
+- Custom: `--cases case_specs/custom/*.yaml`
+
+### D13.8 Report Generation
+
+**Where**: `eval_interactive/eval_interactive/report/`
+
+**HTML report** includes:
+- **Summary dashboard**: 7 key metrics (Phase 5 §6.9), pass/fail counts, composite score distribution
+- **Per-case drill-down**: CaseSpec details, conversation transcript, 3-layer scores, stall flags, failure tags
+- **Regression table**: if comparison data available, shows regressions/improvements
+- **Per-UC breakdown**: metrics grouped by `expected.primary_uc`
+
+**JSON report**: machine-readable, same data structure.
+
+**Output**: `results/{run_id}/report.html` + `results/{run_id}/report.json`
+
+### D13.9 Configuration
+
+```yaml
+# eval_interactive.yaml
+bot:
+  base_url: http://localhost:8080
+
+llm:
+  base_url: ${DASHSCOPE_BASE_URL}        # or ${KIMI_BASE_URL}
+  api_key: ${DASHSCOPE_API_KEY}           # or ${KIMI_API_KEY}
+  model: ${DASHSCOPE_CHAT_MODEL}          # or ${KIMI_MODEL}
+  temperature: 0.0                         # for grader calls
+  simulator_temperature: 0.7               # for user simulator
+
+simulator:
+  max_turns: 15
+  default_persona:
+    frustration_level: none
+    verbosity: normal
+    drift_behavior: none
+
+stall_detector:
+  promise_patterns:
+    - "let me (check|look|find|verify|search)"
+    - "i('m| am) (checking|looking|searching|investigating)"
+    - "one moment"
+    - "i'll (look into|check|investigate|find)"
+    - "thanks for your patience"
+    - "just a moment"
+  followup_window_turns: 2
+
+batch:
+  parallel: 5
+  timeout_per_session_seconds: 120
+
+report:
+  output_dir: results/
+```
+
+### D13.10 Done Criteria (DM11)
+
+- [ ] `pyproject.toml` with all deps; `pip install -e .` works on Mac
+- [ ] CaseSpec extraction: `python -m eval_interactive extract` produces valid YAML from HR CSV
+- [ ] Anchor set: ~30 cases covering all UC risk levels, drift types, and outcome classes
+- [ ] User Simulator: generates coherent, persona-consistent user messages (verified by manual inspection of 5 cases)
+- [ ] Session Runner: completes 30-case anchor run against running bot (all cases reach termination)
+- [ ] Stall Detector: correctly flags synthetic stall case; does not false-positive on clean case
+- [ ] 3-Layer Scoring: all three layers produce scores; composite formula verified against known case
+- [ ] Before/After Comparison: regression correctly detected when synthetic case score drops
+- [ ] Batch executor: 30-case anchor run completes in < 20 minutes (with `--parallel 5`)
+- [ ] HTML report: viewable in browser, 7 key metrics displayed, per-case drill-down works
+- [ ] No interference: `mvn verify -Peval-smoke` continues to pass
+
+### D13.11 Delivery Dependencies
+
+| DM11 Component | Depends On | Notes |
+|----------------|-----------|-------|
+| CaseSpec Extractor | HR CSV + turns CSV data | Data already exists |
+| User Simulator | LLM API credentials (`.env.local`) | Same as DM4 |
+| Agent Client | DM4 bot running on `:8080` | DM4 must be complete |
+| Trace Collector | DM7 inspection endpoints | All `/v1/demo/*` endpoints exist |
+| Stall Detector | Turn trace with `tool_calls` | DM12 §D12.4 (turn log enhancement) |
+| Hard Checks | DM5 tool policy, DM6 guardrails | Policy enforcement must work |
+| LLM Judge | LLM API credentials | Same provider as User Simulator |
 
 ---
 

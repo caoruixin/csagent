@@ -30,8 +30,8 @@ public class CreateCaseControlledTool implements Tool {
     );
 
     private static final Map<String, String> QUEUE_BY_UC = Map.of(
-            "UC-H", "Safety_Queue",
-            "UC-J", "Commercial_Queue",
+            "UC-H", "Ad_Support_Queue",
+            "UC-J", "Safety_Queue",
             "UC-K", "Account_Support_Queue"
     );
 
