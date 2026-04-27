@@ -1,0 +1,66 @@
+case_id: cs_interactive_177
+source_session_id: 570Q5000008aPw9IAE
+source_dataset: handover
+form_context:
+  first_name: I
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: 1) Changing email address 2) local search gives 45000 ads from all over UK (before it was around 7000 in requested
+    area), this problem appeared 1 week ago and makes gumtree useless
+persona:
+  goal_summary: 'Get help with: 1) Changing email address 2) local search gives 45000 ads from all over UK (before it was
+    around 7000 in requested area), this problem appeared 1 week ago and makes gumtree useless. Expects bot to escalate to
+    human agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - With new account ill lose 3 good revs
+  - At least you know about a problem with search, in the time being well have to switch to local facebook, hope that only
+    temporarily
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs:
+  - UC-D
+  - UC-E
+  should_escalate: true
+  escalation_trigger: intake_complete_for_uc_k
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - answer_grounded
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

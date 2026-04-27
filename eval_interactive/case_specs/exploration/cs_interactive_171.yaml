@@ -1,0 +1,69 @@
+case_id: cs_interactive_171
+source_session_id: 570Q5000008gTqbIAE
+source_dataset: badcase
+form_context:
+  first_name: Danny
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Not happy you've taken call setting away from add
+persona:
+  goal_summary: 'Get help with: Not happy you''ve taken call setting away from add. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I'm just letting you know I'm not happy that you've taken the call feature away from me putting add in I will no longer
+    use your service no more that's terrible nothing to fo with safety
+  - I will be closing my account now without call feature when your selling something on Google you won't know until you check
+    if a buyer contacts you at least with phone call you'd get your item sold straight away your making it harder for us users
+    to get a sale not everybody likes to email most people like to put add in where you for a call
+  - Nothing to do with keeping people safe or fraud emails can just be as fraudulent as a call can be your just trying to
+    control us even more I will be on Google complains like everyone else who are not happy I encourage them all to stop using
+    gumtree now petion going around a company us inly as big as its users
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  - UC-D
+  should_escalate: true
+  escalation_trigger: trust_safety_required
+  risk_level: critical
+  expected_tool_sequence:
+  - fixed_script_library
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

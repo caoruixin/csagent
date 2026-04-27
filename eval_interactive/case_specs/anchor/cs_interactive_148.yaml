@@ -1,0 +1,62 @@
+case_id: cs_interactive_148
+source_session_id: 570Q5000008b7xBIAQ
+source_dataset: escalation
+form_context:
+  first_name: Felix
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Can't log in
+persona:
+  goal_summary: 'Get help with: Can''t log in. Expects bot to escalate to human agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - I have changed my phone number and it is hard to log in
+  - Yes they are my details
+  - '[EMAIL] is my gumtree g mail and when I try to log in it sends verification code to my old number I registered with gumtree
+    and I don''t have access to my old number'
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-B
+  should_escalate: true
+  escalation_trigger: user_distress
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

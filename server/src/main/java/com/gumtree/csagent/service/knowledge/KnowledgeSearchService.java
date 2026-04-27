@@ -53,11 +53,14 @@ public class KnowledgeSearchService {
     /**
      * Search knowledge base for relevant articles matching the query.
      *
-     * @param query  user's search query
-     * @param ucTags optional UC tags to filter results (may be null or empty)
+     * @param query     user's search query
+     * @param ucTags    optional UC tags to filter results (may be null or empty)
+     * @param sessionId session identifier for LLM call logging (may be null)
+     * @param turnIndex turn index for LLM call logging
      * @return search result with hits and miss flags
      */
-    public KnowledgeSearchResult search(String query, List<String> ucTags) {
+    public KnowledgeSearchResult search(String query, List<String> ucTags,
+                                         String sessionId, int turnIndex) {
         long startTime = System.currentTimeMillis();
         log.info("Knowledge search: query='{}', ucTags={}", query, ucTags);
 
@@ -151,7 +154,7 @@ public class KnowledgeSearchService {
                 .collect(Collectors.toList());
 
         // Step 6: Rerank via LLM
-        List<RerankService.ScoredCandidate> reranked = rerankService.rerank(query, rerankCandidates);
+        List<RerankService.ScoredCandidate> reranked = rerankService.rerank(query, rerankCandidates, sessionId, turnIndex);
 
         // Step 7: Answer gate
         boolean answerMiss = reranked.isEmpty() || reranked.get(0).rerankScore() < ANSWER_GATE_THRESHOLD;

@@ -1,0 +1,65 @@
+case_id: cs_interactive_083
+source_session_id: 570Q5000008ynMDIAY
+source_dataset: badcase
+form_context:
+  first_name: Ryan
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Customer service member was very rude
+persona:
+  goal_summary: 'Get help with: Customer service member was very rude. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I was just speaking to yourself and you closed the chat without giving me the chance to respond
+  - Someone has given me a one star rating despite not being a customer. I also cannot view any review they have left. This
+    is affecting our business. Can gumtree look into it?
+  - We may have to close account if this is not removed and take our business elsewhere
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  escalation_trigger: payment_dispute_detected
+  risk_level: high
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

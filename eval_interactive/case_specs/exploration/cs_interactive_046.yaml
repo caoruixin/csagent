@@ -1,0 +1,64 @@
+case_id: cs_interactive_046
+source_session_id: 570Q5000008iiyPIAQ
+source_dataset: intake_tool_contract
+form_context:
+  first_name: Dennis
+  email: customer@example.com
+  topic_subject: Payments
+  ad_id: ''
+  description: Apple airport max
+persona:
+  goal_summary: 'Get help with: Apple airport max. Expects bot to escalate to human agent.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hi have you got a telephone number to call as I need to speak to someone asap
+  - So ok I have sold my apple airport max and not have been paid by the email hannahraul@ Gmail.com I have spoken to the
+    police and been advised to contact Gumtree to see if any action could be taken with reference to this.
+  - If they could be blacklisted or to retrieve my moneyy
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-K
+  - UC-B
+  should_escalate: true
+  escalation_trigger: user_requested
+  risk_level: critical
+  expected_tool_sequence:
+  - fixed_script_library
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

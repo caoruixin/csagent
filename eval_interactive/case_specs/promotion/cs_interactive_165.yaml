@@ -1,0 +1,63 @@
+case_id: cs_interactive_165
+source_session_id: 570Q5000008dLpZIAU
+source_dataset: golden
+form_context:
+  first_name: Antony
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Cannot upload pictures to a new advert. Tried the helpful topics already.
+persona:
+  goal_summary: 'Get help with: Cannot upload pictures to a new advert. Tried the helpful topics already.. Expects bot to
+    resolve the issue directly.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: minor
+  seed_messages:
+  - Using the App but when I select pictures from my gallery it does not upload and checking the FAQ pages I think they are
+    all fine to use.
+  - I have loaded lots over the past week but today it just loojs like it is accepting it then nothing is on the advert and
+    cannot press the camera logo to upload another image.
+  - I do not know the Ad ID as cannot upload it
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-K
+  secondary_ucs:
+  - UC-B
+  - UC-D
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -114,7 +114,7 @@ class CreateCaseControlledToolTest {
         Map<String, Object> params = Map.of("description", "My ad was removed unfairly");
 
         when(salesforceService.createCase(anyString(), eq("UC-H"), anyString(),
-                anyString(), any(), any(), eq("Safety_Queue"), any()))
+                anyString(), any(), any(), eq("Ad_Support_Queue"), any()))
                 .thenReturn("CASE-H-001");
 
         ToolResult result = tool.execute(session, params);
@@ -141,7 +141,7 @@ class CreateCaseControlledToolTest {
                 "description", "User threatened me");
 
         when(salesforceService.createCase(anyString(), eq("UC-J"), anyString(),
-                anyString(), any(), any(), eq("Commercial_Queue"), any()))
+                anyString(), any(), any(), eq("Safety_Queue"), any()))
                 .thenReturn("CASE-J-001");
 
         ToolResult result = tool.execute(session, params);
@@ -194,40 +194,40 @@ class CreateCaseControlledToolTest {
         Map<String, Object> data = (Map<String, Object>) result.getData();
         assertEquals("CASE-ABC123", data.get("case_id"));
         assertEquals("UC-H", data.get("use_case_id"));
-        assertEquals("Safety_Queue", data.get("queue_name"));
+        assertEquals("Ad_Support_Queue", data.get("queue_name"));
         assertEquals("test-session-1", data.get("session_id"));
     }
 
     // --- Queue mapping ---
 
     @Test
-    void execute_ucH_shouldUseSafetyQueue() {
+    void execute_ucH_shouldUseAdSupportQueue() {
         BotSession session = buildSession("UC-H");
         Map<String, Object> params = Map.of("description", "Test");
 
         when(salesforceService.createCase(anyString(), eq("UC-H"), anyString(),
-                anyString(), any(), any(), eq("Safety_Queue"), any()))
+                anyString(), any(), any(), eq("Ad_Support_Queue"), any()))
                 .thenReturn("CASE-001");
 
         tool.execute(session, params);
 
         verify(salesforceService).createCase(anyString(), eq("UC-H"), anyString(),
-                anyString(), any(), any(), eq("Safety_Queue"), any());
+                anyString(), any(), any(), eq("Ad_Support_Queue"), any());
     }
 
     @Test
-    void execute_ucJ_shouldUseCommercialQueue() {
+    void execute_ucJ_shouldUseSafetyQueue() {
         BotSession session = buildSession("UC-J");
         Map<String, Object> params = Map.of("subject", "Safety report", "description", "Test");
 
         when(salesforceService.createCase(anyString(), eq("UC-J"), anyString(),
-                anyString(), any(), any(), eq("Commercial_Queue"), any()))
+                anyString(), any(), any(), eq("Safety_Queue"), any()))
                 .thenReturn("CASE-001");
 
         tool.execute(session, params);
 
         verify(salesforceService).createCase(anyString(), eq("UC-J"), anyString(),
-                anyString(), any(), any(), eq("Commercial_Queue"), any());
+                anyString(), any(), any(), eq("Safety_Queue"), any());
     }
 
     @Test

@@ -1,0 +1,64 @@
+case_id: cs_interactive_256
+source_session_id: 570Q5000008cma5IAA
+source_dataset: golden
+form_context:
+  first_name: Amir Parviz
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: When I go to "double room for rent kilburn"  I do not see my ad listed.  I have not been getting responses
+    over the past 2 weeks and I am wondering why I do not see my ad when I search for it?
+persona:
+  goal_summary: 'Get help with: When I go to "double room for rent kilburn"  I do not see my ad listed.  I have not been getting
+    responses over the past 2 weeks and I am wondering why I do not see my ad when I search for it?. Expects bot to resolve
+    the issue directly.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - 'My Ad ID: 1506986492, I can''t find my ad when I click on "double room for rent Kilburn"'
+  - No replies in past 2 weeks.
+  - A bunch of messages, some with no words, though no one interested in the room.
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

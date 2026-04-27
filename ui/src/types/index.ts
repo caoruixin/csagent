@@ -60,6 +60,14 @@ export interface TraceStep {
   output: string;
   tool_calls?: ToolCall[];
   timestamp: string;
+  projected_context?: Record<string, unknown>;
+  llm_raw_response?: string;
+  action_parameters?: Record<string, unknown>;
+  source_ids?: string[];
+  phase_before?: string;
+  phase_after?: string;
+  active_use_case?: string;
+  latency_ms?: number;
 }
 
 export interface ToolCall {

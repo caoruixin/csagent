@@ -1,0 +1,64 @@
+case_id: cs_interactive_324
+source_session_id: 570Q5000008hL6EIAU
+source_dataset: escalation
+form_context:
+  first_name: Hakam
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: I want to sell my car but the system is listing it as a trader. I’m not a trader
+persona:
+  goal_summary: 'Get help with: I want to sell my car but the system is listing it as a trader. I’m not a trader. Expects
+    bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: hard_shift
+  seed_messages:
+  - Okay
+  - Can you help
+  - '[EMAIL]'
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-H
+  secondary_ucs:
+  - UC-D
+  - UC-B
+  should_escalate: true
+  escalation_trigger: appeal_requires_human
+  risk_level: high
+  expected_tool_sequence:
+  - fixed_script_library
+  - ask_user
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

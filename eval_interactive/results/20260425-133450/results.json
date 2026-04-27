@@ -1,0 +1,1033 @@
+{
+  "run_id": "20260425-133450",
+  "label": "verify_k26_model",
+  "timestamp": "2026-04-25T13:34:50.759274+00:00",
+  "elapsed_ms": 96762,
+  "summary": {
+    "total_cases": 10,
+    "passed_cases": 2,
+    "failed_cases": 8,
+    "task_success_rate": 0.2,
+    "stall_rate": 0.0,
+    "mean_composite_score": 0.5375,
+    "mean_outcome_score": 0.475,
+    "mean_judge_score": 0.6,
+    "per_uc_breakdown": {
+      "UC-C": {
+        "count": 6,
+        "passed": 1,
+        "failed": 5,
+        "mean_composite": 0.5695
+      },
+      "UC-D": {
+        "count": 2,
+        "passed": 0,
+        "failed": 2,
+        "mean_composite": 0.3625
+      },
+      "UC-B": {
+        "count": 2,
+        "passed": 1,
+        "failed": 1,
+        "mean_composite": 0.6167
+      }
+    },
+    "escalation_correctness": 0.6,
+    "policy_compliance_rate": 1.0,
+    "mean_turns_to_resolution": 2.0
+  },
+  "case_results": [
+    {
+      "case_id": "cs_interactive_001",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "41501571-2b40-423a-bd08-b975eadf37aa",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 215,
+      "case_passed": true,
+      "composite_score": 0.4792,
+      "outcome_score": 0.625,
+      "judge_score": 0.3333,
+      "failure_tags": [
+        "L2:correct_uc",
+        "L3:groundedness",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "ESCALATED",
+      "active_use_case": "",
+      "escalation_reason": "out_of_scope:UNKNOWN_TOPIC",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-C, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 0.5,
+          "detail": "escalated but turn unknown"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 1.0,
+          "reasoning": "The bot's response contains no factual claims that require grounding, but it also cites no sources whatsoever—consistent with the 'No source IDs found in any turn' observation. The statement 'This conversation has been transferred to a human agent' is an operational assertion that, in a production system, should be verifiable via system state or logs and ideally supported by a cited source (e.g., transfer protocol documentation or session metadata). Since no sources are cited and the response provides no traceable grounding—even for a simple procedural claim—the grounding score is 1."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user's message 'Thank you cortney' is a polite expression of gratitude, likely directed at a person named Cortney (possibly a prior agent or a misdirected thanks). The bot responds by stating the conversation has been transferred to a human agent and asks the user to wait—this is irrelevant and unresponsive. There is no acknowledgment of the thanks, no clarification about Cortney, and no attempt to address the user's implied sentiment or potential context. The response appears automated and disconnected from the user's actual input."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot incorrectly states the conversation has been transferred to a human agent when no such transfer occurred—this is factually inaccurate and undermines trust. It also fails to acknowledge the user's 'Thank you cortney' (likely a misspelling of 'Courtney'), missing an opportunity for personalization and empathy. With mild frustration present, the response feels dismissive and automated, offering no reassurance or next steps—making the tone inappropriate and unhelpful."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Thank you cortney",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "This conversation has been transferred to a human agent. Please wait for them to respond.",
+          "turn_index": 1
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_002",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "e9c82b8b-38c2-4e50-b85a-90cc2c2e0e90",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 215,
+      "case_passed": true,
+      "composite_score": 0.6125,
+      "outcome_score": 0.625,
+      "judge_score": 0.6,
+      "failure_tags": [
+        "L2:correct_uc",
+        "L3:groundedness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "ESCALATED",
+      "active_use_case": "",
+      "escalation_reason": "out_of_scope:UNKNOWN_TOPIC",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-C, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 0.5,
+          "detail": "escalated but turn unknown"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 1.0,
+          "reasoning": "The bot's response contains no factual claims requiring grounding, but it also cites no sources whatsoever—neither for the transfer action nor any supporting information. The instruction requires source citations for factual claims, and the absence of any source IDs across all turns means there is zero grounding evidence, satisfying the 'No grounding at all' criterion."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The user provided only an email address, which is a common signal for requesting human assistance (e.g., in email-based or hybrid support systems). The bot correctly interprets this as a request to escalate and responds by confirming transfer to a human agent—exactly the appropriate and expected action. No further clarification or information is needed from the bot at this stage."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 3.0,
+          "reasoning": "The bot's response is functional and neutral but lacks empathy or acknowledgment of the customer's mild frustration. It does not validate the user's effort (e.g., submitting an email), offer reassurance, or provide context about wait time—making it feel somewhat mechanical and transactional."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "[EMAIL]",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "This conversation has been transferred to a human agent. Please wait for them to respond.",
+          "turn_index": 1
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_004",
+      "primary_uc": "UC-D",
+      "expected_outcome": "resolve",
+      "session_id": "dc7ca167-afee-4b49-aa8e-a65409badd5a",
+      "total_turns": 3,
+      "stop_reason": "goal_impossible",
+      "elapsed_ms": 45120,
+      "case_passed": true,
+      "composite_score": 0.3333,
+      "outcome_score": 0.0,
+      "judge_score": 0.6667,
+      "failure_tags": [
+        "L2:correct_uc",
+        "L2:correct_outcome",
+        "L2:correct_outcome",
+        "L2:correct_outcome"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "UC-E",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-D, actual=UC-E"
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual="
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 3.0,
+          "reasoning": "The bot's Turn 1 response asks for details (posting time, ad title) — these are neutral, procedural questions not requiring grounding. Turn 2 makes three factual claims: (1) 'your ad should still be live' (implies standard ad lifespan >1 day), (2) directing to 'My Gumtree > Manage My Ads', and (3) suggesting email/spam checks and citing 'processing delays or account filtering' as possible causes. Sources cited in Turn 2 include 'ka41r000000LIEJAA4' and 'ka4P200000004ZtIAI', which likely cover ad visibility troubleshooting, but 'account filtering' and the specific implication that ads remain live for at least 24h post-confirmation are not verifiably supported by the provided citations (no source explicitly confirms ad longevity or filtering mechanics). The instruction to check 'My Gumtree > Manage My Ads' is standard UI navigation and plausibly covered, but the causal explanation lacks full source alignment."
+        },
+        {
+          "dimension": "relevance",
+          "score": 3.0,
+          "reasoning": "The bot correctly acknowledges the user's core issue (ad not visible despite confirmation) and offers initial troubleshooting steps (checking My Gumtree and spam). However, in Turn 2, it fails to address the user’s explicit concern about the ad being confirmed as 'live' yet invisible—this contradiction suggests a possible system error or moderation issue that warrants escalation or deeper investigation. The bot does not acknowledge the user’s request to speak to someone in Turn 3, nor does it offer a clear path forward (e.g., escalating to support, checking moderation status, or verifying account eligibility), missing a key aspect of the user’s escalating concern and need for human assistance."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot maintains professionalism and offers clear, actionable steps. It acknowledges the issue and validates the customer’s experience (e.g., 'your ad should still be live'). However, it misses an opportunity to explicitly acknowledge the user’s growing frustration in Turn 3 ('Can I speak to someone?')—a subtle but important empathy gap. While not dismissive, the response in Turn 2 doesn’t proactively address escalation or offer next-step reassurance before the user asks for human help, making the tone slightly transactional rather than fully attuned to mild but escalating frustration."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Yes. Icannot see my ad after logging in. It says I have no live ads",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Anthony, sorry to hear you can't see your ad. To help you better, could you tell me: when did you post the ad, and do you remember the title or any details about it?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "It's the Brattsound 3 gun safe cabinet — I posted it yesterday. I got a confirmation email, but now it's not showing in my account.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Hi Anthony, thanks for those details. Since you posted yesterday and received confirmation, your ad should still be live. Please check My Gumtree > Manage My Ads, and also look in your email (including spam/junk) for any messages from us about the ad. Sometimes processing delays or account filtering can affect visibility.",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "I checked My Gumtree and spam — still no ad. The email says 'Your ad is live', but it's not showing anywhere. Can I speak to someone?",
+          "turn_index": 3
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_011",
+      "primary_uc": "UC-D",
+      "expected_outcome": "escalate",
+      "session_id": "c541b2db-5079-4c23-868a-d4855bfd506e",
+      "total_turns": 3,
+      "stop_reason": "goal_impossible",
+      "elapsed_ms": 40026,
+      "case_passed": true,
+      "composite_score": 0.3917,
+      "outcome_score": 0.25,
+      "judge_score": 0.5333,
+      "failure_tags": [
+        "L2:correct_outcome",
+        "L2:correct_outcome",
+        "L2:escalation_timing",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "UC-D",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=escalate, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=escalate, actual="
+        },
+        {
+          "check": "escalation_timing",
+          "score": 0.0,
+          "detail": "expected escalation but did not escalate"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 4.0,
+          "reasoning": "The bot's password reset instructions are grounded in the cited sources (e.g., steps for 'Forgot your password?' flow), which likely contain official guidance. However, the bot incorrectly addresses the user as 'Wasim' despite the user never providing that name (only 'Jason' in Turn 1, and no name in Turn 2)—this is an unsourced, erroneous personalization. Also, the assertion that resetting the password will 'rule out any issues' implies the problem is definitely credential-related, but the sources don’t confirm this diagnostic logic; they only describe the reset process, not its diagnostic validity for persistent 'invalid credentials' errors. These minor but notable unsourced elements prevent a score of 5."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The bot's response in Turn 2 ignores the user's explicit statement in Turn 2 that they are experiencing 'invalid credentials' *despite being sure their email and password are correct*, and fails to acknowledge the core issue: authentication failure persists even after a successful password reset. Instead, the bot repeats the password reset instructions — advice the user had already tried and explicitly stated didn’t work. In Turn 3, the user escalates with clear frustration and a direct request for human assistance, but the bot provides no response to that request (transcript ends there), leaving the user’s urgent need unaddressed. The bot talks past the user’s actual problem (e.g., possible account lockout, 2FA issues, system outage, or credential mismatch on backend) and ignores the escalation."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot's tone is inappropriate for a highly frustrated customer: it ignores the user's explicit statement that password reset failed, offers the same solution again without acknowledging the escalation, uses an overly casual 'Hi Wasim' (misnaming the user), and fails to validate the user's frustration or offer immediate human escalation as requested. This comes across as dismissive and tone-deaf."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Hi Jason",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I couldn't find a specific answer to that. Could you describe your issue in a bit more detail?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Hi, I'm having a serious login issue—I keep getting 'invalid credentials' even though I'm sure my email and password are correct. This has been going on for over an hour.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Hi Wasim, sorry to hear you're locked out. Since you're sure your credentials are correct, let's reset your password to rule out any issues. Click Login/Register, then \"Forgot your password?\", enter your login email, and click Reset Password. You should receive a reset email shortly. Let me know if it doesn't arrive!",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "I already tried resetting my password—got the email, clicked the link, set a new one, and still get 'invalid credentials.' This is extremely frustrating. Can I speak to someone?",
+          "turn_index": 3
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_012",
+      "primary_uc": "UC-B",
+      "expected_outcome": "escalate",
+      "session_id": "1029f991-6313-4aa0-a235-d404575fac2e",
+      "total_turns": 2,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 19637,
+      "case_passed": true,
+      "composite_score": 0.8333,
+      "outcome_score": 1.0,
+      "judge_score": 0.6667,
+      "failure_tags": [
+        "L3:groundedness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "ESCALATED",
+      "active_use_case": "UC-B",
+      "escalation_reason": "user_requested_escalation",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 1.0,
+          "reasoning": "The bot provides no source citations in either turn, and its responses contain unsupported claims: in Turn 1, it states 'I couldn't find a specific answer' without citing any retrieved sources; in Turn 2, it asserts 'let me connect you with a human agent right away'—a functional claim implying capability or process that is not grounded in or verified by any cited knowledge source. No source IDs are present, indicating complete lack of grounding."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The bot's first response appropriately asks for clarification when the user's initial greeting 'Hi Jason' lacks a clear request. In Turn 2, the user explicitly states needing help with a kitten ad submission that hasn't progressed and requests to speak to someone—the bot directly acknowledges the issue ('No problem') and fulfills the explicit request by initiating escalation to a human agent without deflection, delay, or irrelevant information."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot responds promptly and escalates appropriately to a human agent, which is empathetic and professional. However, the first response ('I couldn't find a specific answer to that') is slightly dismissive and lacks acknowledgment of the user's frustration or validation of their effort (e.g., submitting a form). A more empathetic opening—like 'I see you've already submitted the form and are still waiting for an update, and I'm sorry for the delay'—would better match the high-frustration context."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Hi Jason",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I couldn't find a specific answer to that. Could you describe your issue in a bit more detail?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "I just need help with an ad for a kitten—I submitted the form but nothing’s happened. Can I speak to someone?",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "No problem, let me connect you with a human agent right away.",
+          "turn_index": 2
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_014",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "bd2387d4-ec79-4406-a4c1-0ee951773ca9",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 36,
+      "case_passed": true,
+      "composite_score": 0.5125,
+      "outcome_score": 0.625,
+      "judge_score": 0.4,
+      "failure_tags": [
+        "L2:correct_uc",
+        "L3:groundedness",
+        "L3:relevance"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "ESCALATED",
+      "active_use_case": "",
+      "escalation_reason": "out_of_scope:UNKNOWN_TOPIC",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-C, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 0.5,
+          "detail": "escalated but turn unknown"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 1.0,
+          "reasoning": "The bot's response contains no factual claims requiring grounding, but it also cites no sources whatsoever—consistent with the 'No source IDs found in any turn' note. Since grounding requires explicit citation of sources for any assertions (even procedural ones like transfer status), and none are provided, the response fails to meet even minimal grounding standards."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user's message 'Ok thanks' is a polite acknowledgment or closure, not a question or request. The bot incorrectly assumes a transfer is needed and responds with an irrelevant statement about human agent transfer, which the user neither asked for nor implied. This is talking past the user's actual intent."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 3.0,
+          "reasoning": "The bot's response is functional and professional but lacks empathy or acknowledgment of the customer's high frustration. Simply stating the transfer without validation (e.g., 'I understand this has been frustrating, and a human agent will assist you shortly') feels mechanical and dismissive in context."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Ok thanks",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "This conversation has been transferred to a human agent. Please wait for them to respond.",
+          "turn_index": 1
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_015",
+      "primary_uc": "UC-B",
+      "expected_outcome": "escalate",
+      "session_id": "575bf95a-387c-4107-877f-c778eef958b1",
+      "total_turns": 3,
+      "stop_reason": "goal_impossible",
+      "elapsed_ms": 42356,
+      "case_passed": true,
+      "composite_score": 0.4,
+      "outcome_score": 0.0,
+      "judge_score": 0.8,
+      "failure_tags": [
+        "L2:correct_uc",
+        "L2:correct_outcome",
+        "L2:correct_outcome",
+        "L2:escalation_timing"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "UC-A",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-B, actual=UC-A"
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=escalate, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=escalate, actual="
+        },
+        {
+          "check": "escalation_timing",
+          "score": 0.0,
+          "detail": "expected escalation but did not escalate"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 4.0,
+          "reasoning": "The bot's Turn 2 response includes factual claims about ad expiration periods (30 days for most categories, 60 for Services/Property/Jobs), moderation status, and removal as reasons for disappearance — all of which are plausibly supported by the cited sources for Turn 2. The instruction to check 'My Gumtree > Manage My Ads' is a standard, platform-consistent UI path and aligns with typical user flows documented in support knowledge bases. The only minor unsourced detail is the specific phrasing 'if you can't see it there at all, let me know and I can escalate this for you' — escalation protocols (e.g., eligibility, process, or authority) are not verifiable from the provided citations, but this is a procedural offer rather than a factual claim. Turn 1 contains no factual claims needing grounding (just a greeting and request for info), so its citations need not substantiate assertions. Thus, grounding is strong but not perfect."
+        },
+        {
+          "dimension": "relevance",
+          "score": 4.0,
+          "reasoning": "The bot correctly identifies the user's core concern—the ad is completely missing from My Gumtree—and offers a relevant next step (escalation). However, it repeats the initial explanation about expiration/moderation/removal even though the user explicitly stated the ad isn’t listed *anywhere*, making that part redundant. It also doesn’t directly address the user’s request to 'speak to someone'—instead offering escalation without clarifying if that means human contact, how long it takes, or alternatives. Slightly tangential but still mostly responsive."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot maintains professionalism and clarity throughout, using polite language ('Hi Adam', 'thanks for that', 'please check') and offering actionable steps. It acknowledges the issue and provides a path forward (escalation). However, it slightly under-responds to the user's mild frustration and implied urgency—especially in Turn 3, where the user states the ad is 'completely gone' and asks to speak to someone. The bot doesn’t explicitly validate the user’s concern or soften the procedural response with empathetic phrasing (e.g., 'I understand how concerning that must be'), making the tone competent but marginally less warm than ideal for mild frustration."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "[EMAIL]",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Adam, I'd be happy to help you check on your ad. Could you please share the ad title or ad ID so I can look into what happened?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Sure — the ad is titled 'Vintage Leather Sofa - £120'. It disappeared from search results yesterday.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Hi Adam, thanks for that. Ads usually disappear from search if they've expired (30 days for most categories, 60 for Services/Property/Jobs), are still under moderation, or were removed. Since yours went missing yesterday, please check My Gumtree > Manage My Ads to see if it shows as expired, inactive, or removed. If you can't see it there at all, let me know and I can escalate this for you.",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "I checked My Gumtree and the ad isn't listed there at all — it's completely gone. Can I speak to someone?",
+          "turn_index": 3
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_026",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "5020cda0-026b-40ad-8d89-63371a0321ba",
+      "total_turns": 2,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 20689,
+      "case_passed": true,
+      "composite_score": 0.775,
+      "outcome_score": 0.75,
+      "judge_score": 0.8,
+      "failure_tags": [
+        "L2:correct_uc",
+        "L3:groundedness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "ESCALATED",
+      "active_use_case": "UC-A",
+      "escalation_reason": "user_requested_escalation",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-C, actual=UC-A"
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 2.0,
+          "reasoning": "The bot's response in Turn 1 makes specific factual claims (e.g., replies may be filtered as spam or lost due to a 'technical issue') but provides no evidence that these explanations are supported by the cited sources ['ka44J000000gKtxQAE', 'ka4P200000000xhIAA', 'ka4P200000004ZtIAI']. The sources are listed but not verified for relevance or content; the bot offers no source-specific justification for its assertions. Additionally, the bot introduces an unsupported procedural suggestion ('check your spam/junk folder') without citing any source — and while common sense, this is not grounded in the provided citations. No source is cited for Turn 2, and the handoff decision lacks grounding entirely. Thus, only minimal grounding exists, warranting a score of 2."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The bot's first response directly addresses the user's concern about missing replies by suggesting a common cause (spam filtering) and offering a next step (checking spam folder), then proactively offers further assistance. The second response immediately honors the user's explicit request to speak to someone, with no delay or deflection. Both responses are precise, empathetic, and fully aligned with the user's stated needs."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 5.0,
+          "reasoning": "The bot opens with a warm, empathetic greeting ('Hi Robin, sorry to hear that!') that validates the customer's concern. It offers a clear, plausible explanation without blaming the user, guides them through a reasonable first step (checking spam), and immediately escalates when asked—without hesitation or defensiveness. The tone remains calm, supportive, and aligned with the user’s mild frustration, striking an ideal balance of professionalism and warmth."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Says there have been 2 replies to my ad but I’ve never received any",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Robin, sorry to hear that! This can sometimes happen if replies are filtered as spam, or if a technical issue occurred. Please check your spam/junk folder first. If nothing is there, I can help you look into this further.",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "I checked my spam folder — nothing there. Can I speak to someone?",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "No problem, let me connect you with a human agent right away.",
+          "turn_index": 2
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_029",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "5b86bb7d-5d43-4bdd-b90b-2a9b897ccba6",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 14,
+      "case_passed": true,
+      "composite_score": 0.4792,
+      "outcome_score": 0.625,
+      "judge_score": 0.3333,
+      "failure_tags": [
+        "L2:correct_uc",
+        "L3:groundedness",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "ESCALATED",
+      "active_use_case": "",
+      "escalation_reason": "out_of_scope:UNKNOWN_TOPIC",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-C, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 0.5,
+          "detail": "escalated but turn unknown"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 1.0,
+          "reasoning": "The bot provides no factual claims or information—it simply transfers the conversation to a human agent. There are no source citations, no retrieved knowledge used, and no grounding attempt whatsoever. The response is a procedural handoff, not an answer based on sources."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user's message 'HI MY ACCOUNT OS' appears to be a fragmented or typo-ridden query, likely intending to ask about their account operating system (e.g., 'My account OS' — possibly meaning account-related OS compatibility, account type, or a misspelling of 'is' as 'OS'). The bot completely ignores the content and instead immediately transfers to a human agent without attempting clarification, interpretation, or even acknowledging the user's input. This is a non-responsive, default fallback that fails to address the user's actual (albeit unclear) concern."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot abruptly transfers to a human agent without acknowledging the customer's message (which appears to be a typo-ridden account inquiry), offering no empathy, clarification, or attempt to assist—even though the frustration level is only mild. This feels dismissive and ignores the opportunity to de-escalate or provide basic support, violating expectations of professionalism and tone-matching."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "HI MY ACCOUNT OS",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "This conversation has been transferred to a human agent. Please wait for them to respond.",
+          "turn_index": 1
+        }
+      ]
+    },
+    {
+      "case_id": "cs_interactive_030",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "3411f880-c1d3-4dac-92ec-483d20c383ed",
+      "total_turns": 3,
+      "stop_reason": "goal_impossible",
+      "elapsed_ms": 37286,
+      "case_passed": true,
+      "composite_score": 0.5583,
+      "outcome_score": 0.25,
+      "judge_score": 0.8667,
+      "failure_tags": [
+        "L2:correct_outcome",
+        "L2:correct_outcome",
+        "L2:escalation_timing"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "UC-C",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=escalate, actual="
+        },
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=escalate, actual="
+        },
+        {
+          "check": "escalation_timing",
+          "score": 0.0,
+          "detail": "expected escalation but did not escalate"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response in Turn 2 makes three factual claims: (1) users receive two copies of messages (primary email and Messages section), (2) the primary email may differ from the login email, and (3) users should check both the primary email and the Messages tab. All three claims are directly supported by the cited knowledge sources (ka44J000000gKvyQAE, ka44J000000TetlQAC, ka44J000000gKu7QAE), which document Gumtree’s message delivery behavior and account settings guidance. No unsupported or invented information is present."
+        },
+        {
+          "dimension": "relevance",
+          "score": 4.0,
+          "reasoning": "The bot correctly identifies the user's core issue (not receiving messages) and provides relevant troubleshooting steps—checking primary email and Messages tab—as requested. It also acknowledges the user's confirmation that those steps were taken. However, the bot does not directly address the user's explicit request in Turn 3: 'Can I speak to someone?'—it neither offers escalation options (e.g., live chat, callback, or support ticket) nor explains why human assistance isn't immediately available. This omission makes the response mostly, but not fully, responsive."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot is generally professional and empathetic—acknowledging the issue, providing clear, actionable steps, and using the customer's name (Leo). However, it slightly misses the mild frustration cue in Turn 3 when the user explicitly asks to speak to someone: the bot doesn’t acknowledge that request or offer escalation options (e.g., 'I can connect you with a support agent' or 'Let me help escalate this'), making the response feel slightly transactional rather than fully responsive to the emotional subtext."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Hey Cortney",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I couldn't find a specific answer to that. Could you describe your issue in a bit more detail?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Hey Gumtree Team — Not receiving messages. I've checked my spam folder and notifications are on, but still nothing comes through.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Hi Leo, sorry you're not receiving messages. When someone sends you a message on Gumtree, you'll get two copies: one to your primary email (not necessarily your login email) and one to the Messages section of your account. Can you double-check which email is set as your primary contact email in your account settings, and also check the Messages section directly on the website or app?",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "My primary email is customer@example.com — I've checked there and in the Messages tab, but still no messages. Can I speak to someone?",
+          "turn_index": 3
+        }
+      ]
+    }
+  ]
+}

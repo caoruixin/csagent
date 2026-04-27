@@ -39,7 +39,8 @@ public class KnowledgeSearchController {
         try {
             KnowledgeSearchResult result = knowledgeSearchService.search(
                     request.getQuery(),
-                    request.getUcTags()
+                    request.getUcTags(),
+                    null, 0
             );
             return ResponseEntity.ok(result);
         } catch (Exception e) {

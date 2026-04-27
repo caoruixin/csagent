@@ -675,6 +675,28 @@ composite = 0.0 if not case_passed
 
 **Gate rule**: A case is considered **successful** if `case_passed = true` AND `composite ≥ 0.7`. LLM Judge scores alone cannot determine pass/fail — they only contribute to composite after L1 passes.
 
+#### Scoring Bug Fixes (v9 — discovered via cs_interactive_001 analysis)
+
+**B1-B5: Report key mismatches** (display only, no scoring impact)
+
+The `executor._build_case_result()` serializes keys as `primary_uc`, `active_use_case`, `containment_outcome`, `session_id`, and L1/L2 check names as `"check"`. But `html_report._render_case()` reads them as `expected_uc`, `actual_uc`, `actual_outcome`, `source_session_id`, and `"check_name"` respectively. Fix: align the HTML report reads to match executor writes.
+
+**B6: Outcome check alias deduplication** (affects scoring)
+
+`outcome_checks.py` defines aliases: `answer_accuracy → correct_outcome`, `escalation_triggered → escalation_timing`, `resolution_achieved → correct_outcome`. When a CaseSpec configures both a canonical check and its alias (e.g., `correct_outcome` + `answer_accuracy`), the same scoring function executes twice, inflating the denominator in `mean(L2 scores)`. Fix: `run_checks()` must deduplicate by the underlying function — track which canonical check has already executed, skip aliases that would re-execute it.
+
+Example impact on `cs_interactive_001`: L2 inflated from 0.50 (3 unique checks) to 0.625 (4 checks with duplicate), shifting composite from 0.42 to 0.48.
+
+**B7: Groundedness judge prompt for escalation scenarios** (affects scoring)
+
+The groundedness prompt evaluates whether factual claims are backed by sources. For pure escalation responses (e.g., "This conversation has been transferred to a human agent"), there are zero factual claims requiring grounding. The current prompt scores this as 1/5 ("no grounding at all"). Fix: add a preamble to the groundedness prompt:
+
+```
+IMPORTANT: If the bot's response is a procedural/escalation message with no factual claims 
+about the user's issue (e.g., "transferring you to a human agent"), score 5 — there are no 
+claims that require grounding. Only score low when the bot makes factual claims without sources.
+```
+
 ---
 
 ## 6. Metrics Framework

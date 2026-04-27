@@ -15,8 +15,8 @@ spring:
 llm:
   kimi:
     api-key: ${KIMI_API_KEY:}
-    base-url: ${KIMI_BASE_URL:https://api.moonshot.cn/v1}
-    model: ${KIMI_MODEL:moonshot-v1-8k}
+    base-url: ${KIMI_BASE_URL:https://api.moonshot.ai/v1}
+    model: ${KIMI_MODEL:kimi-k2.6}
   dashscope:
     api-key: ${DASHSCOPE_API_KEY:}
     base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}

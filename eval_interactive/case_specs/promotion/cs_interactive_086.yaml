@@ -1,0 +1,63 @@
+case_id: cs_interactive_086
+source_session_id: 570Q5000008fp8PIAQ
+source_dataset: badcase
+form_context:
+  first_name: Vikki
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Why can’t I put my telephone number on my ad
+persona:
+  goal_summary: 'Get help with: Why can’t I put my telephone number on my ad. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - You have taken away the call option from adverts not good
+  - I will be deleting my account then I prefer call option as a blind person
+  - Your not thinking of disabled people so I won’t be using gumtree no more your not giving us the freedom to use it we’re
+    being forced into email and I can’t use it no more
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-E
+  secondary_ucs:
+  - UC-D
+  - UC-B
+  - UC-J
+  should_escalate: true
+  escalation_trigger: user_distress
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

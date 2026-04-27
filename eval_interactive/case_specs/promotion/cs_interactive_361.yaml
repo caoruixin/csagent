@@ -1,0 +1,60 @@
+case_id: cs_interactive_361
+source_session_id: 570Q5000008ZmLKIA0
+source_dataset: golden
+form_context:
+  first_name: Carol
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Is gumtree not free to post anymore ?
+persona:
+  goal_summary: 'Get help with: Is gumtree not free to post anymore ?. Expects bot to resolve the issue directly.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Is gumtree not free to post for sale anymore?
+  - I know if High value item you can pay but for lower price items
+  - It's a mobile phone but low sale price so not want to pay to post ?
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-F
+  secondary_ucs:
+  - UC-B
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

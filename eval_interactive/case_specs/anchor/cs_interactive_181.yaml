@@ -1,0 +1,69 @@
+case_id: cs_interactive_181
+source_session_id: 570Q5000008iJLhIAM
+source_dataset: golden
+form_context:
+  first_name: Andrew
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Enquiry
+persona:
+  goal_summary: 'Get help with: Enquiry. Expects bot to resolve the issue directly.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - An change removing phone numbers from the platform has been implemented. However, other articles state that one should
+    not divulge address telephone number or email. I had a potential buyer interested in an add. Who requested to collect
+    on Sunday. While I haven't given the address as yet. I replied to say. Come Sunday, if still available you are more than
+    welcome to collect. My question is. If the buyer messages again in Sunday. If I cannot divulge a telephone number, email
+    or address, how is buyer and seller meant to complete?
+  - And would gumtree block an address given for collection.
+  - Yes that is what I intended to do. Give address via a message on this platform. But when you read that you should not
+    give a telephone number or an address or an email. I had to ask the question. Because it made me think would gumtree block
+    an address sent in private message between buyer and seller. Rendering gumtree unusable. But than ever so much for your
+    time and answers.
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  - UC-B
+  - UC-F
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

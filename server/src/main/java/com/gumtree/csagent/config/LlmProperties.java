@@ -13,8 +13,8 @@ public class LlmProperties {
     @Data
     public static class KimiProperties {
         private String apiKey;
-        private String baseUrl = "https://api.moonshot.cn/v1";
-        private String model = "moonshot-v1-8k";
+        private String baseUrl = "https://api.moonshot.ai/v1";
+        private String model = "kimi-k2.6";
     }
 
     @Data

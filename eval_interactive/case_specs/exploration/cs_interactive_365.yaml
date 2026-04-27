@@ -1,0 +1,66 @@
+case_id: cs_interactive_365
+source_session_id: 570Q5000008iF1xIAE
+source_dataset: badcase
+form_context:
+  first_name: Derek
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Will no longer use your app as telephone number taken away this isn't helping buyers or sellers
+persona:
+  goal_summary: 'Get help with: Will no longer use your app as telephone number taken away this isn''t helping buyers or sellers.
+    Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Will no longer use your platform I'll move to Facebook tiktok where they allow you a telephone number this is a disaster
+    for buying and selling
+  - Nothing to do with protecting customer lies you get more spam on emails people are struggling as email no good
+  - ABSOLUTE RUNBISH YOUR GOING TO LOSE A LOT IF USERS
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-H
+  - UC-K
+  - UC-C
+  should_escalate: true
+  escalation_trigger: trust_safety_required
+  risk_level: critical
+  expected_tool_sequence:
+  - fixed_script_library
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

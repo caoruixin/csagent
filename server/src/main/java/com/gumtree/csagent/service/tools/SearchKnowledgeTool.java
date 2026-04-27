@@ -49,7 +49,9 @@ public class SearchKnowledgeTool implements Tool {
             }
         }
 
-        KnowledgeSearchResult result = knowledgeSearchService.search(query, ucTags);
+        KnowledgeSearchResult result = knowledgeSearchService.search(query, ucTags,
+                session.getSessionId(),
+                session.getTotalBotTurns() != null ? session.getTotalBotTurns() : 0);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("faq_miss", result.isFaqMiss());

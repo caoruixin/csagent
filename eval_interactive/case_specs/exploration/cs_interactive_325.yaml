@@ -1,0 +1,65 @@
+case_id: cs_interactive_325
+source_session_id: 570Q5000008yucDIAQ
+source_dataset: escalation
+form_context:
+  first_name: S
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Delete account in full
+persona:
+  goal_summary: 'Get help with: Delete account in full. Expects bot to escalate to human agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hi, I’m looking to ensure my full account is deleted . I’m having issues with the process and need it actioned asap please
+    .
+  - My email is [EMAIL]
+  - I don’t want to delete or remove my email. I want to close my gumtree account. Fully deleted
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-G
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  escalation_trigger: user_requested
+  risk_level: high
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

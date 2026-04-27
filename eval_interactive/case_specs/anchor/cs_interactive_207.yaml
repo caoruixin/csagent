@@ -1,0 +1,65 @@
+case_id: cs_interactive_207
+source_session_id: 570Q5000008XMjVIAW
+source_dataset: badcase
+form_context:
+  first_name: Laura
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: My ad has disappeared after paying for the ad to go live
+persona:
+  goal_summary: 'Get help with: My ad has disappeared after paying for the ad to go live. Expects bot to escalate to human
+    agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - The ad which disappeared is for a budgie and cage, only posted 2 days ago. Which I paid for
+  - '[EMAIL] or [EMAIL]. I have never been asked to login to the app for so long Im not even sure which email is connected
+    to gumtree. I managed to change password and my ad is gone'
+  - I think it is linked to gmail
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  - UC-D
+  should_escalate: true
+  escalation_trigger: clarification_budget_exhausted
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - refund approval, legal liability, or amount decision
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

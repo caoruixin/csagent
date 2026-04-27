@@ -1,0 +1,66 @@
+case_id: cs_interactive_217
+source_session_id: 570Q5000008cdi5IAA
+source_dataset: drift_control
+form_context:
+  first_name: Michelle
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Hi. I used to go on gumtree daily but recently I cannot just access things in my area. Even though my area
+    is in the search bar it's coming up with things all over the country. It's also not got the day it was posted anymore.
+    Please can you help.  Thank y
+persona:
+  goal_summary: 'Get help with: Hi. I used to go on gumtree daily but recently I cannot just access things in my area. Even
+    though my area is in the search bar it''s coming up with things all over the country. It''s also not got the day it was
+    posted anymore. Please can you help.  Thank y. Expects bot to resolve the issue directly.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - '[EMAIL]'
+  - No error message. I just go on gumtree and it's on my account already
+  - I cant be bothered using it anymore as it just doesn't work
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-E
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  - UC-D
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

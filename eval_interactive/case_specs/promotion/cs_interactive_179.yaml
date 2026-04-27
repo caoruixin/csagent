@@ -1,0 +1,65 @@
+case_id: cs_interactive_179
+source_session_id: 570Q5000008xcB7IAI
+source_dataset: golden
+form_context:
+  first_name: Anna Denton
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: I have blocked seller by mistake and now can't get hold of her leah is her name
+persona:
+  goal_summary: 'Get help with: I have blocked seller by mistake and now can''t get hold of her leah is her name. Expects
+    bot to resolve the issue directly.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - Could you contact the lady or unblock her as I can't unblock her I blocked her messages by mistake. The cat is black and
+    white
+  - I blocked her yesterday morning
+  - No I've deleted it by mistake it's Chapeltown West Yorkshire 100 pounds it came on a few days ago
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

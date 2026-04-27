@@ -1,0 +1,63 @@
+case_id: cs_interactive_139
+source_session_id: 570Q5000008SajtIAC
+source_dataset: escalation
+form_context:
+  first_name: Noman
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Account issues
+persona:
+  goal_summary: 'Get help with: Account issues. Expects bot to escalate to human agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi Cortney
+  - sir i am facing issue i made a login id on gumtree and send message to landlords but did no get replies then i chat with
+    suppot he said your id is can't send messges this all happened after gumtree update
+  - now i made new login so please let me know is it glitch after update?
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  should_escalate: true
+  escalation_trigger: user_distress
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

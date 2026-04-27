@@ -1,15 +1,20 @@
 package com.gumtree.csagent.service.knowledge;
 
+import com.gumtree.csagent.config.LlmProperties;
 import com.gumtree.csagent.model.ChatMessage;
 import com.gumtree.csagent.model.LlmRequest;
 import com.gumtree.csagent.model.LlmResponse;
 import com.gumtree.csagent.service.llm.LlmClient;
+import com.gumtree.csagent.service.observability.LlmCallLogger;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,38 +41,70 @@ public class RerankService {
 
     private static final Pattern SCORE_PATTERN = Pattern.compile("[1-5]");
 
-    private final LlmClient llmClient;
+    private static final ExecutorService RERANK_EXECUTOR = Executors.newFixedThreadPool(8);
 
-    public RerankService(LlmClient llmClient) {
+    private final LlmClient llmClient;
+    private final LlmCallLogger llmCallLogger;
+    private final String modelName;
+
+    public RerankService(LlmClient llmClient, LlmCallLogger llmCallLogger,
+                         LlmProperties llmProperties) {
         this.llmClient = llmClient;
+        this.llmCallLogger = llmCallLogger;
+        this.modelName = llmProperties.getKimi().getModel();
     }
 
     /**
      * Rerank a list of candidate chunks by LLM relevance scoring.
+     * Scores all candidates in parallel using a fixed thread pool.
      *
      * @param query      the user query
      * @param candidates list of candidates with chunk text and metadata
+     * @param sessionId  session identifier for LLM call logging (may be null)
+     * @param turnIndex  turn index for LLM call logging
      * @return sorted list with scores, highest first
      */
-    public List<ScoredCandidate> rerank(String query, List<RerankCandidate> candidates) {
-        List<ScoredCandidate> scored = new ArrayList<>();
+    public List<ScoredCandidate> rerank(String query, List<RerankCandidate> candidates,
+                                         String sessionId, int turnIndex) {
+        // Submit all scoring tasks in parallel
+        List<CompletableFuture<ScoredCandidate>> futures = candidates.stream()
+                .map(candidate -> CompletableFuture.supplyAsync(
+                        () -> {
+                            double score = scoreCandidate(query, candidate.chunkText(),
+                                    sessionId, turnIndex);
+                            return new ScoredCandidate(
+                                    candidate.articleId(),
+                                    candidate.chunkId(),
+                                    candidate.chunkText(),
+                                    candidate.sectionHeading(),
+                                    candidate.cosineSimilarity(),
+                                    score
+                            );
+                        },
+                        RERANK_EXECUTOR
+                ).exceptionally(ex -> {
+                    log.warn("Rerank future failed for chunk {}: {}", candidate.chunkId(), ex.getMessage());
+                    return new ScoredCandidate(
+                            candidate.articleId(),
+                            candidate.chunkId(),
+                            candidate.chunkText(),
+                            candidate.sectionHeading(),
+                            candidate.cosineSimilarity(),
+                            2.5
+                    );
+                }))
+                .toList();
 
-        for (RerankCandidate candidate : candidates) {
-            double score = scoreCandidate(query, candidate.chunkText());
-            scored.add(new ScoredCandidate(
-                    candidate.articleId(),
-                    candidate.chunkId(),
-                    candidate.chunkText(),
-                    candidate.sectionHeading(),
-                    candidate.cosineSimilarity(),
-                    score
-            ));
-        }
+        // Wait for all futures to complete
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-        // Sort by rerank score descending
-        scored.sort(Comparator.comparingDouble(ScoredCandidate::rerankScore).reversed());
+        // Collect results
+        List<ScoredCandidate> scored = futures.stream()
+                .map(CompletableFuture::join)
+                .sorted(Comparator.comparingDouble(ScoredCandidate::rerankScore).reversed())
+                .toList();
 
-        log.debug("Reranked {} candidates for query '{}'. Top score: {}",
+        log.info("LLM [rerank] scored {} candidates for query '{}', top score: {}",
                 candidates.size(), query,
                 scored.isEmpty() ? "N/A" : scored.get(0).rerankScore());
 
@@ -77,12 +114,15 @@ public class RerankService {
     /**
      * Score a single chunk against the query using LLM.
      */
-    private double scoreCandidate(String query, String chunkText) {
+    private double scoreCandidate(String query, String chunkText,
+                                   String sessionId, int turnIndex) {
         String userMessage = String.format(
                 "User question: %s\n\nText passage: %s\n\nScore (1-5):",
                 query, chunkText
         );
 
+        long start = System.currentTimeMillis();
+        String requestSummary = query.length() > 200 ? query.substring(0, 200) : query;
         try {
             LlmRequest request = LlmRequest.builder()
                     .systemPrompt(SYSTEM_PROMPT)
@@ -97,10 +137,20 @@ public class RerankService {
                     .build();
 
             LlmResponse response = llmClient.chat(request);
+            int elapsed = (int) (System.currentTimeMillis() - start);
+
+            llmCallLogger.log(sessionId, turnIndex, "rerank", modelName,
+                    response.getPromptTokens(), response.getCompletionTokens(),
+                    elapsed, requestSummary,
+                    response.getContent() != null ? response.getContent().trim() : null);
+
             return parseScore(response.getContent());
 
         } catch (Exception e) {
+            int elapsed = (int) (System.currentTimeMillis() - start);
             log.warn("Failed to score chunk for reranking: {}", e.getMessage());
+            llmCallLogger.logFailure(sessionId, turnIndex, "rerank", modelName,
+                    elapsed, requestSummary, e.getMessage());
             // Return neutral score on failure
             return 2.5;
         }

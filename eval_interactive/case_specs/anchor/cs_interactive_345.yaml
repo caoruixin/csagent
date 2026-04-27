@@ -1,0 +1,62 @@
+case_id: cs_interactive_345
+source_session_id: 570Q5000008fzvlIAA
+source_dataset: golden
+form_context:
+  first_name: Parvin
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Need to download the app to sell
+persona:
+  goal_summary: 'Get help with: Need to download the app to sell. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi I tried to download the app for buy &sale items but I couldn’t do that when I go to App Store to download it does not
+    work it says open when I click that it goes to items actually I want to download the app and sale item please help me
+    on that
+  - Yes I am actually is easier for me to speak to someone rather then writing could you please do it that way?
+  - Thank you not to worry I am not good at on line working
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  should_escalate: true
+  escalation_trigger: user_requested
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

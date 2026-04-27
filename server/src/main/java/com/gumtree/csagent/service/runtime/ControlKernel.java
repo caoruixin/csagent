@@ -158,12 +158,10 @@ public class ControlKernel {
         long latencyMs = System.currentTimeMillis() - startTime;
         recordTurn(session, userMessage, phaseResult, phaseBefore, phaseAfter, latencyMs);
 
-        // Step 10: Emit events (escalation events only — CLOSE events
-        // are already emitted by PhaseEvaluator.evaluateClose())
+        // Step 10: Emit escalation event (OUTCOME_RECORDED is emitted by SessionManager.recordOutcome)
         if (phaseResult.shouldEscalate()) {
             eventEmitter.emitEscalationRequested(session.getSessionId(), session.getTotalBotTurns(),
                     phaseResult.escalationReason());
-            eventEmitter.emitOutcomeRecorded(session.getSessionId(), "ESCALATED", session.getActiveUseCase());
         }
 
         boolean shouldEndChat = "CLOSE".equals(phaseAfter) || "ESCALATE".equals(phaseAfter);

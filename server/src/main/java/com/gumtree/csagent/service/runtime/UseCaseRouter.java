@@ -89,7 +89,8 @@ public class UseCaseRouter {
                 .collect(Collectors.joining("\n"));
 
         try {
-            LlmResponse response = llmInvocation.invokeRouting(ucCandidatesText, topicSubject, description);
+            LlmResponse response = llmInvocation.invokeRouting(ucCandidatesText, topicSubject, description,
+                    session.getSessionId());
 
             if ("error_fallback".equals(response.getFinishReason())) {
                 // LLM failed — if we have a single candidate, use it; otherwise escalate

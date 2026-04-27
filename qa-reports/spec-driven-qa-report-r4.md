@@ -21,7 +21,7 @@ Caused by: java.net.ConnectException: Connection refused
 
 **Network reachability test results**:
 - DashScope API (`https://dashscope.aliyuncs.com/...`): HTTP 400 (reachable but auth required)
-- Kimi API (`https://api.moonshot.cn/...`): HTTP 404 (reachable but wrong endpoint without path)
+- Kimi API (`https://api.moonshot.ai/...`): HTTP 404 (reachable but wrong endpoint without path)
 - `DASHSCOPE_API_KEY`: NOT SET in environment
 - `KIMI_API_KEY`: NOT SET in environment
 

@@ -1,8 +1,10 @@
 package com.gumtree.csagent.service.runtime;
 
+import com.gumtree.csagent.config.LlmProperties;
 import com.gumtree.csagent.model.LlmRequest;
 import com.gumtree.csagent.model.LlmResponse;
 import com.gumtree.csagent.service.llm.LlmClient;
+import com.gumtree.csagent.service.observability.LlmCallLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,11 +26,16 @@ class LlmInvocationServiceTest {
     @Mock
     private LlmClient llmClient;
 
+    @Mock
+    private LlmCallLogger llmCallLogger;
+
     private LlmInvocationService service;
 
     @BeforeEach
     void setUp() {
-        service = new LlmInvocationService(llmClient);
+        LlmProperties llmProperties = new LlmProperties();
+        llmProperties.getKimi().setModel("test-model");
+        service = new LlmInvocationService(llmClient, llmCallLogger, llmProperties);
         // Set prompt templates via reflection (normally loaded by @PostConstruct)
         ReflectionTestUtils.setField(service, "systemPromptTemplate", "You are a test system prompt.");
         ReflectionTestUtils.setField(service, "routingPromptTemplate",
@@ -47,7 +54,7 @@ class LlmInvocationServiceTest {
 
         when(llmClient.chat(any(LlmRequest.class))).thenReturn(expected);
 
-        LlmResponse result = service.invokeChat("{}", "hello");
+        LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
 
         assertNotNull(result);
         assertEquals("stop", result.getFinishReason());
@@ -60,7 +67,7 @@ class LlmInvocationServiceTest {
         when(llmClient.chat(any(LlmRequest.class)))
                 .thenThrow(new RuntimeException("Connection refused"));
 
-        LlmResponse result = service.invokeChat("{}", "hello");
+        LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
 
         assertNotNull(result, "Should return safe escalation, not null");
         assertEquals("error_fallback", result.getFinishReason());
@@ -76,7 +83,7 @@ class LlmInvocationServiceTest {
                 .thenThrow(new RuntimeException("LLM API call failed",
                         new java.net.ConnectException("Connection refused")));
 
-        LlmResponse result = service.invokeChat("{}", "hello");
+        LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
 
         assertNotNull(result);
         assertEquals("error_fallback", result.getFinishReason());
@@ -88,7 +95,7 @@ class LlmInvocationServiceTest {
         when(llmClient.chat(any(LlmRequest.class)))
                 .thenThrow(new NullPointerException("unexpected null"));
 
-        LlmResponse result = service.invokeChat("{}", "hello");
+        LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
 
         assertNotNull(result);
         assertEquals("error_fallback", result.getFinishReason());
@@ -104,7 +111,7 @@ class LlmInvocationServiceTest {
 
         when(llmClient.chat(any(LlmRequest.class))).thenReturn(expected);
 
-        LlmResponse result = service.invokeRouting("UC-A: Test", "Ad Support", "my ad is broken");
+        LlmResponse result = service.invokeRouting("UC-A: Test", "Ad Support", "my ad is broken", "sess-1");
 
         assertNotNull(result);
         assertEquals("stop", result.getFinishReason());
@@ -116,7 +123,7 @@ class LlmInvocationServiceTest {
         when(llmClient.chat(any(LlmRequest.class)))
                 .thenThrow(new RuntimeException("Connection refused"));
 
-        LlmResponse result = service.invokeRouting("UC-A: Test", "Ad Support", "broken ad");
+        LlmResponse result = service.invokeRouting("UC-A: Test", "Ad Support", "broken ad", "sess-1");
 
         assertNotNull(result);
         assertEquals("error_fallback", result.getFinishReason());
@@ -132,7 +139,7 @@ class LlmInvocationServiceTest {
         when(llmClient.chat(any(LlmRequest.class))).thenReturn(expected);
 
         // Should not throw NPE when topicSubject is null
-        LlmResponse result = service.invokeRouting("UC-A: Test", null, null);
+        LlmResponse result = service.invokeRouting("UC-A: Test", null, null, "sess-1");
         assertNotNull(result);
     }
 
@@ -141,7 +148,7 @@ class LlmInvocationServiceTest {
         when(llmClient.chat(any(LlmRequest.class)))
                 .thenThrow(new RuntimeException("timeout"));
 
-        LlmResponse result = service.invokeChat("{}", "hello");
+        LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
 
         // Verify the safe escalation content is valid JSON
         assertDoesNotThrow(() -> {
@@ -154,7 +161,7 @@ class LlmInvocationServiceTest {
         when(llmClient.chat(any(LlmRequest.class)))
                 .thenThrow(new RuntimeException("error"));
 
-        LlmResponse result = service.invokeChat("{}", "hello");
+        LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
 
         assertEquals(0, result.getLatencyMs(),
                 "Safe escalation should have 0 latency (no real LLM call)");

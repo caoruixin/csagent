@@ -1,16 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.gumtree.csagent.service.tools.CreateCaseControlledToolQueueMappingTest
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.031 s <<< FAILURE! -- in com.gumtree.csagent.service.tools.CreateCaseControlledToolQueueMappingTest
-com.gumtree.csagent.service.tools.CreateCaseControlledToolQueueMappingTest.execute_ucJ_queueName_shouldNotBeCommercialQueue -- Time elapsed: 0.027 s <<< FAILURE!
-org.opentest4j.AssertionFailedError: UC-J (Trust & Safety Report) should NOT route to Commercial_Queue. Expected a safety-related queue name. ==> expected: not equal but was: <Commercial_Queue>
-	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
-	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
-	at org.junit.jupiter.api.AssertNotEquals.failEqual(AssertNotEquals.java:277)
-	at org.junit.jupiter.api.AssertNotEquals.assertNotEquals(AssertNotEquals.java:263)
-	at org.junit.jupiter.api.Assertions.assertNotEquals(Assertions.java:2832)
-	at com.gumtree.csagent.service.tools.CreateCaseControlledToolQueueMappingTest.execute_ucJ_queueName_shouldNotBeCommercialQueue(CreateCaseControlledToolQueueMappingTest.java:66)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
-
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in com.gumtree.csagent.service.tools.CreateCaseControlledToolQueueMappingTest

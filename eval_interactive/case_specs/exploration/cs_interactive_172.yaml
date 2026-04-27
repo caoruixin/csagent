@@ -1,0 +1,67 @@
+case_id: cs_interactive_172
+source_session_id: 570Q5000008k3uMIAQ
+source_dataset: badcase
+form_context:
+  first_name: Jordan
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Review
+persona:
+  goal_summary: 'Get help with: Review. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hello, I have just seen the 1 star review I have on my profile. This review came from a scammer. He advertised an item
+    and I he sent bank details that did not match his name and had no images of the item, all were taken from online and I
+    reported the matter to Gmtree but he has left a 1 star review on my profile which has negatively impacted my ability to
+    sell items
+  - Ok I’ll delete my account then and go else where if that’s how gumtree treats genuine folk reporting scammers and fraudsters
+  - Do you have an email address for an official complaint form to be filled out
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-G
+  secondary_ucs:
+  - UC-J
+  - UC-H
+  - UC-K
+  should_escalate: true
+  escalation_trigger: gdpr_intake
+  risk_level: high
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness
