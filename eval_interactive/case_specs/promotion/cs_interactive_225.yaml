@@ -1,0 +1,67 @@
+case_id: cs_interactive_225
+source_session_id: 570Q5000008noezIAA
+source_dataset: drift_control
+form_context:
+  first_name: paula
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: couldn't respond to advert above. gumtree didn't like my email address that i have had for ever.  so sent a
+    request to change password. didn;t receive notification to update passsword. what is going on
+persona:
+  goal_summary: 'Get help with: couldn''t respond to advert above. gumtree didn''t like my email address that i have had for
+    ever.  so sent a request to change password. didn;t receive notification to update passsword. what is going on. Expects
+    bot to resolve the issue directly.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - '[EMAIL] cant remember last time i logged in, maybe 9 months ago when i bought a car seat'
+  - correct
+  - wrong, i managed to update password on the actual gumtree log in page, but all that came up was an infomation sign above
+    email address suggesting it was wrong
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-C
+  - UC-J
+  - UC-K
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

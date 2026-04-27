@@ -49,6 +49,8 @@ public class DashScopeEmbeddingClient implements EmbeddingClient {
         LlmProperties.DashScopeProperties config = llmProperties.getDashscope();
         String url = config.getBaseUrl() + "/embeddings";
 
+        log.info("Embedding request: provider=DashScope, model={}, texts={}", config.getEmbeddingModel(), texts.size());
+
         try {
             ObjectNode body = objectMapper.createObjectNode();
             body.put("model", config.getEmbeddingModel());

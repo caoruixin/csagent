@@ -24,6 +24,9 @@ import java.util.*;
 @Service
 public class SessionManager {
 
+    /** INTAKE use cases that use fixed scripts -- auto-search must NOT be triggered for these. */
+    private static final Set<String> INTAKE_UCS = Set.of("UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
+
     private final BotSessionRepository sessionRepository;
     private final BotEventRepository eventRepository;
     private final SessionOutcomeRepository outcomeRepository;
@@ -122,7 +125,36 @@ public class SessionManager {
                 if (session.getActiveUseCase() != null) {
                     session.setCurrentPhase("RESOLVE");
                 }
-                greeting = buildGreeting(firstName, topicSubject, session.getActiveUseCase());
+
+                // Auto-search: for FAQ UCs with a substantive description,
+                // run the ControlKernel to produce a grounded answer immediately
+                boolean isFaqUc = session.getActiveUseCase() != null
+                        && !INTAKE_UCS.contains(session.getActiveUseCase());
+                boolean hasSubstantiveDescription = description != null && description.length() > 10;
+
+                if (isFaqUc && hasSubstantiveDescription) {
+                    try {
+                        // ControlKernel records turns to DB, so session must be persisted first
+                        session.setUpdatedAt(OffsetDateTime.now());
+                        sessionRepository.save(session);
+
+                        ControlKernel.KernelResult kernelResult =
+                                controlKernel.processMessage(session, description);
+
+                        String name = (firstName != null && !firstName.isBlank()) ? firstName : "there";
+                        greeting = "Hi " + name + "! " + kernelResult.responseText();
+
+                        if (kernelResult.shouldEndChat()) {
+                            shouldEndChat = true;
+                        }
+                    } catch (Exception e) {
+                        log.warn("Session {}: auto-search failed, falling back to static greeting: {}",
+                                session.getSessionId(), e.getMessage(), e);
+                        greeting = buildGreeting(firstName, topicSubject, session.getActiveUseCase());
+                    }
+                } else {
+                    greeting = buildGreeting(firstName, topicSubject, session.getActiveUseCase());
+                }
             }
             case OUT_OF_SCOPE -> {
                 // Handover-only or out of scope — immediately escalate

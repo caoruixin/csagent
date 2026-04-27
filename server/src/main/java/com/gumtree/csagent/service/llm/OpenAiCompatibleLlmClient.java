@@ -38,6 +38,9 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         factory.setReadTimeout(30000);      // 30 seconds read timeout (LLM can be slow)
         this.restTemplate = new RestTemplate(factory);
         this.objectMapper = objectMapper;
+        log.info("LLM config loaded: kimi=[model={}, baseUrl={}], dashscope=[chatModel={}, baseUrl={}]",
+                llmProperties.getKimi().getModel(), llmProperties.getKimi().getBaseUrl(),
+                llmProperties.getDashscope().getChatModel(), llmProperties.getDashscope().getBaseUrl());
     }
 
     @Override
@@ -62,18 +65,21 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
     private LlmResponse doChat(LlmRequest request) {
         long startTime = System.currentTimeMillis();
 
-        LlmProperties.DashScopeProperties config = llmProperties.getDashscope();
-        String url = config.getBaseUrl() + "/chat/completions";
-        String apiKey = config.getApiKey();
-        String model = config.getChatModel();
+        LlmProperties.KimiProperties kimiConfig = llmProperties.getKimi();
+        String url = kimiConfig.getBaseUrl() + "/chat/completions";
+        String apiKey = kimiConfig.getApiKey();
+        String model = kimiConfig.getModel();
 
-        // Fall back to Kimi if DashScope API key is not set
+        // Fall back to DashScope if Kimi API key is not set
         if (apiKey == null || apiKey.isBlank()) {
-            LlmProperties.KimiProperties kimiConfig = llmProperties.getKimi();
-            url = kimiConfig.getBaseUrl() + "/chat/completions";
-            apiKey = kimiConfig.getApiKey();
-            model = kimiConfig.getModel();
+            LlmProperties.DashScopeProperties config = llmProperties.getDashscope();
+            url = config.getBaseUrl() + "/chat/completions";
+            apiKey = config.getApiKey();
+            model = config.getChatModel();
         }
+
+        log.info("LLM request: provider={}, model={}, url={}",
+                (apiKey == llmProperties.getKimi().getApiKey() ? "Kimi" : "DashScope"), model, url);
 
         try {
             ObjectNode body = buildRequestBody(request, model);
@@ -86,7 +92,10 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 
             long latencyMs = System.currentTimeMillis() - startTime;
-            return parseResponse(response.getBody(), latencyMs);
+            LlmResponse llmResponse = parseResponse(response.getBody(), latencyMs);
+            log.info("LLM response: model={}, latency={}ms, tokens={}/{}",
+                    model, latencyMs, llmResponse.getPromptTokens(), llmResponse.getCompletionTokens());
+            return llmResponse;
 
         } catch (RestClientException e) {
             throw e; // Let retry loop handle RestClientException
@@ -99,7 +108,18 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
     private ObjectNode buildRequestBody(LlmRequest request, String model) {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", model);
-        body.put("temperature", request.getTemperature());
+
+        boolean isKimiK2 = model != null && model.startsWith("kimi-k2");
+        if (isKimiK2) {
+            // K2.6/K2.5 enforce fixed temperature values; skip it and let the API use its default.
+            // Disable thinking for structured output scenarios (JSON actions, routing, reranking).
+            ObjectNode thinking = objectMapper.createObjectNode();
+            thinking.put("type", "disabled");
+            body.set("thinking", thinking);
+        } else {
+            body.put("temperature", request.getTemperature());
+        }
+
         body.put("max_tokens", request.getMaxTokens());
 
         if (request.getResponseFormat() != null && !request.getResponseFormat().isBlank()) {

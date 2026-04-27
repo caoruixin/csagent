@@ -1,0 +1,66 @@
+case_id: cs_interactive_231
+source_session_id: 570Q5000008f2hBIAQ
+source_dataset: escalation
+form_context:
+  first_name: Rachel
+  email: customer@example.com
+  topic_subject: Ratings & Reviews
+  ad_id: ''
+  description: Bad review from Lee
+persona:
+  goal_summary: 'Get help with: Bad review from Lee. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Let me quickly tell you why I'm getting in touch. I have a one star review from about six years ago. The man in questions
+    - Lee - replied to my add offereing a free TV. He asked some questions, took my telephone number and said he'd get back
+    to me. By the time he called back, someone else had taken the TV. I had told him it was first come first serve. He was
+    extremely abusive on the phone and left the bad review. Can this review be removed? I should have reported him at the
+    time.
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: OUT_OF_SCOPE_RATINGS_REVIEWS
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-B
+  should_escalate: true
+  escalation_trigger: user_requested
+  risk_level: medium
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - review/rating removal commitments
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

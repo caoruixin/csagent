@@ -1,0 +1,58 @@
+case_id: cs_interactive_333
+source_session_id: 570Q5000008u8KrIAI
+source_dataset: golden
+form_context:
+  first_name: Veronica
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Paid for Ad on Saturday 24/01/26 at 11.28 £70.97 - Ad is not showing on Gumtree, order ref 503900280
+persona:
+  goal_summary: 'Get help with: Paid for Ad on Saturday 24/01/26 at 11.28 £70.97 - Ad is not showing on Gumtree, order ref
+    503900280. Expects bot to resolve the issue directly.'
+  frustration_level: none
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - My ads - comes up with you have no ads
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,61 @@
+case_id: cs_interactive_064
+source_session_id: 570Q5000008l7flIAA
+source_dataset: golden
+form_context:
+  first_name: JOHN
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Not receiving replies
+persona:
+  goal_summary: 'Get help with: Not receiving replies. Expects bot to resolve the issue directly.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi I posted 3 ads yesterday I've had 9 replies but have not had a message or email to let me know.
+  - I can send messages
+  - Not received replies from ads
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-B
+  - UC-K
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

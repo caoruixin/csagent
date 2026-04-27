@@ -1,0 +1,63 @@
+case_id: cs_interactive_314
+source_session_id: 570Q5000008YoU1IAK
+source_dataset: badcase
+form_context:
+  first_name: J
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: The location isn't working correctly.
+persona:
+  goal_summary: 'Get help with: The location isn''t working correctly.. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Of I enter 'Blackheath' in the location for example it doesn't show anything other than surrounding areas. I know there
+    is always item for sale in Blackheath. Same for 'Welling', 'Bexlyheath', etc.
+  - This has been happening for months. I did log a ticket with an agent maybe a couple of months ago but there was nothing
+    in my emails.
+  - Garden Furniture...
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs:
+  - UC-E
+  should_escalate: true
+  escalation_trigger: user_requested
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - answer_grounded
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

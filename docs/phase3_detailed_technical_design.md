@@ -134,6 +134,9 @@ User arrives at Help Centre
 2. Inbound Handler:
    a. Load/create session state from PostgreSQL
    b. If first message: Form Context Ingestion → auto-trigger get_customer_context
+   c. (v9) If FAQ UC routed AND form_context.description non-empty → auto-search:
+      ControlKernel.processMessage(session, formDescription) runs immediately,
+      greeting becomes the grounded answer (not a static template)
 3. Control Kernel:
    a. Read current phase (INIT/DISCOVER/RESOLVE/CONFIRM)
    b. Check budgets (turns, clarification, faq_miss)
@@ -560,11 +563,14 @@ Endpoint:  Internal — KnowledgeRetrievalService.search()
    - If fewer than 2 candidates after filtering → `retrieval_weak_hit`
    - Otherwise → `retrieval_hit`
 5. Article-level dedup (keep highest-scoring chunk per article)
-6. Rerank top 4–8 via LLM scoring (grounding relevance 1–5 scale)
-7. **Answer Gate**: if best `grounding_score < 3.5` → `faq_miss = true`
-8. Return top 3 results with `source_id`, `title`, `snippet`, `canonical_url`, `score`
+6. **Query Enrichment** (v9): if user message is short (< 20 chars) or is turn 1, augment search query with `form_context.description` when available — prevents dead-end retrieval on vague messages like "Pls help" when the pre-chat form already contains the real question
+7. Rerank top 4–8 via LLM scoring (grounding relevance 1–5 scale) — **parallel execution** (v9): each candidate scored via independent `CompletableFuture`; all candidates scored concurrently, joined with `allOf()`
+8. **Answer Gate**: if best `grounding_score < 3.5` → `faq_miss = true`
+9. Return top 3 results with `source_id`, `title`, `snippet`, `canonical_url`, `score`
 
 **Failure handling**: `max_retries: 1`. On `no_results` → allow one clarification or escalate. On `knowledge_backend_timeout` → escalate with `service_degraded`.
+
+**FAQ miss with form context fallback** (v9): when `faq_miss = true` but `form_context.description` is non-empty (> 10 chars), instead of the hardcoded "describe your issue in more detail" response, invoke the main LLM with the form description as additional context and instruct it to respond helpfully or escalate. This prevents the bot from asking the user to repeat information they already provided in the pre-chat form.
 
 #### 3.4.1.2 `resolve_article`
 
@@ -784,7 +790,12 @@ User query
   │
   ├─ 4. Article-level dedup (highest chunk per article)
   │
+  ├─ 4b. Query Enrichment (v9)
+  │     └─ if userMessage.length < 20 OR turnIndex == 0:
+  │        enrichedQuery = userMessage + " | Context: " + formContext.description
+  │
   ├─ 5. Rerank top 4–8 via LLM grounding judge (1–5 scale)
+  │     └─ v9: parallel CompletableFuture per candidate (was serial for-loop)
   │
   ├─ 6. Answer Gate
   │     ├─ best grounding_score < 3.5 → faq_miss (answer_miss)
@@ -972,7 +983,7 @@ All versions recorded in `bot_sessions` and `bot_turns` tables for traceability.
 |------------|-------------|-------------------|
 | `SESSION_STARTED` | First message received | session_id, traffic_variant, form_context (redacted), prompt_version |
 | `USE_CASE_INFERRED` | DISCOVER phase completes | active_use_case, candidate_use_cases, intent_confidence, routing_signal_source |
-| `RETRIEVAL_EXECUTED` | After `search_knowledge` | query_hash, result_count, top_score, faq_miss, retrieval_latency_ms |
+| `RETRIEVAL_EXECUTED` | After `search_knowledge` | query (v9: enriched query, not raw userMessage), result_count, top_score, faq_miss, retrieval_latency_ms |
 | `ARTICLE_SHOWN` | After `resolve_article` | source_ids[], canonical_urls[] |
 | `CLARIFICATION_ASKED` | After `ask_user` action | clarification_count, question_topic |
 | `ESCALATION_REQUESTED` | Handover initiated | escalation_reason, is_business_hours, queue, case_id |
@@ -1038,7 +1049,106 @@ Bot Runtime
 | Latency p50 / p95 | `bot_turns.latency_ms` | p95 ≤ 5s (FAQ answer) |
 | Cost per conversation | LLM token usage × pricing | — |
 
-### 3.8.5 Technology Stack
+### 3.8.5 LLM Provider Identification Logging
+
+All LLM call-sites MUST emit structured INFO-level logs that identify the provider, model, and scenario in use. This enables rapid verification of which LLM backs each feature, especially after provider/model switches (e.g. DashScope → Kimi K2.6).
+
+#### Startup log (once per boot)
+
+On application startup, `OpenAiCompatibleLlmClient` logs the resolved LLM configuration:
+
+```
+INFO  LLM config loaded: kimi=[model=kimi-k2.6, baseUrl=https://api.moonshot.ai/v1], dashscope=[chatModel=qwen-plus, baseUrl=https://dashscope.aliyuncs.com/compatible-mode/v1]
+```
+
+#### Per-request logs (every LLM call)
+
+| Layer | Log pattern | Level | Key fields |
+|-------|-------------|-------|------------|
+| `OpenAiCompatibleLlmClient` (request) | `LLM request: provider={}, model={}, url={}` | INFO | provider (Kimi / DashScope), model name, full endpoint URL |
+| `OpenAiCompatibleLlmClient` (response) | `LLM response: model={}, latency={}ms, tokens={}/{}` | INFO | model, latency, prompt/completion tokens |
+| `LlmInvocationService` | `LLM [chat] ...` / `LLM [routing] ...` | INFO | scenario tag, latency, token counts |
+| `RerankService` | `LLM [rerank] scored {} candidates, top={}` | INFO | candidate count, top score |
+| `DashScopeEmbeddingClient` | `Embedding request: provider=DashScope, model={}, texts={}` | INFO | model, batch size |
+
+#### Python eval_interactive logs
+
+| Component | Log pattern | Level |
+|-----------|-------------|-------|
+| `UserSimulator` | `LLM [simulator] call: model={}, base_url={}` | INFO |
+| `LlmJudge` | `LLM [judge:{}] call: model={}, base_url={}` | INFO |
+
+#### Verification
+
+Quick verification command after deployment or config change:
+
+```bash
+grep "LLM request:" /tmp/csagent.log | head -5    # Which provider/model per call
+grep "LLM config loaded:" /tmp/csagent.log         # Startup config summary
+```
+
+### 3.8.6 LLM Call Log (v9 — Full Observability)
+
+Problem statement: the existing trace system only records the **final** LLM response per turn (in `bot_turns.llm_raw_response`). Routing calls, rerank calls (N per turn), and retry calls are completely invisible — creating a 100% observability blackout for the majority of LLM invocations.
+
+**Solution**: dedicated `llm_call_log` table that records **every** LLM call regardless of call site.
+
+```sql
+CREATE TABLE llm_call_log (
+    id                  BIGSERIAL PRIMARY KEY,
+    session_id          TEXT NOT NULL REFERENCES bot_sessions(session_id),
+    turn_index          INT,                         -- NULL for routing (pre-turn)
+    call_type           TEXT NOT NULL,                -- 'routing' | 'chat' | 'rerank' | 'retry'
+    model               TEXT NOT NULL,                -- e.g. 'kimi-k2.6'
+    prompt_tokens       INT,
+    completion_tokens   INT,
+    latency_ms          INT NOT NULL,
+    request_summary     TEXT,                         -- truncated prompt (first 200 chars)
+    response_summary    TEXT,                         -- truncated response (first 500 chars)
+    success             BOOLEAN NOT NULL DEFAULT TRUE,
+    error_message       TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_llm_call_session ON llm_call_log(session_id, turn_index);
+CREATE INDEX idx_llm_call_type ON llm_call_log(call_type);
+```
+
+**Instrumented call sites**:
+
+| Call Site | `call_type` | `turn_index` | Notes |
+|-----------|-------------|--------------|-------|
+| `LlmInvocationService.invokeRouting()` | `routing` | NULL | 1 per session init |
+| `LlmInvocationService.invokeChat()` | `chat` | current turn | Main agent LLM call |
+| `LlmInvocationService.invokeChat()` (retry) | `retry` | current turn | When first call returns invalid action |
+| `RerankService.scoreCandidate()` | `rerank` | current turn | N per search (4–8 candidates) |
+
+**Trace API endpoint**:
+
+```yaml
+GET /v1/demo/sessions/{id}/llm-calls
+Response:
+  - id: 1
+    session_id: "abc"
+    turn_index: null
+    call_type: "routing"
+    model: "kimi-k2.6"
+    prompt_tokens: 168
+    completion_tokens: 132
+    latency_ms: 2795
+    request_summary: "Classify the user's issue..."
+    response_summary: "UC-B, confidence=0.85"
+    success: true
+  - id: 2
+    session_id: "abc"
+    turn_index: 1
+    call_type: "rerank"
+    ...
+```
+
+**Admin UI integration**: TraceViewer gains an "LLM Calls" tab showing all calls per session, with per-call type/model/latency/tokens breakdown and aggregate totals.
+
+### 3.8.7 Technology Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -1066,7 +1176,7 @@ Bot Runtime
 
 | Metric | Target | Enforcement |
 |--------|--------|-------------|
-| FAQ answer e2e p95 | ≤ 5s | Includes: query embedding (~100ms) + pgvector search (~50ms) + rerank (~200ms) + LLM generation (~2–3s) + Salesforce write (~500ms) |
+| FAQ answer e2e p95 | ≤ 5s | Includes: query embedding (~100ms) + pgvector search (~50ms) + rerank (~700ms parallel, was ~5s serial pre-v9) + LLM generation (~2–3s) + Salesforce write (~500ms) |
 | Escalation request e2e p95 | ≤ 3s | Salesforce Transfer API + payload write |
 | Median turns for solved FAQ | ≤ 6 | Control budget enforcement |
 | pgvector query latency p95 | ≤ 100ms | HNSW index with ef_search=100; 218 articles / ~500 chunks is small dataset |
@@ -1113,7 +1223,7 @@ Single Cloud SQL instance (shared with pgvector) hosts:
 
 | Schema | Tables | Purpose |
 |--------|--------|---------|
-| `bot` | `bot_sessions`, `bot_turns`, `session_outcomes` | Bot session state + turn log + outcome tracking |
+| `bot` | `bot_sessions`, `bot_turns`, `session_outcomes`, `llm_call_log` | Bot session state + turn log + outcome tracking + LLM call audit (v9) |
 | `knowledge` | `kb_articles`, `kb_chunks` | Knowledge base + vector index |
 
 **Connection**: via cloud-sql-proxy sidecar (same as all Gumtree services).

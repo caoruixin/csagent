@@ -1,0 +1,60 @@
+case_id: cs_interactive_055
+source_session_id: 570Q5000008TMmvIAG
+source_dataset: escalation
+form_context:
+  first_name: John
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Darts board full set up
+persona:
+  goal_summary: 'Get help with: Darts board full set up. Expects bot to escalate to human agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi ive just creates and posted and paid £1.9@ for better coverage for 7 days and its saying i have no ada
+  - Created**
+  - '[EMAIL]'
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-B
+  secondary_ucs:
+  - UC-K
+  should_escalate: true
+  escalation_trigger: user_distress
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

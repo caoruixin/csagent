@@ -1,0 +1,62 @@
+case_id: cs_interactive_028
+source_session_id: 570Q5000008VtJlIAK
+source_dataset: badcase
+form_context:
+  first_name: Zack
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: The above account number is not activated, payments has been completed on Friday the 19.12.2025. also your
+    general contact number is not responding. Our account manager is Ayaz.
+persona:
+  goal_summary: 'Get help with: The above account number is not activated, payments has been completed on Friday the 19.12.2025.
+    also your general contact number is not responding. Our account manager is Ayaz.. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: soft_shift
+  seed_messages:
+  - Ref 96385089
+  - i am from temple trees
+  - sure, [PHONE] or [PHONE]
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-F
+  secondary_ucs:
+  - UC-D
+  should_escalate: true
+  escalation_trigger: user_requested
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

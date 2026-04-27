@@ -127,7 +127,8 @@ public class PhaseEvaluator {
 
         // UC not yet identified — use LLM to ask clarifying question
         String projection = contextProjection.buildProjection(session, conversationHistory, null, userMessage);
-        LlmResponse llmResponse = llmInvocation.invokeChat(projection, userMessage);
+        LlmResponse llmResponse = llmInvocation.invokeChat(projection, userMessage,
+                    session.getSessionId(), session.getTotalBotTurns());
         ParsedAction action = actionParser.parse(llmResponse.getContent());
 
         // Track clarification
@@ -174,8 +175,9 @@ public class PhaseEvaluator {
         List<String> ucTags = List.of(ucDef.ucId());
         KnowledgeSearchResult searchResult;
 
+        String enrichedQuery = enrichQueryWithFormContext(userMessage, session, conversationHistory);
         ToolResult toolResult = toolDispatcher.dispatch("search_knowledge", session,
-                Map.of("query", userMessage, "uc_tags", ucTags));
+                Map.of("query", enrichedQuery, "uc_tags", ucTags));
 
         if (!toolResult.isSuccess()) {
             log.warn("Session {}: search_knowledge blocked or failed: {}",
@@ -189,7 +191,7 @@ public class PhaseEvaluator {
 
         // Emit RETRIEVAL_EXECUTED event
         eventEmitter.emitRetrievalExecuted(session.getSessionId(), session.getTotalBotTurns(),
-                userMessage, searchResult.isFaqMiss(),
+                enrichedQuery, searchResult.isFaqMiss(),
                 searchResult.getHits() != null ? searchResult.getHits().size() : 0);
 
         // Step 2: Check for FAQ miss
@@ -205,7 +207,38 @@ public class PhaseEvaluator {
                         "faq_miss_exceeded");
             }
 
-            // Ask user to rephrase
+            // Check if form context has a substantive description we can use instead of asking user to repeat
+            String formDescription = extractFormDescription(session);
+            if (formDescription != null && formDescription.length() > 10) {
+                try {
+                    log.info("Session {}: FAQ miss but form description available, invoking LLM with form context",
+                            session.getSessionId());
+                    String projection = contextProjection.buildProjection(
+                            session, conversationHistory, null, userMessage);
+                    // Inject faq_miss_instruction into the projection
+                    com.fasterxml.jackson.databind.node.ObjectNode projNode =
+                            (com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.readTree(projection);
+                    projNode.put("faq_miss_instruction",
+                            "Knowledge search did not find matching articles for this query. " +
+                            "However, the user described their issue in the pre-chat form: '" + formDescription + "'. " +
+                            "Based on this context and your understanding of the topic, provide a helpful response. " +
+                            "Use 'answer_grounded' without source_ids for general guidance, " +
+                            "'ask_user' for a specific follow-up question, or 'escalate_human' if you cannot help.");
+                    String modifiedProjection = objectMapper.writeValueAsString(projNode);
+
+                    LlmResponse llmResponse = llmInvocation.invokeChat(modifiedProjection, userMessage,
+                            session.getSessionId(), session.getTotalBotTurns());
+                    ParsedAction action = actionParser.parse(llmResponse.getContent());
+
+                    return PhaseResult.respond(session, action, llmResponse, null);
+                } catch (Exception e) {
+                    log.warn("Session {}: LLM fallback on FAQ miss failed, using hardcoded response: {}",
+                            session.getSessionId(), e.getMessage());
+                    // Fall through to hardcoded response below
+                }
+            }
+
+            // Ask user to rephrase (no form context available or LLM fallback failed)
             return PhaseResult.respond(session,
                     ParsedAction.builder()
                             .action("ask_user")
@@ -219,7 +252,8 @@ public class PhaseEvaluator {
         // Step 3: Knowledge found — use LLM to generate grounded answer
         String projection = contextProjection.buildProjection(
                 session, conversationHistory, searchResult.getHits(), userMessage);
-        LlmResponse llmResponse = llmInvocation.invokeChat(projection, userMessage);
+        LlmResponse llmResponse = llmInvocation.invokeChat(projection, userMessage,
+                    session.getSessionId(), session.getTotalBotTurns());
         ParsedAction action = actionParser.parse(llmResponse.getContent());
 
         // Track articles shown
@@ -265,7 +299,8 @@ public class PhaseEvaluator {
                     + "You MUST use action 'answer_grounded' now and compose a helpful response "
                     + "based on the provided knowledge snippets. Do NOT return 'retrieve_knowledge'.";
             LlmResponse retryResponse = llmInvocation.invokeChat(
-                    retryProjection, groundingOverride + "\n\nUser question: " + userMessage);
+                    retryProjection, groundingOverride + "\n\nUser question: " + userMessage,
+                    session.getSessionId(), session.getTotalBotTurns());
             ParsedAction retryAction = actionParser.parse(retryResponse.getContent());
 
             if ("answer_grounded".equals(retryAction.getAction()) || "finish".equals(retryAction.getAction())) {
@@ -337,7 +372,8 @@ public class PhaseEvaluator {
 
         String projection = contextProjection.buildProjection(session, conversationHistory, null, userMessage);
         LlmResponse llmResponse = llmInvocation.invokeChat(
-                projection, intakeInstruction + "\n\nUser message: " + userMessage);
+                projection, intakeInstruction + "\n\nUser message: " + userMessage,
+                session.getSessionId(), session.getTotalBotTurns());
         ParsedAction action = actionParser.parse(llmResponse.getContent());
 
         // If the LLM says escalate or finish, we escalate with intake-complete template
@@ -369,7 +405,8 @@ public class PhaseEvaluator {
                     + "Acknowledge what they provided, then either: "
                     + "(1) use 'ask_user' to collect any remaining details needed, or "
                     + "(2) use 'escalate_human' if you have enough info to pass to the team.";
-            LlmResponse retryResponse = llmInvocation.invokeChat(projection, retryInstruction);
+            LlmResponse retryResponse = llmInvocation.invokeChat(projection, retryInstruction,
+                    session.getSessionId(), session.getTotalBotTurns());
             ParsedAction retryAction = actionParser.parse(retryResponse.getContent());
 
             if ("escalate_human".equals(retryAction.getAction()) || "finish".equals(retryAction.getAction())) {
@@ -455,6 +492,13 @@ public class PhaseEvaluator {
     }
 
     /**
+     * Extract the description field from formContext.
+     */
+    private String extractFormDescription(BotSession session) {
+        return extractFormField(session, "description");
+    }
+
+    /**
      * Extract a field value from the session's formContext JSON.
      */
     private String extractFormField(BotSession session, String fieldName) {
@@ -469,6 +513,49 @@ public class PhaseEvaluator {
             log.warn("Session {}: failed to extract '{}' from formContext: {}",
                     session.getSessionId(), fieldName, e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Enriches a vague/short user message with form description context.
+     * Activates when userMessage is short (&lt; 20 chars) OR it's an early turn (index 0 or 1).
+     * This prevents knowledge search from failing when users send vague chat messages
+     * like "Pls help" while having provided detailed descriptions in the contact form.
+     */
+    private String enrichQueryWithFormContext(String userMessage, BotSession session,
+                                              List<BotTurn> conversationHistory) {
+        if (session.getFormContext() == null || session.getFormContext().isBlank()) {
+            return userMessage;
+        }
+
+        try {
+            JsonNode formNode = objectMapper.readTree(session.getFormContext());
+            JsonNode descNode = formNode.get("description");
+            if (descNode == null || descNode.asText("").isBlank()) {
+                return userMessage;
+            }
+
+            String description = descNode.asText("");
+            int turnIndex = conversationHistory != null ? conversationHistory.size() : 0;
+
+            // Only enrich when the user message is short or it's an early turn
+            if (userMessage.length() >= 20 && turnIndex > 1) {
+                return userMessage;
+            }
+
+            // Truncate description to 200 chars if longer
+            if (description.length() > 200) {
+                description = description.substring(0, 200);
+            }
+
+            String enrichedQuery = userMessage + " | Context: " + description;
+            log.debug("Session {}: enriched search query with form description (turnIndex={}, msgLen={})",
+                    session.getSessionId(), turnIndex, userMessage.length());
+            return enrichedQuery;
+        } catch (Exception e) {
+            log.warn("Session {}: failed to enrich query with form context: {}",
+                    session.getSessionId(), e.getMessage());
+            return userMessage;
         }
     }
 
@@ -553,7 +640,8 @@ public class PhaseEvaluator {
 
         // Otherwise, use LLM to interpret the response
         String projection = contextProjection.buildProjection(session, conversationHistory, null, userMessage);
-        LlmResponse llmResponse = llmInvocation.invokeChat(projection, userMessage);
+        LlmResponse llmResponse = llmInvocation.invokeChat(projection, userMessage,
+                    session.getSessionId(), session.getTotalBotTurns());
         ParsedAction action = actionParser.parse(llmResponse.getContent());
 
         if ("finish".equals(action.getAction())) {
@@ -570,8 +658,7 @@ public class PhaseEvaluator {
         session.setHandlingState("CLOSED");
         session.setContainmentOutcome("RESOLVED");
 
-        // Emit OUTCOME_RECORDED and SESSION_CLOSED events
-        eventEmitter.emitOutcomeRecorded(session.getSessionId(), "RESOLVED", session.getActiveUseCase());
+        // Emit SESSION_CLOSED event (OUTCOME_RECORDED is emitted by SessionManager.recordOutcome)
         eventEmitter.emitSessionClosed(session.getSessionId(), "RESOLVED");
 
         return PhaseResult.close(session,

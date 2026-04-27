@@ -1,0 +1,60 @@
+case_id: cs_interactive_316
+source_session_id: 570Q50000091ATCIA2
+source_dataset: badcase
+form_context:
+  first_name: Lewis
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I would like to cancel our monthly payments to gumtree as we no longer have any need for the service
+persona:
+  goal_summary: 'Get help with: I would like to cancel our monthly payments to gumtree as we no longer have any need for the
+    service. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - i have been trying to call gumtree for over a year now
+  - i can give my account number if you would like
+  - GT0067295264
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: OUT_OF_SCOPE_PRO_CONTRACT
+  secondary_ucs:
+  - UC-F
+  should_escalate: true
+  escalation_trigger: out_of_scope
+  risk_level: medium
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

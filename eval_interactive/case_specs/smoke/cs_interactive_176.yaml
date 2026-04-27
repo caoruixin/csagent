@@ -1,0 +1,62 @@
+case_id: cs_interactive_176
+source_session_id: 570Q5000008NMRRIA4
+source_dataset: handover
+form_context:
+  first_name: Gary
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: I pad to put my ad for my business and it's not at the top
+persona:
+  goal_summary: 'Get help with: I pad to put my ad for my business and it''s not at the top. Expects bot to escalate to human
+    agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Give me my £50 back or put my business to the top like I paid for
+  - What about giving a phone number to talk to someone
+  - That's good why is this so hard to do
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-E
+  secondary_ucs:
+  - UC-B
+  - UC-K
+  should_escalate: true
+  escalation_trigger: clarification_budget_exhausted
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,60 @@
+case_id: cs_interactive_281
+source_session_id: 570Q5000008uxOzIAI
+source_dataset: golden
+form_context:
+  first_name: chris
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: fridge freezer#2
+persona:
+  goal_summary: 'Get help with: fridge freezer#2. Expects bot to resolve the issue directly.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Sending messages to both advertisers, getting no response…how can I confirm that my messages are getting through?
+  - 'Ad ID: 1508729474 2 days ago Ad ID: 1506084884 4 days ago, 6 days ago & 19 th jan'
+  - two different users
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,60 @@
+case_id: cs_interactive_350
+source_session_id: 570Q5000008le0bIAA
+source_dataset: golden
+form_context:
+  first_name: Kevin
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Ive been blocked from my account
+persona:
+  goal_summary: 'Get help with: Ive been blocked from my account. Expects bot to resolve the issue directly.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - '[EMAIL] been trying to enter the acoount ithink ientered it wrong to many time and block me'
+  - Ok thankyou
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-H
+  - UC-K
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

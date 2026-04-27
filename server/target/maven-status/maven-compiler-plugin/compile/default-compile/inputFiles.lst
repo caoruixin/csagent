@@ -1,4 +1,5 @@
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/runtime/ControlPolicyService.java
+/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/observability/LlmCallLogger.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/tools/ToolPolicyEnforcer.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/repository/KbChunkRepository.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/embedding/DashScopeEmbeddingClient.java
@@ -41,6 +42,7 @@
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/tools/CreateCaseControlledTool.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/observability/EventEmitter.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/tools/LookupCustomerAccountTool.java
+/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/model/LlmCallLog.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/observability/model/FunnelMetrics.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/SalesforceService.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/repository/SessionOutcomeRepository.java
@@ -57,6 +59,7 @@
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/tools/ToolResult.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/GumtreeApiService.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/guardrails/ForbiddenPhraseDetector.java
+/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/repository/LlmCallLogRepository.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/model/BotTurn.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/controller/ChatController.java
 /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java

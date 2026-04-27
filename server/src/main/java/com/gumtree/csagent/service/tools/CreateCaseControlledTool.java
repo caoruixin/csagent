@@ -19,8 +19,8 @@ public class CreateCaseControlledTool implements Tool {
 
     /**
      * Required intake fields per use case.
-     * UC-H: safety/illegal reporting — needs description
-     * UC-J: commercial escalation — needs subject, description
+     * UC-H: ad removal appeal — needs description
+     * UC-J: report a safety issue — needs subject, description
      * UC-K: account access issues — needs email, description
      */
     private static final Map<String, Set<String>> REQUIRED_FIELDS_BY_UC = Map.of(

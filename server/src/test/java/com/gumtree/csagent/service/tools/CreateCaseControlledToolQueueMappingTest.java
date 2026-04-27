@@ -17,12 +17,10 @@ import static org.mockito.Mockito.*;
 
 /**
  * Regression tests for CreateCaseControlledTool queue mapping.
- * Catches the D11+D12 finding where UC-J (Trust & Safety) routes to
- * Commercial_Queue instead of Safety_Queue, and UC-H (Ad Appeal) routes
- * to Safety_Queue instead of Ad_Support_Queue.
- *
- * EXPECTED FAILURES: These tests document the current incorrect mapping
- * and will pass once the queue mapping is corrected.
+ * Verifies correct queue routing:
+ * UC-H (Ad Removal Appeal) → Ad_Support_Queue
+ * UC-J (Trust & Safety Report) → Safety_Queue
+ * UC-K (Technical Support) → Account_Support_Queue
  */
 @ExtendWith(MockitoExtension.class)
 class CreateCaseControlledToolQueueMappingTest {
@@ -70,11 +68,10 @@ class CreateCaseControlledToolQueueMappingTest {
 
     /**
      * UC-H is "Ad Removal Appeal" (ad moderation disputes).
-     * Routing to Safety_Queue is debatable but may cause confusion
-     * with UC-J safety reports in the same queue.
+     * Routes to Ad_Support_Queue.
      */
     @Test
-    void execute_ucH_queueName_shouldBeAdSupportRelated() {
+    void execute_ucH_queueName_shouldBeAdSupportQueue() {
         BotSession session = buildSession("UC-H");
         Map<String, Object> params = Map.of(
                 "description", "My ad was removed unfairly");
@@ -90,10 +87,8 @@ class CreateCaseControlledToolQueueMappingTest {
                 anyString(), any(), any(), queueCaptor.capture(), any());
 
         String actualQueue = queueCaptor.getValue();
-        // Document the current value for visibility
-        assertEquals("Safety_Queue", actualQueue,
-                "UC-H currently maps to Safety_Queue -- verify this is the intended queue " +
-                "for ad moderation appeals (not to be confused with UC-J safety reports)");
+        assertEquals("Ad_Support_Queue", actualQueue,
+                "UC-H (Ad Removal Appeal) should route to Ad_Support_Queue");
     }
 
     private BotSession buildSession(String activeUseCase) {

@@ -1,0 +1,66 @@
+case_id: cs_interactive_183
+source_session_id: 570Q5000008kyW1IAI
+source_dataset: golden
+form_context:
+  first_name: Heather
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Hi, are you able to send me proof of my chat to purchase the Avondale Motorhome a few months ago. I have deleted
+    it and now the police require it. Thank you! It was listed at £750.
+persona:
+  goal_summary: 'Get help with: Hi, are you able to send me proof of my chat to purchase the Avondale Motorhome a few months
+    ago. I have deleted it and now the police require it. Thank you! It was listed at £750.. Expects bot to resolve the issue
+    directly.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - Okay thank you
+  - Thanks, it's stressful
+  - Right ok, they would need to request it themselves.
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-J
+  - UC-H
+  - UC-FP
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

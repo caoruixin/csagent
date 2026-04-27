@@ -1,0 +1,65 @@
+case_id: cs_interactive_330
+source_session_id: 570Q5000008tXBdIAM
+source_dataset: golden
+form_context:
+  first_name: Bosutar
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Cat for sale
+persona:
+  goal_summary: 'Get help with: Cat for sale. Expects bot to escalate to human agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hi dear whi my post was cancelled ?
+  - I didn't do anything wrong and it's a normal ad. I want to sell the cat because she's in heat now and I have a cat and
+    I don't want kittens and I want to find a home for her.
+  - I'm so disappointed I pay 14 pounds for the ad and then you delete my ad
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-K
+  - UC-B
+  - UC-FP
+  should_escalate: true
+  escalation_trigger: payment_dispute_detected
+  risk_level: high
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - refund approval, legal liability, or amount decision
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

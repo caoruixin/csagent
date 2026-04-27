@@ -1,0 +1,68 @@
+case_id: cs_interactive_126
+source_session_id: 570Q5000008gVpCIAU
+source_dataset: handover
+form_context:
+  first_name: Ann
+  email: customer@example.com
+  topic_subject: Delivery
+  ad_id: ''
+  description: Let down by seller
+persona:
+  goal_summary: 'Get help with: Let down by seller. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - The seller agreed to sell me an ikea soderhamn sofa and chair. I hired a van and my son in law took a day off work to
+    do so. Date arranged was 22.12. Seller contacted me on 19.22 to say he'd sold it to someone else. I had been in contact
+    with him from 3.12, trying to buy the items, waiting through sales that had fallen through, keeping in regular contact
+    as I really wanted to buy. I contacted gumtree around 27.12 but got no reply. Ad now deleted so I can't provide I'd number,
+    sorry
+  - Are you still there please?
+  - 'No'
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: OUT_OF_SCOPE_DELIVERY
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  escalation_trigger: out_of_scope
+  risk_level: medium
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

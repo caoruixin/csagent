@@ -1,0 +1,63 @@
+case_id: cs_interactive_321
+source_session_id: 570Q5000008O2gnIAC
+source_dataset: drift_control
+form_context:
+  first_name: Stuart
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: My ad
+persona:
+  goal_summary: 'Get help with: My ad. Expects bot to escalate to human agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - My add is not showing and I have paid twice buy mistake. £19 AND £21 pounds
+  - '[EMAIL]'
+  - Yes i have paid twice because I thought that's why it was not showing my add could I have a refund please
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-A
+  - UC-B
+  should_escalate: true
+  escalation_trigger: payment_dispute_detected
+  risk_level: high
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - refund approval, legal liability, or amount decision
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

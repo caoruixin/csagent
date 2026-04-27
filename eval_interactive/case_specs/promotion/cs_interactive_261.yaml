@@ -1,0 +1,60 @@
+case_id: cs_interactive_261
+source_session_id: 570Q5000008J5sDIAS
+source_dataset: golden
+form_context:
+  first_name: minh
+  email: customer@example.com
+  topic_subject: UNKNOWN
+  ad_id: ''
+  description: ''
+persona:
+  goal_summary: Get help with UNKNOWN issue. Expects bot to resolve the issue directly.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi . i try to post the ad on but your website does not taking the payment please help
+  - 'yes'
+  - '[EMAIL]'
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-F
+  secondary_ucs:
+  - UC-B
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

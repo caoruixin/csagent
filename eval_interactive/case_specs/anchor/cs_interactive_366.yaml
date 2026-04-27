@@ -1,0 +1,66 @@
+case_id: cs_interactive_366
+source_session_id: 570Q5000008fpLJIAY
+source_dataset: badcase
+form_context:
+  first_name: Robert
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Whay has my phone contact been taken off my ad? Can't reinstate it by trying to edit ad.
+persona:
+  goal_summary: 'Get help with: Whay has my phone contact been taken off my ad? Can''t reinstate it by trying to edit ad..
+    Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - ok
+  - 'Well here''s some feedback: getting quite a lot of views and no responses so I would say not a successful trial. There
+    appears to have been no warning or announcement of that by the way?'
+  - For something like this computer, people usually have questions and want to be able to speak to someone. They're not usually
+    inclined to do it by awkward messaging (like this chat)
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  - UC-B
+  should_escalate: true
+  escalation_trigger: user_requested
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

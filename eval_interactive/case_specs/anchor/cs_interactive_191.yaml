@@ -1,0 +1,62 @@
+case_id: cs_interactive_191
+source_session_id: 570Q5000008w24rIAA
+source_dataset: golden
+form_context:
+  first_name: Nongnuch
+  email: customer@example.com
+  topic_subject: Payments
+  ad_id: ''
+  description: Would like to NOT RENEWAL my ad please. I have tick that box by mistake
+persona:
+  goal_summary: 'Get help with: Would like to NOT RENEWAL my ad please. I have tick that box by mistake. Expects bot to resolve
+    the issue directly.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - https://www.gumtree.com/p/sports-massage-services/diamond-star-massage/1509201102
+  - I need to cancel the renewal on my add please
+  - I seem to can’t see it I try
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-B
+  secondary_ucs:
+  - UC-F
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

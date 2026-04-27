@@ -1,0 +1,64 @@
+case_id: cs_interactive_070
+source_session_id: 570Q5000008U6zRIAS
+source_dataset: badcase
+form_context:
+  first_name: Louisa-Ray
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Have been asked for asecure payment account as I have an interested customer. I Have a Gateway Account but
+    am retired. What do I need to do?
+persona:
+  goal_summary: 'Get help with: Have been asked for asecure payment account as I have an interested customer. I Have a Gateway
+    Account but am retired. What do I need to do?. Expects bot to escalate to human agent.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - I was chatting to somrone and lost connection. I am retired and although I have a Gateway no. I do not pay tax and cannot
+    do the form.
+  - Ate you there Courtnry???
+  - Exxactly what I have told you.
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-F
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  should_escalate: true
+  escalation_trigger: user_distress
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

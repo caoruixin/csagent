@@ -137,6 +137,18 @@ function mapTrace(sessionId: string, turns: any[]): TraceResponse {
       output: t.botResponse ?? t.output ?? '',
       tool_calls: t.toolCalls ? (typeof t.toolCalls === 'string' ? tryParse(t.toolCalls) : t.toolCalls) : undefined,
       timestamp: t.createdAt ?? t.timestamp ?? '',
+      projected_context: t.projectedContext
+        ? (typeof t.projectedContext === 'string' ? tryParse(t.projectedContext) : t.projectedContext)
+        : undefined,
+      llm_raw_response: t.llmRawResponse ?? t.llm_raw_response ?? undefined,
+      action_parameters: t.actionParameters
+        ? (typeof t.actionParameters === 'string' ? tryParse(t.actionParameters) : t.actionParameters)
+        : undefined,
+      source_ids: t.sourceIds ?? t.source_ids ?? undefined,
+      phase_before: t.phaseBefore ?? t.phase_before ?? undefined,
+      phase_after: t.phaseAfter ?? t.phase_after ?? undefined,
+      active_use_case: t.activeUseCase ?? t.active_use_case ?? undefined,
+      latency_ms: t.latencyMs ?? t.latency_ms ?? undefined,
     })),
   };
 }

@@ -1,0 +1,12 @@
+{
+  "run_id": "20260425-083912",
+  "label": "baseline_golden_v1",
+  "path": "results/20260425-083912",
+  "timestamp": "2026-04-25T08:39:12.077251+00:00",
+  "summary": {
+    "total_cases": 159,
+    "passed_cases": 11,
+    "task_success_rate": 0.0692,
+    "mean_composite_score": 0.3767
+  }
+}

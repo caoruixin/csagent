@@ -4,10 +4,12 @@ import com.gumtree.csagent.config.MockProperties;
 import com.gumtree.csagent.model.BotEvent;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.BotTurn;
+import com.gumtree.csagent.model.LlmCallLog;
 import com.gumtree.csagent.model.MockCase;
 import com.gumtree.csagent.model.MockHandoverLog;
 import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotSessionRepository;
+import com.gumtree.csagent.repository.LlmCallLogRepository;
 import com.gumtree.csagent.service.mock.MockGumtreeApiService;
 import com.gumtree.csagent.service.mock.MockSalesforceService;
 import com.gumtree.csagent.service.observability.LocalEventStore;
@@ -41,6 +43,7 @@ public class DemoInspectionController {
     private final BotSessionRepository sessionRepository;
     private final BotEventRepository eventRepository;
     private final MockHandoverLogRepository handoverLogRepository;
+    private final LlmCallLogRepository llmCallLogRepository;
     private final MockProperties mockProperties;
     private final LocalEventStore localEventStore;
 
@@ -49,6 +52,7 @@ public class DemoInspectionController {
                                     BotSessionRepository sessionRepository,
                                     BotEventRepository eventRepository,
                                     MockHandoverLogRepository handoverLogRepository,
+                                    LlmCallLogRepository llmCallLogRepository,
                                     MockProperties mockProperties,
                                     LocalEventStore localEventStore) {
         this.salesforceService = salesforceService;
@@ -56,6 +60,7 @@ public class DemoInspectionController {
         this.sessionRepository = sessionRepository;
         this.eventRepository = eventRepository;
         this.handoverLogRepository = handoverLogRepository;
+        this.llmCallLogRepository = llmCallLogRepository;
         this.mockProperties = mockProperties;
         this.localEventStore = localEventStore;
     }
@@ -84,6 +89,11 @@ public class DemoInspectionController {
     @GetMapping("/sessions/{id}/events")
     public ResponseEntity<List<BotEvent>> listSessionEvents(@PathVariable("id") String sessionId) {
         return ResponseEntity.ok(eventRepository.findBySessionIdOrderByCreatedAt(sessionId));
+    }
+
+    @GetMapping("/sessions/{id}/llm-calls")
+    public ResponseEntity<List<LlmCallLog>> getSessionLlmCalls(@PathVariable("id") String sessionId) {
+        return ResponseEntity.ok(llmCallLogRepository.findBySessionIdOrderByCreatedAt(sessionId));
     }
 
     @GetMapping("/mock-data/{type}")

@@ -1,0 +1,68 @@
+case_id: cs_interactive_090
+source_session_id: 570Q5000008tbwpIAA
+source_dataset: badcase
+form_context:
+  first_name: Louise
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: This person scammed me. I have reported the add but it’s not been taken down.
+persona:
+  goal_summary: 'Get help with: This person scammed me. I have reported the add but it’s not been taken down.. Expects bot
+    to escalate to human agent.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I reported an add a few days ago as it’s recently been active again. This person claimed to be fully insured but he ruined
+    my floors cost me a lot of money. He’s not insured so the add is fraudulent
+  - 'Description Experienced floor layer covering Edinburgh and the Lothians. Services include; • Carpet fitting • Vinyl fitting
+    • Laminate fitting • LVT fitting • Sub floor - screed/plywood • Door trimming • Skirting fitting • Uplift and dispose
+    • Supply materials • Fit customer own materials Fully insured. Message for a free no obligation quote. Ad id: 1480135182'
+  - He was paid.
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-FP
+  - UC-K
+  - UC-C
+  should_escalate: true
+  escalation_trigger: trust_safety_required
+  risk_level: critical
+  expected_tool_sequence:
+  - fixed_script_library
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - internal moderation reason codes or enforcement commitments
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

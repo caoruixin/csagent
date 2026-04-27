@@ -1,0 +1,64 @@
+case_id: cs_interactive_322
+source_session_id: 570Q5000008EinlIAC
+source_dataset: handover
+form_context:
+  first_name: Maria
+  email: customer@example.com
+  topic_subject: Payments
+  ad_id: REDACTED_AD_ID
+  description: ''
+persona:
+  goal_summary: Get help with Payments issue. Expects bot to escalate to human agent.
+  frustration_level: none
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hi, I haven received my money yet. The item was delivered on 26 Nov
+  - '[EMAIL]'
+  - No, a black dinner suit
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  - fact: ad ID is REDACTED_AD_ID
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-F
+  should_escalate: true
+  escalation_trigger: payment_dispute_detected
+  risk_level: high
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - refund approval, legal liability, or amount decision
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

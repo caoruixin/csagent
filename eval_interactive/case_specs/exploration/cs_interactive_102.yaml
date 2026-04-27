@@ -1,0 +1,67 @@
+case_id: cs_interactive_102
+source_session_id: 570Q5000008I9TFIA0
+source_dataset: intake_tool_contract
+form_context:
+  first_name: Rebecca
+  email: customer@example.com
+  topic_subject: Subject to Access Request/Info for Ad needed
+  ad_id: ''
+  description: ''
+persona:
+  goal_summary: Get help with Subject to Access Request/Info for Ad needed issue. Expects bot to escalate to human agent.
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hello, I hope you are well. I require support to gain details from a purchase I made and the conversation with the buyer
+    for insurance purposes. The ad and conversation has disappeared (I am assuming because of the age of the ad and the conversation)
+    If this isn't something you can access easily and is classed as archived, I would like to request a subject to access
+    request that includes all of my data under data protection GDPR laws in the UK.
+  - Is there no way this can be accessed quicker?
+  - I can provide the dates and the nature of the ad.
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-G
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  - UC-A
+  should_escalate: true
+  escalation_trigger: gdpr_intake
+  risk_level: high
+  expected_tool_sequence:
+  - fixed_script_library
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - get_customer_context
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

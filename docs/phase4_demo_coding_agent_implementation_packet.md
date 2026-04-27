@@ -69,8 +69,8 @@ REDIS_PORT=6379
 
 # ── LLM (OpenAI-compatible) ──
 KIMI_API_KEY=sk-GXVVb0AJBZQpLBfWbOl9CL8QWU359ChkCGiPUZTbfsxaUVV7
-KIMI_BASE_URL=https://api.moonshot.cn/v1
-KIMI_MODEL=moonshot-v1-8k
+KIMI_BASE_URL=https://api.moonshot.ai/v1
+KIMI_MODEL=kimi-k2.6
 
 DASHSCOPE_API_KEY=sk-f4ada48271a54810a13147ac708555dd
 DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
@@ -149,12 +149,13 @@ VITE_API_BASE_URL=http://localhost:8080
 | **Key files** | `KnowledgeIngestionRunner.java`, `ChunkingService.java`, `KnowledgeSearchService.java`, `KnowledgeSearchController.java`, `RerankService.java` |
 | **Data inputs** | `data/knowledge/knowledge_base_articles.json`, `data/knowledge/article_uc_mapping.csv` |
 
-**Retrieval contract** (identical to production Phase 3 §3.5.3):
+**Retrieval contract** (identical to production Phase 3 §3.5.3, updated v9):
 ```
-Query → Embed(768-dim) → pgvector ANN(ef_search=100, LIMIT 20, uc_tags filter)
+Query → Query Enrichment (v9: augment with form_context.description if short/early turn)
+  → Embed(768-dim) → pgvector ANN(ef_search=100, LIMIT 20, uc_tags filter)
   → Retrieval Gate (top1 cosine_sim < 0.3 → retrieval_miss)
   → Article dedup (highest chunk per article)
-  → Rerank top 4-8 (LLM grounding score 1-5)
+  → Rerank top 4-8 (LLM grounding score 1-5, v9: parallel CompletableFuture)
   → Answer Gate (grounding_score < 3.5 → answer_miss)
   → Return top 3 { source_id, title, snippet, canonical_url, score }
   → faq_miss = retrieval_miss OR answer_miss
@@ -279,6 +280,7 @@ Actions: `ask_user` | `retrieve_knowledge` | `answer_grounded` | `escalate_human
 |----------|---------|
 | `GET /v1/demo/sessions` | All bot sessions with outcome + UC + turns count |
 | `GET /v1/demo/sessions/{id}/trace` | Full turn-by-turn trace (projected context, LLM response, action, tool calls, state snapshot) |
+| `GET /v1/demo/sessions/{id}/llm-calls` | All LLM calls (routing, chat, rerank, retry) with model/tokens/latency (v9 §D14.3) |
 | `GET /v1/demo/sessions/{id}/events` | Chronological event timeline |
 | `GET /v1/demo/handover-logs` | All handover payloads (full JSON per Phase 3 §3.6.2 schema) |
 | `GET /v1/demo/metrics/funnel` | Aggregate funnel: total / understood / resolved / escalated / abandoned |
@@ -307,7 +309,7 @@ ui/src/
 │   │   └── ChatInput.tsx             # Text input + Send button (green CTA)
 │   ├── admin/
 │   │   ├── SessionList.tsx           # Table: session_id, UC, outcome, turns, timestamp
-│   │   ├── TraceViewer.tsx           # Turn-by-turn: user msg → projected context → LLM response → action → state
+│   │   ├── TraceViewer.tsx           # Turn-by-turn: user msg → projected context → LLM response → action → state; includes LlmDetailPanel for full App↔LLM interaction view (projected context, raw LLM response with reasoning, action parameters, phase transitions)
 │   │   ├── HandoverLogViewer.tsx     # JSON tree viewer for handover payloads
 │   │   ├── EventTimeline.tsx         # Vertical timeline of bot events
 │   │   └── MetricsDashboard.tsx      # Funnel chart + per-UC breakdown
@@ -1409,6 +1411,367 @@ report:
 | Stall Detector | Turn trace with `tool_calls` | DM12 §D12.4 (turn log enhancement) |
 | Hard Checks | DM5 tool policy, DM6 guardrails | Policy enforcement must work |
 | LLM Judge | LLM API credentials | Same provider as User Simulator |
+
+---
+
+## D14. Iteration 3 — Performance & Observability ("性能 + 可观测性")
+
+> **Goal**: Fix three critical issues discovered during session `dd895a1c` analysis: (1) serial rerank causing 80% of turn latency, (2) form description ignored during knowledge search leading to dead-end retrieval, (3) 100% LLM call observability blackout — 17 calls per session, 0 recorded in trace.
+>
+> **Prerequisite**: D11+D12 complete (current state).
+>
+> **Triggered by**: Session analysis showing 5.7s rerank latency (serial 8× LLM calls), vague "Pls help" queries failing retrieval despite rich form descriptions, and complete trace blindspot for routing/rerank/retry LLM calls.
+
+### D14.1 Parallel Rerank (Fix 1 — Latency)
+
+**Current state**: `RerankService.rerank()` (line 55) iterates candidates in a serial `for` loop, calling `llmClient.chat()` one at a time. With 8 candidates at ~700ms each = ~5.7s total rerank latency, consuming 80% of per-turn wall time.
+
+**Target state**: All `scoreCandidate()` calls execute in parallel via `CompletableFuture`.
+
+**Implementation**:
+
+| File | Change |
+|------|--------|
+| `RerankService.java` | Replace serial `for` loop with `CompletableFuture.supplyAsync()` per candidate. Use a dedicated `Executor` (fixed thread pool, size = `RERANK_CANDIDATES` = 8). Join all with `CompletableFuture.allOf()`. Maintain existing sort-by-score and logging. |
+
+**Before / After**:
+```
+Before: 8 × ~700ms serial  = ~5700ms
+After:  max(~700ms) parallel = ~700-1000ms  (limited by slowest single call)
+```
+
+**Error handling**: Same as current — individual `scoreCandidate()` failures return 2.5 (neutral score). A failed future does not block others.
+
+**Thread pool config**: `Executors.newFixedThreadPool(8)` — bounded pool to prevent unbounded thread creation under load. The pool is shared across all rerank invocations within the service.
+
+### D14.2 Form Description Query Enrichment (Fix 2 — Quality)
+
+**Current state**: `PhaseEvaluator.resolveFaq()` (line 178) passes raw `userMessage` as the knowledge search query:
+```java
+toolDispatcher.dispatch("search_knowledge", session,
+    Map.of("query", userMessage, "uc_tags", ucTags));
+```
+
+When user writes "Pls help" in chat but filled detailed description in the pre-chat form ("why I cannot post my advert... keeps saying not being posted due to posting rules"), the rich context is wasted. Result: consecutive FAQ misses (rerank score 3.0 < 3.5 threshold) → unnecessary escalation.
+
+**Target state**: Enrich the search query with `form_context.description` when the user message alone is likely insufficient.
+
+**Implementation**:
+
+| File | Change |
+|------|--------|
+| `PhaseEvaluator.java` | Add private method `enrichQueryWithFormContext(String userMessage, BotSession session)`. Logic: if `session.getFormContext()` has non-empty `description` field AND (`userMessage.length() < 20` OR `turnIndex <= 1`), construct enriched query: `userMessage + " | Context: " + formDescription` (truncate description to 200 chars). Otherwise return `userMessage` unchanged. Call this before `toolDispatcher.dispatch()`. |
+
+**Enrichment rules**:
+- Only activate when `userMessage` is short (< 20 chars) **OR** it's the first 2 turns (index 0 or 1)
+- Only enrich if `form_context.description` exists and is non-blank
+- Truncate form description to 200 chars to avoid polluting embedding quality
+- Separator `" | Context: "` helps the embedding model distinguish the primary query from supplementary context
+
+**Expected impact**: Vague messages like "Pls help" / "Any update" that previously scored rerank 3.0 should now retrieve relevant articles because the enriched query contains the actual problem description from the form.
+
+### D14.3 LLM Call Log Table (Fix 3 — Observability, Option B)
+
+**Current state**: Only the final PhaseEvaluator LLM response is recorded in `bot_turns.llm_raw_response`. Routing calls (in `UseCaseRouter`), rerank calls (in `RerankService`, N per search), and retry calls are 100% invisible to the trace API and admin UI.
+
+In session `dd895a1c`: 17 LLM calls occurred, 0 were recorded.
+
+**Target state**: Every LLM call is recorded in a dedicated `llm_call_log` table and exposed via a new trace endpoint.
+
+**Implementation**:
+
+#### D14.3.1 Database Migration
+
+**New file**: `V8__create_llm_call_log.sql`
+
+```sql
+CREATE TABLE llm_call_log (
+    id                  BIGSERIAL PRIMARY KEY,
+    session_id          TEXT NOT NULL REFERENCES bot_sessions(session_id),
+    turn_index          INT,                         -- NULL for routing (pre-turn)
+    call_type           TEXT NOT NULL,                -- 'routing' | 'chat' | 'rerank' | 'retry'
+    model               TEXT NOT NULL,
+    prompt_tokens       INT,
+    completion_tokens   INT,
+    latency_ms          INT NOT NULL,
+    request_summary     TEXT,                         -- truncated prompt (first 200 chars)
+    response_summary    TEXT,                         -- truncated response (first 500 chars)
+    success             BOOLEAN NOT NULL DEFAULT TRUE,
+    error_message       TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_llm_call_session ON llm_call_log(session_id, turn_index);
+CREATE INDEX idx_llm_call_type ON llm_call_log(call_type);
+```
+
+#### D14.3.2 JPA Entity + Repository
+
+| File | Detail |
+|------|--------|
+| `LlmCallLog.java` (new, `model/`) | JPA `@Entity` with all columns above. `@GeneratedValue(strategy = IDENTITY)` for `id`. |
+| `LlmCallLogRepository.java` (new, `repository/`) | Spring Data JPA. Methods: `findBySessionIdOrderByCreatedAt(String sessionId)`, `findBySessionIdAndCallType(String sessionId, String callType)` |
+
+#### D14.3.3 LlmCallLogger Service
+
+| File | Detail |
+|------|--------|
+| `LlmCallLogger.java` (new, `service/observability/`) | Stateless `@Service`. Method: `log(String sessionId, Integer turnIndex, String callType, String model, int promptTokens, int completionTokens, int latencyMs, String requestSummary, String responseSummary, boolean success, String errorMessage)`. Persists to `llm_call_log` via repository. |
+
+#### D14.3.4 Instrumentation Points
+
+| Call Site | How to Instrument |
+|-----------|-------------------|
+| `LlmInvocationService.invokeRouting()` | After `llmClient.chat()` returns, call `llmCallLogger.log(sessionId, null, "routing", ...)` |
+| `LlmInvocationService.invokeChat()` | After `llmClient.chat()` returns, call `llmCallLogger.log(sessionId, turnIndex, "chat", ...)`. For retries: `callType = "retry"` |
+| `RerankService.scoreCandidate()` | After `llmClient.chat()` returns, call `llmCallLogger.log(sessionId, turnIndex, "rerank", ...)`. Requires passing `sessionId` + `turnIndex` into `rerank()` method signature. |
+
+**RerankService signature change**:
+```java
+// Before:
+public List<ScoredCandidate> rerank(String query, List<RerankCandidate> candidates)
+
+// After:
+public List<ScoredCandidate> rerank(String query, List<RerankCandidate> candidates,
+                                     String sessionId, int turnIndex)
+```
+
+#### D14.3.5 Trace API Endpoint
+
+| File | Change |
+|------|--------|
+| `DemoInspectionController.java` | Add `GET /v1/demo/sessions/{id}/llm-calls` → `llmCallLogRepository.findBySessionIdOrderByCreatedAt(id)` |
+
+#### D14.3.6 Admin UI Enhancement
+
+| File | Change |
+|------|--------|
+| `ui/src/components/admin/TraceViewer.tsx` | Add "LLM Calls" tab. Fetch from `/v1/demo/sessions/{id}/llm-calls`. Render table: `call_type` | `model` | `turn` | `latency_ms` | `tokens (p/c)` | `response_summary`. Show aggregate totals at bottom: total calls, total latency, total tokens. |
+
+### D14.4 Delivery Sequence
+
+```
+D14.3.1 (migration)  ─┐
+D14.3.2 (entity/repo) ─┤── D14.3.3 (logger) ── D14.3.4 (instrument) ── D14.3.5 (API) ── D14.3.6 (UI)
+D14.1 (parallel rerank) ─── (independent, can parallel with D14.3.*)
+D14.2 (query enrichment) ── (independent, can parallel with D14.1 / D14.3.*)
+```
+
+All three fixes are independent and can be developed in parallel.
+
+### D14.5 Done Criteria (D14.1–D14.3)
+
+- [ ] Rerank latency < 1.5s for 8 candidates (was ~5.7s serial)
+- [ ] Vague message "Pls help" with detailed form description → retrieves relevant articles (not faq_miss)
+- [ ] `GET /v1/demo/sessions/{id}/llm-calls` returns all LLM calls including routing, rerank, retry
+- [ ] Session with 2 turns + 8 rerank candidates each → `llm_call_log` has 17 rows (1 routing + 8 rerank×2)
+- [ ] Admin TraceViewer "LLM Calls" tab shows per-call breakdown with aggregate totals
+- [ ] Existing unit tests pass; new tests cover parallel rerank, query enrichment logic, and LLM call logging
+- [ ] No regressions in `eval-smoke`
+
+### D14.6 Auto-Search on Session Creation (Fix A — "Bot不再说空话")
+
+> **Triggered by**: Session `5ea63180` analysis. Bot returns "Let me look into this for you" but does nothing — waits idle for user input. User's form description `"why I can't post advert"` is ignored until the user repeats it in chat.
+
+**Current state**: `SessionManager.createSession()` (line 260) returns a static greeting: `"Hi {name}! I'm here to help with your inquiry about {topic}. Let me look into this for you."` No knowledge search, no LLM call, no `ControlKernel.processMessage()` — the session is idle until the user sends a chat message.
+
+**Target state**: When routing identifies a FAQ UC and `form_context.description` is non-empty, automatically invoke `ControlKernel.processMessage(session, formDescription)` during session creation. The greeting becomes the actual grounded answer.
+
+**Implementation**:
+
+| File | Change |
+|------|--------|
+| `SessionManager.java` | In the `ROUTED` case (line 117-126), after setting the phase to RESOLVE, check if `description` is non-empty and the UC is a FAQ UC (not INTAKE). If both true: (1) save session first (`sessionRepository.save(session)`), (2) call `controlKernel.processMessage(session, description)`, (3) use the kernel result's `responseText` as the greeting instead of the static template, (4) save session again with updated state. If the kernel call fails, fall back to the static greeting. |
+
+**FAQ UC detection**: Check against the INTAKE UC set (`UC-G, UC-H, UC-I, UC-J, UC-K`). All other routed UCs are FAQ UCs that support knowledge search.
+
+**Guard conditions**:
+- `description != null && description.length() > 10` — avoid auto-search on empty or trivial descriptions like "help"
+- `routingResult.outcome() == ROUTED` — only for successfully routed sessions
+- UC is NOT an INTAKE UC — intake UCs use fixed scripts, not knowledge search
+- Wrap in try/catch — auto-search failure must not break session creation
+
+**Greeting behavior change**:
+```
+Before: "Hi hr! I'm here to help... Let me look into this for you."  [IDLE]
+After:  "Hi hr! <actual grounded answer based on form description>"  [ANSWERED]
+```
+
+**Session state after auto-search**: `totalBotTurns = 1`, `currentPhase = CONFIRM` (if answered) or `RESOLVE` (if FAQ miss), `faqMissCount` and `articlesShown` updated.
+
+### D14.7 FAQ Miss Fallback Uses Form Context (Fix B)
+
+> **Triggered by**: Session `5ea63180` Turn 1. Knowledge search returned `faqMiss=true` for query `"hi"`. Bot responded with hardcoded "Could you describe your issue in a bit more detail?" — even though `form_context.description = "why I can't post advert"` was available.
+
+**Current state**: `PhaseEvaluator.resolveFaq()` (lines 197-218) returns a hardcoded ask_user response on FAQ miss, regardless of whether form context contains a detailed description. No LLM is invoked for FAQ miss turns.
+
+**Target state**: When `faqMiss=true` but `form_context.description` exists and is substantive (> 10 chars), invoke the main LLM with a special projection that includes the form description, instructing it to help based on general knowledge or escalate.
+
+**Implementation**:
+
+| File | Change |
+|------|--------|
+| `PhaseEvaluator.java` | In `resolveFaq()`, replace the hardcoded FAQ miss response block (lines 210-218) with: if `session.getFormContext()` has a non-empty `description` field (> 10 chars), build a context projection with `form_context` and an instruction: `"Knowledge search did not find matching articles, but the user described their issue in the pre-chat form: {description}. Provide a helpful response using your general knowledge about the topic, or choose escalate_human if you cannot help."` Then call `llmInvocation.invokeChat()` and return the LLM's response. If description is absent/short, fall back to the current hardcoded response. |
+
+**LLM invocation details**:
+- Build projection via `contextProjection.buildProjection(session, history, null, userMessage)` — null knowledge hits
+- Add a `faq_miss_instruction` field to the projection: explains what happened and instructs the LLM to use form context
+- The LLM can choose `answer_grounded` (without source_ids — general guidance), `ask_user` (specific follow-up), or `escalate_human`
+- This path still increments `faqMissCount` — if the LLM can't help either, the budget limit will trigger escalation on the next turn
+
+**Guard conditions**:
+- Only activate when `formDescription.length() > 10` — trivial descriptions like "help" should still trigger the standard "describe your issue" response
+- If LLM invocation fails, fall back to the current hardcoded response
+- `faqMissCount` is still incremented (preserving budget enforcement)
+
+### D14.8 Event Logging Uses Enriched Query (Fix C)
+
+> **Triggered by**: Session `5ea63180` event log shows `RETRIEVAL_EXECUTED` with `"query":"hi"`, but the actual search used the enriched query. This makes it impossible to debug query enrichment behavior from events.
+
+**Current state**: `PhaseEvaluator.java:193` passes `userMessage` to `emitRetrievalExecuted`, not `enrichedQuery`.
+
+**Target state**: Pass `enrichedQuery` so the event accurately reflects the actual search query.
+
+**Implementation**:
+
+| File | Change |
+|------|--------|
+| `PhaseEvaluator.java` | Line 193-194: change `userMessage` to `enrichedQuery` in the `emitRetrievalExecuted` call. |
+
+Single-line fix. No other files affected.
+
+### D14.9 Delivery Sequence (D14.6–D14.8)
+
+```
+D14.8 (event logging fix) ──── (trivial, independent)
+D14.7 (FAQ miss fallback) ──── (independent — modifies PhaseEvaluator FAQ miss block)
+D14.6 (auto-search on create) ── (independent — modifies SessionManager.createSession)
+```
+
+All three are independent and can be developed in parallel. D14.6 and D14.7 address different code paths (SessionManager vs PhaseEvaluator FAQ miss block).
+
+### D14.10 Done Criteria (D14.6–D14.8)
+
+- [ ] New session with form description "why I can't post advert" → greeting contains actual guidance (not static template)
+- [ ] New session with empty form description → static greeting unchanged (backward compatible)
+- [ ] INTAKE UC sessions (UC-G/H/I/J/K) → static greeting unchanged (no auto-search)
+- [ ] FAQ miss + form description present → LLM invoked with form context, returns helpful response (not hardcoded "describe more")
+- [ ] FAQ miss + no form description → hardcoded "describe your issue" response unchanged
+- [ ] `RETRIEVAL_EXECUTED` event records enriched query, not raw userMessage
+- [ ] `faqMissCount` still incremented on FAQ miss with form fallback (budget enforcement preserved)
+- [ ] Auto-search failure does not break session creation (graceful fallback)
+- [ ] Existing unit tests pass; new tests cover auto-search, FAQ miss fallback, event logging
+- [ ] No regressions in `eval-smoke`
+
+---
+
+## D15. Eval Scoring Bug Fixes (B1-B7)
+
+> **Triggered by**: Analysis of `cs_interactive_001` eval report showing Expected UC / Actual UC / Check names all displayed as N/A, L2 score inflation from alias duplication, and L3 groundedness systematic underscoring for escalation cases.
+>
+> **Scope**: Python eval harness only (`eval_interactive/`). No Java backend changes.
+
+### D15.1 Fix B1-B5: HTML Report Key Mismatches (Display Only)
+
+**Current state**: `executor._build_case_result()` serializes dict keys that don't match what `html_report._render_case()` reads.
+
+**Key mapping fixes** in `html_report.py`:
+
+| Line | Current read key | Correct read key |
+|------|-----------------|------------------|
+| 462 | `cr.get("expected_uc", "N/A")` | `cr.get("primary_uc", "N/A")` |
+| 463 | `cr.get("actual_uc", "N/A")` | `cr.get("active_use_case", "N/A")` |
+| 465 | `cr.get("actual_outcome", "N/A")` | `cr.get("containment_outcome", "N/A")` |
+| 471 | `cr.get("source_session_id", "N/A")` | `cr.get("session_id", "N/A")` |
+| 516 (L1) | `r.get("check_name", "")` | `r.get("check", "")` |
+| 539 (L2) | `r.get("check_name", "")` | `r.get("check", "")` |
+
+Single file change, 6 line edits.
+
+### D15.2 Fix B6: Deduplicate Outcome Check Aliases (Affects Scoring)
+
+**Current state**: `outcome_checks.py` defines aliases (`answer_accuracy → correct_outcome`, `escalation_triggered → escalation_timing`, `resolution_achieved → correct_outcome`). When a CaseSpec configures both a canonical check and its alias, the same function runs twice, inflating the L2 denominator.
+
+**Fix**: In `OutcomeChecker.run_checks()`, track which canonical function has been executed. Skip aliases that map to an already-executed function.
+
+```python
+# Build reverse map: alias → canonical name
+_ALIAS_MAP = {
+    "answer_accuracy": "correct_outcome",
+    "escalation_triggered": "escalation_timing",
+    "intake_fields_collected": "handover_completeness",
+    "resolution_achieved": "correct_outcome",
+}
+
+def run_checks(self, case_spec, trace):
+    configured = set(case_spec.scoring.outcome_checks)
+    results = []
+    executed_canonical = set()  # track which canonical checks have run
+
+    for name in configured:
+        canonical = _ALIAS_MAP.get(name, name)  # resolve alias to canonical
+        if canonical in executed_canonical:
+            continue  # skip duplicate
+        executed_canonical.add(canonical)
+        if name in dispatch:
+            results.append(dispatch[name]())
+
+    return results
+```
+
+**Impact on cs_interactive_001**: L2 changes from `(1.0+0.5+1.0+0.0)/4 = 0.625` to `(1.0+0.5+0.0)/3 = 0.50`. Composite changes from 0.48 to 0.42.
+
+### D15.3 Fix B7: Groundedness Judge Prompt for Escalation (Affects Scoring)
+
+**Current state**: `llm_judge.py:_judge_groundedness()` (line 100-118) uses a prompt that scores 1/5 when "no source IDs found in any turn" — but for escalation-only responses with zero factual claims, this penalizes correct behavior.
+
+**Fix**: Add an escalation-aware preamble to the scoring rubric:
+
+```python
+prompt = f"""\
+You are an expert evaluator for a customer service chatbot.
+
+TASK: Evaluate how well the bot's responses are grounded in retrieved knowledge sources.
+
+IMPORTANT: If the bot's response is purely procedural or an escalation message (e.g., 
+"transferring you to a human agent", "let me connect you with a specialist") with no 
+factual claims about the user's issue, score 5 — there are no claims that require 
+grounding. Only score low when the bot makes factual claims without citing sources.
+
+TRANSCRIPT:
+{self._format_transcript(transcript)}
+
+SOURCE CITATIONS PER TURN:
+{sources_block}
+
+SCORING (1-5):
+5 = Every factual claim is backed by a cited source, OR no factual claims were made
+4 = Most claims are grounded, minor unsourced details
+3 = Some claims are grounded but notable gaps exist
+2 = Few claims are grounded; bot invents information
+1 = Bot fabricates factual answers without any source backing
+
+Respond with ONLY a JSON object: {{"score": <1-5>, "reasoning": "<brief explanation>"}}"""
+```
+
+### D15.4 Delivery Sequence
+
+```
+D15.1 (report keys) ─── independent
+D15.2 (alias dedup) ─── independent
+D15.3 (judge prompt) ── independent
+```
+
+All three are fully independent — different files, no shared state.
+
+### D15.5 Done Criteria
+
+- [ ] HTML report shows correct Expected UC, Actual UC, Actual Outcome, Session ID (not N/A)
+- [ ] L1/L2 check names display correctly in report tables
+- [ ] CaseSpec with `correct_outcome + answer_accuracy` → only one check executes (not duplicated)
+- [ ] Escalation-only session → groundedness score ≥ 4.0 (not 1.0)
+- [ ] Re-run `cs_interactive_001` eval: verify corrected L2 score (~0.50) and improved L3 groundedness
+- [ ] Existing eval tests pass
 
 ---
 

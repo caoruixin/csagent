@@ -1,9 +1,11 @@
 package com.gumtree.csagent.service.runtime;
 
+import com.gumtree.csagent.config.LlmProperties;
 import com.gumtree.csagent.model.ChatMessage;
 import com.gumtree.csagent.model.LlmRequest;
 import com.gumtree.csagent.model.LlmResponse;
 import com.gumtree.csagent.service.llm.LlmClient;
+import com.gumtree.csagent.service.observability.LlmCallLogger;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -33,12 +35,17 @@ public class LlmInvocationService {
             .build();
 
     private final LlmClient llmClient;
+    private final LlmCallLogger llmCallLogger;
+    private final String modelName;
 
     private String systemPromptTemplate;
     private String routingPromptTemplate;
 
-    public LlmInvocationService(LlmClient llmClient) {
+    public LlmInvocationService(LlmClient llmClient, LlmCallLogger llmCallLogger,
+                                 LlmProperties llmProperties) {
         this.llmClient = llmClient;
+        this.llmCallLogger = llmCallLogger;
+        this.modelName = llmProperties.getKimi().getModel();
     }
 
     @PostConstruct
@@ -54,9 +61,14 @@ public class LlmInvocationService {
      *
      * @param projectedContext the JSON context string built by ContextProjectionBuilder
      * @param userMessage      the current user message
+     * @param sessionId        session identifier for call logging
+     * @param turnIndex        turn index for call logging
      * @return LlmResponse, or a safe escalation response on failure
      */
-    public LlmResponse invokeChat(String projectedContext, String userMessage) {
+    public LlmResponse invokeChat(String projectedContext, String userMessage,
+                                   String sessionId, int turnIndex) {
+        long start = System.currentTimeMillis();
+        String requestSummary = truncate(userMessage, 200);
         try {
             String systemPrompt = systemPromptTemplate + "\n\nCurrent context:\n" + projectedContext;
 
@@ -71,12 +83,21 @@ public class LlmInvocationService {
                     .build();
 
             LlmResponse response = llmClient.chat(request);
-            log.debug("LLM chat response: latency={}ms, tokens={}/{}",
+            int elapsed = (int) (System.currentTimeMillis() - start);
+            log.info("LLM [chat] response: latency={}ms, tokens={}/{}",
                     response.getLatencyMs(), response.getPromptTokens(), response.getCompletionTokens());
+
+            llmCallLogger.log(sessionId, turnIndex, "chat", modelName,
+                    response.getPromptTokens(), response.getCompletionTokens(),
+                    elapsed, requestSummary, truncate(response.getContent(), 500));
+
             return response;
 
         } catch (Exception e) {
+            int elapsed = (int) (System.currentTimeMillis() - start);
             log.error("LLM invocation failed, returning safe escalation: {}", e.getMessage(), e);
+            llmCallLogger.logFailure(sessionId, turnIndex, "chat", modelName,
+                    elapsed, requestSummary, e.getMessage());
             return SAFE_ESCALATION_RESPONSE;
         }
     }
@@ -87,9 +108,13 @@ public class LlmInvocationService {
      * @param ucCandidates  formatted string describing candidate use cases
      * @param topicSubject  the customer's form topic
      * @param description   the customer's description
+     * @param sessionId     session identifier for call logging
      * @return LlmResponse with classification result
      */
-    public LlmResponse invokeRouting(String ucCandidates, String topicSubject, String description) {
+    public LlmResponse invokeRouting(String ucCandidates, String topicSubject,
+                                      String description, String sessionId) {
+        long start = System.currentTimeMillis();
+        String requestSummary = truncate("topic=" + topicSubject + " desc=" + description, 200);
         try {
             String prompt = routingPromptTemplate
                     .replace("{uc_candidates}", ucCandidates)
@@ -107,17 +132,31 @@ public class LlmInvocationService {
                     .build();
 
             LlmResponse response = llmClient.chat(request);
-            log.debug("LLM routing response: latency={}ms", response.getLatencyMs());
+            int elapsed = (int) (System.currentTimeMillis() - start);
+            log.info("LLM [routing] response: latency={}ms", response.getLatencyMs());
+
+            llmCallLogger.log(sessionId, null, "routing", modelName,
+                    response.getPromptTokens(), response.getCompletionTokens(),
+                    elapsed, requestSummary, truncate(response.getContent(), 500));
+
             return response;
 
         } catch (Exception e) {
+            int elapsed = (int) (System.currentTimeMillis() - start);
             log.error("LLM routing invocation failed: {}", e.getMessage(), e);
+            llmCallLogger.logFailure(sessionId, null, "routing", modelName,
+                    elapsed, requestSummary, e.getMessage());
             return SAFE_ESCALATION_RESPONSE;
         }
     }
 
     public String getSystemPromptTemplate() {
         return systemPromptTemplate;
+    }
+
+    private String truncate(String text, int maxLen) {
+        if (text == null) return null;
+        return text.length() <= maxLen ? text : text.substring(0, maxLen);
     }
 
     private String loadPromptTemplate(String path) {

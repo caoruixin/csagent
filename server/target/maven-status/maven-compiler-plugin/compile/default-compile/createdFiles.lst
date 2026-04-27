@@ -2,6 +2,8 @@ com/gumtree/csagent/model/ChatMessage.class
 com/gumtree/csagent/service/tools/ToolResult.class
 com/gumtree/csagent/service/observability/model/FunnelMetrics$FunnelMetricsBuilder.class
 com/gumtree/csagent/model/BotTurn$BotTurnBuilder.class
+com/gumtree/csagent/model/LlmCallLog.class
+com/gumtree/csagent/repository/LlmCallLogRepository.class
 com/gumtree/csagent/model/ChatSessionResponse$ChatSessionResponseBuilder.class
 com/gumtree/csagent/model/KnowledgeSearchResult$KnowledgeSearchResultBuilder.class
 com/gumtree/csagent/service/observability/LocalEventStore.class
@@ -54,6 +56,7 @@ com/gumtree/csagent/model/KnowledgeHit.class
 com/gumtree/csagent/service/llm/OpenAiCompatibleLlmClient.class
 com/gumtree/csagent/service/runtime/UseCaseRouter.class
 com/gumtree/csagent/config/LlmProperties$DashScopeProperties.class
+com/gumtree/csagent/model/LlmCallLog$LlmCallLogBuilder.class
 com/gumtree/csagent/config/LlmProperties.class
 com/gumtree/csagent/service/mock/MockGumtreeApiService.class
 com/gumtree/csagent/service/mock/MockDataInitializer.class
@@ -95,6 +98,7 @@ com/gumtree/csagent/model/DriftResult.class
 com/gumtree/csagent/service/runtime/ActionParser.class
 com/gumtree/csagent/service/observability/model/FunnelMetrics.class
 com/gumtree/csagent/service/tools/LookupCustomerAccountTool.class
+com/gumtree/csagent/service/observability/LlmCallLogger.class
 com/gumtree/csagent/service/mock/MockGumtreeApiService$1.class
 com/gumtree/csagent/service/tools/ToolPolicyEnforcer$ToolPolicy.class
 com/gumtree/csagent/service/runtime/UseCaseRouter$RoutingResult.class

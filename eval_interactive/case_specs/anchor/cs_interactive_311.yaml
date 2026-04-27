@@ -1,0 +1,60 @@
+case_id: cs_interactive_311
+source_session_id: 570Q5000008la8HIAQ
+source_dataset: golden
+form_context:
+  first_name: Jon
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Help logging in
+persona:
+  goal_summary: 'Get help with: Help logging in. Expects bot to resolve the issue directly.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - Having issue receiving email password reset or logging in
+  - Email account is [EMAIL] when I ask for password reset I never receive an email link ever in spam no where tried 10 times
+  - Here’s one of my adverts
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-D
+  secondary_ucs: []
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,62 @@
+case_id: cs_interactive_052
+source_session_id: 570Q5000008DtYLIA0
+source_dataset: handover
+form_context:
+  first_name: Sam
+  email: customer@example.com
+  topic_subject: UNKNOWN
+  ad_id: ''
+  description: ''
+persona:
+  goal_summary: Get help with UNKNOWN issue. Expects bot to escalate to human agent.
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I messaged you guys weeks ago about photos on my adverts keep uploading blurred, compressed and poor quality. I was told
+    that someone will get in contact with via email.
+  - I received an email on the 20/11/2025 advising that this issue is being investigated and someone will be in contact
+  - No one has come back to me and the advert all continue to be blurred
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-H
+  - UC-K
+  should_escalate: true
+  escalation_trigger: user_distress
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

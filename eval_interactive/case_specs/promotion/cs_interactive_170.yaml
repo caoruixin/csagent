@@ -1,0 +1,68 @@
+case_id: cs_interactive_170
+source_session_id: 570Q5000008gVUDIA2
+source_dataset: badcase
+form_context:
+  first_name: Paul
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: No call setting on advert
+persona:
+  goal_summary: 'Get help with: No call setting on advert. Expects bot to escalate to human agent.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hi you have made it now harder for sellers taking the call feature away now sellers will feel it harder not always there
+    for email email is not safe you can be spammed more with email than calling someone now sellers will not use the service
+    as you get time waisters on email your not always there to get email sales will be lost then sellers will leave gumtree
+    now and use other platforms
+  - Sorry that's not true you have more wYs for spam in emails than calls its not good at all time waister no sales you've
+    raven the call setting away I may now leave gumtree and move to other platform where I can use my telephone number I dint
+    email sorry your not thinking if the customer
+  - email does not make your platform safer
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs:
+  - UC-B
+  - UC-F
+  - UC-J
+  should_escalate: true
+  escalation_trigger: user_distress
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - answer_grounded
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - search_knowledge
+  - resolve_article
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  max_turns: 10
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

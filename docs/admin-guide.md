@@ -75,10 +75,12 @@ Open `http://localhost:5173` for the chat UI, `http://localhost:5173/admin` for 
 | `DB_NAME`             | Database name (default: csagent)| No       |
 | `REDIS_HOST`          | Redis host (default: localhost) | No       |
 | `REDIS_PORT`          | Redis port (default: 6379)     | No       |
-| `KIMI_API_KEY`        | Moonshot Kimi LLM API key      | Yes (for LLM) |
-| `DASHSCOPE_API_KEY`   | Alibaba DashScope API key      | Yes (for embeddings) |
+| `KIMI_API_KEY`        | Kimi K2.6 API key (primary LLM for chat/routing/rerank) | Yes (for LLM) |
+| `KIMI_BASE_URL`       | Kimi API endpoint (default: `https://api.moonshot.ai/v1`) | No |
+| `KIMI_MODEL`          | Kimi model name (default: `kimi-k2.6`) | No |
+| `DASHSCOPE_API_KEY`   | Alibaba DashScope API key (used for embeddings only) | Yes (for embeddings) |
 | `DASHSCOPE_BASE_URL`  | DashScope endpoint             | No       |
-| `DASHSCOPE_CHAT_MODEL`| Chat model name                | No       |
+| `DASHSCOPE_CHAT_MODEL`| DashScope chat model (fallback if Kimi key not set) | No |
 | `DASHSCOPE_EMBEDDING_MODEL` | Embedding model name      | No       |
 
 ### 4.2 Application Config (`server/src/main/resources/`)
@@ -177,6 +179,11 @@ logging:
 
 | Pattern | What it means |
 |---------|---------------|
+| `LLM config loaded` | Startup summary showing resolved provider/model config |
+| `LLM request: provider=` | Per-call log showing which provider and model is used |
+| `LLM response: model=` | Per-call response with model, latency, and token counts |
+| `LLM [chat]` / `LLM [routing]` / `LLM [rerank]` | Scenario-specific LLM call |
+| `Embedding request: provider=` | Embedding call with provider and model |
 | `LLM invocation failed` | LLM API call failed, bot will use fallback response |
 | `Embedding failed` | DashScope embedding API error, search returns empty |
 | `Budget exceeded` | Session hit a turn/clarification/faq-miss limit |
@@ -309,6 +316,24 @@ URL: `http://localhost:5173/admin`
 - **active** (green) = `BOT_HANDLING`
 - **escalated** (yellow) = `QUEUE_TO_HUMAN` or `HUMAN_HANDLING`
 - **ended** (blue) = `CLOSED`
+
+### Trace Viewer — LLM Interaction Detail
+
+Each step in the Trace tab now includes a **"View LLM Detail"** button that reveals
+the full App↔LLM interaction for that turn. The detail panel shows:
+
+| Section | Content | Source field on `BotTurn` |
+|---------|---------|--------------------------|
+| **Metadata bar** | Phase transition, active UC, latency, source count | `phaseBefore`, `phaseAfter`, `activeUseCase`, `latencyMs`, `sourceIds` |
+| **LLM Reasoning** | The model's internal chain-of-thought (not shown to the customer) | Parsed from `reasoning` key inside `llmRawResponse` JSON |
+| **Projected Context** | Full context projection JSON sent to the LLM (session state, allowed actions, budget, form/customer/listing context, conversation history, knowledge hits) | `projectedContext` (jsonb) |
+| **LLM Raw Response** | Complete model output JSON (`action`, `parameters`, `user_message`, `reasoning`) | `llmRawResponse` |
+| **Action Parameters** | Parsed action-specific parameters | `actionParameters` (jsonb) |
+
+No backend changes are required — the existing `GET /v1/demo/sessions/{id}/trace`
+endpoint already returns the full `BotTurn` entity including all fields above.
+The frontend `mapTrace` function and `TraceStep` type have been extended to
+carry these fields through to the UI.
 
 ---
 
@@ -476,12 +501,36 @@ After eval runs, find reports in `eval/target/eval-reports/`:
 | `relation "bot_sessions" does not exist` | Flyway migrations not applied | They run automatically on startup; check Flyway logs |
 | `column is of type jsonb but expression is of type character varying` | Missing `?stringtype=unspecified` in JDBC URL | Check `application-local.yml` datasource URL |
 
+### Verifying LLM provider/model in use
+
+After startup or config change, verify which LLM is active for each scenario:
+
+```bash
+# 1. Check startup config summary
+grep "LLM config loaded" /tmp/csagent.log
+# Expected: kimi=[model=kimi-k2.6, baseUrl=https://api.moonshot.ai/v1], dashscope=[chatModel=qwen-plus, ...]
+
+# 2. Check per-request provider selection (send a test message first)
+grep "LLM request:" /tmp/csagent.log | tail -5
+# Expected: provider=Kimi, model=kimi-k2.6 for chat/routing/rerank
+
+# 3. Check embedding provider
+grep "Embedding request:" /tmp/csagent.log | tail -3
+# Expected: provider=DashScope, model=text-embedding-v3
+
+# 4. Scenario-specific checks
+grep "LLM \[chat\]" /tmp/csagent.log      # Bot conversation turns
+grep "LLM \[routing\]" /tmp/csagent.log    # UC classification
+grep "LLM \[rerank\]" /tmp/csagent.log     # Knowledge reranking
+```
+
 ### LLM not responding
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Bot says "experiencing a technical issue" | LLM API call failed | See below |
 | `401 Unauthorized` in logs | API keys not loaded | Run via `make backend` (auto-loads `.env.local`), or manually: `set -a && source .env.local && set +a` before starting |
+| `LLM request: provider=DashScope` when expecting Kimi | `KIMI_API_KEY` not set | Check `.env.local` has `KIMI_API_KEY=sk-...` and was sourced |
 | Knowledge search returns empty | Embedding API failed | Check `DASHSCOPE_API_KEY`; verify `kb_chunks` table has data |
 | Slow responses (>10s) | API rate limiting | Check LLM provider dashboard for quota |
 

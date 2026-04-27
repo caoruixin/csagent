@@ -26,12 +26,12 @@ class OpenAiCompatibleLlmClientTest {
     }
 
     @Test
-    void chat_whenDashScopeKeyBlank_shouldFallbackToKimi() {
-        // Arrange: DashScope key is blank, Kimi key is set
+    void chat_whenKimiKeySet_shouldUseKimiAsPrimary() {
+        // Arrange: Kimi key is set, should use Kimi as primary (not DashScope)
         LlmProperties props = new LlmProperties();
-        props.getDashscope().setApiKey("");
         props.getKimi().setApiKey("test-kimi-key");
-        props.getKimi().setBaseUrl("https://api.moonshot.cn/v1");
+        props.getKimi().setBaseUrl("https://api.moonshot.ai/v1");
+        props.getDashscope().setApiKey("test-dashscope-key");
 
         OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(props, objectMapper);
 
@@ -51,10 +51,11 @@ class OpenAiCompatibleLlmClientTest {
     }
 
     @Test
-    void chat_whenDashScopeKeyNull_shouldFallbackToKimi() {
+    void chat_whenKimiKeyBlank_shouldFallbackToDashScope() {
         LlmProperties props = new LlmProperties();
-        props.getDashscope().setApiKey(null);
-        props.getKimi().setApiKey("test-kimi-key");
+        props.getKimi().setApiKey("");
+        props.getDashscope().setApiKey("test-dashscope-key");
+        props.getDashscope().setBaseUrl("http://localhost:19999");
 
         OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(props, objectMapper);
 

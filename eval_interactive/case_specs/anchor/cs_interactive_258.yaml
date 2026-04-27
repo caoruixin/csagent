@@ -1,0 +1,61 @@
+case_id: cs_interactive_258
+source_session_id: 570Q500000920WbIAI
+source_dataset: golden
+form_context:
+  first_name: Anne
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Can’t find my as
+persona:
+  goal_summary: 'Get help with: Can’t find my as. Expects bot to resolve the issue directly.'
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: soft_shift
+  seed_messages:
+  - Can’t find my advertisement
+  - '1509495376'
+  - '1509495375'
+  hidden_facts:
+  - fact: email is customer@example.com
+    disclose_when: if asked
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-F
+  should_escalate: false
+  escalation_trigger: ''
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - answer_grounded
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - moderation_enforcement_action
+  - send_followup_email_or_async_update
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed that for you
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - password or credential requests
+  max_turns: 15
+scoring:
+  hard_checks:
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness
