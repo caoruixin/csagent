@@ -35,8 +35,19 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
         HiddenFact(fact=hf["fact"], disclose_when=hf["disclose_when"])
         for hf in p_raw.get("hidden_facts", [])
     ]
+    # Wave A3: prefer the new ``user_goal_summary`` field; fall back to the
+    # pre-A1.1 ``goal_summary`` for any legacy yaml that still uses the old
+    # name. Pass via the new constructor kwarg either way.
+    if "user_goal_summary" in p_raw:
+        user_goal_summary = p_raw["user_goal_summary"]
+    elif "goal_summary" in p_raw:
+        user_goal_summary = p_raw["goal_summary"]
+    else:
+        raise KeyError(
+            "persona missing required field 'user_goal_summary' (or legacy 'goal_summary')"
+        )
     persona = Persona(
-        goal_summary=p_raw["goal_summary"],
+        user_goal_summary=user_goal_summary,
         frustration_level=p_raw["frustration_level"],
         verbosity=p_raw["verbosity"],
         drift_behavior=p_raw["drift_behavior"],
@@ -46,12 +57,21 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
     )
 
     e_raw = raw["expected"]
+    # Wave A3: ``allow_bot_resolution`` and ``bot_handling_pattern`` are
+    # required fields on the new schema; legacy yaml will not have them, so
+    # fall back to safe defaults. ``escalation_trigger`` is now an enum that
+    # rejects empty strings -- normalise empty/missing to None.
+    raw_trigger = e_raw.get("escalation_trigger", None)
+    if isinstance(raw_trigger, str) and not raw_trigger.strip():
+        raw_trigger = None
     expected = Expected(
         outcome_class=e_raw["outcome_class"],
         primary_uc=e_raw["primary_uc"],
         secondary_ucs=e_raw.get("secondary_ucs", []),
         should_escalate=e_raw["should_escalate"],
-        escalation_trigger=e_raw.get("escalation_trigger", ""),
+        allow_bot_resolution=e_raw.get("allow_bot_resolution", "false"),
+        bot_handling_pattern=e_raw.get("bot_handling_pattern", "(legacy spec - bot_handling_pattern not specified)"),
+        escalation_trigger=raw_trigger,
         risk_level=e_raw.get("risk_level", "low"),
         expected_tool_sequence=e_raw.get("expected_tool_sequence", []),
         forbidden_tools=e_raw.get("forbidden_tools", []),

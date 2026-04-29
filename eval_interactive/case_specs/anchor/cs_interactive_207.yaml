@@ -8,19 +8,15 @@ form_context:
   ad_id: ''
   description: My ad has disappeared after paying for the ad to go live
 persona:
-  goal_summary: 'Get help with: My ad has disappeared after paying for the ad to go live. Expects bot to escalate to human
-    agent.'
+  user_goal_summary: 'User reports Ad Support: My ad has disappeared after paying for the ad to go live. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - The ad which disappeared is for a budgie and cage, only posted 2 days ago. Which I paid for
-  - '[EMAIL] or [EMAIL]. I have never been asked to login to the app for so long Im not even sure which email is connected
-    to gumtree. I managed to change password and my ad is gone'
-  - I think it is linked to gmail
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - You have not asked me which account I want to use moving forward because I only have one account!!!!!!
+  - I ALSO TOLD YOU THAT IS HOW I KNOW IT IS LINKED TO THAT EMAIL ADDRESS. YOU ARE NOT LISTENING TO A WORD I HAVE SAID
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -30,6 +26,9 @@ expected:
   - UC-C
   - UC-D
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
   escalation_trigger: clarification_budget_exhausted
   risk_level: low
   expected_tool_sequence:
@@ -40,17 +39,22 @@ expected:
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - lookup_customer_account
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - refund approval, legal liability, or amount decision
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

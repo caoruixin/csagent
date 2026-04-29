@@ -8,19 +8,16 @@ form_context:
   ad_id: ''
   description: The location isn't working correctly.
 persona:
-  goal_summary: 'Get help with: The location isn''t working correctly.. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Technical Support: The location isn''t working correctly. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - Of I enter 'Blackheath' in the location for example it doesn't show anything other than surrounding areas. I know there
     is always item for sale in Blackheath. Same for 'Welling', 'Bexlyheath', etc.
-  - This has been happening for months. I did log a ticket with an agent maybe a couple of months ago but there was nothing
-    in my emails.
-  - Garden Furniture...
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Yits not working for me other than from your links.
+  - I think it might be the radius but it's not something I've changed. Thanks for your help.
+  hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate
@@ -28,27 +25,36 @@ expected:
   secondary_ucs:
   - UC-E
   should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason user_requested.
   escalation_trigger: user_requested
   risk_level: medium
   expected_tool_sequence:
   - get_customer_context
-  - answer_grounded
   - create_case_controlled
   - request_handover
   - record_outcome
   forbidden_tools:
-  - search_knowledge
+  - get_message_moderation_context
+  - get_moderation_review_context
   - resolve_article
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - search_knowledge
   grounding_mode: fixed_script_only
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 10
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - fixed_script_adherence

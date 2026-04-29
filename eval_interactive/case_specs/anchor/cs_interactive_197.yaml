@@ -8,45 +8,45 @@ form_context:
   ad_id: ''
   description: Hey when i text customer they will recieve my text messages but they can't respond back to me
 persona:
-  goal_summary: 'Get help with: Hey when i text customer they will recieve my text messages but they can''t respond back to
-    me. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Account Support: Hey when i text customer they will recieve my text messages but they can''t
+    respond back to me. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - Hello Monisha
-  - It does not says any where on my acount but as i am not recieving response from last 3 days after texting customers so
-    i tried to make a dummy acount
-  - and when i text from that acount i can recieve messages but when i sent message to dummy acount i haven't recieved that
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Sure take your time
+  - i have just sent this message
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: resolve
   primary_uc: UC-C
   secondary_ucs: []
   should_escalate: false
-  escalation_trigger: ''
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - answer_grounded
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

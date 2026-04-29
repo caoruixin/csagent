@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: What Email address can I use to make a request
 persona:
-  goal_summary: 'Get help with: What Email address can I use to make a request. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Account Support: What Email address can I use to make a request. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift
@@ -19,44 +19,45 @@ persona:
     sent to my email address. Is it possible for you to
   - simply sort out ONE account using the [EMAIL] and ensure that any ad messages will be duplicated by Email. I would prefer
     to continue with Gumtree instead of deleting the entire App..
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  hidden_facts: []
   will_request_human_if: ''
 expected:
-  outcome_class: escalate
+  outcome_class: resolve
   primary_uc: UC-C
   secondary_ucs:
   - UC-K
   - UC-D
-  should_escalate: true
-  escalation_trigger: clarification_budget_exhausted
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - request_handover
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - escalation_triggered
+  - resolution_achieved
   - answer_accuracy
   llm_judge_dimensions:
   - groundedness

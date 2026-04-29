@@ -8,20 +8,16 @@ form_context:
   ad_id: ''
   description: I lost a sale because my message was sent to wrong email
 persona:
-  goal_summary: 'Get help with: I lost a sale because my message was sent to wrong email. Expects bot to escalate to human
-    agent.'
+  user_goal_summary: 'User reports Account Support: I lost a sale because my message was sent to wrong email. Drift: soft_shift.'
   frustration_level: high
-  verbosity: verbose
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - my messages are being sent to an old email address. Not the address which is registered for my account. And i lost a slae
     because of that
-  - 'no'
-  - i opened the account with the old email address but then changed my primary email address to my new address. This worked
-    fine for a long time. But now i find that the emails are being sent again to the original account
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - that is the best advice you can give me?
+  - are you still there?
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -29,6 +25,9 @@ expected:
   secondary_ucs:
   - UC-D
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
   escalation_trigger: user_distress
   risk_level: low
   expected_tool_sequence:
@@ -39,16 +38,21 @@ expected:
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

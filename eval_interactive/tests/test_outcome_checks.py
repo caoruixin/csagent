@@ -31,6 +31,10 @@ def _make_case_spec(
 ) -> CaseSpec:
     if outcome_checks is None:
         outcome_checks = OutcomeChecker.ALL_CHECKS
+    # Wave A1.1: ``Expected`` now requires ``allow_bot_resolution`` and
+    # ``bot_handling_pattern``; ``escalation_trigger`` must be a canonical
+    # enum value when ``should_escalate=True`` and None otherwise.
+    escalation_trigger = "intake_complete_for_uc_k" if should_escalate else None
     return CaseSpec(
         case_id="test-oc-001",
         source_session_id="sess-001",
@@ -41,7 +45,7 @@ def _make_case_spec(
             topic_subject="Test topic",
         ),
         persona=Persona(
-            goal_summary="Test goal",
+            user_goal_summary="Test goal",
             frustration_level="none",
             verbosity="normal",
             drift_behavior="none",
@@ -53,6 +57,9 @@ def _make_case_spec(
             primary_uc=primary_uc,
             secondary_ucs=secondary_ucs or [],
             should_escalate=should_escalate,
+            allow_bot_resolution="true",
+            bot_handling_pattern="<test fixture>",
+            escalation_trigger=escalation_trigger,
             expected_tool_sequence=expected_tool_sequence or [],
             max_turns=max_turns,
         ),

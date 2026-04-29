@@ -8,17 +8,15 @@ form_context:
   ad_id: ''
   description: Daschundblack tan smooth hair
 persona:
-  goal_summary: 'Get help with: Daschundblack tan smooth hair. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Account Support: Daschundblack tan smooth hair. Drift: soft_shift.'
   frustration_level: none
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Why is my ADD not posted under f
-  - Faschunds 4 sale in South Australia with the other faschunds 4 sale
-  - Daschunds 4 sale
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Il will look 4 it and get nack
+  - Ju as t put my ADD under faschunds ,4 sale in South Australia like it should be
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: resolve
@@ -26,26 +24,29 @@ expected:
   secondary_ucs:
   - UC-B
   should_escalate: false
-  escalation_trigger: ''
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: medium
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - answer_grounded
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

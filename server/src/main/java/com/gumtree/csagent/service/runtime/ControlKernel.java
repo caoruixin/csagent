@@ -180,7 +180,7 @@ public class ControlKernel {
             session.setCurrentPhase("CLOSE");
         }
         session.setHandlingState("QUEUE_TO_HUMAN");
-        session.setContainmentOutcome("ESCALATED");
+        session.setContainmentOutcome("escalated");
 
         long latencyMs = System.currentTimeMillis() - startTime;
 

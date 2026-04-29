@@ -8,17 +8,15 @@ form_context:
   ad_id: ''
   description: App shows notication but does not show when I log on
 persona:
-  goal_summary: 'Get help with: App shows notication but does not show when I log on. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Account Support: App shows notication but does not show when I log on. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - My app shows notifications, but when I log on there is no message there
-  - '[EMAIL]'
-  - Yesterday
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - OK thanks
+  - I've seen your test message
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: resolve
@@ -26,26 +24,29 @@ expected:
   secondary_ucs:
   - UC-K
   should_escalate: false
-  escalation_trigger: ''
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - answer_grounded
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

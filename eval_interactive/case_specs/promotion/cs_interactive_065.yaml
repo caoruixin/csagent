@@ -8,18 +8,16 @@ form_context:
   ad_id: ''
   description: Got  4 different names against 4 different ads on messages but no message
 persona:
-  goal_summary: 'Get help with: Got  4 different names against 4 different ads on messages but no message. Expects bot to
-    resolve the issue directly.'
+  user_goal_summary: 'User reports Replies & Messaging: Got 4 different names against 4 different ads on messages but no message.
+    Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - '[EMAIL]'
   - your welcome
-  - I should say there are no messages showing in my emails,just when I went into messages on Gumtree
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - or indeed when they were sent
+  - No you haven’t you have said they could be pending …and have not given an answer as to why their messages were deleted
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: resolve
@@ -29,27 +27,29 @@ expected:
   - UC-FP
   - UC-D
   should_escalate: false
-  escalation_trigger: ''
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - answer_grounded
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
-  - internal moderation reason codes or enforcement commitments
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

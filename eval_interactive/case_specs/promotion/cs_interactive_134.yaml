@@ -9,19 +9,17 @@ form_context:
   description: I recently posted an ad and unlike every other time I did so, I had no email notifications to my dedicated
     email account which made me miss a few emails/sales.
 persona:
-  goal_summary: 'Get help with: I recently posted an ad and unlike every other time I did so, I had no email notifications
-    to my dedicated email account which made me miss a few emails/sales.. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Replies & Messaging: I recently posted an ad and unlike every other time I did so, I had
+    no email notifications to my dedicated email account which made me miss a few emails/sales. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - Thanks Jason!
   - I have that email setting as my nominated email and it used to work. I tried to look into it and it shows two email addresses.
     I tried to delete the other one just in case but I'm not allowed to for some reason.
   - And I'm not sure it would change the error anyways
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Ok, well at least I know now what to do when I send the next ad up. Thanks so much for your help!
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -31,6 +29,9 @@ expected:
   - UC-FP
   - UC-K
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
   escalation_trigger: clarification_budget_exhausted
   risk_level: low
   expected_tool_sequence:
@@ -41,17 +42,21 @@ expected:
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - internal moderation reason codes or enforcement commitments
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

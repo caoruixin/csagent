@@ -83,6 +83,15 @@ public class SessionManager {
         OffsetDateTime now = OffsetDateTime.now();
 
         // Create the session
+        // NOTE: articlesShown and candidateUseCases are initialised to empty arrays
+        // here because the schema declares both columns NOT NULL with DEFAULT '{}',
+        // and at least one code path (FAQ auto-search at the ROUTED branch below)
+        // calls sessionRepository.save(session) BEFORE the defensive null-coalesce
+        // block further down. Hibernate maps a null Java field to SQL NULL (the
+        // column DEFAULT does not apply on INSERT when a value is explicitly
+        // provided), which violates the NOT NULL constraint and pollutes the
+        // transaction with rollback-only state. Initialising in the builder
+        // ensures every save path is safe.
         BotSession session = BotSession.builder()
                 .sessionId(sessionId)
                 .trafficVariant("bot_v1")
@@ -92,6 +101,8 @@ public class SessionManager {
                 .clarificationCount(0)
                 .faqMissCount(0)
                 .repeatedActionCount(0)
+                .articlesShown(new String[0])
+                .candidateUseCases(new String[0])
                 .promptVersion("v1.0.0")
                 .modelVersion("local")
                 .projectionVersion("v1.0.0")
@@ -160,7 +171,7 @@ public class SessionManager {
                 // Handover-only or out of scope — immediately escalate
                 session.setCurrentPhase("ESCALATE");
                 session.setHandlingState("QUEUE_TO_HUMAN");
-                session.setContainmentOutcome("ESCALATED");
+                session.setContainmentOutcome("escalated");
                 session.setEscalationReason("out_of_scope:" + routingResult.outOfScopeReason());
                 greeting = buildOutOfScopeGreeting(firstName, topicSubject);
                 shouldEndChat = true;
@@ -325,7 +336,7 @@ public class SessionManager {
     private void recordOutcome(BotSession session) {
         try {
             String outcome = session.getContainmentOutcome() != null
-                    ? session.getContainmentOutcome() : "ESCALATED";
+                    ? session.getContainmentOutcome() : "escalated";
 
             SessionOutcome sessionOutcome = SessionOutcome.builder()
                     .sessionId(session.getSessionId())

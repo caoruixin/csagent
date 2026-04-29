@@ -8,18 +8,15 @@ form_context:
   ad_id: ''
   description: Why am I not getting the option to add my phone number as a point of contact when listening an item any more
 persona:
-  goal_summary: 'Get help with: Why am I not getting the option to add my phone number as a point of contact when listening
-    an item any more. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Account Support: Why am I not getting the option to add my phone number as a point of contact
+    when listening an item any more. Drift: soft_shift.'
   frustration_level: high
   verbosity: terse
   drift_behavior: soft_shift
   seed_messages:
   - Should be [EMAIL]
-  - Ok
   - Ok thank you
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -27,6 +24,9 @@ expected:
   secondary_ucs:
   - UC-B
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (search_knowledge, resolve_article, request_handover,
+    record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
   escalation_trigger: clarification_budget_exhausted
   risk_level: low
   expected_tool_sequence:
@@ -35,18 +35,26 @@ expected:
   - request_handover
   - record_outcome
   forbidden_tools:
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

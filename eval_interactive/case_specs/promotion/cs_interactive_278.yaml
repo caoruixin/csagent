@@ -9,18 +9,16 @@ form_context:
   description: I have received an email saying I have a message but when I press the 'Reply to message' button there is no
     message in my account. I would like to reply to this message.
 persona:
-  goal_summary: 'Get help with: I have received an email saying I have a message but when I press the ''Reply to message''
-    button there is no message in my account. I would like to reply to this message.. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Replies & Messaging: I have received an email saying I have a message but when I press
+    the ''Reply to message'' button there is no message in my account. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Yes, I am logged in online and have opened the message section but there is no message there.
-  - Yes, then I went to my account but the message is not there.
-  - No, I received the message from someone I had previously sold a bicycle to.
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - So I am now logged on but I can't access the message.
+  - OK. Thank you very much.
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: resolve
@@ -30,27 +28,29 @@ expected:
   - UC-FP
   - UC-D
   should_escalate: false
-  escalation_trigger: ''
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - answer_grounded
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
-  - internal moderation reason codes or enforcement commitments
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

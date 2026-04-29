@@ -8,17 +8,15 @@ form_context:
   ad_id: ''
   description: Help with selling
 persona:
-  goal_summary: 'Get help with: Help with selling. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Account Support: Help with selling. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - I am new to this
-  - I want to sell my roof bars to someone who's lical. How do i start
-  - Do people usually pay cash? Do they just agree on an exchange location?
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Do you take a percentage commision?
+  - Or via you like ebay?
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: resolve
@@ -26,26 +24,32 @@ expected:
   secondary_ucs:
   - UC-B
   should_escalate: false
-  escalation_trigger: ''
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (search_knowledge, resolve_article, record_outcome),
+    and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - search_knowledge
   - resolve_article
-  - answer_grounded
   - record_outcome
   forbidden_tools:
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

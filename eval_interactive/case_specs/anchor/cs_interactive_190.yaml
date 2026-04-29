@@ -8,44 +8,46 @@ form_context:
   ad_id: ''
   description: Need help to see where it is advertised
 persona:
-  goal_summary: 'Get help with: Need help to see where it is advertised. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Ad Support: Need help to see where it is advertised. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Thanks
   - Let me check
   - Paid Role – Wellness Session Support (Urgent)
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Finally which job category gets the most views
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: resolve
-  primary_uc: UC-B
+  primary_uc: UC-A
   secondary_ucs:
   - UC-K
   should_escalate: false
-  escalation_trigger: ''
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
+  - get_customer_context
   - search_knowledge
   - resolve_article
-  - answer_grounded
   - record_outcome
   forbidden_tools:
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - lookup_customer_account
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

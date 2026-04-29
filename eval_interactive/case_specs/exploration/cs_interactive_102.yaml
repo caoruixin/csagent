@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  goal_summary: Get help with Subject to Access Request/Info for Ad needed issue. Expects bot to escalate to human agent.
+  user_goal_summary: 'User reports Subject to Access Request/Info for Ad needed. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift
@@ -17,11 +17,9 @@ persona:
     for insurance purposes. The ad and conversation has disappeared (I am assuming because of the age of the ad and the conversation)
     If this isn't something you can access easily and is classed as archived, I would like to request a subject to access
     request that includes all of my data under data protection GDPR laws in the UK.
-  - Is there no way this can be accessed quicker?
-  - I can provide the dates and the nature of the ad.
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Okay thank you, I will need this information for two of my Gumtree accounts - the account with the email [EMAIL] and [EMAIL]
+  - Thank you so much
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -31,28 +29,37 @@ expected:
   - UC-D
   - UC-A
   should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (request_type, registered_email), and hand over with reason gdpr_intake.
   escalation_trigger: gdpr_intake
   risk_level: high
   expected_tool_sequence:
-  - fixed_script_library
   - request_handover
   - record_outcome
   forbidden_tools:
-  - search_knowledge
-  - resolve_article
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
   grounding_mode: fixed_script_only
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - password or credential requests
+  - I'll resolve this for you
   max_turns: 10
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - fixed_script_adherence

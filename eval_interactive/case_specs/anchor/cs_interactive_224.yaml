@@ -8,54 +8,64 @@ form_context:
   ad_id: ''
   description: I can not post any ad or upload photos. not in my app or browser
 persona:
-  goal_summary: 'Get help with: I can not post any ad or upload photos. not in my app or browser. Expects bot to resolve the
-    issue directly.'
+  user_goal_summary: 'User reports Technical Support: I can not post any ad or upload photos. Drift: soft_shift.'
   frustration_level: high
-  verbosity: terse
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
-  - thanks sure
-  - '[EMAIL]'
   - I already have one ad on my account
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - sorry the email address is [EMAIL]
+  - On the mobile app, I can upload photos but when I press Post, I get an error saying “something went wrong, please try
+    again later.” I was advised to use a browser instead, but now on my laptop the page refreshes every time I try to upload
+    photos, so I can’t complete the advert at all. This has been happening for the last couple of days.
+  hidden_facts: []
   will_request_human_if: ''
 expected:
-  outcome_class: resolve
+  outcome_class: escalate
   primary_uc: UC-B
   secondary_ucs:
   - UC-K
   - UC-C
   - UC-D
-  should_escalate: false
-  escalation_trigger: ''
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (search_knowledge, resolve_article, request_handover,
+    record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
   risk_level: low
   expected_tool_sequence:
   - search_knowledge
   - resolve_article
-  - answer_grounded
+  - request_handover
   - record_outcome
   forbidden_tools:
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - resolution_achieved
+  - escalation_triggered
   - answer_accuracy
   llm_judge_dimensions:
   - groundedness

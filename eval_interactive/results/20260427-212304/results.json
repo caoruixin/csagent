@@ -1,0 +1,1585 @@
+{
+  "run_id": "20260427-212304",
+  "label": "smoke-20260428-0523",
+  "timestamp": "2026-04-27T21:23:04.870085+00:00",
+  "elapsed_ms": 64302,
+  "summary": {
+    "total_cases": 14,
+    "passed_cases": 0,
+    "failed_cases": 14,
+    "task_success_rate": 0.0,
+    "stall_rate": 0.0,
+    "mean_composite_score": 0.0,
+    "mean_outcome_score": 0.3571,
+    "mean_judge_score": 0.4667,
+    "per_uc_breakdown": {
+      "UC-C": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-D": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-FP": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-K": {
+        "count": 5,
+        "passed": 0,
+        "failed": 5,
+        "mean_composite": 0.0
+      },
+      "UC-I": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-J": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-E": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-A": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-B": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-F": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      }
+    },
+    "escalation_correctness": 0.4286,
+    "policy_compliance_rate": 0.9286,
+    "mean_turns_to_resolution": 1.36
+  },
+  "case_results": [
+    {
+      "case_id": "cs_interactive_001",
+      "primary_uc": "UC-C",
+      "expected_outcome": "resolve",
+      "session_id": "a0111f48-9b1a-469a-9ad2-70d28d1bc6eb",
+      "total_turns": 0,
+      "stop_reason": "contract_violation",
+      "elapsed_ms": 0,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.0,
+      "failure_tags": [
+        "CONTRACT_VIOLATION:active_use_case"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "trace_contract_active_use_case",
+          "passed": false,
+          "detail": "Required telemetry field 'active_use_case' missing/invalid in phase 'session' (reason=missing). available_keys=['activeUseCase', 'articlesShown', 'candidateUseCases', 'caseId', 'clarificationCount', 'closedAt', 'containmentOutcome', 'createdAt', 'currentPhase', 'customerContext', 'escalationReason', 'faqMissCount', 'formContext', 'formTopicSubject', 'handlingState', 'intakeFields', 'intentConfidence', 'lastAction', 'listingContext', 'modelVersion', 'moderationContext', 'projectionVersion', 'promptVersion', 'repeatedActionCount', 'sessionId', 'sfBotSessionId', 'totalBotTurns', 'trafficVariant', 'updatedAt']"
+        }
+      ],
+      "l2_results": [],
+      "l3_results": [],
+      "transcript": [],
+      "status": "CONTRACT_VIOLATION",
+      "contract_violation": {
+        "field": "active_use_case",
+        "phase": "session",
+        "reason": "missing",
+        "available_keys": [
+          "activeUseCase",
+          "articlesShown",
+          "candidateUseCases",
+          "caseId",
+          "clarificationCount",
+          "closedAt",
+          "containmentOutcome",
+          "createdAt",
+          "currentPhase",
+          "customerContext",
+          "escalationReason",
+          "faqMissCount",
+          "formContext",
+          "formTopicSubject",
+          "handlingState",
+          "intakeFields",
+          "intentConfidence",
+          "lastAction",
+          "listingContext",
+          "modelVersion",
+          "moderationContext",
+          "projectionVersion",
+          "promptVersion",
+          "repeatedActionCount",
+          "sessionId",
+          "sfBotSessionId",
+          "totalBotTurns",
+          "trafficVariant",
+          "updatedAt"
+        ]
+      }
+    },
+    {
+      "case_id": "cs_interactive_004",
+      "primary_uc": "UC-D",
+      "expected_outcome": "resolve",
+      "session_id": "ee558fc4-8ff7-4f69-84ab-4c7233768e11",
+      "total_turns": 2,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 22897,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.5,
+      "judge_score": 0.2,
+      "failure_tags": [
+        "L2_GATE:correct_uc",
+        "L2:correct_uc",
+        "L3:groundedness",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "resolved",
+      "active_use_case": "UC-E",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-D, actual=UC-E"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 1.0,
+          "reasoning": "The bot's Turn 2 response ('I'm glad I could help!...') makes no attempt to address the user's explicit request to check if the ad was submitted successfully — a factual question requiring investigation or reference to system status. Instead, it abruptly closes the conversation with a generic, dismissive reply that ignores the issue entirely. Crucially, it provides zero factual information about submission status, ad visibility, or next steps, and fails to leverage any of the three cited sources (ka44J000000gKqtQAE, ka41r000000LIEJAA4, ka4P2000000060bIAA) — suggesting either hallucination or complete disregard of available grounding material. This constitutes fabrication by omission and misrepresentation of resolution, warranting the lowest score."
+        },
+        {
+          "dimension": "relevance",
+          "score": 1.0,
+          "reasoning": "The bot completely ignores the user's explicit request to check if the ad was submitted successfully. Instead of addressing the core issue — the ad's absence from My Gumtree (not even as pending/inactive) — the bot gives a dismissive, off-topic closing message that ends the conversation abruptly. This fails to acknowledge the user's concern, offer troubleshooting, or provide any actionable next steps."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 1.0,
+          "reasoning": "The bot completely ignores the customer's follow-up request to check if the ad was submitted successfully and instead gives a dismissive, off-topic sign-off ('I'm glad I could help!') despite no issue being resolved. This is tone-deaf and rude given the customer’s mild frustration and clear need for escalation or investigation. The response abandons the conversation mid-resolution."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Yes. Icannot see my ad after logging in. It says I have no live ads",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Anthony, thanks for clarifying. After posting, your ad goes through our moderation process. Please check in My Gumtree whether the ad shows as active or inactive — if it's been over 3 hours and you still can't see it, it may still be under review or there could be an issue with your account. If you'd like, I can look into this further for you.",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Thanks, I checked My Gumtree and it’s not showing there at all — not even as pending or inactive. Could you please check if it was submitted successfully?",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "I'm glad I could help! If you have any other questions, feel free to start a new chat. Have a great day!",
+          "turn_index": 2
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_012",
+      "primary_uc": "UC-FP",
+      "expected_outcome": "resolve",
+      "session_id": "cf51dc69-0d87-467b-9e29-d60b30e43814",
+      "total_turns": 2,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 13087,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.7333,
+      "failure_tags": [
+        "L2_GATE:correct_uc",
+        "L2_GATE:correct_outcome",
+        "L2:correct_outcome",
+        "L2:correct_uc",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-A",
+      "escalation_reason": "faq_miss_exceeded",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual=escalate"
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-FP, actual=UC-A"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about the ad reporting process, timeline, or policy. Its responses are purely procedural—acknowledging inability to find an answer and escalating to a specialist—so no grounding is required."
+        },
+        {
+          "dimension": "relevance",
+          "score": 4.0,
+          "reasoning": "The bot's first response is inappropriate—it treats a simple greeting as an unclear query, failing to acknowledge the user by name or provide a friendly welcome. However, the second response correctly recognizes the user's core concern (delayed action on an ad report) and appropriately escalates to a specialist, which is a valid resolution path. The misstep in Turn 1 slightly reduces precision, but Turn 2 directly addresses the substantive question."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot ignores the customer's high frustration and urgent concern about a misleading ad involving an animal. Responses are generic, repetitive ('I couldn't find a specific answer', 'I wasn't able to find a clear answer'), and lack empathy, acknowledgment of delay, or reassurance. No apology, validation, or urgency conveyed—comes across as dismissive and tone-deaf in a high-stakes, emotionally charged context."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Hi Jason",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I couldn't find a specific answer to that. Could you describe your issue in a bit more detail?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "I reported an ad for a kitten — it’s misleading and I want it taken down. Why hasn’t it been actioned yet?",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "I wasn't able to find a clear answer to your question. Let me connect you with a specialist who can help.",
+          "turn_index": 2
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_015",
+      "primary_uc": "UC-K",
+      "expected_outcome": "escalate",
+      "session_id": "b68d28d5-d471-4cb5-8e77-c77b59e4b939",
+      "total_turns": 3,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 21051,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.75,
+      "judge_score": 1.0,
+      "failure_tags": [
+        "L1:escalation_compliance",
+        "L2_GATE:correct_uc",
+        "L2:correct_uc"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-H",
+      "escalation_reason": "intake_complete_for_uc_h",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "expected escalation_reason='user_distress', but no request_handover tool call recorded"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "intake_no_knowledge_tool",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "handover_completeness",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-K, actual=UC-H"
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about ad policies, removal reasons, or system behavior — only procedural actions (e.g., noting the ad ID, creating a case, stating response timeframe). These are standard operational statements that do not require grounding in external knowledge sources. No unsourced factual assertions are present."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The bot consistently addresses the user's core concern—why their ad was removed and how to get it reviewed. Each response directly builds on the user's input: Turn 1 acknowledges the issue and requests necessary details (ad ID, description); Turn 2 confirms receipt of the ad ID and asks for precise, actionable follow-up information (posting time, error messages) to aid investigation; Turn 3 confirms case creation with tracking ID and sets clear expectations for resolution timeline. No irrelevant or off-topic content is present."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 5.0,
+          "reasoning": "The bot maintains a consistently professional, empathetic, and warm tone throughout—acknowledging the issue ('I'm sorry to hear...'), using the customer's name (Adam), expressing gratitude for shared details, and providing clear, actionable next steps with a case number and realistic timeline. It matches the user's mild frustration by avoiding defensiveness, not making assumptions about policy violations, and validating the lack of communication ('no email or error message'). Language is courteous, concise, and human-centered without being overly casual or robotic."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "[EMAIL]",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I'm sorry to hear your ad was removed. Let me help you get this looked into by our team.\n\nTo get this reviewed, could you confirm:\n1. Your ad ID (the 10-digit number at the bottom of your ad)\n2. A brief description of what happened",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Hi, my ad ID is 1234567890 — it was live yesterday but now shows 'This ad has been removed'. It's for a used laptop, nothing against policy as far as I know.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Thanks for that, Adam. I've noted your ad ID 1234567890 for the used laptop. To make sure our team can review this properly, could you also share:\n1. When exactly was the ad posted?\n2. Do you have any error messages or emails about the removal?",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "It was posted yesterday morning around 10am, and no — I didn’t get any email or error message. Just noticed it was gone when I checked today.",
+          "turn_index": 3
+        },
+        {
+          "role": "bot",
+          "message": "Thanks for those details. I've created a case (CASE-231AC2A9) for our Ad Support team. You'll hear back by email within 24-48 hours.",
+          "turn_index": 3
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_036",
+      "primary_uc": "UC-I",
+      "expected_outcome": "escalate",
+      "session_id": "0b060031-a603-442a-866b-c68da12eff07",
+      "total_turns": 0,
+      "stop_reason": "contract_violation",
+      "elapsed_ms": 0,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.0,
+      "failure_tags": [
+        "CONTRACT_VIOLATION:active_use_case"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "trace_contract_active_use_case",
+          "passed": false,
+          "detail": "Required telemetry field 'active_use_case' missing/invalid in phase 'session' (reason=missing). available_keys=['activeUseCase', 'articlesShown', 'candidateUseCases', 'caseId', 'clarificationCount', 'closedAt', 'containmentOutcome', 'createdAt', 'currentPhase', 'customerContext', 'escalationReason', 'faqMissCount', 'formContext', 'formTopicSubject', 'handlingState', 'intakeFields', 'intentConfidence', 'lastAction', 'listingContext', 'modelVersion', 'moderationContext', 'projectionVersion', 'promptVersion', 'repeatedActionCount', 'sessionId', 'sfBotSessionId', 'totalBotTurns', 'trafficVariant', 'updatedAt']"
+        }
+      ],
+      "l2_results": [],
+      "l3_results": [],
+      "transcript": [],
+      "status": "CONTRACT_VIOLATION",
+      "contract_violation": {
+        "field": "active_use_case",
+        "phase": "session",
+        "reason": "missing",
+        "available_keys": [
+          "activeUseCase",
+          "articlesShown",
+          "candidateUseCases",
+          "caseId",
+          "clarificationCount",
+          "closedAt",
+          "containmentOutcome",
+          "createdAt",
+          "currentPhase",
+          "customerContext",
+          "escalationReason",
+          "faqMissCount",
+          "formContext",
+          "formTopicSubject",
+          "handlingState",
+          "intakeFields",
+          "intentConfidence",
+          "lastAction",
+          "listingContext",
+          "modelVersion",
+          "moderationContext",
+          "projectionVersion",
+          "promptVersion",
+          "repeatedActionCount",
+          "sessionId",
+          "sfBotSessionId",
+          "totalBotTurns",
+          "trafficVariant",
+          "updatedAt"
+        ]
+      }
+    },
+    {
+      "case_id": "cs_interactive_038",
+      "primary_uc": "UC-J",
+      "expected_outcome": "escalate",
+      "session_id": "47f1b461-f5ff-49e0-aba8-d8549d8bcbe7",
+      "total_turns": 3,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 12500,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 1.0,
+      "judge_score": 0.9333,
+      "failure_tags": [
+        "L1:escalation_compliance",
+        "L1:no_pii_leakage"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-J",
+      "escalation_reason": "intake_complete_for_uc_j",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "expected escalation_reason='trust_safety_required', but no request_handover tool call recorded"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "intake_no_knowledge_tool",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": false,
+          "detail": "turn 3: PII match (\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b)"
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "handover_completeness",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about policies, procedures, definitions, or external facts — all responses are procedural (collecting information, confirming receipt, escalating to a specialist team). There are no assertions requiring grounding in sources, so no sourcing is needed."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The bot consistently addresses the user's actual input: in Turn 1, it appropriately requests required reporting details; in Turn 2, it acknowledges the provided ad ID and suspicious behavior and correctly follows up on the one remaining required field (police contact); in Turn 3, it confirms receipt of the 'no' response and completes the report handoff—fully aligning with the user’s statements and the reporting workflow. No irrelevant or off-topic content is introduced."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot maintains a professional, courteous tone throughout, uses the customer's name (Paul) for personalization, and acknowledges input promptly. It appropriately escalates the issue to Trust & Safety and clarifies next steps. However, in Turn 2, asking again about police contact—immediately after the user explicitly stated it’s 'just suspicious, not a crime yet'—slightly overlooks the user’s mild frustration and contextual nuance, making the query feel slightly repetitive or insufficiently adaptive. This is a minor tone issue, not a breach of professionalism."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Ok",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Thank you for reporting this. I'll gather a few details and pass them to our Trust & Safety team for review.\n\nTo help us investigate, please share:\n1. The ad ID or link related to this report\n2. What happened (as much detail as you can)\n3. Whether you've contacted the police",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Ad ID: GUM123456789. It's a Parkside impact wrench listed with suspiciously low price and no photos. Seller refused to meet in person or provide proof of ownership.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Thanks for those details, Paul. I've noted the ad ID and what happened with the seller. Just one more thing to complete your report: have you contacted the police about this issue?",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "No, haven't contacted police — it's just suspicious, not a crime yet.",
+          "turn_index": 3
+        },
+        {
+          "role": "bot",
+          "message": "Thank you, Paul. I've collected all the details for your Trust & Safety report. I'm now passing this to our specialist team for review. They may contact you at customer@example.com if they need any further information.",
+          "turn_index": 3
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_040",
+      "primary_uc": "UC-K",
+      "expected_outcome": "escalate",
+      "session_id": "8f41ea46-135b-4c7d-9af2-158f599086be",
+      "total_turns": 3,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 17260,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 1.0,
+      "judge_score": 0.9333,
+      "failure_tags": [
+        "L1:escalation_compliance"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-K",
+      "escalation_reason": "intake_complete_for_uc_k",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "expected escalation_reason='intake_complete_for_uc_k', but no request_handover tool call recorded"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "intake_no_knowledge_tool",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "handover_completeness",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about the cause, fix, or technical details of the 'Send request' button issue. Its responses are purely procedural: acknowledging the user's report, requesting diagnostic information (ad ID, device, OS), and escalating to the tech team with a standard SLA timeframe. No unsupported assertions about system behavior, root causes, or platform-specific facts are made; thus, no grounding is required."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The bot consistently addresses the user's core issue—the missing/disabled 'Send request' button—by acknowledging it, requesting necessary diagnostic information (ad ID, device, OS), and confirming escalation to the technical team with a clear timeline. Each response directly builds on the user's input without introducing irrelevant topics or ignoring stated concerns."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot demonstrates professionalism and empathy by acknowledging the issue, using the customer's name (Mo), confirming the problem across platforms, and providing clear next steps. However, it misses an explicit acknowledgment of the customer's frustration (e.g., 'I understand how concerning this must be after two days') and offers no immediate reassurance beyond the 24–48 hour timeline—slightly under-responding to the high-frustration context."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Hi",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I'd like to help with this. Could you provide some more details so I can pass this to the right team?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Hi, my ad isn't letting customers send requests — the 'Send request' button is missing or disabled. I've checked it on both the app and web, and it's the same issue. There's definitely a flaw.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Hi Mo, thanks for flagging this — I can see the 'Send request' button issue is affecting your ad on both app and web. To get this to our tech team, could you share your ad ID and let me know what device and OS version you're using?",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "Ad ID is 123456789. I'm using iOS 17.5 on an iPhone 14. This has been happening for two days now.",
+          "turn_index": 3
+        },
+        {
+          "role": "bot",
+          "message": "I'll create a case for our technical team to investigate further. You'll hear back by email within 24-48 hours.",
+          "turn_index": 3
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_042",
+      "primary_uc": "UC-K",
+      "expected_outcome": "escalate",
+      "session_id": "28d23ead-390f-4ab2-a305-08037701d3fb",
+      "total_turns": 0,
+      "stop_reason": "contract_violation",
+      "elapsed_ms": 0,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.0,
+      "failure_tags": [
+        "CONTRACT_VIOLATION:containment_outcome"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "trace_contract_containment_outcome",
+          "passed": false,
+          "detail": "Required telemetry field 'containment_outcome' missing/invalid in phase 'session' (reason=missing). available_keys=['activeUseCase', 'articlesShown', 'candidateUseCases', 'caseId', 'clarificationCount', 'closedAt', 'containmentOutcome', 'createdAt', 'currentPhase', 'customerContext', 'escalationReason', 'faqMissCount', 'formContext', 'formTopicSubject', 'handlingState', 'intakeFields', 'intentConfidence', 'lastAction', 'listingContext', 'modelVersion', 'moderationContext', 'projectionVersion', 'promptVersion', 'repeatedActionCount', 'sessionId', 'sfBotSessionId', 'totalBotTurns', 'trafficVariant', 'updatedAt']"
+        }
+      ],
+      "l2_results": [],
+      "l3_results": [],
+      "transcript": [],
+      "status": "CONTRACT_VIOLATION",
+      "contract_violation": {
+        "field": "containment_outcome",
+        "phase": "session",
+        "reason": "missing",
+        "available_keys": [
+          "activeUseCase",
+          "articlesShown",
+          "candidateUseCases",
+          "caseId",
+          "clarificationCount",
+          "closedAt",
+          "containmentOutcome",
+          "createdAt",
+          "currentPhase",
+          "customerContext",
+          "escalationReason",
+          "faqMissCount",
+          "formContext",
+          "formTopicSubject",
+          "handlingState",
+          "intakeFields",
+          "intentConfidence",
+          "lastAction",
+          "listingContext",
+          "modelVersion",
+          "moderationContext",
+          "projectionVersion",
+          "promptVersion",
+          "repeatedActionCount",
+          "sessionId",
+          "sfBotSessionId",
+          "totalBotTurns",
+          "trafficVariant",
+          "updatedAt"
+        ]
+      }
+    },
+    {
+      "case_id": "cs_interactive_066",
+      "primary_uc": "UC-E",
+      "expected_outcome": "resolve",
+      "session_id": "9c847ee0-0770-4d3c-b9c0-1cf430202201",
+      "total_turns": 3,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 18648,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.7333,
+      "failure_tags": [
+        "L2_GATE:correct_uc",
+        "L2_GATE:correct_outcome",
+        "L2:correct_outcome",
+        "L2:correct_uc"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-K",
+      "escalation_reason": "intake_complete_for_uc_k",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual=escalate"
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-E, actual=UC-K"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about why the phone number field was removed, how Gumtree's features work, or any technical details. Its responses are purely procedural: requesting information, confirming user input, and escalating to the technical team with a standard timeframe. Since there are no factual assertions requiring grounding, the absence of source citations does not affect grounding quality."
+        },
+        {
+          "dimension": "relevance",
+          "score": 3.0,
+          "reasoning": "The bot's first response ignores the user's initial input '[EMAIL]', which appears to be an incomplete or placeholder message—possibly indicating the user intended to provide an email but didn't. The bot fails to acknowledge or clarify this. In Turn 2, the user clearly asks two things: (1) how to add their phone number when listing an item, and (2) why it was removed. The bot skips addressing the 'how' (i.e., workarounds or current alternatives) and only focuses on gathering diagnostic info for investigation—valid but incomplete. In Turn 3, the bot confirms escalation but doesn’t offer any immediate guidance, reassurance, or explanation about the removal rationale—even a brief acknowledgment ('This change was part of a recent update to improve privacy') would have addressed part of the 'why'. Thus, key aspects of the user’s explicit questions are missed."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 3.0,
+          "reasoning": "The bot is professional and provides clear next steps, but lacks empathy for the user's high frustration—no acknowledgment of the inconvenience or apology for the missing feature. The tone is neutral and procedural, which feels somewhat mechanical given the user's expressed irritation about a previously available function being removed."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Should be [EMAIL]",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I'd like to help with this. Could you provide some more details so I can pass this to the right team?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "I need to add my phone number when listing an item — it used to be there, now it's gone. Why was it removed?",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Thanks for that detail, Stephen. To help the tech team investigate, could you let me know: are you using the Gumtree app or a browser? If the app, what version? If browser, which one? Also, when did you first notice the phone number option was missing?",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "App — latest version. Missing for at least 2 weeks.",
+          "turn_index": 3
+        },
+        {
+          "role": "bot",
+          "message": "I'll create a case for our technical team to investigate further. You'll hear back by email within 24-48 hours.",
+          "turn_index": 3
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_079",
+      "primary_uc": "UC-K",
+      "expected_outcome": "escalate",
+      "session_id": "425d70b3-f201-437d-9df2-cd86b2f0cf3c",
+      "total_turns": 0,
+      "stop_reason": "contract_violation",
+      "elapsed_ms": 0,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.0,
+      "failure_tags": [
+        "CONTRACT_VIOLATION:containment_outcome"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "trace_contract_containment_outcome",
+          "passed": false,
+          "detail": "Required telemetry field 'containment_outcome' missing/invalid in phase 'session' (reason=missing). available_keys=['activeUseCase', 'articlesShown', 'candidateUseCases', 'caseId', 'clarificationCount', 'closedAt', 'containmentOutcome', 'createdAt', 'currentPhase', 'customerContext', 'escalationReason', 'faqMissCount', 'formContext', 'formTopicSubject', 'handlingState', 'intakeFields', 'intentConfidence', 'lastAction', 'listingContext', 'modelVersion', 'moderationContext', 'projectionVersion', 'promptVersion', 'repeatedActionCount', 'sessionId', 'sfBotSessionId', 'totalBotTurns', 'trafficVariant', 'updatedAt']"
+        }
+      ],
+      "l2_results": [],
+      "l3_results": [],
+      "transcript": [],
+      "status": "CONTRACT_VIOLATION",
+      "contract_violation": {
+        "field": "containment_outcome",
+        "phase": "session",
+        "reason": "missing",
+        "available_keys": [
+          "activeUseCase",
+          "articlesShown",
+          "candidateUseCases",
+          "caseId",
+          "clarificationCount",
+          "closedAt",
+          "containmentOutcome",
+          "createdAt",
+          "currentPhase",
+          "customerContext",
+          "escalationReason",
+          "faqMissCount",
+          "formContext",
+          "formTopicSubject",
+          "handlingState",
+          "intakeFields",
+          "intentConfidence",
+          "lastAction",
+          "listingContext",
+          "modelVersion",
+          "moderationContext",
+          "projectionVersion",
+          "promptVersion",
+          "repeatedActionCount",
+          "sessionId",
+          "sfBotSessionId",
+          "totalBotTurns",
+          "trafficVariant",
+          "updatedAt"
+        ]
+      }
+    },
+    {
+      "case_id": "cs_interactive_095",
+      "primary_uc": "UC-A",
+      "expected_outcome": "resolve",
+      "session_id": "4f27d254-be07-44c3-b757-bb91d1500e36",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 13361,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.5,
+      "judge_score": 0.7333,
+      "failure_tags": [
+        "L2_GATE:correct_uc",
+        "L2:correct_uc",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "resolved",
+      "active_use_case": "UC-D",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-A, actual=UC-D"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response is purely polite and procedural ('I'm glad I could help!', 'feel free to start a new chat', 'Have a great day!') with no factual claims about the user's issue or any domain-specific information. Since there are no factual claims requiring grounding, the response qualifies for a score of 5 per the instructions."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The user's message is a simple expression of gratitude ('Thanks'), and the bot responds appropriately with a polite acknowledgment and a friendly closing. There is no question or concern to address beyond acknowledging the thanks, and the bot does so directly and concisely."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 1.0,
+          "reasoning": "The customer's frustration level is high, yet the bot responds with an overly cheerful, dismissive 'I'm glad I could help!' without acknowledging the user's emotional state or offering further assistance. The response assumes the issue is resolved and prematurely closes the interaction, ignoring clear signs of distress."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Thanks",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I'm glad I could help! If you have any other questions, feel free to start a new chat. Have a great day!",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_192",
+      "primary_uc": "UC-B",
+      "expected_outcome": "resolve",
+      "session_id": "7e8a3f88-7283-41b1-8c24-eeb3ef5cdf51",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 11076,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.5,
+      "judge_score": 0.6667,
+      "failure_tags": [
+        "L1:source_citation_present",
+        "L2_GATE:correct_outcome",
+        "L2:correct_outcome",
+        "L3:relevance"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-B",
+      "escalation_reason": "faq_miss_exceeded",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "source_citation_present",
+          "passed": false,
+          "detail": "turn 1: answer without sources"
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual=escalate"
+        },
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about allowed items; it explicitly states it couldn't find a clear answer and escalates to a specialist. This is a procedural/escalation response with zero unsourced factual assertions."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user asked a clear, specific question about which items are allowed, implying they expect a list or description of permitted items. The bot did not attempt to answer the question, provide any relevant information, or clarify the context (e.g., what policy, service, or setting 'allowed items' refers to). Instead, it immediately defaulted to escalation without seeking clarification or offering even basic guidance—talking past the user’s actual need."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 3.0,
+          "reasoning": "The bot acknowledges the query but offers no empathy or acknowledgment of the user's mild frustration. The response is functional and polite but feels mechanical—lacking warmth, reassurance, or an attempt to de-escalate (e.g., no apology for the lack of clarity, no softening language). It defaults immediately to escalation without first attempting to clarify or rephrase the question, which misses an opportunity to demonstrate proactive support."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "OK. What items are allowed?",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I wasn't able to find a clear answer to your question. Let me connect you with a specialist who can help.",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_259",
+      "primary_uc": "UC-F",
+      "expected_outcome": "resolve",
+      "session_id": "a5d266b0-2130-434c-94dd-c8aa89606982",
+      "total_turns": 0,
+      "stop_reason": "contract_violation",
+      "elapsed_ms": 0,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.0,
+      "failure_tags": [
+        "CONTRACT_VIOLATION:active_use_case"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "trace_contract_active_use_case",
+          "passed": false,
+          "detail": "Required telemetry field 'active_use_case' missing/invalid in phase 'session' (reason=missing). available_keys=['activeUseCase', 'articlesShown', 'candidateUseCases', 'caseId', 'clarificationCount', 'closedAt', 'containmentOutcome', 'createdAt', 'currentPhase', 'customerContext', 'escalationReason', 'faqMissCount', 'formContext', 'formTopicSubject', 'handlingState', 'intakeFields', 'intentConfidence', 'lastAction', 'listingContext', 'modelVersion', 'moderationContext', 'projectionVersion', 'promptVersion', 'repeatedActionCount', 'sessionId', 'sfBotSessionId', 'totalBotTurns', 'trafficVariant', 'updatedAt']"
+        }
+      ],
+      "l2_results": [],
+      "l3_results": [],
+      "transcript": [],
+      "status": "CONTRACT_VIOLATION",
+      "contract_violation": {
+        "field": "active_use_case",
+        "phase": "session",
+        "reason": "missing",
+        "available_keys": [
+          "activeUseCase",
+          "articlesShown",
+          "candidateUseCases",
+          "caseId",
+          "clarificationCount",
+          "closedAt",
+          "containmentOutcome",
+          "createdAt",
+          "currentPhase",
+          "customerContext",
+          "escalationReason",
+          "faqMissCount",
+          "formContext",
+          "formTopicSubject",
+          "handlingState",
+          "intakeFields",
+          "intentConfidence",
+          "lastAction",
+          "listingContext",
+          "modelVersion",
+          "moderationContext",
+          "projectionVersion",
+          "promptVersion",
+          "repeatedActionCount",
+          "sessionId",
+          "sfBotSessionId",
+          "totalBotTurns",
+          "trafficVariant",
+          "updatedAt"
+        ]
+      }
+    },
+    {
+      "case_id": "cs_interactive_313",
+      "primary_uc": "UC-K",
+      "expected_outcome": "escalate",
+      "session_id": "badc7874-1cd8-4c46-b3a8-7b4d4ed80f7c",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 15591,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.75,
+      "judge_score": 0.6,
+      "failure_tags": [
+        "L1:escalation_compliance",
+        "L2_GATE:correct_uc",
+        "L2:correct_uc",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-D",
+      "escalation_reason": "faq_miss_exceeded",
+      "l1_results": [
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "expected escalation_reason='user_distress', but no request_handover tool call recorded"
+        },
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "intake_no_knowledge_tool",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "handover_completeness",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-K, actual=UC-D"
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about the user's issue (e.g., no explanation of why posting fails, no details about payment systems, no assertions about account status or platform behavior). It issues a pure procedural escalation message — 'Let me connect you with a specialist who can help' — which requires no grounding in sources. Since there are no factual claims to evaluate for grounding, the score is 5."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user describes a specific issue: they completed all fields but cannot post and pay for their ad. The bot fails to acknowledge or troubleshoot the problem (e.g., checking for validation errors, payment failures, or system issues) and instead gives a generic, unhelpful deflection—claiming it 'wasn't able to find a clear answer' and escalating without gathering basic diagnostic info. This talks past the user’s immediate need for resolution or explanation."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot's response is dismissive and unhelpful—it offers no empathy or acknowledgment of the customer's mild frustration, provides no troubleshooting steps, and immediately escalates without attempting resolution. Phrasing 'I wasn't able to find a clear answer' sounds passive and unprofessional, implying the issue lies with the query rather than the system or bot's capability."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "just signed up and trying to post my add and all filed in and then doesnt let me post and pay",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I wasn't able to find a clear answer to your question. Let me connect you with a specialist who can help.",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    }
+  ]
+}

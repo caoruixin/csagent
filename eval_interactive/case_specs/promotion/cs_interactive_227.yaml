@@ -10,21 +10,15 @@ form_context:
     business purposes. We are interested in working properly and long-term through this account. I sincerely request you to
     please allow us permission
 persona:
-  goal_summary: 'Get help with: Hello Gumtree Team,  Kindly do not deactivate our account. We would like to continue using
-    this account for business purposes. We are interested in working properly and long-term through this account. I sincerely
-    request you to please allow us permission. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Account Support: Hello Gumtree Team, Kindly do not deactivate our account. Drift: soft_shift.'
   frustration_level: none
-  verbosity: verbose
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - '[EMAIL]'
   - I am working on this account for the first time, so please allow me to do so. I have never worked on this account before.
-  - Hello Gumtree Team, Kindly do not deactivate our account. We would like to continue using this account for business purposes.
-    We are interested in working properly and long-term through this account. I sincerely request you to please allow us permission
-    to continue operating and doing business on this account. We assure you that we will follow all rules and guidelines.
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Ok thank you appreciate
+  - No thank you
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -33,6 +27,9 @@ expected:
   - UC-K
   - UC-D
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
   escalation_trigger: clarification_budget_exhausted
   risk_level: medium
   expected_tool_sequence:
@@ -43,17 +40,21 @@ expected:
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - internal moderation reason codes or enforcement commitments
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

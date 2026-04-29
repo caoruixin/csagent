@@ -10,50 +10,55 @@ form_context:
     shouldn’t have been able to rate me at all; please could you delete their rating and feedback, thanks. The user’s name
     was ‘sam’.
 persona:
-  goal_summary: 'Get help with: Hi, I received a 1 star resting and negative feedback from a member, but I never sold them
-    anything, so they shouldn’t have been able to rate me at all; please could you delete their rating and feedback, thanks.
-    The user’s name was ‘sam’.. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Ratings & Reviews: Hi, I received a 1 star resting and negative feedback from a member,
+    but I never sold them anything, so they shouldn’t have been able to rate me at all; please could you delete their rating
+    and feedback, thanks. Drift: hard_shift.'
   frustration_level: mild
-  verbosity: terse
+  verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Hi, ok, thanks.
-  - '[EMAIL]'
-  - 1 sec, will look..
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - They say I cancelled an offer, that is a lie!
+  - No, I prefer you remove this fraudulent and harassing review
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
-  primary_uc: OUT_OF_SCOPE_RATINGS_REVIEWS
+  primary_uc: UC-A
   secondary_ucs:
   - UC-J
   - UC-H
   - UC-F
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason out_of_scope.
   escalation_trigger: out_of_scope
   risk_level: medium
   expected_tool_sequence:
-  - fixed_script_library
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
   - request_handover
   - record_outcome
   forbidden_tools:
-  - search_knowledge
-  - resolve_article
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - lookup_customer_account
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - review/rating removal commitments
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

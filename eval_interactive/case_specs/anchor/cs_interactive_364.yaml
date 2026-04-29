@@ -8,20 +8,18 @@ form_context:
   ad_id: ''
   description: Ad not bumped up as paid for
 persona:
-  goal_summary: 'Get help with: Ad not bumped up as paid for. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Ad Support: Ad not bumped up as paid for. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - Hi there, I paid to bump up my ad this morning and since then only one other person's ad has been bumped up so my ad should
     be second in the listing not way down
-  - I know that but as only o e
   - As only one other ad has been refreshed/bumped up today i reasonably expect it to now be second on the listing - otherwise
     what have I paid for? It's now no higher than before it was bumped up but, to reiterate, only one persons ad has been
     updated since
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - I expect to get whats been paid for, simple as that.
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -31,6 +29,9 @@ expected:
   - UC-B
   - UC-C
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
   escalation_trigger: clarification_budget_exhausted
   risk_level: low
   expected_tool_sequence:
@@ -41,16 +42,22 @@ expected:
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - lookup_customer_account
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

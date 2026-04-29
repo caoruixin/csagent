@@ -8,17 +8,15 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  goal_summary: Get help with UNKNOWN issue. Expects bot to escalate to human agent.
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - hello
-  - 'yes'
   - my account is not working with premium as the direct debit didn't work
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - please dont tell me you will ask account manager to reach out as hes clearly not available and I been 4 days out of business
+  - and my account manager is not answering via email, phone or WhatsApp at all for 4 days now
+  hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate
@@ -27,27 +25,36 @@ expected:
   - UC-D
   - UC-F
   should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason user_requested.
   escalation_trigger: user_requested
   risk_level: medium
   expected_tool_sequence:
   - get_customer_context
-  - answer_grounded
   - create_case_controlled
   - request_handover
   - record_outcome
   forbidden_tools:
-  - search_knowledge
+  - get_message_moderation_context
+  - get_moderation_review_context
   - resolve_article
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - search_knowledge
   grounding_mode: fixed_script_only
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 10
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - fixed_script_adherence
