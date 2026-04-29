@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: Evidence for removal of false review
 persona:
-  goal_summary: 'Get help with: Evidence for removal of false review. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Ratings & Reviews: Evidence for removal of false review. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift
@@ -16,48 +16,47 @@ persona:
   - Hello I’m writing to request the removal of a false review against my username. I never receive negative reviews and on
     ebay I have 100% positive reviews from over 500 transactions. I always make sure I’m polite and courteous. I can give
     you evidence as to why this particular reviewer is using false information.
-  - 'Here is my statement against the review:'
-  - 'Can you see the review against my name by user ‘Only’? And can you see in my message history the message thread with
-    the user ‘Only’? If you are able to read the message thread, you will see: I was polite and courteous throughout. THEY
-    provided false information about the size of the mattress which I had to correct. I STILL purchased the mattress. I bought
-    the mattress for the price they wanted - I did not haggle. When I got the mattress home, I realised that they had given
-    false information about the brand. And I STILL kept the mattress with no arguments. In addition to this, when I went to
-    their home, they gave me the wrong directions and I was waiting in the street for 10 minutes. I was still nothing but
-    polite and courteous. So it’s completely unjust that they gave me a 1 star review and I have no idea why.'
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - No, looking forward to your email on that, and your response about the false review. Thanks
+  - Yes please
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
-  primary_uc: OUT_OF_SCOPE_RATINGS_REVIEWS
+  primary_uc: UC-A
   secondary_ucs:
   - UC-H
   - UC-FP
   - UC-C
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason out_of_scope.
   escalation_trigger: out_of_scope
   risk_level: medium
   expected_tool_sequence:
-  - fixed_script_library
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
   - request_handover
   - record_outcome
   forbidden_tools:
-  - search_knowledge
-  - resolve_article
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - lookup_customer_account
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - review/rating removal commitments
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

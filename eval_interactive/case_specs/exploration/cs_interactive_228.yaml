@@ -8,18 +8,18 @@ form_context:
   ad_id: ''
   description: When was my account creation date? I no longer have the email.
 persona:
-  goal_summary: 'Get help with: When was my account creation date? I no longer have the email.. Expects bot to escalate to
-    human agent.'
+  user_goal_summary: 'User reports Account Support: When was my account creation date?. Drift: hard_shift.'
   frustration_level: none
-  verbosity: terse
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - Thank you
-  - '[EMAIL]'
   - 'Ad ID: 1451657969'
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - 'It says:Please can you provide (1) your registered email address on Gumtree.co.uk and (2) provide 2 of the 4 of the following
+    information below to confirm you as the correct user: · Creation date of account; · Payments made on ads for insertion
+    fees, features, etc.; · The order ID related to those payments (not the method of payment used); or · Number of Ads posted
+    in the last 12 months.'
+  - Okay, thank you
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -29,27 +29,37 @@ expected:
   - UC-FP
   - UC-D
   should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (request_type, registered_email), and hand over with reason gdpr_intake.
   escalation_trigger: gdpr_intake
   risk_level: high
   expected_tool_sequence:
-  - fixed_script_library
   - request_handover
   - record_outcome
   forbidden_tools:
-  - search_knowledge
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
   grounding_mode: fixed_script_only
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - internal moderation reason codes or enforcement commitments
+  - I'll resolve this for you
   max_turns: 10
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - fixed_script_adherence

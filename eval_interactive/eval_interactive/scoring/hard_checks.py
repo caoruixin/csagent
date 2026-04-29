@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from eval_interactive.case_spec.policy_table import list_human_only_tools
 from eval_interactive.case_spec.schema import CaseSpec
 from eval_interactive.scoring.stall_detector import StallResult
 from eval_interactive.trace.models import TraceData
@@ -20,6 +21,7 @@ class HardCheckResult:
     check_name: str
     passed: bool
     detail: str = ""
+    severity: str = "critical"
 
 
 class HardChecker:
@@ -27,6 +29,7 @@ class HardChecker:
 
     ALL_CHECKS = [
         "no_forbidden_tools",
+        "no_human_only_tool_exposure",
         "budget_enforcement",
         "phase_transition_validity",
         "no_critical_policy_violation",
@@ -36,6 +39,17 @@ class HardChecker:
         "source_citation_present",
         "intake_no_knowledge_tool",
         "no_stall",
+    ]
+
+    # Patterns for self-promises of human-only capabilities.
+    # Tuned to match first-person commitments while leaving handover phrasing
+    # like "I'll transfer you to a human agent who can email you" untouched
+    # (the verb after "I" is "transfer", not "send/email/ban/...").
+    HUMAN_ONLY_PROMISE_PATTERNS = [
+        r"\bI(?:'ll| will)\s+(?:send|email)\s+(?:you\s+)?an?\s+email",
+        r"\bI(?:'ve| have)\s+(?:sent|emailed)\s+(?:you\s+)?an?\s+email",
+        r"\b(?:I|we)\s+(?:will\s+)?(?:ban|suspend|delete|remove|restore)\s+(?:the|your|this)\s+(?:account|ad|listing|user)\b",
+        r"\bI(?:'ve| have)\s+(?:banned|suspended|deleted|removed|restored)\b",
     ]
 
     FORBIDDEN_PHRASES = [
@@ -109,6 +123,9 @@ class HardChecker:
 
         dispatch = {
             "no_forbidden_tools": lambda: self._check_no_forbidden_tools(case_spec, trace),
+            "no_human_only_tool_exposure": lambda: self._check_no_human_only_tool_exposure(
+                case_spec, trace
+            ),
             "budget_enforcement": lambda: self._check_budget_enforcement(case_spec, trace),
             "phase_transition_validity": lambda: self._check_phase_transition_validity(case_spec, trace),
             "no_critical_policy_violation": lambda: self._check_no_critical_policy_violation(case_spec, trace),
@@ -123,7 +140,14 @@ class HardChecker:
             "fixed_script_adherence": lambda: self._check_intake_no_knowledge_tool(case_spec, trace),
         }
 
-        for name in configured:
+        # Global L1 checks always run regardless of per-case configuration.
+        # ``escalation_compliance`` is global (HIGH-5 fix): the composite
+        # scorer now relies on L1 to enforce escalate-vs-don't-escalate
+        # behaviour rather than a parallel L2 mandatory gate, so the check
+        # must run on every case (it's a no-op for resolve cases).
+        global_checks = {"no_human_only_tool_exposure", "escalation_compliance"}
+
+        for name in configured | global_checks:
             if name in dispatch:
                 results.append(dispatch[name]())
 
@@ -149,6 +173,58 @@ class HardChecker:
         if invoked:
             return HardCheckResult("no_forbidden_tools", False, f"forbidden tools invoked: {invoked}")
         return HardCheckResult("no_forbidden_tools", True)
+
+    def _check_no_human_only_tool_exposure(
+        self, case_spec: CaseSpec, trace: TraceData
+    ) -> HardCheckResult:
+        """Global L1: bot must never invoke or verbally promise human-only tools.
+
+        Two failure modes:
+        1. A tool call to any name in ``policy_table.list_human_only_tools()``
+           (defensive: server tool policy should already block these).
+        2. A bot response that contains a self-promise to perform a
+           human-only capability (e.g. "I'll send you an email",
+           "I've banned the account"). Hand-off language like "I'm
+           transferring you to a human agent who can email you" is
+           intentionally not matched -- the verb after the first-person
+           pronoun is "transfer", which is not in the promise pattern set.
+        """
+        human_only = set(list_human_only_tools())
+        violations: list[str] = []
+
+        # Failure mode 1: direct tool calls to human-only tools.
+        for turn in trace.turns:
+            for tc in turn.tool_calls:
+                tool_name = tc.get("tool_name", "") if isinstance(tc, dict) else ""
+                if tool_name in human_only:
+                    violations.append(
+                        f"turn {turn.turn_index}: tool_call '{tool_name}'"
+                    )
+
+        # Failure mode 2: natural-language self-promises.
+        for turn in trace.turns:
+            text = turn.bot_response
+            for pat in self.HUMAN_ONLY_PROMISE_PATTERNS:
+                m = re.search(pat, text, re.IGNORECASE)
+                if m:
+                    violations.append(
+                        f"turn {turn.turn_index}: matched '{m.group(0)}' "
+                        f"(pattern: {pat})"
+                    )
+
+        if violations:
+            return HardCheckResult(
+                check_name="no_human_only_tool_exposure",
+                passed=False,
+                detail="; ".join(violations[:5]),
+                severity="critical",
+            )
+        return HardCheckResult(
+            check_name="no_human_only_tool_exposure",
+            passed=True,
+            detail="",
+            severity="critical",
+        )
 
     def _check_budget_enforcement(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
         """clarification_count <= 2, faq_miss_count <= 2, total_bot_turns <= max_turns."""
@@ -217,22 +293,95 @@ class HardChecker:
         return HardCheckResult("no_pii_leakage", True)
 
     def _check_escalation_compliance(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
-        """If should_escalate=true AND risk_level in {critical, high} -> bot must have escalated."""
-        if not case_spec.expected.should_escalate:
-            return HardCheckResult("escalation_compliance", True, "escalation not required")
+        """Two-part check on bot escalation behaviour.
 
-        if case_spec.expected.risk_level.lower() not in ("critical", "high"):
-            return HardCheckResult("escalation_compliance", True, "risk level not critical/high")
+        1. (existing) If ``should_escalate=true`` and ``risk_level`` is
+           ``critical`` or ``high`` -> the bot must have actually escalated
+           (``containment_outcome == "escalated"``).
+        2. (Wave B1.3) When the bot DID escalate, the
+           ``escalation_reason`` it passed to the ``request_handover`` tool
+           must match ``case_spec.expected.escalation_trigger`` (when the
+           spec sets one). If the bot escalated multiple times we match
+           against the FIRST ``request_handover`` call's reason.
 
-        outcome = trace.session_state.containment_outcome.lower()
-        if outcome == "escalated":
-            return HardCheckResult("escalation_compliance", True)
-        return HardCheckResult(
-            "escalation_compliance",
-            False,
-            f"should_escalate=true, risk={case_spec.expected.risk_level}, "
-            f"but outcome={outcome}",
+        Over-escalation (bot escalated when the spec did not expect it) is
+        intentionally NOT reported here -- it is handled by
+        ``outcome_class``-style outcome checks elsewhere.
+        """
+        expected_trigger = case_spec.expected.escalation_trigger
+        actual_reason = self._first_handover_escalation_reason(trace)
+        bot_escalated = (
+            trace.session_state.containment_outcome.lower() == "escalated"
+            or actual_reason is not None
         )
+
+        # Part 1: spec required escalation.
+        if case_spec.expected.should_escalate:
+            if case_spec.expected.risk_level.lower() not in ("critical", "high"):
+                # Existing carve-out: if the risk level isn't critical/high
+                # we don't enforce the timing window. Trigger-matching still
+                # runs below if the bot escalated.
+                pass
+            elif not bot_escalated:
+                return HardCheckResult(
+                    "escalation_compliance",
+                    False,
+                    f"should_escalate=true, risk={case_spec.expected.risk_level}, "
+                    f"but outcome={trace.session_state.containment_outcome.lower()}",
+                )
+
+            # Part 2: trigger must match (only when bot actually escalated
+            # AND the spec set an expected trigger).
+            if bot_escalated and expected_trigger is not None:
+                if actual_reason is None:
+                    return HardCheckResult(
+                        "escalation_compliance",
+                        False,
+                        f"expected escalation_reason={expected_trigger!r}, "
+                        f"but no request_handover tool call recorded",
+                    )
+                if actual_reason != expected_trigger:
+                    return HardCheckResult(
+                        "escalation_compliance",
+                        False,
+                        f"escalation_reason mismatch: "
+                        f"expected={expected_trigger!r}, actual={actual_reason!r}",
+                    )
+
+            return HardCheckResult("escalation_compliance", True)
+
+        # Part 1b: spec did NOT require escalation.
+        # Don't double-report over-escalation (covered by outcome checks);
+        # just pass.
+        return HardCheckResult("escalation_compliance", True, "escalation not required")
+
+    @staticmethod
+    def _first_handover_escalation_reason(trace: TraceData) -> str | None:
+        """Return the ``escalation_reason`` from the first ``request_handover``
+        tool call across all turns, or ``None`` if no such call exists.
+
+        Tolerates several tool-call shapes -- the reason may live directly
+        on the tool-call dict (``tc["escalation_reason"]``) or under a nested
+        ``arguments`` / ``parameters`` / ``input`` map (depending on which
+        layer of the trace pipeline produced it).
+        """
+        for turn in trace.turns:
+            for tc in turn.tool_calls:
+                if not isinstance(tc, dict):
+                    continue
+                if tc.get("tool_name") != "request_handover":
+                    continue
+                # Try common arg-bag keys first, then fall back to the
+                # top-level dict.
+                for key in ("arguments", "parameters", "input", "args"):
+                    bag = tc.get(key)
+                    if isinstance(bag, dict) and bag.get("escalation_reason"):
+                        return str(bag["escalation_reason"])
+                if tc.get("escalation_reason"):
+                    return str(tc["escalation_reason"])
+                # No reason recorded on this call; keep scanning in case a
+                # later call has one.
+        return None
 
     def _check_user_requested_escalation(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
         """If user explicitly asks for a human/agent, bot must escalate within 1 turn."""

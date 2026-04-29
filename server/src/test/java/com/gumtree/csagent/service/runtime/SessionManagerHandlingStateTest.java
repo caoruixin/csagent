@@ -71,7 +71,7 @@ class SessionManagerHandlingStateTest {
                 .activeUseCase("UC-B")
                 .handlingState("QUEUE_TO_HUMAN")
                 .currentPhase("ESCALATE")
-                .containmentOutcome("ESCALATED")
+                .containmentOutcome("escalated")
                 .escalationReason("user_requested_escalation")
                 .totalBotTurns(1)
                 .clarificationCount(0)
@@ -81,7 +81,7 @@ class SessionManagerHandlingStateTest {
 
         assertEquals("QUEUE_TO_HUMAN", session.getHandlingState(),
                 "forceEscalate correctly sets handlingState to QUEUE_TO_HUMAN");
-        assertEquals("ESCALATED", session.getContainmentOutcome(),
-                "forceEscalate correctly sets containmentOutcome to ESCALATED");
+        assertEquals("escalated", session.getContainmentOutcome(),
+                "forceEscalate correctly sets containmentOutcome to escalated (lowercase per trace contract)");
     }
 }

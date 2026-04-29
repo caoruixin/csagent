@@ -9,50 +9,55 @@ form_context:
   description: Hi, I've had a LOT of trouble with lost deliveries and wonder if they can all be left at a local Evri collection
     point instead of home address? That would make it cheaper and a lot easier for me to retrieve. Thank you
 persona:
-  goal_summary: 'Get help with: Hi, I''ve had a LOT of trouble with lost deliveries and wonder if they can all be left at
-    a local Evri collection point instead of home address? That would make it cheaper and a lot easier for me to retrieve.
-    Thank you. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Delivery: Hi, I''ve had a LOT of trouble with lost deliveries and wonder if they can all
+    be left at a local Evri collection point instead of home address?. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - No problem, can you please advise?
-  - let me check...
-  - https://www.gumtree.com/order/1377211800000000000006259654?type=bought
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Thank you. I hope you have a lovely day. Take care 🙂
+  - No thank you, just please make sure you let me know as this will make deliveries a lot safer - and persuade your boss
+    ;-) thanks, have a good day
+  hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate
-  primary_uc: OUT_OF_SCOPE_DELIVERY
+  primary_uc: UC-A
   secondary_ucs:
   - UC-H
   - UC-K
   - UC-B
   should_escalate: true
-  escalation_trigger: user_requested
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason out_of_scope.
+  escalation_trigger: out_of_scope
   risk_level: medium
   expected_tool_sequence:
-  - fixed_script_library
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
   - request_handover
   - record_outcome
   forbidden_tools:
-  - search_knowledge
-  - resolve_article
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - lookup_customer_account
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - internal moderation reason codes or enforcement commitments
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

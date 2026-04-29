@@ -64,9 +64,18 @@ class HandoverData:
 
 @dataclass
 class TraceData:
-    """Complete trace data for one evaluation session."""
+    """Complete trace data for one evaluation session.
+
+    ``contract_warnings`` is populated only when the collector runs in
+    ``lenient`` contract mode (see ``trace.collector``). In ``strict``
+    mode (default) a contract violation raises ``TraceContractError``
+    instead and this list stays empty. Each warning is a one-line
+    string of the form ``"trace_contract_<field>: phase=...
+    reason=... available_keys=[...]"``.
+    """
 
     session_state: SessionState
     turns: list[TurnTrace]
     events: list[EventEntry]
     handover: HandoverData | None
+    contract_warnings: list[str] = field(default_factory=list)

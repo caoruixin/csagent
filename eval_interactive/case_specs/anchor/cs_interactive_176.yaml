@@ -8,18 +8,16 @@ form_context:
   ad_id: ''
   description: I pad to put my ad for my business and it's not at the top
 persona:
-  goal_summary: 'Get help with: I pad to put my ad for my business and it''s not at the top. Expects bot to escalate to human
-    agent.'
+  user_goal_summary: 'User reports Technical Support: I pad to put my ad for my business and it''s not at the top. Drift:
+    soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Give me my £50 back or put my business to the top like I paid for
-  - What about giving a phone number to talk to someone
   - That's good why is this so hard to do
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - What about giving a phone number to talk to someone
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -28,7 +26,10 @@ expected:
   - UC-B
   - UC-K
   should_escalate: true
-  escalation_trigger: clarification_budget_exhausted
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (search_knowledge, resolve_article, request_handover,
+    record_outcome), collect required intake fields (none), and hand over with reason user_requested.
+  escalation_trigger: user_requested
   risk_level: low
   expected_tool_sequence:
   - search_knowledge
@@ -36,18 +37,26 @@ expected:
   - request_handover
   - record_outcome
   forbidden_tools:
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

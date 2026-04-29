@@ -8,18 +8,16 @@ form_context:
   ad_id: ''
   description: I cannot send replies to ads
 persona:
-  goal_summary: 'Get help with: I cannot send replies to ads. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Account Support: I cannot send replies to ads. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - Hello thanks
-  - Sure it’s [EMAIL]
-  - The button to send a message doesn’t work, and when I try to call it says the phone number is invalid. This happens with
-    all ads I’ve been trying to reply to
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - 'Please view this ad: Double Mezzanine Semi-Studio - Holland Road, Holland Park/Shepherds Bush [POSTCODE] - All Bills
+    Inc Price:£240pw https://www.gumtree.com/p/flats-houses/double-mezzanine-semi-studio-holland-road-holland-parkshepherds-bush-w14-8bb-all-bills-inc/1475855411?utm_source=unknown&utm_campaign=socialbuttons&utm_content=app_ios&utm_medium=Social'
+  - I am looking for a flat in London so maybe the issue is in the housing section
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: resolve
@@ -28,26 +26,29 @@ expected:
   - UC-K
   - UC-B
   should_escalate: false
-  escalation_trigger: ''
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - answer_grounded
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

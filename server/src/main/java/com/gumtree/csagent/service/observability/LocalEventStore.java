@@ -57,14 +57,17 @@ public class LocalEventStore {
         long understoodSessions = allSessions.stream()
                 .filter(s -> s.getActiveUseCase() != null && !s.getActiveUseCase().isBlank())
                 .count();
+        // Trace contract requires lowercase containment_outcome values
+        // (resolved/escalated/abandoned/timeout). Compare case-insensitively
+        // so historical uppercase rows still match until the migration runs.
         long resolvedSessions = allSessions.stream()
-                .filter(s -> ContainmentOutcome.RESOLVED.name().equals(s.getContainmentOutcome()))
+                .filter(s -> ContainmentOutcome.RESOLVED.name().equalsIgnoreCase(s.getContainmentOutcome()))
                 .count();
         long escalatedSessions = allSessions.stream()
-                .filter(s -> ContainmentOutcome.ESCALATED.name().equals(s.getContainmentOutcome()))
+                .filter(s -> ContainmentOutcome.ESCALATED.name().equalsIgnoreCase(s.getContainmentOutcome()))
                 .count();
         long abandonedSessions = allSessions.stream()
-                .filter(s -> ContainmentOutcome.ABANDONED.name().equals(s.getContainmentOutcome()))
+                .filter(s -> ContainmentOutcome.ABANDONED.name().equalsIgnoreCase(s.getContainmentOutcome()))
                 .count();
 
         Map<String, Long> outcomeBreakdown = new LinkedHashMap<>();
@@ -118,9 +121,9 @@ public class LocalEventStore {
             metrics.setTotalSessions(metrics.getTotalSessions() + 1);
 
             String outcome = session.getContainmentOutcome();
-            if (ContainmentOutcome.RESOLVED.name().equals(outcome)) {
+            if (ContainmentOutcome.RESOLVED.name().equalsIgnoreCase(outcome)) {
                 metrics.setResolved(metrics.getResolved() + 1);
-            } else if (ContainmentOutcome.ESCALATED.name().equals(outcome)) {
+            } else if (ContainmentOutcome.ESCALATED.name().equalsIgnoreCase(outcome)) {
                 metrics.setEscalated(metrics.getEscalated() + 1);
             }
         }

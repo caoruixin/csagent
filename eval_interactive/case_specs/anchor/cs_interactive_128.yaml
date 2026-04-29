@@ -8,18 +8,17 @@ form_context:
   ad_id: ''
   description: My advert won't post. It says I can't use website links but I haven't put any links on my advert.
 persona:
-  goal_summary: 'Get help with: My advert won''t post. It says I can''t use website links but I haven''t put any links on
-    my advert.. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Ad Support: My advert won''t post. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - How do I find that while chatting?
-  - '[EMAIL]'
-  - I'm trying to post a new advert for a Martin guitar.
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Beautiful Stika Spruce Cutaway Dreadnought guitar in excellent condition. Lovingly maintained since I bought it a few
+    years ago.. it comes with Excellent hard case and a new set of strings..I'm reluctantly selling asi don't play it enough
+    to keep. Will take off £70 if case is not needed.
+  - I description outlined in red saying my description cannot contain website links and to use website link field?
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -28,6 +27,9 @@ expected:
   - UC-K
   - UC-B
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
   escalation_trigger: user_distress
   risk_level: low
   expected_tool_sequence:
@@ -38,16 +40,23 @@ expected:
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

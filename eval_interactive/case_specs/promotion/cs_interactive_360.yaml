@@ -8,55 +8,57 @@ form_context:
   ad_id: ''
   description: Need to speak to someone about advertising charges please.
 persona:
-  goal_summary: 'Get help with: Need to speak to someone about advertising charges please.. Expects bot to escalate to human
-    agent.'
+  user_goal_summary: 'User reports Account Support: Need to speak to someone about advertising charges please. Drift: soft_shift.'
   frustration_level: none
-  verbosity: verbose
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - I was charged £3.75 and £2.25 twice yesterday for my 2 framed horse prints that I put on Gumtree for sale and 2 more payments
     from meta platform for £1.50 & £2.00
-  - So I thought I was paying for 14 days for each Framed print so I am wanting to know why these other payment being taken
-    out and what are they for.
-  - How can I get that with out cutting you off
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Yes that's it thank you.
+  - 3 live ads in thought I have only 2 the 2 horse racing framed prints.
+  hidden_facts: []
   will_request_human_if: ''
 expected:
-  outcome_class: escalate
+  outcome_class: resolve
   primary_uc: UC-F
   secondary_ucs:
   - UC-D
   - UC-A
-  should_escalate: true
-  escalation_trigger: user_requested
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: medium
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - request_handover
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
   grounding_mode: faq_source_backed
-  answer_must_not_contain:
-  - I've fixed that for you
-  - I have sent you an email
-  - I can restore/delete/ban this directly
+  answer_must_not_contain: []
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - escalation_triggered
+  - resolution_achieved
   - answer_accuracy
   llm_judge_dimensions:
   - groundedness

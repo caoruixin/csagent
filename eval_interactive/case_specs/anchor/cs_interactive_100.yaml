@@ -8,55 +8,61 @@ form_context:
   ad_id: ''
   description: I have lost access to my account
 persona:
-  goal_summary: 'Get help with: I have lost access to my account. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Technical Support: I have lost access to my account. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - It has happened recently. It concerns the account I have which is registered under the email address [EMAIL] . I am receiving
     marketing emails from you to that address but I am not receiving emails as I try to change my forgotten password.
-  - I can't provide a screenshot. As I request a new password the message I am getting telss me an email is being sent to
-    my email account allowing me to change the password but no email arrives. There isn't a screenshot I can send to demonstrate
-    that.
-  - On my phone yes.
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Can I download this conversation?
+  - I have used a device which doesn't have the app on it. The resets have still failed due to no reset email arriving.
+  hidden_facts: []
   will_request_human_if: ''
 expected:
-  outcome_class: resolve
+  outcome_class: escalate
   primary_uc: UC-D
   secondary_ucs:
   - UC-K
   - UC-C
-  should_escalate: false
-  escalation_trigger: ''
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - answer_grounded
+  - request_handover
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - resolution_achieved
+  - escalation_triggered
   - answer_accuracy
   llm_judge_dimensions:
   - groundedness

@@ -55,6 +55,30 @@ public class PhaseEvaluator {
     /** Default SLA hours used in template variable substitution. */
     private static final String DEFAULT_SLA_HOURS = "24-48";
 
+    /**
+     * Map from intake UC ID to its canonical request_handover.escalation_reason
+     * enum value (per docs/customer_service_tool_spec_v0_2.yaml lines 433-457).
+     * Intake-only UCs (UC-G/H/I/J/K) emit one of these once intake is complete;
+     * non-intake UCs do not flow through this path.
+     */
+    private static final Map<String, String> INTAKE_ESCALATION_TRIGGER = Map.of(
+            "UC-G", "intake_complete_for_uc_g",
+            "UC-H", "intake_complete_for_uc_h",
+            "UC-I", "intake_complete_for_uc_i",
+            "UC-J", "intake_complete_for_uc_j",
+            "UC-K", "intake_complete_for_uc_k"
+    );
+
+    /**
+     * Resolve the canonical escalation_reason enum for an intake-complete
+     * handover. Falls back to the bare {@code intake_complete} legacy literal
+     * if the active UC is not in the intake set, but in practice this branch
+     * is only reached by {@code resolveIntake} which is gated on UC-G/H/I/J/K.
+     */
+    private String intakeCompleteTrigger(String activeUc) {
+        return INTAKE_ESCALATION_TRIGGER.getOrDefault(activeUc, "intake_complete");
+    }
+
     private final UseCaseRegistryService useCaseRegistry;
     private final KnowledgeSearchService knowledgeSearchService;
     private final ScriptLibraryService scriptLibrary;
@@ -389,7 +413,7 @@ public class PhaseEvaluator {
                 completeTemplate = scriptLibrary.renderTemplate(prefix + "_intake_complete_case_created", vars);
             }
             String msg = completeTemplate != null ? completeTemplate : action.getUserMessage();
-            return PhaseResult.escalate(session, msg, "intake_complete");
+            return PhaseResult.escalate(session, msg, intakeCompleteTrigger(activeUc));
         }
 
         // Defense-in-depth: if LLM returned retrieve_knowledge in intake mode,
@@ -418,7 +442,7 @@ public class PhaseEvaluator {
 
                 String tmpl = scriptLibrary.renderTemplate(prefix + "_escalation", vars);
                 String msg = tmpl != null ? tmpl : retryAction.getUserMessage();
-                return PhaseResult.escalate(session, msg, "intake_complete");
+                return PhaseResult.escalate(session, msg, intakeCompleteTrigger(activeUc));
             }
             return PhaseResult.respond(session, retryAction, retryResponse, null);
         }
@@ -656,10 +680,10 @@ public class PhaseEvaluator {
 
     private PhaseResult evaluateClose(BotSession session) {
         session.setHandlingState("CLOSED");
-        session.setContainmentOutcome("RESOLVED");
+        session.setContainmentOutcome("resolved");
 
         // Emit SESSION_CLOSED event (OUTCOME_RECORDED is emitted by SessionManager.recordOutcome)
-        eventEmitter.emitSessionClosed(session.getSessionId(), "RESOLVED");
+        eventEmitter.emitSessionClosed(session.getSessionId(), "resolved");
 
         return PhaseResult.close(session,
                 "I'm glad I could help! If you have any other questions, feel free to start a new chat. Have a great day!");
@@ -667,7 +691,7 @@ public class PhaseEvaluator {
 
     private PhaseResult evaluateEscalate(BotSession session, List<BotTurn> conversationHistory) {
         session.setHandlingState("QUEUE_TO_HUMAN");
-        session.setContainmentOutcome("ESCALATED");
+        session.setContainmentOutcome("escalated");
 
         String message = "I'm connecting you with a human agent who can assist you further. " +
                           "A summary of our conversation will be provided to them. Please hold on.";
@@ -733,7 +757,7 @@ public class PhaseEvaluator {
         static PhaseResult escalate(BotSession session, String message, String reason) {
             session.setEscalationReason(reason);
             session.setHandlingState("QUEUE_TO_HUMAN");
-            session.setContainmentOutcome("ESCALATED");
+            session.setContainmentOutcome("escalated");
             return new PhaseResult("ESCALATE", null, null, null,
                     reason, false, true, reason, message);
         }

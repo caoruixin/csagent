@@ -20,14 +20,14 @@ import click
 from eval_interactive.case_spec.schema import CaseSpec
 from eval_interactive.config import Config
 from eval_interactive.scoring.composite import CompositeScore, compute_composite
-from eval_interactive.scoring.hard_checks import HardChecker
+from eval_interactive.scoring.hard_checks import HardChecker, HardCheckResult
 from eval_interactive.scoring.llm_judge import LlmJudge
 from eval_interactive.scoring.outcome_checks import OutcomeChecker
 from eval_interactive.scoring.stall_detector import StallDetector
 from eval_interactive.simulator.agent_client import AgentClient
 from eval_interactive.simulator.session_runner import SessionResult, SessionRunner
 from eval_interactive.simulator.user_simulator import UserSimulator
-from eval_interactive.trace.collector import TraceCollector
+from eval_interactive.trace.collector import TraceCollector, TraceContractError
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +160,19 @@ class BatchExecutor:
                 )
                 click.echo(f"  TIMEOUT  {case_spec.case_id}")
                 return self._timeout_result(case_spec)
+            except TraceContractError as exc:
+                # Wave B1.4: trace telemetry is missing or malformed.
+                # Distinguish from TIMEOUT / ERROR so reports can blame
+                # the right layer (instrumentation vs. bot behaviour).
+                logger.error(
+                    "Case %s contract violation: field=%s phase=%s reason=%s",
+                    case_spec.case_id, exc.field, exc.phase, exc.reason,
+                )
+                click.echo(
+                    f"  CONTRACT {case_spec.case_id}: "
+                    f"{exc.field} ({exc.reason})"
+                )
+                return self._contract_violation_result(case_spec, exc)
             except Exception as exc:
                 logger.error(
                     "Case %s failed: %s", case_spec.case_id, exc, exc_info=True
@@ -214,13 +227,15 @@ class BatchExecutor:
                 case_spec, trace_data, session_result.transcript
             )
 
-            # 8. Composite score
+            # 8. Composite score (Wave B1.1: pass case_spec so the composite
+            # scorer can apply mandatory-L2 gates in addition to L1 gates).
             composite_score = compute_composite(
                 case_spec.case_id,
                 l1_results,
                 l2_results,
                 l3_results,
                 stall_result,
+                case_spec=case_spec,
             )
 
             case_result = self._build_case_result(
@@ -283,6 +298,13 @@ class BatchExecutor:
                 for r in composite_score.l3_results
             ],
             "transcript": session_result.transcript,
+            "status": "PASS" if composite_score.case_passed else "FAIL",
+            # Wave B1.4: surface lenient-mode contract warnings so they
+            # show up in the per-case detail in reports without being
+            # confused with bot misbehaviour.
+            "contract_warnings": list(
+                getattr(trace_data, "contract_warnings", []) or []
+            ),
         }
 
     def _timeout_result(self, case_spec: CaseSpec) -> dict:
@@ -309,6 +331,7 @@ class BatchExecutor:
             "l2_results": [],
             "l3_results": [],
             "transcript": [],
+            "status": "TIMEOUT",
         }
 
     def _error_result(self, case_spec: CaseSpec, error_msg: str) -> dict:
@@ -335,6 +358,65 @@ class BatchExecutor:
             "l2_results": [],
             "l3_results": [],
             "transcript": [],
+            "status": "ERROR",
+        }
+
+    def _contract_violation_result(
+        self,
+        case_spec: CaseSpec,
+        exc: TraceContractError,
+    ) -> dict:
+        """Build a deterministic result for a trace-contract violation.
+
+        Mirrors the timeout/error result shape but with a distinct
+        ``status`` and a synthetic L1 entry so the cause is visible in
+        per-case reports without needing to dig into logs.
+        """
+        synthetic = HardCheckResult(
+            check_name=f"trace_contract_{exc.field}",
+            passed=False,
+            detail=(
+                f"Required telemetry field {exc.field!r} missing/invalid "
+                f"in phase {exc.phase!r} (reason={exc.reason}). "
+                f"available_keys={exc.available_keys}"
+            ),
+            severity="critical",
+        )
+        return {
+            "case_id": case_spec.case_id,
+            "primary_uc": case_spec.expected.primary_uc,
+            "expected_outcome": case_spec.expected.outcome_class,
+            "session_id": exc.session_id,
+            "total_turns": 0,
+            "stop_reason": "contract_violation",
+            "elapsed_ms": 0,
+            "case_passed": False,
+            "composite_score": 0.0,
+            "outcome_score": 0.0,
+            "judge_score": 0.0,
+            "failure_tags": [f"CONTRACT_VIOLATION:{exc.field}"],
+            "stall_detected": False,
+            "stall_failure_tag": "",
+            "containment_outcome": "",
+            "active_use_case": "",
+            "escalation_reason": "",
+            "l1_results": [
+                {
+                    "check": synthetic.check_name,
+                    "passed": synthetic.passed,
+                    "detail": synthetic.detail,
+                }
+            ],
+            "l2_results": [],
+            "l3_results": [],
+            "transcript": [],
+            "status": "CONTRACT_VIOLATION",
+            "contract_violation": {
+                "field": exc.field,
+                "phase": exc.phase,
+                "reason": exc.reason,
+                "available_keys": exc.available_keys,
+            },
         }
 
     # ------------------------------------------------------------------

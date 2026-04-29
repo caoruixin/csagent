@@ -33,7 +33,7 @@ def _make_sample_case_spec() -> CaseSpec:
             description="I was charged twice for my subscription.",
         ),
         persona=Persona(
-            goal_summary="Resolve a double-charge billing issue",
+            user_goal_summary="Resolve a double-charge billing issue",
             frustration_level="mild",
             verbosity="normal",
             drift_behavior="none",
@@ -51,6 +51,9 @@ def _make_sample_case_spec() -> CaseSpec:
             primary_uc="billing_inquiry",
             secondary_ucs=["refund_request"],
             should_escalate=False,
+            allow_bot_resolution="true",
+            bot_handling_pattern="<test fixture>",
+            escalation_trigger=None,
             risk_level="medium",
             expected_tool_sequence=["search_faq", "lookup_order"],
             forbidden_tools=["delete_account"],
@@ -80,7 +83,7 @@ def _case_spec_to_dict(spec: CaseSpec) -> dict:
             "description": spec.form_context.description,
         },
         "persona": {
-            "goal_summary": spec.persona.goal_summary,
+            "user_goal_summary": spec.persona.user_goal_summary,
             "frustration_level": spec.persona.frustration_level,
             "verbosity": spec.persona.verbosity,
             "drift_behavior": spec.persona.drift_behavior,
@@ -96,6 +99,9 @@ def _case_spec_to_dict(spec: CaseSpec) -> dict:
             "primary_uc": spec.expected.primary_uc,
             "secondary_ucs": spec.expected.secondary_ucs,
             "should_escalate": spec.expected.should_escalate,
+            "allow_bot_resolution": spec.expected.allow_bot_resolution,
+            "bot_handling_pattern": spec.expected.bot_handling_pattern,
+            "escalation_trigger": spec.expected.escalation_trigger,
             "risk_level": spec.expected.risk_level,
             "expected_tool_sequence": spec.expected.expected_tool_sequence,
             "forbidden_tools": spec.expected.forbidden_tools,
@@ -137,6 +143,9 @@ class TestCaseSpecCreation:
             primary_uc="complaint",
             secondary_ucs=[],
             should_escalate=True,
+            allow_bot_resolution="true",
+            bot_handling_pattern="<test fixture>",
+            escalation_trigger="intake_complete_for_uc_k",
         )
         assert exp.risk_level == "low"
         assert exp.max_turns == 15
@@ -152,7 +161,7 @@ class TestCaseSpecCreation:
 
     def test_persona_with_no_optional_fields(self):
         persona = Persona(
-            goal_summary="Ask about pricing",
+            user_goal_summary="Ask about pricing",
             frustration_level="none",
             verbosity="terse",
             drift_behavior="none",

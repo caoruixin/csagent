@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  goal_summary: Get help with UNKNOWN issue. Expects bot to escalate to human agent.
+  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: none
@@ -16,19 +16,18 @@ persona:
   - Thankyou I’m trying to sell a drill and I had someone called Christopher ask if it was still available so i replied yes
     then he text saying who cares and also another person asked about stereo I’m selling can I deliver to India the thing
     is it’s stopping me from selling my items
-  - '[EMAIL]'
-  - People messaging asking if it’s available then when I reply back they send another message saying who cares and the stereo
-    someone asking if we deliver to India it’s just stupid messages the thing is if someone else messages about these items
-    I’m going to think they are messing about
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Thankyou very much
+  - The dates are today’s date on both items and the one for the drill is Christopher and the stereo is Santosh
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
   primary_uc: UC-C
   secondary_ucs: []
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
   escalation_trigger: clarification_budget_exhausted
   risk_level: low
   expected_tool_sequence:
@@ -39,16 +38,21 @@ expected:
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

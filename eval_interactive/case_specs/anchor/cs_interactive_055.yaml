@@ -8,44 +8,50 @@ form_context:
   ad_id: ''
   description: Darts board full set up
 persona:
-  goal_summary: 'Get help with: Darts board full set up. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Ad Support: Darts board full set up. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Hi ive just creates and posted and paid £1.9@ for better coverage for 7 days and its saying i have no ada
-  - Created**
-  - '[EMAIL]'
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - So when will my ad be live im not happy
+  - Ive paid for the advertising of my ad too
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
-  primary_uc: UC-B
+  primary_uc: UC-FP
   secondary_ucs:
   - UC-K
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
   escalation_trigger: user_distress
   risk_level: low
   expected_tool_sequence:
+  - get_customer_context
   - search_knowledge
   - resolve_article
   - request_handover
   - record_outcome
   forbidden_tools:
-  - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_message_moderation_context
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

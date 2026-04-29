@@ -8,52 +8,61 @@ form_context:
   ad_id: ''
   description: 5 British kittens for sale
 persona:
-  goal_summary: 'Get help with: 5 British kittens for sale. Expects bot to resolve the issue directly.'
+  user_goal_summary: 'User reports Account Support: 5 British kittens for sale. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Hi I just uploaded my advert. Edit it with the mother and the kittens please Restain the advert many thanks
-  - Why is the advertisement getting on hold 2 tme now this has never happened before with my Advert .
-  - '[EMAIL]'
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Okay thank you
+  - We’ve added the kittens mother to the picture can you please remove this issue because we are trying to sell the kittens
+  hidden_facts: []
   will_request_human_if: ''
 expected:
-  outcome_class: resolve
-  primary_uc: UC-B
+  outcome_class: escalate
+  primary_uc: UC-K
   secondary_ucs:
-  - UC-K
-  should_escalate: false
-  escalation_trigger: ''
+  - UC-FP
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason intake_complete_for_uc_k.
+  escalation_trigger: intake_complete_for_uc_k
   risk_level: low
   expected_tool_sequence:
-  - search_knowledge
-  - resolve_article
-  - answer_grounded
-  - record_outcome
-  forbidden_tools:
   - get_customer_context
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
-  grounding_mode: faq_source_backed
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  max_turns: 15
+  - I'll resolve this for you
+  max_turns: 10
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
-  - grounding_compliance
+  - fixed_script_adherence
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - resolution_achieved
-  - answer_accuracy
+  - escalation_triggered
+  - intake_fields_collected
   llm_judge_dimensions:
   - groundedness
   - relevance

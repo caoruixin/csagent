@@ -9,19 +9,18 @@ form_context:
   description: My messages to requests do not get delivered, I used two different browsers and the app to test this. I also
     deleted the cache but this did not solve the issue.
 persona:
-  goal_summary: 'Get help with: My messages to requests do not get delivered, I used two different browsers and the app to
-    test this. I also deleted the cache but this did not solve the issue.. Expects bot to escalate to human agent.'
+  user_goal_summary: 'User reports Replies & Messaging: My messages to requests do not get delivered, I used two different
+    browsers and the app to test this. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - No, I just received messages from people asking for me to reply even though I have, and now I have tested this and tried
     sending messages to my husband via gumtree but they all did not go through
-  - all messages show two hooks as if they were delivered
-  - I received your message and replied just now
-  hidden_facts:
-  - fact: email is customer@example.com
-    disclose_when: if asked
+  - Nobody replied to any of my messages, but a few send reminders (2 listings in total) and I tested a third which also did
+    not work
+  - did you get it?
+  hidden_facts: []
   will_request_human_if: ''
 expected:
   outcome_class: escalate
@@ -31,6 +30,9 @@ expected:
   - UC-FP
   - UC-K
   should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
   escalation_trigger: user_distress
   risk_level: low
   expected_tool_sequence:
@@ -41,16 +43,21 @@ expected:
   - record_outcome
   forbidden_tools:
   - create_case_controlled
-  - moderation_enforcement_action
-  - send_followup_email_or_async_update
+  - get_moderation_review_context
   grounding_mode: faq_source_backed
   answer_must_not_contain:
-  - I've fixed that for you
+  - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
+  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
   - grounding_compliance

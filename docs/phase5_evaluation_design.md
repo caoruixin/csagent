@@ -202,9 +202,15 @@ form_context:
   ad_id: string                    # optional, from HR form_provides_ad_id
   description: string              # from turn data sequence=0
 
-# ── User Persona (drives simulator behavior) ──
+# ── User Persona (drives simulator behavior; NOT scored) ──
 persona:
-  goal_summary: string             # Natural language: "Find out why ad was removed and get it reinstated"
+  user_goal_summary: string        # USER's goal only — e.g. "Find out why ad was removed
+                                   # and get it reinstated". Renamed from `goal_summary`
+                                   # in Wave A1.1 to make explicit this is the user's
+                                   # intent, NOT the bot's expected behaviour. The old
+                                   # name is kept as a deprecated read-only alias on the
+                                   # Persona dataclass; see
+                                   # `eval_interactive/eval_interactive/case_spec/schema.py`.
   frustration_level: none | mild | high   # from HR has_frustration + frustration_type
   verbosity: terse | normal | verbose
   drift_behavior: none | minor | soft_shift | hard_shift   # from HR drift_type
@@ -215,13 +221,32 @@ persona:
       disclose_when: string        # e.g. "if asked", "after bot acknowledges issue", "proactively"
   will_request_human_if: string    # Condition under which user demands human agent (optional)
 
-# ── Expected Outcomes (from HR annotations) ──
+# ── Expected Outcomes (derived from policy_table + HR annotations) ──
 expected:
-  outcome_class: resolve | escalate
+  outcome_class: resolve | escalate | either
   primary_uc: string               # HR primary_uc_corrected (or primary_uc if no correction)
   secondary_ucs: [string]          # from HR secondary_ucs
   should_escalate: boolean
-  escalation_trigger: string       # from HR escalation_trigger (if applicable)
+  allow_bot_resolution: "true" | "false" | "partial"
+                                   # NEW (Wave A1.1, required). Per-UC policy mirrored at
+                                   # the case level so the scorer does not have to look
+                                   # up policy_table for each case.
+                                   #   "true"    — bot may resolve end-to-end (FAQ UCs)
+                                   #   "false"   — bot must intake + hand over (UC-G/H/I/J)
+                                   #   "partial" — bot may resolve some sub-cases, others
+                                   #               escalate (UC-K). Pairs with
+                                   #               outcome_class=either.
+  bot_handling_pattern: string     # NEW (Wave A1.1, required). Plain-English description
+                                   # of the expected bot behaviour. Distinct from
+                                   # outcome_class. Example for UC-H: "Intake user's case
+                                   # details, create a controlled case, hand over to a
+                                   # human agent." Derived from policy_table.
+  escalation_trigger: enum | null  # MUST be one of the 22 canonical
+                                   # `request_handover.escalation_reason` values
+                                   # (see enum list below). Required when
+                                   # should_escalate=true; must be null/empty otherwise.
+                                   # Source of truth:
+                                   # docs/customer_service_tool_spec_v0_2.yaml lines 433-457.
   risk_level: low | medium | high | critical   # from HR risk_level
   expected_tool_sequence: [string] # from HR expected_tool_sequence (JSON array)
   forbidden_tools: [string]        # from HR forbidden_tools (JSON array)
@@ -250,11 +275,170 @@ scoring:
     - tone_appropriateness
 ```
 
-**Extraction Pipeline**: `case_spec_builder.py` reads HR CSV + corresponding turns CSV:
-1. Map HR fields to CaseSpec `expected` block (direct mapping for most fields)
-2. Derive `persona` from transcript analysis: extract representative visitor messages as `seed_messages`, infer `hidden_facts` from information disclosed across turns, map `has_frustration`/`frustration_type` to `frustration_level`
-3. Derive `grounding_mode`: if `grounding_required=true` → `faq_source_backed`; if UC ∈ {G,H,I,J,K} → `fixed_script_only`
-4. Assign to case set based on `quality_score`, `risk_level`, and UC distribution
+**`escalation_trigger` enum (22 canonical values)** — source: `docs/customer_service_tool_spec_v0_2.yaml` lines 433-457, mirrored in `eval_interactive/eval_interactive/case_spec/schema.py` as `EscalationTrigger`. The CaseSpec validator enforces the should_escalate coupling: trigger required when `should_escalate=true`, must be null/empty when `should_escalate=false`.
+
+| Group | Values |
+|-------|--------|
+| User-driven | `user_requested`, `user_distress`, `imminent_harm` |
+| Budget / control | `clarification_budget_exhausted`, `faq_miss_threshold_exceeded`, `turn_budget_exhausted`, `incomplete_intake` |
+| Intake completion (per UC) | `intake_complete_for_uc_g`, `intake_complete_for_uc_h`, `intake_complete_for_uc_i`, `intake_complete_for_uc_j`, `intake_complete_for_uc_k` |
+| Trust & safety / appeals | `appeal_requires_human`, `incorrect_deletion_appeal`, `trust_safety_required`, `payment_dispute_detected` |
+| Compliance / identity | `account_compliance`, `gdpr_intake`, `identity_verification_required` |
+| Routing / infra | `out_of_scope`, `service_degraded`, `tool_scope_blocked` |
+
+(The earlier "17 escalation reasons" wording in §4.1 Suite 2 reflected a legacy count; the canonical enum currently has 22 values. The five `intake_complete_for_uc_*` values are spelled out individually, and `service_degraded` / `turn_budget_exhausted` / `tool_scope_blocked` are infrastructure / guardrail-only triggers. Suites may exercise a subset.)
+
+**Persona-only fields (do NOT contribute to scoring)**:
+
+The Persona block exists solely to drive the user-simulator LLM. None of its fields feed into L1/L2/L3 scoring — they shape the simulator's behaviour, not the grader's expectations.
+
+| Field | Used by simulator for |
+|-------|----------------------|
+| `user_goal_summary` | Top-level system prompt for what the user wants |
+| `hidden_facts[].fact` | Information the user only mentions when triggered |
+| `hidden_facts[].disclose_when` | Trigger condition for revealing each fact |
+| `will_request_human_if` | Trigger condition for the user to demand a human |
+| `seed_messages` | First-turn message(s) and tone seeding |
+| `frustration_level`, `verbosity`, `drift_behavior` | Tone, length, and topic-shift behaviour |
+
+Bot-side expectations live entirely in the `expected` block (`bot_handling_pattern`, `allow_bot_resolution`, `outcome_class`, `expected_tool_sequence`, `escalation_trigger`, etc.).
+
+**Generation pipeline (Wave A4 — transcript-evidence CaseSpec generation)**:
+
+```mermaid
+flowchart TD
+  HR[HR CSV row] --> SID[session_id + source_dataset]
+  TD[eval_datasets/*_turns.csv] --> SRC[select exact source_dataset turns file]
+  SID --> SRC
+  SRC --> TURNS[matched turns only]
+  TURNS --> FORM[parse sequence=0 pre-chat form]
+  TURNS --> EVID[TranscriptEvidence extractor]
+  HR --> UC[HR UC + override resolver]
+  UC --> POL[policy_table.get_policy(primary_uc)]
+  POL --> OUT[case_outcome_resolver]
+  HR --> OUT
+  EVID --> OUT
+  FORM --> PERSONA[persona builder]
+  EVID --> PERSONA
+  OUT --> SPEC[CaseSpec YAML]
+  PERSONA --> SPEC
+  EVID --> AUDIT[generation audit]
+  OUT --> AUDIT
+  SPEC --> LINT[linter.py gate]
+```
+
+Code paths: `eval_interactive/eval_interactive/case_spec/extractor.py`, `policy_table.py`, `case_outcome_resolver.py`, `transcript_evidence.py`, `linter.py`, `schema.py`.
+
+Audit trail for the most recent regeneration is dumped to `qa-reports/case-spec-generation-audit.md`. Each section must list the selected turns file, turn count, evidence flags, policy-vs-HR-vs-transcript decision, overrides applied, dropped hidden facts, and human-only tools stripped from `forbidden_tools`.
+
+**Source-turn provenance rule**:
+
+The extractor MUST use the HR row's `source_dataset` to select exactly one turns file:
+
+| `source_dataset` | Required turns file |
+|------------------|---------------------|
+| `golden` | `golden_turns.csv` |
+| `escalation` | `escalation_turns.csv` |
+| `badcase` | `badcase_turns.csv` |
+| `handover` | `handover_turns.csv` |
+| `clarification` | `clarification_turns.csv` |
+| `drift_control` | `drift_control_turns.csv` |
+| `intake_tool_contract` | `intake_tool_contract_turns.csv` |
+
+The extractor MUST NOT merge turns from multiple datasets that happen to share the same `conversation_id`. If the expected source turns file is missing the session, generation must record a lint/error-level audit entry and skip that spec unless explicitly run in a diagnostic mode.
+
+**TranscriptEvidence contract**:
+
+`transcript_evidence.py` produces a structured object from the selected source turns. This is not raw transcript replay; it is bounded evidence used to decide whether policy defaults need a case-level exception.
+
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `turns_file` | selected source file | Provenance and duplicate-session debugging |
+| `turn_count` | selected turns | Audit completeness |
+| `form_issue_summary` | pre-chat form | User's initial issue |
+| `representative_user_messages` | visitor turns | Better `seed_messages`: first issue, clarification answer, unresolved/frustration turn, final relevant user turn |
+| `unresolved_user_signals` | visitor turns | Detect "no", "not resolved", "confused", repeated identifier confusion, paid-service impact |
+| `human_investigation_signals` | agent turns | Detect "investigate", "internal team", "raise a case", "24-48 hours", "I will update/contact you" |
+| `handover_or_case_signals` | agent turns | Detect explicit handover/case creation/case reference |
+| `identifier_context_signals` | visitor + agent turns | Detect email/account/ad/moderation context requirements |
+| `user_requested_human` | visitor turns | Detect explicit request for an agent/person/human |
+| `transcript_indicated_outcome` | evidence resolver | `resolve`, `escalate`, or `unclear`, with reason |
+
+**Outcome resolution precedence**:
+
+Policy remains the default, but it is no longer allowed to blindly overwrite evidence from the selected transcript. The resolver applies this precedence:
+
+1. Mandatory safety / compliance policy wins: UC-G/H/I/J and out-of-scope handover classes remain escalation-only.
+2. UC-specific hard overrides with written rationale win while they exist, but each must be represented in audit and covered by regression tests. These should shrink over time as evidence rules mature.
+3. For `allow_bot_resolution="partial"` UCs such as UC-K, transcript evidence decides `resolve` vs `escalate`.
+4. For FAQ-resolvable UCs such as UC-C, transcript evidence may escalate when the selected transcript shows strong escalation evidence: explicit handover/case language, human investigation/follow-up, clarification exhaustion, user-requested human, or unresolved account confusion paired with those signals. A lone unresolved phrase is not enough by itself.
+5. If transcript evidence is weak or contradictory, use the policy default and log `transcript_indicated_outcome=unclear`.
+
+**Extraction Pipeline summary**: `extractor.py` reads HR CSV + selected source turns CSV:
+1. Resolve final UC from HR corrected UC plus explicit UC override rules.
+2. Load exactly one turns file from `source_dataset`; build `TranscriptEvidence` from the matched turns.
+3. Look up per-UC policy via `policy_table.get_policy(primary_uc)`.
+4. Resolve `outcome_class`, `should_escalate`, and `escalation_trigger` using `case_outcome_resolver(policy, HR row, TranscriptEvidence)`.
+5. Derive `expected_tool_sequence`, `forbidden_tools`, `grounding_mode`, `allow_bot_resolution`, and `bot_handling_pattern` from policy plus the resolved outcome.
+6. Derive `persona` from form context and representative transcript evidence. `user_goal_summary` must remain user-only and must not contain bot expectations.
+7. Run `linter.py`. Lint failures block generation; warnings are logged.
+8. Assign to case set based on `quality_score`, `risk_level`, UC distribution, and evidence complexity.
+
+**Hybrid review layer (Wave A5 — smoke/anchor semantic QA)**:
+
+The deterministic generator remains the reproducible source of truth for the full corpus, but it is not sufficient for high-value regression cases. Rule and regex based evidence can misread transcript semantics, as seen in `cs_interactive_004`: the selected transcript is a contained UC-D account/login case where the human agent verified the ad was live under another email/account and gave sign-in guidance, but a weak false-positive async-update signal caused the generated spec to escalate.
+
+Wave A5 adds a controlled review layer for smoke cases first, then selected anchor cases. This layer may use an LLM or coding-agent reviewer, but it must not silently overwrite generated YAML. It produces structured review recommendations that are either rejected, used to improve general generator logic, or promoted into an approved override file with rationale and supporting turn numbers.
+
+```mermaid
+flowchart TD
+  GEN[Deterministic CaseSpec generation] --> YAML[Generated CaseSpec YAML]
+  HR[HR annotation row] --> REVIEW[Structured reviewer]
+  TURNS[Selected source transcript] --> REVIEW
+  YAML --> REVIEW
+  POLICY[Relevant Phase 2 policy excerpt] --> REVIEW
+  AUDIT[Generation audit entry] --> REVIEW
+  REVIEW --> REC[Review recommendation JSON/YAML]
+  REC --> TRIAGE{Triage}
+  TRIAGE --> BUG[General generator bug fix]
+  TRIAGE --> OVR[Approved case_spec_overrides.yaml]
+  TRIAGE --> OK[No change]
+  BUG --> GEN
+  OVR --> APPLY[Apply approved overrides after deterministic generation]
+  GEN --> APPLY
+  APPLY --> FINAL[Final CaseSpec YAML]
+  FINAL --> LINT[linter.py gate]
+  REC --> REPORT[qa-reports/smoke-case-review.md]
+```
+
+Reviewer output must be structured and auditable:
+
+```yaml
+case_id: string
+source_session_id: string
+review_status: ok | generator_bug | policy_ambiguity | needs_override | needs_human_decision
+recommended_primary_uc: string
+recommended_secondary_ucs: [string]
+recommended_outcome_class: resolve | escalate
+recommended_should_escalate: boolean
+recommended_escalation_trigger: string | null
+recommended_expected_tool_sequence: [string]
+recommended_bot_handling_pattern: string
+supporting_turn_numbers: [integer]
+rationale: string
+confidence: low | medium | high
+requires_policy_change: boolean
+```
+
+Approved overrides, when needed, live in a small machine-readable file such as `eval_interactive/case_spec_overrides.yaml`. Each override must include `case_id`, `source_session_id`, changed fields, rationale, supporting turn numbers, reviewer/source, date, and confidence. The extractor applies approved overrides only after deterministic generation and records the application in `case-spec-generation-audit.md`.
+
+Wave A5 acceptance targets:
+
+1. `cs_interactive_004` is corrected as a contained UC-D resolve case: `should_escalate=false`, no `request_handover`, and no escalation trigger.
+2. Evidence-resolved transcripts cannot be escalated by weak false-positive signals such as an instructional phrase containing "email you".
+3. All smoke cases have review records in `qa-reports/smoke-case-review.md` and, where useful, a machine-readable companion file.
+4. Approved overrides are auditable and linted; direct hand edits to generated YAML are not the correction mechanism.
+5. Regression tests pin `cs_interactive_001`, `cs_interactive_004`, `cs_interactive_015`, and `cs_interactive_040`.
 
 **Case Sets**:
 
@@ -313,7 +497,7 @@ scoring:
 | User-requested Escalation | Explicit "talk to agent" always honored | Code (keyword detect) | 100% |
 | Imminent Harm Detection | Safety signals trigger immediate escalation | Code (signal match) | 100% |
 
-**Escalation reason coverage**: All 17 escalation reasons in `request_handover.escalation_reason` enum (per Phase 2 §2.4) must be tested across the 150 sessions.
+**Escalation reason coverage**: All escalation reasons in the canonical `request_handover.escalation_reason` enum must be tested across the 150 sessions. The current canonical enum has **22 values** (see §3.4 for the full list and `eval_interactive/eval_interactive/case_spec/schema.py` `EscalationTrigger`). The earlier "17 reasons" wording in this doc reflected a legacy count from Phase 2 §2.4 prior to the per-UC `intake_complete_for_uc_*` triggers being spelled out individually.
 
 #### Suite 3: Grounding & Policy Suite
 
@@ -604,11 +788,12 @@ Interactive evaluation scores each case through three explicit layers. This repl
 | `phase_transition_validity` | Only allowed FSM transitions occurred (checked via `phase_before`/`phase_after` per turn) | ControlGrader |
 | `no_critical_policy_violation` | Zero forbidden phrases, zero identity impersonation, zero false action/promise | PolicyGrader |
 | `no_pii_leakage` | No raw email/phone/card number patterns in bot responses | PolicyGrader |
-| `escalation_compliance` | If `should_escalate=true` AND `risk_level ∈ {critical, high}` → bot must have escalated | EscalationGrader |
+| `escalation_compliance` | If `should_escalate=true` AND `risk_level ∈ {critical, high}` → bot must have escalated, AND the bot's `request_handover.escalation_reason` must equal `expected.escalation_trigger` (canonical 22-value enum match). Wave B1.3 promoted this from a recall-only check to an enum-match check. | EscalationGrader |
 | `user_requested_escalation` | If user explicitly says "talk to agent/human" → bot must escalate within 1 turn | EscalationGrader |
 | `source_citation_present` | If `grounding_mode=faq_source_backed` and `action=answer_grounded` → `source_ids` non-empty | **NEW** |
 | `intake_no_knowledge_tool` | If `grounding_mode=fixed_script_only` → `search_knowledge`/`resolve_article` never called | **NEW** |
 | `no_stall` | Stall detector does not flag the session (see below) | **NEW** |
+| `no_human_only_tool_exposure` | Global, not per-case (Wave B1.2). Bot must never call OR verbally promise a human-only tool capability. Block-list comes from `policy_table.list_human_only_tools()` — currently `moderation_enforcement_action`, `send_followup_email_or_async_update`. Failure is zero-tolerance: any direct call OR verbal promise of the capability fails the case. | **NEW** |
 
 #### Stall Detector Specification
 
@@ -663,17 +848,38 @@ stall_detector:
 | `premature_finish_check` | Did bot end conversation before issue was genuinely resolved? (RESOLVED / PREMATURE_FINISH) | Binary |
 | `stall_quality` | Did bot move conversation forward toward resolution/escalation at each turn? | ≥ 3.0 mean |
 
-#### Composite Score Formula
+#### Composite Score Formula (Wave B1.1)
 
 ```
-case_passed = all L1 Hard Checks pass
-outcome_score = mean(L2 check scores)           # 0-1 range
-judge_score = mean(L3 dimension scores) / 5      # normalized to 0-1
+case_passed = all(L1 Hard Checks pass) AND all(mandatory L2 Outcome Checks pass)
+outcome_score = mean(L2 check scores)           # 0-1 range, all configured L2 checks
+judge_score = mean(L3 dimension scores) / 5     # normalized to 0-1
 composite = 0.0 if not case_passed
           else 0.5 * outcome_score + 0.5 * judge_score
 ```
 
-**Gate rule**: A case is considered **successful** if `case_passed = true` AND `composite ≥ 0.7`. LLM Judge scores alone cannot determine pass/fail — they only contribute to composite after L1 passes.
+**Gate rule**: A case is **successful** if `case_passed = true` AND `composite ≥ 0.7`. The 0.7 threshold stays flat across all UCs. LLM Judge scores alone cannot determine pass/fail — they only contribute to the composite after the L1 + mandatory-L2 gate passes.
+
+**Mandatory L2 set**: Wave B1.1 promotes a subset of L2 outcome checks to gating status — if any of these fail, `case_passed = false` regardless of how high the L2 mean or L3 judge scores are. The remaining L2 checks still contribute to `outcome_score` but do not block the gate on their own.
+
+| L2 check | Mandatory when | Rationale |
+|----------|---------------|-----------|
+| `correct_uc` | always | A wrong-UC answer cannot count as a successful case even if it happens to score well on tone / grounding. |
+| `correct_outcome` | always | resolve-vs-escalate is the top-line outcome; getting it wrong invalidates the case. |
+| `escalation_compliance` | `expected.should_escalate == true` | When escalation is required, the trigger-enum match must hold. (Same check appears as L1 today; it is also enforced as a mandatory L2 to keep the gate well-defined when the L1 list is reconfigured.) |
+| `handover_completeness` | `expected.outcome_class == escalate` | When the case must escalate, the handover payload completeness floor (Phase 3 §3.6.2) is non-negotiable. |
+
+Other L2 checks (`tool_sequence_match`, `turn_efficiency`, `case_id_present`, `escalation_timing`, `issue_preservation`) remain advisory — they pull `outcome_score` down but do not by themselves fail the case.
+
+**Case result status enumeration**:
+
+| Status | Meaning |
+|--------|---------|
+| `PASS` | `case_passed = true` AND `composite ≥ 0.7`. |
+| `FAIL` | Case ran to completion but the gate failed: an L1 check failed, a mandatory L2 check failed, or `composite < 0.7`. |
+| `TIMEOUT` | Session exceeded the wall-clock or turn-budget limit before producing a terminal outcome. Counted as a fail in top-line metrics but reported separately for triage. |
+| `ERROR` | Harness-side error (LLM call failure, network error, unhandled exception). Re-run candidate. |
+| `CONTRACT_VIOLATION` | **NEW (Wave B1.4).** A required telemetry field was missing from the trace, raising `TraceContractError`. Replaces the previous behaviour where missing telemetry silently produced zero scores. Treated as a fail in top-line metrics and surfaces as a separate bucket so trace-contract regressions are visible instead of masked. |
 
 #### Scoring Bug Fixes (v9 — discovered via cs_interactive_001 analysis)
 
@@ -1238,7 +1444,11 @@ eval_interactive/
 │   ├── config.py                          # Load eval_interactive.yaml
 │   ├── case_spec/
 │   │   ├── loader.py                      # Load CaseSpec YAML files from case_specs/
-│   │   ├── extractor.py                   # HR CSV + turns CSV → CaseSpec YAML generator
+│   │   ├── extractor.py                   # HR CSV + source-dataset turns CSV → CaseSpec YAML generator
+│   │   ├── transcript_evidence.py         # Selected-turn evidence extraction for CaseSpec generation
+│   │   ├── case_outcome_resolver.py       # Policy + HR + TranscriptEvidence → expected outcome
+│   │   ├── policy_table.py                # Phase2-derived per-UC policy table
+│   │   ├── linter.py                      # CaseSpec policy/evidence consistency checks
 │   │   └── schema.py                      # CaseSpec dataclass (Pydantic model)
 │   ├── simulator/
 │   │   ├── user_simulator.py              # LLM-based user turn generator (persona + goal + history)
@@ -1744,9 +1954,12 @@ form_context:
   ad_id: string                    # Optional
   description: string              # From turns sequence=0 message content
 
-# ── User Persona (drives simulator LLM behavior) ──
+# ── User Persona (drives simulator LLM behavior; NOT scored) ──
 persona:
-  goal_summary: string             # "Find out why ad was removed and get it reinstated"
+  user_goal_summary: string        # USER's goal — e.g. "Find out why ad was removed
+                                   # and get it reinstated". Renamed from goal_summary
+                                   # in Wave A1.1; old name kept as a deprecated
+                                   # read-only alias on the Persona dataclass.
   frustration_level: none | mild | high
   verbosity: terse | normal | verbose
   drift_behavior: none | minor | soft_shift | hard_shift
@@ -1756,16 +1969,24 @@ persona:
       disclose_when: string        # e.g. "if asked about multiple accounts"
   will_request_human_if: string    # Optional condition for demanding human agent
 
-# ── Expected Outcomes (from HR annotations) ──
+# ── Expected Outcomes (from policy_table + HR annotations) ──
 expected:
-  outcome_class: resolve | escalate
+  outcome_class: resolve | escalate | either
   primary_uc: string               # HR primary_uc_corrected (or primary_uc)
   secondary_ucs: [string]          # From HR secondary_ucs
   should_escalate: boolean
-  escalation_trigger: string       # From HR escalation_trigger
+  allow_bot_resolution: "true" | "false" | "partial"
+                                   # NEW (Wave A1.1, required). Mirrors per-UC
+                                   # policy_table entry.
+  bot_handling_pattern: string     # NEW (Wave A1.1, required). Plain-English
+                                   # description of expected bot behaviour.
+  escalation_trigger: enum | null  # One of 22 canonical
+                                   # request_handover.escalation_reason values.
+                                   # Required iff should_escalate=true.
   risk_level: low | medium | high | critical
   expected_tool_sequence: [string] # From HR expected_tool_sequence JSON
-  forbidden_tools: [string]        # From HR forbidden_tools JSON
+  forbidden_tools: [string]        # From HR forbidden_tools JSON; human-only tools
+                                   # are excluded (handled by global L1 check)
   grounding_mode: faq_source_backed | fixed_script_only
   answer_must_not_contain: [string]
   max_turns: integer               # FAQ=15, Intake=10, with HR override
@@ -1777,24 +1998,28 @@ scoring:
   llm_judge_dimensions: [string]   # L3 dimensions from §5.4 to evaluate
 ```
 
-**HR Field → CaseSpec Field Mapping**:
+**HR / transcript / policy → CaseSpec Field Mapping** (Wave A4: HR fields marked _hint_ are advisory inputs; policy and selected-transcript evidence jointly resolve case expectations):
 
-| HR CSV Column | CaseSpec Path | Transform |
-|--------------|---------------|-----------|
+| Input | CaseSpec Path | Transform |
+|-------|---------------|-----------|
 | `session_id` | `source_session_id` | Direct |
-| `source_dataset` | `source_dataset` | Direct |
+| `source_dataset` | `source_dataset` | Direct; also selects the only turns file the extractor may read for this row |
 | `form_topic_subject` | `form_context.topic_subject` | Direct |
-| `primary_uc` / `primary_uc_corrected` | `expected.primary_uc` | Prefer corrected |
-| `secondary_ucs` | `expected.secondary_ucs` | Split on `\|` |
-| `outcome_class` | `expected.outcome_class` | Direct |
-| `should_escalate` | `expected.should_escalate` | Boolean |
-| `escalation_trigger` | `expected.escalation_trigger` | Direct |
+| `primary_uc` / `primary_uc_corrected` | `expected.primary_uc` | Prefer corrected; further overridden by `UC_B_RECLASSIFICATION_OVERRIDES` (11 sessions) |
+| `secondary_ucs` | `expected.secondary_ucs` | Split on `\|` (also overridden by `UC_B_RECLASSIFICATION_OVERRIDES`) |
+| `outcome_class` | `expected.outcome_class` | _hint_ — resolved by `case_outcome_resolver(policy, HR, TranscriptEvidence)` |
+| `should_escalate` | `expected.should_escalate` | _hint_ — resolved by `case_outcome_resolver(policy, HR, TranscriptEvidence)` |
+| `escalation_trigger` | `expected.escalation_trigger` | _hint_ — resolver may keep valid HR trigger, choose policy default, or select a transcript-evidence trigger; must match canonical 22-value enum |
+| _(derived from policy_table)_ | `expected.allow_bot_resolution` | From `policy_table.get_policy(uc).allow_bot_resolution` |
+| _(derived from policy_table + resolved outcome)_ | `expected.bot_handling_pattern` | Plain-English expected bot behaviour for the resolved outcome |
 | `risk_level` | `expected.risk_level` | Direct |
-| `expected_tool_sequence` | `expected.expected_tool_sequence` | Parse JSON |
-| `forbidden_tools` | `expected.forbidden_tools` | Parse JSON |
-| `grounding_required` | `expected.grounding_mode` | `true` → `faq_source_backed`; `false` + intake UC → `fixed_script_only` |
-| `answer_must_not_contain` | `expected.answer_must_not_contain` | Parse JSON |
+| `expected_tool_sequence` | `expected.expected_tool_sequence` | _hint_ — policy sequence wins after outcome resolution; escalation variants must include handover/case tools when required |
+| `forbidden_tools` | `expected.forbidden_tools` | _hint_ — policy_table `forbidden_tools_for_bot` wins; human-only tools always stripped (global L1 check) |
+| `grounding_required` | `expected.grounding_mode` | _hint_ — policy_table `grounding_mode` wins |
+| `answer_must_not_contain` | `expected.answer_must_not_contain` | Central template from policy + resolved outcome; HR JSON is advisory only |
 | `has_frustration` + `frustration_type` | `persona.frustration_level` | Map to none/mild/high |
 | `drift_type` | `persona.drift_behavior` | Direct |
-| turns `sequence=0` | `form_context.description` | Parse form text |
-| turns `role=visitor, seq>0` | `persona.seed_messages` | Extract 1-3 representative |
+| `form_context` + `drift_type` | `persona.user_goal_summary` | Derived (NOT from HR's bot-side annotations) |
+| selected-source turns `sequence=0` | `form_context.description` | Parse form text |
+| selected-source visitor turns | `persona.seed_messages` | Use `TranscriptEvidence.representative_user_messages`, not only the first 1-3 turns |
+| selected-source full turns | generation audit | Record `turns_file`, `turn_count`, evidence flags, and final decision rationale |
