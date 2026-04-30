@@ -1,0 +1,34 @@
+source_session_id: 570Q5000008n3D3IAI
+case_id_hint: row_326
+llm_model: deepseek-v4-pro
+prompt_hash: 306d009b14746727cf5956c1ad2a53db512ca4669714aed09499bce98c846618
+generated_at: '2026-04-30T20:00:15.881403+00:00'
+llm_confidence: high
+llm_rationale: The only visitor turn contains the user's message, which is already captured verbatim as the seed message.
+  The refined user goal summary concisely states the user's intent without bot instructions. No hidden facts are evident from
+  the transcript; the form's 'unfurnished' detail is not present in the visitor's message, so it is not included.
+rule_draft:
+  seed_messages:
+  - Erm property Sussex road southport merseyside Terry says still available how do I go about viewing through younir him
+    on k in a min
+  user_goal_summary: 'User reports Account Support: 2 bedroom flat unfurnished Sussex road southport merseyside landlord Terry
+    how do I make an appointment for with him. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Erm property Sussex road southport merseyside Terry says still available how do I go about viewing through younir him
+    on k in a min
+  user_goal_summary: 'User wants to view a 2-bed flat on Sussex Road, Southport, Merseyside, listed by landlord Terry, and
+    asks how to contact him through Gumtree. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Erm property Sussex road southport merseyside Terry says still available how do I go about viewing through younir him
+    on k in a min
+  user_goal_summary: 'User wants to view a 2-bed flat on Sussex Road, Southport, Merseyside, listed by landlord Terry, and
+    asks how to contact him through Gumtree. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

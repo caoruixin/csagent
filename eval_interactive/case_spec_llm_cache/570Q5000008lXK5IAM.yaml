@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008lXK5IAM
+case_id_hint: row_276
+llm_model: deepseek-v4-pro
+prompt_hash: cd54e61b7901d2ca084031a3ca0b3aded98d20e37e7ebaca38c690241efa61a1
+generated_at: '2026-04-30T19:46:14.482943+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue-bearing seed_message ('OK thanks') with a more relevant user turn ('I've seen your test
+  message') that relates to the issue. Updated user_goal_summary to be concise and factual. Added a hidden_fact about the
+  spam message based on agent disclosure.
+rule_draft:
+  seed_messages:
+  - My app shows notifications, but when I log on there is no message there
+  - OK thanks
+  - I've seen your test message
+  user_goal_summary: 'User reports Account Support: App shows notication but does not show when I log on. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - My app shows notifications, but when I log on there is no message there
+  - I've seen your test message
+  user_goal_summary: 'User wants to understand why their app shows notifications but no message appears upon login. Drift:
+    soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - My app shows notifications, but when I log on there is no message there
+  - I've seen your test message
+  user_goal_summary: 'User wants to understand why their app shows notifications but no message appears upon login. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''A spam message was blocked by the system, which may have triggered the notification.'''

@@ -1,0 +1,52 @@
+source_session_id: 570Q5000008jSGTIA2
+case_id_hint: row_346
+llm_model: deepseek-v4-pro
+prompt_hash: ed1b43960944b35c56614f5c7e13ad155148f9796caa706bead826caa1bed0b1
+generated_at: '2026-04-30T20:27:27.643541+00:00'
+llm_confidence: high
+llm_rationale: The transcript provides multiple clear visitor turns describing the issue, allowing verbatim selection. The
+  user goal summary is refined from the draft to be more specific about the desired outcome. Hidden facts are directly supported
+  by the transcript (iPhone stated, settings already changed stated).
+rule_draft:
+  seed_messages:
+  - Hello Carmen. Hope you’re well. I’m in touch because I’m constantly receiving spam notifications even though they’re turned
+    off in app. I don’t want to have to turn them off in my phone settings because I’d still like to receive message notifications
+    when buying/selling. Please help.
+  - Okay thanks. Take care.
+  - Settings for all notifications except messages are already turned off yet I’m still receiving spam notifications from
+    you.
+  user_goal_summary: 'User reports Account Support: Constantly receiving spam notifications from you despite them being turned
+    off. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hello Carmen. Hope you’re well. I’m in touch because I’m constantly receiving spam notifications even though they’re turned
+    off in app. I don’t want to have to turn them off in my phone settings because I’d still like to receive message notifications
+    when buying/selling. Please help.
+  - Yes. To save some time here, can you make changes to my account settings? I only want to receive notifications when I
+    receive a message from a buyer/seller. Nothing else. If you can’t make changes to my account settings then I just need
+    instructions on how to stop all notifications except messages from buyers/sellers. Thanks.
+  - Settings for all notifications except messages are already turned off yet I’m still receiving spam notifications from
+    you.
+  user_goal_summary: 'User wants to stop all spam notifications from the platform while still receiving notifications for
+    messages from buyers/sellers, without having to disable notifications at the phone level. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hello Carmen. Hope you’re well. I’m in touch because I’m constantly receiving spam notifications even though they’re turned
+    off in app. I don’t want to have to turn them off in my phone settings because I’d still like to receive message notifications
+    when buying/selling. Please help.
+  - Yes. To save some time here, can you make changes to my account settings? I only want to receive notifications when I
+    receive a message from a buyer/seller. Nothing else. If you can’t make changes to my account settings then I just need
+    instructions on how to stop all notifications except messages from buyers/sellers. Thanks.
+  - Settings for all notifications except messages are already turned off yet I’m still receiving spam notifications from
+    you.
+  user_goal_summary: 'User wants to stop all spam notifications from the platform while still receiving notifications for
+    messages from buyers/sellers, without having to disable notifications at the phone level. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has already turned off all notification toggles in the app except for messages.'''
+- 'unsupported_hidden_fact_dropped: ''User uses an iPhone.'''

@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008uxOzIAI
+case_id_hint: row_281
+llm_model: deepseek-v4-pro
+prompt_hash: 3d60230f4d0b427839a7e813a74ec569395389c8bdf640ea9539e75433a1c396
+generated_at: '2026-04-30T19:48:05.103511+00:00'
+llm_confidence: high
+llm_rationale: Seed messages replaced to include the Ad ID details from the transcript, removing closing/thanks turns. User
+  goal summary rewritten to be specific about the user's desire to confirm message delivery. Hidden fact added with exact
+  ad details from the transcript.
+rule_draft:
+  seed_messages:
+  - Sending messages to both advertisers, getting no response…how can I confirm that my messages are getting through?
+  - great input, appreciated and thanks again. Cheerio.
+  - ok thanks for that, we can do no more, c`est la vie.
+  user_goal_summary: 'User reports Replies & Messaging: fridge freezer#2. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Sending messages to both advertisers, getting no response…how can I confirm that my messages are getting through?
+  - 'Ad ID: 1508729474 2 days ago Ad ID: 1506084884 4 days ago, 6 days ago & 19 th jan'
+  user_goal_summary: 'User wants to confirm his messages about a fridge freezer to two advertisers are being delivered, as
+    he''s received no replies. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'The user sent messages to two advertisers: Ad ID 1508729474 2 days ago; Ad ID 1506084884 4 days ago, 6 days ago,
+      and January 19th.'
+    disclose_when: when the bot asks about the specific advertisements or when the messages were sent.
+accepted_value:
+  seed_messages:
+  - Sending messages to both advertisers, getting no response…how can I confirm that my messages are getting through?
+  - 'Ad ID: 1508729474 2 days ago Ad ID: 1506084884 4 days ago, 6 days ago & 19 th jan'
+  user_goal_summary: 'User wants to confirm his messages about a fridge freezer to two advertisers are being delivered, as
+    he''s received no replies. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'The user sent messages to two advertisers: Ad ID 1508729474 2 days ago; Ad ID 1506084884 4 days ago, 6 days ago,
+      and January 19th.'
+    disclose_when: when the bot asks about the specific advertisements or when the messages were sent.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

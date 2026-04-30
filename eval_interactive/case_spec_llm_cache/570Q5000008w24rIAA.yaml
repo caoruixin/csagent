@@ -1,0 +1,34 @@
+source_session_id: 570Q5000008w24rIAA
+case_id_hint: row_191
+llm_model: deepseek-v4-pro
+prompt_hash: 15dfb8721a5409cb5590bb4d9e717f4bf579b26d463ed649c422cdb12f2d9129
+generated_at: '2026-04-30T19:18:03.019805+00:00'
+llm_confidence: high
+llm_rationale: Original seed messages were just the ad link and statements about providing ad ID. Replaced with visitor turns
+  that explicitly state the cancel renewal request and the obstacle (ad locked) to better ground the simulator's opening.
+  All turns are verbatim from transcript.
+rule_draft:
+  seed_messages:
+  - https://www.gumtree.com/p/sports-massage-services/diamond-star-massage/1509201102
+  - My ad id
+  - Here’s is my ad id
+  user_goal_summary: 'User reports Payments: Would like to NOT RENEWAL my ad please. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I need to cancel the renewal on my add please
+  - https://www.gumtree.com/p/sports-massage-services/diamond-star-massage/1509201102
+  - It’s locked
+  user_goal_summary: 'The user wants to cancel the automatic renewal for their Gumtree ad (1509201102). Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I need to cancel the renewal on my add please
+  - https://www.gumtree.com/p/sports-massage-services/diamond-star-massage/1509201102
+  - It’s locked
+  user_goal_summary: 'The user wants to cancel the automatic renewal for their Gumtree ad (1509201102). Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

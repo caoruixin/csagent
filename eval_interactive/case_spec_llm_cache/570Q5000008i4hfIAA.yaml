@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008i4hfIAA
+case_id_hint: row_283
+llm_model: deepseek-v4-pro
+prompt_hash: 7a3aa907e7c2f77c51a2baf575c45d166ff912e592bd43a92e66811e4de5e789
+generated_at: '2026-04-30T19:47:18.804359+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue seed message ('i might try that thanks') with a more descriptive problem turn from seq 12.
+  Updated user_goal_summary from generic to a specific, factual summary of the user's issue. Added hidden facts grounded in
+  transcript details (the advertised item and the message tag symptom).
+rule_draft:
+  seed_messages:
+  - veiwers cant message me on my advertisement
+  - i might try that thanks
+  - ive done the bump up, but strange no messages after ive had 173 veiws
+  user_goal_summary: 'User reports Account Support: hi i have a problem. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - veiwers cant message me on my advertisement
+  - ive done the bump up, but strange no messages after ive had 173 veiws
+  - when i try it dosnt work,,,,ive had 173 veiws but no messages
+  user_goal_summary: 'User wants to resolve an issue where viewers of their Gumtree advertisement cannot send them messages,
+    including the message tag not being highlighted, despite bumping the ad and having 173 views. Drift: none.'
+  hidden_facts:
+  - fact: The user's advertisement is for 'Hunters safety Wellies/Boots Size Uk 9 Excellent condition'.
+    disclose_when: when asked about the specific ad or item
+  - fact: The user noticed the message tag is not highlighted in green.
+    disclose_when: when asked about specific symptoms of the messaging problem
+accepted_value:
+  seed_messages:
+  - veiwers cant message me on my advertisement
+  - ive done the bump up, but strange no messages after ive had 173 veiws
+  - when i try it dosnt work,,,,ive had 173 veiws but no messages
+  user_goal_summary: 'User wants to resolve an issue where viewers of their Gumtree advertisement cannot send them messages,
+    including the message tag not being highlighted, despite bumping the ad and having 173 views. Drift: none.'
+  hidden_facts:
+  - fact: The user's advertisement is for 'Hunters safety Wellies/Boots Size Uk 9 Excellent condition'.
+    disclose_when: when asked about the specific ad or item
+  - fact: The user noticed the message tag is not highlighted in green.
+    disclose_when: when asked about specific symptoms of the messaging problem
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

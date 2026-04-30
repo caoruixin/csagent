@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008WJ2vIAG
+case_id_hint: row_43
+llm_model: deepseek-v4-pro
+prompt_hash: 283df2b40bd012ae72d6003e5c1cbd258a154c36d8ec1957e15ebc1d2f59567c
+generated_at: '2026-04-30T13:13:30.992767+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting/closing seed messages with two visitor turns that directly describe the search discrepancy.
+  Updated user_goal_summary to reflect the actual problem and desired follow-up. Added hidden facts about expected results
+  and phone cache concern from the transcript.
+rule_draft:
+  seed_messages:
+  - Standing by!
+  - I can do that but it seems strange that one moment I get a sensible answer (this morning) and the next time I look the
+    response to the url results in ten times as many results with the filter clearly not working as expected…
+  - Ok. Thanks. I’ll drop you a note shortly.
+  user_goal_summary: 'User reports Technical Support: Something is definitely not right with the website. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I can do that but it seems strange that one moment I get a sensible answer (this morning) and the next time I look the
+    response to the url results in ten times as many results with the filter clearly not working as expected…
+  - That is a much smaller number than I usually see - but less than the 35k I got half an hour ago!
+  user_goal_summary: 'User wants the search for ''for sale and Stirling'' to return the usual ~2,500 local results, not 35,000
+    with far-away ads, and wants a follow-up email option after troubleshooting. Drift: none.'
+  hidden_facts:
+  - fact: The user is using a phone and may need to clear all browsing history and cache, which could disrupt the chat session.
+    disclose_when: when the bot suggests clearing cache and the user expresses concern about losing the chat
+accepted_value:
+  seed_messages:
+  - I can do that but it seems strange that one moment I get a sensible answer (this morning) and the next time I look the
+    response to the url results in ten times as many results with the filter clearly not working as expected…
+  - That is a much smaller number than I usually see - but less than the 35k I got half an hour ago!
+  user_goal_summary: 'User wants the search for ''for sale and Stirling'' to return the usual ~2,500 local results, not 35,000
+    with far-away ads, and wants a follow-up email option after troubleshooting. Drift: none.'
+  hidden_facts:
+  - fact: The user is using a phone and may need to clear all browsing history and cache, which could disrupt the chat session.
+    disclose_when: when the bot suggests clearing cache and the user expresses concern about losing the chat
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user normally sees 2,000-3,000 results for ''for sale and Stirling'' without distance
+  filter."'

@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008kGOXIA2
+case_id_hint: row_94
+llm_model: deepseek-v4-pro
+prompt_hash: 53a5ca3abbe5033409fbae7c0587f9a336900790bed260f256e611526ebabfa9
+generated_at: '2026-04-30T13:29:18.655439+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting-like seed message with more issue-focused quotes from the transcript; updated summary to
+  be a clear user goal; added hidden facts about account history and ad details.
+rule_draft:
+  seed_messages:
+  - It's like a new account. I'm confused
+  - Ok, i'll try. Thank you
+  - New i mean?
+  user_goal_summary: 'User reports Account Support: My email and account is incorrect, I had reviews and [EMAIL] before this
+    ad I listed today. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It's like a new account. I'm confused
+  - I don't want to lose ad if I find my original account. This one has Gmail displayed
+  - Just i've been posting a long time and didn't want to look new. Do I delete old account?
+  user_goal_summary: 'User accidentally created a new account; wants to keep the ad she posted today, not appear as a new
+    user, and manage both accounts without losing history. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It's like a new account. I'm confused
+  - I don't want to lose ad if I find my original account. This one has Gmail displayed
+  - Just i've been posting a long time and didn't want to look new. Do I delete old account?
+  user_goal_summary: 'User accidentally created a new account; wants to keep the ad she posted today, not appear as a new
+    user, and manage both accounts without losing history. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s original account has a history of reviews from past postings."'
+- 'unsupported_hidden_fact_dropped: ''The ad the user posted today is for a mustard-colored sofa and sideboard, using the
+  spotlight feature.'''

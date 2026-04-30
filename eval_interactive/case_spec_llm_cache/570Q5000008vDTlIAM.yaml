@@ -1,0 +1,52 @@
+source_session_id: 570Q5000008vDTlIAM
+case_id_hint: row_85
+llm_model: deepseek-v4-pro
+prompt_hash: 8c3933cd49c6f0b1f624487a1b6fb004643b1795ef4c8db2a0a8fb087a800e57
+generated_at: '2026-04-30T13:25:05.155382+00:00'
+llm_confidence: high
+llm_rationale: The seed messages are verbatim quotes from the visitor's turns (seq 4 and seq 7) that clearly describe the
+  issue. All relevant facts are included in the seed messages, so no hidden_facts are needed. The user goal summary is refined
+  to be concise and factual.
+rule_draft:
+  seed_messages:
+  - I am reporting a fraudulent property advertisement listed on Gumtree. The advertiser falsely represented herself under
+    a fake name and advertised a rental property in Islington with the intention to defraud me. I was led to believe the advertiser
+    was called Kate Miller, which was later confirmed to be false. The transaction connected to this listing resulted in financial
+    loss and has been reported to the police as fraud. The matter is logged with Action Fraud under crime reference number
+    RF25120027504C. I am requesting that Gumtree investigate the account, preserve all related data (including IP logs and
+    account details), and confirm the removal of the fraudulent listing.
+  - £300 , one purchase was through western union the other was through money gram on two different cards as she led me to
+    believe it was genuine 11th December 2025 and the second purchase was on the 15th December
+  user_goal_summary: 'User reports Report a Safety Issue: I am reporting a fraudulent property advertisement listed on Gumtree.
+    Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I am reporting a fraudulent property advertisement listed on Gumtree. The advertiser falsely represented herself under
+    a fake name and advertised a rental property in Islington with the intention to defraud me. I was led to believe the advertiser
+    was called Kate Miller, which was later confirmed to be false. The transaction connected to this listing resulted in financial
+    loss and has been reported to the police as fraud. The matter is logged with Action Fraud under crime reference number
+    RF25120027504C. I am requesting that Gumtree investigate the account, preserve all related data (including IP logs and
+    account details), and confirm the removal of the fraudulent listing.
+  - £300 , one purchase was through western union the other was through money gram on two different cards as she led me to
+    believe it was genuine 11th December 2025 and the second purchase was on the 15th December
+  user_goal_summary: 'Report a fraudulent Gumtree property listing and request investigation, data preservation, and removal
+    confirmation after losing £300 to scammer posing as Kate Miller. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I am reporting a fraudulent property advertisement listed on Gumtree. The advertiser falsely represented herself under
+    a fake name and advertised a rental property in Islington with the intention to defraud me. I was led to believe the advertiser
+    was called Kate Miller, which was later confirmed to be false. The transaction connected to this listing resulted in financial
+    loss and has been reported to the police as fraud. The matter is logged with Action Fraud under crime reference number
+    RF25120027504C. I am requesting that Gumtree investigate the account, preserve all related data (including IP logs and
+    account details), and confirm the removal of the fraudulent listing.
+  - £300 , one purchase was through western union the other was through money gram on two different cards as she led me to
+    believe it was genuine 11th December 2025 and the second purchase was on the 15th December
+  user_goal_summary: 'Report a fraudulent Gumtree property listing and request investigation, data preservation, and removal
+    confirmation after losing £300 to scammer posing as Kate Miller. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

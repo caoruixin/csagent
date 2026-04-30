@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008tXBdIAM
+case_id_hint: row_330
+llm_model: deepseek-v4-pro
+prompt_hash: 4ef63e35e3bd02f693babed25ad103fc9d2622dfad2725f88084a943cea62296
+generated_at: '2026-04-30T20:01:03.468701+00:00'
+llm_confidence: high
+llm_rationale: 'All seed messages are verbatim visitor turns from the transcript capturing the core issue: ad cancellation
+  and refund request. Updated user_goal_summary to be specific and factual, within 280 characters. Added one hidden fact supported
+  by the agent''s policy statement.'
+rule_draft:
+  seed_messages:
+  - Hi dear whi my post was cancelled ?
+  - Ok I didn't know that, I'm sorry, can I have the money back that I paid for the ad?
+  - I'm so disappointed I pay 14 pounds for the ad and then you delete my ad
+  user_goal_summary: 'User reports Account Support: Cat for sale. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi dear whi my post was cancelled ?
+  - Ok I didn't know that, I'm sorry, can I have the money back that I paid for the ad?
+  - I'm so disappointed I pay 14 pounds for the ad and then you delete my ad
+  user_goal_summary: 'User wants a refund of the £14 paid for a cat sale ad that was cancelled due to pet ad policy violation.
+    Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user had posted more than 2 pet ads within a 12 month period.
+    disclose_when: When the bot asks about posting history or explains the policy violation.
+accepted_value:
+  seed_messages:
+  - Hi dear whi my post was cancelled ?
+  - Ok I didn't know that, I'm sorry, can I have the money back that I paid for the ad?
+  - I'm so disappointed I pay 14 pounds for the ad and then you delete my ad
+  user_goal_summary: 'User wants a refund of the £14 paid for a cat sale ad that was cancelled due to pet ad policy violation.
+    Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user had posted more than 2 pet ads within a 12 month period.
+    disclose_when: When the bot asks about posting history or explains the policy violation.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

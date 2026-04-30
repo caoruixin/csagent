@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008TTI9IAO
+case_id_hint: row_169
+llm_model: deepseek-v4-pro
+prompt_hash: f09024f3ecf909cdda1804ff16395c7520004992a508225d4bcaa4086c2fc03e
+generated_at: '2026-04-30T19:10:20.629979+00:00'
+llm_confidence: high
+llm_rationale: The original seed message 'Alright' was a closing acknowledgment, not issue-bearing. Replaced it with a visitor
+  turn that directly describes the failed email promise. Updated user_goal_summary to be a specific, factual sentence about
+  the user's wants. Added two grounded hidden facts from the transcript.
+rule_draft:
+  seed_messages:
+  - Hello, it’s me again you ended the chat? Why did you end the chat I still had queries
+  - I want to ask on the progress of my refund
+  - Alright
+  user_goal_summary: 'User reports Account Support: Refund. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hello, it’s me again you ended the chat? Why did you end the chat I still had queries
+  - I want to ask on the progress of my refund
+  - I was told ill be emailed yesterday within 24 hours but no one ever reaches out on email.
+  user_goal_summary: 'The user wants to know the progress of their refund for a removed advert, get assurance of an email
+    update within 24 hours, and is frustrated that previous agents ended chats. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hello, it’s me again you ended the chat? Why did you end the chat I still had queries
+  - I want to ask on the progress of my refund
+  - I was told ill be emailed yesterday within 24 hours but no one ever reaches out on email.
+  user_goal_summary: 'The user wants to know the progress of their refund for a removed advert, get assurance of an email
+    update within 24 hours, and is frustrated that previous agents ended chats. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s advert was removed yesterday."'
+- 'unsupported_hidden_fact_dropped: ''Monisha is handling the refund request.'''

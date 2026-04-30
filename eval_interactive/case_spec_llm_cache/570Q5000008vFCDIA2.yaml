@@ -1,0 +1,50 @@
+source_session_id: 570Q5000008vFCDIA2
+case_id_hint: row_209
+llm_model: deepseek-v4-pro
+prompt_hash: e2e3b1cb52ff0f071475979ed48ef22c3c095b4abdff18441fcc69d064738320
+generated_at: '2026-04-30T19:25:18.311916+00:00'
+llm_confidence: high
+llm_rationale: The rule draft contained agent turns as seed_messages. Replaced with three verbatim visitor messages that express
+  the user's core need and payment concerns. The user goal summary clearly states the user's intent without bot-side instructions,
+  and hidden facts are grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Never used the app for sold items needing delivery, how does it work, how do I know if payment has been made etc
+  - Just to be clear - sellers cannot receive their payout through PayPal. While buyers can pay using methods like Visa, Mastercard,
+    Apple Pay, Google Pay and PayPal, the payout to the seller is always sent directly to the seller’s verified UK bank account
+    via our payment partner. If you need more information you are welcome to look through our Help pages here https://www.gumtree.com/info/safety.
+  - Bye bye
+  user_goal_summary: 'User reports Account Support: What description. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Never used the app for sold items needing delivery, how does it work, how do I know if payment has been made etc
+  - Ok, well my ad came up with the delivery available, so must be ok. Do I get an e-mail with the Evri label, how is the
+    payment sent to me ? Via pay Pal or?….
+  - never heard of mangopay, how does it work I access this. Or is a link sent via gumtree. My buyer has said his payment
+    has gone through, now don’t know what to do?. Safety scams & all that..
+  user_goal_summary: 'The user wants to understand how delivery and payment work for a sold item on Gumtree, specifically
+    how to receive funds and verify the payment, amid concerns about scams. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The sold item is a Rucksack North face “Borealis”, order number 13778268.
+    disclose_when: when asked about the specific item or order details
+  - fact: The user has never heard of Mangopay and is concerned about payment safety and scams.
+    disclose_when: when asked about payment concerns or familiarity with Gumtree's payment process
+accepted_value:
+  seed_messages:
+  - Never used the app for sold items needing delivery, how does it work, how do I know if payment has been made etc
+  - Ok, well my ad came up with the delivery available, so must be ok. Do I get an e-mail with the Evri label, how is the
+    payment sent to me ? Via pay Pal or?….
+  - never heard of mangopay, how does it work I access this. Or is a link sent via gumtree. My buyer has said his payment
+    has gone through, now don’t know what to do?. Safety scams & all that..
+  user_goal_summary: 'The user wants to understand how delivery and payment work for a sold item on Gumtree, specifically
+    how to receive funds and verify the payment, amid concerns about scams. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The sold item is a Rucksack North face “Borealis”, order number 13778268.
+    disclose_when: when asked about the specific item or order details
+  - fact: The user has never heard of Mangopay and is concerned about payment safety and scams.
+    disclose_when: when asked about payment concerns or familiarity with Gumtree's payment process
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

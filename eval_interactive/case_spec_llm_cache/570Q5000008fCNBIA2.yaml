@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008fCNBIA2
+case_id_hint: row_235
+llm_model: deepseek-v4-pro
+prompt_hash: 7e4caf0caf689fed6c9a4bef9cba45369deda6cbd290a63753b9e888f15eaef6
+generated_at: '2026-04-30T19:35:54.893034+00:00'
+llm_confidence: high
+llm_rationale: Removed sign-off seed message, kept two issue-bearing visitor quotes verbatim. Added hidden fact from transcript
+  about ad removal. Refined user goal summary to clearly state the user's intent to regain account access.
+rule_draft:
+  seed_messages:
+  - I need an email resent to reactivate my account
+  - yes can't log in
+  - no that's it many thanks
+  user_goal_summary: 'User reports Account Support: resend activation code. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I need an email resent to reactivate my account
+  - yes can't log in
+  user_goal_summary: 'User wants to regain access to their Gumtree account. They initially request a reactivation email, but
+    later reveal they can''t log in. Drift: hard_shift.'
+  hidden_facts:
+  - fact: A pet ad was removed by Gumtree for not including a required photo of the litter with the mother.
+    disclose_when: when asked about any removed ads or account restrictions.
+accepted_value:
+  seed_messages:
+  - I need an email resent to reactivate my account
+  - yes can't log in
+  user_goal_summary: 'User wants to regain access to their Gumtree account. They initially request a reactivation email, but
+    later reveal they can''t log in. Drift: hard_shift.'
+  hidden_facts:
+  - fact: A pet ad was removed by Gumtree for not including a required photo of the litter with the mother.
+    disclose_when: when asked about any removed ads or account restrictions.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,46 @@
+source_session_id: 570Q5000008cma5IAA
+case_id_hint: row_256
+llm_model: deepseek-v4-pro
+prompt_hash: 91940308b18432d34e390b974c939fa453a2b5c0086c9dac45608d948f516663
+generated_at: '2026-04-30T19:41:53.610097+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting/closing seed messages with issue-bearing visitor quotes from the transcript. Updated user_goal_summary
+  to be factual and specific. Added two hidden_facts grounded in visitor statements about pricing and ad features.
+rule_draft:
+  seed_messages:
+  - 'My Ad ID: 1506986492, I can''t find my ad when I click on "double room for rent Kilburn"'
+  - Thanks happy new year to you
+  - Ok thanks.
+  user_goal_summary: 'User reports Account Support: When I go to "double room for rent kilburn" I do not see my ad listed.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - 'My Ad ID: 1506986492, I can''t find my ad when I click on "double room for rent Kilburn"'
+  - No replies in past 2 weeks.
+  - I can see my ad when I go to manage my ads. I just can't see my ad when I go to gumtree and search for "double room for
+    rent kilburn"
+  user_goal_summary: 'The user wants to find his own ad (ID 1506986492) when searching ''double room for rent Kilburn'' on
+    Gumtree, and to understand why he hasn''t received responses in two weeks. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user priced the double room at the lower end of £1150-1250 pcm because ChatGPT suggested it based on location
+      and room details.
+    disclose_when: when the agent asks about the rental price or why the ad may not be attracting interest.
+accepted_value:
+  seed_messages:
+  - 'My Ad ID: 1506986492, I can''t find my ad when I click on "double room for rent Kilburn"'
+  - No replies in past 2 weeks.
+  - I can see my ad when I go to manage my ads. I just can't see my ad when I go to gumtree and search for "double room for
+    rent kilburn"
+  user_goal_summary: 'The user wants to find his own ad (ID 1506986492) when searching ''double room for rent Kilburn'' on
+    Gumtree, and to understand why he hasn''t received responses in two weeks. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user priced the double room at the lower end of £1150-1250 pcm because ChatGPT suggested it based on location
+      and room details.
+    disclose_when: when the agent asks about the rental price or why the ad may not be attracting interest.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user has already added the ''Urgent'' feature and other promotional options to the
+  ad."'

@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008IVtZIAW
+case_id_hint: row_294
+llm_model: deepseek-v4-pro
+prompt_hash: 05c509c656542a359f5edbaec37291871f939644576956dd43cd4e0ceb1368c2
+generated_at: '2026-04-30T19:50:09.299061+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and accurately reflect the user's issue. User goal summary rewritten
+  to capture the specific want. No hidden facts needed as the transcript details are sufficient.
+rule_draft:
+  seed_messages:
+  - I have not got my money
+  - It was delivered on 1st of December
+  - 28th of November
+  user_goal_summary: 'User reports Hey. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I have not got my money
+  - It was delivered on 1st of December
+  - 28th of November
+  user_goal_summary: 'The user sold a rechargeable LED hat on Gumtree and the item was delivered on 1st December, but they
+    haven''t received the money. They want to resolve the payment issue. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I have not got my money
+  - It was delivered on 1st of December
+  - 28th of November
+  user_goal_summary: 'The user sold a rechargeable LED hat on Gumtree and the item was delivered on 1st December, but they
+    haven''t received the money. They want to resolve the payment issue. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

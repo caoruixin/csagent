@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008dEg1IAE
+case_id_hint: row_158
+llm_model: deepseek-v4-pro
+prompt_hash: f8b7bfc9b5131b9b1a0ec6608aeb9dd9bbe77011ae69f8998bbf4fbf39034afa
+generated_at: '2026-04-30T19:08:28.600749+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from the transcript and represent the user's main concerns. The user goal summary
+  is clear and derived directly from the user's initial description and subsequent statements.
+rule_draft:
+  seed_messages:
+  - Why has my account been restricted?
+  - Ridiculous, can’t see any reason why this would be the case
+  - I’ve posted adverts a number of times a few years ago
+  user_goal_summary: 'User reports Ad Support: Not sure why my advert has been removed immediately after posting?. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Why has my account been restricted?
+  - Ridiculous, can’t see any reason why this would be the case
+  - I’ve posted adverts a number of times a few years ago
+  user_goal_summary: 'User wants to know why their recently posted advert was removed and why their account was restricted,
+    and they have not received an email explanation. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Why has my account been restricted?
+  - Ridiculous, can’t see any reason why this would be the case
+  - I’ve posted adverts a number of times a few years ago
+  user_goal_summary: 'User wants to know why their recently posted advert was removed and why their account was restricted,
+    and they have not received an email explanation. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

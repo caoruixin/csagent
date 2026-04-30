@@ -1,0 +1,43 @@
+source_session_id: 570Q50000091nMTIAY
+case_id_hint: row_200
+llm_model: deepseek-v4-pro
+prompt_hash: 8573cd8fce4952bb2dda870869dec19fbc7047f2d62eb0d0194af10a750d6aae
+generated_at: '2026-04-30T19:21:58.134613+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue-bearing seed messages ('You too !' and the thank-you message) with visitor turns that provide
+  key information (seller name/location and alternative email). Updated user goal summary to accurately describe the user's
+  intent without bot-side instructions. Added hidden facts grounded in transcript.
+rule_draft:
+  seed_messages:
+  - Basically I need to contact the seller of the last item i bought. I have unfortunately deleted the message trail :( can
+    you help me retrieve it please?
+  - You too !
+  - Yes 👍 much appreciated thank you!!
+  user_goal_summary: 'User reports Replies & Messaging: I need to contact the seller. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Basically I need to contact the seller of the last item i bought. I have unfortunately deleted the message trail :( can
+    you help me retrieve it please?
+  - His name was Stephen, basen in twickenham and he had other ads of some lawn mower of some type
+  - I must have used my Apple ID
+  user_goal_summary: 'User wants to retrieve deleted message trail with seller of last purchased item, providing seller name
+    (Stephen), location (Twickenham), and alternative email (Apple ID) to locate the transaction and re-contact seller. Drift:
+    hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Basically I need to contact the seller of the last item i bought. I have unfortunately deleted the message trail :( can
+    you help me retrieve it please?
+  - His name was Stephen, basen in twickenham and he had other ads of some lawn mower of some type
+  - I must have used my Apple ID
+  user_goal_summary: 'User wants to retrieve deleted message trail with seller of last purchased item, providing seller name
+    (Stephen), location (Twickenham), and alternative email (Apple ID) to locate the transaction and re-contact seller. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The seller''s name is Stephen and he is based in Twickenham."'
+- 'unsupported_hidden_fact_dropped: "The user''s other email address is their Apple ID email."'

@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008t32HIAQ
+case_id_hint: row_71
+llm_model: deepseek-v4-pro
+prompt_hash: c9537358acd556e0aa62709127d0d0bb33763021f384201d2efa88d8faea4620
+generated_at: '2026-04-30T13:19:34.034468+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and clearly describe the issue. User goal summary is grounded
+  in the transcript and concise. Hidden facts are directly supported by the transcript and useful for simulation.
+rule_draft:
+  seed_messages:
+  - Hi Courtney, can I report a gumtree user please
+  - Can you let me know once you've sent the email and I'll get the screenshots to you
+  - If the gumtree user wanted £30 to begin with then the advert should have been put up at £30
+  user_goal_summary: 'User reports Account Support: Bedside Cabinets x2. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi Courtney, can I report a gumtree user please
+  - Can you let me know once you've sent the email and I'll get the screenshots to you
+  - If the gumtree user wanted £30 to begin with then the advert should have been put up at £30
+  user_goal_summary: 'Report a Gumtree user for listing bedside cabinets as free, then demanding £30 after collection was
+    agreed, and provide screenshots as evidence. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi Courtney, can I report a gumtree user please
+  - Can you let me know once you've sent the email and I'll get the screenshots to you
+  - If the gumtree user wanted £30 to begin with then the advert should have been put up at £30
+  user_goal_summary: 'Report a Gumtree user for listing bedside cabinets as free, then demanding £30 after collection was
+    agreed, and provide screenshots as evidence. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has screenshots to prove the listing change and communication.'''
+- 'unsupported_hidden_fact_dropped: "The user''s partner originally contacted the seller and arranged collection before the
+  price change."'

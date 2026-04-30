@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008rKnBIAU
+case_id_hint: row_255
+llm_model: deepseek-v4-pro
+prompt_hash: 68ff4a631fa449e68539ac68e4139cb6b143874333be45de888eca73bed0db0b
+generated_at: '2026-04-30T19:40:59.911748+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are exact visitor turns from the transcript that capture the core issue. User goal summary
+  accurately reflects the user's request without bot instructions. Hidden facts are grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Hi I have paid twice now to put my add up and apparently it doesn’t meet the rules but I have followed them all can you
+    help me to sort this
+  - What account? I am very confused
+  - Ok I have a separate email that I don’t use anymore maybe that has an old account how will I find out what other accounts
+    I have linked? Or are they all linked to my email?
+  user_goal_summary: 'User reports Ad Support: Persian kittens for sale. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi I have paid twice now to put my add up and apparently it doesn’t meet the rules but I have followed them all can you
+    help me to sort this
+  - What account? I am very confused
+  - Ok I have a separate email that I don’t use anymore maybe that has an old account how will I find out what other accounts
+    I have linked? Or are they all linked to my email?
+  user_goal_summary: 'User paid twice to post an ad for Persian kittens; it was rejected due to multiple accounts. They want
+    to find out which other accounts they have and get the ad posted. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi I have paid twice now to put my add up and apparently it doesn’t meet the rules but I have followed them all can you
+    help me to sort this
+  - What account? I am very confused
+  - Ok I have a separate email that I don’t use anymore maybe that has an old account how will I find out what other accounts
+    I have linked? Or are they all linked to my email?
+  user_goal_summary: 'User paid twice to post an ad for Persian kittens; it was rejected due to multiple accounts. They want
+    to find out which other accounts they have and get the ad posted. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User paid twice to post the ad.'''
+- 'unsupported_hidden_fact_dropped: ''User has an old email address they no longer use that might be linked to another account.'''

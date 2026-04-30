@@ -30,6 +30,7 @@ try:
     # Pattern that matches the linter CLI invocation in the Wave A2.2 brief:
     # ``python -m eval_interactive.eval_interactive.case_spec.linter``.
     from eval_interactive.eval_interactive.case_spec.extractor import (
+        LLM_REVIEWER_DEFAULT_CACHE_DIR,
         dump_audit_to,
         extract_case_specs,
     )
@@ -41,6 +42,7 @@ except ModuleNotFoundError:
     # Fall back to the editable-install package layout where the inner
     # ``eval_interactive`` package is itself the import root.
     from eval_interactive.case_spec.extractor import (
+        LLM_REVIEWER_DEFAULT_CACHE_DIR,
         dump_audit_to,
         extract_case_specs,
     )
@@ -108,6 +110,50 @@ def main() -> int:
             "enough safe candidates per UC."
         ),
     )
+    # ---- Wave A6 LLM persona reviewer flags ----
+    parser.add_argument(
+        "--no-llm",
+        action="store_true",
+        help=(
+            "Skip the Wave A6 L2 persona reviewer entirely. Persona blocks "
+            "fall back to rule_draft. Used by offline CI / unit tests."
+        ),
+    )
+    parser.add_argument(
+        "--refresh-llm-session",
+        type=str,
+        action="append",
+        default=None,
+        metavar="SESSION_ID",
+        help=(
+            "Force a re-call for a single source_session_id, overriding "
+            "the cache hit. May be passed multiple times."
+        ),
+    )
+    parser.add_argument(
+        "--llm-model",
+        type=str,
+        default="deepseek-v4-pro",
+        help="DeepSeek model name (default deepseek-v4-pro).",
+    )
+    parser.add_argument(
+        "--llm-cache-dir",
+        type=Path,
+        default=LLM_REVIEWER_DEFAULT_CACHE_DIR,
+        help=(
+            "Directory where committed L2 cache files live "
+            "(<source_session_id>.yaml per session)."
+        ),
+    )
+    parser.add_argument(
+        "--strict-overrides",
+        action="store_true",
+        help=(
+            "Hard-fail extraction on any spec whose source_session_id "
+            "matches a `status: pending_review` entry in "
+            "case_spec_overrides.yaml."
+        ),
+    )
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -122,10 +168,16 @@ def main() -> int:
         _clean_regen_dirs(args.output_dir)
 
     log.info("Running extractor ...")
+    refresh_sessions = frozenset(args.refresh_llm_session or ())
     specs = extract_case_specs(
         hr_csv_path=args.hr_csv,
         turns_dir=args.turns_dir,
         output_dir=args.output_dir,
+        llm_cache_dir=args.llm_cache_dir,
+        llm_offline=bool(args.no_llm),
+        llm_refresh_sessions=refresh_sessions,
+        llm_model=args.llm_model,
+        strict_overrides=bool(args.strict_overrides),
     )
     log.info("Extractor produced %d specs.", len(specs))
 

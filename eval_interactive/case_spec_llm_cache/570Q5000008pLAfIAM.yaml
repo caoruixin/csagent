@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008pLAfIAM
+case_id_hint: cs_interactive_111
+llm_model: deepseek-v4-pro
+prompt_hash: bb78f59b499329ff03c708c6e34cd3efba4b03c9c0a25c2dc8fc110896178d38
+generated_at: '2026-04-30T20:48:28.851023+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are directly from visitor turns that capture the core confusion and frustration. user_goal_summary
+  was expanded to specify the exact dispute and demand. Added one hidden fact about the ad type, derived from the agent's
+  explanation in the transcript.
+rule_draft:
+  seed_messages:
+  - '1508819706'
+  - ok how linked two accounts
+  - I am not understand realy what you talking about I will investigate and fill complain to Ombudsmen , consider britch data
+    policy act 1973 and 2010 I will write you officialy
+  user_goal_summary: 'User reports Pro Contract: add removed for none reason. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - '1508819706'
+  - ok how linked two accounts
+  - I am not understand realy what you talking about I will investigate and fill complain to Ombudsmen , consider britch data
+    policy act 1973 and 2010 I will write you officialy
+  user_goal_summary: 'User wants to know why their ad 1508819706 was removed, disputes that the email p***********@gmx.com
+    is theirs, and demands an investigation, threatening an ombudsman complaint. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The removed ad 1508819706 was a pet rehoming ad.
+    disclose_when: when asked about the nature of the ad or the reason for removal
+accepted_value:
+  seed_messages:
+  - '1508819706'
+  - ok how linked two accounts
+  - I am not understand realy what you talking about I will investigate and fill complain to Ombudsmen , consider britch data
+    policy act 1973 and 2010 I will write you officialy
+  user_goal_summary: 'User wants to know why their ad 1508819706 was removed, disputes that the email p***********@gmx.com
+    is theirs, and demands an investigation, threatening an ombudsman complaint. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The removed ad 1508819706 was a pet rehoming ad.
+    disclose_when: when asked about the nature of the ad or the reason for removal
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

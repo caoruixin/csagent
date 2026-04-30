@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008kyB3IAI
+case_id_hint: row_35
+llm_model: deepseek-v4-pro
+prompt_hash: ad8e17103a247d42974810260e30132f84d097b5ddbff35744ab128ecfda857a
+generated_at: '2026-04-30T13:10:36.747730+00:00'
+llm_confidence: high
+llm_rationale: The seed messages are verbatim from the transcript and capture the user's frustration about spam calls, poor
+  ad performance, and desire for a copy of the chat. The user_goal_summary is refined to be more direct and user-centric.
+  Hidden fact about the ad content is added as it is not explicitly stated in seed messages but is present in the transcript.
+  No other changes needed.
+rule_draft:
+  seed_messages:
+  - becuase 2 minutues after i places the add i got calls saying you have a man and van service on gumtree?
+  - im not here to explain myself, the add has 8 views and i paid a premium thats not good enough 2 of those views have been
+    spam callers
+  - i would like a copy
+  user_goal_summary: 'User reports Ad Support: My add has only got 8 views, and i keep getting calls from spam marketing companies.
+    Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - becuase 2 minutues after i places the add i got calls saying you have a man and van service on gumtree?
+  - im not here to explain myself, the add has 8 views and i paid a premium thats not good enough 2 of those views have been
+    spam callers
+  - i would like a copy
+  user_goal_summary: 'I want my ad deleted and a refund because it only got 8 views and I received spam calls from marketing
+    companies after placing it. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user placed an ad for a man and van service on Gumtree.
+    disclose_when: when the bot asks what the ad is for or what their business is
+accepted_value:
+  seed_messages:
+  - becuase 2 minutues after i places the add i got calls saying you have a man and van service on gumtree?
+  - im not here to explain myself, the add has 8 views and i paid a premium thats not good enough 2 of those views have been
+    spam callers
+  - i would like a copy
+  user_goal_summary: 'I want my ad deleted and a refund because it only got 8 views and I received spam calls from marketing
+    companies after placing it. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user placed an ad for a man and van service on Gumtree.
+    disclose_when: when the bot asks what the ad is for or what their business is
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

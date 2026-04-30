@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008l1SHIAY
+case_id_hint: row_273
+llm_model: deepseek-v4-pro
+prompt_hash: 058fd80ff5b66f4b1cf6b16da1ca0e3a5170d46a89d9c7369075b97e28a8895e
+generated_at: '2026-04-30T19:44:57.885054+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are exact verbatim visitor turns from the transcript that describe the issue. The user_goal_summary
+  is derived directly from the user's statements and the service context. No hidden_facts are necessary as all relevant facts
+  are already explicit.
+rule_draft:
+  seed_messages:
+  - Saying the email address is not recognised
+  - A couch I have bought off gumtree too
+  user_goal_summary: 'User reports Account Support: Unable the log in. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Saying the email address is not recognised
+  - A couch I have bought off gumtree too
+  user_goal_summary: 'The user cannot log in to their Gumtree account because the email address is not recognized. They want
+    to access their existing account where they previously posted listings. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Saying the email address is not recognised
+  - A couch I have bought off gumtree too
+  user_goal_summary: 'The user cannot log in to their Gumtree account because the email address is not recognized. They want
+    to access their existing account where they previously posted listings. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

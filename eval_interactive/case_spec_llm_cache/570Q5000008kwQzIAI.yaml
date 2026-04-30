@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008kwQzIAI
+case_id_hint: row_137
+llm_model: deepseek-v4-pro
+prompt_hash: cd25bdb57b3f20c3608bb984079754f415291314966235f1426b9ab37e58766e
+generated_at: '2026-04-30T13:40:59.236351+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and capture the core issue. User goal summary refined to be more
+  user-centric. No additional hidden facts grounded in transcript beyond what's in seed.
+rule_draft:
+  seed_messages:
+  - No, I just received messages from people asking for me to reply even though I have, and now I have tested this and tried
+    sending messages to my husband via gumtree but they all did not go through
+  - Nobody replied to any of my messages, but a few send reminders (2 listings in total) and I tested a third which also did
+    not work
+  - did you get it?
+  user_goal_summary: 'User reports Replies & Messaging: My messages to requests do not get delivered, I used two different
+    browsers and the app to test this. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - No, I just received messages from people asking for me to reply even though I have, and now I have tested this and tried
+    sending messages to my husband via gumtree but they all did not go through
+  - Nobody replied to any of my messages, but a few send reminders (2 listings in total) and I tested a third which also did
+    not work
+  - did you get it?
+  user_goal_summary: 'The user needs to fix an issue where Gumtree messages she sends are not actually delivered despite showing
+    as sent, affecting communication with buyers. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - No, I just received messages from people asking for me to reply even though I have, and now I have tested this and tried
+    sending messages to my husband via gumtree but they all did not go through
+  - Nobody replied to any of my messages, but a few send reminders (2 listings in total) and I tested a third which also did
+    not work
+  - did you get it?
+  user_goal_summary: 'The user needs to fix an issue where Gumtree messages she sends are not actually delivered despite showing
+    as sent, affecting communication with buyers. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

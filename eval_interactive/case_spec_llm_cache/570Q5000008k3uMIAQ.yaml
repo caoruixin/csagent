@@ -1,0 +1,48 @@
+source_session_id: 570Q5000008k3uMIAQ
+case_id_hint: row_172
+llm_model: deepseek-v4-pro
+prompt_hash: d63d1b0e7dcc9b1e88ad2b310eee1937f3b25fdf1745d37083281322ae61ba0f
+generated_at: '2026-04-30T19:12:14.952600+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are direct quotes from the transcript; goal summary accurately describes the user's request;
+  hidden facts are supported by the transcript.
+rule_draft:
+  seed_messages:
+  - Hello, I have just seen the 1 star review I have on my profile. This review came from a scammer. He advertised an item
+    and I he sent bank details that did not match his name and had no images of the item, all were taken from online and I
+    reported the matter to Gmtree but he has left a 1 star review on my profile which has negatively impacted my ability to
+    sell items
+  - Do you have an email address for an official complaint form to be filled out
+  - Ok I’ll delete my account then and go else where if that’s how gumtree treats genuine folk reporting scammers and fraudsters
+  user_goal_summary: 'User reports Account Support: Review. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hello, I have just seen the 1 star review I have on my profile. This review came from a scammer. He advertised an item
+    and I he sent bank details that did not match his name and had no images of the item, all were taken from online and I
+    reported the matter to Gmtree but he has left a 1 star review on my profile which has negatively impacted my ability to
+    sell items
+  - Do you have an email address for an official complaint form to be filled out
+  - Ok I’ll delete my account then and go else where if that’s how gumtree treats genuine folk reporting scammers and fraudsters
+  user_goal_summary: 'User wants a 1-star review removed because it was left by a scammer and harms their selling ability.
+    Told it can''t be disputed, they request complaint form and threaten to delete account. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hello, I have just seen the 1 star review I have on my profile. This review came from a scammer. He advertised an item
+    and I he sent bank details that did not match his name and had no images of the item, all were taken from online and I
+    reported the matter to Gmtree but he has left a 1 star review on my profile which has negatively impacted my ability to
+    sell items
+  - Do you have an email address for an official complaint form to be filled out
+  - Ok I’ll delete my account then and go else where if that’s how gumtree treats genuine folk reporting scammers and fraudsters
+  user_goal_summary: 'User wants a 1-star review removed because it was left by a scammer and harms their selling ability.
+    Told it can''t be disputed, they request complaint form and threaten to delete account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The review in question is a 1-star review left more than 30 days ago, which is why it
+  cannot be disputed.'''
+- 'unsupported_hidden_fact_dropped: ''The user has evidence that the reviewer was a scammer: bank details with a mismatched
+  name and listing images taken from the internet.'''

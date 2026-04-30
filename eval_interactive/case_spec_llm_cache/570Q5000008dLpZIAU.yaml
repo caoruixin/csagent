@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008dLpZIAU
+case_id_hint: row_165
+llm_model: deepseek-v4-pro
+prompt_hash: 6b8bcfd3d422272830c071fc13f84164e13d1cc76c8682ebb357cc6ef1966366
+generated_at: '2026-04-30T19:10:56.887212+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing remark seed message with another issue-bearing visitor turn; refined user goal summary to
+  be specific and within 280 characters; added hidden facts grounded in the transcript about prior successful uploads and
+  FAQ check.
+rule_draft:
+  seed_messages:
+  - Using the App but when I select pictures from my gallery it does not upload and checking the FAQ pages I think they are
+    all fine to use.
+  - I will try that, thanks. Bye.
+  - Will I lose my current ads if I do that?
+  user_goal_summary: 'User reports Technical Support: Cannot upload pictures to a new advert. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Using the App but when I select pictures from my gallery it does not upload and checking the FAQ pages I think they are
+    all fine to use.
+  - I have loaded lots over the past week but today it just loojs like it is accepting it then nothing is on the advert and
+    cannot press the camera logo to upload another image.
+  user_goal_summary: 'User wants to upload images from gallery to a new Gumtree app ad; select photos but they don''t appear,
+    and posting fails with missing pictures. Drift: minor_drift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Using the App but when I select pictures from my gallery it does not upload and checking the FAQ pages I think they are
+    all fine to use.
+  - I have loaded lots over the past week but today it just loojs like it is accepting it then nothing is on the advert and
+    cannot press the camera logo to upload another image.
+  user_goal_summary: 'User wants to upload images from gallery to a new Gumtree app ad; select photos but they don''t appear,
+    and posting fails with missing pictures. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has successfully uploaded many pictures on the app in the past week.'''
+- 'unsupported_hidden_fact_dropped: ''User checked FAQ and believes the images meet all requirements.'''

@@ -1,0 +1,46 @@
+source_session_id: 570Q5000008iIO1IAM
+case_id_hint: row_336
+llm_model: deepseek-v4-pro
+prompt_hash: 62af9e98c5ccf0d60fa648acc390ca1e737338aa90aa9fbdfaa9bf21b6beade4
+generated_at: '2026-04-30T20:07:14.893946+00:00'
+llm_confidence: high
+llm_rationale: Seed messages taken verbatim from distinct visitor turns describing the core issue. User goal summary distilled
+  from the full transcript, staying under 280 characters. Hidden facts grounded in specific transcript turns (seq 22 and seq
+  13/8).
+rule_draft:
+  seed_messages:
+  - I updated my adds to let potential buyers know item is still available. However, when I updated the ads a couple of days
+    ago. It no longer displays my number to buyers.
+  - While I know this is not your fault and is in no way a criticism against you. Gumtree users are going to be annoyed be
+    annoyed by this. And I feel that page should have been updated to reflect the change you expressed
+  - I use gumtree for local people. It is not an item that would be posted so affords local collection
+  user_goal_summary: 'User reports Account Support: Enquiry. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I updated my adds to let potential buyers know item is still available. However, when I updated the ads a couple of days
+    ago. It no longer displays my number to buyers.
+  - While I know this is not your fault and is in no way a criticism against you. Gumtree users are going to be annoyed be
+    annoyed by this. And I feel that page should have been updated to reflect the change you expressed
+  - I use gumtree for local people. It is not an item that would be posted so affords local collection
+  user_goal_summary: 'User wants his ad to display his phone number again, help pages updated to reflect email-only contact,
+    and asks how to arrange local pickup without sharing prohibited contact details. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I updated my adds to let potential buyers know item is still available. However, when I updated the ads a couple of days
+    ago. It no longer displays my number to buyers.
+  - While I know this is not your fault and is in no way a criticism against you. Gumtree users are going to be annoyed be
+    annoyed by this. And I feel that page should have been updated to reflect the change you expressed
+  - I use gumtree for local people. It is not an item that would be posted so affords local collection
+  user_goal_summary: 'User wants his ad to display his phone number again, help pages updated to reflect email-only contact,
+    and asks how to arrange local pickup without sharing prohibited contact details. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has a buyer interested in picking up an item on Sunday and needs to share his address
+  safely.'''
+- 'unsupported_hidden_fact_dropped: ''User checked the Help/Selling page and it still showed instructions to reveal phone
+  number, which contradicts the new policy.'''

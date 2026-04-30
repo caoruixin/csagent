@@ -1,0 +1,34 @@
+source_session_id: 570Q5000008kr6LIAQ
+case_id_hint: cs_interactive_001
+llm_model: deepseek-v4-pro
+prompt_hash: 3a501addd4536525594a60e31d1525b57dc3fae5838fc126586e20d94bce520e
+generated_at: '2026-04-30T10:26:01.815344+00:00'
+llm_confidence: high
+llm_rationale: Dropped the less issue-bearing seed message 'A bit of both' and kept only the two that directly express the
+  email confusion. Updated the goal summary to be more specific about the user's expressed need. No hidden facts were added
+  as the transcript lacks concrete undisclosed details.
+rule_draft:
+  seed_messages:
+  - A bit of both
+  - I am confused i see you guys both of my email but when i log in i use [EMAIL]. it's really confused me
+  - Thank you, so the details login i am having issues with is the [EMAIL]
+  user_goal_summary: 'User reports Replies & Messaging: I am unable to receive messages on my account. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I am confused i see you guys both of my email but when i log in i use [EMAIL]. it's really confused me
+  - Thank you, so the details login i am having issues with is the [EMAIL]
+  user_goal_summary: 'User is confused because they see two different email addresses on their account and wants to know which
+    one to use for login in order to receive messages. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I am confused i see you guys both of my email but when i log in i use [EMAIL]. it's really confused me
+  - Thank you, so the details login i am having issues with is the [EMAIL]
+  user_goal_summary: 'User is confused because they see two different email addresses on their account and wants to know which
+    one to use for login in order to receive messages. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

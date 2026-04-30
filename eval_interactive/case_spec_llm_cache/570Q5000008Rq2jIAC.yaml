@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008Rq2jIAC
+case_id_hint: row_296
+llm_model: deepseek-v4-pro
+prompt_hash: 852a681d5655fbf307cb53b33bafafd6f0c4587ce3088352bbbd3e26fb566d16
+generated_at: '2026-04-30T19:51:00.933229+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are exact visitor turns that express the core issue. The user_goal_summary succinctly captures
+  the user's demand. No hidden facts beyond the transcript are evident.
+rule_draft:
+  seed_messages:
+  - Hi. I’ve had a couple if emails from you saying I have unanswered messages - I have checked and I’ve only got one conversation
+    and no new messages.
+  - Well I definitely won’t be paying for your services again - I’m so angry that I have missed a sale!
+  - Well you need to sort your system out then! That’s ridiculous.
+  user_goal_summary: 'User reports Account Support: Fiat Doblo 2007 Manual. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi. I’ve had a couple if emails from you saying I have unanswered messages - I have checked and I’ve only got one conversation
+    and no new messages.
+  - Well I definitely won’t be paying for your services again - I’m so angry that I have missed a sale!
+  - Well you need to sort your system out then! That’s ridiculous.
+  user_goal_summary: 'The user wants to view all buyer messages on Gumtree, stop receiving notifications for deleted messages,
+    and ensure she doesn''t miss potential vehicle sales. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi. I’ve had a couple if emails from you saying I have unanswered messages - I have checked and I’ve only got one conversation
+    and no new messages.
+  - Well I definitely won’t be paying for your services again - I’m so angry that I have missed a sale!
+  - Well you need to sort your system out then! That’s ridiculous.
+  user_goal_summary: 'The user wants to view all buyer messages on Gumtree, stop receiving notifications for deleted messages,
+    and ensure she doesn''t miss potential vehicle sales. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

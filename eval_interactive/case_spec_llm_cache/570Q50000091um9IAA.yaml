@@ -1,0 +1,43 @@
+source_session_id: 570Q50000091um9IAA
+case_id_hint: row_120
+llm_model: deepseek-v4-pro
+prompt_hash: eb9017eb9f3bbddf2541cedc59d65a8212892f01e168a9d2ddc4fe90af4f7f3d
+generated_at: '2026-04-30T13:35:54.876976+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced non-issue greeting ''Cool'' with clearer quotes explaining the cancelled order issue. Added ''I just
+  need my funds to order'' as key goal expression. Improved user goal summary to accurately reflect transcript: user ordered
+  4 watches, was told Gumtree cancelled, wants refund to reorder. Added hidden facts about order number and payment method
+  grounded in transcript.'
+rule_draft:
+  seed_messages:
+  - Cool
+  - I just need my funds to order
+  - Gumtree stuff it's cancelled
+  user_goal_summary: 'User reports Account Support: Today I played a order first 4 apple watches I was told by the seller
+    the order I''d apparently cancelled. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It's the orders I made today I don't know this
+  - The seller said they was told the order was cancelled
+  - I just need my funds to order
+  user_goal_summary: 'User ordered 4 Apple watches via Gumtree, seller informed that Gumtree cancelled the order; user wants
+    to confirm refund status and get funds to reorder. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Order number is 13787918 and there are 4 Apple watches.
+    disclose_when: when asked for order details
+accepted_value:
+  seed_messages:
+  - It's the orders I made today I don't know this
+  - The seller said they was told the order was cancelled
+  - I just need my funds to order
+  user_goal_summary: 'User ordered 4 Apple watches via Gumtree, seller informed that Gumtree cancelled the order; user wants
+    to confirm refund status and get funds to reorder. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Order number is 13787918 and there are 4 Apple watches.
+    disclose_when: when asked for order details
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User paid online for delivery.'''

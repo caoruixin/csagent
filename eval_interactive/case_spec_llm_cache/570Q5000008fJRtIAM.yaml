@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008fJRtIAM
+case_id_hint: row_123
+llm_model: deepseek-v4-pro
+prompt_hash: 9fb134859d2bb4eeac8d85f1d88a3094e7aefeafb4d66fa33a2a262c1b10a57b
+generated_at: '2026-04-30T13:37:51.197060+00:00'
+llm_confidence: high
+llm_rationale: Replaced two agent-turn seed messages with visitor turns describing the issue. Updated user_goal_summary to
+  reflect the specific problem. Added hidden facts based on order details in the transcript.
+rule_draft:
+  seed_messages:
+  - You keep e mailing me to post this item but it has been posted today ?
+  - Nat, I'm sorry about this. We can see that the parcel has been collected from you. Apologies for any inconvenience caused.
+  - Nat I'm still here, just looking into this
+  user_goal_summary: 'User reports Account Support: hoodie. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - You keep e mailing me to post this item but it has been posted today ?
+  - Ive posted it for delivery and you are chasing me to desapatch it
+  user_goal_summary: 'User wants Gumtree to stop sending emails chasing dispatch of a Nike hoodie (order #13755068) that has
+    already been posted and collected. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Order number is 13755068.
+    disclose_when: Bot asks for order number.
+accepted_value:
+  seed_messages:
+  - You keep e mailing me to post this item but it has been posted today ?
+  - Ive posted it for delivery and you are chasing me to desapatch it
+  user_goal_summary: 'User wants Gumtree to stop sending emails chasing dispatch of a Nike hoodie (order #13755068) that has
+    already been posted and collected. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Order number is 13755068.
+    disclose_when: Bot asks for order number.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''Item is a Nike hoodie.'''

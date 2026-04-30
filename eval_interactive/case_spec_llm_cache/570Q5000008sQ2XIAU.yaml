@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008sQ2XIAU
+case_id_hint: row_127
+llm_model: deepseek-v4-pro
+prompt_hash: cffa5373cd4d2093cb354c76c3b3bdf8edbe0ce7ec922a869abe8a4b7a5ac647
+generated_at: '2026-04-30T13:37:46.442408+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced the phone number seed with the legal-threat turn, as it better captures the user''s issue. Updated
+  the user_goal_summary to be a concise factual statement. Added two hidden facts supported by the transcript: the legal threat
+  and the bank declining Revolut transactions.'
+rule_draft:
+  seed_messages:
+  - I recently posted a Afghani hand woven rug on gumtree.
+  - Can you refund the amount he sent to me back to the customer.
+  - '0415510234'
+  user_goal_summary: 'User reports Payments: Afghani hand woven rug. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I recently posted a Afghani hand woven rug on gumtree.
+  - Can you refund the amount he sent to me back to the customer.
+  - The customer threatened legal action against me if i didn't comply to his transaction.
+  user_goal_summary: 'The user wants Gumtree to refund the payment sent by a customer for an Afghani hand-woven rug they listed
+    but no longer wish to sell, after facing a legal threat over a failed Revolut transaction. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The customer threatened legal action if the user did not comply with the transaction.
+    disclose_when: when asked about any urgency or the customer's reaction
+  - fact: The user's bank declined any transactions into Revolut.
+    disclose_when: when asked about payment issues or bank involvement
+accepted_value:
+  seed_messages:
+  - I recently posted a Afghani hand woven rug on gumtree.
+  - Can you refund the amount he sent to me back to the customer.
+  - The customer threatened legal action against me if i didn't comply to his transaction.
+  user_goal_summary: 'The user wants Gumtree to refund the payment sent by a customer for an Afghani hand-woven rug they listed
+    but no longer wish to sell, after facing a legal threat over a failed Revolut transaction. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The customer threatened legal action if the user did not comply with the transaction.
+    disclose_when: when asked about any urgency or the customer's reaction
+  - fact: The user's bank declined any transactions into Revolut.
+    disclose_when: when asked about payment issues or bank involvement
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

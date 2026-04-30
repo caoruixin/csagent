@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008c8eHIAQ
+case_id_hint: row_65
+llm_model: deepseek-v4-pro
+prompt_hash: 883b401d9cff977d5e144aefea0689f947a41a3276786ec20076db5e22f634e0
+generated_at: '2026-04-30T13:18:48.375443+00:00'
+llm_confidence: high
+llm_rationale: Replaced the non-issue 'your welcome' seed message with a visitor turn (seq 14) that directly asks about the
+  core problem. The other two seed messages capture the user's frustration and request for missing details. Updated goal summary
+  to reflect the user's actual query about missing messages and reply delivery.
+rule_draft:
+  seed_messages:
+  - your welcome
+  - or indeed when they were sent
+  - No you haven’t you have said they could be pending …and have not given an answer as to why their messages were deleted
+  user_goal_summary: 'User reports Replies & Messaging: Got 4 different names against 4 different ads on messages but no message.
+    Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - So will my message get to them and can they now reply….Please why would the system delete their messages .I have never
+    had this before
+  - No you haven’t you have said they could be pending …and have not given an answer as to why their messages were deleted
+  - or indeed when they were sent
+  user_goal_summary: 'User wants to understand why 4 messages from different users were missing from her Gumtree messages,
+    whether her replies will be delivered, and if the senders can reply back. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - So will my message get to them and can they now reply….Please why would the system delete their messages .I have never
+    had this before
+  - No you haven’t you have said they could be pending …and have not given an answer as to why their messages were deleted
+  - or indeed when they were sent
+  user_goal_summary: 'User wants to understand why 4 messages from different users were missing from her Gumtree messages,
+    whether her replies will be delivered, and if the senders can reply back. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

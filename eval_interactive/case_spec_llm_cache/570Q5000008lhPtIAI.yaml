@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008lhPtIAI
+case_id_hint: row_289
+llm_model: deepseek-v4-pro
+prompt_hash: 43373f75bc837be138d12149f33c8bd4865750847bee0d48b1fc59bdd50bb3ab
+generated_at: '2026-04-30T19:50:11.486935+00:00'
+llm_confidence: high
+llm_rationale: 'Original seed messages included a greeting (''Hello thanks'') and an ad link, but lacked the explicit issue
+  description. Replaced with visitor turns that directly state the core problem (seq 7, 12, 13). User goal summary updated
+  to factual statement of the bug and affected section, keeping ''Drift: soft_shift'' trailing. Added hidden fact for the
+  ad ID as it''s grounded in the transcript and useful for simulation.'
+rule_draft:
+  seed_messages:
+  - Hello thanks
+  - 'Please view this ad: Double Mezzanine Semi-Studio - Holland Road, Holland Park/Shepherds Bush [POSTCODE] - All Bills
+    Inc Price:£240pw https://www.gumtree.com/p/flats-houses/double-mezzanine-semi-studio-holland-road-holland-parkshepherds-bush-w14-8bb-all-bills-inc/1475855411?utm_source=unknown&utm_campaign=socialbuttons&utm_content=app_ios&utm_medium=Social'
+  - I am looking for a flat in London so maybe the issue is in the housing section
+  user_goal_summary: 'User reports Account Support: I cannot send replies to ads. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - The button to send a message doesn’t work, and when I try to call it says the phone number is invalid. This happens with
+    all ads I’ve been trying to reply to
+  - but not on real ads
+  - I am looking for a flat in London so maybe the issue is in the housing section
+  user_goal_summary: 'I cannot send replies to ads on Gumtree. The send button doesn''t work and the phone number is invalid.
+    This occurs on housing ads in London, while a test ad reply worked. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The problematic ad ID is 1475855411 (Holland Road flat).
+    disclose_when: when the bot asks for an ad ID or asks the user to try replying to a specific ad again
+accepted_value:
+  seed_messages:
+  - The button to send a message doesn’t work, and when I try to call it says the phone number is invalid. This happens with
+    all ads I’ve been trying to reply to
+  - but not on real ads
+  - I am looking for a flat in London so maybe the issue is in the housing section
+  user_goal_summary: 'I cannot send replies to ads on Gumtree. The send button doesn''t work and the phone number is invalid.
+    This occurs on housing ads in London, while a test ad reply worked. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The problematic ad ID is 1475855411 (Holland Road flat).
+    disclose_when: when the bot asks for an ad ID or asks the user to try replying to a specific ad again
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

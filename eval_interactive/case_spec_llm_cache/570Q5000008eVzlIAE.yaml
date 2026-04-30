@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008eVzlIAE
+case_id_hint: row_216
+llm_model: deepseek-v4-pro
+prompt_hash: 292d4549ae82461432b7ed4eb369abc58f0ab5f5f988996e4ae7338304d622a2
+generated_at: '2026-04-30T19:25:55.007324+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed messages are direct, issue-bearing visitor quotes from transcript; they are retained. The
+  user_goal_summary is rewritten to clearly state the user's desired outcome. Hidden facts are grounded in transcript statements.
+rule_draft:
+  seed_messages:
+  - Someone left a negative review, i dont know how or why and I can't get rid of it. Can you help?
+  - Oh man...its clearly fraudulent.
+  - Who done it? Because I dont recall selling anything!!
+  user_goal_summary: 'User reports Account Support: Bogus review. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Someone left a negative review, i dont know how or why and I can't get rid of it. Can you help?
+  - Who done it? Because I dont recall selling anything!!
+  - Oh man...its clearly fraudulent.
+  user_goal_summary: 'User wants a fraudulent negative review removed from their Gumtree account. They claim they haven''t
+    sold anything and fear it''s a scam. Drift: hard_shift.'
+  hidden_facts:
+  - fact: A negative review was left on the user's account in 2024.
+    disclose_when: when asked about the review details or when the user inquires about the negative review
+accepted_value:
+  seed_messages:
+  - Someone left a negative review, i dont know how or why and I can't get rid of it. Can you help?
+  - Who done it? Because I dont recall selling anything!!
+  - Oh man...its clearly fraudulent.
+  user_goal_summary: 'User wants a fraudulent negative review removed from their Gumtree account. They claim they haven''t
+    sold anything and fear it''s a scam. Drift: hard_shift.'
+  hidden_facts:
+  - fact: A negative review was left on the user's account in 2024.
+    disclose_when: when asked about the review details or when the user inquires about the negative review
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has not sold anything recently and is unaware of any transaction that could
+  have led to a review.'''

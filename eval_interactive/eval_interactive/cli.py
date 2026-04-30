@@ -20,11 +20,58 @@ def main():
 @click.option("--turns-dir", required=True, help="Path to eval_datasets directory")
 @click.option("--output", default="case_specs/", help="Output directory")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
-def extract(hr_csv: str, turns_dir: str, output: str, verbose: bool):
+@click.option(
+    "--no-llm",
+    is_flag=True,
+    default=False,
+    help="Skip the Wave A6 L2 persona reviewer; persona blocks fall back to rule_draft.",
+)
+@click.option(
+    "--refresh-llm-session",
+    multiple=True,
+    metavar="SESSION_ID",
+    help="Force a re-call for a single source_session_id. Repeatable.",
+)
+@click.option(
+    "--llm-model",
+    default="deepseek-v4-pro",
+    help="DeepSeek model name (default deepseek-v4-pro).",
+)
+@click.option(
+    "--llm-cache-dir",
+    default=None,
+    help=(
+        "Directory of committed L2 cache files "
+        "(<source_session_id>.yaml). Default: project default."
+    ),
+)
+@click.option(
+    "--strict-overrides",
+    is_flag=True,
+    default=False,
+    help=(
+        "Hard-fail extraction on any spec whose source_session_id matches a "
+        "`status: pending_review` entry in case_spec_overrides.yaml."
+    ),
+)
+def extract(
+    hr_csv: str,
+    turns_dir: str,
+    output: str,
+    verbose: bool,
+    no_llm: bool,
+    refresh_llm_session: tuple[str, ...],
+    llm_model: str,
+    llm_cache_dir: str | None,
+    strict_overrides: bool,
+):
     """Extract CaseSpecs from HR annotations + turn data."""
     from pathlib import Path
 
-    from eval_interactive.case_spec.extractor import extract_case_specs
+    from eval_interactive.case_spec.extractor import (
+        LLM_REVIEWER_DEFAULT_CACHE_DIR,
+        extract_case_specs,
+    )
 
     log_level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
@@ -36,14 +83,28 @@ def extract(hr_csv: str, turns_dir: str, output: str, verbose: bool):
     hr_path = Path(hr_csv)
     turns_path = Path(turns_dir)
     output_path = Path(output)
+    cache_dir = Path(llm_cache_dir) if llm_cache_dir else LLM_REVIEWER_DEFAULT_CACHE_DIR
 
     click.echo(f"Extracting CaseSpecs ...")
     click.echo(f"  HR CSV:    {hr_path}")
     click.echo(f"  Turns dir: {turns_path}")
     click.echo(f"  Output:    {output_path}")
+    click.echo(f"  L2 LLM:    {'OFF (--no-llm)' if no_llm else llm_model}")
+    click.echo(f"  L2 cache:  {cache_dir}")
+    if refresh_llm_session:
+        click.echo(f"  L2 refresh sessions: {list(refresh_llm_session)}")
 
     try:
-        specs = extract_case_specs(hr_path, turns_path, output_path)
+        specs = extract_case_specs(
+            hr_path,
+            turns_path,
+            output_path,
+            llm_cache_dir=cache_dir,
+            llm_offline=bool(no_llm),
+            llm_refresh_sessions=frozenset(refresh_llm_session),
+            llm_model=llm_model,
+            strict_overrides=bool(strict_overrides),
+        )
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         raise SystemExit(1)

@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008pGm5IAE
+case_id_hint: row_362
+llm_model: deepseek-v4-pro
+prompt_hash: 8357ef78ff585cdad03599817b48a6fd2460eb0d34210538ab7ffbaa3af15bca
+generated_at: '2026-04-30T20:31:41.253268+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are all from relevant visitor turns describing the issue (ad disappeared, payment proof, request
+  to edit). Updated user_goal_summary to reflect the specific edit desired. Added ad ID as a hidden fact grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - I looked at add to add to it was still up then went back it was gone I must can mistake
+  - Yes I just looked seen it I can show u payment in my bank
+  - could u pls put job id Contract
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I looked at add to add to it was still up then went back it was gone I must can mistake
+  - Yes I just looked seen it I can show u payment in my bank
+  - could u pls put job id Contract
+  user_goal_summary: 'User wants to edit her active Gumtree ad for a carer/cleaner job to add the job ID ''Contract''. Drift:
+    hard_shift.'
+  hidden_facts:
+  - fact: The ad ID is 5417649478
+    disclose_when: when the agent asks for the ad ID or the user wants to identify the advertisement
+accepted_value:
+  seed_messages:
+  - I looked at add to add to it was still up then went back it was gone I must can mistake
+  - Yes I just looked seen it I can show u payment in my bank
+  - could u pls put job id Contract
+  user_goal_summary: 'User wants to edit her active Gumtree ad for a carer/cleaner job to add the job ID ''Contract''. Drift:
+    hard_shift.'
+  hidden_facts:
+  - fact: The ad ID is 5417649478
+    disclose_when: when the agent asks for the ad ID or the user wants to identify the advertisement
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

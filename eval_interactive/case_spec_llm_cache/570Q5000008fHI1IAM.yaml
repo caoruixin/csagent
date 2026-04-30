@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008fHI1IAM
+case_id_hint: row_42
+llm_model: deepseek-v4-pro
+prompt_hash: cb03aee7128ffa7c0dc59c9b0189af095c6d3f03dc4fd92fe1805d679aff710c
+generated_at: '2026-04-30T13:11:33.030456+00:00'
+llm_confidence: high
+llm_rationale: Seed messages already accurately capture the user's core complaint about missing phone number in ads. User
+  goal summary refined to be more specific and factual. Hidden fact about ad IDs derived directly from the transcript.
+rule_draft:
+  seed_messages:
+  - No I don't see that anymore
+  - I always had my number and my email but now it's only email
+  - it wasnt like this before
+  user_goal_summary: 'User reports Account Support: the ad doesnt show my phone number. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - No I don't see that anymore
+  - I always had my number and my email but now it's only email
+  - it wasnt like this before
+  user_goal_summary: 'The user wants their Gumtree ad listings to display their phone number as before, but currently only
+    the email is shown. Drift: minor_drift.'
+  hidden_facts:
+  - fact: User's three ad IDs are 1508254078, 1508254101, and 1508254130.
+    disclose_when: When the bot asks for ad IDs or more details about the affected listings.
+accepted_value:
+  seed_messages:
+  - No I don't see that anymore
+  - I always had my number and my email but now it's only email
+  - it wasnt like this before
+  user_goal_summary: 'The user wants their Gumtree ad listings to display their phone number as before, but currently only
+    the email is shown. Drift: minor_drift.'
+  hidden_facts:
+  - fact: User's three ad IDs are 1508254078, 1508254101, and 1508254130.
+    disclose_when: When the bot asks for ad IDs or more details about the affected listings.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

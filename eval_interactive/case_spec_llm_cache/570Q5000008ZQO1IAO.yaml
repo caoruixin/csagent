@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008ZQO1IAO
+case_id_hint: row_287
+llm_model: deepseek-v4-pro
+prompt_hash: a31584eee949bb5bf9744d0005422587e9e1eec8677601f0cc7b3bca80be353d
+generated_at: '2026-04-30T19:48:52.450864+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are verbatim from the transcript and describe the core issue. The user_goal_summary was updated
+  to more precisely reflect the user's desire to resolve the unsent chair message, while noting the drift. Hidden facts are
+  added to provide context about the discrepancy between the intended and sent messages.
+rule_draft:
+  seed_messages:
+  - Just now few mins ago
+  - Nope ok it didn’t send it was for chairs
+  user_goal_summary: 'User reports Account Support: I cannot see that my message was sent?. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Just now few mins ago
+  - Nope ok it didn’t send it was for chairs
+  user_goal_summary: 'User wants to know why their recent message about chairs did not send successfully, and to get help
+    with sending it. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Just now few mins ago
+  - Nope ok it didn’t send it was for chairs
+  user_goal_summary: 'User wants to know why their recent message about chairs did not send successfully, and to get help
+    with sending it. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s intended message was about chairs, not the property on Eastgate Street."'
+- 'unsupported_hidden_fact_dropped: ''The sent message the agent found is an old inquiry about a property, not the recent
+  chair message.'''

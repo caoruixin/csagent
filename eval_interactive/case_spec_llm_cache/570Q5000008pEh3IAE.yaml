@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008pEh3IAE
+case_id_hint: cs_interactive_017
+llm_model: deepseek-v4-pro
+prompt_hash: 3f92f56a3ed41b45ef5f8add3d8002bc89673c5ef79e87b2b8528907984f1808
+generated_at: '2026-04-30T20:36:20.871671+00:00'
+llm_confidence: high
+llm_rationale: Seed messages now consists solely of the visitor turn that describes the core issue. Greeting/closing turns
+  were removed. user_goal_summary is rewritten as a clear, factual statement of the user's desired outcome, well within character
+  limit. No additional hidden facts are evident from the transcript.
+rule_draft:
+  seed_messages:
+  - Hi Courtney. Thanks you 😊
+  - He was very angry it was not for sale anymore. I had literally just sold it
+  - 🙏
+  user_goal_summary: 'User reports Ratings & Reviews: Hi, hope you are well m I just noticed that someone has given me bad
+    feedback for finding out that I had just sold a bicycle. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - He was very angry it was not for sale anymore. I had literally just sold it
+  user_goal_summary: 'User wants a 1-star feedback removed because a buyer left negative feedback after finding the bicycle
+    was already sold when they tried to purchase. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - He was very angry it was not for sale anymore. I had literally just sold it
+  user_goal_summary: 'User wants a 1-star feedback removed because a buyer left negative feedback after finding the bicycle
+    was already sold when they tried to purchase. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

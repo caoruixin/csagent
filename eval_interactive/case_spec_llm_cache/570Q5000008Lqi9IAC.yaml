@@ -1,0 +1,46 @@
+source_session_id: 570Q5000008Lqi9IAC
+case_id_hint: row_232
+llm_model: deepseek-v4-pro
+prompt_hash: 45ef909e65a24c83432f4e9b1774241dc46a16997dc606dc582a9399f70effcd
+generated_at: '2026-04-30T19:35:35.793988+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting seed message with an issue-bearing visitor turn. Kept two substantive messages. Updated user
+  goal summary to specific user desires (fix ad or refund) under 280 chars. Added hidden facts about ad category and ineffective
+  bump-ups, both grounded in transcript. No bot-side language used.
+rule_draft:
+  seed_messages:
+  - Hello?
+  - I've bumped my ad up for it to only be on the 1st page for less then a day. Now I've paid for it to be featured for 17
+    days but it isn't showing?
+  - Separating them into brands makes it more difficult to sell
+  user_goal_summary: 'User reports Payments. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I've bumped my ad up for it to only be on the 1st page for less then a day. Now I've paid for it to be featured for 17
+    days but it isn't showing?
+  - This is idiotic featuring it only based on the phones model
+  - Separating them into brands makes it more difficult to sell
+  user_goal_summary: 'User paid for featured ad and bump-ups but ad not showing in correct category; wants it working or full
+    refunds. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad is for a Poco X6 Pro Plus phone and was posted in the Mobile Phones > Xiaomi category, but it does not appear
+      in general mobile phone searches.
+    disclose_when: when troubleshooting the ad visibility
+accepted_value:
+  seed_messages:
+  - I've bumped my ad up for it to only be on the 1st page for less then a day. Now I've paid for it to be featured for 17
+    days but it isn't showing?
+  - This is idiotic featuring it only based on the phones model
+  - Separating them into brands makes it more difficult to sell
+  user_goal_summary: 'User paid for featured ad and bump-ups but ad not showing in correct category; wants it working or full
+    refunds. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad is for a Poco X6 Pro Plus phone and was posted in the Mobile Phones > Xiaomi category, but it does not appear
+      in general mobile phone searches.
+    disclose_when: when troubleshooting the ad visibility
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user also paid for multiple bump-ups, but claims none of them worked.'''

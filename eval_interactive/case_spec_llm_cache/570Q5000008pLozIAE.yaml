@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008pLozIAE
+case_id_hint: cs_interactive_010
+llm_model: deepseek-v4-pro
+prompt_hash: 14f6909fa75d070fa122b4d7375066816598b317c7c54260f0b41f60cf9f5ccc
+generated_at: '2026-04-30T10:39:41.103481+00:00'
+llm_confidence: high
+llm_rationale: Replaced greetings/closings with actual issue-bearing visitor turns from the transcript to better capture the
+  user's initial request and shift to account deletion. Updated summary to reflect the user's goal including the hard shift.
+  Added hidden facts grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Hi Monisha
+  - I can't receieve that email, I no longer have access to any of the email address on my account
+  - no, that is all thanks
+  user_goal_summary: 'User reports Account Support: hello, there''s 3 contact emails on my account [EMAIL] & [EMAIL] & [EMAIL]
+    can you please delete them so I can add a new one. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - the other emails are just contact emails. can they not be deleted?
+  - okay. how do i delete this account?
+  - I can't receieve that email, I no longer have access to any of the email address on my account
+  user_goal_summary: 'User wants to delete three old contact emails from their Gumtree account and add a new one. When told
+    it''s impossible, they request account deletion instead. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - the other emails are just contact emails. can they not be deleted?
+  - okay. how do i delete this account?
+  - I can't receieve that email, I no longer have access to any of the email address on my account
+  user_goal_summary: 'User wants to delete three old contact emails from their Gumtree account and add a new one. When told
+    it''s impossible, they request account deletion instead. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has three contact emails on their Gumtree account: [EMAIL], [EMAIL], [EMAIL].'''
+- 'unsupported_hidden_fact_dropped: ''The user provides an alternative email [EMAIL] for receiving the account deletion confirmation.'''

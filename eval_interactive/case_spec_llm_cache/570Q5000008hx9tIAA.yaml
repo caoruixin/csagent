@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008hx9tIAA
+case_id_hint: cs_interactive_012
+llm_model: deepseek-v4-pro
+prompt_hash: 5d130a67391786b39f292e8f742f8b1b6d7457c4403ed430e2bd66704da12b78
+generated_at: '2026-04-30T09:10:55.524164+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed_messages were greetings/closings that do not capture the actual issue. The transcript contains
+  multiple clear statements of the problem (ad deletion, request for explanation, comparison with other ads). Replaced with
+  verbatim issue-bearing turns. The user_goal_summary reflects the user's requests as stated. Hidden facts are drawn from
+  the ad ID and kitten age details mentioned.
+rule_draft:
+  seed_messages:
+  - Hi Jason
+  - Thank you and happy new year
+  - Ok pls look in to this as soon as possible pls
+  user_goal_summary: 'User reports Ad Support: Kitten. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - This add I put it keep deleting by your side
+  - Can you pls tell me what am I doing wrong
+  - Sure ,but I checked other people add on this side they even put new born kittens and allready trying to sale it on side
+    11 days old kittens
+  user_goal_summary: 'The user wants to know why their ad for 11-week-old kittens keeps getting deleted, to understand what
+    they are doing wrong, and to have the issue investigated and resolved; they also request a phone number to speak with
+    support. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user's ad ID is 1508388583.
+    disclose_when: When asked for a reference number or ad ID.
+accepted_value:
+  seed_messages:
+  - This add I put it keep deleting by your side
+  - Can you pls tell me what am I doing wrong
+  - Sure ,but I checked other people add on this side they even put new born kittens and allready trying to sale it on side
+    11 days old kittens
+  user_goal_summary: 'The user wants to know why their ad for 11-week-old kittens keeps getting deleted, to understand what
+    they are doing wrong, and to have the issue investigated and resolved; they also request a phone number to speak with
+    support. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user's ad ID is 1508388583.
+    disclose_when: When asked for a reference number or ad ID.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

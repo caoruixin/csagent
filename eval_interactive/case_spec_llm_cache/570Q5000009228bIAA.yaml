@@ -1,0 +1,38 @@
+source_session_id: 570Q5000009228bIAA
+case_id_hint: row_329
+llm_model: deepseek-v4-pro
+prompt_hash: 93c6d3e49b45cbc76ea1625e6a8c28630378bd724ddc6dc837f73caced39a454
+generated_at: '2026-04-30T20:01:03.707071+00:00'
+llm_confidence: high
+llm_rationale: Seed messages taken verbatim from issue-bearing visitor turns (seq 3 and seq 12). Dropped 'Hello?' as it is
+  not issue-related. User goal summary accurately reflects the complaint and resolution desire. Hidden fact derived directly
+  from the transcript's email reference.
+rule_draft:
+  seed_messages:
+  - Hello, all of my post are being removed saying I am breaking posting policies and that I will receive an email explaining,
+    but I never get the email?
+  - I’ve reposted and it seems to be on there ty
+  - Hello?
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hello, all of my post are being removed saying I am breaking posting policies and that I will receive an email explaining,
+    but I never get the email?
+  - I’ve reposted and it seems to be on there ty
+  user_goal_summary: 'User reports that all their posts are being removed for alleged policy violations, and they never receive
+    the promised email explanation. They want to understand why and to have their posts restored. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hello, all of my post are being removed saying I am breaking posting policies and that I will receive an email explaining,
+    but I never get the email?
+  - I’ve reposted and it seems to be on there ty
+  user_goal_summary: 'User reports that all their posts are being removed for alleged policy violations, and they never receive
+    the promised email explanation. They want to understand why and to have their posts restored. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s account email is [EMAIL]."'

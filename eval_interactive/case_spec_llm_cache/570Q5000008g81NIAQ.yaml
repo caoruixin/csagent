@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008g81NIAQ
+case_id_hint: row_234
+llm_model: deepseek-v4-pro
+prompt_hash: 36085f12aadf5dbde0f4f3cd5402959cbcc9c28a0478acb10885d514688ad739
+generated_at: '2026-04-30T19:36:14.225456+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and directly relate to the password reset issue and user confusion.
+  User goal summary updated to reflect actual need based on conversation. No hidden facts necessary as the key information
+  is already in seed messages.
+rule_draft:
+  seed_messages:
+  - Euphemia4
+  - Sorry not shore what that was about
+  user_goal_summary: 'User reports Account Support: Forgot my password like to change told number. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Euphemia4
+  - Sorry not shore what that was about
+  user_goal_summary: 'The user needs to reset their forgotten password and was unable to complete the reset with the temporary
+    password ''Euphemia4''. They require assistance to set a new password. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Euphemia4
+  - Sorry not shore what that was about
+  user_goal_summary: 'The user needs to reset their forgotten password and was unable to complete the reset with the temporary
+    password ''Euphemia4''. They require assistance to set a new password. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

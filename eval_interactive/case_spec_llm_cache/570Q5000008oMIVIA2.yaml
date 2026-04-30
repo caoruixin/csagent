@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008oMIVIA2
+case_id_hint: row_270
+llm_model: deepseek-v4-pro
+prompt_hash: 054962bb58106e644e1b782de69903e5fd6691da1df4c3c020a451a117c9f11b
+generated_at: '2026-04-30T19:44:27.210687+00:00'
+llm_confidence: high
+llm_rationale: Original seed_messages were a greeting, a closing, and a post-resolution summary. Replaced with verbatim visitor
+  turns that directly state the core issue (no replies, possible restrictions, confusion about ticks). Updated user_goal_summary
+  to reflect the actual problem. Added grounded hidden facts about the user's neurodivergence and the specific ad details
+  from the transcript.
+rule_draft:
+  seed_messages:
+  - Hey my names tony slinger my email is [EMAIL]
+  - Thanks all.helps ill wait reply thanks sorry bother you bye
+  - Ok so im All ok no restrictioms At all just wait reply
+  user_goal_summary: 'User reports Technical Support: Issue trying get replies. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Can tell me why when messge ads dont get any reply's
+  - Ad my account any restrictions is that why
+  - Just wounder if 2 tick means reading it
+  user_goal_summary: 'User wants to understand why he is not receiving replies to messages he sends on Gumtree ads, and to
+    check if his account has restrictions causing the problem. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'The user is trying to get replies about a Bose speaker ad (ad ID: 1506959247), and wants to know if it''s still
+      available, lowest price, and if they can swap numbers.'
+    disclose_when: When the bot asks about the specific ad or the content of the messages.
+accepted_value:
+  seed_messages:
+  - Can tell me why when messge ads dont get any reply's
+  - Ad my account any restrictions is that why
+  - Just wounder if 2 tick means reading it
+  user_goal_summary: 'User wants to understand why he is not receiving replies to messages he sends on Gumtree ads, and to
+    check if his account has restrictions causing the problem. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'The user is trying to get replies about a Bose speaker ad (ad ID: 1506959247), and wants to know if it''s still
+      available, lowest price, and if they can swap numbers.'
+    disclose_when: When the bot asks about the specific ad or the content of the messages.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user is autistic with learning difficulties and ADHD, and tends to overthink and
+  stress easily.'''

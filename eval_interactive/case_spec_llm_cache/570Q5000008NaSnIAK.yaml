@@ -1,0 +1,46 @@
+source_session_id: 570Q5000008NaSnIAK
+case_id_hint: row_226
+llm_model: deepseek-v4-pro
+prompt_hash: 8589298a5d0fa07f707612e84391eb272c967fe5159ab187cbda5a35c42d2b57
+generated_at: '2026-04-30T19:29:02.534194+00:00'
+llm_confidence: high
+llm_rationale: 'All seed_messages are direct quotes from visitor turns that clearly express the user''s issue. The user_goal_summary
+  was refined to concretely state what the user wants: immediate resolution of ad issue and contact from the account manager.
+  Hidden fact grounded in the transcript provides contact details.'
+rule_draft:
+  seed_messages:
+  - Please sort it out asap we already pay for that and our ads are not bumping up. I sent query yesterday as well but its
+    still same
+  - can you ask them to contact us on in this email [EMAIL] or call us on 07720 887859 we been trying to contact but its not
+    working out.
+  - Please sort it out asap we are really appreciate
+  user_goal_summary: 'User reports Account Support: ads not bumping up. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Please sort it out asap we already pay for that and our ads are not bumping up. I sent query yesterday as well but its
+    still same
+  - can you ask them to contact us on in this email [EMAIL] or call us on 07720 887859 we been trying to contact but its not
+    working out.
+  - Please sort it out asap we are really appreciate
+  user_goal_summary: 'User needs urgent assistance with paid ads not bumping up and requests that the account manager contact
+    them at phone 07720 887859 or [EMAIL]. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'Preferred contact method: email [EMAIL] or phone 07720 887859'
+    disclose_when: when asked for contact information
+accepted_value:
+  seed_messages:
+  - Please sort it out asap we already pay for that and our ads are not bumping up. I sent query yesterday as well but its
+    still same
+  - can you ask them to contact us on in this email [EMAIL] or call us on 07720 887859 we been trying to contact but its not
+    working out.
+  - Please sort it out asap we are really appreciate
+  user_goal_summary: 'User needs urgent assistance with paid ads not bumping up and requests that the account manager contact
+    them at phone 07720 887859 or [EMAIL]. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'Preferred contact method: email [EMAIL] or phone 07720 887859'
+    disclose_when: when asked for contact information
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008dsiHIAQ
+case_id_hint: row_77
+llm_model: deepseek-v4-pro
+prompt_hash: 25f1cb927f00559375b3160f21da710eec81b87b10585e9cc61d6fb1fb961ffc
+generated_at: '2026-04-30T13:21:41.920007+00:00'
+llm_confidence: high
+llm_rationale: Original seed_messages were greetings, thanks, and an email request, which do not convey the user's issue.
+  Replaced with two visitor turns that directly state the core problem (not a business) and express frustration with repeated
+  explanations. User_goal_summary rewritten to reflect only the user's desired outcomes. Hidden facts added based on transcript
+  details about prior contact and unfamiliarity with Pro accounts.
+rule_draft:
+  seed_messages:
+  - ok thanks
+  - ok thank you may i have your e mail address pls
+  - dont know what that is dont think so
+  user_goal_summary: 'User reports Account Support: hi i am getting charged for ads and the app autimatically lists me as
+    a business but i am not. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - i am not a business
+  - i already spoke to some one on 15 th dec aprox can i please get an e mail to register this so i dont have to start over
+    for a third time thanks
+  user_goal_summary: 'User wants Gumtree to stop charging them for ads, correct their account from business to personal, and
+    avoid having to re-explain their issue to multiple agents. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - i am not a business
+  - i already spoke to some one on 15 th dec aprox can i please get an e mail to register this so i dont have to start over
+    for a third time thanks
+  user_goal_summary: 'User wants Gumtree to stop charging them for ads, correct their account from business to personal, and
+    avoid having to re-explain their issue to multiple agents. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user previously contacted Gumtree support around December 15th about the same issue.'''
+- 'unsupported_hidden_fact_dropped: ''The user does not know what a Pro account is.'''

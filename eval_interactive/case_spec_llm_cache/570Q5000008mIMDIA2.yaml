@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008mIMDIA2
+case_id_hint: row_282
+llm_model: deepseek-v4-pro
+prompt_hash: 45a2801e8a36085576c1824850091e27b437add9584bd448b6a413b9ebf6bde3
+generated_at: '2026-04-30T19:46:54.266038+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are verbatim from issue-bearing visitor turns (seq 7, 11, 8) and capture the core complaint.
+  The user goal summary condenses the transcript into a factual statement under 280 characters. No hidden facts are added
+  because the transcript does not contain undisclosed, actionable details beyond what the seed messages and summary already
+  convey.
+rule_draft:
+  seed_messages:
+  - '[EMAIL] was my original and very old email'
+  - Okay, seems fairly unhelp when I have 47 messages I needed to keep but okay. Thanks.
+  - and one i can rarely access anymore
+  user_goal_summary: 'User reports Account Support: I have changed my email address in the last few months on my account,
+    however the emails to say I have messages are still not being sent to the correct email address - they are still going
+    to an email I can only check... Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - '[EMAIL] was my original and very old email'
+  - Okay, seems fairly unhelp when I have 47 messages I needed to keep but okay. Thanks.
+  - and one i can rarely access anymore
+  user_goal_summary: 'User changed their email address on their account months ago, but notification emails for messages are
+    still being sent to the old email address which they rarely access; they want this fixed and they do not want to lose
+    the 47 messages stored in the account. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - '[EMAIL] was my original and very old email'
+  - Okay, seems fairly unhelp when I have 47 messages I needed to keep but okay. Thanks.
+  - and one i can rarely access anymore
+  user_goal_summary: 'User changed their email address on their account months ago, but notification emails for messages are
+    still being sent to the old email address which they rarely access; they want this fixed and they do not want to lose
+    the 47 messages stored in the account. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,36 @@
+source_session_id: 570Q50000090KPlIAM
+case_id_hint: row_252
+llm_model: deepseek-v4-pro
+prompt_hash: dd5916c180e79e8469280990ef615ea0f17a8a71c397b6b16def50eac323a53b
+generated_at: '2026-04-30T19:39:56.993225+00:00'
+llm_confidence: high
+llm_rationale: The rule draft's seed messages accurately capture the user's request, waiting state, and frustration, and are
+  verbatim from transcript. The user goal was rephrased to describe only the user's desire without bot-side expectations.
+  No hidden facts are evident from the transcript.
+rule_draft:
+  seed_messages:
+  - Repost car ad
+  - Okay, let me know when you have my acc
+  - ??????
+  user_goal_summary: 'User reports Ad Support: Hi, just been disconnected by agent. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - Repost car ad
+  - Okay, let me know when you have my acc
+  - ??????
+  user_goal_summary: 'The user wants to repost a car ad and is checking if the agent has their account for assistance. Drift:
+    soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Repost car ad
+  - Okay, let me know when you have my acc
+  - ??????
+  user_goal_summary: 'The user wants to repost a car ad and is checking if the agent has their account for assistance. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

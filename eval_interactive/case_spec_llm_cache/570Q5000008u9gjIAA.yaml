@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008u9gjIAA
+case_id_hint: cs_interactive_014
+llm_model: deepseek-v4-pro
+prompt_hash: 9390bf297cb917ff575b1c14a1a750924da79653c83a1d379965b896f8c66cdc
+generated_at: '2026-04-30T10:45:06.221291+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue-bearing seed message 'Ok thanks' with turn [9] that clearly states the user's desire. Improved
+  user_goal_summary from vague description to specific request. Added hidden_fact about the email situation based on transcript.
+rule_draft:
+  seed_messages:
+  - Ok thanks
+  - I'd be happy enough if the contact email address was reverted to the original account address
+  - Not that anyone will care of course 🤪😃
+  user_goal_summary: 'User reports Replies & Messaging: Hi. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - How come an administrator can't atleast make the contact email match the main account email?
+  - I'd be happy enough if the contact email address was reverted to the original account address
+  user_goal_summary: 'The user wants their contact email reverted to the original account email to fix messaging problems.
+    Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - How come an administrator can't atleast make the contact email match the main account email?
+  - I'd be happy enough if the contact email address was reverted to the original account address
+  user_goal_summary: 'The user wants their contact email reverted to the original account email to fix messaging problems.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The account has two email addresses: a login email and an older contact email that no
+  longer works.'''

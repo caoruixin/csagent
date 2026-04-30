@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008i6JdIAI
+case_id_hint: row_61
+llm_model: deepseek-v4-pro
+prompt_hash: b35329c5033ab0994a67f9ecf22b8672bfccf616cd00fab3f77b935f1efe0906
+generated_at: '2026-04-30T13:17:17.799875+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting/ack seed messages with transcript-grounded issue statements (seq 11 and seq 17). Updated
+  summary to be factual, specific, and within 280 characters. Added two hidden_facts derived from the transcript (account
+  block and incorrect email) to improve simulator fidelity.
+rule_draft:
+  seed_messages:
+  - Hello Thato, thank you
+  - It’s for all the ads, each time I try to reply to an ad it won’t let me. I am looking for a flat and unable to answer
+    ads of other people. I didn’t post an ad myself
+  - Exactly ok thanks
+  user_goal_summary: 'User reports Account Support: I can’t send messages to reply to ads. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It’s for all the ads, each time I try to reply to an ad it won’t let me. I am looking for a flat and unable to answer
+    ads of other people. I didn’t post an ad myself
+  - I think it’s an email that has been linked automatically to my account but it’s not my email address
+  user_goal_summary: 'User is unable to reply to ads on Gumtree, preventing her from answering flat listings. She also wants
+    to correct the automatically linked email address that is not hers. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It’s for all the ads, each time I try to reply to an ad it won’t let me. I am looking for a flat and unable to answer
+    ads of other people. I didn’t post an ad myself
+  - I think it’s an email that has been linked automatically to my account but it’s not my email address
+  user_goal_summary: 'User is unable to reply to ads on Gumtree, preventing her from answering flat listings. She also wants
+    to correct the automatically linked email address that is not hers. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s Gumtree account is blocked, preventing her from sending replies to ads."'
+- 'unsupported_hidden_fact_dropped: ''The email address on the account is not her real email; it was linked automatically
+  and she does not have access to it.'''

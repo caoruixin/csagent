@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008vyxJIAQ
+case_id_hint: cs_interactive_002
+llm_model: deepseek-v4-pro
+prompt_hash: f74481554f0f49499a82920feae89bf9eab6c314ea828aa856a521297c2bc09a
+generated_at: '2026-04-30T10:27:19.115293+00:00'
+llm_confidence: high
+llm_rationale: 'Seed messages are verbatim visitor turns that capture the core issue: the notification problem, the spam aversion,
+  and the conflict between the two. The refined summary makes the user''s specific desire explicit while remaining factual
+  and free of bot-side instructions. No hidden facts are needed beyond what the transcript already discloses.'
+rule_draft:
+  seed_messages:
+  - How long do I have to wait to sort this out? Its been this way since day 1.
+  - So in order to receive notifications I HAVE to receive messages from you that I don't want and am not interested in??
+  - I don't want to receive spam from you.
+  user_goal_summary: 'User reports Replies & Messaging: I am not receiving notifications from you when messages are arriving
+    in my inbox. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - How long do I have to wait to sort this out? Its been this way since day 1.
+  - I don't want to receive spam from you.
+  - So in order to receive notifications I HAVE to receive messages from you that I don't want and am not interested in??
+  user_goal_summary: 'Wants to receive message notifications without having to enable marketing preferences that would cause
+    unwanted spam. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - How long do I have to wait to sort this out? Its been this way since day 1.
+  - I don't want to receive spam from you.
+  - So in order to receive notifications I HAVE to receive messages from you that I don't want and am not interested in??
+  user_goal_summary: 'Wants to receive message notifications without having to enable marketing preferences that would cause
+    unwanted spam. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

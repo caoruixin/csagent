@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008pzXtIAI
+case_id_hint: row_257
+llm_model: deepseek-v4-pro
+prompt_hash: e8b1caeeb43fd2aafd007aff74b1d59b2eed169c4b0f80fde796ee06e776ae2c
+generated_at: '2026-04-30T19:40:46.575467+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim issue-bearing visitor turns. Summary captures the core problem concisely. Hidden
+  facts are explicitly supported by the transcript and provide useful simulation details.
+rule_draft:
+  seed_messages:
+  - I havent used gumtree for few years
+  - I dont know cant access gum tree to answer that question
+  - waiting for new link to arrive from my email address
+  user_goal_summary: 'User reports Account Support: where is my ad. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I havent used gumtree for few years
+  - I dont know cant access gum tree to answer that question
+  - waiting for new link to arrive from my email address
+  user_goal_summary: 'User wants to access their Gumtree account to manage an expired listing from 2022, but is unable to
+    reset password. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Their Gumtree ad ID is 1436278360
+    disclose_when: when asked for ad ID
+  - fact: The user hasn't used Gumtree for a few years and last posted in 2022
+    disclose_when: when asked about account activity or history
+accepted_value:
+  seed_messages:
+  - I havent used gumtree for few years
+  - I dont know cant access gum tree to answer that question
+  - waiting for new link to arrive from my email address
+  user_goal_summary: 'User wants to access their Gumtree account to manage an expired listing from 2022, but is unable to
+    reset password. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Their Gumtree ad ID is 1436278360
+    disclose_when: when asked for ad ID
+  - fact: The user hasn't used Gumtree for a few years and last posted in 2022
+    disclose_when: when asked about account activity or history
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

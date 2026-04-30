@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008ppBxIAI
+case_id_hint: row_220
+llm_model: deepseek-v4-pro
+prompt_hash: 5ac19c7c0a2d2b6471e864ec50220bbf06928f6a2c04bb68f739283f8641a3d8
+generated_at: '2026-04-30T19:26:38.096402+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim and issue-bearing. User goal summary accurately reflects the user's intent. Hidden
+  facts are grounded in the transcript and useful for escalation context.
+rule_draft:
+  seed_messages:
+  - Yes, I have.
+  - With a different browser, the reset email has not arrived.
+  - I can see chats for a 2017 advert - cannot find the ID for that.
+  user_goal_summary: 'User reports Account Support: I cannot log in. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Yes, I have.
+  - With a different browser, the reset email has not arrived.
+  - I can see chats for a 2017 advert - cannot find the ID for that.
+  user_goal_summary: 'User wants to regain access to their old account without losing history. Password reset emails are not
+    arriving despite using the original email, and they cannot log in. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User initially signed up over 12 years ago and still has the same email address.
+    disclose_when: when asked about account age or registration details
+  - fact: User has correspondence from ads running 2013-2016, including ad ID 1026924932, and can see chats for a 2017 advert
+      but cannot find the ID.
+    disclose_when: when asked for ad history or proof of account ownership
+accepted_value:
+  seed_messages:
+  - Yes, I have.
+  - With a different browser, the reset email has not arrived.
+  - I can see chats for a 2017 advert - cannot find the ID for that.
+  user_goal_summary: 'User wants to regain access to their old account without losing history. Password reset emails are not
+    arriving despite using the original email, and they cannot log in. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User initially signed up over 12 years ago and still has the same email address.
+    disclose_when: when asked about account age or registration details
+  - fact: User has correspondence from ads running 2013-2016, including ad ID 1026924932, and can see chats for a 2017 advert
+      but cannot find the ID.
+    disclose_when: when asked for ad history or proof of account ownership
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

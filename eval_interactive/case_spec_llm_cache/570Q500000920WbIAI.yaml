@@ -1,0 +1,41 @@
+source_session_id: 570Q500000920WbIAI
+case_id_hint: row_258
+llm_model: deepseek-v4-pro
+prompt_hash: a6ffcdc3d5e7b7207aee9e7de1813c56a51e00836bdde9b181c15cf36f555bf9
+generated_at: '2026-04-30T19:43:09.904928+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced ''Trying that now one aec'' with more issue-bearing quotes: ''It says I have no active ads'' and
+  ''Neither of these had anything to do with me!'' to better capture the user''s core problem and frustration. Updated user_goal_summary
+  to be a specific, factual description of the user''s goal (under 280 characters). Added a hidden fact about the payment
+  confirmation email, supported by the transcript.'
+rule_draft:
+  seed_messages:
+  - Can’t find my advertisement
+  - I am following a link from confirmation of payment !!
+  - Trying that now one aec
+  user_goal_summary: 'User reports Account Support: Can’t find my as. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Can’t find my advertisement
+  - It says I have no active ads
+  - Neither of these had anything to do with me !
+  user_goal_summary: 'User can’t find their paid advertisement, which they accessed via a payment confirmation link. The ad
+    is shown under an email the user does not recognize. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user received a payment confirmation email for ad ID 1509495375 and clicked the link.
+    disclose_when: when asked how they know about the ad or for proof of payment
+accepted_value:
+  seed_messages:
+  - Can’t find my advertisement
+  - It says I have no active ads
+  - Neither of these had anything to do with me !
+  user_goal_summary: 'User can’t find their paid advertisement, which they accessed via a payment confirmation link. The ad
+    is shown under an email the user does not recognize. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user received a payment confirmation email for ad ID 1509495375 and clicked the link.
+    disclose_when: when asked how they know about the ad or for proof of payment
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

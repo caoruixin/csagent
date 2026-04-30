@@ -1,0 +1,56 @@
+source_session_id: 570Q5000008gVpCIAU
+case_id_hint: cs_interactive_126
+llm_model: deepseek-v4-pro
+prompt_hash: 0d94643c9981101d8d462c9c01367d5f8d4a9a6bc6bb287732e7530efb226ea0
+generated_at: '2026-04-30T20:50:03.347655+00:00'
+llm_confidence: high
+llm_rationale: All three seed messages are verbatim quotes from visitor turns (seq 4, seq 17, seq 22) and capture the core
+  issue. The user_goal_summary succinctly describes the user's desire for investigation. Hidden facts are grounded in the
+  transcript (seller name in seq 14, operation and help in seq 17).
+rule_draft:
+  seed_messages:
+  - The seller agreed to sell me an ikea soderhamn sofa and chair. I hired a van and my son in law took a day off work to
+    do so. Date arranged was 22.12. Seller contacted me on 19.22 to say he'd sold it to someone else. I had been in contact
+    with him from 3.12, trying to buy the items, waiting through sales that had fallen through, keeping in regular contact
+    as I really wanted to buy. I contacted gumtree around 27.12 but got no reply. Ad now deleted so I can't provide I'd number,
+    sorry
+  - I was so disappointed, especially as I'd tried so hard to get to buy. Items were perfect for me. Also, as you'll see from
+    messages, I'd had an op on 3.12, so it really was a huge effort for me, which I conveyed in my message exchange with him
+  - Sorry, meant reneging on our agreement I meant
+  user_goal_summary: 'User reports Delivery: Let down by seller. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - The seller agreed to sell me an ikea soderhamn sofa and chair. I hired a van and my son in law took a day off work to
+    do so. Date arranged was 22.12. Seller contacted me on 19.22 to say he'd sold it to someone else. I had been in contact
+    with him from 3.12, trying to buy the items, waiting through sales that had fallen through, keeping in regular contact
+    as I really wanted to buy. I contacted gumtree around 27.12 but got no reply. Ad now deleted so I can't provide I'd number,
+    sorry
+  - I was so disappointed, especially as I'd tried so hard to get to buy. Items were perfect for me. Also, as you'll see from
+    messages, I'd had an op on 3.12, so it really was a huge effort for me, which I conveyed in my message exchange with him
+  - Sorry, meant reneging on our agreement I meant
+  user_goal_summary: 'User reports that a Gumtree seller reneged on a sale agreement after she made significant efforts (hired
+    a van, son-in-law took day off). She wants Gumtree to investigate the seller and take appropriate action. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user had an operation on 3.12 and arranged for others to help her with the collection.
+    disclose_when: When asked about why this was particularly disappointing or if the user wants to share more about the situation.
+accepted_value:
+  seed_messages:
+  - The seller agreed to sell me an ikea soderhamn sofa and chair. I hired a van and my son in law took a day off work to
+    do so. Date arranged was 22.12. Seller contacted me on 19.22 to say he'd sold it to someone else. I had been in contact
+    with him from 3.12, trying to buy the items, waiting through sales that had fallen through, keeping in regular contact
+    as I really wanted to buy. I contacted gumtree around 27.12 but got no reply. Ad now deleted so I can't provide I'd number,
+    sorry
+  - I was so disappointed, especially as I'd tried so hard to get to buy. Items were perfect for me. Also, as you'll see from
+    messages, I'd had an op on 3.12, so it really was a huge effort for me, which I conveyed in my message exchange with him
+  - Sorry, meant reneging on our agreement I meant
+  user_goal_summary: 'User reports that a Gumtree seller reneged on a sale agreement after she made significant efforts (hired
+    a van, son-in-law took day off). She wants Gumtree to investigate the seller and take appropriate action. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user had an operation on 3.12 and arranged for others to help her with the collection.
+    disclose_when: When asked about why this was particularly disappointing or if the user wants to share more about the situation.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The seller''s name is Ash and they live in Edinburgh."'

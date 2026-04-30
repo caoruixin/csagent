@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008kJHZIA2
+case_id_hint: row_173
+llm_model: deepseek-v4-pro
+prompt_hash: 491a7dd1be5f2900c6478a69a828c442ed54203a633a8d2bc3b665127672501c
+generated_at: '2026-04-30T19:11:11.738300+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are verbatim visitor turns that clearly state the issue. The original user_goal_summary was
+  incorrect (copied from a form about a dog), so it was replaced with an accurate, concise summary from the transcript. No
+  hidden facts are evident in the transcript.
+rule_draft:
+  seed_messages:
+  - I would like my add reposted or a refund as it was only active for around 20 minutes . Thank you
+  - Why does it need a specialist team can you explain why . The add was approved then removed . My payment was still taken
+    .
+  - Just issue the refund . Thanks
+  user_goal_summary: 'User reports Account Support: This is panda she''s an old English bulldog, 3.5 years old she''s had
+    1 litter and hasn''t been spayed yet , she''s a leggier type girl strong fit and healthy as you can see in the pics ,
+    she''s a super clean breather too... Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I would like my add reposted or a refund as it was only active for around 20 minutes . Thank you
+  - Why does it need a specialist team can you explain why . The add was approved then removed . My payment was still taken
+    .
+  - Just issue the refund . Thanks
+  user_goal_summary: 'The user wants a refund for a Gumtree ad that was approved and then removed after being active for only
+    about 20 minutes, and wants to know if reposting a similar ad is allowed before the refund is processed. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I would like my add reposted or a refund as it was only active for around 20 minutes . Thank you
+  - Why does it need a specialist team can you explain why . The add was approved then removed . My payment was still taken
+    .
+  - Just issue the refund . Thanks
+  user_goal_summary: 'The user wants a refund for a Gumtree ad that was approved and then removed after being active for only
+    about 20 minutes, and wants to know if reposting a similar ad is allowed before the refund is processed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

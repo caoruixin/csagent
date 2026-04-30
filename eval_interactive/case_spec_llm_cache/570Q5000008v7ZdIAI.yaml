@@ -1,0 +1,49 @@
+source_session_id: 570Q5000008v7ZdIAI
+case_id_hint: row_79
+llm_model: deepseek-v4-pro
+prompt_hash: 839deba1098b1dbfc9ca5add0a6cd8c417fd022f4006276e3da0f2ddf7f22dbe
+generated_at: '2026-04-30T13:23:02.860482+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and capture the issue. Improved user_goal_summary to be specific
+  about the demanded action and context. Added hidden_facts grounded in the transcript to provide ad details and user's payment
+  situation for more realistic simulation.
+rule_draft:
+  seed_messages:
+  - Hi - I have in contact with you for months now regarding taking down advertisements that are services posting in the community
+    section.
+  - or someone who can help me?
+  - Can I speak to your manager
+  user_goal_summary: 'User reports Technical Support: Services still posting on community ads for free. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi - I have in contact with you for months now regarding taking down advertisements that are services posting in the community
+    section.
+  - or someone who can help me?
+  - Can I speak to your manager
+  user_goal_summary: 'User demands immediate removal of two service ads (French lessons, Japanese tutor) posted free in the
+    community section, reported for months without action; they pay for their own ads. Drift: minor_drift.'
+  hidden_facts:
+  - fact: The reported ads are for 'French lessons with a native speaker online lessons' (ad ID 1504724735) and 'Japanese
+      tutor native speaker any level' (ad ID 1506559360).
+    disclose_when: When asked for ad IDs, links, or to identify the specific ads.
+  - fact: The user pays thousands of pounds per year to advertise their own services in the service section.
+    disclose_when: When asked why this is urgent or when expressing frustration about fairness or policy enforcement.
+accepted_value:
+  seed_messages:
+  - Hi - I have in contact with you for months now regarding taking down advertisements that are services posting in the community
+    section.
+  - or someone who can help me?
+  - Can I speak to your manager
+  user_goal_summary: 'User demands immediate removal of two service ads (French lessons, Japanese tutor) posted free in the
+    community section, reported for months without action; they pay for their own ads. Drift: minor_drift.'
+  hidden_facts:
+  - fact: The reported ads are for 'French lessons with a native speaker online lessons' (ad ID 1504724735) and 'Japanese
+      tutor native speaker any level' (ad ID 1506559360).
+    disclose_when: When asked for ad IDs, links, or to identify the specific ads.
+  - fact: The user pays thousands of pounds per year to advertise their own services in the service section.
+    disclose_when: When asked why this is urgent or when expressing frustration about fairness or policy enforcement.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

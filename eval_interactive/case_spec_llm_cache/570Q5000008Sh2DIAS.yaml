@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008Sh2DIAS
+case_id_hint: row_229
+llm_model: deepseek-v4-pro
+prompt_hash: 8d7b19b6f05b87c29485a23404beef669311ab3ac187f9c168d700a317d9fdd2
+generated_at: '2026-04-30T19:34:42.180013+00:00'
+llm_confidence: high
+llm_rationale: All seed_messages are verbatim from the transcript and capture the issue. User_goal_summary updated to reflect
+  specific ad and payment problem. No hidden facts needed.
+rule_draft:
+  seed_messages:
+  - I'm trying to post a job advert.
+  - When I get to the time to pay I click payment and it just gets saved.
+  - But I had this job ad running before, so I wanted the same ad
+  user_goal_summary: 'User reports Ad Support: Job ad for therapists. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I'm trying to post a job advert.
+  - When I get to the time to pay I click payment and it just gets saved.
+  - But I had this job ad running before, so I wanted the same ad
+  user_goal_summary: 'Post a job ad for therapists wanted in Kingsbury; when they click payment, the ad just gets saved and
+    they can''t pay. They had this ad running before and want to repost it. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I'm trying to post a job advert.
+  - When I get to the time to pay I click payment and it just gets saved.
+  - But I had this job ad running before, so I wanted the same ad
+  user_goal_summary: 'Post a job ad for therapists wanted in Kingsbury; when they click payment, the ad just gets saved and
+    they can''t pay. They had this ad running before and want to repost it. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

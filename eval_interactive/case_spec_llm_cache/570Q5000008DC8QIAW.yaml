@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008DC8QIAW
+case_id_hint: row_266
+llm_model: deepseek-v4-pro
+prompt_hash: 5bb2f79823684f1f744c9c7911eaeac67918d89236735f502ea50605fdf3f098
+generated_at: '2026-04-30T19:42:54.567383+00:00'
+llm_confidence: high
+llm_rationale: The original seed messages contained greetings and acknowledgments that do not describe the user's issue. Replaced
+  with the visitor turn (seq 4) that explicitly states the problem with the ad not loading and showing an error. The user
+  goal summary was rewritten to reflect the user's actual desire for the ad to load correctly. Hidden fact about the ad ID
+  was added based on the transcript.
+rule_draft:
+  seed_messages:
+  - Hello,
+  - Ok thank you, was just making sure
+  - '1506744687'
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - 'I have uploaded an AD but when it go to my active Ads and click it. It doesn''t load the ad it says: Sorry, the ad you
+    are looking for is no longer available. Please see similar ads below.'
+  user_goal_summary: 'User wants their uploaded ad to load properly instead of showing an error message. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The ad ID is 1506744687.
+    disclose_when: When asked for the ad ID or reference number.
+accepted_value:
+  seed_messages:
+  - 'I have uploaded an AD but when it go to my active Ads and click it. It doesn''t load the ad it says: Sorry, the ad you
+    are looking for is no longer available. Please see similar ads below.'
+  user_goal_summary: 'User wants their uploaded ad to load properly instead of showing an error message. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The ad ID is 1506744687.
+    disclose_when: When asked for the ad ID or reference number.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

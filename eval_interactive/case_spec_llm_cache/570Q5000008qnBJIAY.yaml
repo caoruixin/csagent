@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008qnBJIAY
+case_id_hint: row_48
+llm_model: deepseek-v4-pro
+prompt_hash: e583d31f98002105aedd44b1293934207eeed105f931fe299b2300a79c4097ce
+generated_at: '2026-04-30T13:13:20.433870+00:00'
+llm_confidence: high
+llm_rationale: Replaced 'sure hang on' and 'sure' with visitor turns that describe the issue (ad ID, buyer name, item, amount).
+  Improved user_goal_summary to reflect the specific request for the buyer's email address. Added a hidden fact about prior
+  fraud agency report based on the form description.
+rule_draft:
+  seed_messages:
+  - sure hang on
+  - sure
+  - 685£
+  user_goal_summary: 'User reports Report a Safety Issue: Hi, someone came to buy my phone off me yesterday and i’ve now realised
+    it’s a scam. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - 'Ad id: 1508692235 , John'
+  - iphone 16 pro
+  - 685£
+  user_goal_summary: 'User wants to report a scam where a buyer named John came to buy their iPhone 16 Pro (ad ID 1508692235)
+    for £685, and asks for the email address on his account. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - 'Ad id: 1508692235 , John'
+  - iphone 16 pro
+  - 685£
+  user_goal_summary: 'User wants to report a scam where a buyer named John came to buy their iPhone 16 Pro (ad ID 1508692235)
+    for £685, and asks for the email address on his account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: terse
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has already reported the scam to the fraud agency.'''

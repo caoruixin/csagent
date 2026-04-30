@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008w4g9IAA
+case_id_hint: cs_interactive_355
+llm_model: deepseek-v4-pro
+prompt_hash: 3436a831e58163cebf574b57f2f5e8b4450a9bfcb1bd236e8ce24a490b619674
+generated_at: '2026-04-30T21:04:16.745715+00:00'
+llm_confidence: high
+llm_rationale: Replaced one seed message that was a thank-you with a clearly issue-bearing turn about filing a complaint.
+  Updated user_goal_summary to be a specific factual sentence about the user's wishes. Added hidden_facts grounded in the
+  transcript to provide context about the previous interaction and the 30-day policy exception.
+rule_draft:
+  seed_messages:
+  - Please review my chat with Cortney on 24th January
+  - Thanks - I’ll use the email address
+  - I understand the 30 day policy but it can be overridden
+  user_goal_summary: 'User reports Ratings & Reviews: False review - follow up. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Please review my chat with Cortney on 24th January
+  - I need to put in a complaint about the result of this - how do I do that?
+  - I understand the 30 day policy but it can be overridden
+  user_goal_summary: 'User wants to dispute an old false review beyond 30 days, override the policy, and file a formal complaint
+    about the previous handling. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Please review my chat with Cortney on 24th January
+  - I need to put in a complaint about the result of this - how do I do that?
+  - I understand the 30 day policy but it can be overridden
+  user_goal_summary: 'User wants to dispute an old false review beyond 30 days, override the policy, and file a formal complaint
+    about the previous handling. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user had a previous interaction on January 24 with agent Cortney regarding this
+  false review, and the outcome was not in their favor.'''
+- 'unsupported_hidden_fact_dropped: ''The review being disputed is older than 30 days, so it falls outside the standard dispute
+  window, but the user insists the policy can be overridden.'''

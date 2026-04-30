@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008U8OXIA0
+case_id_hint: row_136
+llm_model: deepseek-v4-pro
+prompt_hash: 27ebdff5de561abf77bc93e5789a4aa0e896c6c2278dbbf5a1ec5ad76284b370
+generated_at: '2026-04-30T13:40:45.393232+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns expressing the core issue. User goal is clearly to confirm delivery
+  of a specific reply. Hidden fact is supported by agent's confirmation in the transcript.
+rule_draft:
+  seed_messages:
+  - Thanks, can you tell me whether my reply on the web-site has been delivered to the potential purchaser?
+  - Thanks, hopefully not too late if she/he still interested.
+  - just about an hour ago
+  user_goal_summary: 'User reports Account Support: I''m not receiving e-mails to my e-mail account when potential purchasers
+    reply to my ad. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Thanks, can you tell me whether my reply on the web-site has been delivered to the potential purchaser?
+  - Thanks, hopefully not too late if she/he still interested.
+  - just about an hour ago
+  user_goal_summary: 'User wants to confirm that their reply to a potential purchaser was delivered and hopes the purchaser
+    will still be interested. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user replied 'Yes still available' to the potential purchaser about an hour ago.
+    disclose_when: when the bot asks about the reply content or timing
+accepted_value:
+  seed_messages:
+  - Thanks, can you tell me whether my reply on the web-site has been delivered to the potential purchaser?
+  - Thanks, hopefully not too late if she/he still interested.
+  - just about an hour ago
+  user_goal_summary: 'User wants to confirm that their reply to a potential purchaser was delivered and hopes the purchaser
+    will still be interested. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user replied 'Yes still available' to the potential purchaser about an hour ago.
+    disclose_when: when the bot asks about the reply content or timing
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

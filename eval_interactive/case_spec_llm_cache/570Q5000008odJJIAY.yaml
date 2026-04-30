@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008odJJIAY
+case_id_hint: row_69
+llm_model: deepseek-v4-pro
+prompt_hash: 146dfed8a903ef48c27003347c61c633fbcf4b05ba70be5bf52fc3691a403e39
+generated_at: '2026-04-30T13:20:09.921595+00:00'
+llm_confidence: high
+llm_rationale: The original seed_messages included a greeting/joke turn which does not describe the issue. Replaced it with
+  a verbatim turn describing the 'Email Not Activated' error. The user_goal_summary was rewritten to be a concise factual
+  description of the problem without bot-side instructions, staying under 280 characters. Hidden facts were added based on
+  the user's undisclosed email address and multiple failed attempts, both grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Hello Courtney, I assume Cortney is a typing error?
+  - It also states Email Link No Longer Valid
+  - It also states- Email Link No Longer Valod
+  user_goal_summary: 'User reports Technical Support: Technical issue with your activation in email, therefore I can''t get
+    registered. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - The same screen appears staring ' Email Not Activated with a red cross
+  - It also states Email Link No Longer Valid
+  - It also states- Email Link No Longer Valod
+  user_goal_summary: 'User cannot activate their account because the email activation link shows ''Email Not Activated'' and
+    ''Email Link No Longer Valid''. They want the account to be activated successfully. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - The same screen appears staring ' Email Not Activated with a red cross
+  - It also states Email Link No Longer Valid
+  - It also states- Email Link No Longer Valod
+  user_goal_summary: 'User cannot activate their account because the email activation link shows ''Email Not Activated'' and
+    ''Email Link No Longer Valid''. They want the account to be activated successfully. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s email address is [REDACTED]@btopenworld.com"'
+- 'unsupported_hidden_fact_dropped: ''The user has attempted to use the activation link multiple times, and it consistently
+  fails with the same error messages'''

@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008bQa1IAE
+case_id_hint: row_67
+llm_model: deepseek-v4-pro
+prompt_hash: a17362f4db52a0ed757c9cd24bcb03adb31de707254241c66f1eff54f800ac4b
+generated_at: '2026-04-30T13:19:34.283013+00:00'
+llm_confidence: high
+llm_rationale: The seed messages are verbatim from substantive visitor turns and capture the issue and urgency. The user goal
+  summary is derived from the transcript, focusing on what the user explicitly requested. No hidden facts are evident from
+  the conversation.
+rule_draft:
+  seed_messages:
+  - 'Ad ID: 1508059319'
+  - You will contact me how??
+  - Okay escalate this ASAP and let me know how will I now????
+  user_goal_summary: 'User reports Ad Support: Hi ,please advise why I cannot post my advert...I tried few times and keeps
+    saying not being posted due to posting rules what is the issue pls explain???thanks. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - 'Ad ID: 1508059319'
+  - You will contact me how??
+  - Okay escalate this ASAP and let me know how will I now????
+  user_goal_summary: 'User wants to understand why his ad with ID 1508059319 was removed and to be contacted with a resolution,
+    preferably urgently because he is currently on a flight with limited data. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - 'Ad ID: 1508059319'
+  - You will contact me how??
+  - Okay escalate this ASAP and let me know how will I now????
+  user_goal_summary: 'User wants to understand why his ad with ID 1508059319 was removed and to be contacted with a resolution,
+    preferably urgently because he is currently on a flight with limited data. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

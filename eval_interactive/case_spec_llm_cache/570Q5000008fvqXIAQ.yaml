@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008fvqXIAQ
+case_id_hint: row_87
+llm_model: deepseek-v4-pro
+prompt_hash: a3a7198fafe7e0fb67a189c47e43fd5b51706b771bcabbd0d8407e7e7187014a
+generated_at: '2026-04-30T13:25:28.312363+00:00'
+llm_confidence: high
+llm_rationale: Removed 'thats it. Thanks.' as it's a sign-off, not issue-bearing. Kept the two issue-describing visitor turns
+  verbatim from transcripts. user_goal_summary rewritten to be specific and factual about the user's goal. Added a hidden_fact
+  about the seller's contact info, which the user mentioned having.
+rule_draft:
+  seed_messages:
+  - advert number 1508126982. Have sent £200 to them by paypal to secure purchase but seller now not responding to phone or
+    email or messeges. The money has been recived their end but they have now 'dissapeared'.
+  - thats it. Thanks.
+  - ok. Would like the report this as a FRAUD via the gumtree ad. I have name of the person and email address. Also a phone
+    number (all of which they are ignoring from myself.
+  user_goal_summary: 'User reports Report a Safety Issue: SCAM ADVERT - Lost money. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - advert number 1508126982. Have sent £200 to them by paypal to secure purchase but seller now not responding to phone or
+    email or messeges. The money has been recived their end but they have now 'dissapeared'.
+  - ok. Would like the report this as a FRAUD via the gumtree ad. I have name of the person and email address. Also a phone
+    number (all of which they are ignoring from myself.
+  user_goal_summary: 'Report a scam ad (advert number 1508126982) on Gumtree after sending £200 via PayPal and the seller
+    disappearing. The user wants to provide the seller''s name, email, and phone number for investigation. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - advert number 1508126982. Have sent £200 to them by paypal to secure purchase but seller now not responding to phone or
+    email or messeges. The money has been recived their end but they have now 'dissapeared'.
+  - ok. Would like the report this as a FRAUD via the gumtree ad. I have name of the person and email address. Also a phone
+    number (all of which they are ignoring from myself.
+  user_goal_summary: 'Report a scam ad (advert number 1508126982) on Gumtree after sending £200 via PayPal and the seller
+    disappearing. The user wants to provide the seller''s name, email, and phone number for investigation. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user has the seller''s name, email address, and phone number available."'

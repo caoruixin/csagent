@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008SajtIAC
+case_id_hint: row_139
+llm_model: deepseek-v4-pro
+prompt_hash: 21657d4e080625785af2b84827f798d07616738f523292434b2cfcc4cc4a8867
+generated_at: '2026-04-30T13:41:39.729740+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting with a more comprehensive issue-describing turn from seq 4. The other two seed messages capture
+  the user's current concerns about the new account. Updated user_goal_summary to be factual and specific, length 279 chars.
+  Added hidden_facts about old and new account details grounded in transcript.
+rule_draft:
+  seed_messages:
+  - Hi Cortney
+  - this one i've not send any message yet to anyone from this
+  - Sir is there any restriction with my new account also please clear
+  user_goal_summary: 'User reports Account Support: Account issues. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - sir i am facing issue i made a login id on gumtree and send message to landlords but did no get replies then i chat with
+    suppot he said your id is can't send messges this all happened after gumtree update
+  - Sir is there any restriction with my new account also please clear
+  - this one i've not send any message yet to anyone from this
+  user_goal_summary: 'User wants to know why their old account stopped sending messages after a Gumtree update, and whether
+    their newly created account has any restrictions that would prevent sending messages. They want any hold or restriction
+    removed so they can message landlords. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - sir i am facing issue i made a login id on gumtree and send message to landlords but did no get replies then i chat with
+    suppot he said your id is can't send messges this all happened after gumtree update
+  - Sir is there any restriction with my new account also please clear
+  - this one i've not send any message yet to anyone from this
+  user_goal_summary: 'User wants to know why their old account stopped sending messages after a Gumtree update, and whether
+    their newly created account has any restrictions that would prevent sending messages. They want any hold or restriction
+    removed so they can message landlords. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s old account with email [EMAIL] had issues sending messages after the update,
+  and the user was told by support that the account cannot send messages."'
+- 'unsupported_hidden_fact_dropped: "The user''s new account with email [EMAIL] has not been used to send any messages yet,
+  and the user fears it might also be restricted."'

@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008fwY6IAI
+case_id_hint: row_227
+llm_model: deepseek-v4-pro
+prompt_hash: 6a5628d7dfd8ed299602f8514faf77dca23515ac20b9b34edfe73d361234ec47
+generated_at: '2026-04-30T19:34:35.158769+00:00'
+llm_confidence: high
+llm_rationale: Replaced two seed messages that were just acknowledgments ('Ok thank you appreciate', 'No thank you') with
+  issue-bearing turns from the transcript that capture the user's request to avoid deactivation and activate the account.
+  Updated user_goal_summary to be a concise, factual statement of the user's intent based on the transcript. Added a hidden
+  fact about account creation date as it's relevant to the case and grounded in the user stating it's a new account created
+  today.
+rule_draft:
+  seed_messages:
+  - I am working on this account for the first time, so please allow me to do so. I have never worked on this account before.
+  - Ok thank you appreciate
+  - No thank you
+  user_goal_summary: 'User reports Account Support: Hello Gumtree Team, Kindly do not deactivate our account. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I am working on this account for the first time, so please allow me to do so. I have never worked on this account before.
+  - Hello Gumtree Team, Kindly do not deactivate our account. We would like to continue using this account for business purposes.
+  - I want to do business using this account. Please activate this email so that I can start working
+  user_goal_summary: 'User wants Gumtree to not deactivate their new business account and grant permission to post ads and
+    operate long-term. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I am working on this account for the first time, so please allow me to do so. I have never worked on this account before.
+  - Hello Gumtree Team, Kindly do not deactivate our account. We would like to continue using this account for business purposes.
+  - I want to do business using this account. Please activate this email so that I can start working
+  user_goal_summary: 'User wants Gumtree to not deactivate their new business account and grant permission to post ads and
+    operate long-term. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user created the account earlier today.'''

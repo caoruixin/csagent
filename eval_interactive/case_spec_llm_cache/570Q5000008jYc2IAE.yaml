@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008jYc2IAE
+case_id_hint: row_286
+llm_model: deepseek-v4-pro
+prompt_hash: 6af2e6f53aaa4e08bab8190be9bff01fb7f19665923ec994b321bc1f0f0839b1
+generated_at: '2026-04-30T19:48:46.616332+00:00'
+llm_confidence: low
+llm_rationale: The visitor turns are mostly thank-you messages and closings; no explicit issue statement exists. The seed
+  messages are the only substantive visitor turns. The user_goal_summary is inferred from the pre-chat form and agent's actions.
+  The hidden fact about the test reply is grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - I received that thank you,
+  - I’m good, thankyou.
+  user_goal_summary: 'User reports Replies & Messaging: I’m not getting any replies at all to my advert. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I received that thank you,
+  - I’m good, thankyou.
+  user_goal_summary: 'User reported not receiving any replies to their advert. They want to confirm messaging is working and
+    receive replies. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I received that thank you,
+  - I’m good, thankyou.
+  user_goal_summary: 'User reports Replies & Messaging: I’m not getting any replies at all to my advert. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: rule_fallback_low_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user received a test reply from the support agent and confirmed it.'''

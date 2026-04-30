@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008c5TWIAY
+case_id_hint: row_193
+llm_model: deepseek-v4-pro
+prompt_hash: c9aa12efd4fad23af584061deee73553da61e717e0edbb20791e15070cceff42
+generated_at: '2026-04-30T19:18:13.364403+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages from the rule draft are exact visitor turns capturing the core issue (order number, email
+  query, specific email). The user_goal_summary was refined to be more specific about the user's intent (find the correct
+  login email to view a known live listing). A hidden fact about the correct email was added based on the agent's confirmation
+  in the transcript.
+rule_draft:
+  seed_messages:
+  - GER_01436904
+  - gerdun123@googlemail
+  - What email was used? I saw this
+  user_goal_summary: 'User reports Account Support: My ad is live but I can''t find it on my home page. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - GER_01436904
+  - gerdun123@googlemail
+  - What email was used? I saw this
+  user_goal_summary: 'User''s job listing (order GER_01436904) is live but he can''t find it in his Gumtree account. He wants
+    to know which email to log in with to see and manage the ad. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - GER_01436904
+  - gerdun123@googlemail
+  - What email was used? I saw this
+  user_goal_summary: 'User''s job listing (order GER_01436904) is live but he can''t find it in his Gumtree account. He wants
+    to know which email to log in with to see and manage the ad. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The account is registered under email gerdun123@googlemail'''

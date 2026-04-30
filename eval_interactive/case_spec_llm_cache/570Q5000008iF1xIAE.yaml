@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008iF1xIAE
+case_id_hint: row_365
+llm_model: deepseek-v4-pro
+prompt_hash: 6d4488433781f8e6e98f5cb463e420e45515ca19404b90b915c1a4d949f9a9d1
+generated_at: '2026-04-30T20:32:23.429108+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and represent the user's core issue. User goal summary accurately
+  reflects user's desire to complain and threaten departure. Hidden fact about petition is supported by seq 8.
+rule_draft:
+  seed_messages:
+  - Will no longer use your platform I'll move to Facebook tiktok where they allow you a telephone number this is a disaster
+    for buying and selling
+  - I've had enough of this rubbish I'll go to better platforms where customer service is customer service
+  - Users don't often get emails when they do theres no reply people are struggling to sell things the last 3 days
+  user_goal_summary: 'User reports Account Support: Will no longer use your app as telephone number taken away this isn''t
+    helping buyers or sellers. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Will no longer use your platform I'll move to Facebook tiktok where they allow you a telephone number this is a disaster
+    for buying and selling
+  - I've had enough of this rubbish I'll go to better platforms where customer service is customer service
+  - Users don't often get emails when they do theres no reply people are struggling to sell things the last 3 days
+  user_goal_summary: 'User wants to complain about the removal of phone numbers from ads, insists it harms buying/selling,
+    and states they will leave for other platforms. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Will no longer use your platform I'll move to Facebook tiktok where they allow you a telephone number this is a disaster
+    for buying and selling
+  - I've had enough of this rubbish I'll go to better platforms where customer service is customer service
+  - Users don't often get emails when they do theres no reply people are struggling to sell things the last 3 days
+  user_goal_summary: 'User wants to complain about the removal of phone numbers from ads, insists it harms buying/selling,
+    and states they will leave for other platforms. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "User claims to have signed an online petition ''leaving gumtree''."'

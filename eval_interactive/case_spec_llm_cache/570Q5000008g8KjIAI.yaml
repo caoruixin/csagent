@@ -1,0 +1,53 @@
+source_session_id: 570Q5000008g8KjIAI
+case_id_hint: cs_interactive_009
+llm_model: deepseek-v4-pro
+prompt_hash: c31d2cac6d715656edfd30dddbaf740441a6d8423eff28ea167acf8543408ac0
+generated_at: '2026-04-30T10:38:10.884474+00:00'
+llm_confidence: high
+llm_rationale: The rule draft's seed_messages are verbatim from visitor turns that clearly describe the issue and user's frustration.
+  The user_goal_summary is refined to factually state the user's desired outcome without bot instructions. Hidden facts are
+  extracted from the transcript to support simulator responses.
+rule_draft:
+  seed_messages:
+  - Hi can you please explain why when I go on to peoples ads for sale the last picture they post is not available or blank
+    or a completely unrelated advert
+  - No it's clear that you are either unable or unwilling to help,thanks for confirming that this service isn't working as
+    it is supposed to
+  - Certainly,do you have a complaint procedure for these issues as I don't recall saying I was 100 % sure of anything nevermind
+    your advice would not work , merely stated that the only issue I had was with ads on your company website and didn't believe
+    that my browser that works seemlessly on every other occasion I use it might not be the problem,as you stated from the
+    beginning passing it back on to me
+  user_goal_summary: 'User reports Account Support: Photo issues in ads. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi can you please explain why when I go on to peoples ads for sale the last picture they post is not available or blank
+    or a completely unrelated advert
+  - No it's clear that you are either unable or unwilling to help,thanks for confirming that this service isn't working as
+    it is supposed to
+  - Certainly,do you have a complaint procedure for these issues as I don't recall saying I was 100 % sure of anything nevermind
+    your advice would not work , merely stated that the only issue I had was with ads on your company website and didn't believe
+    that my browser that works seemlessly on every other occasion I use it might not be the problem,as you stated from the
+    beginning passing it back on to me
+  user_goal_summary: 'User wants the last photo in ads to display correctly, not be missing or unrelated; also wants a complaint
+    procedure because he feels support is unhelpful. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi can you please explain why when I go on to peoples ads for sale the last picture they post is not available or blank
+    or a completely unrelated advert
+  - No it's clear that you are either unable or unwilling to help,thanks for confirming that this service isn't working as
+    it is supposed to
+  - Certainly,do you have a complaint procedure for these issues as I don't recall saying I was 100 % sure of anything nevermind
+    your advice would not work , merely stated that the only issue I had was with ads on your company website and didn't believe
+    that my browser that works seemlessly on every other occasion I use it might not be the problem,as you stated from the
+    beginning passing it back on to me
+  user_goal_summary: 'User wants the last photo in ads to display correctly, not be missing or unrelated; also wants a complaint
+    procedure because he feels support is unhelpful. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The issue is only with the website''s ad images; other websites display correctly."'
+- 'unsupported_hidden_fact_dropped: ''The user has experienced this problem for a while, not just a one-off.'''

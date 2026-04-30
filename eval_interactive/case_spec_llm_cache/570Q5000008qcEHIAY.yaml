@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008qcEHIAY
+case_id_hint: row_331
+llm_model: deepseek-v4-pro
+prompt_hash: a2fdd248048f113276195aa1d662129a2fcf3dcd7856bda42686ab8be6e4506e
+generated_at: '2026-04-30T20:25:20.644605+00:00'
+llm_confidence: high
+llm_rationale: Replaced 'Oke' with a more issue-relevant visitor turn. Refined user goal to be specific about ad ID and search
+  terms. Added a hidden fact based on the agent's explanation.
+rule_draft:
+  seed_messages:
+  - Furnished room to rent in bs14
+  - 'Ad ID: 1508751621'
+  - Oke
+  user_goal_summary: 'User reports Account Support: My add is not showing when searching for room to rent in bs14. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - Furnished room to rent in bs14
+  - 'Ad ID: 1508751621'
+  - All the heading keywords i have put but its showing 0 results
+  user_goal_summary: 'User wants their ad (ID 1508751621) to appear when they search for ''furnished room to rent in bs14''.
+    Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Furnished room to rent in bs14
+  - 'Ad ID: 1508751621'
+  - All the heading keywords i have put but its showing 0 results
+  user_goal_summary: 'User wants their ad (ID 1508751621) to appear when they search for ''furnished room to rent in bs14''.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The ad title does not contain the word ''rent''."'

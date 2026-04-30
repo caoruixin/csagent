@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008G4npIAC
+case_id_hint: row_298
+llm_model: deepseek-v4-pro
+prompt_hash: b1ba20845074266dfa07792fc306068702645ceaf80d0b6db39c72d1e4dbbe6e
+generated_at: '2026-04-30T19:51:26.455076+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and capture core issue; summary refined with specific wants; hidden
+  facts grounded in transcript.
+rule_draft:
+  seed_messages:
+  - Not happy with customer care an agent is blocking my password who l tried to get help with this afternoon
+  - a serious complaint about what happened to me with that THATO
+  - l need to go l am very upset please raise
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Not happy with customer care an agent is blocking my password who l tried to get help with this afternoon
+  - a serious complaint about what happened to me with that THATO
+  - l need to go l am very upset please raise
+  user_goal_summary: 'The user wants to regain access to their account after an agent named THATO allegedly blocked their
+    password without consent, and to file a formal complaint about THATO''s conduct. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Not happy with customer care an agent is blocking my password who l tried to get help with this afternoon
+  - a serious complaint about what happened to me with that THATO
+  - l need to go l am very upset please raise
+  user_goal_summary: 'The user wants to regain access to their account after an agent named THATO allegedly blocked their
+    password without consent, and to file a formal complaint about THATO''s conduct. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has been attempting to log in for over an hour.'''
+- 'unsupported_hidden_fact_dropped: "The user saw a red dot on the app after THATO''s actions, and uninstalled the app."'

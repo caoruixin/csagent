@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008xcB7IAI
+case_id_hint: row_179
+llm_model: deepseek-v4-pro
+prompt_hash: 61f11c5ec8e689cc0005f7d2e15cb31782433dc1dbab409b357e13d4e78dff40
+generated_at: '2026-04-30T19:14:19.134106+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are exact verbatim quotes from visitor turns that capture the core issue. The user_goal_summary
+  was refined to a concise, user-centric statement. No hidden_facts are confidently groundable in the transcript alone.
+rule_draft:
+  seed_messages:
+  - Could you contact the lady or unblock her as I can't unblock her I blocked her messages by mistake. The cat is black and
+    white
+  - I've got her email [EMAIL] but can't get hold of her it's so upset me as I would have had the cat and we agreed
+  - No it says message has been sent but not received obviously
+  user_goal_summary: 'User reports Replies & Messaging: I have blocked seller by mistake and now can''t get hold of her leah
+    is her name. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Could you contact the lady or unblock her as I can't unblock her I blocked her messages by mistake. The cat is black and
+    white
+  - I've got her email [EMAIL] but can't get hold of her it's so upset me as I would have had the cat and we agreed
+  - No it says message has been sent but not received obviously
+  user_goal_summary: 'User wants to contact seller Leah after accidentally blocking and deleting the conversation on Gumtree.
+    She cannot unblock or message her and seeks help to reach her for an agreed cat pickup. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Could you contact the lady or unblock her as I can't unblock her I blocked her messages by mistake. The cat is black and
+    white
+  - I've got her email [EMAIL] but can't get hold of her it's so upset me as I would have had the cat and we agreed
+  - No it says message has been sent but not received obviously
+  user_goal_summary: 'User wants to contact seller Leah after accidentally blocking and deleting the conversation on Gumtree.
+    She cannot unblock or message her and seeks help to reach her for an agreed cat pickup. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

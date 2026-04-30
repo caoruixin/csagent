@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008nJOIIA2
+case_id_hint: row_188
+llm_model: deepseek-v4-pro
+prompt_hash: 4eb6feeff5f32f722c287cc17020508d813f80effe715f0ceb11a389ea1e5d24
+generated_at: '2026-04-30T19:16:53.749792+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns describing the issue. Improved summary captures the user's goal
+  naturally. Hidden facts are directly supported by visitor statements (phone usage, logged-in seller view).
+rule_draft:
+  seed_messages:
+  - I didn't choose that option...was never given any options.
+  - Still nothing but the ad...no options etc
+  - No nothing just the ad
+  user_goal_summary: 'User reports Account Support: No option to purchase at the bottom of my ad?. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I didn't choose that option...was never given any options.
+  - Still nothing but the ad...no options etc
+  - No nothing just the ad
+  user_goal_summary: 'User wants to add purchasing options to their Gumtree ad but cannot see any options when editing or
+    viewing the ad, and believes the ad is not displaying correctly for buyers. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I didn't choose that option...was never given any options.
+  - Still nothing but the ad...no options etc
+  - No nothing just the ad
+  user_goal_summary: 'User wants to add purchasing options to their Gumtree ad but cannot see any options when editing or
+    viewing the ad, and believes the ad is not displaying correctly for buyers. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User is accessing Gumtree on a phone.'''
+- 'unsupported_hidden_fact_dropped: "User is logged into their account as the seller, so they see the ad from the seller''s
+  perspective, which may hide buyer options."'

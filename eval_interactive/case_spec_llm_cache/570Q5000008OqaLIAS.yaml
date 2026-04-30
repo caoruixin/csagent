@@ -1,0 +1,27 @@
+source_session_id: 570Q5000008OqaLIAS
+case_id_hint: row_259
+llm_model: deepseek-v4-pro
+prompt_hash: f321f3990946982e2944215659cc7f79d5547038e1fb0402c26a3b82a4628a4a
+generated_at: '2026-04-30T19:41:03.856337+00:00'
+llm_confidence: high
+llm_rationale: The seed message is directly from the visitor's turn and accurately reflects the user's issue. No additional
+  hidden facts are available from the transcript.
+rule_draft:
+  seed_messages:
+  - How do I receive the payment when I sell an item
+  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - How do I receive the payment when I sell an item
+  user_goal_summary: 'User wants to know how to receive payment for an item they are selling on Gumtree. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - How do I receive the payment when I sell an item
+  user_goal_summary: 'User wants to know how to receive payment for an item they are selling on Gumtree. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

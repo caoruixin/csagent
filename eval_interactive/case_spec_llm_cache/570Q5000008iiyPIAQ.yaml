@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008iiyPIAQ
+case_id_hint: row_46
+llm_model: deepseek-v4-pro
+prompt_hash: 6f9bc34a87866cbaa11665931c1e53e473578f32262933787e033cd342f4a7ae
+generated_at: '2026-04-30T13:12:58.442499+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are from transcript and capture the issue. User goal summary made specific. Hidden facts added
+  from transcript details.
+rule_draft:
+  seed_messages:
+  - Hi have you got a telephone number to call as I need to speak to someone asap
+  - No I have not been paid by the buyer
+  - Ok kindly investigate asap thanks
+  user_goal_summary: 'User reports Payments: Apple airport max. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi have you got a telephone number to call as I need to speak to someone asap
+  - No I have not been paid by the buyer
+  - Ok kindly investigate asap thanks
+  user_goal_summary: 'User sold Apple airport max on Gumtree (AD ID 1505741468) for £300, shipped item but never paid. Wants
+    Gumtree to investigate and help recover money or blacklist buyer. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'AD ID: 1505741468'
+    disclose_when: when asked for the listing or AD ID
+accepted_value:
+  seed_messages:
+  - Hi have you got a telephone number to call as I need to speak to someone asap
+  - No I have not been paid by the buyer
+  - Ok kindly investigate asap thanks
+  user_goal_summary: 'User sold Apple airport max on Gumtree (AD ID 1505741468) for £300, shipped item but never paid. Wants
+    Gumtree to investigate and help recover money or blacklist buyer. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'AD ID: 1505741468'
+    disclose_when: when asked for the listing or AD ID
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''Sale price: £300'''

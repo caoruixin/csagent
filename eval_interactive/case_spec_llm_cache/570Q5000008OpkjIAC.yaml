@@ -1,0 +1,32 @@
+source_session_id: 570Q5000008OpkjIAC
+case_id_hint: row_129
+llm_model: deepseek-v4-pro
+prompt_hash: e9bab0d282f46085eb9aa5038cf7bb36df35a7f40cad6b393f55d71a06a2e20c
+generated_at: '2026-04-30T13:38:06.579097+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim issue-bearing turns from the transcript. User goal is clear from the context. No
+  additional hidden facts are discernible from the transcript.
+rule_draft:
+  seed_messages:
+  - I renewed an old ad a few days ago for a garage and paid £8.99 but can't see anything in live ads
+  - Payment has been taken by Gumtree
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I renewed an old ad a few days ago for a garage and paid £8.99 but can't see anything in live ads
+  - Payment has been taken by Gumtree
+  user_goal_summary: 'User wants their renewed garage ad, for which they paid £8.99, to appear in live ads, or a refund if
+    it cannot be resolved. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I renewed an old ad a few days ago for a garage and paid £8.99 but can't see anything in live ads
+  - Payment has been taken by Gumtree
+  user_goal_summary: 'User wants their renewed garage ad, for which they paid £8.99, to appear in live ads, or a refund if
+    it cannot be resolved. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,48 @@
+source_session_id: 570Q5000008VPqMIAW
+case_id_hint: row_122
+llm_model: deepseek-v4-pro
+prompt_hash: 19ff00dd6533fc3c41eea8fdc014d971d9874a7be6d0208d5a53d4db25092eb3
+generated_at: '2026-04-30T13:36:28.672964+00:00'
+llm_confidence: high
+llm_rationale: Replaced less descriptive seed messages ('Ok. Thanks', 'Damien Silavant') with more issue-specific turns ('Cannot
+  see the ads IDs', 'Many of my ads have been removed') to better capture the user's problem. Updated user_goal_summary to
+  be specific and appended drift type. Added hidden facts about business account and account manager name, both supported
+  by transcript.
+rule_draft:
+  seed_messages:
+  - I’m currently experiencing ongoing issues with the Gumtree app. Messages are still not working properly, and new adverts
+    are now taking several hours to go live. In addition, most of my previously live adverts have been removed. These adverts
+    were already live; I only edited the dates, after which they were taken down. Please see the attached screenshots for
+    reference. I would appreciate your assistance in resolving this as soon as possible. Kind regards, Hakan
+  - Ok. Thanks
+  - Damien Silavant
+  user_goal_summary: 'User reports Account Support: Update?. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I’m currently experiencing ongoing issues with the Gumtree app. Messages are still not working properly, and new adverts
+    are now taking several hours to go live. In addition, most of my previously live adverts have been removed. These adverts
+    were already live; I only edited the dates, after which they were taken down. Please see the attached screenshots for
+    reference. I would appreciate your assistance in resolving this as soon as possible. Kind regards, Hakan
+  - Cannot see the ads IDs
+  - Many of my ads have been removed
+  user_goal_summary: 'User reports ongoing issues with Gumtree app: messages not working, new ads slow to appear, and previously
+    live ads removed after editing dates; wants assistance to resolve. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I’m currently experiencing ongoing issues with the Gumtree app. Messages are still not working properly, and new adverts
+    are now taking several hours to go live. In addition, most of my previously live adverts have been removed. These adverts
+    were already live; I only edited the dates, after which they were taken down. Please see the attached screenshots for
+    reference. I would appreciate your assistance in resolving this as soon as possible. Kind regards, Hakan
+  - Cannot see the ads IDs
+  - Many of my ads have been removed
+  user_goal_summary: 'User reports ongoing issues with Gumtree app: messages not working, new ads slow to appear, and previously
+    live ads removed after editing dates; wants assistance to resolve. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has a business account.'''
+- 'unsupported_hidden_fact_dropped: ''The account manager is Damien Silavant.'''

@@ -1,0 +1,47 @@
+source_session_id: 570Q5000008oarhIAA
+case_id_hint: row_224
+llm_model: deepseek-v4-pro
+prompt_hash: c8d90010202bdbf2d4cda96343a2dd6d1b09aea52c81a58abea89edfff1d55c7
+generated_at: '2026-04-30T19:27:54.761167+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and capture the full technical issue. User goal summary succinctly
+  describes the user's desire to resolve the upload failure. Hidden facts are drawn directly from the transcript.
+rule_draft:
+  seed_messages:
+  - I already have one ad on my account
+  - sorry the email address is [EMAIL]
+  - On the mobile app, I can upload photos but when I press Post, I get an error saying “something went wrong, please try
+    again later.” I was advised to use a browser instead, but now on my laptop the page refreshes every time I try to upload
+    photos, so I can’t complete the advert at all. This has been happening for the last couple of days.
+  user_goal_summary: 'User reports Technical Support: I can not post any ad or upload photos. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I already have one ad on my account
+  - sorry the email address is [EMAIL]
+  - On the mobile app, I can upload photos but when I press Post, I get an error saying “something went wrong, please try
+    again later.” I was advised to use a browser instead, but now on my laptop the page refreshes every time I try to upload
+    photos, so I can’t complete the advert at all. This has been happening for the last couple of days.
+  user_goal_summary: 'I want to post a new ad with photos, but uploading fails on both mobile app (error message) and browser
+    (page refresh). I need this technical issue fixed so I can complete my advert. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user has a live ad (ID 1508709352) but is trying to post a second ad.
+    disclose_when: When the bot asks about the user's account or existing ads.
+accepted_value:
+  seed_messages:
+  - I already have one ad on my account
+  - sorry the email address is [EMAIL]
+  - On the mobile app, I can upload photos but when I press Post, I get an error saying “something went wrong, please try
+    again later.” I was advised to use a browser instead, but now on my laptop the page refreshes every time I try to upload
+    photos, so I can’t complete the advert at all. This has been happening for the last couple of days.
+  user_goal_summary: 'I want to post a new ad with photos, but uploading fails on both mobile app (error message) and browser
+    (page refresh). I need this technical issue fixed so I can complete my advert. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user has a live ad (ID 1508709352) but is trying to post a second ad.
+    disclose_when: When the bot asks about the user's account or existing ads.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The issue has persisted for a couple of days despite trying both the mobile app and
+  a browser.'''

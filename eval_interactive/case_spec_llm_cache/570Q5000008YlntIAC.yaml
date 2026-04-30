@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008YlntIAC
+case_id_hint: row_194
+llm_model: deepseek-v4-pro
+prompt_hash: a24af02682fcf882fbb654d221b5d45cf7827e8f2e50934593446333c0361071
+generated_at: '2026-04-30T19:18:30.601818+00:00'
+llm_confidence: high
+llm_rationale: The provided seed_messages are exact visitor turns that capture the core issue. The user_goal_summary was refined
+  to be more specific about the user's objective. No hidden facts are clearly attributable to the user's own knowledge based
+  on the transcript, so they are omitted to avoid speculation.
+rule_draft:
+  seed_messages:
+  - My postcode is en76jj
+  - I got charged 24. 99 on my Amex card from gumtree
+  - I bumped up many days ago
+  user_goal_summary: 'User reports Account Support: Money taken from my credit cards. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - My postcode is en76jj
+  - I got charged 24. 99 on my Amex card from gumtree
+  - I bumped up many days ago
+  user_goal_summary: 'User wants to identify an unexpected £24.99 charge on his Amex card from Gumtree and confirm it relates
+    to a bump-up for his ad. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - My postcode is en76jj
+  - I got charged 24. 99 on my Amex card from gumtree
+  - I bumped up many days ago
+  user_goal_summary: 'User wants to identify an unexpected £24.99 charge on his Amex card from Gumtree and confirm it relates
+    to a bump-up for his ad. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

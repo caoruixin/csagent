@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008RsXZIA0
+case_id_hint: row_140
+llm_model: deepseek-v4-pro
+prompt_hash: 7ac56cb415858bb926411281c0de3d31aa09abe575122f6180d9244b041f7973
+generated_at: '2026-04-30T13:41:26.278279+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns describing the actual issue; user goal is explicitly about ads
+  being taken down and inability to sell. Hidden fact derived from agent statement about open case.
+rule_draft:
+  seed_messages:
+  - I contacted you last week and you said it would be looked into. Why is all my ads being taken down?
+  - I have had no payment history. You wont let me sell anything! No order ID. You wont let me sell anything! I put up 4 previous
+    ads.
+  - no. just this issue. Thanks
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I contacted you last week and you said it would be looked into. Why is all my ads being taken down?
+  - I have had no payment history. You wont let me sell anything! No order ID. You wont let me sell anything! I put up 4 previous
+    ads.
+  - no. just this issue. Thanks
+  user_goal_summary: 'User wants to understand why their ads are being taken down and to have the issue resolved so they can
+    sell items on the platform. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I contacted you last week and you said it would be looked into. Why is all my ads being taken down?
+  - I have had no payment history. You wont let me sell anything! No order ID. You wont let me sell anything! I put up 4 previous
+    ads.
+  - no. just this issue. Thanks
+  user_goal_summary: 'User wants to understand why their ads are being taken down and to have the issue resolved so they can
+    sell items on the platform. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has an open support case that a colleague is working on.'''

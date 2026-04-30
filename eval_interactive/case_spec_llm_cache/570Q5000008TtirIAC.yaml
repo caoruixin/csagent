@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008TtirIAC
+case_id_hint: row_109
+llm_model: deepseek-v4-pro
+prompt_hash: 65678dda1fc62d7a3486c44edd00f19c699112b7d163c4c086359a6c5f7ab0ea
+generated_at: '2026-04-30T13:32:24.104555+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing/acknowledgement seed messages with issue-descriptive visitor turns that capture the paused
+  ad and confusion over instructions. Refined user goal summary to specify the actual user need. Added two hidden facts grounded
+  in the transcript (ad ID and previous picture deletion).
+rule_draft:
+  seed_messages:
+  - '1507275061'
+  - no that’s fine. Thanks Cortney
+  - when can I expect your email?
+  user_goal_summary: 'User reports Ad Support: Says ad needs editing but no idea why. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I already chatted to your rep when I first posted this and he said I needed to delete 2 pics. And I deleted them
+  - so I’ve no idea why this is paused
+  - when i spoke to your rep before he told me in chat I just needed to delete 2 pics. Are you able to just tell me what I
+    need to do ?
+  user_goal_summary: 'The user''s Gumtree ad is paused. They were previously told to delete two pictures, which they did,
+    but the ad remains paused. They want to understand the reason and what action is required to fix it. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The AD ID for the paused advertisement is 1507275061.
+    disclose_when: when the bot asks for account identification or ad ID
+accepted_value:
+  seed_messages:
+  - I already chatted to your rep when I first posted this and he said I needed to delete 2 pics. And I deleted them
+  - so I’ve no idea why this is paused
+  - when i spoke to your rep before he told me in chat I just needed to delete 2 pics. Are you able to just tell me what I
+    need to do ?
+  user_goal_summary: 'The user''s Gumtree ad is paused. They were previously told to delete two pictures, which they did,
+    but the ad remains paused. They want to understand the reason and what action is required to fix it. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The AD ID for the paused advertisement is 1507275061.
+    disclose_when: when the bot asks for account identification or ad ID
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user previously deleted two pictures from the ad after being told to do so in a
+  prior chat.'''

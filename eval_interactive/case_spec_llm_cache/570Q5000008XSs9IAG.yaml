@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008XSs9IAG
+case_id_hint: row_300
+llm_model: deepseek-v4-pro
+prompt_hash: 72630d10b29b03768570d65c2bb8df2b76ed3307fb34025b85371b57a16bb368
+generated_at: '2026-04-30T19:52:43.289439+00:00'
+llm_confidence: high
+llm_rationale: Seed messages from the rule draft are verbatim visitor turns that describe the core issue. The user_goal_summary
+  was broad and did not reflect the specific problem; updated based on transcript statements. Hidden facts added to capture
+  the email link to the unknown account, which is confirmed in the transcript and useful for diagnosis.
+rule_draft:
+  seed_messages:
+  - i have got to find out that there are a fwe accounts related to me
+  - Iput it in my name David denton
+  - yes & i do not recall putting that name on my account. i have placed an add for a bike & i can not find it
+  user_goal_summary: 'User reports Account Support: deactivate my account. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - i have got to find out that there are a fwe accounts related to me
+  - Iput it in my name David denton
+  - yes & i do not recall putting that name on my account. i have placed an add for a bike & i can not find it
+  user_goal_summary: 'User wants to find his bike ad but other accounts keep appearing when he tries to view his listings,
+    including one under a name he doesn''t recognize (Darren White). He wants these other accounts to stop interfering and
+    to locate his ad. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - i have got to find out that there are a fwe accounts related to me
+  - Iput it in my name David denton
+  - yes & i do not recall putting that name on my account. i have placed an add for a bike & i can not find it
+  user_goal_summary: 'User wants to find his bike ad but other accounts keep appearing when he tries to view his listings,
+    including one under a name he doesn''t recognize (Darren White). He wants these other accounts to stop interfering and
+    to locate his ad. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The unrecognized profile under Darren White is associated with the user''s email address."'

@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008NMRRIA4
+case_id_hint: row_176
+llm_model: deepseek-v4-pro
+prompt_hash: ee358d4eef19330b663e0091dbad1d910a8b037e341f914b982c411ce20b6f7e
+generated_at: '2026-04-30T19:13:41.939109+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are already verbatim issue-bearing visitor turns. The user goal summary succinctly captures the
+  core demand from the transcript. No hidden facts are evident.
+rule_draft:
+  seed_messages:
+  - Give me my £50 back or put my business to the top like I paid for
+  - That's good why is this so hard to do
+  - What about giving a phone number to talk to someone
+  user_goal_summary: 'User reports Technical Support: I pad to put my ad for my business and it''s not at the top. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Give me my £50 back or put my business to the top like I paid for
+  - What about giving a phone number to talk to someone
+  - That's good why is this so hard to do
+  user_goal_summary: 'The user wants either a £50 refund or their business advertisement to be placed at the top of the listing,
+    as they paid for. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Give me my £50 back or put my business to the top like I paid for
+  - What about giving a phone number to talk to someone
+  - That's good why is this so hard to do
+  user_goal_summary: 'The user wants either a £50 refund or their business advertisement to be placed at the top of the listing,
+    as they paid for. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,49 @@
+source_session_id: 570Q5000008NWIjIAO
+case_id_hint: cs_interactive_011
+llm_model: deepseek-v4-pro
+prompt_hash: 07a86eb03624f427a4d423bf7a997cf91bbecbf0911afac4f140924f4e4e53e4
+generated_at: '2026-04-30T10:41:43.162428+00:00'
+llm_confidence: high
+llm_rationale: Replaced generic greeting seed message with the full issue description from turn 5, which anchors the persona
+  on the actual login problem. The other two seed messages are retained as they relate to email verification and next steps.
+  Added hidden facts directly from user statements in the transcript.
+rule_draft:
+  seed_messages:
+  - Hi Jason
+  - Is that defo my login email Jason ?
+  - How do I do that ?
+  user_goal_summary: 'User reports Account Support: Login issue. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Your be the third agent today to try n resolve the issue im having. I’ve clearly explained to the previous to agents that
+    I am unable to log into my account. When I try to login it says pw or email incorrect. I then get a pw reset link sent
+    to my email. I use this link to reset my pw using upper n lower case with number n special character . Minimum of 8 characters.
+    I then press update and nothing happens . I then press again and it says the link is not recognised. I then get a email
+    saying ow updated. I then go back to login and it says pw or email incorrect correct.
+  - Is that defo my login email Jason ?
+  - How do I do that ?
+  user_goal_summary: 'User wants to resolve login issues: password reset link not working, leading to continued incorrect
+    password/email error. Drift: soft_shift.'
+  hidden_facts:
+  - fact: User's trading name is Fair Deal Vehicles Ltd.
+    disclose_when: When asked for business details or identity.
+accepted_value:
+  seed_messages:
+  - Your be the third agent today to try n resolve the issue im having. I’ve clearly explained to the previous to agents that
+    I am unable to log into my account. When I try to login it says pw or email incorrect. I then get a pw reset link sent
+    to my email. I use this link to reset my pw using upper n lower case with number n special character . Minimum of 8 characters.
+    I then press update and nothing happens . I then press again and it says the link is not recognised. I then get a email
+    saying ow updated. I then go back to login and it says pw or email incorrect correct.
+  - Is that defo my login email Jason ?
+  - How do I do that ?
+  user_goal_summary: 'User wants to resolve login issues: password reset link not working, leading to continued incorrect
+    password/email error. Drift: soft_shift.'
+  hidden_facts:
+  - fact: User's trading name is Fair Deal Vehicles Ltd.
+    disclose_when: When asked for business details or identity.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has 10 active vehicle advertisements.'''

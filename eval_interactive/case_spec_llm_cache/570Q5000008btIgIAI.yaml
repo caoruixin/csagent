@@ -1,0 +1,47 @@
+source_session_id: 570Q5000008btIgIAI
+case_id_hint: row_228
+llm_model: deepseek-v4-pro
+prompt_hash: e1a06e3c6d129ad79a2feefcae3baebbf137703c9bf7ac097e7a70900d1ed3f0
+generated_at: '2026-04-30T19:33:52.169011+00:00'
+llm_confidence: high
+llm_rationale: Replaced the closing 'Okay, thank you' with the user's explicit goal statement from seq 6. Updated user_goal_summary
+  to be more specific about the user's intent to delete the account. Added two hidden facts derived from the transcript about
+  no payment history and inactive ads.
+rule_draft:
+  seed_messages:
+  - 'Ad ID: 1451657969'
+  - 'It says:Please can you provide (1) your registered email address on Gumtree.co.uk and (2) provide 2 of the 4 of the following
+    information below to confirm you as the correct user: · Creation date of account; · Payments made on ads for insertion
+    fees, features, etc.; · The order ID related to those payments (not the method of payment used); or · Number of Ads posted
+    in the last 12 months.'
+  - Okay, thank you
+  user_goal_summary: 'User reports Account Support: When was my account creation date?. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - 'Ad ID: 1451657969'
+  - 'It says:Please can you provide (1) your registered email address on Gumtree.co.uk and (2) provide 2 of the 4 of the following
+    information below to confirm you as the correct user: · Creation date of account; · Payments made on ads for insertion
+    fees, features, etc.; · The order ID related to those payments (not the method of payment used); or · Number of Ads posted
+    in the last 12 months.'
+  - I'd like to know my account creation date
+  user_goal_summary: 'The user wants to learn their Gumtree UK account creation date because they need it to verify their
+    identity for permanent account deletion. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - 'Ad ID: 1451657969'
+  - 'It says:Please can you provide (1) your registered email address on Gumtree.co.uk and (2) provide 2 of the 4 of the following
+    information below to confirm you as the correct user: · Creation date of account; · Payments made on ads for insertion
+    fees, features, etc.; · The order ID related to those payments (not the method of payment used); or · Number of Ads posted
+    in the last 12 months.'
+  - I'd like to know my account creation date
+  user_goal_summary: 'The user wants to learn their Gumtree UK account creation date because they need it to verify their
+    identity for permanent account deletion. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has never made any payments on Gumtree.'''
+- 'unsupported_hidden_fact_dropped: ''All ads associated with the account are inactive and over 2 years old.'''

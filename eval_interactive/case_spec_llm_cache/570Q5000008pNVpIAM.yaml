@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008pNVpIAM
+case_id_hint: row_310
+llm_model: deepseek-v4-pro
+prompt_hash: f0dd735d0b591d38177de38a47c966f5cce865afc8fa7a65b1624e41d44ef18c
+generated_at: '2026-04-30T19:55:16.009723+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and capture the core issue. User goal summary specifies the exact
+  problem (password reset email not received) and the consequence (cannot respond to ads). Hidden fact sourced from user's
+  mention of prior account problems.
+rule_draft:
+  seed_messages:
+  - Please send me a password reset to [EMAIL]. It won’t let me in and I’m not receiving the reset email
+  - No email received again
+  - Oh my god. What a faff
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Please send me a password reset to [EMAIL]. It won’t let me in and I’m not receiving the reset email
+  - No email received again
+  - Oh my god. What a faff
+  user_goal_summary: 'User cannot log in because password reset email is not being received. They need access to respond to
+    ad inquiries. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Please send me a password reset to [EMAIL]. It won’t let me in and I’m not receiving the reset email
+  - No email received again
+  - Oh my god. What a faff
+  user_goal_summary: 'User cannot log in because password reset email is not being received. They need access to respond to
+    ad inquiries. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User previously had to create a new account because old account refused to post ads.'''

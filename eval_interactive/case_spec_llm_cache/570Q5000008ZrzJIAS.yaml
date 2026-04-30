@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008ZrzJIAS
+case_id_hint: row_155
+llm_model: deepseek-v4-pro
+prompt_hash: 3722d0565fd4db59d58d46c7fddd63b2c29b19d2d67b7c6bcb437c595da540d0
+generated_at: '2026-04-30T19:06:47.807235+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are already verbatim quotes from visitor turns (seq 2, 7, 9) covering the core issue. User goal
+  summary was vague; refined to reflect actual desired outcomes. Hidden facts sourced from seq 5 and seq 8 provide additional
+  context.
+rule_draft:
+  seed_messages:
+  - I’m trying to reset email but it’s not sending me the link [EMAIL]
+  - Could you also check please if I have an account for a different email address [EMAIL]
+  - Ok thanks, will you be sending me something so I can reset the password for the other account?
+  user_goal_summary: 'User reports Account Support: Account. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I’m trying to reset email but it’s not sending me the link [EMAIL]
+  - Could you also check please if I have an account for a different email address [EMAIL]
+  - Ok thanks, will you be sending me something so I can reset the password for the other account?
+  user_goal_summary: 'User wants to reset account password but is not receiving reset emails; also wants to check if they
+    have an account under a different email. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I’m trying to reset email but it’s not sending me the link [EMAIL]
+  - Could you also check please if I have an account for a different email address [EMAIL]
+  - Ok thanks, will you be sending me something so I can reset the password for the other account?
+  user_goal_summary: 'User wants to reset account password but is not receiving reset emails; also wants to check if they
+    have an account under a different email. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has attempted to reset their password multiple times (yesterday and today)
+  but never received the reset email.'''
+- 'unsupported_hidden_fact_dropped: ''The email address [EMAIL] (the second one) does not have an account associated with
+  it.'''

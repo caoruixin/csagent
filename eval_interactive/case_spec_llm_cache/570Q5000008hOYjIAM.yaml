@@ -1,0 +1,55 @@
+source_session_id: 570Q5000008hOYjIAM
+case_id_hint: row_36
+llm_model: deepseek-v4-pro
+prompt_hash: 42bed896a14e55f9b2d36a2e68529558866a229d4e6d13fb3f082800a59822eb
+generated_at: '2026-04-30T13:10:00.997793+00:00'
+llm_confidence: high
+llm_rationale: Original seed messages included a generic greeting and a closing remark. Replaced those with substantive visitor
+  turns from the transcript that clearly describe the issue. The user_goal_summary is made specific to the user's demand and
+  threat, within the character limit. Added the order number as a hidden fact based on the transcript.
+rule_draft:
+  seed_messages:
+  - Hi i have questions
+  - I wrote to the courier company many times but no response. Only today they wrote that they would try to deliver as soon
+    as possible but they don't know when. So, according to the law, I am entitled to a refund for the delay in delivery and
+    the courier company's failure to meet the delivery date. When buying it said for 2-4 days delivery today passes this day
+    still no shipment
+  - So tomorrow I wait for e-mail
+  user_goal_summary: 'User reports Delivery: Refund delivery. Drift: none.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - The company that should deliver my order for a huge delay. So according to British law, I am entitled to a refund for
+    not performing the service during the time offered by the carrier. So I want a refund for the delivery I paid for and
+    still haven't received the order
+  - I wrote to the courier company many times but no response. Only today they wrote that they would try to deliver as soon
+    as possible but they don't know when. So, according to the law, I am entitled to a refund for the delay in delivery and
+    the courier company's failure to meet the delivery date. When buying it said for 2-4 days delivery today passes this day
+    still no shipment
+  - If the package is delivered tomorrow, the intel I will refund the money for the delivery because the courier company did
+    not meet the delivery deadline, so if you do not refund me, I will report it to the consumer's rights
+  user_goal_summary: 'User demands a refund for the delivery charge because the courier missed the 2-4 day delivery window
+    and the package is still not delivered. He threatens to escalate to consumer rights if not refunded. Drift: none.'
+  hidden_facts:
+  - fact: Order number is 13752368
+    disclose_when: when the bot asks for an order identifier
+accepted_value:
+  seed_messages:
+  - The company that should deliver my order for a huge delay. So according to British law, I am entitled to a refund for
+    not performing the service during the time offered by the carrier. So I want a refund for the delivery I paid for and
+    still haven't received the order
+  - I wrote to the courier company many times but no response. Only today they wrote that they would try to deliver as soon
+    as possible but they don't know when. So, according to the law, I am entitled to a refund for the delay in delivery and
+    the courier company's failure to meet the delivery date. When buying it said for 2-4 days delivery today passes this day
+    still no shipment
+  - If the package is delivered tomorrow, the intel I will refund the money for the delivery because the courier company did
+    not meet the delivery deadline, so if you do not refund me, I will report it to the consumer's rights
+  user_goal_summary: 'User demands a refund for the delivery charge because the courier missed the 2-4 day delivery window
+    and the package is still not delivered. He threatens to escalate to consumer rights if not refunded. Drift: none.'
+  hidden_facts:
+  - fact: Order number is 13752368
+    disclose_when: when the bot asks for an order identifier
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

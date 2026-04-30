@@ -303,7 +303,7 @@ The Persona block exists solely to drive the user-simulator LLM. None of its fie
 
 Bot-side expectations live entirely in the `expected` block (`bot_handling_pattern`, `allow_bot_resolution`, `outcome_class`, `expected_tool_sequence`, `escalation_trigger`, etc.).
 
-**Generation pipeline (Wave A4 — transcript-evidence CaseSpec generation)**:
+**Generation pipeline (Wave A4 transcript-evidence + Wave A5 approved overrides + Wave A6 LLM persona review)**:
 
 ```mermaid
 flowchart TD
@@ -318,13 +318,22 @@ flowchart TD
   POL --> OUT[case_outcome_resolver]
   HR --> OUT
   EVID --> OUT
-  FORM --> PERSONA[persona builder]
-  EVID --> PERSONA
-  OUT --> SPEC[CaseSpec YAML]
-  PERSONA --> SPEC
+  FORM --> PERSONA_RULE[L1 rule persona builder]
+  EVID --> PERSONA_RULE
+  PERSONA_RULE --> PERSONA_LLM[L2 LLM persona reviewer Wave A6]
+  TURNS --> PERSONA_LLM
+  CACHE[(case_spec_llm_cache/*.yaml)] <--> PERSONA_LLM
+  PERSONA_LLM --> PERSONA_FINAL[persona accepted_value]
+  OUT --> EXPECTED[expected + scoring]
+  PERSONA_FINAL --> SPEC[CaseSpec draft]
+  EXPECTED --> SPEC
+  SPEC --> OVR[L3 case_spec_overrides apply]
+  OVR --> FINAL[Final CaseSpec YAML]
   EVID --> AUDIT[generation audit]
   OUT --> AUDIT
-  SPEC --> LINT[linter.py gate]
+  PERSONA_LLM --> AUDIT
+  OVR --> AUDIT
+  FINAL --> LINT[linter.py gate]
 ```
 
 Code paths: `eval_interactive/eval_interactive/case_spec/extractor.py`, `policy_table.py`, `case_outcome_resolver.py`, `transcript_evidence.py`, `linter.py`, `schema.py`.
@@ -380,7 +389,7 @@ Policy remains the default, but it is no longer allowed to blindly overwrite evi
 3. Look up per-UC policy via `policy_table.get_policy(primary_uc)`.
 4. Resolve `outcome_class`, `should_escalate`, and `escalation_trigger` using `case_outcome_resolver(policy, HR row, TranscriptEvidence)`.
 5. Derive `expected_tool_sequence`, `forbidden_tools`, `grounding_mode`, `allow_bot_resolution`, and `bot_handling_pattern` from policy plus the resolved outcome.
-6. Derive `persona` from form context and representative transcript evidence. `user_goal_summary` must remain user-only and must not contain bot expectations.
+6. Derive a rule-based draft `persona` from form context and representative transcript evidence. `user_goal_summary` must remain user-only and must not contain bot expectations. Pass the draft through the Wave A6 LLM persona reviewer (see "LLM persona review layer" below); the reviewer may improve `seed_messages`, `user_goal_summary`, `hidden_facts`, and `verbosity`, but is forbidden from touching any `expected.*` / `scoring.*` / `form_context.*` field.
 7. Run `linter.py`. Lint failures block generation; warnings are logged.
 8. Assign to case set based on `quality_score`, `risk_level`, UC distribution, and evidence complexity.
 
@@ -432,13 +441,145 @@ requires_policy_change: boolean
 
 Approved overrides, when needed, live in a small machine-readable file such as `eval_interactive/case_spec_overrides.yaml`. Each override must include `case_id`, `source_session_id`, changed fields, rationale, supporting turn numbers, reviewer/source, date, and confidence. The extractor applies approved overrides only after deterministic generation and records the application in `case-spec-generation-audit.md`.
 
+The first approved override target for Wave A5 is `cs_interactive_012` (`source_session_id=570Q5000008hx9tIAA`). The selected transcript contains a late phone/human-contact request, but the reviewed target behaviour is resolve-first: the bot should use account/listing/moderation context to explain why the kitten ad was deleted and provide safe policy-grounded next steps before escalation becomes necessary. This case must therefore be preserved as an approved `UC-FP` resolve case unless a future human review explicitly reverses that decision.
+
 Wave A5 acceptance targets:
 
 1. `cs_interactive_004` is corrected as a contained UC-D resolve case: `should_escalate=false`, no `request_handover`, and no escalation trigger.
 2. Evidence-resolved transcripts cannot be escalated by weak false-positive signals such as an instructional phrase containing "email you".
 3. All smoke cases have review records in `qa-reports/smoke-case-review.md` and, where useful, a machine-readable companion file.
 4. Approved overrides are auditable and linted; direct hand edits to generated YAML are not the correction mechanism.
-5. Regression tests pin `cs_interactive_001`, `cs_interactive_004`, `cs_interactive_015`, and `cs_interactive_040`.
+5. `cs_interactive_012` is stable across regeneration via `case_spec_overrides.yaml`: `primary_uc=UC-FP`, `secondary_ucs=[UC-K]`, `outcome_class=resolve`, `should_escalate=false`, `escalation_trigger=null`, and no `request_handover` in the expected tool sequence.
+6. Regression tests pin `cs_interactive_001`, `cs_interactive_004`, `cs_interactive_012`, `cs_interactive_015`, and `cs_interactive_040`.
+
+**LLM persona review layer (Wave A6 — persona free-text quality)**:
+
+Wave A5 made `expected.*` reproducible through approved overrides, but persona-side free text is still produced by deterministic rules and still suffers from rule-can't-judge-relevance failures. The clearest example is `cs_interactive_012`, whose `persona.seed_messages` are `Hi Jason`, `Thank you and happy new year`, `Ok pls look in to this as soon as possible pls` — three greeting/closing turns, none of which describe the actual ad-deletion issue. Tightening regex heuristics further is brittle. Wave A6 introduces a bounded LLM review layer to fix this without sacrificing reproducibility and without giving the LLM any influence over policy or scoring decisions.
+
+Trust boundary across the three layers:
+
+| Layer | Owner | Fields it may write | Reproducibility mechanism |
+|-------|-------|---------------------|---------------------------|
+| L1 rules + policy table | deterministic Python | `expected.*`, `scoring.*`, `form_context.*`, primary/secondary UC, tools, derived flags | reproducible from inputs alone |
+| L2 LLM persona review (Wave A6) | DeepSeek v4 Pro (`deepseek-v4-pro`) | `persona.seed_messages`, `persona.user_goal_summary`, `persona.hidden_facts`, `persona.verbosity` | committed cache file per `source_session_id` |
+| L3 approved overrides (Wave A5/A6.6) | human reviewer | any `classification.*`, any `expected.*`, any `persona.*` (allow-listed) | applied at three stages: `classification` BEFORE policy lookup; `expected` AFTER L1 derivation; `persona` AFTER L2 cache. Always wins. |
+
+Hard scope guardrail (the entire reason agent-design signals stay safe): the LLM layer is forbidden from proposing or writing any of `outcome_class`, `should_escalate`, `escalation_trigger`, `primary_uc`, `secondary_ucs`, `expected_tool_sequence`, `forbidden_tools`, `grounding_mode`, `bot_handling_pattern`, `allow_bot_resolution`, `risk_level`, `max_turns`, `answer_must_not_contain`, anything under `scoring`, anything under `form_context`. Validation rejects any LLM response that includes those keys.
+
+L3 override stages (Wave A6.6):
+
+1. **`classification` block** — applied **before** policy lookup. Allowed keys: `primary_uc`, `secondary_ucs`. Replaces the HR-derived UC pair so every downstream policy-driven derivation sees the corrected UC. This is the home for the eleven Wave A2.1 legacy entries previously hardcoded in `extractor.UC_B_RECLASSIFICATION_OVERRIDES`.
+2. **`expected` block** — applied **after** L1 derivation, at the original Wave A5 timing. Allowed keys: any subset of `outcome_class`, `should_escalate`, `escalation_trigger`, `allow_bot_resolution`, `bot_handling_pattern`, `risk_level`, `expected_tool_sequence`, `forbidden_tools`, `grounding_mode`, `answer_must_not_contain`, `max_turns`. Writing `primary_uc` / `secondary_ucs` here is a hard validation error.
+3. **`persona` block** — applied **after** L2 cache. Allowed keys: `seed_messages`, `user_goal_summary`, `hidden_facts`. Verbosity is recomputed from the final seeds; the redundancy filter is reapplied against `form_context`.
+
+A single override entry MAY declare more than one block; lookup is by `source_session_id` only.
+
+Provider configuration:
+
+- Model: DeepSeek v4 Pro (`deepseek-v4-pro`).
+- Credentials: `DEEPSEEK_API_KEY` from the operator's environment. Never logged, never echoed to audit, never written to the cache file.
+- Endpoint: DeepSeek's OpenAI-compatible chat completions API.
+- Determinism: temperature `0`, top-p `1`, seed `0` where supported.
+- Per-call ceiling: hard fail above 4 KB response or 90 s wall time.
+
+Cache contract — committed under `eval_interactive/case_spec_llm_cache/<source_session_id>.yaml`. The single authoritative key is `source_session_id`; `case_id_hint` is recorded for human readability only and is not part of the prompt body, so `prompt_hash` is invariant under HR-row reordering (Wave A6.6).
+
+```yaml
+source_session_id: string
+case_id_hint: string                     # human-readable; not authoritative; not in prompt body
+llm_model: string                        # deepseek-v4-pro
+prompt_hash: string                      # sha256 of prompt + rule_draft + transcript turns
+generated_at: ISO 8601 timestamp
+llm_confidence: low | medium | high
+llm_rationale: string
+rule_draft:
+  seed_messages: [string]
+  user_goal_summary: string
+  hidden_facts: [{fact, disclose_when}]
+  verbosity: terse | normal | verbose
+llm_proposal:
+  seed_messages: [string]
+  user_goal_summary: string
+  hidden_facts: [{fact, disclose_when}]
+accepted_value:
+  seed_messages: [string]
+  user_goal_summary: string
+  hidden_facts: [{fact, disclose_when}]
+  verbosity: terse | normal | verbose
+acceptance_reason: auto_accept_high_confidence | rule_fallback_low_confidence | rule_fallback_validation_failed | reviewer_pin
+```
+
+Validation — applied to every LLM response before it reaches `accepted_value`:
+
+1. Each proposed `seed_messages[i]` must appear (case-insensitive, whitespace-normalised) as a substring of at least one visitor turn in the selected transcript. Fabricated quotes are rejected.
+2. `seed_messages` length is bounded to `1..3`.
+3. `user_goal_summary` is plain English ≤ 280 chars and contains no bot-expectation phrasing ("the bot should", "expects bot to escalate", etc.). Persona must remain user-only.
+4. `hidden_facts` may add facts but must not duplicate any value already in `form_context`; the existing redundancy filter is reapplied.
+5. No keys outside the persona allow-list may appear; presence of any forbidden key fails validation.
+
+Acceptance gate:
+
+- `llm_confidence == high` AND validation passes → auto-accept; `accepted_value = llm_proposal`.
+- Otherwise → `accepted_value = rule_draft`; the `llm_proposal` and `acceptance_reason` are still recorded for review.
+- Cache files are committed and reviewed in PRs like any other source change. Diff review is the human gate. A reviewer may pin a low-confidence proposal manually by editing `accepted_value` and setting `acceptance_reason: reviewer_pin`.
+- The Wave A5 override file is still applied after L2 and may overwrite any persona field L2 wrote.
+
+Length-failure retry (Option A): when the only validator that trips is `user_goal_summary too long` (>280 chars), the reviewer sends ONE follow-up that quotes the prior length and asks the model to shorten it. The retry is re-validated; a second failure falls back to `rule_draft` with `acceptance_reason: rule_fallback_validation_failed`. System-prompt rule 6 explicitly states the 280-char cap so the retry path stays rare.
+
+Pipeline integration:
+
+```mermaid
+flowchart TD
+  HR[HR row + selected turns] --> L1[L1 rule extractor]
+  L1 --> DRAFT[rule_draft persona]
+  DRAFT --> L2{cache hit?}
+  L2 -- yes, prompt_hash matches --> CACHED[load accepted_value]
+  L2 -- no / hash mismatch --> CALL[DeepSeek v4 review call]
+  CALL --> VAL[Schema + provenance validation]
+  VAL --> WRITE[Write cache file]
+  WRITE --> CACHED
+  CACHED --> SPEC[CaseSpec persona block]
+  L1 --> EXP[L1 expected + scoring]
+  EXP --> SPEC
+  SPEC --> L3[Apply Wave A5 overrides]
+  L3 --> FINAL[Final CaseSpec YAML]
+  FINAL --> LINT[linter.py]
+```
+
+CLI controls on `extract_case_specs` (exposed by `eval_interactive.scripts.regenerate_case_specs` and the `eval-interactive extract` click command):
+
+- `--no-llm` — skip L2 entirely; persona equals `rule_draft`. Used in offline CI and unit tests so they never hit the network.
+- `--refresh-llm-session SESSION_ID` (repeatable) — force a single re-call for one or more `source_session_id`s, used when intentionally re-evaluating a cached proposal.
+- `--llm-model MODEL` (default `deepseek-v4-pro`).
+- `--llm-cache-dir PATH` — committed cache directory (default `eval_interactive/case_spec_llm_cache/`).
+
+Shared module location: the prompt template, validators, and DeepSeek client live in `eval_interactive/eval_interactive/case_spec/llm_persona_reviewer.py`. The shadow-audit script (`eval_interactive/scripts/llm_review_specs.py`) imports the same constants so the prompt is defined exactly once.
+
+Wave A6 phasing:
+
+1. **A6.1 Shadow audit.** `eval_interactive/scripts/llm_review_specs.py` runs DeepSeek over every existing spec and writes a side-by-side report to `qa-reports/llm-persona-review.md` (+ YAML companion). Production extractor unchanged. Used to lock the prompt and observe diff distribution.
+2. **A6.2 Cache contract.** Land cache directory + schema. Add reproducibility regression tests (`tests/regression/test_case_spec_llm_cache.py`).
+3. **A6.3 Extractor wiring.** Add `eval_interactive/eval_interactive/case_spec/llm_persona_reviewer.py`. Extractor calls it after rule persona construction and before Wave A5 override application. Forbidden-key rejection and fabricated-quote rejection are tested.
+4. **A6.4 Promote `cs_interactive_012` and similar.** Where the cached high-confidence proposal matches reviewer judgement, retire the manual persona portion of the override. `case_spec_overrides.yaml` retains `expected.*` corrections as needed.
+5. **A6.5 Snapshot regression tests.** Pin `seed_messages` and `user_goal_summary` for at least one anchor case per UC; tests fail loudly on silent DeepSeek behaviour drift.
+
+Wave A6 acceptance targets:
+
+1. The LLM layer never proposes or writes any `expected.*`, `scoring.*`, `form_context.*`, `primary_uc`, or `secondary_ucs` value; validation hard-fails on any response that includes those keys.
+2. Every persona field used in a final CaseSpec is traceable to one of: `rule_draft` (L2 skipped, low-confidence, or validation failed), the cached `llm_proposal` (auto-accepted at high confidence), or a Wave A5 override.
+3. Two consecutive `extract_case_specs` runs on identical inputs (HR CSV, turns, override file, cache directory) produce byte-identical YAML for every spec.
+4. Re-running with `--no-llm` produces specs whose persona blocks equal `rule_draft` and never call DeepSeek.
+5. The cache file for `cs_interactive_012` records `seed_messages` that reflect the actual ad-deletion issue rather than greetings/closings, with `acceptance_reason: auto_accept_high_confidence` or `reviewer_pin`.
+6. Snapshot regression tests pin persona seed_messages / user_goal_summary for at least one anchor case per UC.
+
+Wave A6.6 acceptance targets (unified override registry):
+
+1. `UC_B_RECLASSIFICATION_OVERRIDES` is removed from `extractor.py`. All case-specific corrections live in `eval_interactive/case_spec_overrides.yaml` (schema v2).
+2. The override file is keyed by `source_session_id` alone; `case_id_hint` is informational. Reading a v1 file fails loudly with a one-line migration message.
+3. `prompt_hash` is invariant under HR row reordering — the prompt body no longer includes `case_id`. The locked `PROMPT_TEMPLATE_SHA256` is updated and pinned.
+4. `approved` overrides require `reviewer / date / rationale / confidence / source` and a non-empty `supporting_turn_numbers` UNLESS `migrated_from_legacy: true`. Loader hard-fails on missing fields, duplicate sessions, unknown UCs, `expected.primary_uc / expected.secondary_ucs`, or disallowed `persona` keys.
+5. `pending_review` overrides do not modify generated specs; they surface in the audit. `--strict-overrides` hard-fails any spec whose session matches a pending entry.
+6. L3 may write any `expected.*` OR `persona.*` field within the documented allow-lists (scope widened from Wave A5).
 
 **Case Sets**:
 

@@ -1,0 +1,55 @@
+source_session_id: 570Q5000008pyjtIAA
+case_id_hint: row_364
+llm_model: deepseek-v4-pro
+prompt_hash: 03016a3350cf1c7a85f2ca0628ab0c1a714ac44ef9fa8b1eee474f6135d3f3da
+generated_at: '2026-04-30T20:32:39.117144+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and accurately capture the core complaint about ad bump position
+  not meeting expectations. User goal summary refined to specify the desired outcome (second in most relevant sort) based
+  on transcript details. Hidden facts derived from transcript about payment history and past behavior, which the simulator
+  can disclose when relevant.
+rule_draft:
+  seed_messages:
+  - Hi there, I paid to bump up my ad this morning and since then only one other person's ad has been bumped up so my ad should
+    be second in the listing not way down
+  - As only one other ad has been refreshed/bumped up today i reasonably expect it to now be second on the listing - otherwise
+    what have I paid for? It's now no higher than before it was bumped up but, to reiterate, only one persons ad has been
+    updated since
+  - I expect to get whats been paid for, simple as that.
+  user_goal_summary: 'User reports Ad Support: Ad not bumped up as paid for. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi there, I paid to bump up my ad this morning and since then only one other person's ad has been bumped up so my ad should
+    be second in the listing not way down
+  - As only one other ad has been refreshed/bumped up today i reasonably expect it to now be second on the listing - otherwise
+    what have I paid for? It's now no higher than before it was bumped up but, to reiterate, only one persons ad has been
+    updated since
+  - I expect to get whats been paid for, simple as that.
+  user_goal_summary: 'The user paid to bump up their ad and expects it to appear second in the search results (most relevant
+    sort) because only one other ad was bumped up today; they want the paid bump to effectively raise their ad''s position.
+    Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user historically observed that bump-ups put their ad at the top of the most relevant list, which is not happening
+      this time.
+    disclose_when: the bot questions the user's expectation that the ad should appear second
+accepted_value:
+  seed_messages:
+  - Hi there, I paid to bump up my ad this morning and since then only one other person's ad has been bumped up so my ad should
+    be second in the listing not way down
+  - As only one other ad has been refreshed/bumped up today i reasonably expect it to now be second on the listing - otherwise
+    what have I paid for? It's now no higher than before it was bumped up but, to reiterate, only one persons ad has been
+    updated since
+  - I expect to get whats been paid for, simple as that.
+  user_goal_summary: 'The user paid to bump up their ad and expects it to appear second in the search results (most relevant
+    sort) because only one other ad was bumped up today; they want the paid bump to effectively raise their ad''s position.
+    Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user historically observed that bump-ups put their ad at the top of the most relevant list, which is not happening
+      this time.
+    disclose_when: the bot questions the user's expectation that the ad should appear second
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user paid for bump-ups on 17/01/26 (twice) and again today.'''

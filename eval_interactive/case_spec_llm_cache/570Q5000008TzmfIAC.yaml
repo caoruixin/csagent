@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008TzmfIAC
+case_id_hint: row_63
+llm_model: deepseek-v4-pro
+prompt_hash: 5d76bda9aa5c12b6b163580e5b12dc58b225660af9ec833a819cfe95ab7a5c95
+generated_at: '2026-04-30T13:18:30.623079+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim and issue‑bearing. User goal summary refined to reflect the actual need (safelist
+  instructions on iPhone). Hidden facts added from transcript details (ad ID, iPhone) for disclosure when relevant.
+rule_draft:
+  seed_messages:
+  - You just cut me off
+  - Do both
+  - Or just send me an email with hi on it and then you know it’s working?
+  user_goal_summary: 'User reports Account Support: I am not receiving email notification of messages. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - You just cut me off
+  - Do both
+  - Or just send me an email with hi on it and then you know it’s working?
+  user_goal_summary: 'User receives no email notifications for Gumtree messages and needs instructions to safelist @reply.gumtree.com
+    on iPhone. Drift: none.'
+  hidden_facts:
+  - fact: User has a live ad with ID 1507172956.
+    disclose_when: when asked for ad identifier or to confirm the ad
+accepted_value:
+  seed_messages:
+  - You just cut me off
+  - Do both
+  - Or just send me an email with hi on it and then you know it’s working?
+  user_goal_summary: 'User receives no email notifications for Gumtree messages and needs instructions to safelist @reply.gumtree.com
+    on iPhone. Drift: none.'
+  hidden_facts:
+  - fact: User has a live ad with ID 1507172956.
+    disclose_when: when asked for ad identifier or to confirm the ad
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User is using an iPhone.'''

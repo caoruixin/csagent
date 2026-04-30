@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008uP2LIAU
+case_id_hint: row_189
+llm_model: deepseek-v4-pro
+prompt_hash: 4651df5bacc037517f08abb90cbf673c526921d73256a88dd760c342515c5347
+generated_at: '2026-04-30T19:17:21.792234+00:00'
+llm_confidence: high
+llm_rationale: Replaced the uninformative seed message 'old' with a visitor turn that clearly states the need to remove all
+  ads from the old account. Updated user_goal_summary to concisely reflect what the user wants (removal of all old ads and
+  confirmation of only the new account remaining). Added hidden facts about the email addresses to support possible bot inquiries.
+rule_draft:
+  seed_messages:
+  - Sorry i must have two accounts and i cannot log into the old one to take an add down
+  - so i just have debsmc account now with nothing on too
+  - old
+  user_goal_summary: 'User reports Ad Support: Mango desk. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Sorry i must have two accounts and i cannot log into the old one to take an add down
+  - im unsure if there are clothing items but all adds on ole account need to be removed please as i can not manage the account
+  - so i just have debsmc account now with nothing on too
+  user_goal_summary: 'User wants all ads removed from her old Gumtree account because she cannot log in to manage them. She
+    wants to ensure only her new account remains, with no listings on it. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Sorry i must have two accounts and i cannot log into the old one to take an add down
+  - im unsure if there are clothing items but all adds on ole account need to be removed please as i can not manage the account
+  - so i just have debsmc account now with nothing on too
+  user_goal_summary: 'User wants all ads removed from her old Gumtree account because she cannot log in to manage them. She
+    wants to ensure only her new account remains, with no listings on it. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''Old email address: [EMAIL]'''
+- 'unsupported_hidden_fact_dropped: ''New email address: [EMAIL]'''

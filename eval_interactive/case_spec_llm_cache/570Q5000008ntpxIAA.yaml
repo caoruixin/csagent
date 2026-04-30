@@ -1,0 +1,34 @@
+source_session_id: 570Q5000008ntpxIAA
+case_id_hint: row_337
+llm_model: deepseek-v4-pro
+prompt_hash: a0fd36fbded3df886fd40e26fec77aefa1dd9e6556321e0f21aa813ee0f1aa9a
+generated_at: '2026-04-30T20:25:52.312728+00:00'
+llm_confidence: high
+llm_rationale: Removed non-issue seed 'Are u human' and kept only issue-bearing turns from transcript. Refined user_goal_summary
+  to specifically describe the error state encountered. Added grounded hidden fact about platform usage.
+rule_draft:
+  seed_messages:
+  - Are u human
+  - Internet
+  - It just still at a green box with COMPLETE or similar on
+  user_goal_summary: 'User reports Ad Support: I cannot bump up my adverts. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It just still at a green box with COMPLETE or similar on
+  - Internet
+  user_goal_summary: 'User wants to bump up his Gumtree adverts but the payment page gets stuck showing a green ''COMPLETE''
+    box and doesn''t proceed. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It just still at a green box with COMPLETE or similar on
+  - Internet
+  user_goal_summary: 'User wants to bump up his Gumtree adverts but the payment page gets stuck showing a green ''COMPLETE''
+    box and doesn''t proceed. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user is using the Gumtree website via a web browser, not the mobile app.'''

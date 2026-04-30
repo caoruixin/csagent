@@ -1,0 +1,32 @@
+source_session_id: 570Q5000008jyBWIAY
+case_id_hint: row_327
+llm_model: deepseek-v4-pro
+prompt_hash: 74a9244a611e4974c1689faccf306ff5828c13d46159ea74b3e703a7e9e2d2d1
+generated_at: '2026-04-30T19:59:59.912312+00:00'
+llm_confidence: high
+llm_rationale: The visitor turn 'I sent a link to my son following posting to gumtree and add states sold.' directly captures
+  the issue. No other visitor turns describe the problem. The user goal summary accurately reflects the user's desire to successfully
+  post the ad. Hidden facts are unnecessary since the transcript provides only an email address which was requested by the
+  bot, not core to the persona.
+rule_draft:
+  seed_messages:
+  - I sent a link to my son following posting to gumtree and add states sold.
+  user_goal_summary: 'User reports Ad Support: My add will not post, posted and payed 3 times now and receive a refund withing
+    60 second of posting. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I sent a link to my son following posting to gumtree and add states sold.
+  user_goal_summary: 'User wants to post an ad on Gumtree Australia but each attempt results in a refund and the ad shows
+    as sold; they want the ad to publish successfully. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I sent a link to my son following posting to gumtree and add states sold.
+  user_goal_summary: 'User wants to post an ad on Gumtree Australia but each attempt results in a refund and the ad shows
+    as sold; they want the ad to publish successfully. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,37 @@
+source_session_id: 570Q500000908rdIAA
+case_id_hint: row_308
+llm_model: deepseek-v4-pro
+prompt_hash: 9c4372a00424f65877c215f19107f998493d5d980524a5894f15b30f8abd71eb
+generated_at: '2026-04-30T19:54:33.122549+00:00'
+llm_confidence: high
+llm_rationale: The only substantive visitor turn captures the core issue. Thanks/goodbye turns are excluded per persona guidelines.
+  Goal summary is factual, transcript-grounded, and within character limit. Hidden fact is directly from agent message with
+  no embellishment.
+rule_draft:
+  seed_messages:
+  - Yes, I just signed in again. I still can’t see my ads. My account shows my name.
+  - No thank you, thanks for your help bye
+  - Ok, that worked, thank you.
+  user_goal_summary: 'User reports Account Support: I have just changed a mobile phones added the app to my new phone and
+    I cannot see my ads. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Yes, I just signed in again. I still can’t see my ads. My account shows my name.
+  user_goal_summary: 'The user wants to view their existing ads on Gumtree after switching to a new phone, but after signing
+    in, their ads are missing, even though the account displays their name. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user has a live ad for a Gtech electric bicycle (ID 1496980527) on their Gmail account.
+    disclose_when: Bot asks for an example ad or details to verify the account.
+accepted_value:
+  seed_messages:
+  - Yes, I just signed in again. I still can’t see my ads. My account shows my name.
+  user_goal_summary: 'The user wants to view their existing ads on Gumtree after switching to a new phone, but after signing
+    in, their ads are missing, even though the account displays their name. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user has a live ad for a Gtech electric bicycle (ID 1496980527) on their Gmail account.
+    disclose_when: Bot asks for an example ad or details to verify the account.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

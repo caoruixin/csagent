@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from eval_interactive.case_spec.extractor import UC_B_RECLASSIFICATION_OVERRIDES
+from eval_interactive.case_spec.extractor import _load_case_spec_overrides
 from eval_interactive.case_spec.loader import load_case_spec
 
 
@@ -61,22 +61,26 @@ def test_cs_interactive_040_field_values():
 
 
 # ---------------------------------------------------------------------------
-# Anchor case: cs_interactive_015 (UC-K, secondaries [UC-FP, UC-B])
+# Anchor case: cs_interactive_015 (UC-FP, secondaries [UC-B, UC-K])
 # ---------------------------------------------------------------------------
 
 
 def test_cs_interactive_015_field_values():
-    """Pin the post-A3 expected fields for cs_interactive_015.
+    """Pin the Wave A6 expected fields for cs_interactive_015.
 
-    cs_interactive_015 is the multi-UC reclassification anchor: the source
-    session looked like a UC-B (status query) but the override map promotes
-    it to UC-K with secondaries UC-FP and UC-B (Wave A2.1).
+    cs_interactive_015's Wave A2.1 UC-K legacy pin was superseded by a
+    Wave A6 semantic re-review: the user asks "what happened to my ad?"
+    and "how do I change it?", which Phase 2 §2.2:282 places under UC-FP
+    (failed posting, edit-and-repost). The historical late escalation is
+    failure-path evidence rather than the desired golden behavior.
     """
     spec = load_case_spec(ANCHOR_DIR / "cs_interactive_015.yaml")
 
     expected = spec.expected
-    assert expected.primary_uc == "UC-K"
-    assert expected.secondary_ucs == ["UC-FP", "UC-B"]
+    assert expected.primary_uc == "UC-FP"
+    assert expected.secondary_ucs == ["UC-B", "UC-K"]
+    assert expected.outcome_class == "resolve"
+    assert expected.should_escalate is False
 
     # The bot SHOULD call get_customer_context as part of the safe-summary
     # intake step, so it must be in the expected sequence and never in the
@@ -84,46 +88,56 @@ def test_cs_interactive_015_field_values():
     assert "get_customer_context" in expected.expected_tool_sequence
     assert "get_customer_context" not in expected.forbidden_tools
 
-    # An escalation trigger must be set since should_escalate=True.
-    assert expected.escalation_trigger is not None
+    # No escalation trigger since should_escalate=False (resolve-first).
+    assert expected.escalation_trigger is None
 
 
 # ---------------------------------------------------------------------------
-# UC-B reclassification override map sanity (Wave A2.1)
+# Migrated UC-B reclassification entries in case_spec_overrides.yaml v2
+# (Wave A6.6). Replaces the legacy in-code UC_B_RECLASSIFICATION_OVERRIDES
+# constant; same eleven session-ids, plus the merged cs_interactive_012
+# entry which carries both classification + expected blocks.
 # ---------------------------------------------------------------------------
 
 
 def test_uc_b_reclassification_override_map():
-    """The override map should have exactly 11 entries; each value must be a
-    ``(str, list[str])`` tuple where the primary UC is a recognised
-    ``UC-<letter>``-style identifier.
-    """
+    """The legacy UC-B reclassification map must survive in
+    ``case_spec_overrides.yaml`` v2: every original session id has a
+    ``classification.primary_uc`` entry, and each UC value is recognised."""
     valid_uc_prefixes = {"UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP",
                         "UC-G", "UC-H", "UC-I", "UC-J", "UC-K"}
 
-    assert len(UC_B_RECLASSIFICATION_OVERRIDES) == 11
+    legacy_session_ids = {
+        "570Q5000008hx9tIAA",
+        "570Q5000008WmXxIAK",
+        "570Q5000008TMmvIAG",
+        "570Q5000008U5C9IAK",
+        "570Q5000008wmKbIAI",
+        "570Q5000009060DIAQ",
+        "570Q5000008w24rIAA",
+        "570Q5000008fG5qIAE",
+        "570Q5000008caqfIAA",
+        "570Q5000008IwKHIA0",
+        "570Q5000008iwZxIAI",
+    }
 
-    for session_id, override in UC_B_RECLASSIFICATION_OVERRIDES.items():
-        assert isinstance(session_id, str) and session_id, (
-            f"override key must be non-empty str; got {session_id!r}"
+    registry = _load_case_spec_overrides()
+
+    for sid in legacy_session_ids:
+        assert sid in registry.applied, (
+            f"missing legacy UC-B reclassification entry for {sid!r}"
         )
-        assert isinstance(override, tuple) and len(override) == 2, (
-            f"override value for {session_id!r} must be a 2-tuple; got {override!r}"
+        entry = registry.applied[sid]
+        cls = entry.classification or {}
+        assert "primary_uc" in cls and cls["primary_uc"] in valid_uc_prefixes, (
+            f"override primary_uc for {sid!r} invalid: {cls!r}"
         )
-        primary, secondary = override
-        assert isinstance(primary, str) and primary in valid_uc_prefixes, (
-            f"override primary for {session_id!r} must be a valid UC; got {primary!r}"
-        )
-        assert isinstance(secondary, list), (
-            f"override secondary for {session_id!r} must be a list; got {type(secondary).__name__}"
-        )
-        for sec in secondary:
-            assert isinstance(sec, str) and sec in valid_uc_prefixes, (
-                f"override secondary entry for {session_id!r} invalid: {sec!r}"
+        for sec in cls.get("secondary_ucs") or []:
+            assert sec in valid_uc_prefixes, (
+                f"override secondary entry for {sid!r} invalid: {sec!r}"
             )
 
-    # Spot-check the cs_interactive_015 source session id.
-    assert UC_B_RECLASSIFICATION_OVERRIDES["570Q5000008WmXxIAK"] == (
-        "UC-K",
-        ["UC-FP", "UC-B"],
-    )
+    # Spot-check the cs_interactive_015 source session id (Wave A6
+    # re-review: classification flipped from UC-K to UC-FP).
+    cs15 = registry.applied["570Q5000008WmXxIAK"].classification
+    assert cs15 == {"primary_uc": "UC-FP", "secondary_ucs": ["UC-B", "UC-K"]}

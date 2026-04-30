@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008OpO9IAK
+case_id_hint: row_290
+llm_model: deepseek-v4-pro
+prompt_hash: ca438b59a060308217859c4acb778b7a07a9b2079c967435f01449fdc9b634d6
+generated_at: '2026-04-30T19:49:08.477287+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing remark 'Appreciated' with an issue-bearing visitor turn about messages not sending. Updated
+  user goal summary to reflect specific search terms and message reliability concern. Added hidden facts grounded in transcript
+  (category and recent renewal).
+rule_draft:
+  seed_messages:
+  - Hi, good morning, my ad is not showing on featured page nor under the main search words
+  - I will edit it to crystal glass antique because I paid a renewal fee only yesterday so its still got a few days left,
+    but still there is issues of not receiving messages - is there a reason for this?
+  - Appreciated
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi, good morning, my ad is not showing on featured page nor under the main search words
+  - I will edit it to crystal glass antique because I paid a renewal fee only yesterday so its still got a few days left,
+    but still there is issues of not receiving messages - is there a reason for this?
+  - My friend checked it as well, she can’t send messages either
+  user_goal_summary: 'User wants their ad for crystal glass and royal Doulton items to show in search results and reliably
+    receive buyer messages, after recently renewing the ad. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi, good morning, my ad is not showing on featured page nor under the main search words
+  - I will edit it to crystal glass antique because I paid a renewal fee only yesterday so its still got a few days left,
+    but still there is issues of not receiving messages - is there a reason for this?
+  - My friend checked it as well, she can’t send messages either
+  user_goal_summary: 'User wants their ad for crystal glass and royal Doulton items to show in search results and reliably
+    receive buyer messages, after recently renewing the ad. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The ad is currently listed in the Antique category.'''
+- 'unsupported_hidden_fact_dropped: ''The user renewed the ad payment yesterday.'''
