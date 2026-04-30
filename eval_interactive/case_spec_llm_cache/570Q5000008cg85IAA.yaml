@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008cg85IAA
+case_id_hint: row_142
+llm_model: deepseek-v4-pro
+prompt_hash: ffe8d7a546a711e6ecc7144a939a5c1eaf2b22565bf42761584ea7d02ac8b8c6
+generated_at: '2026-04-30T19:05:23.682814+00:00'
+llm_confidence: high
+llm_rationale: The seed messages are verbatim visitor turns that capture the core issue and urgency. The user goal summary
+  refines the draft to be more precise, incorporating the user's explicit statements and the drift type.
+rule_draft:
+  seed_messages:
+  - I’m getting emails saying I have incoming messages that I haven’t replied to but there’s nothing in my inbox
+  - No thanks, if you could try and sort asap please in case I have people interested in my ad
+  - There’s no messages there at all
+  user_goal_summary: 'User reports Replies & Messaging: Why can’t I see messages in my inbox. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I’m getting emails saying I have incoming messages that I haven’t replied to but there’s nothing in my inbox
+  - No thanks, if you could try and sort asap please in case I have people interested in my ad
+  - There’s no messages there at all
+  user_goal_summary: 'User wants to know why they are receiving email notifications about unanswered messages but no messages
+    appear in their Gumtree or email inbox, and needs the issue fixed urgently to avoid missing potential buyers. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I’m getting emails saying I have incoming messages that I haven’t replied to but there’s nothing in my inbox
+  - No thanks, if you could try and sort asap please in case I have people interested in my ad
+  - There’s no messages there at all
+  user_goal_summary: 'User wants to know why they are receiving email notifications about unanswered messages but no messages
+    appear in their Gumtree or email inbox, and needs the issue fixed urgently to avoid missing potential buyers. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

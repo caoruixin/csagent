@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008nzc2IAA
+case_id_hint: row_352
+llm_model: deepseek-v4-pro
+prompt_hash: 21272119f6e3daa577f1f0e8c9b327295228a7289cc85cfafc9df73dea0100fc
+generated_at: '2026-04-30T20:28:50.628820+00:00'
+llm_confidence: high
+llm_rationale: Seed messages replaced with issue-focused turns directly from the transcript. User goal clarified to explicitly
+  mention password reset failure and activation email.
+rule_draft:
+  seed_messages:
+  - Are you there?
+  - Yes, and answered it by clicking through
+  - This is the first time I have tired to use it to message someone
+  user_goal_summary: 'User reports Account Support: I forgot my password and so just changed it. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - My new password doesn't work
+  - This is the first time I have tired to use it to message someone
+  - Yes, and answered it by clicking through
+  user_goal_summary: 'The user wants to regain access to their Gumtree account after resetting their password. The new password
+    is not working, and they have clicked the activation email. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - My new password doesn't work
+  - This is the first time I have tired to use it to message someone
+  - Yes, and answered it by clicking through
+  user_goal_summary: 'The user wants to regain access to their Gumtree account after resetting their password. The new password
+    is not working, and they have clicked the activation email. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has no active ads on the account.'''
+- 'unsupported_hidden_fact_dropped: ''The user clicked the activation email link after password reset.'''

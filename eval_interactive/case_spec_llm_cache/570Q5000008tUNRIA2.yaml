@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008tUNRIA2
+case_id_hint: row_25
+llm_model: deepseek-v4-pro
+prompt_hash: 13efee8a922ff042c66c93add33a86aaa81d24dc06b3323f5274348c17a62a95
+generated_at: '2026-04-30T13:07:21.686882+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing seed message with a substantive issue-bearing turn to better capture the user's request for
+  account deletion. Updated user_goal_summary to reflect the user's actual objective as derived from the transcript. Added
+  two hidden_facts supported by the conversation.
+rule_draft:
+  seed_messages:
+  - I was just checking 'all ads' both active and inaccurate
+  - Yes please delete everything else - I'm easily confused 👍
+  - No thank you again
+  user_goal_summary: 'User reports Account Support: I have paid for an ad today which doesn''t appear anywhere. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I was just checking 'all ads' both active and inaccurate
+  - Ahh ok. I will look into this but are you able to delete incorrect account
+  - Yes please delete everything else - I'm easily confused 👍
+  user_goal_summary: 'The user wants to delete all Gumtree accounts associated with Google sign-in except the one where his
+    ad is live, and confirm the ad is under his hotmail email address. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's ad is live and associated with his hotmail email address.
+    disclose_when: when asked about the email address for the ad
+  - fact: The user inadvertently created multiple Gumtree accounts by signing in with Google instead of his email.
+    disclose_when: when asked why he wants to delete accounts
+accepted_value:
+  seed_messages:
+  - I was just checking 'all ads' both active and inaccurate
+  - Ahh ok. I will look into this but are you able to delete incorrect account
+  - Yes please delete everything else - I'm easily confused 👍
+  user_goal_summary: 'The user wants to delete all Gumtree accounts associated with Google sign-in except the one where his
+    ad is live, and confirm the ad is under his hotmail email address. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's ad is live and associated with his hotmail email address.
+    disclose_when: when asked about the email address for the ad
+  - fact: The user inadvertently created multiple Gumtree accounts by signing in with Google instead of his email.
+    disclose_when: when asked why he wants to delete accounts
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

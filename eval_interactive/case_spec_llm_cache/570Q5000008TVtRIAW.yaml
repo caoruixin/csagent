@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008TVtRIAW
+case_id_hint: row_44
+llm_model: deepseek-v4-pro
+prompt_hash: 4235468b0a8caeffbc189b480907cfdda64f5ce2aba483583f8057389797084d
+generated_at: '2026-04-30T13:13:38.956117+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue seed messages ('.' and 'Thank you...') with visitor turns that clearly state the problem
+  (seq4, seq26). Kept the existing strong statement from seq16. Updated user_goal_summary to reflect the specific desire to
+  remove trader designation or delete account to post as a private seller. Added one hidden_fact based on seq22 to support
+  simulating the email constraint.
+rule_draft:
+  seed_messages:
+  - .
+  - I have never been a trader, never registered as a trader and am very confused as to how and why this has been altered
+  - Thank you I will await the response
+  user_goal_summary: 'User reports Account Support: Why am I unable to post an ad. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I am unable to post an ad
+  - I have never been a trader, never registered as a trader and am very confused as to how and why this has been altered
+  - So how do I get the trade removed from my account.
+  user_goal_summary: 'User wants to post a vehicle ad as a private seller, but their account is wrongly flagged as a trader.
+    They want the trader designation removed, or if impossible, the account deleted so they can register anew. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I am unable to post an ad
+  - I have never been a trader, never registered as a trader and am very confused as to how and why this has been altered
+  - So how do I get the trade removed from my account.
+  user_goal_summary: 'User wants to post a vehicle ad as a private seller, but their account is wrongly flagged as a trader.
+    They want the trader designation removed, or if impossible, the account deleted so they can register anew. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has only one email address, which is already tied to this Gumtree account,
+  so creating a new account with a different email is not an option.'''

@@ -1,0 +1,35 @@
+source_session_id: 570Q50000090RcaIAE
+case_id_hint: cs_interactive_020
+llm_model: deepseek-v4-pro
+prompt_hash: 1915dce966001c5a2ebdbd01062a779f0b7ce8eeeafd01b540ac2b08e07d6c08
+generated_at: '2026-04-30T20:38:45.031423+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns clearly stating the problem. Goal summary refined to be more specific
+  and user-centric, while staying under 280 characters. No hidden facts necessary as all key details are surfaced in the dialog.
+rule_draft:
+  seed_messages:
+  - I don't know and can't them but my star rating is wrong
+  - That's a bit unfair but not alot I can do about it
+  - It's from years ago and doesn't reflect my current affairs
+  user_goal_summary: 'User reports Ratings & Reviews: Star rating incorrect please adjust. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I don't know and can't them but my star rating is wrong
+  - It's from years ago and doesn't reflect my current affairs
+  - That's a bit unfair but not alot I can do about it
+  user_goal_summary: 'User wants to fix an incorrect star rating from years ago that doesn''t reflect their current situation.
+    Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I don't know and can't them but my star rating is wrong
+  - It's from years ago and doesn't reflect my current affairs
+  - That's a bit unfair but not alot I can do about it
+  user_goal_summary: 'User wants to fix an incorrect star rating from years ago that doesn''t reflect their current situation.
+    Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

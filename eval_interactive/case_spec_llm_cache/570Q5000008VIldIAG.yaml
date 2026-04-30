@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008VIldIAG
+case_id_hint: row_107
+llm_model: deepseek-v4-pro
+prompt_hash: aa45d8b8b087fee58e9e22b5f16f7bf24d117a9e2566a4a975d14b0c723f9583
+generated_at: '2026-04-30T13:31:51.373285+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed message is a verbatim copy of the only substantive visitor turn, which captures the core
+  issue. The user goal summary was rewritten to be a concise, user-centric description of what the user wants, without bot-side
+  instructions, and fits within the 280-character limit.
+rule_draft:
+  seed_messages:
+  - I won't let me enter the ad as it's been removed but you have charged me over £10 and taken the money don't understand
+    why it's been removed just trying to rehome my do
+  user_goal_summary: 'User reports Ad Support: American bulldog need rehoming has been remo. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I won't let me enter the ad as it's been removed but you have charged me over £10 and taken the money don't understand
+    why it's been removed just trying to rehome my do
+  user_goal_summary: 'User wants to know why their dog rehoming ad was taken down and why they were charged over £10, seeking
+    refund or reinstatement. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I won't let me enter the ad as it's been removed but you have charged me over £10 and taken the money don't understand
+    why it's been removed just trying to rehome my do
+  user_goal_summary: 'User wants to know why their dog rehoming ad was taken down and why they were charged over £10, seeking
+    refund or reinstatement. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,34 @@
+source_session_id: 570Q5000008qmYbIAI
+case_id_hint: row_236
+llm_model: deepseek-v4-pro
+prompt_hash: 9d2005a585bae2742840ef47b5cb54e2ce9a6d563086d13654c8f1d20d349bf0
+generated_at: '2026-04-30T19:35:39.726578+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are accurate visitor quotes from the transcript. Summary is concise and factual. Added one hidden
+  fact extracted from the conversation.
+rule_draft:
+  seed_messages:
+  - September 2024
+  - okay let me try 1 min
+  user_goal_summary: 'User reports Account Support: having trouble logging into account. Drift: none.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - September 2024
+  - okay let me try 1 min
+  user_goal_summary: 'User wants to regain access to their Gumtree account after encountering login issues. Drift: none.'
+  hidden_facts:
+  - fact: User last accessed their account in September 2024.
+    disclose_when: when bot asks about last login time
+accepted_value:
+  seed_messages:
+  - September 2024
+  - okay let me try 1 min
+  user_goal_summary: 'User wants to regain access to their Gumtree account after encountering login issues. Drift: none.'
+  hidden_facts:
+  - fact: User last accessed their account in September 2024.
+    disclose_when: when bot asks about last login time
+  verbosity: terse
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

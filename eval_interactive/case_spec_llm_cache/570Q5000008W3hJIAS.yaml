@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008W3hJIAS
+case_id_hint: row_157
+llm_model: deepseek-v4-pro
+prompt_hash: 810e65f7bc8727a4c55f1343c12305de6a5ce48216726fbad57b1dd2f37130b8
+generated_at: '2026-04-30T19:07:18.139460+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed_messages are verbatim from visitor turns (seq 3, 26, 25) and adequately capture the user's
+  issue and concerns. The user_goal_summary is updated to a specific, factual description within 280 characters. Hidden facts
+  are grounded in the transcript (seq 11, 17-21).
+rule_draft:
+  seed_messages:
+  - my ad was removed
+  - really appreciate your help
+  - I don’t want to look bad
+  user_goal_summary: 'User reports Ad Support: Ad removed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - my ad was removed
+  - really appreciate your help
+  - I don’t want to look bad
+  user_goal_summary: 'User wants his Gumtree ad (ID 1507847487) made live after it was removed; he has amended the ad and
+    resolved account issues. He is frustrated by delays and wants to respond to interested parties. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's ad ID is 1507847487.
+    disclose_when: when asked for ad details or account reference
+accepted_value:
+  seed_messages:
+  - my ad was removed
+  - really appreciate your help
+  - I don’t want to look bad
+  user_goal_summary: 'User wants his Gumtree ad (ID 1507847487) made live after it was removed; he has amended the ad and
+    resolved account issues. He is frustrated by delays and wants to respond to interested parties. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's ad ID is 1507847487.
+    disclose_when: when asked for ad details or account reference
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user believes the ad was removed because he tried using a work email address; he
+  has since deleted that work email account and only has one Gumtree account.'''

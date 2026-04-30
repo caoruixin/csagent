@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008wnoXIAQ
+case_id_hint: row_112
+llm_model: deepseek-v4-pro
+prompt_hash: 24f30d208358f0c727fab8b20f5818dbb1ff0015183e625b1d0c0f5028cad8fb
+generated_at: '2026-04-30T13:33:18.037063+00:00'
+llm_confidence: high
+llm_rationale: Replaced two non‑issue seed messages (closing/acknowledgment) with verbatim visitor turns that articulate the
+  core problem and complaint. Updated user goal summary to precisely reflect the transcript without bot instructions. Added
+  two hidden facts grounded in the conversation.
+rule_draft:
+  seed_messages:
+  - Not the issue, I want to remove completely all my expired ads
+  - you too
+  - Thanks, I will
+  user_goal_summary: 'User reports Account Support: I can''t seem to delete my expired ads and as there are so many I want
+    to tidy up my account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Not the issue, I want to remove completely all my expired ads
+  - There is no option to do this so there are over 300 expired ads on my account
+  - Please raise this as a complaint about Gumtree because I love using it but this is becoming a real issue.
+  user_goal_summary: 'User wants to delete all expired ads from their account (over 300) because there is no option, and they
+    want to raise a complaint about this missing feature. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Not the issue, I want to remove completely all my expired ads
+  - There is no option to do this so there are over 300 expired ads on my account
+  - Please raise this as a complaint about Gumtree because I love using it but this is becoming a real issue.
+  user_goal_summary: 'User wants to delete all expired ads from their account (over 300) because there is no option, and they
+    want to raise a complaint about this missing feature. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has over 300 expired ads.'''
+- 'unsupported_hidden_fact_dropped: ''User intends to file a complaint via email to the provided address.'''

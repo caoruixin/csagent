@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008Ye01IAC
+case_id_hint: row_57
+llm_model: deepseek-v4-pro
+prompt_hash: d334f32974333242d53b646e569e015192dde2e3b4df4f913d1c0e19059c3b43
+generated_at: '2026-04-30T13:16:11.429333+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are exact visitor turns from the transcript capturing the core issue, screenshot offer, and mention
+  of three issues. Summary refined to clarify the missing replies and escalation request. Hidden facts derived from user's
+  mention of phishing and having an iCloud account.
+rule_draft:
+  seed_messages:
+  - Hello my add replies are not getting through to me and today l had a phishing attempt
+  - l can send a screenshot of all this
+  - all three
+  user_goal_summary: 'User reports Account Support: My add replies are not reaching me. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hello my add replies are not getting through to me and today l had a phishing attempt
+  - l can send a screenshot of all this
+  - all three
+  user_goal_summary: 'User is not receiving replies to their Gumtree ads, including three specific replies, and wants them
+    resent and the issue escalated. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hello my add replies are not getting through to me and today l had a phishing attempt
+  - l can send a screenshot of all this
+  - all three
+  user_goal_summary: 'User is not receiving replies to their Gumtree ads, including three specific replies, and wants them
+    resent and the issue escalated. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User received a phishing attempt recently.'''
+- 'unsupported_hidden_fact_dropped: ''User has an iCloud account in addition to their btconnect.com email.'''

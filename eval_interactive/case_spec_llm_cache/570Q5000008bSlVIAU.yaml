@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008bSlVIAU
+case_id_hint: cs_interactive_016
+llm_model: deepseek-v4-pro
+prompt_hash: d6ffe70289ec255f70e8063e816eaef1f9d9ebed553d253c0202ff7489d3bf13
+generated_at: '2026-04-30T10:47:11.011642+00:00'
+llm_confidence: high
+llm_rationale: Replaced the closing 'No worries' seed message with a visitor turn stating the core issue (stolen bike, need
+  listing details), which better drives the simulation. Updated user_goal_summary to reflect the actual goal of finding a
+  bike listing to identify the brand after theft. Added hidden facts about two emails and the 2021 timeframe, both grounded
+  in the transcript and useful for the simulator.
+rule_draft:
+  seed_messages:
+  - Hello,Lerato.I would like to find an old transaction, from a bike I bought few years ago.Is that possible?Thanks
+  - I m not sure which one I used in the past.They are both mine
+  - No worries. Have a lovely new year 😊
+  user_goal_summary: 'User reports Account Support: Track my history. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hello,Lerato.I would like to find an old transaction, from a bike I bought few years ago.Is that possible?Thanks
+  - I m not sure which one I used in the past.They are both mine
+  - My bike is stolen and I am not quite sure about the brand. I had bought it from Gumtree, so I believe the details I need
+    are shown in the advertisement
+  user_goal_summary: 'User wants to retrieve an old Gumtree bike listing from around 2021 to find the brand after the bike
+    was stolen. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The bike transaction occurred around 2021.
+    disclose_when: when asked about the date or timeframe of the purchase
+accepted_value:
+  seed_messages:
+  - Hello,Lerato.I would like to find an old transaction, from a bike I bought few years ago.Is that possible?Thanks
+  - I m not sure which one I used in the past.They are both mine
+  - My bike is stolen and I am not quite sure about the brand. I had bought it from Gumtree, so I believe the details I need
+    are shown in the advertisement
+  user_goal_summary: 'User wants to retrieve an old Gumtree bike listing from around 2021 to find the brand after the bike
+    was stolen. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The bike transaction occurred around 2021.
+    disclose_when: when asked about the date or timeframe of the purchase
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has two email addresses and is unsure which one was used for the Gumtree account.'''

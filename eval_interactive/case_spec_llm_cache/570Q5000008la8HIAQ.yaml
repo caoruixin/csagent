@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008la8HIAQ
+case_id_hint: row_311
+llm_model: deepseek-v4-pro
+prompt_hash: b7894961046275eb4fa81cb6e11aab7831eb21962a83c7778fb287d732502dce
+generated_at: '2026-04-30T19:55:48.922540+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and issue-focused. Summary refined to be specific about the password
+  reset problem. Hidden fact added from user's statement about multiple attempts and spam check.
+rule_draft:
+  seed_messages:
+  - Having issue receiving email password reset or logging in
+  - https://www.gumtree.com/p/business-for-sale/window-cleaning-rounds-for-sale/1506802397
+  - Here’s one of my adverts
+  user_goal_summary: 'User reports Account Support: Help logging in. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Having issue receiving email password reset or logging in
+  - https://www.gumtree.com/p/business-for-sale/window-cleaning-rounds-for-sale/1506802397
+  - Here’s one of my adverts
+  user_goal_summary: 'User cannot receive password reset emails for account associated with [EMAIL] and needs to regain access.
+    Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Having issue receiving email password reset or logging in
+  - https://www.gumtree.com/p/business-for-sale/window-cleaning-rounds-for-sale/1506802397
+  - Here’s one of my adverts
+  user_goal_summary: 'User cannot receive password reset emails for account associated with [EMAIL] and needs to regain access.
+    Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has tried password reset 10 times and checked spam folder, but never receives the
+  reset email.'''

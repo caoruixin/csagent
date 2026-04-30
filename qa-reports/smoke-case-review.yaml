@@ -62,17 +62,17 @@ reviews:
   - case_id: cs_interactive_012
     source_session_id: 570Q5000008hx9tIAA
     source_dataset: badcase
-    review_status: ok
+    review_status: needs_override
     recommended_primary_uc: UC-FP
     recommended_secondary_ucs: [UC-K]
-    recommended_outcome_class: escalate
-    recommended_should_escalate: true
-    recommended_escalation_trigger: user_requested
-    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome]
-    recommended_bot_handling_pattern: "Explain ad deletion policy with account/listing context, then hand over because the user asks for human/phone contact."
+    recommended_outcome_class: resolve
+    recommended_should_escalate: false
+    recommended_escalation_trigger: null
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, record_outcome]
+    recommended_bot_handling_pattern: "Retrieve safe account/listing/moderation context and explain the kitten ad deletion reason with policy-grounded next steps; escalate only if the explanation cannot be produced or is rejected."
     supporting_turn_numbers: [5, 6, 8, 10, 12, 14]
-    rationale: "The transcript is about an ad repeatedly being deleted and includes a request to speak to someone, supporting generated UC-FP escalation despite the HR UC-B label."
-    confidence: medium
+    rationale: "The late phone/human request is a failure-path signal after the user has not received a concrete deletion reason. The reviewed target is resolve-first UC-FP behaviour, preserved through an approved case-level override."
+    confidence: high
     requires_policy_change: false
   - case_id: cs_interactive_014
     source_session_id: 570Q5000008u9gjIAA
@@ -92,16 +92,16 @@ reviews:
   - case_id: cs_interactive_015
     source_session_id: 570Q5000008WmXxIAK
     source_dataset: badcase
-    review_status: ok
-    recommended_primary_uc: UC-K
-    recommended_secondary_ucs: [UC-FP, UC-B]
-    recommended_outcome_class: escalate
-    recommended_should_escalate: true
-    recommended_escalation_trigger: user_distress
-    recommended_expected_tool_sequence: [get_customer_context, create_case_controlled, request_handover, record_outcome]
-    recommended_bot_handling_pattern: "Treat as customer-specific ad state/technical issue, collect intake, create a controlled case, and hand over."
-    supporting_turn_numbers: [5, 6, 8, 11, 13, 14]
-    rationale: "The transcript asks what happened to the user's ad and the agent escalates to a specialist team, supporting the existing UC-K reclassification."
+    review_status: needs_override
+    recommended_primary_uc: UC-FP
+    recommended_secondary_ucs: [UC-B, UC-K]
+    recommended_outcome_class: resolve
+    recommended_should_escalate: false
+    recommended_escalation_trigger: null
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, record_outcome]
+    recommended_bot_handling_pattern: "Retrieve safe customer/listing/moderation context, explain why the ad was removed or flagged, clarify whether the user can edit/repost/change it, and escalate only if the reason cannot be produced, the user requests review/restoration/human support, or a human-only action is required."
+    supporting_turn_numbers: [5, 6, 7, 8, 9, 11, 13]
+    rationale: "Wave A6 re-review supersedes the Wave A2.1 UC-K legacy pin. Phase 2 §2.2:282 places 'why was my ad deleted?' + reposting under UC-FP; the human agent in turns 5-7 already gave the policy reasons (men only wording, body parts in image, ad title flagged), and the user's 'how do I change it?' is the canonical UC-FP edit-and-repost ask. The late escalation in turn 11 is failure-path evidence (the human punted), not the desired golden behavior. Persona's frustration_level=mild + empty will_request_human_if also do not ground the previous user_distress trigger. Mirrors cs_interactive_012's resolve-first override."
     confidence: high
     requires_policy_change: false
   - case_id: cs_interactive_036

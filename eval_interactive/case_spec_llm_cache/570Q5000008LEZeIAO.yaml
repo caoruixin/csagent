@@ -1,0 +1,32 @@
+source_session_id: 570Q5000008LEZeIAO
+case_id_hint: row_34
+llm_model: deepseek-v4-pro
+prompt_hash: 0f86c5453ec6794337d2029d9b18230b3e45caa1db52d0bf49a5194891b4599b
+generated_at: '2026-04-30T13:09:36.714984+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns describing the issue. User goal summary refined to be specific about
+  desired outcome, under 280 chars. No hidden facts supported by transcript beyond what is already in seed messages.
+rule_draft:
+  seed_messages:
+  - Hi not sure why my adds are removed
+  - Can’t see it. Can only see the picture with removed. The add doesn’t open
+  user_goal_summary: 'User reports My add has been removed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi not sure why my adds are removed
+  - Can’t see it. Can only see the picture with removed. The add doesn’t open
+  user_goal_summary: 'User wants to know why her ad was removed and to have it reinstated if it was removed in error. Drift:
+    hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi not sure why my adds are removed
+  - Can’t see it. Can only see the picture with removed. The add doesn’t open
+  user_goal_summary: 'User wants to know why her ad was removed and to have it reinstated if it was removed in error. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

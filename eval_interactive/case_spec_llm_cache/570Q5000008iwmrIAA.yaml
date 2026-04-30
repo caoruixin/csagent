@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008iwmrIAA
+case_id_hint: row_253
+llm_model: deepseek-v4-pro
+prompt_hash: ecd7a04724f042993dd90e554c0ea82071e535464f735ddc06494a79a3531e02
+generated_at: '2026-04-30T19:40:14.196172+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seeds included a request for another expert and an acknowledgment, which are not issue-bearing.
+  Replaced with verbatim visitor turns 6 and 7 that describe the actual issue. User goal summary updated to specify the desired
+  outcome. Added hidden fact about prior complaints.
+rule_draft:
+  seed_messages:
+  - is here any other expert i can tal; with
+  - okok
+  - i complain organist those accounts before to you and you take no action
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - regarding some accounts posting ads breaking posting policy
+  - i complain organist those accounts before to you and you take no action
+  user_goal_summary: 'User wants Facebook to enforce posting policies against accounts that are violating them, after previous
+    complaints were ignored. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - regarding some accounts posting ads breaking posting policy
+  - i complain organist those accounts before to you and you take no action
+  user_goal_summary: 'User wants Facebook to enforce posting policies against accounts that are violating them, after previous
+    complaints were ignored. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User previously reported accounts for ad policy violations but no action was taken.'''

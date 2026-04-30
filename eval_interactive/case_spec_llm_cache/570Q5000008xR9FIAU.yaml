@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008xR9FIAU
+case_id_hint: row_146
+llm_model: deepseek-v4-pro
+prompt_hash: d30502592196df043a7b7b84fb76fb6eea879bd3e0946563dc182bb1c06124cb
+generated_at: '2026-04-30T19:03:52.743019+00:00'
+llm_confidence: high
+llm_rationale: The rule draft had a placeholder user_goal_summary and included a thank-you message as a seed. The transcript
+  provides clear issue-bearing visitor turns (seq 4 and 11) and specific details to craft a focused goal and hidden facts.
+  All additions are directly supported by the transcript.
+rule_draft:
+  seed_messages:
+  - Thankyou I’m trying to sell a drill and I had someone called Christopher ask if it was still available so i replied yes
+    then he text saying who cares and also another person asked about stereo I’m selling can I deliver to India the thing
+    is it’s stopping me from selling my items
+  - Thankyou very much
+  - The dates are today’s date on both items and the one for the drill is Christopher and the stereo is Santosh
+  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Thankyou I’m trying to sell a drill and I had someone called Christopher ask if it was still available so i replied yes
+    then he text saying who cares and also another person asked about stereo I’m selling can I deliver to India the thing
+    is it’s stopping me from selling my items
+  - The dates are today’s date on both items and the one for the drill is Christopher and the stereo is Santosh
+  user_goal_summary: 'User wants Gumtree to investigate and stop harassing messages from users Christopher and Santosh so
+    he can sell his items without interruptions. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Thankyou I’m trying to sell a drill and I had someone called Christopher ask if it was still available so i replied yes
+    then he text saying who cares and also another person asked about stereo I’m selling can I deliver to India the thing
+    is it’s stopping me from selling my items
+  - The dates are today’s date on both items and the one for the drill is Christopher and the stereo is Santosh
+  user_goal_summary: 'User wants Gumtree to investigate and stop harassing messages from users Christopher and Santosh so
+    he can sell his items without interruptions. Drift: none.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "Christopher replied ''who cares'' after Daren confirmed the drill was still available."'
+- 'unsupported_hidden_fact_dropped: ''Santosh asked if the stereo could be delivered to India.'''

@@ -1,0 +1,49 @@
+source_session_id: 570Q5000008t1riIAA
+case_id_hint: cs_interactive_018
+llm_model: deepseek-v4-pro
+prompt_hash: db0dbdb0d0b24bea80a1be03dbd7fc52a96d139e76c56420c8467c4e352ffa9a
+generated_at: '2026-04-30T20:37:34.968066+00:00'
+llm_confidence: high
+llm_rationale: Rule draft seed_messages are verbatim from visitor turns and clearly capture the core issue (request for false
+  review removal). User_goal_summary is refreshed to be more specific and factual. Hidden_facts are added based on transcript
+  details (reviewer username, evidence in message thread). Drift remains hard_shift per session metadata.
+rule_draft:
+  seed_messages:
+  - Hello I’m writing to request the removal of a false review against my username. I never receive negative reviews and on
+    ebay I have 100% positive reviews from over 500 transactions. I always make sure I’m polite and courteous. I can give
+    you evidence as to why this particular reviewer is using false information.
+  - No, looking forward to your email on that, and your response about the false review. Thanks
+  - Yes please
+  user_goal_summary: 'User reports Ratings & Reviews: Evidence for removal of false review. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hello I’m writing to request the removal of a false review against my username. I never receive negative reviews and on
+    ebay I have 100% positive reviews from over 500 transactions. I always make sure I’m polite and courteous. I can give
+    you evidence as to why this particular reviewer is using false information.
+  - No, looking forward to your email on that, and your response about the false review. Thanks
+  - Yes please
+  user_goal_summary: 'User wants a false review removed and wants agent to investigate by reading the message thread with
+    user ''Only'' that proves the reviewer gave false item details. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user purchased a mattress from 'Only', and the seller provided false information about the item's size and brand,
+      but the user completed the purchase and was polite throughout.
+    disclose_when: when asked for evidence or details about the false review.
+accepted_value:
+  seed_messages:
+  - Hello I’m writing to request the removal of a false review against my username. I never receive negative reviews and on
+    ebay I have 100% positive reviews from over 500 transactions. I always make sure I’m polite and courteous. I can give
+    you evidence as to why this particular reviewer is using false information.
+  - No, looking forward to your email on that, and your response about the false review. Thanks
+  - Yes please
+  user_goal_summary: 'User wants a false review removed and wants agent to investigate by reading the message thread with
+    user ''Only'' that proves the reviewer gave false item details. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user purchased a mattress from 'Only', and the seller provided false information about the item's size and brand,
+      but the user completed the purchase and was polite throughout.
+    disclose_when: when asked for evidence or details about the false review.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The reviewer''s username is ''Only''."'

@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008NOoDIAW
+case_id_hint: row_59
+llm_model: deepseek-v4-pro
+prompt_hash: 511b3733c182d3afab6077681845b1cacc58d9b98c9f7a4db117ebcc3be03e84
+generated_at: '2026-04-30T13:17:56.163027+00:00'
+llm_confidence: high
+llm_rationale: The seed messages from the draft are verbatim from the user's turns and capture the issue. The user_goal_summary
+  was rewritten to be specific and under 280 characters. Hidden facts are added based on user statements in the transcript.
+rule_draft:
+  seed_messages:
+  - Hi I received an email about questions to help recover my account. I can't find the I for needed to answer them and I
+    am annoyed as it is not my problem that my account got hacked it is gumtree and I need to sell some furniture but can't
+  - Your company is so bad
+  - I used this company to sell my home furniture and never had problems and then I don't use it for a while and come to find
+    it's been hacked
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi I received an email about questions to help recover my account. I can't find the I for needed to answer them and I
+    am annoyed as it is not my problem that my account got hacked it is gumtree and I need to sell some furniture but can't
+  - Your company is so bad
+  - I used this company to sell my home furniture and never had problems and then I don't use it for a while and come to find
+    it's been hacked
+  user_goal_summary: 'User wants their hacked Gumtree account recovered to sell furniture. They can''t find the verification
+    info requested and are frustrated with the delay. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi I received an email about questions to help recover my account. I can't find the I for needed to answer them and I
+    am annoyed as it is not my problem that my account got hacked it is gumtree and I need to sell some furniture but can't
+  - Your company is so bad
+  - I used this company to sell my home furniture and never had problems and then I don't use it for a while and come to find
+    it's been hacked
+  user_goal_summary: 'User wants their hacked Gumtree account recovered to sell furniture. They can''t find the verification
+    info requested and are frustrated with the delay. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user previously replied to a verification email but never received a response.'''
+- 'unsupported_hidden_fact_dropped: ''The user is concerned about their home address and other personal information being
+  compromised in the hack.'''

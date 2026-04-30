@@ -12,14 +12,15 @@ Inputs reviewed for each smoke case:
 
 | review_status | count |
 | --- | ---: |
-| ok | 14 |
+| ok | 12 |
 | generator_bug | 0 |
 | policy_ambiguity | 0 |
-| needs_override | 0 |
+| needs_override | 2 |
 | needs_human_decision | 0 |
 
 Notable follow-up:
 - No stale generator bug remains in the smoke review set. `cs_interactive_004` and `cs_interactive_095` now align with final generated YAML as resolve/no-escalation cases.
+- `cs_interactive_015` was flipped from `ok` to `needs_override` in the Wave A6 semantic re-review: the transcript matches UC-FP ("why was my ad deleted?" + edit-and-repost), and the historical late escalation is failure-path evidence rather than the desired golden behavior. Override approved and applied in `case_spec_overrides.yaml`.
 
 ## Case Reviews
 
@@ -62,11 +63,11 @@ Notable follow-up:
 ### cs_interactive_012
 
 - Source: `badcase`, session `570Q5000008hx9tIAA`
-- Status: `ok`
-- Recommended outcome: UC-FP escalate, `user_requested`
+- Status: `needs_override`
+- Recommended outcome: UC-FP resolve, no escalation trigger
 - Supporting turns: 5, 6, 8, 10, 12, 14
-- Rationale: The HR row labels UC-B, but the selected transcript is about an ad repeatedly being deleted and the user asks to speak to someone. The generated UC-FP escalation is semantically supported.
-- Confidence: medium
+- Rationale: The selected transcript is about an ad repeatedly being deleted. The late phone/human request happens after the user has not received a concrete deletion reason, so it is treated as a failure-path signal rather than the desired first outcome. The reviewed target is resolve-first: retrieve safe account/listing/moderation context, explain the deletion reason with policy-grounded next steps, and escalate only if the bot cannot produce or the user rejects that explanation.
+- Confidence: high
 
 ### cs_interactive_014
 
@@ -80,10 +81,10 @@ Notable follow-up:
 ### cs_interactive_015
 
 - Source: `badcase`, session `570Q5000008WmXxIAK`
-- Status: `ok`
-- Recommended outcome: UC-K escalate, `user_distress`
-- Supporting turns: 5, 6, 8, 11, 13, 14
-- Rationale: The prior UC-B to UC-K reclassification is supported by the transcript: the user asks what happened to their own ad and the agent escalates to a specialist team.
+- Status: `needs_override` (applied)
+- Recommended outcome: UC-FP resolve, no escalation trigger
+- Supporting turns: 5, 6, 7, 8, 9, 11, 13
+- Rationale: Wave A6 re-review supersedes the Wave A2.1 UC-K legacy pin. Phase 2 §2.2:282 places "why was my ad deleted?" plus reposting/editing under UC-FP; turns 5-7 show the human agent already giving the policy reasons (no "men only" wording, no body parts in images, ad title flagged), and the user's "how do I change it?" is the canonical UC-FP edit-and-repost ask. The late escalation in turn 11 is failure-path evidence (the human punted), not the desired golden behavior. Persona `frustration_level: mild` + empty `will_request_human_if` also fail to ground the previous `user_distress` escalation trigger. Mirrors cs_interactive_012's resolve-first override; applied via `case_spec_overrides.yaml`.
 - Confidence: high
 
 ### cs_interactive_036

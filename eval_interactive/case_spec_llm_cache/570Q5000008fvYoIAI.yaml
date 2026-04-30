@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008fvYoIAI
+case_id_hint: row_198
+llm_model: deepseek-v4-pro
+prompt_hash: e903c68293b730e52b8eefe450eb765d2f1095dba03e5ab9a25b4fd43856dc17
+generated_at: '2026-04-30T19:19:53.110010+00:00'
+llm_confidence: high
+llm_rationale: 'Selected three verbatim visitor turns that clearly state the actual issues: grey profile, inability to be
+  contacted, missing phone number. Updated summary to be specific and within 280 characters. No hidden facts from transcript.'
+rule_draft:
+  seed_messages:
+  - Hello Carmen
+  - Carmen sorry
+  - and my phone number is not in site i ask for pout plz
+  user_goal_summary: 'User reports Ad Support: CLEANING WORK. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - i contact you because in my profile on your site it remains grey and not green like the other profiles
+  - why cant people contact me?
+  - and my phone number is not in site i ask for pout plz
+  user_goal_summary: 'The user reports that her profile appears grey instead of green, cannot be contacted, and her phone
+    number is missing despite requesting it. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - i contact you because in my profile on your site it remains grey and not green like the other profiles
+  - why cant people contact me?
+  - and my phone number is not in site i ask for pout plz
+  user_goal_summary: 'The user reports that her profile appears grey instead of green, cannot be contacted, and her phone
+    number is missing despite requesting it. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

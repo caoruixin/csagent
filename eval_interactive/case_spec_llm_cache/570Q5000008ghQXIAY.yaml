@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008ghQXIAY
+case_id_hint: row_91
+llm_model: deepseek-v4-pro
+prompt_hash: 9a3ea805a28d3d25ccd5f5c4d657418cdc2c60fa45764d2cf037111d77980b4d
+generated_at: '2026-04-30T13:26:39.769931+00:00'
+llm_confidence: high
+llm_rationale: All seed messages appear verbatim in visitor turns (seq 4, 13, 10) and are issue-focused. The user goal summary
+  reflects the dual needs expressed in the transcript. Added a hidden fact about the wrong email, grounded in seq 7.
+rule_draft:
+  seed_messages:
+  - I can’t put a telephone number on an ad.
+  - Ok I don’t think the non telephone number will work and you will lose customers everywhere. I know if I want to purchase
+    something on gumtree, I would like to speak to the person to get more information.
+  - Yes so what do I do?
+  user_goal_summary: 'User reports Ad Support: Telephone number on ads. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I can’t put a telephone number on an ad.
+  - Ok I don’t think the non telephone number will work and you will lose customers everywhere. I know if I want to purchase
+    something on gumtree, I would like to speak to the person to get more information.
+  - Yes so what do I do?
+  user_goal_summary: 'User wants to place a telephone number on his Gumtree ad and also correct the wrong email address on
+    his expired ads. He finds the phone removal frustrating and thinks it will cause customer loss. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I can’t put a telephone number on an ad.
+  - Ok I don’t think the non telephone number will work and you will lose customers everywhere. I know if I want to purchase
+    something on gumtree, I would like to speak to the person to get more information.
+  - Yes so what do I do?
+  user_goal_summary: 'User wants to place a telephone number on his Gumtree ad and also correct the wrong email address on
+    his expired ads. He finds the phone removal frustrating and thinks it will cause customer loss. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s expired ads have an incorrect email address."'

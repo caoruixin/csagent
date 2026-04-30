@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008q5tRIAQ
+case_id_hint: row_238
+llm_model: deepseek-v4-pro
+prompt_hash: 1bb1d41fa25d82b8cb23063d0640a191ecdf895ec25d25dd2e0012121ed69cde
+generated_at: '2026-04-30T19:37:58.203766+00:00'
+llm_confidence: high
+llm_rationale: Replaced two non-issue-bearing seed messages (thanks and sign-off) with visitor turns that provide account
+  info and clarify ad correctness. Updated goal summary to be specific about user's request. Added hidden facts grounded in
+  transcript for simulator use.
+rule_draft:
+  seed_messages:
+  - This is the first carer required job posting I have made. When checking for any replies to the job advert I come up as
+    it is me liking the job!
+  - No, that's all for now. Thanks again, cheers
+  - Perfect, thankyou!
+  user_goal_summary: 'User reports Ad Support: Carer required posting in Dundee. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - This is the first carer required job posting I have made. When checking for any replies to the job advert I come up as
+    it is me liking the job!
+  - OK, thanks. Try [EMAIL]
+  - Thanks... So my carer required advert is correctly posted?
+  user_goal_summary: 'User wants to confirm their carer required ad in Dundee is posted in the correct category (Jobs) so
+    carers can apply, and to understand why when checking replies it shows as themselves liking the job. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - This is the first carer required job posting I have made. When checking for any replies to the job advert I come up as
+    it is me liking the job!
+  - OK, thanks. Try [EMAIL]
+  - Thanks... So my carer required advert is correctly posted?
+  user_goal_summary: 'User wants to confirm their carer required ad in Dundee is posted in the correct category (Jobs) so
+    carers can apply, and to understand why when checking replies it shows as themselves liking the job. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s ad is associated with the email [EMAIL] (the second one provided in the chat)."'
+- 'unsupported_hidden_fact_dropped: ''The ad is for hiring a carer in Dundee, posted correctly in the Jobs category.'''

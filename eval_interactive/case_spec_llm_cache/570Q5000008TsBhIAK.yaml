@@ -1,0 +1,31 @@
+source_session_id: 570Q5000008TsBhIAK
+case_id_hint: row_265
+llm_model: deepseek-v4-pro
+prompt_hash: e20d3d465dca0321eb3d2e4d82bf60816546fc9954576a0e9fba87c80fe3f064
+generated_at: '2026-04-30T19:43:21.183497+00:00'
+llm_confidence: high
+llm_rationale: User's issue is clearly about not receiving a response from a seller. The turn 'Yesterday' captures the key
+  information about last contact time. 'It is friday' is conversational and not central to the issue, so it was removed from
+  seed messages. User goal updated to be more specific.
+rule_draft:
+  seed_messages:
+  - Yesterday
+  - It is friday
+  user_goal_summary: 'User reports Account Support: Getting no response from seller. Drift: none.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - Yesterday
+  user_goal_summary: 'User wants help because they haven''t received a response from a seller on Gumtree after messaging them
+    yesterday. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Yesterday
+  user_goal_summary: 'User wants help because they haven''t received a response from a seller on Gumtree after messaging them
+    yesterday. Drift: none.'
+  hidden_facts: []
+  verbosity: terse
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

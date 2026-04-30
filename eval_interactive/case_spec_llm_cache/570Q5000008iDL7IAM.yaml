@@ -1,0 +1,47 @@
+source_session_id: 570Q5000008iDL7IAM
+case_id_hint: row_119
+llm_model: deepseek-v4-pro
+prompt_hash: a95d9d9e87d3086831878dde03b43ccf0552d56aa65247a27b3b46a8f1dcdc0b
+generated_at: '2026-04-30T13:35:44.957580+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting and closing seed messages with issue-describing turns from seq 5 and seq 9. Refined user_goal_summary
+  to focus solely on deactivation goal without bot-side instructions. Added hidden facts based on transcript details about
+  email read-only access and new account creation.
+rule_draft:
+  seed_messages:
+  - Hi Cortney
+  - Thanks. It's [EMAIL]. I can still access my old emails if it helps to verify me but I just can't send or receive any new
+    emails.
+  - OK, thank you
+  user_goal_summary: 'User reports Account Support: I''ve forgotten my Gumtree password & lost access to the email account
+    associated with my Gumtree account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I have created a new account. How will I be able to deactivate the other account without logging in though?
+  - Thanks. It's [EMAIL]. I can still access my old emails if it helps to verify me but I just can't send or receive any new
+    emails.
+  - It's not a spam issue - something's gone wrong with the setup of my email account, nothing has been able to go in or out
+    in about a month now.
+  user_goal_summary: 'User wants to deactivate their old Gumtree account that they cannot access due to forgotten password
+    and lost email access. They have already created a new account but need the old one deactivated without logging in. Drift:
+    hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I have created a new account. How will I be able to deactivate the other account without logging in though?
+  - Thanks. It's [EMAIL]. I can still access my old emails if it helps to verify me but I just can't send or receive any new
+    emails.
+  - It's not a spam issue - something's gone wrong with the setup of my email account, nothing has been able to go in or out
+    in about a month now.
+  user_goal_summary: 'User wants to deactivate their old Gumtree account that they cannot access due to forgotten password
+    and lost email access. They have already created a new account but need the old one deactivated without logging in. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User can still log in to the old email account to read messages but cannot send or receive
+  new emails.'''
+- 'unsupported_hidden_fact_dropped: ''User has already created a new Gumtree account with the new email address.'''

@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008xNVRIA2
+case_id_hint: row_237
+llm_model: deepseek-v4-pro
+prompt_hash: 5b302323764becfef8c0abed9a37565fde3f2e895d0d539ced54e62bad8895be
+generated_at: '2026-04-30T19:36:12.605723+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue seed messages ('At least its stopped raining' and 'Yes thank you.') with a visitor turn
+  that directly expresses the core issue (seq 6). The first seed message is already issue-bearing. Summary condensed to the
+  actual user goal based on transcript.
+rule_draft:
+  seed_messages:
+  - Oxygen concentrator seventy pounds
+  - At least its stopped raining 🌧 🙃
+  - Yes thank you.
+  user_goal_summary: 'User reports Payments: I am trying to pay for item on gumtree and having trouble offering the full amount
+    of money. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Oxygen concentrator seventy pounds
+  - So I can't buy said item through gumtree
+  user_goal_summary: 'User wants to purchase an oxygen concentrator (£70) through Gumtree''s delivery and payments system.
+    Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Oxygen concentrator seventy pounds
+  - So I can't buy said item through gumtree
+  user_goal_summary: 'User wants to purchase an oxygen concentrator (£70) through Gumtree''s delivery and payments system.
+    Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

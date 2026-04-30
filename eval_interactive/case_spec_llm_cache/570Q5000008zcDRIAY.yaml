@@ -1,0 +1,49 @@
+source_session_id: 570Q5000008zcDRIAY
+case_id_hint: row_318
+llm_model: deepseek-v4-pro
+prompt_hash: 249b8365100074bb03cd2e72f9547a2fddfa0648a8a0316df3e3065bf82fb129
+generated_at: '2026-04-30T19:57:42.729552+00:00'
+llm_confidence: high
+llm_rationale: The rule draft included one good issue-bearing seed message and two closings. Replaced the closings with additional
+  visitor turns describing the issue. Updated user_goal_summary to be specific and factual, well under 280 characters. Added
+  hidden_facts for ad ID and price, directly from the transcript.
+rule_draft:
+  seed_messages:
+  - I bought a TV from a guy. His discretion was incorrect. He stated it was a 65" , it was 55". He stated the brightness
+    needed turned up. Wrong, the back light is broken. Basically he sold me a non working product. What are my rights or what
+    can I do. I contacted him and he said, no refunds.
+  - Cheers Jason. Have a good day
+  - Appreciate that
+  user_goal_summary: 'User reports Replies & Messaging: Faulty product. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I bought a TV from a guy. His discretion was incorrect. He stated it was a 65" , it was 55". He stated the brightness
+    needed turned up. Wrong, the back light is broken. Basically he sold me a non working product. What are my rights or what
+    can I do. I contacted him and he said, no refunds.
+  - I've basically bought a lump of useless plastic for £60 lol
+  - He said it can be operated from buttons on the bottom. The buttons have been removed too
+  user_goal_summary: 'The user bought a TV from a private seller on the platform. The listing described a 65" TV, but it was
+    actually 55", with a broken backlight and missing buttons. The seller refused a refund. The user wants to know his rights
+    and options to address this. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad ID is 1508767543.
+    disclose_when: when the bot asks for the ad ID or listing details
+accepted_value:
+  seed_messages:
+  - I bought a TV from a guy. His discretion was incorrect. He stated it was a 65" , it was 55". He stated the brightness
+    needed turned up. Wrong, the back light is broken. Basically he sold me a non working product. What are my rights or what
+    can I do. I contacted him and he said, no refunds.
+  - I've basically bought a lump of useless plastic for £60 lol
+  - He said it can be operated from buttons on the bottom. The buttons have been removed too
+  user_goal_summary: 'The user bought a TV from a private seller on the platform. The listing described a 65" TV, but it was
+    actually 55", with a broken backlight and missing buttons. The seller refused a refund. The user wants to know his rights
+    and options to address this. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad ID is 1508767543.
+    disclose_when: when the bot asks for the ad ID or listing details
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user paid £60 for the TV.'''

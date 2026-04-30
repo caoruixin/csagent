@@ -10,8 +10,10 @@ The HR CSV is now treated as a HINT, not the source of truth, for any
 field whose owner is the per-UC policy (phase2 §2.2 / §2.6 / §2.10).
 Concretely:
 
-* UC classification is corrected via ``UC_B_RECLASSIFICATION_OVERRIDES``
-  before any UC-derived value is computed.
+* UC classification is corrected via the v2 ``case_spec_overrides.yaml``
+  ``classification`` stage (Wave A6.6) before any UC-derived value is
+  computed. The legacy in-code ``UC_B_RECLASSIFICATION_OVERRIDES`` map
+  has been migrated into that file.
 * ``allow_bot_resolution``, ``expected_tool_sequence``,
   ``forbidden_tools``, ``escalation_trigger`` (default),
   ``grounding_mode`` and ``bot_handling_pattern`` are all driven from
@@ -51,6 +53,7 @@ import json
 import logging
 import re
 from collections import defaultdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -60,8 +63,14 @@ from .policy_table import (
     UcPolicy,
     get_policy,
     list_human_only_tools,
+    list_use_cases,
 )
 from .case_outcome_resolver import resolve_case_outcome
+from .llm_persona_reviewer import (
+    LlmPersonaReviewer,
+    PersonaDraft,
+    ReviewResult,
+)
 from .schema import (
     CaseSpec,
     Expected,
@@ -98,34 +107,18 @@ def _is_intake_uc(uc: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# UC-B reclassification override map (Wave A2.1)
-# ---------------------------------------------------------------------------
-#
-# Eleven sessions whose HR reviewers tagged primary_uc=UC-B but whose
-# transcripts make clear a more specific UC applies. Applied BEFORE any
-# UC-dependent logic so the rest of the extractor sees the corrected UC.
-# Each value is ``(primary_uc, secondary_ucs)``.
-
-UC_B_RECLASSIFICATION_OVERRIDES: dict[str, tuple[str, list[str]]] = {
-    "570Q5000008hx9tIAA":  ("UC-FP", ["UC-K"]),          # Ad keeps getting deleted; needs deletion-reason lookup
-    "570Q5000008WmXxIAK":  ("UC-K",  ["UC-FP", "UC-B"]), # cs_interactive_015 -- "what happened to my ad"
-    "570Q5000008TMmvIAG":  ("UC-FP", ["UC-K"]),          # Paid promotion + temporary hold
-    "570Q5000008U5C9IAK":  ("UC-A",  ["UC-D", "UC-K"]),  # Wrong email, no adverts showing
-    "570Q5000008wmKbIAI":  ("UC-A",  ["UC-H", "UC-D"]),  # Trader flag wrong on account
-    "570Q5000009060DIAQ":  ("UC-A",  ["UC-K"]),          # "Where is my ad"
-    "570Q5000008w24rIAA":  ("UC-FP", ["UC-F"]),          # Cancel auto-renewal
-    "570Q5000008fG5qIAE":  ("UC-FP", ["UC-K", "UC-C"]),  # Ad breaking rules; phone rejected
-    "570Q5000008caqfIAA":  ("UC-D",  []),                # Wrong price on specific ad -- agent asked for ad ID
-    "570Q5000008IwKHIA0":  ("UC-FP", ["UC-K"]),          # Paid 30-day Booster expired
-    "570Q5000008iwZxIAI":  ("UC-K",  ["UC-FP", "UC-B"]), # Advert on hold 2nd time, please restore
-}
-
-
-# ---------------------------------------------------------------------------
 # Generation audit -- populated as specs are built (Wave A2.1+ / A4)
 # ---------------------------------------------------------------------------
 
 _GENERATION_AUDIT: list[dict[str, Any]] = []
+
+DEFAULT_CASE_SPEC_OVERRIDES_PATH = (
+    Path(__file__).resolve().parents[2] / "case_spec_overrides.yaml"
+)
+
+LLM_REVIEWER_DEFAULT_CACHE_DIR = (
+    Path(__file__).resolve().parents[2] / "case_spec_llm_cache"
+)
 
 
 def _reset_audit() -> None:
@@ -168,10 +161,51 @@ def dump_audit_to(path: str | Path) -> Path:
                 lines.append(f"  - {msg}")
         if entry.get("outcome_decision_reason"):
             lines.append(f"- outcome decision: {entry['outcome_decision_reason']}")
-        if entry.get("override_applied"):
-            lines.append(f"- override applied: **YES** -> "
-                         f"primary={entry['override_applied'][0]}, "
-                         f"secondary={entry['override_applied'][1]}")
+        if entry.get("override_classification_applied") and entry.get("case_level_override"):
+            override = entry["case_level_override"]
+            cls = override.get("classification") or {}
+            if cls:
+                lines.append(
+                    f"- classification override applied: **YES** -> "
+                    f"primary={cls.get('primary_uc')}, "
+                    f"secondary={cls.get('secondary_ucs', [])}"
+                )
+        if entry.get("case_level_override"):
+            override = entry["case_level_override"]
+            lines.append("- case-level override applied: **YES**")
+            lines.append(f"  - override source: {override.get('source', '')}")
+            lines.append(f"  - reviewer: {override.get('reviewer', '')}")
+            lines.append(f"  - date: {override.get('date', '')}")
+            lines.append(f"  - confidence: `{override.get('confidence', '')}`")
+            lines.append(
+                f"  - supporting turns: `{override.get('supporting_turn_numbers', [])}`"
+            )
+            lines.append(f"  - rationale: {override.get('rationale', '')}")
+            if override.get("status"):
+                lines.append(f"  - status: `{override.get('status')}`")
+            if override.get("migrated_from_legacy"):
+                lines.append("  - migrated_from_legacy: `true`")
+            if override.get("case_id_hint"):
+                lines.append(f"  - case_id_hint: `{override.get('case_id_hint')}`")
+            if override.get("expected_changes"):
+                lines.append("  - changed expected fields:")
+                for fld, change in override["expected_changes"].items():
+                    lines.append(
+                        f"    - `{fld}`: `{change.get('before')}` -> "
+                        f"`{change.get('after')}`"
+                    )
+            if override.get("persona_changes"):
+                lines.append("  - changed persona fields:")
+                for fld, change in override["persona_changes"].items():
+                    lines.append(
+                        f"    - `{fld}`: `{change.get('before')}` -> "
+                        f"`{change.get('after')}`"
+                    )
+        pending = entry.get("pending_overrides_for_session") or []
+        if pending:
+            lines.append("- pending_review overrides (NOT applied):")
+            for rationale in pending:
+                lines.append(f"  - {rationale}")
         mismatches: list[str] = entry.get("policy_vs_hr_mismatches", [])
         if mismatches:
             lines.append("- policy-vs-HR mismatches:")
@@ -183,6 +217,30 @@ def dump_audit_to(path: str | Path) -> Path:
         stripped_tools: list[str] = entry.get("stripped_human_only_tools", [])
         if stripped_tools:
             lines.append(f"- stripped human-only tools from forbidden: {stripped_tools}")
+        # Wave A6 LLM persona-review fields
+        if "llm_cache_hit" in entry or "llm_acceptance_reason" in entry:
+            lines.append(
+                f"- llm_cache_hit: `{bool(entry.get('llm_cache_hit', False))}`"
+            )
+            lines.append(
+                f"- llm_offline_fallback: `{bool(entry.get('llm_offline_fallback', False))}`"
+            )
+            reason = entry.get("llm_acceptance_reason")
+            lines.append(
+                f"- llm_acceptance_reason: `{reason if reason else 'n/a'}`"
+            )
+            confidence = entry.get("llm_confidence")
+            lines.append(
+                f"- llm_confidence: `{confidence if confidence else 'n/a'}`"
+            )
+            changed = entry.get("llm_persona_changed_fields") or []
+            if changed:
+                lines.append(f"- llm_persona_changed_fields: `{changed}`")
+            notes = entry.get("llm_validation_notes") or []
+            if notes:
+                lines.append("- llm_validation_notes:")
+                for note in notes:
+                    lines.append(f"  - {note}")
         lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
     return path
@@ -365,31 +423,515 @@ def _get_visitor_name(turns: list[dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# UC override resolution (Wave A2.1)
+# Approved case-level overrides (Wave A6.6 unified schema v2 registry)
 # ---------------------------------------------------------------------------
+#
+# All case-specific corrections — UC reclassification, expected-field
+# overrides, and persona pins — live in a single file
+# ``eval_interactive/case_spec_overrides.yaml`` (schema v2). Lookup is by
+# ``source_session_id`` only.
+#
+# Each entry may declare zero or more of three blocks corresponding to
+# the three pipeline stages at which L3 may apply:
+#
+#   * ``classification`` (``primary_uc``, ``secondary_ucs``)
+#       applied BEFORE policy lookup, at extractor step (1).
+#   * ``expected`` (any subset of allowed expected fields, EXCEPT
+#       ``primary_uc``/``secondary_ucs``) applied AFTER L1 derivation,
+#       at extractor step (7) — Wave A5 timing.
+#   * ``persona`` (``seed_messages``, ``user_goal_summary``,
+#       ``hidden_facts``) applied AFTER L2 cache and after rule-based
+#       persona construction; verbosity is recomputed and the redundancy
+#       filter is reapplied.
 
-def _apply_uc_override(
+OVERRIDES_SCHEMA_VERSION: int = 2
+
+_CASE_OVERRIDE_EXPECTED_FIELDS: frozenset[str] = frozenset({
+    "outcome_class",
+    "should_escalate",
+    "allow_bot_resolution",
+    "bot_handling_pattern",
+    "escalation_trigger",
+    "risk_level",
+    "expected_tool_sequence",
+    "forbidden_tools",
+    "grounding_mode",
+    "answer_must_not_contain",
+    "max_turns",
+})
+
+_CASE_OVERRIDE_PERSONA_FIELDS: frozenset[str] = frozenset({
+    "seed_messages",
+    "user_goal_summary",
+    "hidden_facts",
+})
+
+_CASE_OVERRIDE_CLASSIFICATION_FIELDS: frozenset[str] = frozenset({
+    "primary_uc",
+    "secondary_ucs",
+})
+
+
+@dataclass(frozen=True)
+class OverrideEntry:
+    """One v2 override entry, partitioned by stage."""
+
+    source_session_id: str
+    status: str  # "approved" | "pending_review"
+    case_id_hint: str = ""
+    source: str = ""
+    reviewer: str = ""
+    date: str = ""
+    confidence: str = ""
+    supporting_turn_numbers: tuple[int, ...] = ()
+    rationale: str = ""
+    migrated_from_legacy: bool = False
+    classification: dict[str, Any] | None = None
+    expected: dict[str, Any] | None = None
+    persona: dict[str, Any] | None = None
+    raw: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class OverrideRegistry:
+    """Result of :func:`_load_case_spec_overrides`. Approved entries are
+    indexed by ``source_session_id``; pending entries are returned as a
+    list (a session may have at most one entry total — duplicates are a
+    hard error)."""
+
+    applied: dict[str, OverrideEntry]
+    pending: list[OverrideEntry]
+
+
+def _known_use_cases() -> set[str]:
+    return set(list_use_cases())
+
+
+def _normalise_classification_block(
+    block: dict[str, Any] | None,
+    *,
     session_id: str,
-    hr_primary_uc: str,
-    hr_secondary_ucs: list[str],
-) -> tuple[str, list[str], tuple[str, list[str]] | None]:
-    """Resolve final (primary_uc, secondary_ucs) for ``session_id``.
-
-    If the session is in ``UC_B_RECLASSIFICATION_OVERRIDES`` the override
-    wins. Returns the final values plus the override tuple (or None) so
-    the caller can record it in the audit log.
-    """
-    if session_id in UC_B_RECLASSIFICATION_OVERRIDES:
-        primary, secondary = UC_B_RECLASSIFICATION_OVERRIDES[session_id]
-        logger.warning(
-            "UC override applied for session %s: HR=%s -> override=%s (secondary=%s)",
-            session_id,
-            hr_primary_uc,
-            primary,
-            secondary,
+    known_ucs: set[str],
+) -> dict[str, Any] | None:
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`classification` must be a mapping, got {type(block).__name__}"
         )
-        return primary, list(secondary), (primary, list(secondary))
-    return hr_primary_uc, hr_secondary_ucs, None
+    unknown = sorted(set(block) - _CASE_OVERRIDE_CLASSIFICATION_FIELDS)
+    if unknown:
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`classification` block has unknown fields: {unknown}. "
+            f"Allowed: {sorted(_CASE_OVERRIDE_CLASSIFICATION_FIELDS)}."
+        )
+    out: dict[str, Any] = {}
+    if "primary_uc" in block:
+        primary = str(block["primary_uc"]).strip()
+        if not primary:
+            raise ValueError(
+                f"Override for source_session_id={session_id!r}: "
+                f"`classification.primary_uc` is empty"
+            )
+        if primary not in known_ucs:
+            raise ValueError(
+                f"Override for source_session_id={session_id!r}: "
+                f"unknown UC in classification.primary_uc={primary!r}. "
+                f"Known: {sorted(known_ucs)}."
+            )
+        out["primary_uc"] = primary
+    if "secondary_ucs" in block:
+        secondary_raw = block.get("secondary_ucs") or []
+        if not isinstance(secondary_raw, list):
+            raise ValueError(
+                f"Override for source_session_id={session_id!r}: "
+                f"`classification.secondary_ucs` must be a list, "
+                f"got {type(secondary_raw).__name__}"
+            )
+        secondary_clean: list[str] = []
+        for item in secondary_raw:
+            uc = str(item).strip()
+            if not uc:
+                continue
+            if uc not in known_ucs:
+                raise ValueError(
+                    f"Override for source_session_id={session_id!r}: "
+                    f"unknown UC in classification.secondary_ucs={uc!r}. "
+                    f"Known: {sorted(known_ucs)}."
+                )
+            secondary_clean.append(uc)
+        out["secondary_ucs"] = secondary_clean
+    return out or None
+
+
+def _normalise_expected_block(
+    block: dict[str, Any] | None,
+    *,
+    session_id: str,
+) -> dict[str, Any] | None:
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`expected` must be a mapping, got {type(block).__name__}"
+        )
+    keys = set(block)
+    if "primary_uc" in keys or "secondary_ucs" in keys:
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`expected.primary_uc`/`expected.secondary_ucs` is not allowed; "
+            f"use classification.primary_uc instead (Wave A6.6)."
+        )
+    unknown = sorted(keys - _CASE_OVERRIDE_EXPECTED_FIELDS)
+    if unknown:
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`expected` block has unknown fields: {unknown}. "
+            f"Allowed: {sorted(_CASE_OVERRIDE_EXPECTED_FIELDS)}."
+        )
+    return dict(block) or None
+
+
+def _normalise_persona_block(
+    block: dict[str, Any] | None,
+    *,
+    session_id: str,
+) -> dict[str, Any] | None:
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`persona` must be a mapping, got {type(block).__name__}"
+        )
+    unknown = sorted(set(block) - _CASE_OVERRIDE_PERSONA_FIELDS)
+    if unknown:
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`persona` block has disallowed keys: {unknown}. "
+            f"Allowed: {sorted(_CASE_OVERRIDE_PERSONA_FIELDS)}."
+        )
+    out: dict[str, Any] = {}
+    if "seed_messages" in block:
+        seeds = block["seed_messages"] or []
+        if not isinstance(seeds, list) or not all(isinstance(s, str) for s in seeds):
+            raise ValueError(
+                f"Override for source_session_id={session_id!r}: "
+                f"`persona.seed_messages` must be a list of strings"
+            )
+        out["seed_messages"] = [s for s in seeds]
+    if "user_goal_summary" in block:
+        ugs = block["user_goal_summary"]
+        if ugs is not None and not isinstance(ugs, str):
+            raise ValueError(
+                f"Override for source_session_id={session_id!r}: "
+                f"`persona.user_goal_summary` must be a string"
+            )
+        out["user_goal_summary"] = (ugs or "").strip()
+    if "hidden_facts" in block:
+        facts = block["hidden_facts"] or []
+        if not isinstance(facts, list):
+            raise ValueError(
+                f"Override for source_session_id={session_id!r}: "
+                f"`persona.hidden_facts` must be a list"
+            )
+        clean: list[dict[str, str]] = []
+        for hf in facts:
+            if not isinstance(hf, dict):
+                raise ValueError(
+                    f"Override for source_session_id={session_id!r}: "
+                    f"`persona.hidden_facts[*]` must be a mapping"
+                )
+            extra = sorted(set(hf) - {"fact", "disclose_when"})
+            if extra:
+                raise ValueError(
+                    f"Override for source_session_id={session_id!r}: "
+                    f"`persona.hidden_facts[*]` has disallowed keys: {extra}"
+                )
+            clean.append({
+                "fact": str(hf.get("fact", "")).strip(),
+                "disclose_when": str(hf.get("disclose_when", "")).strip(),
+            })
+        out["hidden_facts"] = clean
+    return out or None
+
+
+def _load_case_spec_overrides(
+    path: str | Path = DEFAULT_CASE_SPEC_OVERRIDES_PATH,
+) -> OverrideRegistry:
+    """Load approved + pending case-level overrides from a v2 file.
+
+    Returns an :class:`OverrideRegistry` whose ``applied`` mapping is keyed by
+    ``source_session_id`` (status=approved) and whose ``pending`` list holds
+    every entry with ``status: pending_review``.
+
+    The override file is optional; a missing file yields empty applied/pending.
+    A v1 file is rejected with a one-line migration message (see Wave A6.6).
+    """
+    override_path = Path(path)
+    if not override_path.exists():
+        logger.info("No case-spec override file found at %s; continuing.", override_path)
+        return OverrideRegistry(applied={}, pending=[])
+
+    raw = yaml.safe_load(override_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f"{override_path}: case_spec_overrides.yaml must be schema v{OVERRIDES_SCHEMA_VERSION} "
+            f"(top-level mapping with `version` and `overrides`). Run migration: "
+            f"see docs/interactive_case_spec_generation_plan.md A6.6."
+        )
+
+    version = raw.get("version", 1)
+    if version != OVERRIDES_SCHEMA_VERSION:
+        raise ValueError(
+            f"case_spec_overrides.yaml must be schema v{OVERRIDES_SCHEMA_VERSION} "
+            f"(was v{version}). Run migration: see "
+            f"docs/interactive_case_spec_generation_plan.md A6.6."
+        )
+
+    entries = raw.get("overrides", [])
+    if not isinstance(entries, list):
+        raise ValueError(
+            f"{override_path}: `overrides` must be a list, "
+            f"got {type(entries).__name__}"
+        )
+
+    known_ucs = _known_use_cases()
+    applied: dict[str, OverrideEntry] = {}
+    pending: list[OverrideEntry] = []
+    seen_sessions: set[str] = set()
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"{override_path}: every override must be a mapping, got {entry!r}"
+            )
+        sid = str(entry.get("source_session_id", "")).strip()
+        if not sid:
+            raise ValueError(
+                f"{override_path}: override missing `source_session_id`: {entry!r}"
+            )
+        if sid in seen_sessions:
+            raise ValueError(
+                f"{override_path}: duplicate source_session_id={sid!r}; "
+                f"v2 schema requires exactly one entry per session."
+            )
+        seen_sessions.add(sid)
+
+        status = str(entry.get("status", "")).strip()
+        if status not in {"approved", "pending_review"}:
+            raise ValueError(
+                f"Override for source_session_id={sid!r}: `status` must be "
+                f"`approved` or `pending_review` (got {status!r})."
+            )
+        migrated = bool(entry.get("migrated_from_legacy", False))
+        case_id_hint = str(entry.get("case_id_hint", "")).strip()
+        source = str(entry.get("source", "")).strip()
+        reviewer = str(entry.get("reviewer", "")).strip()
+        date_str = str(entry.get("date", "")).strip()
+        confidence = str(entry.get("confidence", "")).strip()
+        rationale = str(entry.get("rationale", "")).strip()
+        supporting_turns_raw = entry.get("supporting_turn_numbers", []) or []
+        if not isinstance(supporting_turns_raw, list):
+            raise ValueError(
+                f"Override for source_session_id={sid!r}: "
+                f"`supporting_turn_numbers` must be a list of ints"
+            )
+        supporting_turns: tuple[int, ...] = tuple(int(t) for t in supporting_turns_raw)
+
+        if status == "approved":
+            missing: list[str] = []
+            if not source:
+                missing.append("source")
+            if not reviewer:
+                missing.append("reviewer")
+            if not date_str:
+                missing.append("date")
+            if not confidence:
+                missing.append("confidence")
+            if not rationale:
+                missing.append("rationale")
+            if missing:
+                raise ValueError(
+                    f"Override for source_session_id={sid!r} (status=approved) "
+                    f"is missing required metadata: {missing}"
+                )
+            if not migrated and len(supporting_turns) == 0:
+                raise ValueError(
+                    f"Override for source_session_id={sid!r} (status=approved) "
+                    f"has empty `supporting_turn_numbers`. This is allowed only "
+                    f"when `migrated_from_legacy: true`."
+                )
+
+        classification = _normalise_classification_block(
+            entry.get("classification"),
+            session_id=sid,
+            known_ucs=known_ucs,
+        )
+        expected_block = _normalise_expected_block(
+            entry.get("expected"),
+            session_id=sid,
+        )
+        persona_block = _normalise_persona_block(
+            entry.get("persona"),
+            session_id=sid,
+        )
+
+        oe = OverrideEntry(
+            source_session_id=sid,
+            status=status,
+            case_id_hint=case_id_hint,
+            source=source,
+            reviewer=reviewer,
+            date=date_str,
+            confidence=confidence,
+            supporting_turn_numbers=supporting_turns,
+            rationale=rationale,
+            migrated_from_legacy=migrated,
+            classification=classification,
+            expected=expected_block,
+            persona=persona_block,
+            raw=dict(entry),
+        )
+        if status == "approved":
+            applied[sid] = oe
+        else:
+            pending.append(oe)
+
+    return OverrideRegistry(applied=applied, pending=pending)
+
+
+def _apply_expected_override(
+    spec: CaseSpec,
+    expected_block: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    """Apply the ``expected`` block of an approved override to ``spec``.
+
+    Returns a mapping of changed expected-field names to ``{before, after}``
+    dicts (empty when the block is None or contained no fields).
+    """
+    if not expected_block:
+        return {}
+
+    before = asdict(spec.expected)
+    expected_data = dict(before)
+    expected_data.update(expected_block)
+
+    policy = get_policy(expected_data["primary_uc"])
+    if "allow_bot_resolution" not in expected_block:
+        expected_data["allow_bot_resolution"] = policy.allow_bot_resolution
+    if "grounding_mode" not in expected_block:
+        expected_data["grounding_mode"] = policy.grounding_mode
+    if "forbidden_tools" not in expected_block:
+        expected_data["forbidden_tools"] = _resolve_forbidden_tools(policy)[0]
+    if "expected_tool_sequence" not in expected_block:
+        expected_data["expected_tool_sequence"] = _derive_expected_tool_sequence(
+            policy,
+            expected_data["should_escalate"],
+        )
+    if "bot_handling_pattern" not in expected_block:
+        expected_data["bot_handling_pattern"] = _derive_bot_handling_pattern(
+            policy,
+            expected_data["should_escalate"],
+            expected_data["escalation_trigger"],
+            expected_data["expected_tool_sequence"],
+        )
+    if "answer_must_not_contain" not in expected_block:
+        expected_data["answer_must_not_contain"] = _derive_answer_must_not_contain(
+            policy,
+            expected_data["outcome_class"],
+        )
+    if "max_turns" not in expected_block:
+        expected_data["max_turns"] = 10 if _is_intake_uc(expected_data["primary_uc"]) else 15
+
+    spec.expected = Expected(**expected_data)
+    spec.scoring = _derive_scoring_config(
+        spec.expected.primary_uc,
+        spec.expected.should_escalate,
+    )
+
+    after = asdict(spec.expected)
+    return {
+        fld: {"before": before.get(fld), "after": after.get(fld)}
+        for fld in sorted(after)
+        if before.get(fld) != after.get(fld)
+    }
+
+
+def _apply_persona_override(
+    spec: CaseSpec,
+    persona_block: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    """Apply the ``persona`` block of an approved override to ``spec``.
+
+    Allowed fields: ``seed_messages``, ``user_goal_summary``, ``hidden_facts``.
+    Verbosity is recomputed from the final ``seed_messages`` (mirroring
+    :func:`_derive_verbosity`); the redundancy filter is reapplied against
+    ``spec.form_context``.
+    """
+    if not persona_block:
+        return {}
+
+    before_seeds = list(spec.persona.seed_messages)
+    before_ugs = spec.persona.user_goal_summary
+    before_hf = [
+        {"fact": hf.fact, "disclose_when": hf.disclose_when}
+        for hf in spec.persona.hidden_facts
+    ]
+    before_verbosity = spec.persona.verbosity
+
+    new_seeds = (
+        list(persona_block["seed_messages"])
+        if "seed_messages" in persona_block
+        else before_seeds
+    )
+    new_ugs = (
+        persona_block["user_goal_summary"]
+        if "user_goal_summary" in persona_block
+        else before_ugs
+    )
+    new_hf_dicts = (
+        [dict(hf) for hf in persona_block["hidden_facts"]]
+        if "hidden_facts" in persona_block
+        else before_hf
+    )
+
+    # Re-apply the redundant-fact filter against form_context, exactly as
+    # the rule extractor does for rule_draft and L2 outputs.
+    new_hf_dicts, _ = _filter_redundant_hidden_facts(new_hf_dicts, spec.form_context)
+
+    new_verbosity = _derive_verbosity(new_seeds) if new_seeds else before_verbosity
+
+    spec.persona = Persona(
+        user_goal_summary=new_ugs,
+        frustration_level=spec.persona.frustration_level,
+        verbosity=new_verbosity,
+        drift_behavior=spec.persona.drift_behavior,
+        seed_messages=new_seeds,
+        hidden_facts=[
+            HiddenFact(fact=hf["fact"], disclose_when=hf["disclose_when"])
+            for hf in new_hf_dicts
+        ],
+        will_request_human_if=spec.persona.will_request_human_if,
+    )
+
+    after_hf = [
+        {"fact": hf["fact"], "disclose_when": hf["disclose_when"]}
+        for hf in new_hf_dicts
+    ]
+    changes: dict[str, dict[str, Any]] = {}
+    if before_seeds != new_seeds:
+        changes["seed_messages"] = {"before": before_seeds, "after": new_seeds}
+    if before_ugs != new_ugs:
+        changes["user_goal_summary"] = {"before": before_ugs, "after": new_ugs}
+    if before_hf != after_hf:
+        changes["hidden_facts"] = {"before": before_hf, "after": after_hf}
+    if before_verbosity != new_verbosity:
+        changes["verbosity"] = {"before": before_verbosity, "after": new_verbosity}
+    return changes
 
 
 # ---------------------------------------------------------------------------
@@ -881,42 +1423,208 @@ def _write_yaml(spec: CaseSpec, output_path: Path) -> None:
 # Main extraction
 # ---------------------------------------------------------------------------
 
+def _diff_persona_fields(
+    rule_draft: PersonaDraft,
+    accepted: PersonaDraft,
+) -> list[str]:
+    """Return the list of persona fields that differ between rule_draft
+    and the LLM-accepted value. Empty list when L2 was a no-op."""
+    changed: list[str] = []
+    if list(rule_draft.seed_messages) != list(accepted.seed_messages):
+        changed.append("seed_messages")
+    if (rule_draft.user_goal_summary or "") != (accepted.user_goal_summary or ""):
+        changed.append("user_goal_summary")
+
+    def _hf_key(items: list[dict[str, str]]) -> list[tuple[str, str]]:
+        return sorted(
+            ((i.get("fact", "").strip(), i.get("disclose_when", "").strip()) for i in items)
+        )
+
+    if _hf_key(list(rule_draft.hidden_facts)) != _hf_key(list(accepted.hidden_facts)):
+        changed.append("hidden_facts")
+    if rule_draft.verbosity != accepted.verbosity:
+        changed.append("verbosity")
+    return changed
+
+
+def build_rule_persona(
+    row: dict[str, str],
+    turns: list[dict],
+    *,
+    turns_file: str = "",
+    applied_override: "OverrideEntry | None" = None,
+) -> tuple[PersonaDraft, dict[str, Any], list[dict]]:
+    """Build the rule-derived persona draft for one HR row + turns.
+
+    Wave A6.4 helper: re-uses the same logic ``_build_case_spec`` runs in
+    its (3)-(5) steps so the cache populator can produce inputs for
+    :meth:`LlmPersonaReviewer.review` without duplicating any rule logic.
+
+    Returns
+    -------
+    rule_draft
+        The :class:`PersonaDraft` the LLM reviewer would see.
+    hr_context
+        The dict the production extractor passes to ``review(hr_context=...)``.
+    transcript_turns_for_llm
+        The turns list with the pre-chat form turn stripped (same filter
+        the production extractor uses).
+    """
+    source_dataset = row.get("source_dataset", "unknown").strip()
+
+    # Form context (HR-owned)
+    form_turn = _get_form_turn(turns)
+    if form_turn:
+        form_data = _parse_form_message(form_turn.get("message_redacted", ""))
+    else:
+        form_data = {
+            "subject": row.get("form_topic_subject", ""),
+            "description": "",
+        }
+    topic_subject = row.get("form_topic_subject", "").strip() or form_data.get("subject", "")
+    description = form_data.get("description", "")
+    first_name = _get_visitor_name(turns)
+    email = "customer@example.com" if _parse_bool(row.get("form_provides_email", "")) else ""
+    ad_id = "REDACTED_AD_ID" if _parse_bool(row.get("form_provides_ad_id", "")) else ""
+    form_context = FormContext(
+        first_name=first_name,
+        email=email,
+        topic_subject=topic_subject,
+        ad_id=ad_id,
+        description=description,
+    )
+
+    # Transcript evidence -> seed messages
+    transcript_evidence = extract_transcript_evidence(
+        turns,
+        turns_file=turns_file,
+        source_dataset=source_dataset,
+    )
+    seed_messages = list(transcript_evidence.representative_user_messages)
+    if not seed_messages:
+        seed_messages = [description] if description else [topic_subject]
+
+    drift_type_raw = row.get("drift_type", "")
+    user_goal_summary = _derive_user_goal_summary(
+        topic_subject,
+        description,
+        drift_type_raw,
+    )
+    verbosity = _derive_verbosity(seed_messages)
+    hidden_facts_raw = _derive_hidden_facts_raw(
+        row.get("form_provides_email", ""),
+        row.get("form_provides_ad_id", ""),
+        ad_id,
+        email,
+    )
+    hidden_facts_filtered, _dropped = _filter_redundant_hidden_facts(
+        hidden_facts_raw, form_context,
+    )
+
+    rule_draft = PersonaDraft(
+        seed_messages=list(seed_messages),
+        user_goal_summary=user_goal_summary,
+        hidden_facts=list(hidden_facts_filtered),
+        verbosity=verbosity,
+    )
+
+    # Strip the pre-chat form turn before handing to LLM
+    transcript_turns_for_llm = [
+        t for t in turns
+        if not (
+            str(t.get("sequence", "")).strip() == "0"
+            and t.get("speaker", "") == "[PRE_CHAT_FORM]"
+        )
+    ]
+
+    # UC resolution (mirrors _build_case_spec step 1, including classification override)
+    primary_uc_corrected = row.get("primary_uc_corrected", "").strip()
+    source_primary_uc = row.get("source_primary_uc", "").strip()
+    primary_uc = primary_uc_corrected if primary_uc_corrected else source_primary_uc
+    secondary_ucs = _parse_secondary_ucs(row.get("secondary_ucs", ""))
+    if applied_override is not None and applied_override.classification:
+        cls = applied_override.classification
+        if "primary_uc" in cls:
+            primary_uc = cls["primary_uc"]
+        if "secondary_ucs" in cls:
+            secondary_ucs = list(cls["secondary_ucs"])
+
+    hr_context: dict[str, Any] = {
+        "primary_uc": primary_uc,
+        "secondary_ucs": secondary_ucs,
+        "drift_type": drift_type_raw or "none",
+        "has_frustration": _parse_bool(row.get("has_frustration", "")),
+        "frustration_type": row.get("frustration_type", "") or "none",
+        "topic_subject": topic_subject,
+        "description": description,
+        "source_dataset": source_dataset,
+        "turns_filename": turns_file,
+    }
+
+    return rule_draft, hr_context, transcript_turns_for_llm
+
+
 def _build_case_spec(
     row: dict[str, str],
     turns: list[dict],
     case_index: int,
     turns_file: str = "",
+    *,
+    applied_override: OverrideEntry | None = None,
+    pending_overrides: list[OverrideEntry] | None = None,
+    strict_overrides: bool = False,
+    llm_reviewer: LlmPersonaReviewer | None = None,
 ) -> CaseSpec:
     """Build a single CaseSpec from an HR row and its matching turns.
 
-    Wave A4 sequencing:
-      1. Resolve final UC (HR + override map).
+    Wave A6.6 sequencing:
+      1. Resolve final UC: HR -> classification override (if any).
       2. Look up policy = get_policy(final_primary_uc).
-      3. Derive UC-owned fields from ``policy``; HR is a hint, not the
-         authority for outcome when transcript evidence is stronger.
-      4. Build form_context (HR-owned).
-      5. Extract TranscriptEvidence from the selected source turns.
-      6. Build persona (HR-owned, but seed_messages and outcome evidence
-         come from TranscriptEvidence; hidden_facts are filtered).
+      3. Build form_context (HR-owned).
+      4. Extract TranscriptEvidence from the selected source turns.
+      5. Build persona; pass through L2 LLM reviewer (Wave A6).
+      6. Apply persona override (Wave A6.6).
       7. Assemble Expected via policy + HR hints + TranscriptEvidence.
-      8. Compute scoring.
-      9. Record audit entry.
+      8. Apply expected override (Wave A6.6 / A5).
+      9. Compute scoring.
+     10. Record audit entry.
     """
     session_id = row["session_id"].strip()
     case_id = f"cs_interactive_{case_index:03d}"
     source_dataset = row.get("source_dataset", "unknown").strip()
 
-    # --- (1) UC resolution: HR -> override ---
+    pending_overrides = list(pending_overrides or [])
+    pending_for_session = [p for p in pending_overrides if p.source_session_id == session_id]
+    if strict_overrides and pending_for_session:
+        rationales = "; ".join(p.rationale or "(no rationale)" for p in pending_for_session)
+        raise ValueError(
+            f"strict_overrides=True: spec for source_session_id={session_id!r} "
+            f"has pending_review override(s): {rationales}"
+        )
+
+    # --- (1) UC resolution: HR -> classification override ---
     primary_uc_corrected = row.get("primary_uc_corrected", "").strip()
     source_primary_uc = row.get("source_primary_uc", "").strip()
     hr_primary_uc = primary_uc_corrected if primary_uc_corrected else source_primary_uc
     hr_secondary_ucs = _parse_secondary_ucs(row.get("secondary_ucs", ""))
 
-    primary_uc, secondary_ucs, override_applied = _apply_uc_override(
-        session_id,
-        hr_primary_uc,
-        hr_secondary_ucs,
-    )
+    primary_uc = hr_primary_uc
+    secondary_ucs = list(hr_secondary_ucs)
+    classification_override_applied = False
+    if applied_override is not None and applied_override.classification:
+        cls = applied_override.classification
+        if "primary_uc" in cls:
+            primary_uc = cls["primary_uc"]
+        if "secondary_ucs" in cls:
+            secondary_ucs = list(cls["secondary_ucs"])
+        classification_override_applied = True
+        logger.warning(
+            "Classification override applied for session %s: HR=%s -> %s (secondary=%s)",
+            session_id,
+            hr_primary_uc,
+            primary_uc,
+            secondary_ucs,
+        )
 
     # --- (2) Policy lookup ---
     try:
@@ -983,20 +1691,88 @@ def _build_case_spec(
     hidden_facts_filtered, dropped_hidden_facts = _filter_redundant_hidden_facts(
         hidden_facts_raw, form_context,
     )
+
+    # --- (5b) Wave A6 L2 LLM persona review ---
+    # Build the rule_draft snapshot the reviewer sees. hidden_facts here
+    # are already de-duplicated against form_context; the LLM may add
+    # new facts but the redundancy filter is reapplied AFTER L2 below so
+    # any LLM-added duplicates are also caught.
+    rule_persona_draft = PersonaDraft(
+        seed_messages=list(seed_messages),
+        user_goal_summary=user_goal_summary,
+        hidden_facts=list(hidden_facts_filtered),
+        verbosity=verbosity,
+    )
+
+    # Skip the pre-chat form turn before handing transcript to the reviewer;
+    # the verbatim-seed validator should only see actual visitor / agent turns.
+    transcript_turns_for_llm = [
+        t for t in turns
+        if not (
+            str(t.get("sequence", "")).strip() == "0"
+            and t.get("speaker", "") == "[PRE_CHAT_FORM]"
+        )
+    ]
+
+    hr_context = {
+        "primary_uc": primary_uc,
+        "secondary_ucs": secondary_ucs,
+        "drift_type": drift_type_raw or "none",
+        "has_frustration": _parse_bool(row.get("has_frustration", "")),
+        "frustration_type": row.get("frustration_type", "") or "none",
+        "topic_subject": topic_subject,
+        "description": description,
+        "source_dataset": source_dataset,
+        "turns_filename": turns_file,
+    }
+
+    review_result: ReviewResult
+    if llm_reviewer is not None:
+        review_result = llm_reviewer.review(
+            source_session_id=session_id,
+            rule_draft=rule_persona_draft,
+            transcript_turns=transcript_turns_for_llm,
+            hr_context=hr_context,
+            case_id_hint=case_id,
+        )
+    else:
+        review_result = ReviewResult(
+            accepted_value=rule_persona_draft,
+            cache_record=None,
+            cache_hit=False,
+            used_offline_fallback=True,
+        )
+
+    accepted_persona = review_result.accepted_value
+    accepted_seed_messages = list(accepted_persona.seed_messages)
+    accepted_user_goal_summary = accepted_persona.user_goal_summary
+    accepted_verbosity = accepted_persona.verbosity
+
+    # Reapply the redundant-fact filter against form_context in case the
+    # LLM added a fact that overlaps an existing form field.
+    accepted_hidden_facts_dicts, llm_added_dropped_facts = _filter_redundant_hidden_facts(
+        list(accepted_persona.hidden_facts), form_context,
+    )
+    if llm_added_dropped_facts:
+        dropped_hidden_facts = list(dropped_hidden_facts) + [
+            f"(post-L2) {f}" for f in llm_added_dropped_facts
+        ]
+
     hidden_facts = [
         HiddenFact(fact=hf["fact"], disclose_when=hf["disclose_when"])
-        for hf in hidden_facts_filtered
+        for hf in accepted_hidden_facts_dicts
     ]
+
     will_request_human_if = _derive_will_request_human_if(
         row.get("has_frustration", ""),
         row.get("escalation_trigger", ""),
     )
     persona = Persona(
-        user_goal_summary=user_goal_summary,
+        user_goal_summary=accepted_user_goal_summary,
         frustration_level=frustration_level,
-        verbosity=verbosity,
+        verbosity=accepted_verbosity,
         drift_behavior=drift_behavior,
-        seed_messages=seed_messages,
+        seed_messages=accepted_seed_messages,
         hidden_facts=hidden_facts,
         will_request_human_if=will_request_human_if,
     )
@@ -1042,40 +1818,107 @@ def _build_case_spec(
     # --- (7) Scoring ---
     scoring = _derive_scoring_config(primary_uc, final_should_escalate)
 
+    spec = CaseSpec(
+        case_id=case_id,
+        source_session_id=session_id,
+        source_dataset=source_dataset,
+        form_context=form_context,
+        persona=persona,
+        expected=expected,
+        scoring=scoring,
+    )
+
+    # --- L3 application ---
+    # Persona override runs AFTER L2 cache and after rule-based persona
+    # construction. Expected override runs at the same point as Wave A5.
+    persona_changes: dict[str, dict[str, Any]] = {}
+    expected_changes: dict[str, dict[str, Any]] = {}
+    if applied_override is not None:
+        persona_changes = _apply_persona_override(spec, applied_override.persona)
+        expected_changes = _apply_expected_override(spec, applied_override.expected)
+    expected = spec.expected
+    # If persona override changed seeds we want the audit to reflect
+    # the final persona, not the pre-override one.
+    persona = spec.persona
+
+    case_level_override: dict[str, Any] | None = None
+    expected_override_applied = bool(expected_changes)
+    persona_override_applied = bool(persona_changes)
+    if applied_override is not None:
+        case_level_override = {
+            "source": applied_override.source,
+            "reviewer": applied_override.reviewer,
+            "date": applied_override.date,
+            "confidence": applied_override.confidence,
+            "supporting_turn_numbers": list(applied_override.supporting_turn_numbers),
+            "rationale": applied_override.rationale,
+            "status": applied_override.status,
+            "migrated_from_legacy": applied_override.migrated_from_legacy,
+            "case_id_hint": applied_override.case_id_hint,
+            "classification": dict(applied_override.classification or {}),
+            "expected_changes": expected_changes,
+            "persona_changes": persona_changes,
+        }
+
     # --- (8) Audit ---
     mismatches: list[str] = []
     hr_seq = _parse_tool_names(row.get("expected_tool_sequence", ""))
-    if hr_seq and hr_seq != expected_tool_sequence:
+    if hr_seq and hr_seq != expected.expected_tool_sequence:
         mismatches.append(
-            f"expected_tool_sequence: HR={hr_seq} vs final={expected_tool_sequence}"
+            f"expected_tool_sequence: HR={hr_seq} vs final={expected.expected_tool_sequence}"
         )
     hr_forbidden = _parse_forbidden_tool_names(row.get("forbidden_tools", ""))
     if hr_forbidden:
         hr_forbidden_no_human = [t for t in hr_forbidden if t not in set(list_human_only_tools())]
-        if sorted(hr_forbidden_no_human) != sorted(forbidden_tools):
+        if sorted(hr_forbidden_no_human) != sorted(expected.forbidden_tools):
             mismatches.append(
                 f"forbidden_tools: HR(non-human-only)={sorted(hr_forbidden_no_human)} "
-                f"vs policy={sorted(forbidden_tools)}"
+                f"vs policy={sorted(expected.forbidden_tools)}"
             )
-    if hr_outcome and hr_outcome != final_outcome_class:
+    if hr_outcome and hr_outcome != expected.outcome_class:
         mismatches.append(
-            f"outcome_class: HR={hr_outcome!r} vs final={final_outcome_class!r}"
+            f"outcome_class: HR={hr_outcome!r} vs final={expected.outcome_class!r}"
         )
-    if hr_should_escalate != final_should_escalate:
+    if hr_should_escalate != expected.should_escalate:
         mismatches.append(
-            f"should_escalate: HR={hr_should_escalate} vs final={final_should_escalate}"
+            f"should_escalate: HR={hr_should_escalate} vs final={expected.should_escalate}"
         )
-    if hr_trigger_raw and final_trigger and hr_trigger_raw != final_trigger:
+    if (
+        hr_trigger_raw
+        and expected.escalation_trigger
+        and hr_trigger_raw != expected.escalation_trigger
+    ):
         mismatches.append(
-            f"escalation_trigger: HR={hr_trigger_raw!r} vs final={final_trigger!r}"
+            f"escalation_trigger: HR={hr_trigger_raw!r} "
+            f"vs final={expected.escalation_trigger!r}"
         )
+
+    # --- LLM persona-review audit fields (Wave A6) ---
+    llm_persona_changed_fields = _diff_persona_fields(
+        rule_persona_draft, accepted_persona
+    )
+    llm_acceptance_reason: str | None = None
+    llm_confidence: str | None = None
+    llm_validation_notes: list[str] = []
+    if review_result.cache_record is not None:
+        llm_acceptance_reason = review_result.cache_record.get("acceptance_reason")
+        llm_confidence = review_result.cache_record.get("llm_confidence") or None
+        notes = review_result.cache_record.get("validation_notes") or []
+        if isinstance(notes, list):
+            llm_validation_notes = [str(n) for n in notes]
 
     _record_audit({
         "session_id": session_id,
         "case_id": case_id,
         "hr_primary_uc": hr_primary_uc,
-        "final_primary_uc": primary_uc,
-        "override_applied": override_applied,
+        "final_primary_uc": expected.primary_uc,
+        "override_classification_applied": classification_override_applied,
+        "override_expected_applied": expected_override_applied,
+        "override_persona_applied": persona_override_applied,
+        "case_level_override": case_level_override,
+        "pending_overrides_for_session": [
+            p.rationale or "(no rationale)" for p in pending_for_session
+        ],
         "turns_file": turns_file,
         "turn_count": len(turns),
         "transcript_outcome": transcript_evidence.transcript_indicated_outcome,
@@ -1086,28 +1929,52 @@ def _build_case_spec(
         "policy_vs_hr_mismatches": mismatches,
         "dropped_hidden_facts": dropped_hidden_facts,
         "stripped_human_only_tools": stripped_human_only,
+        # Wave A6 LLM persona-review fields
+        "llm_cache_hit": bool(review_result.cache_hit),
+        "llm_offline_fallback": bool(review_result.used_offline_fallback),
+        "llm_acceptance_reason": llm_acceptance_reason,
+        "llm_confidence": llm_confidence,
+        "llm_validation_notes": llm_validation_notes,
+        "llm_persona_changed_fields": llm_persona_changed_fields,
     })
 
-    return CaseSpec(
-        case_id=case_id,
-        source_session_id=session_id,
-        source_dataset=source_dataset,
-        form_context=form_context,
-        persona=persona,
-        expected=expected,
-        scoring=scoring,
-    )
+    return spec
 
 
 def extract_case_specs(
     hr_csv_path: str | Path,
     turns_dir: str | Path,
     output_dir: str | Path,
+    overrides_path: str | Path = DEFAULT_CASE_SPEC_OVERRIDES_PATH,
+    *,
+    llm_cache_dir: str | Path = LLM_REVIEWER_DEFAULT_CACHE_DIR,
+    llm_offline: bool = False,
+    llm_refresh_sessions: frozenset[str] | set[str] | tuple[str, ...] | list[str] = (),
+    llm_model: str = "deepseek-v4-pro",
+    llm_reviewer: LlmPersonaReviewer | None = None,
+    strict_overrides: bool = False,
 ) -> list[CaseSpec]:
     """Extract CaseSpecs from HR annotation CSV and raw turn data.
 
     Wave A2.1: HR CSV is a HINT, not the source of truth, for any field
     whose owner is the per-UC policy. See module docstring for details.
+
+    Wave A6 (L2 LLM persona review): unless ``llm_offline=True``, the
+    extractor instantiates an :class:`LlmPersonaReviewer` against
+    ``llm_cache_dir`` and uses it to refine ``persona.seed_messages``,
+    ``persona.user_goal_summary``, ``persona.hidden_facts``, and
+    ``persona.verbosity``. Wave A5 overrides still run AFTER L2 and have
+    final word. Pass ``llm_refresh_sessions`` to force a re-call for
+    specific source_session_ids; pass ``llm_reviewer`` directly for
+    tests / custom transports.
+
+    Wave A6.6 (unified override registry): the override file is keyed by
+    ``source_session_id`` alone and may contain ``status: approved`` or
+    ``status: pending_review`` entries. Approved entries are applied at
+    the appropriate pipeline stage (classification before policy lookup,
+    expected post-L1, persona post-L2). Pending entries do NOT apply by
+    default; pass ``strict_overrides=True`` to hard-fail on any spec whose
+    session matches a pending entry.
     """
     hr_csv_path = Path(hr_csv_path)
     turns_dir = Path(turns_dir)
@@ -1119,6 +1986,20 @@ def extract_case_specs(
         raise FileNotFoundError(f"Turns directory not found: {turns_dir}")
 
     _reset_audit()
+    override_registry = _load_case_spec_overrides(overrides_path)
+    logger.info(
+        "Loaded %d approved + %d pending case-spec override(s).",
+        len(override_registry.applied),
+        len(override_registry.pending),
+    )
+
+    if llm_reviewer is None:
+        llm_reviewer = LlmPersonaReviewer(
+            model=llm_model,
+            cache_dir=Path(llm_cache_dir),
+            offline=bool(llm_offline),
+            force_refresh_sessions=frozenset(llm_refresh_sessions),
+        )
 
     logger.info("Loading source-dataset turns from %s ...", turns_dir)
     source_turn_indexes = _load_source_turn_indexes(turns_dir)
@@ -1171,7 +2052,17 @@ def extract_case_specs(
             skipped += 1
             continue
 
-        spec = _build_case_spec(row, turns, idx, turns_filename)
+        applied_override = override_registry.applied.get(session_id)
+        spec = _build_case_spec(
+            row,
+            turns,
+            idx,
+            turns_filename,
+            applied_override=applied_override,
+            pending_overrides=override_registry.pending,
+            strict_overrides=strict_overrides,
+            llm_reviewer=llm_reviewer,
+        )
 
         case_set = _assign_case_set(
             row.get("uc_confidence", ""),

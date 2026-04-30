@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008kCnxIAE
+case_id_hint: cs_interactive_021
+llm_model: deepseek-v4-pro
+prompt_hash: af2bc1c30aaf58f0e3f4e8da2ccd7359d6facb73b43be1ccff89982ff86a4b72
+generated_at: '2026-04-30T10:54:23.206664+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from the transcript and directly reflect the user's issue. User goal is clear from
+  the conversation. Hidden facts are derived from the transcript's explicit mention of two emails.
+rule_draft:
+  seed_messages:
+  - cant replace my old one?
+  - which email?
+  - how will they be in touch?
+  user_goal_summary: 'User reports Account Support: User wants to delete account [EMAIL] as the email was hacked. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - cant replace my old one?
+  - which email?
+  - how will they be in touch?
+  user_goal_summary: 'User wants to delete their Gumtree account linked to a hacked email and provide an alternative contact
+    email for confirmation. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - cant replace my old one?
+  - which email?
+  - how will they be in touch?
+  user_goal_summary: 'User wants to delete their Gumtree account linked to a hacked email and provide an alternative contact
+    email for confirmation. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The hacked email address is [EMAIL]'''
+- 'unsupported_hidden_fact_dropped: ''The user wants to be contacted at [EMAIL] regarding the deletion'''

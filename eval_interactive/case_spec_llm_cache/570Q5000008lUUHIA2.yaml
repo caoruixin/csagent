@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008lUUHIA2
+case_id_hint: row_151
+llm_model: deepseek-v4-pro
+prompt_hash: 4960a1225058949ea11f1dd5585b877c2c3daa39c862c604014fd268265ae3ad
+generated_at: '2026-04-30T19:05:27.490917+00:00'
+llm_confidence: high
+llm_rationale: The original seed_messages included a closing thank you. Replaced it with another issue-bearing turn from the
+  transcript that captures the ongoing password reset error. The user_goal_summary was refined to a single factual sentence
+  under 280 characters. Hidden facts were added based on transcript details about the second account and device/tech-savviness.
+rule_draft:
+  seed_messages:
+  - Yes received link have tried it several times it keeps saying wrong email
+  - i do not use the one above never have so not sure where that is from but its not me
+  - Thank you for your help
+  user_goal_summary: 'User reports Account Support: i have tried to reset my password for the email above it sends me the
+    link i click on it put new password in then when i tried to change it says password failed i have had this account for
+    years with no problem. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Yes received link have tried it several times it keeps saying wrong email
+  - i do not use the one above never have so not sure where that is from but its not me
+  - just tried again it says sorry we do not reconise the linkyou used to reset your password
+  user_goal_summary: 'User wants to reset their Gumtree password for their known hotmail email, but reset links fail repeatedly
+    with wrong email/link errors, likely because a second unknown email is associated with the account. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Yes received link have tried it several times it keeps saying wrong email
+  - i do not use the one above never have so not sure where that is from but its not me
+  - just tried again it says sorry we do not reconise the linkyou used to reset your password
+  user_goal_summary: 'User wants to reset their Gumtree password for their known hotmail email, but reset links fail repeatedly
+    with wrong email/link errors, likely because a second unknown email is associated with the account. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user has two Gumtree accounts: one with their known hotmail email, and another with
+  an unknown hotmail email that they don''t use."'
+- 'unsupported_hidden_fact_dropped: ''The user is using a work computer and a Samsung phone, and is not computer savvy.'''

@@ -1,0 +1,34 @@
+source_session_id: 570Q5000008xbIHIAY
+case_id_hint: row_299
+llm_model: deepseek-v4-pro
+prompt_hash: 5b01794146f315a9505d5ee872f9a42148b7814e3c7a5b3ff2cdd4262a274034
+generated_at: '2026-04-30T19:52:09.698098+00:00'
+llm_confidence: high
+llm_rationale: The original seed messages were greetings/acknowledgments, not the core issue. The turn 'It now says my request
+  is blocked by link 11 application' clearly describes the user's login problem. The user goal summary is updated to specify
+  the exact error. Hidden fact about travel is added from transcript detail that may be relevant to geo-blocking.
+rule_draft:
+  seed_messages:
+  - Fingers crossed and thanks
+  - Let’s give it a go
+  - Yes…..based in Glasgow Scotland and just returned from Southern Ireland
+  user_goal_summary: 'User reports Account Support: Account locked and not letting me reset password. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It now says my request is blocked by link 11 application
+  user_goal_summary: 'User wants to reset their locked Gumtree account password and resolve the error ''request blocked by
+    link 11 application'' to regain access. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It now says my request is blocked by link 11 application
+  user_goal_summary: 'User wants to reset their locked Gumtree account password and resolve the error ''request blocked by
+    link 11 application'' to regain access. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user is based in Glasgow, Scotland and recently returned from a trip to Southern
+  Ireland.'''

@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008NTUXIA4
+case_id_hint: row_149
+llm_model: deepseek-v4-pro
+prompt_hash: 4d5eaac3523e5d73f48e19c2d507b96c6256f03dcad7e743cde9d9d34cb857c8
+generated_at: '2026-04-30T19:05:34.876124+00:00'
+llm_confidence: high
+llm_rationale: Replaced thanks and acknowledgment seed messages with two additional visitor turns that describe the issue
+  in detail, keeping the original issue turn. All three verbatim quotes cover the problem comprehensively. The goal summary
+  was condensed to a factual sentence without bot instructions. No hidden facts are clearly unsupported by the transcript.
+rule_draft:
+  seed_messages:
+  - when i sign in on the app its fine but it wont let me sign in on a browser i.e google chrome
+  - thank you for your help sorry for bothering you have a good Christmas and a new year :)
+  - yeah im signed in now thank you
+  user_goal_summary: 'User reports Account Support: i can sign into gumtree using the app but when i try to log in using a
+    browser using the same details it says my password is wrong. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - when i sign in on the app its fine but it wont let me sign in on a browser i.e google chrome
+  - login>continue with email> entered my email address and password and im just getting a red bar appear after clicking login
+  - its not saying anything other then not logging me in and a red bard after trying to log in
+  user_goal_summary: 'User can sign into Gumtree app but browser login with same email/password shows red bar error without
+    text. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - when i sign in on the app its fine but it wont let me sign in on a browser i.e google chrome
+  - login>continue with email> entered my email address and password and im just getting a red bar appear after clicking login
+  - its not saying anything other then not logging me in and a red bard after trying to log in
+  user_goal_summary: 'User can sign into Gumtree app but browser login with same email/password shows red bar error without
+    text. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

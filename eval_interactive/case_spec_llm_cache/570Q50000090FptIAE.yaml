@@ -1,0 +1,35 @@
+source_session_id: 570Q50000090FptIAE
+case_id_hint: row_147
+llm_model: deepseek-v4-pro
+prompt_hash: 2da0550ba8ff077fdc7258c63a79341e6f1c2d501c041101521f56bd904e0951
+generated_at: '2026-04-30T19:04:14.553419+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are exact quotes from the visitor's turns that convey the problem. The user goal is clear from
+  the transcript.
+rule_draft:
+  seed_messages:
+  - How do I therefore place an ad?
+  - The old address is closed so no messages will reach me.
+  user_goal_summary: 'User reports Account Support: I am trying to post an ad but need to update my contact email but it will
+    not let me. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - How do I therefore place an ad?
+  - The old address is closed so no messages will reach me.
+  user_goal_summary: 'User wants to post an ad but cannot because Gumtree disabled email changes and the old email is inaccessible.
+    Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - How do I therefore place an ad?
+  - The old address is closed so no messages will reach me.
+  user_goal_summary: 'User wants to post an ad but cannot because Gumtree disabled email changes and the old email is inaccessible.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s old email address is closed and they cannot receive any messages sent to
+  it."'

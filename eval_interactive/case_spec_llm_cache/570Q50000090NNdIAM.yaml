@@ -1,0 +1,45 @@
+source_session_id: 570Q50000090NNdIAM
+case_id_hint: row_182
+llm_model: deepseek-v4-pro
+prompt_hash: ad86a25fff981b68dcf9a3ef0b53ad807797e5c59ed60faf2c5856b92628c9a5
+generated_at: '2026-04-30T19:15:07.014300+00:00'
+llm_confidence: high
+llm_rationale: seed_messages are verbatim issue-describing turns from the transcript. user_goal_summary improved to accurately
+  capture the user's confusion about unread message notifications and delivery status. No hidden facts are necessary; all
+  relevant user facts are already surfaced in the conversation.
+rule_draft:
+  seed_messages:
+  - I've already been on live chat with one of your colleagues today and he said to restart my phone and check app for updates
+    but I have done that and no difference. I have also tried opening in web browser and again showing no replies from customers
+    interested in my items being sold
+  - Ok just seems odd they both haven't replied or read message and Gumtree saying I have unread messages but if all ok from
+    what you can see then must be
+  - I sent 3 days ago
+  user_goal_summary: 'User reports Account Support: Hello, I not receiving messages from potential buyers. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I've already been on live chat with one of your colleagues today and he said to restart my phone and check app for updates
+    but I have done that and no difference. I have also tried opening in web browser and again showing no replies from customers
+    interested in my items being sold
+  - Ok just seems odd they both haven't replied or read message and Gumtree saying I have unread messages but if all ok from
+    what you can see then must be
+  - I sent 3 days ago
+  user_goal_summary: 'User wants to understand why Gumtree email says they have unread messages when the app shows no replies,
+    and why sent messages from 3 days ago are marked as delivered but unread. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I've already been on live chat with one of your colleagues today and he said to restart my phone and check app for updates
+    but I have done that and no difference. I have also tried opening in web browser and again showing no replies from customers
+    interested in my items being sold
+  - Ok just seems odd they both haven't replied or read message and Gumtree saying I have unread messages but if all ok from
+    what you can see then must be
+  - I sent 3 days ago
+  user_goal_summary: 'User wants to understand why Gumtree email says they have unread messages when the app shows no replies,
+    and why sent messages from 3 days ago are marked as delivered but unread. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

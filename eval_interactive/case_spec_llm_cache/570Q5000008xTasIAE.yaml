@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008xTasIAE
+case_id_hint: row_33
+llm_model: deepseek-v4-pro
+prompt_hash: a39242003c643f657ed6613a811fa9525d162eed52782136f07ea85f48efeb9e
+generated_at: '2026-04-30T13:11:03.768240+00:00'
+llm_confidence: medium
+llm_rationale: Replaced agent-sourced and non-issue seed_messages with the single issue-bearing visitor turn from seq 3. Refined
+  user_goal_summary to be more specific and factual. No hidden facts added as transcript did not contain undisclosed critical
+  information beyond what the user already stated.
+rule_draft:
+  seed_messages:
+  - hi i was just talking to someone and the chat got cut off i basically had an account with gumtree but the tablet i was
+    logged in on got broke and i lost all my details but i gave him the ad ID to take down the advert so i can put the advert
+    on my new account and he said you may have some problems so contact us when you make the new advert
+  - same to you enjoy the rest of your day bye thanks again
+  - It is only a pleasure and take care!
+  user_goal_summary: 'User reports Account Support: i was just talking to someone about my account and it got cut off. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - hi i was just talking to someone and the chat got cut off i basically had an account with gumtree but the tablet i was
+    logged in on got broke and i lost all my details but i gave him the ad ID to take down the advert so i can put the advert
+    on my new account and he said you may have some problems so contact us when you make the new advert
+  user_goal_summary: 'User wants to resume a previous chat that got cut off, repost an advert on a new Gumtree account after
+    losing old account details, and ensure the new advert is published. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - hi i was just talking to someone and the chat got cut off i basically had an account with gumtree but the tablet i was
+    logged in on got broke and i lost all my details but i gave him the ad ID to take down the advert so i can put the advert
+    on my new account and he said you may have some problems so contact us when you make the new advert
+  - same to you enjoy the rest of your day bye thanks again
+  - It is only a pleasure and take care!
+  user_goal_summary: 'User reports Account Support: i was just talking to someone about my account and it got cut off. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: rule_fallback_low_confidence
+validation_notes: []

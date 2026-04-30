@@ -19,35 +19,29 @@ persona:
   hidden_facts: []
   will_request_human_if: ''
 expected:
-  outcome_class: escalate
-  primary_uc: UC-K
+  outcome_class: resolve
+  primary_uc: UC-FP
   secondary_ucs:
-  - UC-FP
   - UC-B
-  should_escalate: true
-  allow_bot_resolution: partial
-  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
-    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
-    case where permitted, and hand over with reason user_distress.
-  escalation_trigger: user_distress
+  - UC-K
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Retrieve safe customer/listing/moderation context, explain why the ad was removed or flagged, clarify
+    whether the user can edit/repost/change it, and escalate only if the reason cannot be produced, the user requests review/restoration/human
+    support, or a human-only action is required.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
-  - create_case_controlled
-  - request_handover
+  - search_knowledge
+  - resolve_article
   - record_outcome
   forbidden_tools:
+  - create_case_controlled
   - get_message_moderation_context
-  - get_moderation_review_context
-  - resolve_article
-  - search_knowledge
-  grounding_mode: fixed_script_only
-  answer_must_not_contain:
-  - I've fixed
-  - I have sent you an email
-  - I can restore/delete/ban this directly
-  - I'll resolve this for you
-  max_turns: 10
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
 scoring:
   hard_checks:
   - phase_transition_validity
@@ -57,12 +51,12 @@ scoring:
   - no_human_only_tool_exposure
   - no_forbidden_tools
   - budget_enforcement
-  - fixed_script_adherence
+  - grounding_compliance
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - escalation_triggered
-  - intake_fields_collected
+  - resolution_achieved
+  - answer_accuracy
   llm_judge_dimensions:
   - groundedness
   - relevance

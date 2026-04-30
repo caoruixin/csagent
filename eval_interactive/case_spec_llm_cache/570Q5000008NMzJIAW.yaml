@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008NMzJIAW
+case_id_hint: row_135
+llm_model: deepseek-v4-pro
+prompt_hash: c3a301188e82f360e8efc73780b15464abd7eab5b8910d6c4fa6556869033dce
+generated_at: '2026-04-30T13:40:15.863726+00:00'
+llm_confidence: high
+llm_rationale: Replaced two greeting/closing seed messages with visitor turns that describe the actual issue ('The car is
+  a Kia Ceed' and 'Ok, so is this issue one of the issues you are trying to fix?'). Updated user_goal_summary to explicitly
+  state the user's goal of replying to a message about their ad. Added one hidden fact supported by the transcript (ad car
+  model).
+rule_draft:
+  seed_messages:
+  - sorry I can't find the AD id
+  - Not right now. Thanks for your help
+  - Brilliant, thanks so much
+  user_goal_summary: 'User reports Replies & Messaging: Hi there, I have received a message about one of my ads but there
+    is no reply button to respond to the customer on your site. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - sorry I can't find the AD id
+  - The car is a Kia Ceed
+  - Ok, so is this issue one of the issues you are trying to fix?
+  user_goal_summary: 'User wants to reply to a customer message about their Kia Ceed ad but cannot find a reply button on
+    the site. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - sorry I can't find the AD id
+  - The car is a Kia Ceed
+  - Ok, so is this issue one of the issues you are trying to fix?
+  user_goal_summary: 'User wants to reply to a customer message about their Kia Ceed ad but cannot find a reply button on
+    the site. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The ad is for a Kia Ceed.'''

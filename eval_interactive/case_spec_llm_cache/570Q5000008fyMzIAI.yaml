@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008fyMzIAI
+case_id_hint: row_131
+llm_model: deepseek-v4-pro
+prompt_hash: 7a0fd162fb066192db8b58c2911286e7014d1a52fcde38d0baf71e6c5d073187
+generated_at: '2026-04-30T13:39:48.570902+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are directly from visitor turns and accurately capture the core issue. The user goal summary
+  concisely describes what the user wants based on the transcript. No additional hidden facts can be reliably extracted without
+  invention.
+rule_draft:
+  seed_messages:
+  - '1508288194'
+  - please active my add it's my business paid add
+  - it's my first add i have not created any violation so please check
+  user_goal_summary: 'User reports Account Support: hi hope you very well, this is my business add and it''s paid add so please
+    active my add am so worried please help me. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - '1508288194'
+  - please active my add it's my business paid add
+  - it's my first add i have not created any violation so please check
+  user_goal_summary: 'The user wants their paid business ad with ID 1508288194 activated and their account to remain active
+    for long-term business use, insisting it''s their first ad and they haven''t violated any guidelines. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - '1508288194'
+  - please active my add it's my business paid add
+  - it's my first add i have not created any violation so please check
+  user_goal_summary: 'The user wants their paid business ad with ID 1508288194 activated and their account to remain active
+    for long-term business use, insisting it''s their first ad and they haven''t violated any guidelines. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

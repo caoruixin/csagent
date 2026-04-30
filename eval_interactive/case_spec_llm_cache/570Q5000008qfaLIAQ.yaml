@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008qfaLIAQ
+case_id_hint: cs_interactive_080
+llm_model: deepseek-v4-pro
+prompt_hash: a0f56d377dd2179c96110867c06ef6d3bdd43985d48bef7bed4187dfa48828b2
+generated_at: '2026-04-30T20:41:24.517563+00:00'
+llm_confidence: high
+llm_rationale: Original seed_messages were greetings/closings; replaced with visitor turns that state the core request (seq
+  12, 22, 26). User goal summarized from transcript and pre-chat description. Hidden fact about lost deliveries added, grounded
+  in the form description and implied by safety remark in seq 31.
+rule_draft:
+  seed_messages:
+  - No problem, can you please advise?
+  - Thank you. I hope you have a lovely day. Take care 🙂
+  - No thank you, just please make sure you let me know as this will make deliveries a lot safer - and persuade your boss
+    ;-) thanks, have a good day
+  user_goal_summary: 'User reports Delivery: Hi, I''ve had a LOT of trouble with lost deliveries and wonder if they can all
+    be left at a local Evri collection point instead of home address?. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - however I'd like to change delivery instructions as default rather than just 1 item
+  - THank you, can you please ask that they put all my delivery to be collected from local collection point? There is a post
+    office on Manchseter road, preston, that is a collection point for evri
+  - 'Hi, no I am receiving a parcel. THe reason for contacting you is this: I''d like to change my default delivery address
+    so that from now on every time I place an order via gumtree it is delivered to an evri local parcel collection point.'
+  user_goal_summary: 'User wants all future Gumtree deliveries sent to an Evri collection point (Post Office, Manchester Road,
+    Preston) instead of their home address, to prevent lost deliveries. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - however I'd like to change delivery instructions as default rather than just 1 item
+  - THank you, can you please ask that they put all my delivery to be collected from local collection point? There is a post
+    office on Manchseter road, preston, that is a collection point for evri
+  - 'Hi, no I am receiving a parcel. THe reason for contacting you is this: I''d like to change my default delivery address
+    so that from now on every time I place an order via gumtree it is delivered to an evri local parcel collection point.'
+  user_goal_summary: 'User wants all future Gumtree deliveries sent to an Evri collection point (Post Office, Manchester Road,
+    Preston) instead of their home address, to prevent lost deliveries. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has experienced multiple lost deliveries to their home address.'''

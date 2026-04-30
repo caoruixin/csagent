@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008hysLIAQ
+case_id_hint: row_307
+llm_model: deepseek-v4-pro
+prompt_hash: 08b727af180f5bb249248f6e661303eecd539c9d253c346e5ce3006a4ca85083
+generated_at: '2026-04-30T19:54:28.967281+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are direct, issue-bearing quotes from the transcript. User goal is clear from multiple turns.
+  Hidden facts are grounded in volunteered details (ID and email) and aid bot in account identification.
+rule_draft:
+  seed_messages:
+  - Hi I can’t to update my adv
+  - Wrong password but I did changed still not happen
+  - Website
+  user_goal_summary: 'User reports Ad Support: Can you help me to update my adv thanks. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi I can’t to update my adv
+  - Wrong password but I did changed still not happen
+  - Website
+  user_goal_summary: 'The user wants to upgrade their Gumtree advertisement but cannot log in due to a password problem. They
+    have already tried changing the password without success. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user's Gumtree account ID is 1431733373.
+    disclose_when: when asked for account ID or identification
+accepted_value:
+  seed_messages:
+  - Hi I can’t to update my adv
+  - Wrong password but I did changed still not happen
+  - Website
+  user_goal_summary: 'The user wants to upgrade their Gumtree advertisement but cannot log in due to a password problem. They
+    have already tried changing the password without success. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user's Gumtree account ID is 1431733373.
+    disclose_when: when asked for account ID or identification
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s email is [EMAIL]."'

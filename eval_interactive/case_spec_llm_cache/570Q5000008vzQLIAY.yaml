@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008vzQLIAY
+case_id_hint: row_108
+llm_model: deepseek-v4-pro
+prompt_hash: 34977a4ce2cdf31928a7bc3265fa5c9c61acc65a7cf1738676dce457815e6b40
+generated_at: '2026-04-30T13:33:30.715053+00:00'
+llm_confidence: high
+llm_rationale: 'Seed messages replaced with three verbatim issue-bearing visitor turns from the transcript. User goal summary
+  incorporates both the initial rule-breaking report and the account block discovery. Hidden facts grounded in transcript
+  details: account block and duplicate ads cause.'
+rule_draft:
+  seed_messages:
+  - I went through and noticed that the ad was duplicated
+  - You too
+  - Okay, thank you.
+  user_goal_summary: 'User reports Ad Support: My ad was removed for breaking rules and I don''t know which rule I broke.
+    Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I went through and noticed that the ad was duplicated
+  - it was duplicated 5 times, but I did not know
+  - because of the network
+  user_goal_summary: 'User wants to know which rule she broke that led to ad removal and account block, and she expects to
+    receive an email with an explanation and resolution. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I went through and noticed that the ad was duplicated
+  - it was duplicated 5 times, but I did not know
+  - because of the network
+  user_goal_summary: 'User wants to know which rule she broke that led to ad removal and account block, and she expects to
+    receive an email with an explanation and resolution. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "User''s ad account is blocked."'
+- 'unsupported_hidden_fact_dropped: ''User had 5 duplicate ads created unintentionally due to poor network, all of which were
+  removed.'''

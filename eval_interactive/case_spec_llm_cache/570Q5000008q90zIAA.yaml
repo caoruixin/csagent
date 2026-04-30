@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008q90zIAA
+case_id_hint: row_306
+llm_model: deepseek-v4-pro
+prompt_hash: 2a73ef6f02c79337bd06dc5a7160b1b31ff194369374e8ad8d3f79be214096dd
+generated_at: '2026-04-30T19:54:56.613897+00:00'
+llm_confidence: high
+llm_rationale: Replaced the third seed message, which was just an acknowledgment, with a verbatim error description from seq
+  22 to better capture the user's actual issue. Updated user_goal_summary to specify the login block. Added a hidden_fact
+  about the error details based on the transcript.
+rule_draft:
+  seed_messages:
+  - It wont let me use my saved password or email
+  - Yes but my contact email is google
+  - ok i'll try that. thanks
+  user_goal_summary: 'User reports Account Support: Hi I''ve been locked out of my account, google created a new account accidently
+    when i was trying to log in. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It wont let me use my saved password or email
+  - Yes but my contact email is google
+  - Request Blocked An error has occurred Your request was blocked by Link11 Web Application Security. If you believe this
+    is the result of an error, contact the administrator of my.gumtree.com.
+  user_goal_summary: 'User wants to log into Gumtree account but is blocked by Link11 Web Application Security error when
+    using registered email. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user receives a 'Request Blocked' error with Link11 WAF, ID 64cfae26c1c15d78d992563249246169, Status Code 471
+      when trying to log in with their registered talktalk email.
+    disclose_when: When asked what error occurs or what happens when attempting to sign in.
+accepted_value:
+  seed_messages:
+  - It wont let me use my saved password or email
+  - Yes but my contact email is google
+  - Request Blocked An error has occurred Your request was blocked by Link11 Web Application Security. If you believe this
+    is the result of an error, contact the administrator of my.gumtree.com.
+  user_goal_summary: 'User wants to log into Gumtree account but is blocked by Link11 Web Application Security error when
+    using registered email. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user receives a 'Request Blocked' error with Link11 WAF, ID 64cfae26c1c15d78d992563249246169, Status Code 471
+      when trying to log in with their registered talktalk email.
+    disclose_when: When asked what error occurs or what happens when attempting to sign in.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

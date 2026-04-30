@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008t4kkIAA
+case_id_hint: row_219
+llm_model: deepseek-v4-pro
+prompt_hash: 6c34f61fffa5e5bcdfc13c3bf0bd4a9193707d49e66f0f9fd5999f1bd0b8a7bd
+generated_at: '2026-04-30T19:27:16.472217+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are verbatim visitor turns directly expressing the issue. The user goal summary is refined
+  to specify the ad, the deadline, and the user's attribution of the problem, all grounded in the transcript. Hidden facts
+  are added based on concrete transcript details (ad title, age, refusal to repost). No bot-side instructions are included.
+rule_draft:
+  seed_messages:
+  - It says payment failed
+  - Not happening!!!
+  - I think it's a technical issue at your end
+  user_goal_summary: 'User reports Payments: Cannot pay with my usual card to bump up ad. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It says payment failed
+  - Not happening!!!
+  - I think it's a technical issue at your end
+  user_goal_summary: 'The user wants to bump up their ad ''Common Entrance Tutor 11+ Kensington'' before the 30th using their
+    usual card, which is failing. They think it''s a technical issue on Gumtree''s end. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The ad is 'Common Entrance Tutor 11+ Kensington' and dates from 2013.
+    disclose_when: when asked about the specific ad
+accepted_value:
+  seed_messages:
+  - It says payment failed
+  - Not happening!!!
+  - I think it's a technical issue at your end
+  user_goal_summary: 'The user wants to bump up their ad ''Common Entrance Tutor 11+ Kensington'' before the 30th using their
+    usual card, which is failing. They think it''s a technical issue on Gumtree''s end. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The ad is 'Common Entrance Tutor 11+ Kensington' and dates from 2013.
+    disclose_when: when asked about the specific ad
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user does not want to post a new ad; they want the existing ad fixed.'''

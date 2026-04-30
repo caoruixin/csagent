@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008gaC9IAI
+case_id_hint: row_341
+llm_model: deepseek-v4-pro
+prompt_hash: a5f5a45d86d33a881a1fce834833fd01fbf055e6a3cb7126dfbdd0f2b7af346c
+generated_at: '2026-04-30T20:26:59.798582+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and describe the core issue. User goal summary captures the specific
+  desire for phone contact and confusion about inconsistency. Hidden facts are grounded in the user's statements.
+rule_draft:
+  seed_messages:
+  - i have using gumtree over 10 years now
+  - when i try to post used to give me two option email and phone number i prefer contact with phone number but there is no
+    phone number section no more only email
+  - even now i checked there is a post whic is poster 5 hours ago and still see the phone option
+  user_goal_summary: 'User reports Account Support: phone number. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - i have using gumtree over 10 years now
+  - when i try to post used to give me two option email and phone number i prefer contact with phone number but there is no
+    phone number section no more only email
+  - even now i checked there is a post whic is poster 5 hours ago and still see the phone option
+  user_goal_summary: 'User wants ability to include phone number in ads because they prefer phone contact and have limited
+    internet access; seeks explanation for discrepancy with other ads. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user prefers phone contact because they do not know how to use email and have limited internet access.
+    disclose_when: Bot asks why phone is preferred or about communication methods.
+accepted_value:
+  seed_messages:
+  - i have using gumtree over 10 years now
+  - when i try to post used to give me two option email and phone number i prefer contact with phone number but there is no
+    phone number section no more only email
+  - even now i checked there is a post whic is poster 5 hours ago and still see the phone option
+  user_goal_summary: 'User wants ability to include phone number in ads because they prefer phone contact and have limited
+    internet access; seeks explanation for discrepancy with other ads. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user prefers phone contact because they do not know how to use email and have limited internet access.
+    disclose_when: Bot asks why phone is preferred or about communication methods.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has been using Gumtree for over 10 years.'''

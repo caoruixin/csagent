@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008xVG5IAM
+case_id_hint: row_240
+llm_model: deepseek-v4-pro
+prompt_hash: fb95b2ec5064701ce43dfad1dd08652915cf262786f77a45f485a29a7b3bc3b5
+generated_at: '2026-04-30T19:37:31.170346+00:00'
+llm_confidence: high
+llm_rationale: 'All seed messages are verbatim visitor turns capturing the core issue: the visitor''s suspicion about chatbot,
+  confusion about delivery eligibility, and plan to relist items. The summary accurately reflects the user''s goal across
+  the conversation. No additional hidden facts are necessary from the transcript.'
+rule_draft:
+  seed_messages:
+  - Are you human
+  - Ok, I llmrelist them
+  - fridge magnet,and small item, boxing programs are light,
+  user_goal_summary: 'User reports Account Support: Hi. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Are you human
+  - Ok, I llmrelist them
+  - fridge magnet,and small item, boxing programs are light,
+  user_goal_summary: 'User wants to list booklets, fridge magnets, and boxing magazines on Gumtree and have them eligible
+    for delivery, so they plan to relist them in the correct category. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Are you human
+  - Ok, I llmrelist them
+  - fridge magnet,and small item, boxing programs are light,
+  user_goal_summary: 'User wants to list booklets, fridge magnets, and boxing magazines on Gumtree and have them eligible
+    for delivery, so they plan to relist them in the correct category. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008G3WnIAK
+case_id_hint: row_184
+llm_model: deepseek-v4-pro
+prompt_hash: 846246b9302473489b8014f3b91363088f30acf5c12859d84347ca0dc9e7a6d7
+generated_at: '2026-04-30T19:15:24.889298+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are direct quotes from visitor turns describing the issue. Summary refined to state the user's
+  actual goal. Hidden facts added from the transcript to reflect that ads are visible and the user can send/receive messages,
+  disclosed on relevant bot inquiry.
+rule_draft:
+  seed_messages:
+  - My adds are not attracting any interest at all and no replies to other adds either
+  - messages
+  - l don’t think my adds are visible and something wrong with access to
+  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - My adds are not attracting any interest at all and no replies to other adds either
+  - messages
+  - l don’t think my adds are visible and something wrong with access to
+  user_goal_summary: 'User wants to ensure their ads are visible and that they can receive messages and replies, suspecting
+    a visibility or message access issue. Drift: none.'
+  hidden_facts:
+  - fact: The user's ads are visible on the site.
+    disclose_when: when bot asks about ad visibility or confirms status
+accepted_value:
+  seed_messages:
+  - My adds are not attracting any interest at all and no replies to other adds either
+  - messages
+  - l don’t think my adds are visible and something wrong with access to
+  user_goal_summary: 'User wants to ensure their ads are visible and that they can receive messages and replies, suspecting
+    a visibility or message access issue. Drift: none.'
+  hidden_facts:
+  - fact: The user's ads are visible on the site.
+    disclose_when: when bot asks about ad visibility or confirms status
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user received and responded to a test message from the agent.'''

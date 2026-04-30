@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008OowjIAC
+case_id_hint: row_58
+llm_model: deepseek-v4-pro
+prompt_hash: 23d2638324fe70b220237557bca556b282356f0ef77b1b369247034f6e66a04a
+generated_at: '2026-04-30T13:17:14.374949+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing 'Thank u' with a turn from the hard shift (seq18) to better represent the user's full issue
+  set. Kept first two seeds which are strong issue-bearing utterances. Updated goal summary to include both the message access
+  problem and the ad restoration question, with drift note. No hidden facts in transcript beyond what was openly disclosed.
+rule_draft:
+  seed_messages:
+  - I see I have a message but I can’t open or see what the actual message
+  - It’s frustrating to see a message is there but you can’t access it
+  - Thank u
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I see I have a message but I can’t open or see what the actual message
+  - It’s frustrating to see a message is there but you can’t access it
+  - Can you bring up an ad after you deleted it
+  user_goal_summary: 'User wants to read an unseen message notification and also know if a deleted ad can be restored. Drift:
+    hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I see I have a message but I can’t open or see what the actual message
+  - It’s frustrating to see a message is there but you can’t access it
+  - Can you bring up an ad after you deleted it
+  user_goal_summary: 'User wants to read an unseen message notification and also know if a deleted ad can be restored. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

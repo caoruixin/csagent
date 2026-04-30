@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008fBsXIAU
+case_id_hint: row_66
+llm_model: deepseek-v4-pro
+prompt_hash: 2a10bffdf6c0d422323b7a903d86b2d6ec7378c90257d3efc47b4da66839bd67
+generated_at: '2026-04-30T13:18:18.755378+00:00'
+llm_confidence: low
+llm_rationale: The transcript contains minimal visitor turns that do not directly describe the issue. The only informative
+  turn is providing an email, which is not the core problem. The user_goal_summary is derived from the pre-chat form description,
+  but the actual conversation lacks detail, so confidence is low.
+rule_draft:
+  seed_messages:
+  - Should be [EMAIL]
+  - Ok thank you
+  user_goal_summary: 'User reports Account Support: Why am I not getting the option to add my phone number as a point of contact
+    when listening an item any more. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - Should be [EMAIL]
+  user_goal_summary: 'Why am I not getting the option to add my phone number as a point of contact when listing an item any
+    more? Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Should be [EMAIL]
+  - Ok thank you
+  user_goal_summary: 'User reports Account Support: Why am I not getting the option to add my phone number as a point of contact
+    when listening an item any more. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+acceptance_reason: rule_fallback_low_confidence
+validation_notes: []

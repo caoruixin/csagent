@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008g4qbIAA
+case_id_hint: row_160
+llm_model: deepseek-v4-pro
+prompt_hash: 89a007a85fe9d9deb7296f2c9c1c2b52da5491bf05fcaa98ccbaab06e90a26ad
+generated_at: '2026-04-30T19:08:18.336930+00:00'
+llm_confidence: high
+llm_rationale: Replaced 'Okay thank you' (closing) with 'Been removed' (clarification of issue) and added user's uncertainty
+  about email ownership as it provides context. The seed messages now all describe the actual issue or relevant user confusion.
+rule_draft:
+  seed_messages:
+  - I have tried to put a add on can you please let me know why there are deleting
+  - Okay thank you
+  - Try that one
+  user_goal_summary: 'User reports Account Support: Will not put my add on. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I have tried to put a add on can you please let me know why there are deleting
+  - Been removed
+  - Yes just trying to find it because I don’t know if my son as used my email or his
+  user_goal_summary: 'The user wants to understand why her ads are being deleted and to prevent further deletions. Drift:
+    hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I have tried to put a add on can you please let me know why there are deleting
+  - Been removed
+  - Yes just trying to find it because I don’t know if my son as used my email or his
+  user_goal_summary: 'The user wants to understand why her ads are being deleted and to prevent further deletions. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''Donna is unsure whether the account she used to post the ad belongs to her or her son.'''

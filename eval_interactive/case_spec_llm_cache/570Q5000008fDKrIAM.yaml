@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008fDKrIAM
+case_id_hint: row_201
+llm_model: deepseek-v4-pro
+prompt_hash: 51ff4452cbd780c32194228fc1a04f4c82587719d2c9a49a5ab745572526dd0d
+generated_at: '2026-04-30T19:20:59.166066+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting/sign-off seeds with issue-bearing turns. Updated user_goal_summary to capture the specific
+  goal and added hidden facts grounded in transcript statements.
+rule_draft:
+  seed_messages:
+  - Hola
+  - Ok thanks anyway
+  - Even though I’ve sold on there so wouldn’t be possible
+  user_goal_summary: 'User reports Replies & Messaging: Trying to recover messages. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I’m trying to recover messages from 2017/2018
+  - When I click on messages on the app it shows at none what so ever
+  - Even though I’ve sold on there so wouldn’t be possible
+  user_goal_summary: 'I want to recover messages from 2017/2018 that I know I had. I have sold items on Gumtree so there should
+    be messages, but they are not showing in the app. I want to check if there is another account linked to me. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I’m trying to recover messages from 2017/2018
+  - When I click on messages on the app it shows at none what so ever
+  - Even though I’ve sold on there so wouldn’t be possible
+  user_goal_summary: 'I want to recover messages from 2017/2018 that I know I had. I have sold items on Gumtree so there should
+    be messages, but they are not showing in the app. I want to check if there is another account linked to me. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has previously sold items on Gumtree, which required messaging buyers.'''
+- 'unsupported_hidden_fact_dropped: ''User only remembers having one email address, but is uncertain if another account might
+  exist.'''

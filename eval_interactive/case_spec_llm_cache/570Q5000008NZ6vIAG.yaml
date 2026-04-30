@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008NZ6vIAG
+case_id_hint: row_313
+llm_model: deepseek-v4-pro
+prompt_hash: 7e528ad7db909fca3dbeee7a3714a41af68ae534e670b2798a6f97b27ab62053
+generated_at: '2026-04-30T19:56:32.329252+00:00'
+llm_confidence: high
+llm_rationale: Seed messages were improved by replacing the non-issue 'ok thansk' with a detailed problem description. User
+  goal summary was made specific to the actual issue. Hidden facts were added based on transcript details.
+rule_draft:
+  seed_messages:
+  - just signed up and trying to post my add and all filed in and then doesnt let me post and pay
+  - ok thansk
+  - doesnrt work still ???
+  user_goal_summary: 'User reports Account Support: child furniture. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - just signed up and trying to post my add and all filed in and then doesnt let me post and pay
+  - at foot green box post my add than clikck and nothingh happends
+  - doesnrt work still ???
+  user_goal_summary: 'User wants to post their ad and pay, but the green ''post my add'' button is unresponsive and nothing
+    happens when clicked. Drift: minor_drift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - just signed up and trying to post my add and all filed in and then doesnt let me post and pay
+  - at foot green box post my add than clikck and nothingh happends
+  - doesnrt work still ???
+  user_goal_summary: 'User wants to post their ad and pay, but the green ''post my add'' button is unresponsive and nothing
+    happens when clicked. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user saw a green box with ''post my add'' text at the foot of the page and clicking
+  it does nothing."'
+- 'unsupported_hidden_fact_dropped: ''The user tried posting both with and without the urgent feature checked, but neither
+  worked.'''

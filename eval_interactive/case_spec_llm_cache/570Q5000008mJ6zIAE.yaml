@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008mJ6zIAE
+case_id_hint: row_334
+llm_model: deepseek-v4-pro
+prompt_hash: 43e9814ecbd5f80b8273dec94a432f8033178ff5f8c6f64a427c474a93fe6d9f
+generated_at: '2026-04-30T20:24:48.638329+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from issue-bearing visitor turns. Updated goal summary to be specific and factual.
+  No hidden facts supported by transcript.
+rule_draft:
+  seed_messages:
+  - Hi I've posted an advert on Gumtree someone has replied to me about my ad and is interested but wants to do a payment
+    plan
+  - I think the app
+  user_goal_summary: 'User reports Payments: Payment plan enquiry. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi I've posted an advert on Gumtree someone has replied to me about my ad and is interested but wants to do a payment
+    plan
+  - I think the app
+  user_goal_summary: 'User wants to offer a payment plan to a potential buyer who replied to their Gumtree ad. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi I've posted an advert on Gumtree someone has replied to me about my ad and is interested but wants to do a payment
+    plan
+  - I think the app
+  user_goal_summary: 'User wants to offer a payment plan to a potential buyer who replied to their Gumtree ad. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

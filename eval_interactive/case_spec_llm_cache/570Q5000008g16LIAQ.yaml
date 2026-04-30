@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008g16LIAQ
+case_id_hint: cs_interactive_180
+llm_model: deepseek-v4-pro
+prompt_hash: 7f357923e5d8347c3f4cb266480290a8c6a7f56b11bfe2fbfb89553358c60b9c
+generated_at: '2026-04-30T20:52:45.169049+00:00'
+llm_confidence: high
+llm_rationale: Rule draft's seed_messages are verbatim visitor turns that directly state the user's issue. Updated user_goal_summary
+  to be a concise factual description within 280 characters. Added hidden_facts grounded in the transcript to provide the
+  simulator with additional context when appropriate.
+rule_draft:
+  seed_messages:
+  - I would like to edit or delete a review I left recently. Thanks.
+  - Can you not delete the review from the seller's profile?
+  - I no longer have the messages, sadly.
+  user_goal_summary: 'User reports Ratings & Reviews: I need to edit or delete a review if possible, please. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I would like to edit or delete a review I left recently. Thanks.
+  - Can you not delete the review from the seller's profile?
+  - I no longer have the messages, sadly.
+  user_goal_summary: 'User wants to delete a review left 14 days ago for seller TJ on ad ''Mens gold watch with diamonds.
+    Brand new'' as it was too harsh and affects their only rating. The original ad may have been relisted, so the review needs
+    removal from seller''s profile. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad ID 1507942834 might not show the review because the ad has been relisted.
+    disclose_when: when asked for the ad ID or why the review can't be found
+accepted_value:
+  seed_messages:
+  - I would like to edit or delete a review I left recently. Thanks.
+  - Can you not delete the review from the seller's profile?
+  - I no longer have the messages, sadly.
+  user_goal_summary: 'User wants to delete a review left 14 days ago for seller TJ on ad ''Mens gold watch with diamonds.
+    Brand new'' as it was too harsh and affects their only rating. The original ad may have been relisted, so the review needs
+    removal from seller''s profile. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad ID 1507942834 might not show the review because the ad has been relisted.
+    disclose_when: when asked for the ad ID or why the review can't be found
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user no longer has the messages with the seller.'''

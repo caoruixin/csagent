@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008w5YzIAI
+case_id_hint: row_97
+llm_model: deepseek-v4-pro
+prompt_hash: 1eacf56b7a6ab7390f00e5916bbd86ef34dd70a893ba82b6e5d4eaa88b1494bf
+generated_at: '2026-04-30T13:30:06.023655+00:00'
+llm_confidence: high
+llm_rationale: Seed messages from the rule draft contained two strong issue-bearing turns and one polite closing. Replaced
+  the closing to keep only the issue-relevant turns. The user goal summary was refined to focus on what the user wants rather
+  than a meta report. No additional hidden facts are supported by the transcript beyond what is already in the seed messages.
+rule_draft:
+  seed_messages:
+  - I already brought this issue to the attention of one of your colleagues who promised to escalate the matter and get back
+    to me via email. I have still not heard from gumtree while the seller still holds on to my £150.
+  - I'm not sure that I received this email.
+  - Thank you. I'll look out for it.
+  user_goal_summary: 'User reports Account Support: I paid a deposit of £150 to the seller with an agreement that he will
+    post the phone to me and I will pay the balance of £150 after receiving the phone. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I already brought this issue to the attention of one of your colleagues who promised to escalate the matter and get back
+    to me via email. I have still not heard from gumtree while the seller still holds on to my £150.
+  - I'm not sure that I received this email.
+  user_goal_summary: 'User needs Gumtree to help recover a £150 deposit from a seller who hasn''t sent the phone, and requests
+    resending of the support email asking for screenshots because they didn''t receive it. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I already brought this issue to the attention of one of your colleagues who promised to escalate the matter and get back
+    to me via email. I have still not heard from gumtree while the seller still holds on to my £150.
+  - I'm not sure that I received this email.
+  user_goal_summary: 'User needs Gumtree to help recover a £150 deposit from a seller who hasn''t sent the phone, and requests
+    resending of the support email asking for screenshots because they didn''t receive it. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

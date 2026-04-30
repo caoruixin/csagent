@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008fG5qIAE
+case_id_hint: row_221
+llm_model: deepseek-v4-pro
+prompt_hash: 35657a8df62ece8684f91b3d972c1901aaaeb6f66253229615e93b1674e83178
+generated_at: '2026-04-30T19:27:22.699577+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing seed messages ('and you', 'ok thank you for your help') with two visitor turns that directly
+  describe the issue (segments 8 and 14). The first seed message already captures the core problem. Hidden facts are drawn
+  from transcript statements (segments 16 and 19) that provide additional context usable by the simulator.
+rule_draft:
+  seed_messages:
+  - hello, i just placed an ad on gumtree which has the following ad id... 1508254218, it did not let me publish the ad with
+    my phone number like it always has done please can you tell me why this is
+  - and you
+  - ok thank you for your help
+  user_goal_summary: 'User reports Ad Support: cannot include phone number. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - hello, i just placed an ad on gumtree which has the following ad id... 1508254218, it did not let me publish the ad with
+    my phone number like it always has done please can you tell me why this is
+  - theres no option, only the option to have my email as a contact option
+  - it wont let me and says my ad is breaking rules and i have been sent an email i dont understand this?
+  user_goal_summary: 'User wants to know why she cannot include her phone number in her Gumtree ad (ID 1508254218) and to
+    have the option restored. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - hello, i just placed an ad on gumtree which has the following ad id... 1508254218, it did not let me publish the ad with
+    my phone number like it always has done please can you tell me why this is
+  - theres no option, only the option to have my email as a contact option
+  - it wont let me and says my ad is breaking rules and i have been sent an email i dont understand this?
+  user_goal_summary: 'User wants to know why she cannot include her phone number in her Gumtree ad (ID 1508254218) and to
+    have the option restored. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has other ads that still display the phone number.'''
+- 'unsupported_hidden_fact_dropped: ''The user did not receive any email about the ad breaking rules, despite the system indicating
+  one was sent.'''

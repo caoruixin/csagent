@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008n3bFIAQ
+case_id_hint: cs_interactive_078
+llm_model: deepseek-v4-pro
+prompt_hash: 6d00f63c8ad27bc3125274d9faeec86fb70b9fea848779b49367df6227db0ba9
+generated_at: '2026-04-30T20:39:51.340785+00:00'
+llm_confidence: high
+llm_rationale: 'Original seed messages contained turns that were not describing the issue (''no details?'', ''no''). Replaced
+  with three relevant turns that directly state the problem: the error on tabs, the specific error message, and its persistence.
+  The user goal summary was refined to specifically state the desired outcome (access without error) and note the duration.
+  Added two hidden facts extracted from the transcript to simulate revealing the error content and duration when asked.'
+rule_draft:
+  seed_messages:
+  - no details ?
+  - 'no'
+  - this problem is from day one
+  user_goal_summary: 'User reports Pro Contract: when I go through the account and check company tab or finance tab then its
+    giving error. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - when I go through the account and check company tab or finance tab then its giving error
+  - Problem Logging In We can’t log you in because of an authentication error.
+  - this problem is from day one
+  user_goal_summary: 'I want to be able to access the Company and Finance tabs in my Pro account without getting an authentication
+    error. This has been a problem since day one. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'The error message shown is: ''Problem Logging In We can’t log you in because of an authentication error.'''
+    disclose_when: When the bot asks for details about the error.
+accepted_value:
+  seed_messages:
+  - when I go through the account and check company tab or finance tab then its giving error
+  - Problem Logging In We can’t log you in because of an authentication error.
+  - this problem is from day one
+  user_goal_summary: 'I want to be able to access the Company and Finance tabs in my Pro account without getting an authentication
+    error. This has been a problem since day one. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'The error message shown is: ''Problem Logging In We can’t log you in because of an authentication error.'''
+    disclose_when: When the bot asks for details about the error.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''This issue has been present since the account was first set up.'''

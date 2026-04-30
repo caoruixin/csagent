@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008eU7dIAE
+case_id_hint: row_93
+llm_model: deepseek-v4-pro
+prompt_hash: 29bd68355424d12bd9aa1f77ba0968a2019fe5084ec5e506cfcb50ef347235ed
+generated_at: '2026-04-30T13:27:41.705648+00:00'
+llm_confidence: high
+llm_rationale: Replaced 'No worries' acknowledgment with a stronger issue-bearing visitor turn. Updated goal summary to reflect
+  specific desire for reinstatement and explanation. Added hidden fact about automatic block, grounded in agent's disclosure.
+rule_draft:
+  seed_messages:
+  - It won't let me view the ad it just goes straight to removed
+  - Thank you. What was the issue?
+  - No worries
+  user_goal_summary: 'User reports Account Support: My ads always get removed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It won't let me view the ad it just goes straight to removed
+  - It doesn't allow me to even see an add id. It's there but greyed out. Won't let me see any info about it.
+  user_goal_summary: 'User wants their removed ad to be reinstated and to understand why it was automatically blocked. Drift:
+    hard_shift.'
+  hidden_facts:
+  - fact: The account was automatically blocked by the system.
+    disclose_when: when the user asks why their ads were removed or the agent explains the issue.
+accepted_value:
+  seed_messages:
+  - It won't let me view the ad it just goes straight to removed
+  - It doesn't allow me to even see an add id. It's there but greyed out. Won't let me see any info about it.
+  user_goal_summary: 'User wants their removed ad to be reinstated and to understand why it was automatically blocked. Drift:
+    hard_shift.'
+  hidden_facts:
+  - fact: The account was automatically blocked by the system.
+    disclose_when: when the user asks why their ads were removed or the agent explains the issue.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

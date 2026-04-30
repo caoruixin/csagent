@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008dwQvIAI
+case_id_hint: row_185
+llm_model: deepseek-v4-pro
+prompt_hash: 9d764532785a14752fe7a36e6b6d0b8e5bd2f38f31a09be1ec3164638db74d1e
+generated_at: '2026-04-30T19:17:09.653643+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue-bearing seed message with actual issue statement from transcript; refined user_goal_summary
+  to clearly state the user's objective and barrier; added a hidden fact about live ads based on agent's statement.
+rule_draft:
+  seed_messages:
+  - Gumtree told me to clear cookies by clicking on the 4 dots when I should get More Tools but I don’t get more tools
+  - Thanks. I will try that, Trevor
+  - I had [EMAIL] but Microsoft blocked it so I am now using [EMAIL]
+  user_goal_summary: 'User reports Account Support: You told me to clear cookies but I don’t get More tools when I click on
+    the 4 dots. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Gumtree told me to clear cookies by clicking on the 4 dots when I should get More Tools but I don’t get more tools
+  - Trying to get access to my account
+  - I had [EMAIL] but Microsoft blocked it so I am now using [EMAIL]
+  user_goal_summary: 'User wants to access his Gumtree account. He cannot clear cookies because clicking the 4 dots does not
+    show ''More tools'' as expected. He had [EMAIL] but Microsoft blocked it, now using [EMAIL]. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user has two live ads posted on their Gumtree account.
+    disclose_when: when the bot asks about account activity or ad status
+accepted_value:
+  seed_messages:
+  - Gumtree told me to clear cookies by clicking on the 4 dots when I should get More Tools but I don’t get more tools
+  - Trying to get access to my account
+  - I had [EMAIL] but Microsoft blocked it so I am now using [EMAIL]
+  user_goal_summary: 'User wants to access his Gumtree account. He cannot clear cookies because clicking the 4 dots does not
+    show ''More tools'' as expected. He had [EMAIL] but Microsoft blocked it, now using [EMAIL]. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user has two live ads posted on their Gumtree account.
+    disclose_when: when the bot asks about account activity or ad status
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

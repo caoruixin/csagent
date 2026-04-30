@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008fN8wIAE
+case_id_hint: row_73
+llm_model: deepseek-v4-pro
+prompt_hash: 4fb4a988d83264768e85d238d971e4e65827b778c0cd1ea4ab9141e26e901a94
+generated_at: '2026-04-30T13:20:24.681748+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are taken verbatim from visitor turns describing the core issue and frustration. User goal summary
+  expanded to accurately reflect the user's refund request, address deletion, and desire for phone contact. Hidden facts extracted
+  from transcript provide additional context without fabrication.
+rule_draft:
+  seed_messages:
+  - Ok but I keep losing connection is there a number i can ring to talk directly?
+  - Well my connection keeps getting cut off and I really need a refund as my ad was not allowed
+  - No response?
+  user_goal_summary: 'User reports Ad Support: My address was deleted I need a refund. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Ok but I keep losing connection is there a number i can ring to talk directly?
+  - Well my connection keeps getting cut off and I really need a refund as my ad was not allowed
+  - No response?
+  user_goal_summary: 'User wants a refund for a disallowed Gumtree property ad and to have her address reinstated, as it was
+    deleted. She experiences connection drops and requests to speak by phone. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's email address is [EMAIL]
+    disclose_when: when the bot asks for contact information
+accepted_value:
+  seed_messages:
+  - Ok but I keep losing connection is there a number i can ring to talk directly?
+  - Well my connection keeps getting cut off and I really need a refund as my ad was not allowed
+  - No response?
+  user_goal_summary: 'User wants a refund for a disallowed Gumtree property ad and to have her address reinstated, as it was
+    deleted. She experiences connection drops and requests to speak by phone. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's email address is [EMAIL]
+    disclose_when: when the bot asks for contact information
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The ad for which the user seeks a refund is a property ad, not the Keratin Blowdry Smoothing
+  System.'''

@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008noezIAA
+case_id_hint: row_225
+llm_model: deepseek-v4-pro
+prompt_hash: 35e2363b8ed89aae07ec6391da38804864f9719f2da0b9070f14c1b5add873ea
+generated_at: '2026-04-30T19:34:15.247211+00:00'
+llm_confidence: high
+llm_rationale: The original seed messages included two non-issue turns ('i hope i haven't confused u' and 'i need to go out
+  to pick my grandson up'). Replaced them with issue-bearing visitor turns from the transcript that directly describe the
+  problem. The user goal summary was expanded to clearly state the user's need and the specific errors encountered, while
+  staying under 280 characters. No hidden facts were added because the transcript does not contain additional undisclosed
+  information beyond what is already captured in the seed messages.
+rule_draft:
+  seed_messages:
+  - '[EMAIL] cant remember last time i logged in, maybe 9 months ago when i bought a car seat'
+  - i hope i haven't confused u.
+  - i need to go out to pick my grandson up. can i discuss this later perhaps
+  user_goal_summary: 'User reports Account Support: couldn''t respond to advert above. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - '[EMAIL] cant remember last time i logged in, maybe 9 months ago when i bought a car seat'
+  - wrong, i managed to update password on the actual gumtree log in page, but all that came up was an infomation sign above
+    email address suggesting it was wrong
+  - No it didn't work. A linked 11 message came up saying that my address was a security threat.
+  user_goal_summary: 'User needs to regain access to her Gumtree account after failed password reset and security threat error,
+    so she can respond to an advert. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - '[EMAIL] cant remember last time i logged in, maybe 9 months ago when i bought a car seat'
+  - wrong, i managed to update password on the actual gumtree log in page, but all that came up was an infomation sign above
+    email address suggesting it was wrong
+  - No it didn't work. A linked 11 message came up saying that my address was a security threat.
+  user_goal_summary: 'User needs to regain access to her Gumtree account after failed password reset and security threat error,
+    so she can respond to an advert. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008iANFIA2
+case_id_hint: row_105
+llm_model: deepseek-v4-pro
+prompt_hash: e5037d9bece8b60bf531243f0b2d1c9eefdbdb8e06930c224d5664813582f433
+generated_at: '2026-04-30T13:31:14.817775+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are exact quotes from the transcript that clearly convey the user's issue. The goal summary
+  was refined to be specific about the user's desire for an explanation and resolution, based on the transcript content.
+rule_draft:
+  seed_messages:
+  - Why gumtree deleted my all ads
+  - I just tried to post add but agin my ad deleted
+  - Please resolve this issue now
+  user_goal_summary: 'User reports Account Support: Hello, I am facing an issue with my Gumtree account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Why gumtree deleted my all ads
+  - I just tried to post add but agin my ad deleted
+  - Please resolve this issue now
+  user_goal_summary: 'The user wants to know why all their Gumtree ads were deleted and why new ads are immediately removed,
+    and they want this issue resolved so they can post ads again. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Why gumtree deleted my all ads
+  - I just tried to post add but agin my ad deleted
+  - Please resolve this issue now
+  user_goal_summary: 'The user wants to know why all their Gumtree ads were deleted and why new ads are immediately removed,
+    and they want this issue resolved so they can post ads again. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008WufBIAS
+case_id_hint: row_363
+llm_model: deepseek-v4-pro
+prompt_hash: f6d59d0e7c842e659fad81cb91babb72c48bb71a76779588678a3eb9909615fa
+generated_at: '2026-04-30T20:31:52.443609+00:00'
+llm_confidence: high
+llm_rationale: Removed closing pleasantry seed_message; kept two issue-describing visitor turns. Goal summary captures the
+  user's request accurately. Hidden facts are unnecessary as the issue is fully stated in seed messages.
+rule_draft:
+  seed_messages:
+  - Yes, 1502436179 and 1502436282 I would like to re advertise these, however you want to charge me £4.99 for each item.
+  - Thank you Candice for your time, may I wish you a Very Happy Christmas
+  - Can you please remove the £4.99 for each item please?
+  user_goal_summary: 'User reports Account Support: please remove the charges to addvertize. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Yes, 1502436179 and 1502436282 I would like to re advertise these, however you want to charge me £4.99 for each item.
+  - Can you please remove the £4.99 for each item please?
+  user_goal_summary: 'User wants to re-advertise items 1502436179 and 1502436282 without the £4.99 per-item charge. Drift:
+    soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Yes, 1502436179 and 1502436282 I would like to re advertise these, however you want to charge me £4.99 for each item.
+  - Can you please remove the £4.99 for each item please?
+  user_goal_summary: 'User wants to re-advertise items 1502436179 and 1502436282 without the £4.99 per-item charge. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

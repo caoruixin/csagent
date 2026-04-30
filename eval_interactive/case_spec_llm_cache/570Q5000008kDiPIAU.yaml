@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008kDiPIAU
+case_id_hint: row_29
+llm_model: deepseek-v4-pro
+prompt_hash: beb6cff9825f87383777cb99aed1124a2aa113a4e5ee1cfb9ef13d73e8c4227b
+generated_at: '2026-04-30T13:08:40.146014+00:00'
+llm_confidence: high
+llm_rationale: Rule draft seed_messages are verbatim issue-bearing visitor turns and accurately capture the user's problem.
+  The user_goal_summary was generic; refined to reflect actual user desire for urgent account unlocking and callback. Added
+  hidden_facts about prior failed contact attempts and business impact, both grounded in transcript statements.
+rule_draft:
+  seed_messages:
+  - HI MY ACCOUNT OS
+  - YOUR NO HELPING AT ALL
+  - I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - HI MY ACCOUNT OS
+  - YOUR NO HELPING AT ALL
+  - I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS
+  user_goal_summary: 'User needs their locked Gumtree business account urgently unlocked to resume advertising, and demands
+    a phone callback now as prior requests were ignored. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - HI MY ACCOUNT OS
+  - YOUR NO HELPING AT ALL
+  - I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS
+  user_goal_summary: 'User needs their locked Gumtree business account urgently unlocked to resume advertising, and demands
+    a phone callback now as prior requests were ignored. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has already submitted a request through the provided Gumtree for Business link
+  but has not received any callback.'''
+- 'unsupported_hidden_fact_dropped: "The user''s business relies on Gumtree advertising, and the account lock is causing immediate
+  business impact."'

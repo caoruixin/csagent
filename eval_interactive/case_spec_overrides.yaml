@@ -1,0 +1,215 @@
+version: 2
+
+# Wave A6.6 unified override registry (schema v2).
+# - Lookup is by `source_session_id` only.
+# - Each entry may declare zero or more of three blocks:
+#     classification (primary_uc, secondary_ucs)  [pre-policy]
+#     expected       (subset of expected.* fields except primary/secondary_ucs) [post-L1]
+#     persona        (seed_messages, user_goal_summary, hidden_facts) [post-L2]
+# - approved entries require reviewer/date/rationale/confidence/source.
+# - supporting_turn_numbers may be empty ONLY when migrated_from_legacy: true.
+
+overrides:
+
+  # -----------------------------------------------------------------------
+  # cs_interactive_012 / 570Q5000008hx9tIAA
+  # Merged entry: legacy UC-B reclassification (primary -> UC-FP, secondary
+  # -> [UC-K]) + Wave A5 expected override (resolve / no escalation /
+  # explicit tool sequence). One v2 entry, two blocks (classification +
+  # expected). The richer human-review rationale is preserved.
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008hx9tIAA
+    case_id_hint: cs_interactive_012
+    status: approved
+    source: approved Wave A5 semantic review (merged with Wave A2.1 UC-B reclassification map)
+    reviewer: human semantic review
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: [5, 6, 8, 10, 12, 14]
+    rationale: >-
+      Late phone/human request is a failure-path signal. The bot should first
+      retrieve safe account, listing, and moderation context, then explain the
+      kitten ad deletion reason with policy-grounded next steps.
+    classification:
+      primary_uc: UC-FP
+      secondary_ucs: [UC-K]
+    expected:
+      outcome_class: resolve
+      should_escalate: false
+      escalation_trigger: null
+      expected_tool_sequence:
+        - get_customer_context
+        - search_knowledge
+        - resolve_article
+        - record_outcome
+
+  # -----------------------------------------------------------------------
+  # Wave A2.1 UC-B reclassification entries (9 remaining after merging
+  # cs_interactive_012 and cs_interactive_015 above). Each is
+  # migrated_from_legacy: true so empty supporting_turn_numbers is allowed;
+  # the rationale carries the original one-liner from the inline comment.
+  # -----------------------------------------------------------------------
+  # -----------------------------------------------------------------------
+  # cs_interactive_015 / 570Q5000008WmXxIAK
+  # Wave A6 semantic re-review: supersedes the Wave A2.1 UC-K legacy pin.
+  # Phase 2 §2.2 line 282 (UC-FP covers "why was my ad deleted?" + reposting),
+  # §2.2 line 366 (UC-H is appeal-only), §2.2 line 500 (UC-K is technical
+  # defects), §2.10.4 line 1208 (UC-FP can chain customer/listing/moderation
+  # context), and §2.7 line 1320 (Ad Support routing: "removed + understand"
+  # -> UC-FP, "removed + appeal/incorrect" -> UC-H) place this case squarely
+  # under UC-FP resolve-first. The historical late escalation is failure-path
+  # evidence (the human punted), not the desired golden behavior. Mirrors
+  # cs_interactive_012's resolve-first override pattern.
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008WmXxIAK
+    case_id_hint: cs_interactive_015
+    status: approved
+    source: approved Wave A6 semantic re-review (supersedes Wave A2.1 UC-K legacy pin)
+    reviewer: human semantic review
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: [5, 6, 7, 8, 9, 11, 13]
+    rationale: >-
+      The human agent gave clear policy reasons in turns 5-7 ("men only"
+      wording, body parts in image, ad title flagged). The user's "ok so how
+      do I change it?" / "so I can't just change it?" is the canonical UC-FP
+      edit-and-repost request. Late escalation in turn 11 is failure-path
+      evidence -- the bot's golden target is to retrieve safe
+      customer/listing/moderation context, ground the answer in policy, and
+      escalate only on explicit appeal/review/restoration/human-support
+      requests, strong distress, or when a safe reason cannot be produced.
+    classification:
+      primary_uc: UC-FP
+      secondary_ucs: [UC-B, UC-K]
+    expected:
+      outcome_class: resolve
+      should_escalate: false
+      escalation_trigger: null
+      expected_tool_sequence:
+        - get_customer_context
+        - search_knowledge
+        - resolve_article
+        - record_outcome
+      bot_handling_pattern: >-
+        Retrieve safe customer/listing/moderation context, explain why the ad
+        was removed or flagged, clarify whether the user can edit/repost/change
+        it, and escalate only if the reason cannot be produced, the user
+        requests review/restoration/human support, or a human-only action is
+        required.
+
+  - source_session_id: 570Q5000008TMmvIAG
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: 'Paid promotion + temporary hold; UC-FP with UC-K fallback.'
+    classification:
+      primary_uc: UC-FP
+      secondary_ucs: [UC-K]
+
+  - source_session_id: 570Q5000008U5C9IAK
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: 'Wrong email, no adverts showing -- UC-A with UC-D / UC-K fallback.'
+    classification:
+      primary_uc: UC-A
+      secondary_ucs: [UC-D, UC-K]
+
+  - source_session_id: 570Q5000008wmKbIAI
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: 'Trader flag wrong on account -- UC-A with UC-H / UC-D fallback.'
+    classification:
+      primary_uc: UC-A
+      secondary_ucs: [UC-H, UC-D]
+
+  - source_session_id: 570Q5000009060DIAQ
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: '"Where is my ad" -- UC-A with UC-K fallback.'
+    classification:
+      primary_uc: UC-A
+      secondary_ucs: [UC-K]
+
+  - source_session_id: 570Q5000008w24rIAA
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: 'Cancel auto-renewal -- UC-FP with UC-F fallback.'
+    classification:
+      primary_uc: UC-FP
+      secondary_ucs: [UC-F]
+
+  - source_session_id: 570Q5000008fG5qIAE
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: 'Ad breaking rules; phone rejected -- UC-FP with UC-K / UC-C fallback.'
+    classification:
+      primary_uc: UC-FP
+      secondary_ucs: [UC-K, UC-C]
+
+  - source_session_id: 570Q5000008caqfIAA
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: 'Wrong price on specific ad -- agent asked for ad ID; UC-D.'
+    classification:
+      primary_uc: UC-D
+      secondary_ucs: []
+
+  - source_session_id: 570Q5000008IwKHIA0
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: 'Paid 30-day Booster expired -- UC-FP with UC-K fallback.'
+    classification:
+      primary_uc: UC-FP
+      secondary_ucs: [UC-K]
+
+  - source_session_id: 570Q5000008iwZxIAI
+    status: approved
+    migrated_from_legacy: true
+    source: Wave A2.1 reclassification map
+    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+    date: 2026-04-30
+    confidence: high
+    supporting_turn_numbers: []
+    rationale: 'Advert on hold 2nd time, please restore -- UC-K with UC-FP / UC-B fallback.'
+    classification:
+      primary_uc: UC-K
+      secondary_ucs: [UC-FP, UC-B]

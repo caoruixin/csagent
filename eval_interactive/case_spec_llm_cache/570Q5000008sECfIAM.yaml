@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008sECfIAM
+case_id_hint: row_339
+llm_model: deepseek-v4-pro
+prompt_hash: f6a91767d1e9aa467ff1e3876d4ee5332d3fab16c0bb7d7f7c485ca6dba2985f
+generated_at: '2026-04-30T20:25:54.226423+00:00'
+llm_confidence: high
+llm_rationale: All seed_messages are exact verbatim quotes from visitor turns that convey the core issue. The user_goal_summary
+  captures the specific removal request and privacy concern. The hidden_fact is directly supported by the user's offer to
+  send a screenshot.
+rule_draft:
+  seed_messages:
+  - I tried to explain this issue to your colleague but they cut me out. I replied to some ads in Gumtree and my reply has
+    been posted on Bark as a public ad with my phone.
+  - Can I send you the screenshot?
+  - There is not an ID
+  user_goal_summary: 'User reports Account Support: Privacy violation. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I tried to explain this issue to your colleague but they cut me out. I replied to some ads in Gumtree and my reply has
+    been posted on Bark as a public ad with my phone.
+  - Can I send you the screenshot?
+  - There is not an ID
+  user_goal_summary: 'User wants the public Bark ad containing their phone number removed because it was created without consent
+    from their Gumtree reply. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I tried to explain this issue to your colleague but they cut me out. I replied to some ads in Gumtree and my reply has
+    been posted on Bark as a public ad with my phone.
+  - Can I send you the screenshot?
+  - There is not an ID
+  user_goal_summary: 'User wants the public Bark ad containing their phone number removed because it was created without consent
+    from their Gumtree reply. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has a screenshot of the offending Bark ad.'''

@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008uTXNIA2
+case_id_hint: row_49
+llm_model: deepseek-v4-pro
+prompt_hash: 11afe1eb662be5369df5c4dd19f8d6446857bba609d3fc37a915eec22aa8f0ef
+generated_at: '2026-04-30T13:14:15.121495+00:00'
+llm_confidence: high
+llm_rationale: Replaced the closing message 'Thank you have a good day' with a more issue-relevant visitor turn. Added a hidden
+  fact about the user having already tried reinstalling, which is supported by the transcript. The user_goal_summary is specific
+  and under 280 characters.
+rule_draft:
+  seed_messages:
+  - There’s a loading sign that never ends
+  - Thank you have a good day
+  - So what can I do for the app
+  user_goal_summary: 'User reports Ad Support: Hi, I can’t neither post and neither editing my ads. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - There’s a loading sign that never ends
+  - So what can I do for the app
+  - I already tried to delete and reinstall the app a lot of times
+  user_goal_summary: 'User cannot post or edit ads; encounters an endless loading sign in the app, despite reinstalling multiple
+    times. They want a solution to resolve the app loading issue. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - There’s a loading sign that never ends
+  - So what can I do for the app
+  - I already tried to delete and reinstall the app a lot of times
+  user_goal_summary: 'User cannot post or edit ads; encounters an endless loading sign in the app, despite reinstalling multiple
+    times. They want a solution to resolve the app loading issue. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has already tried deleting and reinstalling the app many times.'''

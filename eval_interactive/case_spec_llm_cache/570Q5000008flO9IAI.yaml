@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008flO9IAI
+case_id_hint: row_197
+llm_model: deepseek-v4-pro
+prompt_hash: 27d3775864eed9d359fb52159e0880c0b8e8b431c648433e463b0b43101b8fe1
+generated_at: '2026-04-30T19:20:18.460724+00:00'
+llm_confidence: high
+llm_rationale: 'Original seed_messages were greetings or acknowledgments. Replaced with verbatim visitor turns that describe
+  the actual issue: not receiving replies on main account, confirmed by testing with dummy accounts. user_goal_summary updated
+  to reflect the specific problem as stated by the user. No hidden facts could be reliably extracted beyond what is already
+  explicitly stated.'
+rule_draft:
+  seed_messages:
+  - Hello Monisha
+  - Sure take your time
+  - i have just sent this message
+  user_goal_summary: 'User reports Account Support: Hey when i text customer they will recieve my text messages but they can''t
+    respond back to me. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It does not says any where on my acount but as i am not recieving response from last 3 days after texting customers so
+    i tried to make a dummy acount
+  - and when i text from that acount i can recieve messages but when i sent message to dummy acount i haven't recieved that
+  - so i tried on 2 3 different dummy acounts and its same on all acounts
+  user_goal_summary: 'User reports not receiving replies from customers on Gumtree for 3 days despite customers getting user''s
+    messages. Testing with dummy accounts indicates the issue is with the user''s main account. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It does not says any where on my acount but as i am not recieving response from last 3 days after texting customers so
+    i tried to make a dummy acount
+  - and when i text from that acount i can recieve messages but when i sent message to dummy acount i haven't recieved that
+  - so i tried on 2 3 different dummy acounts and its same on all acounts
+  user_goal_summary: 'User reports not receiving replies from customers on Gumtree for 3 days despite customers getting user''s
+    messages. Testing with dummy accounts indicates the issue is with the user''s main account. Drift: none.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

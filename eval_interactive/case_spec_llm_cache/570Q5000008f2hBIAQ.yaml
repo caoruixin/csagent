@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008f2hBIAQ
+case_id_hint: cs_interactive_231
+llm_model: deepseek-v4-pro
+prompt_hash: 46264b205e6408926fe9cc18ecc6dc51c3a5229e0a6f8f6bc5140ef317b21a39
+generated_at: '2026-04-30T20:57:11.280532+00:00'
+llm_confidence: high
+llm_rationale: The seed message directly quotes the visitor's turn detailing the issue. The user_goal_summary was made more
+  specific and concise, keeping under 280 characters with the required drift suffix. No hidden_facts are necessary as all
+  details are disclosed in the initial message.
+rule_draft:
+  seed_messages:
+  - Let me quickly tell you why I'm getting in touch. I have a one star review from about six years ago. The man in questions
+    - Lee - replied to my add offereing a free TV. He asked some questions, took my telephone number and said he'd get back
+    to me. By the time he called back, someone else had taken the TV. I had told him it was first come first serve. He was
+    extremely abusive on the phone and left the bad review. Can this review be removed? I should have reported him at the
+    time.
+  user_goal_summary: 'User reports Ratings & Reviews: Bad review from Lee. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Let me quickly tell you why I'm getting in touch. I have a one star review from about six years ago. The man in questions
+    - Lee - replied to my add offereing a free TV. He asked some questions, took my telephone number and said he'd get back
+    to me. By the time he called back, someone else had taken the TV. I had told him it was first come first serve. He was
+    extremely abusive on the phone and left the bad review. Can this review be removed? I should have reported him at the
+    time.
+  user_goal_summary: 'User wants removal of a 1-star review from six years ago left by Lee, who became abusive after failing
+    to get a free TV the user was giving away. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Let me quickly tell you why I'm getting in touch. I have a one star review from about six years ago. The man in questions
+    - Lee - replied to my add offereing a free TV. He asked some questions, took my telephone number and said he'd get back
+    to me. By the time he called back, someone else had taken the TV. I had told him it was first come first serve. He was
+    extremely abusive on the phone and left the bad review. Can this review be removed? I should have reported him at the
+    time.
+  user_goal_summary: 'User wants removal of a 1-star review from six years ago left by Lee, who became abusive after failing
+    to get a free TV the user was giving away. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

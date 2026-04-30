@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008fE8rIAE
+case_id_hint: row_92
+llm_model: deepseek-v4-pro
+prompt_hash: 81c15ddf459eb2de48e89fe5f41ec6e37097889f72a961df2ee1a6ad6fd847aa
+generated_at: '2026-04-30T13:28:17.813787+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced rule draft seed messages (greetings/thanks) with verbatim visitor turns that describe the actual
+  issues: star rating reset and lack of ad enquiries. User goal updated to a specific factual summary under 280 characters.
+  No hidden facts are necessary because the user openly stated all relevant facts in the transcript.'
+rule_draft:
+  seed_messages:
+  - Hi can you please confirm you are human
+  - Thanks 👍
+  - How will you can tact me BTW? After escalation
+  user_goal_summary: 'User reports Account Support: Help with star rating. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Thanks, I have had a gt account for over 15 years and had a good star rating - my account seems to have been reset to
+    zero stars?
+  - Also I seem to be getting no enquiries on current live adds? But unusual to be this quiet? Feels like something had gone
+    wrong?
+  user_goal_summary: 'User wants to restore their GT account star rating (previously good, now zero) and understand why live
+    ads get no enquiries. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Thanks, I have had a gt account for over 15 years and had a good star rating - my account seems to have been reset to
+    zero stars?
+  - Also I seem to be getting no enquiries on current live adds? But unusual to be this quiet? Feels like something had gone
+    wrong?
+  user_goal_summary: 'User wants to restore their GT account star rating (previously good, now zero) and understand why live
+    ads get no enquiries. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

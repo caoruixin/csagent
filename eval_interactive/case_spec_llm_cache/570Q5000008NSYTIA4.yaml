@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008NSYTIA4
+case_id_hint: row_161
+llm_model: deepseek-v4-pro
+prompt_hash: 4e02dcb5c3b37125f7a914f80c2088199a1736b3c3449442a7a6cfeae51e9197
+generated_at: '2026-04-30T19:08:51.002479+00:00'
+llm_confidence: high
+llm_rationale: Draft seed message 'Great' was a greeting; replaced with three verbatim visitor turns that describe the issue.
+  User goal summary updated based on transcript and form.
+rule_draft:
+  seed_messages:
+  - Great
+  - But i do not understand the reason as the points on the email do not make sense to me…
+  - and also email of my add removed
+  user_goal_summary: 'User reports Ad Support: My add was removed after i pay £25.95 with no legitimate reason. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I put an add to sell my puppies
+  - but the add was removed
+  - But i do not understand the reason as the points on the email do not make sense to me…
+  user_goal_summary: 'User wants explanation for the removal of her ad for selling puppies (ID 1507323039) which she paid
+    £25.95 for, and she believes the removal was without legitimate reason. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Ad ID is 1507323039
+    disclose_when: when asked for the ad ID
+accepted_value:
+  seed_messages:
+  - I put an add to sell my puppies
+  - but the add was removed
+  - But i do not understand the reason as the points on the email do not make sense to me…
+  user_goal_summary: 'User wants explanation for the removal of her ad for selling puppies (ID 1507323039) which she paid
+    £25.95 for, and she believes the removal was without legitimate reason. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Ad ID is 1507323039
+    disclose_when: when asked for the ad ID
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The removal email contained bullet points that the user did not understand'''

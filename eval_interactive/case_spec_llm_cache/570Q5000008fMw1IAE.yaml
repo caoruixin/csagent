@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008fMw1IAE
+case_id_hint: row_175
+llm_model: deepseek-v4-pro
+prompt_hash: b03a0b2a49834abd1288cdfdd5601c10df625cf745912c5c7397db826881a1fc
+generated_at: '2026-04-30T19:13:20.544084+00:00'
+llm_confidence: high
+llm_rationale: The original seed_messages included '??' which is not issue-bearing, and 'Ah, sorry, let me try.' which is
+  context-specific but not descriptive of the core problem. Replaced with the clear problem statement from seq 4 and the frustration/refund
+  request from seq 15. The user_goal_summary was updated to reflect the shift to wanting a refund if the issue isn't resolved.
+  No hidden facts are clearly supported that haven't already been disclosed.
+rule_draft:
+  seed_messages:
+  - ??
+  - Strange, as I am also on care.com and I receive three replies an hour! Perhaps I should cancel my ad with Gumtree and
+    get.a refund, please, as something is not right. Thank you in advance. ctb
+  - Ah, sorry, let me try.
+  user_goal_summary: 'User reports Ad Support: I can only see my old ad, and I cannot see the replies, if any, to the new
+    ad posted yesterday. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - How do I find the replies and why do I only see my very old ad when I click on messages?
+  - Strange, as I am also on care.com and I receive three replies an hour! Perhaps I should cancel my ad with Gumtree and
+    get.a refund, please, as something is not right. Thank you in advance. ctb
+  user_goal_summary: 'User cannot see replies to new ad and only sees old ad in messages. Frustrated because they receive
+    many replies on care.com. Wants to either find replies or cancel and get a refund. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - How do I find the replies and why do I only see my very old ad when I click on messages?
+  - Strange, as I am also on care.com and I receive three replies an hour! Perhaps I should cancel my ad with Gumtree and
+    get.a refund, please, as something is not right. Thank you in advance. ctb
+  user_goal_summary: 'User cannot see replies to new ad and only sees old ad in messages. Frustrated because they receive
+    many replies on care.com. Wants to either find replies or cancel and get a refund. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

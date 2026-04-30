@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008zPZZIA2
+case_id_hint: row_53
+llm_model: deepseek-v4-pro
+prompt_hash: 8f4a0dae696c9f051d65752f1a620bae83b8e97ec831992c437d5bdaf5c5b51b
+generated_at: '2026-04-30T13:16:03.261192+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns that convey urgency, frustration, and the core issue. The user goal
+  is clearly to get a manager callback for multiple unresolved problems. No hidden facts are necessary as all relevant information
+  has already been stated by the user.
+rule_draft:
+  seed_messages:
+  - Hi - this is quite urgent.
+  - It's like beyond a joke, that all the various options actually don't work and we've paid for a year of service
+  - Unlike the rest of Gumtree ;-)
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi - this is quite urgent.
+  - It's like beyond a joke, that all the various options actually don't work and we've paid for a year of service
+  - Unlike the rest of Gumtree ;-)
+  user_goal_summary: 'The user wants a manager to call them at 07954141262 to resolve failed contact methods, unreachable
+    account manager, and paid service issues. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi - this is quite urgent.
+  - It's like beyond a joke, that all the various options actually don't work and we've paid for a year of service
+  - Unlike the rest of Gumtree ;-)
+  user_goal_summary: 'The user wants a manager to call them at 07954141262 to resolve failed contact methods, unreachable
+    account manager, and paid service issues. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

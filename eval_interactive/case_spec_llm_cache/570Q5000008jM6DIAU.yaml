@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008jM6DIAU
+case_id_hint: row_26
+llm_model: deepseek-v4-pro
+prompt_hash: 7f696710062f8f1051132fd8b1475981b8bfc91beef645f8b109f4e697ffe8d6
+generated_at: '2026-04-30T13:07:16.006655+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are verbatim from visitor turns and directly relate to the core issue (missing replies) or
+  explain a constraint. The summary is refined to be more specific about the user's goal. No hidden facts are strongly supported
+  in the transcript beyond what is already apparent.
+rule_draft:
+  seed_messages:
+  - Says there have been 2 replies to my ad but I’ve never received any
+  - Ok. That’s not clear. Thanks bye.
+  - If I look in my account I will loose the chat with you
+  user_goal_summary: 'User reports Ad Support: No replies received. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Says there have been 2 replies to my ad but I’ve never received any
+  - Ok. That’s not clear. Thanks bye.
+  - If I look in my account I will loose the chat with you
+  user_goal_summary: 'User wants to receive the 2 replies that Gumtree indicates exist on their ad but which they never got.
+    Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Says there have been 2 replies to my ad but I’ve never received any
+  - Ok. That’s not clear. Thanks bye.
+  - If I look in my account I will loose the chat with you
+  user_goal_summary: 'User wants to receive the 2 replies that Gumtree indicates exist on their ad but which they never got.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

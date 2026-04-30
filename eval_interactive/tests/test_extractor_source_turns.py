@@ -126,7 +126,7 @@ def test_extract_case_specs_uses_only_source_dataset_turn_file(tmp_path: Path) -
         ],
     )
 
-    specs = extract_case_specs(hr_csv, turns_dir, output_dir)
+    specs = extract_case_specs(hr_csv, turns_dir, output_dir, llm_offline=True)
 
     assert len(specs) == 1
     spec = specs[0]
@@ -208,7 +208,7 @@ def test_extract_case_specs_uses_transcript_evidence_for_outcome_and_seeds(
         ],
     )
 
-    specs = extract_case_specs(hr_csv, turns_dir, output_dir)
+    specs = extract_case_specs(hr_csv, turns_dir, output_dir, llm_offline=True)
 
     assert len(specs) == 1
     expected = specs[0].expected

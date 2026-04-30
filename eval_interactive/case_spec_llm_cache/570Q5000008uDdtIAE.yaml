@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008uDdtIAE
+case_id_hint: row_30
+llm_model: deepseek-v4-pro
+prompt_hash: f7d0cd71e854f4255c6d6bcef61149595ee79b7a35e11dc64d8509d0858eb2dd
+generated_at: '2026-04-30T13:08:36.975380+00:00'
+llm_confidence: high
+llm_rationale: Transcript contains clear issue-describing turns (seq4-6) that are better seed messages than the greeting (seq2).
+  Summary updated to reflect the core goal. Hidden facts derived from agent findings (hold) and user's later mention of manager/category.
+rule_draft:
+  seed_messages:
+  - Hey Cortney
+  - its a different category acount allowed via manager
+  - should i speak to my acount manager for this
+  user_goal_summary: 'User reports Account Support: Hey Gumtree Team Not receiving messages. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Do you have an acount can you text on my advert
+  - when i reply back to customers for a message they are not recieving that messages
+  - due to which they never get back to me
+  user_goal_summary: 'User wants to fix the problem where his replies to customer messages are not being delivered, causing
+    customers not to get back to him. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Do you have an acount can you text on my advert
+  - when i reply back to customers for a message they are not recieving that messages
+  - due to which they never get back to me
+  user_goal_summary: 'User wants to fix the problem where his replies to customer messages are not being delivered, causing
+    customers not to get back to him. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''There is a temporary hold on the account blocking message delivery.'''
+- 'unsupported_hidden_fact_dropped: ''The user has an account manager who may have approved a different category for the account
+  (e.g., not switching to Trader).'''

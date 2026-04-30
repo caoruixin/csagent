@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008VO4gIAG
+case_id_hint: row_103
+llm_model: deepseek-v4-pro
+prompt_hash: d2af0017d52aadccfaedd6c53839e00739337b19d325322ca48328dd033339ed
+generated_at: '2026-04-30T13:31:21.324180+00:00'
+llm_confidence: high
+llm_rationale: Seed messages already capture key user quotes verbatim from the transcript. User goal summary improved to more
+  precisely describe the user's needs, adding specific issues (ad removal, account block, escalation). Added hidden facts
+  grounded in transcript (last account use and new account consideration) to aid simulation. No policy or outcome decisions
+  made.
+rule_draft:
+  seed_messages:
+  - It didn't give me any ad reference. The add was removed straight after posting
+  - I see, even if I provide a different email address?
+  - Can you confirm you have escalated this issue?
+  user_goal_summary: 'User reports Account Support: Ads removed straight after posting and no email received. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It didn't give me any ad reference. The add was removed straight after posting
+  - I see, even if I provide a different email address?
+  - Can you confirm you have escalated this issue?
+  user_goal_summary: 'User wants to know why their ad was removed after posting and why their account is blocked, and seeks
+    confirmation that the issue has been escalated. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It didn't give me any ad reference. The add was removed straight after posting
+  - I see, even if I provide a different email address?
+  - Can you confirm you have escalated this issue?
+  user_goal_summary: 'User wants to know why their ad was removed after posting and why their account is blocked, and seeks
+    confirmation that the issue has been escalated. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User last used the account several months ago.'''
+- 'unsupported_hidden_fact_dropped: "User is considering opening a new account if this issue isn''t resolved."'

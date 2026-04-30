@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008aPw9IAE
+case_id_hint: row_177
+llm_model: deepseek-v4-pro
+prompt_hash: 1343082dd05760c4318438c0ae45ed4e8fe09a4b4970308a40e85eb4d87957a4
+generated_at: '2026-04-30T19:14:23.253411+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are direct quotes from visitor turns that articulate both the email-review concern and the search
+  problem. The user_goal_summary is a concise, factual restatement of what the user wants without bot-side instructions, well
+  within the 280-character limit. One hidden fact derived from the user’s stated concern about losing reviews is added, as
+  it could shape the simulator’s disclosure if the bot probes further.
+rule_draft:
+  seed_messages:
+  - With new account ill lose 3 good revs
+  - At least you know about a problem with search, in the time being well have to switch to local facebook, hope that only
+    temporarily
+  user_goal_summary: 'User reports Technical Support: 1) Changing email address 2) local search gives 45000 ads from all over
+    UK (before it was around 7000 in requested area), this problem appeared 1 week ago and makes gumtree useless. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - With new account ill lose 3 good revs
+  - At least you know about a problem with search, in the time being well have to switch to local facebook, hope that only
+    temporarily
+  user_goal_summary: 'The user wants to change their login email address without losing 3 good reviews, and wants Gumtree
+    to fix the local search issue that returns 45,000 ads from all over the UK instead of the requested area. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - With new account ill lose 3 good revs
+  - At least you know about a problem with search, in the time being well have to switch to local facebook, hope that only
+    temporarily
+  user_goal_summary: 'The user wants to change their login email address without losing 3 good reviews, and wants Gumtree
+    to fix the local search issue that returns 45,000 ads from all over the UK instead of the requested area. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user currently has 3 positive reviews on their existing account.'''

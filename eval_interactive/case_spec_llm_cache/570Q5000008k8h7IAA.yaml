@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008k8h7IAA
+case_id_hint: row_347
+llm_model: deepseek-v4-pro
+prompt_hash: d7977b53cfc6cdaa2ad20faf7097855287f4215a592baa256f9b25722d62c9bb
+generated_at: '2026-04-30T20:28:41.067030+00:00'
+llm_confidence: high
+llm_rationale: Replaced the sign-off seed message 'Ok thank you for your advice' with an issue-related turn about the registration
+  error. Updated the user goal summary to be more concise and added hidden facts derived from the transcript.
+rule_draft:
+  seed_messages:
+  - Last time in the end of 2024
+  - Ok thank you for your advice
+  - You are able to send me email with resetting link ?
+  user_goal_summary: 'User reports Technical Support: I forgot my password, I tryed several times to reset the password by
+    the website but I do not receive any email. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Last time in the end of 2024
+  - It's impossible because showed me " this email is already registered "
+  - You are able to send me email with resetting link ?
+  user_goal_summary: 'User wants to reset their password and regain account access. They didn''t receive reset emails and
+    re-registration fails because email is already used. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Last access was around the end of 2024.
+    disclose_when: When asked about recent account activity.
+accepted_value:
+  seed_messages:
+  - Last time in the end of 2024
+  - It's impossible because showed me " this email is already registered "
+  - You are able to send me email with resetting link ?
+  user_goal_summary: 'User wants to reset their password and regain account access. They didn''t receive reset emails and
+    re-registration fails because email is already used. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Last access was around the end of 2024.
+    disclose_when: When asked about recent account activity.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "Attempting to create a new account with the same email results in the error message ''this
+  email is already registered''."'

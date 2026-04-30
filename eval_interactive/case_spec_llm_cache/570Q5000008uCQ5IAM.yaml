@@ -1,0 +1,48 @@
+source_session_id: 570Q5000008uCQ5IAM
+case_id_hint: row_60
+llm_model: deepseek-v4-pro
+prompt_hash: 5a0bfac8e5090e93c9683c0f597f04c6ec543570f87cdf69f64fb24551aaaa29
+generated_at: '2026-04-30T13:17:29.370563+00:00'
+llm_confidence: high
+llm_rationale: 'Seed messages are direct quotes from visitor turns that describe the core issue: listing removal and lack
+  of email. User goal summary is updated to reflect the specific desire, and limited hidden facts are derived from the transcript
+  about the account conflict and specific held listing.'
+rule_draft:
+  seed_messages:
+  - I am trying to post a flat to rent under the correct criteria but it continually keeps being removed and says I will receive
+    an email which I haven’t done. I would really like to post this and have used my account for many years so not sure what
+    the issue is and hoped you could help me with this
+  - No will you email me directly?
+  - Ok thanks for your help. I am not posting yet until I hear from you
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I am trying to post a flat to rent under the correct criteria but it continually keeps being removed and says I will receive
+    an email which I haven’t done. I would really like to post this and have used my account for many years so not sure what
+    the issue is and hoped you could help me with this
+  - No will you email me directly?
+  - Ok thanks for your help. I am not posting yet until I hear from you
+  user_goal_summary: 'User wants to post a rental flat ad that keeps getting removed, receiving no email explanation, and
+    needs help resolving the issue. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Ad ID 1509094315 is the specific listing under temporary hold and pending support review.
+    disclose_when: When asked about the exact listing details or the hold reason
+accepted_value:
+  seed_messages:
+  - I am trying to post a flat to rent under the correct criteria but it continually keeps being removed and says I will receive
+    an email which I haven’t done. I would really like to post this and have used my account for many years so not sure what
+    the issue is and hoped you could help me with this
+  - No will you email me directly?
+  - Ok thanks for your help. I am not posting yet until I hear from you
+  user_goal_summary: 'User wants to post a rental flat ad that keeps getting removed, receiving no email explanation, and
+    needs help resolving the issue. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Ad ID 1509094315 is the specific listing under temporary hold and pending support review.
+    disclose_when: When asked about the exact listing details or the hold reason
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s contact email (professional domain) is linked to a separate account that
+  holds the problematic posting."'

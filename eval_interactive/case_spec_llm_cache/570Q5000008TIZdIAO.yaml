@@ -1,0 +1,51 @@
+source_session_id: 570Q5000008TIZdIAO
+case_id_hint: row_128
+llm_model: deepseek-v4-pro
+prompt_hash: 7a0fbb30a5473fb7c3abb19ce0a91f49a392d5ba78f8d1f7d16e38935f5c022a
+generated_at: '2026-04-30T13:38:09.164966+00:00'
+llm_confidence: high
+llm_rationale: Improved seed_messages to replace the off-topic 'How do I find that while chatting?' with a clear statement
+  of intent ('I'm trying to post a new advert for a Martin guitar.'). The other two seed_messages directly show the error
+  and the actual description. The user_goal_summary now explicitly states the false error and desired outcome, within 280
+  characters. Hidden facts are grounded in the transcript and will help the simulator respond to bot troubleshooting queries.
+rule_draft:
+  seed_messages:
+  - How do I find that while chatting?
+  - Beautiful Stika Spruce Cutaway Dreadnought guitar in excellent condition. Lovingly maintained since I bought it a few
+    years ago.. it comes with Excellent hard case and a new set of strings..I'm reluctantly selling asi don't play it enough
+    to keep. Will take off £70 if case is not needed.
+  - I description outlined in red saying my description cannot contain website links and to use website link field?
+  user_goal_summary: 'User reports Ad Support: My advert won''t post. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I'm trying to post a new advert for a Martin guitar.
+  - I description outlined in red saying my description cannot contain website links and to use website link field?
+  - Beautiful Stika Spruce Cutaway Dreadnought guitar in excellent condition. Lovingly maintained since I bought it a few
+    years ago.. it comes with Excellent hard case and a new set of strings..I'm reluctantly selling asi don't play it enough
+    to keep. Will take off £70 if case is not needed.
+  user_goal_summary: 'User wants to post a guitar ad but gets a false website-link error on the description, preventing posting.
+    He wants the error corrected so the ad can go live. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The error message states that the description cannot contain website links, but the user's description text includes
+      no URLs.
+    disclose_when: bot asks for the exact error or checks the description.
+accepted_value:
+  seed_messages:
+  - I'm trying to post a new advert for a Martin guitar.
+  - I description outlined in red saying my description cannot contain website links and to use website link field?
+  - Beautiful Stika Spruce Cutaway Dreadnought guitar in excellent condition. Lovingly maintained since I bought it a few
+    years ago.. it comes with Excellent hard case and a new set of strings..I'm reluctantly selling asi don't play it enough
+    to keep. Will take off £70 if case is not needed.
+  user_goal_summary: 'User wants to post a guitar ad but gets a false website-link error on the description, preventing posting.
+    He wants the error corrected so the ad can go live. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The error message states that the description cannot contain website links, but the user's description text includes
+      no URLs.
+    disclose_when: bot asks for the exact error or checks the description.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User tried posting the ad on both the Gumtree app and via Chrome browser on another
+  phone, encountering the same error each time.'''

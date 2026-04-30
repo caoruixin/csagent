@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008zS61IAE
+case_id_hint: row_284
+llm_model: deepseek-v4-pro
+prompt_hash: 980bd6d746bf7f406c27ebf11621630f8e5cb00784cd918b6a7532e355b6985c
+generated_at: '2026-04-30T19:47:43.754964+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are direct verbatim quotes from visitor turns (seq 3, 20, 23) that clearly convey the issue.
+  The user_goal_summary is inferred from these messages and the conversation flow. Hidden facts are grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Just trying to contact regarding the car been there for 50+ days the number I tried to call and it says its not recognised
+    is there an email address with the account I can send email to?
+  - The advertiser has entered the wrong phone number so you either help them or should remove the ad for them
+  - Never mind you obviously can't help
+  user_goal_summary: 'User reports Ad Support: Unable to contact by phone appears to be incorrect number. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Just trying to contact regarding the car been there for 50+ days the number I tried to call and it says its not recognised
+    is there an email address with the account I can send email to?
+  - Never mind you obviously can't help
+  - The advertiser has entered the wrong phone number so you either help them or should remove the ad for them
+  user_goal_summary: 'The user wants Gumtree to either notify the seller about their incorrect phone number, or remove the
+    ad listing. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Just trying to contact regarding the car been there for 50+ days the number I tried to call and it says its not recognised
+    is there an email address with the account I can send email to?
+  - Never mind you obviously can't help
+  - The advertiser has entered the wrong phone number so you either help them or should remove the ad for them
+  user_goal_summary: 'The user wants Gumtree to either notify the seller about their incorrect phone number, or remove the
+    ad listing. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The ad in question is for a car and has been listed for over 50 days.'''
+- 'unsupported_hidden_fact_dropped: ''The phone number associated with the ad is not recognized when called.'''

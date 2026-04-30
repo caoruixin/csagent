@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008g2SDIAY
+case_id_hint: row_354
+llm_model: deepseek-v4-pro
+prompt_hash: bd3e0a225894b0e781631de072e744d854b3cb200b5c2716b4fa149c99babf91
+generated_at: '2026-04-30T20:29:43.670025+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages from the rule draft are verbatim visitor turns that directly express the user's issue, so
+  they are kept. The user_goal_summary was rewritten to describe the user's request factually and concisely. A hidden fact
+  about the review rating was added, as it is supported by the transcript and may be useful for the simulator.
+rule_draft:
+  seed_messages:
+  - Person called Tom left the negative review for no reason.
+  - Ok please resolve it asap. I will be grateful
+  - He's already been in touch with you
+  user_goal_summary: 'User reports Account Support: Need review removed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Person called Tom left the negative review for no reason.
+  - Ok please resolve it asap. I will be grateful
+  - He's already been in touch with you
+  user_goal_summary: 'The user wants the one-star review from Tom removed because it was left for no reason and Tom has already
+    contacted the platform about it. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Person called Tom left the negative review for no reason.
+  - Ok please resolve it asap. I will be grateful
+  - He's already been in touch with you
+  user_goal_summary: 'The user wants the one-star review from Tom removed because it was left for no reason and Tom has already
+    contacted the platform about it. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The negative review from Tom was a one-star review.'''

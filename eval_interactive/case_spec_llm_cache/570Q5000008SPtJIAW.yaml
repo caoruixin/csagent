@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008SPtJIAW
+case_id_hint: row_56
+llm_model: deepseek-v4-pro
+prompt_hash: 8aba4886835acc1322802bf7aba9902d7f7739249e14a9f1948fa63ef94eaf2e
+generated_at: '2026-04-30T13:16:10.044659+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim issue-bearing visitor turns from the transcript. User goal summary is refined to
+  be specific about the exact functional issues and the urgency due to an impending buyer pickup. Hidden facts are derived
+  from voluntary disclosures in the transcript and will help the simulator respond naturally when probed.
+rule_draft:
+  seed_messages:
+  - someone is on there way to me know
+  - and has emailed me for address and i cannot send an email or access any other old emails
+  - Ad Id 1507082823
+  user_goal_summary: 'User reports Account Support: I can''t reply to messages. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - someone is on there way to me know
+  - and has emailed me for address and i cannot send an email or access any other old emails
+  - Ad Id 1507082823
+  user_goal_summary: 'The user wants to resolve the issue of not being able to reply to messages, access emails, or click
+    the Menu button on Gumtree, especially because a prospective buyer is coming to collect an item and needs her address.
+    Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - someone is on there way to me know
+  - and has emailed me for address and i cannot send an email or access any other old emails
+  - Ad Id 1507082823
+  user_goal_summary: 'The user wants to resolve the issue of not being able to reply to messages, access emails, or click
+    the Menu button on Gumtree, especially because a prospective buyer is coming to collect an item and needs her address.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The buyer''s name is Iwona."'
+- 'unsupported_hidden_fact_dropped: ''The item is a Steel Tongue Drum.'''

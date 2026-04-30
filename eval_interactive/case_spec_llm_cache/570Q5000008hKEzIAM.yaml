@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008hKEzIAM
+case_id_hint: row_214
+llm_model: deepseek-v4-pro
+prompt_hash: 5655f87fea2cae2f9d57908f4182b8edd027fae7efdffae0204504895d3c97a5
+generated_at: '2026-04-30T19:26:51.084887+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and capture the core issue. Summary refined to a concise factual
+  user goal. Hidden facts are supported by transcript details about the trial and rejection.
+rule_draft:
+  seed_messages:
+  - I do not want to be contacted by message I want Phone.
+  - I won't use messaging service .
+  - can I put my number in the AD, or will it get rejected?
+  user_goal_summary: 'User reports Technical Support: WILL NOT LET ME PUT MY PHONE NUMBER ON ANY NEW ad''S. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I do not want to be contacted by message I want Phone.
+  - I won't use messaging service .
+  - can I put my number in the AD, or will it get rejected?
+  user_goal_summary: 'The user wants to display a phone number in their ads, not use messaging. They demand the site stop
+    the email-only trial and restore the old phone option. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The site's trial removes phone number display; including a phone number in the ad text will likely get the ad rejected.
+    disclose_when: when the bot asks about the policy or why the user cannot use phone numbers
+accepted_value:
+  seed_messages:
+  - I do not want to be contacted by message I want Phone.
+  - I won't use messaging service .
+  - can I put my number in the AD, or will it get rejected?
+  user_goal_summary: 'The user wants to display a phone number in their ads, not use messaging. They demand the site stop
+    the email-only trial and restore the old phone option. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The site's trial removes phone number display; including a phone number in the ad text will likely get the ad rejected.
+    disclose_when: when the bot asks about the policy or why the user cannot use phone numbers
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The trial applies site-wide; the user cannot opt out individually.'''

@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008zM0bIAE
+case_id_hint: row_285
+llm_model: deepseek-v4-pro
+prompt_hash: 7d04c79f2b144250ac7ea3538980923d7e048dd2d7c66c2f63b10254d7d3c23b
+generated_at: '2026-04-30T19:48:02.713614+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are verbatim from the transcript and directly reflect the user's issue and proposed resolution.
+  No hidden facts are needed as the information is already explicit in the conversation. The user goal is clear and summarized
+  within character limit.
+rule_draft:
+  seed_messages:
+  - They should be going to [EMAIL] Currently the are going to my sign in email [EMAIL]
+  - Probably best to change my login email then. Agree?
+  - Ok will do thanks
+  user_goal_summary: 'User reports Replies & Messaging: You are sending my replies to wrong email address. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - They should be going to [EMAIL] Currently the are going to my sign in email [EMAIL]
+  - Probably best to change my login email then. Agree?
+  - Ok will do thanks
+  user_goal_summary: 'The user wants all replies to be sent to a different email address, not the one currently associated
+    with their login. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - They should be going to [EMAIL] Currently the are going to my sign in email [EMAIL]
+  - Probably best to change my login email then. Agree?
+  - Ok will do thanks
+  user_goal_summary: 'The user wants all replies to be sent to a different email address, not the one currently associated
+    with their login. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

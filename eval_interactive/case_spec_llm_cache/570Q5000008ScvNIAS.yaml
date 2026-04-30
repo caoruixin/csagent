@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008ScvNIAS
+case_id_hint: row_251
+llm_model: deepseek-v4-pro
+prompt_hash: a8d32829629e20553ca451db95852d72e7ab3f5fbf5194573f11e3ec24894bca
+generated_at: '2026-04-30T19:39:45.846269+00:00'
+llm_confidence: high
+llm_rationale: Replaced the acknowledgment seed message with an issue-bearing turn from the transcript. Improved user_goal_summary
+  to reflect the actual issue and resolution. Added relevant hidden facts grounded in the conversation.
+rule_draft:
+  seed_messages:
+  - Hi why is my add not live yet
+  - Ok thanks
+  - I did it there now
+  user_goal_summary: 'User reports Ad Support: Miniature Dachshund. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - Hi why is my add not live yet
+  - I don't have Christmas pics
+  - I did it there now
+  user_goal_summary: 'User wants her ad for a Miniature Dachshund, rejected for having holiday gift images in the last photo,
+    to be live after removing it. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The ad was rejected because the last image showed pride and groom products, interpreted as holiday gift images.
+    disclose_when: When asked about the specific image flagged.
+accepted_value:
+  seed_messages:
+  - Hi why is my add not live yet
+  - I don't have Christmas pics
+  - I did it there now
+  user_goal_summary: 'User wants her ad for a Miniature Dachshund, rejected for having holiday gift images in the last photo,
+    to be live after removing it. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The ad was rejected because the last image showed pride and groom products, interpreted as holiday gift images.
+    disclose_when: When asked about the specific image flagged.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user uploaded her phone number to the ad.'''

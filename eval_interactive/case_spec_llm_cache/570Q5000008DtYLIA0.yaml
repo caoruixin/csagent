@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008DtYLIA0
+case_id_hint: row_52
+llm_model: deepseek-v4-pro
+prompt_hash: e556e509bc107c93d329f3f5a9ca9e4234fe3f9ced6d42644ef3889b6406d0f0
+generated_at: '2026-04-30T13:14:48.291862+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and describe the actual issue. User goal is clear from the conversation.
+rule_draft:
+  seed_messages:
+  - I messaged you guys weeks ago about photos on my adverts keep uploading blurred, compressed and poor quality. I was told
+    that someone will get in contact with via email.
+  - Just waiting for your email
+  - Can I be sent a copy of this chat as well
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I messaged you guys weeks ago about photos on my adverts keep uploading blurred, compressed and poor quality. I was told
+    that someone will get in contact with via email.
+  - Just waiting for your email
+  - Can I be sent a copy of this chat as well
+  user_goal_summary: 'User wants all their Gumtree ad photos to display clearly because they appear blurred and compressed.
+    They reported this weeks ago but received no resolution. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'User has specific ad IDs: 1506749515, 1506749440, 1506749368.'
+    disclose_when: when asked for ad IDs or specific ads
+accepted_value:
+  seed_messages:
+  - I messaged you guys weeks ago about photos on my adverts keep uploading blurred, compressed and poor quality. I was told
+    that someone will get in contact with via email.
+  - Just waiting for your email
+  - Can I be sent a copy of this chat as well
+  user_goal_summary: 'User wants all their Gumtree ad photos to display clearly because they appear blurred and compressed.
+    They reported this weeks ago but received no resolution. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'User has specific ad IDs: 1506749515, 1506749440, 1506749368.'
+    disclose_when: when asked for ad IDs or specific ads
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User previously emailed screenshots of the blurred images but did not receive a resolution.'''

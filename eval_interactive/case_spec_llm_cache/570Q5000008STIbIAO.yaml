@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008STIbIAO
+case_id_hint: row_315
+llm_model: deepseek-v4-pro
+prompt_hash: 3dfb48aab29b7a8f2d3a4fa54a621610176d500f371906bbcf0df383684e7752
+generated_at: '2026-04-30T19:58:28.203944+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced greeting and closing seed messages with turns that directly articulate the user''s issues: confusion
+  about account multiplicity (Seq 4), posting limit inquiry (Seq 14), and charge location (Seq 19). Updated user_goal_summary
+  to concisely capture all three topics from the transcript, appending drift type as required. No hidden facts are justified
+  from the transcript.'
+rule_draft:
+  seed_messages:
+  - Hi Candice - great to reconnect!
+  - if we disconnect, pls do email it across if you can - many thanks again!
+  - got it thanks - where can those charges be found pls?
+  user_goal_summary: 'User reports Account Support: hi I can''t seem to post ad or they get removed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - ah...but I only have 1 account
+  - how many adverts are we allowed to post? is there a certain amount?
+  - got it thanks - where can those charges be found pls?
+  user_goal_summary: 'User wants to understand why ads were removed, learn about posting limits, and find out where agency
+    charges are located. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - ah...but I only have 1 account
+  - how many adverts are we allowed to post? is there a certain amount?
+  - got it thanks - where can those charges be found pls?
+  user_goal_summary: 'User wants to understand why ads were removed, learn about posting limits, and find out where agency
+    charges are located. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

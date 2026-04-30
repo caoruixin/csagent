@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008duqXIAQ
+case_id_hint: row_106
+llm_model: deepseek-v4-pro
+prompt_hash: 075f95ea4aaaaea165eed0ebb6135c4f0fa4292c5c4493cf2ab94fd2dbcf4b1e
+generated_at: '2026-04-30T13:31:52.700790+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting seed message with a more issue-focused visitor turn from transcript. Updated user_goal_summary
+  to reflect specific user desires. Added hidden facts grounded in transcript about prior verification and outdated contact
+  details.
+rule_draft:
+  seed_messages:
+  - This has happened previously too, what is going on?
+  - Happy new year
+  - I dont have access to that number anymore but I have the same email
+  user_goal_summary: 'User reports Account Support: My ads keep getting deleted as soon as they are posted. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - This has happened previously too, what is going on?
+  - Can it please be resolved properly so it doesnt happen again
+  - I dont have access to that number anymore but I have the same email
+  user_goal_summary: 'User wants their ads to stop being deleted immediately after posting and for the account issue (likely
+    verification) to be permanently resolved so it doesn''t happen again. They also need to update their mobile number. Drift:
+    hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - This has happened previously too, what is going on?
+  - Can it please be resolved properly so it doesnt happen again
+  - I dont have access to that number anymore but I have the same email
+  user_goal_summary: 'User wants their ads to stop being deleted immediately after posting and for the account issue (likely
+    verification) to be permanently resolved so it doesn''t happen again. They also need to update their mobile number. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User previously completed account verification but is being asked to verify again.'''
+- 'unsupported_hidden_fact_dropped: ''User does not have access to their old mobile number but their email is unchanged.'''

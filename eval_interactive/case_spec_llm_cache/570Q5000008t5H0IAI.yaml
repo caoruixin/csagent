@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008t5H0IAI
+case_id_hint: cs_interactive_096
+llm_model: deepseek-v4-pro
+prompt_hash: 2100794c7a9238014efdb28411897a4652150706a25c069507437559f34abbdc
+generated_at: '2026-04-30T20:44:21.976767+00:00'
+llm_confidence: high
+llm_rationale: Replaced two seed messages that were closings/gratitude with a second issue-describing visitor turn from the
+  transcript. Refined user goal summary to be specific about the problem and what the user wants. Added one hidden fact grounded
+  in the transcript (screenshot emailed).
+rule_draft:
+  seed_messages:
+  - No, that is the issue. The option popped up earlier but that was before the sale was completed.
+  - Thank you. Shall we end chat now?
+  - Perfect, thank you Candice.
+  user_goal_summary: 'User reports Ratings & Reviews: Just sold item. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - No, that is the issue. The option popped up earlier but that was before the sale was completed.
+  - I am still chatting with the buyer but the option to leave a review has not reappeard
+  user_goal_summary: 'The user wants to leave a review for an item they just sold, but the review option in their conversation
+    with the buyer has disappeared. They want assistance restoring it or finding another way to submit the review. Drift:
+    hard_shift.'
+  hidden_facts:
+  - fact: User has emailed a screenshot of the conversation with the buyer to support.
+    disclose_when: when the bot asks about evidence or the screenshot
+accepted_value:
+  seed_messages:
+  - No, that is the issue. The option popped up earlier but that was before the sale was completed.
+  - I am still chatting with the buyer but the option to leave a review has not reappeard
+  user_goal_summary: 'The user wants to leave a review for an item they just sold, but the review option in their conversation
+    with the buyer has disappeared. They want assistance restoring it or finding another way to submit the review. Drift:
+    hard_shift.'
+  hidden_facts:
+  - fact: User has emailed a screenshot of the conversation with the buyer to support.
+    disclose_when: when the bot asks about evidence or the screenshot
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

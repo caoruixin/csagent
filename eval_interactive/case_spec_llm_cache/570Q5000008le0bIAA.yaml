@@ -1,0 +1,30 @@
+source_session_id: 570Q5000008le0bIAA
+case_id_hint: row_350
+llm_model: deepseek-v4-pro
+prompt_hash: 10b640c82e3c29a4cd0f78f1dd7def8e1411949fbd6b4add842ce7d1a4bde6b9
+generated_at: '2026-04-30T20:28:05.818916+00:00'
+llm_confidence: medium
+llm_rationale: Removed the 'Ok thankyou' acknowledgement turn to keep only the issue-describing visitor message. Refined the
+  goal summary to be more specific. No hidden facts derivable from the transcript.
+rule_draft:
+  seed_messages:
+  - '[EMAIL] been trying to enter the acoount ithink ientered it wrong to many time and block me'
+  - Ok thankyou
+  user_goal_summary: 'User reports Technical Support: Ive been blocked from my account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - '[EMAIL] been trying to enter the acoount ithink ientered it wrong to many time and block me'
+  user_goal_summary: 'User is locked out of their Gumtree account after multiple incorrect login attempts and wants to regain
+    access. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - '[EMAIL] been trying to enter the acoount ithink ientered it wrong to many time and block me'
+  - Ok thankyou
+  user_goal_summary: 'User reports Technical Support: Ive been blocked from my account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: rule_fallback_low_confidence
+validation_notes: []

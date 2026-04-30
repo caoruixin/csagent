@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008UD87IAG
+case_id_hint: cs_interactive_335
+llm_model: deepseek-v4-pro
+prompt_hash: 2bbb0089fcc8a59610a7b428d7b9e850c59b50e7bff875d4f3403ec9ccfebe36
+generated_at: '2026-04-30T21:02:33.720438+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and describe the issue. Goal summary captures user intent within
+  character limit. Hidden fact derived from transcript.
+rule_draft:
+  seed_messages:
+  - Hi, I just realised a part of the item I sold and collected by buyer miss a piece that I'm in possession of. Cannot find
+    a way to contact buyer as chat was already deleted before I realised. I would like to contact the buyer that possibly
+    can collect the missing item
+  - No my personal mobile number no
+  - 1507661693 maybe
+  user_goal_summary: 'User reports Delivery: Missing part of item sold, paid and delivered. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi, I just realised a part of the item I sold and collected by buyer miss a piece that I'm in possession of. Cannot find
+    a way to contact buyer as chat was already deleted before I realised. I would like to contact the buyer that possibly
+    can collect the missing item
+  - No my personal mobile number no
+  - 1507661693 maybe
+  user_goal_summary: 'The user wants to contact the buyer who collected an item in a cash sale to arrange collection of a
+    missing piece, but the chat was deleted and she does not have their phone number. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi, I just realised a part of the item I sold and collected by buyer miss a piece that I'm in possession of. Cannot find
+    a way to contact buyer as chat was already deleted before I realised. I would like to contact the buyer that possibly
+    can collect the missing item
+  - No my personal mobile number no
+  - 1507661693 maybe
+  user_goal_summary: 'The user wants to contact the buyer who collected an item in a cash sale to arrange collection of a
+    missing piece, but the chat was deleted and she does not have their phone number. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The buyer''s name is HSG."'

@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008l4DFIAY
+case_id_hint: row_277
+llm_model: deepseek-v4-pro
+prompt_hash: 1c0137d4974cf14382f9fb689264652e2b2b7f6010865aa98b978c18ae688a75
+generated_at: '2026-04-30T19:46:00.160650+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are verbatim visitor turns describing the actual issue. user_goal_summary rewritten to be
+  a clear factual statement of user intent under 280 characters. hidden_facts added from transcript details (tried to edit,
+  feature disabled). No improvements needed to seeds, so confidence high.
+rule_draft:
+  seed_messages:
+  - yes I need to change my email address
+  - that is crazy ! shit website !
+  - I want to change my email address
+  user_goal_summary: 'User reports Account Support: how do I change my email address associated with my account ?. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - yes I need to change my email address
+  - that is crazy ! shit website !
+  - I want to change my email address
+  user_goal_summary: 'User wants to change the email address associated with their Gumtree account. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Gumtree has disabled the ability for users to change their login or contact email addresses.
+    disclose_when: when discussing why the email change is not working or if the bot cannot provide a solution
+accepted_value:
+  seed_messages:
+  - yes I need to change my email address
+  - that is crazy ! shit website !
+  - I want to change my email address
+  user_goal_summary: 'User wants to change the email address associated with their Gumtree account. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Gumtree has disabled the ability for users to change their login or contact email addresses.
+    disclose_when: when discussing why the email change is not working or if the bot cannot provide a solution
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user tried to change their email on the Gumtree website but could not find the edit
+  box.'''

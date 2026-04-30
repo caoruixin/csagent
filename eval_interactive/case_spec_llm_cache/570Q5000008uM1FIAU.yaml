@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008uM1FIAU
+case_id_hint: row_204
+llm_model: deepseek-v4-pro
+prompt_hash: 2f3244bafbf2b5354fed68113bb886c0850914b21dacc479554b4ef09992b714
+generated_at: '2026-04-30T19:22:11.737451+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns describing the issue. Updated user_goal_summary to reflect the user's
+  actual request instead of a generic report. Added two hidden facts grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - I am having trouble contacting a seller
+  - Today but have messaged them previously to no avail.
+  - 'Ad id: 1508896497'
+  user_goal_summary: 'User reports Replies & Messaging: Dart board. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I am having trouble contacting a seller
+  - Today but have messaged them previously to no avail.
+  - 'Ad id: 1508896497'
+  user_goal_summary: 'User wants to contact a seller on Gumtree but the seller doesn''t seem to receive messages. User has
+    an account, has messaged multiple times, and asks if Gumtree can contact the seller. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I am having trouble contacting a seller
+  - Today but have messaged them previously to no avail.
+  - 'Ad id: 1508896497'
+  user_goal_summary: 'User wants to contact a seller on Gumtree but the seller doesn''t seem to receive messages. User has
+    an account, has messaged multiple times, and asks if Gumtree can contact the seller. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The seller''s ad does not list a contact number."'
+- 'unsupported_hidden_fact_dropped: ''The user has been a registered Gumtree user for years.'''

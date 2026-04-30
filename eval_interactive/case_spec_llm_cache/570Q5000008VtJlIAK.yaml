@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008VtJlIAK
+case_id_hint: row_28
+llm_model: deepseek-v4-pro
+prompt_hash: 98192f1fbd49034f514e700236278518992d7e68663366ba0a51a627f48fbf91
+generated_at: '2026-04-30T13:08:30.642040+00:00'
+llm_confidence: high
+llm_rationale: Replaced 'LIKEWISE' (acknowledgment) with an issue-bearing turn stating the account manager's name, which is
+  relevant to the case. Kept the other two seed messages as they describe the core issue verbatim. Updated user_goal_summary
+  to more directly state the user's desired outcome. Added hidden facts for the reference number and account manager, supported
+  by the transcript.
+rule_draft:
+  seed_messages:
+  - Ref 96385089
+  - we had a outstaning invoice, and settled on Friday the 19.12.2025, still the account is not activated.
+  - LIKEWISE
+  user_goal_summary: 'User reports Account Support: The above account number is not activated, payments has been completed
+    on Friday the 19.12.2025. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Ref 96385089
+  - we had a outstaning invoice, and settled on Friday the 19.12.2025, still the account is not activated.
+  - Our Gumtree account Managers name is AYAZ
+  user_goal_summary: 'The user''s account is not activated despite payment of an outstanding invoice on Friday 19.12.2025.
+    They need the account activated as soon as possible to resume business. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Reference number is 96385089.
+    disclose_when: When the bot asks for a reference number or account identifier.
+accepted_value:
+  seed_messages:
+  - Ref 96385089
+  - we had a outstaning invoice, and settled on Friday the 19.12.2025, still the account is not activated.
+  - Our Gumtree account Managers name is AYAZ
+  user_goal_summary: 'The user''s account is not activated despite payment of an outstanding invoice on Friday 19.12.2025.
+    They need the account activated as soon as possible to resume business. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Reference number is 96385089.
+    disclose_when: When the bot asks for a reference number or account identifier.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s account manager is Ayaz."'

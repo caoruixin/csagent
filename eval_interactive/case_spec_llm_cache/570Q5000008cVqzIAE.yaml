@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008cVqzIAE
+case_id_hint: row_82
+llm_model: deepseek-v4-pro
+prompt_hash: c223c69dcade0f53fc69fc041bde7c6971887ce2ccaea940b9c9e87756a930d2
+generated_at: '2026-04-30T13:24:01.217803+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns 2, 14, and 9 and clearly describe the issue. The user goal is
+  straightforward, and no hidden facts beyond those already stated are clearly extractable from the transcript.
+rule_draft:
+  seed_messages:
+  - I would like to advise you that I bought an iPhone 17 from your website. The phone was not authentic and I have reported
+    this to the police . I paid your seller £825 and I am not happy. Please can you advise me on how I get my money back
+  - How can I get my money back
+  - This one Gumtree email address
+  user_goal_summary: 'User reports Account Support: I would like to advise you that I bought an iPhone 17 from your website.
+    Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I would like to advise you that I bought an iPhone 17 from your website. The phone was not authentic and I have reported
+    this to the police . I paid your seller £825 and I am not happy. Please can you advise me on how I get my money back
+  - How can I get my money back
+  - This one Gumtree email address
+  user_goal_summary: 'User wants a full refund of £825 for an inauthentic iPhone 17 purchased via Gumtree, and has already
+    reported the matter to the police. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I would like to advise you that I bought an iPhone 17 from your website. The phone was not authentic and I have reported
+    this to the police . I paid your seller £825 and I am not happy. Please can you advise me on how I get my money back
+  - How can I get my money back
+  - This one Gumtree email address
+  user_goal_summary: 'User wants a full refund of £825 for an inauthentic iPhone 17 purchased via Gumtree, and has already
+    reported the matter to the police. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008JGajIAG
+case_id_hint: row_263
+llm_model: deepseek-v4-pro
+prompt_hash: e1f89039d8411379b925756162a808b3e386b8cb4b867e135e9fa7abc884ccf1
+generated_at: '2026-04-30T19:42:52.969761+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are verbatim from the transcript and capture the user's complaint and identity. The goal
+  is clearly stated. No additional hidden facts are necessary.
+rule_draft:
+  seed_messages:
+  - Hello why have my post for a free French bull dog been removed
+  - You have took my payment and instantly took it down ????
+  - Dave [EMAIL]
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hello why have my post for a free French bull dog been removed
+  - You have took my payment and instantly took it down ????
+  - Dave [EMAIL]
+  user_goal_summary: 'User wants to know why their paid ad for a free French bulldog was removed and to get a refund. Drift:
+    hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hello why have my post for a free French bull dog been removed
+  - You have took my payment and instantly took it down ????
+  - Dave [EMAIL]
+  user_goal_summary: 'User wants to know why their paid ad for a free French bulldog was removed and to get a refund. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

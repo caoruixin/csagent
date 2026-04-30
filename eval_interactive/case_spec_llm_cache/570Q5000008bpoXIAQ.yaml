@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008bpoXIAQ
+case_id_hint: row_269
+llm_model: deepseek-v4-pro
+prompt_hash: 0cba5061f228a4231f132de91d91ffb3644b0d9b92e4bd3d516b9c9f29272a50
+generated_at: '2026-04-30T19:43:49.241879+00:00'
+llm_confidence: high
+llm_rationale: Removed the non-issue acknowledgment 'Ok thanks' and retained the two turns that explicitly state the problem.
+  Updated the summary to specifically describe the user's goal of obtaining vehicle information and their suspicion about
+  the Category N disclosure. Added hidden facts grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Hi i bought a car from gumtree a year ago would you still have the information toyota verso YR61ZLY
+  - Ok thanks
+  - I believe the person who sold it didn't declare its category n
+  user_goal_summary: 'User reports Account Support: Regarding car purchase. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi i bought a car from gumtree a year ago would you still have the information toyota verso YR61ZLY
+  - I believe the person who sold it didn't declare its category n
+  user_goal_summary: 'The user wants to obtain information about a Toyota Verso (YR61ZLY) they bought on Gumtree a year ago,
+    suspecting the seller did not disclose its Category N write-off status. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user suspects the seller did not declare its Category N status.
+    disclose_when: when bot asks about the issue
+accepted_value:
+  seed_messages:
+  - Hi i bought a car from gumtree a year ago would you still have the information toyota verso YR61ZLY
+  - I believe the person who sold it didn't declare its category n
+  user_goal_summary: 'The user wants to obtain information about a Toyota Verso (YR61ZLY) they bought on Gumtree a year ago,
+    suspecting the seller did not disclose its Category N write-off status. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user suspects the seller did not declare its Category N status.
+    disclose_when: when bot asks about the issue
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The vehicle is a Toyota Verso with registration YR61ZLY.'''

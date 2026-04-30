@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008zV0fIAE
+case_id_hint: row_134
+llm_model: deepseek-v4-pro
+prompt_hash: 56b1ab0f3f660bf180aa37fa08a11289a9f16b82012ac6e9bd27beab3d47e35a
+generated_at: '2026-04-30T13:39:33.475478+00:00'
+llm_confidence: high
+llm_rationale: The seed messages are direct quotes from visitor turns that describe the core issue (email notification problem
+  and confusion about settings). The user_goal_summary is updated to concisely state the user's desired outcome, as evidenced
+  by her concerns about ratings and email preference. No hidden facts are needed as the user disclosed all relevant information
+  when asked.
+rule_draft:
+  seed_messages:
+  - I have that email setting as my nominated email and it used to work. I tried to look into it and it shows two email addresses.
+    I tried to delete the other one just in case but I'm not allowed to for some reason.
+  - And I'm not sure it would change the error anyways
+  - Ok, well at least I know now what to do when I send the next ad up. Thanks so much for your help!
+  user_goal_summary: 'User reports Replies & Messaging: I recently posted an ad and unlike every other time I did so, I had
+    no email notifications to my dedicated email account which made me miss a few emails/sales. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I have that email setting as my nominated email and it used to work. I tried to look into it and it shows two email addresses.
+    I tried to delete the other one just in case but I'm not allowed to for some reason.
+  - And I'm not sure it would change the error anyways
+  - Ok, well at least I know now what to do when I send the next ad up. Thanks so much for your help!
+  user_goal_summary: 'User wants to receive email notifications for her ad replies at her Gmail address instead of the Hotmail
+    login email, without losing her account history and ratings. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I have that email setting as my nominated email and it used to work. I tried to look into it and it shows two email addresses.
+    I tried to delete the other one just in case but I'm not allowed to for some reason.
+  - And I'm not sure it would change the error anyways
+  - Ok, well at least I know now what to do when I send the next ad up. Thanks so much for your help!
+  user_goal_summary: 'User wants to receive email notifications for her ad replies at her Gmail address instead of the Hotmail
+    login email, without losing her account history and ratings. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

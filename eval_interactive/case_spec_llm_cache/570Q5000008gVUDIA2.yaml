@@ -1,0 +1,47 @@
+source_session_id: 570Q5000008gVUDIA2
+case_id_hint: row_170
+llm_model: deepseek-v4-pro
+prompt_hash: 4df014c506ec005b30bf8ca18adeeb17aa93651770a5bfc9fea5c06f630875ef
+generated_at: '2026-04-30T19:10:45.940222+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are verbatim from visitor turns and directly express the user's issue and demands. The user_goal_summary
+  accurately captures the user's intent without bot instructions.
+rule_draft:
+  seed_messages:
+  - Hi you have made it now harder for sellers taking the call feature away now sellers will feel it harder not always there
+    for email email is not safe you can be spammed more with email than calling someone now sellers will not use the service
+    as you get time waisters on email your not always there to get email sales will be lost then sellers will leave gumtree
+    now and use other platforms
+  - I will move to another platform that doesn't take my rights away and ine where I can use a telephone number as your a
+    selling platform and there should be a call setting on a platform
+  - Goodluck on losing a lot of customers everyone is not happy we won't use the service again until call option is returned
+  user_goal_summary: 'User reports Ad Support: No call setting on advert. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi you have made it now harder for sellers taking the call feature away now sellers will feel it harder not always there
+    for email email is not safe you can be spammed more with email than calling someone now sellers will not use the service
+    as you get time waisters on email your not always there to get email sales will be lost then sellers will leave gumtree
+    now and use other platforms
+  - I will move to another platform that doesn't take my rights away and ine where I can use a telephone number as your a
+    selling platform and there should be a call setting on a platform
+  - Goodluck on losing a lot of customers everyone is not happy we won't use the service again until call option is returned
+  user_goal_summary: 'The user wants the call feature on their Gumtree ads reinstated, arguing email-only leads to spam and
+    lost sales, and they may leave the platform. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi you have made it now harder for sellers taking the call feature away now sellers will feel it harder not always there
+    for email email is not safe you can be spammed more with email than calling someone now sellers will not use the service
+    as you get time waisters on email your not always there to get email sales will be lost then sellers will leave gumtree
+    now and use other platforms
+  - I will move to another platform that doesn't take my rights away and ine where I can use a telephone number as your a
+    selling platform and there should be a call setting on a platform
+  - Goodluck on losing a lot of customers everyone is not happy we won't use the service again until call option is returned
+  user_goal_summary: 'The user wants the call feature on their Gumtree ads reinstated, arguing email-only leads to spam and
+    lost sales, and they may leave the platform. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

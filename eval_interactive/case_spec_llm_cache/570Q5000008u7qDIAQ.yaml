@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008u7qDIAQ
+case_id_hint: row_213
+llm_model: deepseek-v4-pro
+prompt_hash: 3ec9391677e1171f3f1a597e0375410cbb8bbbfaa208f1acd41c368b5cb889a1
+generated_at: '2026-04-30T19:25:19.726026+00:00'
+llm_confidence: high
+llm_rationale: All seed_messages are verbatim visitor turns that express the core issue. user_goal_summary was refined to
+  concisely capture the refund request and investigation demand, plus proof. Hidden_facts add specific details (ad ID, communication
+  method) from the transcript without inventing data.
+rule_draft:
+  seed_messages:
+  - Do you have a record of my last conversation
+  - I believe my item was sold on your platform and was scammed and have spoken to police and been advised Gumtree should
+    refund the amount it was sold for
+  - I have proof of pakaging and posting, buyers address
+  user_goal_summary: 'User reports Payments: Apple airmax pro. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Do you have a record of my last conversation
+  - I believe my item was sold on your platform and was scammed and have spoken to police and been advised Gumtree should
+    refund the amount it was sold for
+  - I have proof of pakaging and posting, buyers address
+  user_goal_summary: 'User wants a refund from Gumtree for a sold item that was never paid for, and an investigation of the
+    scam buyer. They have proof of packaging, posting, and the buyer''s address. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'Ad ID: 1505741468'
+    disclose_when: bot asks for the ad ID
+accepted_value:
+  seed_messages:
+  - Do you have a record of my last conversation
+  - I believe my item was sold on your platform and was scammed and have spoken to police and been advised Gumtree should
+    refund the amount it was sold for
+  - I have proof of pakaging and posting, buyers address
+  user_goal_summary: 'User wants a refund from Gumtree for a sold item that was never paid for, and an investigation of the
+    scam buyer. They have proof of packaging, posting, and the buyer''s address. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'Ad ID: 1505741468'
+    disclose_when: bot asks for the ad ID
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The buyer contacted the user via phone call, not through Gumtree messages.'''

@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008hVf3IAE
+case_id_hint: cs_interactive_023
+llm_model: deepseek-v4-pro
+prompt_hash: 81f6484e546ccd307c25fbaaaa439d92592a3b5d02c37e3aba0525ce4d0a9ccc
+generated_at: '2026-04-30T10:57:23.862284+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue seed messages with the sole issue-describing visitor turn. Updated user goal summary to
+  accurately reflect the user's actual request and added hidden facts about the previous ads being the same litter and having
+  an alternative email, as evidenced in the transcript.
+rule_draft:
+  seed_messages:
+  - my puppy ad has run out and i would like to repost it but am i only aloud 3 ads is this classed as my third or can i post
+    another litter thanks
+  - thanks talk soon
+  - are you there
+  user_goal_summary: 'User reports Ad Support: if i update my add will it be my third or will i have one left. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - my puppy ad has run out and i would like to repost it but am i only aloud 3 ads is this classed as my third or can i post
+    another litter thanks
+  user_goal_summary: 'User wants to repost a puppy ad and needs clarification on whether it counts as a third ad against a
+    limit of 3, or if they can post another litter without violating the rules. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - my puppy ad has run out and i would like to repost it but am i only aloud 3 ads is this classed as my third or can i post
+    another litter thanks
+  user_goal_summary: 'User wants to repost a puppy ad and needs clarification on whether it counts as a third ad against a
+    limit of 3, or if they can post another litter without violating the rules. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s two previous pet ads were for the same litter (a puppy ad that has now run
+  out)."'
+- 'unsupported_hidden_fact_dropped: ''The user has an alternative email address that can be provided if the agent cannot locate
+  the ads under the current email.'''

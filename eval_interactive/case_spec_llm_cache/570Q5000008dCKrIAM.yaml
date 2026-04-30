@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008dCKrIAM
+case_id_hint: row_150
+llm_model: deepseek-v4-pro
+prompt_hash: 94b98724aaadf5cf671b5fe88c289df7079d1a98bff7bfccd93be5c0f6b6a3c1
+generated_at: '2026-04-30T19:05:43.407924+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing 'ok thank you' with a more issue-relevant visitor turn that shows attempted troubleshooting.
+  The other two seed messages already capture the core issue and account identifier. The user_goal_summary is concise and
+  factual, based on the transcript. No hidden facts are necessary because all relevant information was already disclosed.
+rule_draft:
+  seed_messages:
+  - ad id - 508088108
+  - I cant access my acc
+  - ok thank you
+  user_goal_summary: 'User reports Account Support: cant access account. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - ad id - 508088108
+  - I cant access my acc
+  - just tried incognito and same issue
+  user_goal_summary: 'User cannot access their Gumtree account. They changed password twice and tried incognito, but still
+    locked out. They want help logging in. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - ad id - 508088108
+  - I cant access my acc
+  - just tried incognito and same issue
+  user_goal_summary: 'User cannot access their Gumtree account. They changed password twice and tried incognito, but still
+    locked out. They want help logging in. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

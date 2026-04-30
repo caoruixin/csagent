@@ -1,0 +1,36 @@
+source_session_id: 570Q5000009060DIAQ
+case_id_hint: row_190
+llm_model: deepseek-v4-pro
+prompt_hash: bbc977d5ab3d59279bc9eb4bdf17597e74089f51b373b8227178ac93fecb5c5f
+generated_at: '2026-04-30T19:17:54.323568+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue seed_messages ('Let me check', 'Paid Role...') with three verbatim visitor turns that articulate
+  the user's actual queries about category visibility, editing behavior, and category popularity. Refined the user_goal_summary
+  to reflect these concrete intentions, while keeping within the character limit and adhering to the no-bot-instruction rule.
+rule_draft:
+  seed_messages:
+  - Let me check
+  - Paid Role – Wellness Session Support (Urgent)
+  - Finally which job category gets the most views
+  user_goal_summary: 'User reports Ad Support: Need help to see where it is advertised. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - What category is it under and can I list or tag to more than one category to get more views
+  - If I edit does the ad reappear at the top or how does it work...
+  - Finally which job category gets the most views
+  user_goal_summary: 'User wants to know under which category their ad is listed, whether they can list in multiple categories
+    to increase views, how editing affects ad position, and which job category receives the most views. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - What category is it under and can I list or tag to more than one category to get more views
+  - If I edit does the ad reappear at the top or how does it work...
+  - Finally which job category gets the most views
+  user_goal_summary: 'User wants to know under which category their ad is listed, whether they can list in multiple categories
+    to increase views, how editing affects ad position, and which job category receives the most views. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

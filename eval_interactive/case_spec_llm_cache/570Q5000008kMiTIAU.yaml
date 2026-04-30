@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008kMiTIAU
+case_id_hint: cs_interactive_008
+llm_model: deepseek-v4-pro
+prompt_hash: 157141cf9eeb8da941829a6e3c9f3f30f8eacf587f290368d6fce4141cf556e7
+generated_at: '2026-04-30T10:35:50.486329+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced closing/greeting seed messages with actual issue-bearing turns from seq 6 and seq 16 to reflect the
+  dual intent: business agreement inquiry and reporting a fake account. User goal summary updated to capture both goals. Hidden
+  facts extracted from transcript details.'
+rule_draft:
+  seed_messages:
+  - Hi how can I have an aggrement with Gumtree like business aggrement for posting as much as I want
+  - Take care
+  - Ok thanks
+  user_goal_summary: 'User reports Account Support: How can I have an aggrement with gumtree. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi how can I have an aggrement with Gumtree like business aggrement for posting as much as I want
+  - And one last thing can u plz look in to this account posting fake ads
+  - The whole account is full of fake free duplicate copy ads
+  user_goal_summary: 'The user wants to obtain a business agreement with Gumtree to post unlimited ads, and they also want
+    to report a Gumtree account that is posting many duplicate fake ads. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The account URL to report is https://www.gumtree.com/profile/account/3046e0a00de405a8d43da7f5cb1f93cc
+    disclose_when: when asked for details about the reported account
+accepted_value:
+  seed_messages:
+  - Hi how can I have an aggrement with Gumtree like business aggrement for posting as much as I want
+  - And one last thing can u plz look in to this account posting fake ads
+  - The whole account is full of fake free duplicate copy ads
+  user_goal_summary: 'The user wants to obtain a business agreement with Gumtree to post unlimited ads, and they also want
+    to report a Gumtree account that is posting many duplicate fake ads. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The account URL to report is https://www.gumtree.com/profile/account/3046e0a00de405a8d43da7f5cb1f93cc
+    disclose_when: when asked for details about the reported account
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user may not have a limited company (Ltd)'''

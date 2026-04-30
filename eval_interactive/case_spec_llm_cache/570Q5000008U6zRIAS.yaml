@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008U6zRIAS
+case_id_hint: row_70
+llm_model: deepseek-v4-pro
+prompt_hash: c37ef959c6214460bf8f0c89377f7079b4fbc3eb509e98b71503a8b2b4a44cda
+generated_at: '2026-04-30T13:19:54.096440+00:00'
+llm_confidence: high
+llm_rationale: The rule draft included three visitor turns, but only the first one describes the actual issue. The other two
+  are frustrated check-ins, not issue descriptions. According to guidelines, seed_messages should only contain turns that
+  describe the issue. Therefore, we kept only the first turn verbatim. User_goal_summary was rewritten to clearly state the
+  user's goal based on the transcript. Hidden facts are not added as the transcript does not provide undisclosed details beyond
+  what the user already stated.
+rule_draft:
+  seed_messages:
+  - I was chatting to somrone and lost connection. I am retired and although I have a Gateway no. I do not pay tax and cannot
+    do the form.
+  - Exxactly what I have told you.
+  - Ate you there Courtnry???
+  user_goal_summary: 'User reports Account Support: Have been asked for asecure payment account as I have an interested customer.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I was chatting to somrone and lost connection. I am retired and although I have a Gateway no. I do not pay tax and cannot
+    do the form.
+  user_goal_summary: 'User wants assistance completing the secure payment account setup because they are retired, do not pay
+    tax, and cannot submit the required form, despite having a Gateway account. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I was chatting to somrone and lost connection. I am retired and although I have a Gateway no. I do not pay tax and cannot
+    do the form.
+  user_goal_summary: 'User wants assistance completing the secure payment account setup because they are retired, do not pay
+    tax, and cannot submit the required form, despite having a Gateway account. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

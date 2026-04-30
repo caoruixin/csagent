@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008b9KfIAI
+case_id_hint: row_125
+llm_model: deepseek-v4-pro
+prompt_hash: aedd7fd4e388483d1bc1035fa409a33b84b3aa017c4ddab71bb78814b566bb29
+generated_at: '2026-04-30T13:37:01.374802+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from the visitor's turns and accurately capture the user's frustration and issue.
+  The user goal summary is derived from the transcript, focusing on stopping payments and requesting a phone call. Added a
+  hidden fact about the monthly charge amount disclosed when relevant, grounded in transcript.
+rule_draft:
+  seed_messages:
+  - Please,is not fair to get the money from my account out of my approve,that is stealing!!!
+  - Costumer service phone number??
+  - I will pay when I want not when you want to get the money!!!
+  user_goal_summary: 'User reports Payments: Hi,can you stop to take the payment from my account every month!!. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Please,is not fair to get the money from my account out of my approve,that is stealing!!!
+  - Costumer service phone number??
+  - I will pay when I want not when you want to get the money!!!
+  user_goal_summary: 'The user wants to stop recurring unauthorized monthly payments of £8-9 from their account and is demanding
+    to speak with a customer service representative over the phone. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Please,is not fair to get the money from my account out of my approve,that is stealing!!!
+  - Costumer service phone number??
+  - I will pay when I want not when you want to get the money!!!
+  user_goal_summary: 'The user wants to stop recurring unauthorized monthly payments of £8-9 from their account and is demanding
+    to speak with a customer service representative over the phone. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user is being charged approximately £8-9 per month.'''

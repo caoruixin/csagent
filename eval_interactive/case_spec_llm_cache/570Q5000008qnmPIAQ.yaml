@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008qnmPIAQ
+case_id_hint: row_156
+llm_model: deepseek-v4-pro
+prompt_hash: b95f68ddddcdc053e77c96ea21b84321cf7216ecd8a10684dc84265868b8d97c
+generated_at: '2026-04-30T19:07:33.309890+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are taken verbatim from the transcript and capture the user's key requests. The updated user
+  goal summary concisely describes the user's actual objective. The hidden fact about account default behavior is directly
+  supported by the transcript (turn 9) and can be disclosed to provide context.
+rule_draft:
+  seed_messages:
+  - How can I get email messages for items I have for sale then pls
+  - This is not helpful at all :(
+  - Are you able to transfer my items for sale to my daviesnineteenseventy account
+  user_goal_summary: 'User reports Account Support: Hello I’m having trouble changing my email address on my account. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - How can I get email messages for items I have for sale then pls
+  - This is not helpful at all :(
+  - Are you able to transfer my items for sale to my daviesnineteenseventy account
+  user_goal_summary: 'User wants to access email messages for their items for sale and transfer their active ads from the
+    currently accessible account (davi05) to their desired account (daviesnineteenseventy) because they cannot change the
+    login email. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - How can I get email messages for items I have for sale then pls
+  - This is not helpful at all :(
+  - Are you able to transfer my items for sale to my daviesnineteenseventy account
+  user_goal_summary: 'User wants to access email messages for their items for sale and transfer their active ads from the
+    currently accessible account (davi05) to their desired account (daviesnineteenseventy) because they cannot change the
+    login email. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''When the user attempts to log into daviesnineteenseventy, the system defaults to the
+  davi05 account.'''

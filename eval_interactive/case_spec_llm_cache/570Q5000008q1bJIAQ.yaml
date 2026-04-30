@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008q1bJIAQ
+case_id_hint: row_186
+llm_model: deepseek-v4-pro
+prompt_hash: fe0d10f9f730bfdb76446e11da81c9baa8996b1eae04f2e7126a0f6e5e85ea75
+generated_at: '2026-04-30T19:15:58.873457+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns that capture the core issue (ad not going live, caravan, asking what
+  the issue is). User goal summary reflects the transcript content without bot instructions. No hidden facts are necessary
+  as all relevant details are already openly stated.
+rule_draft:
+  seed_messages:
+  - Why did my ad not go on and also was chatting on here before I only have this account
+  - For the caravan
+  - So what is the issue
+  user_goal_summary: 'User reports Ad Support: Workers accomdation. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Why did my ad not go on and also was chatting on here before I only have this account
+  - For the caravan
+  - So what is the issue
+  user_goal_summary: 'User wants to understand why his ad for a caravan did not go live and how to resolve the issue, after
+    having replied to a verification email. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Why did my ad not go on and also was chatting on here before I only have this account
+  - For the caravan
+  - So what is the issue
+  user_goal_summary: 'User wants to understand why his ad for a caravan did not go live and how to resolve the issue, after
+    having replied to a verification email. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

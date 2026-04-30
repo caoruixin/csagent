@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008cdi5IAA
+case_id_hint: row_217
+llm_model: deepseek-v4-pro
+prompt_hash: dafc7917b439855d0083c05cf6c9e341ac479f38eb4afb837a142fe7125f6a12
+generated_at: '2026-04-30T19:26:21.109621+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns describing the issue. User goal summary captures the core complaint
+  and drift type. Hidden facts are grounded in transcript details (location, duration).
+rule_draft:
+  seed_messages:
+  - No error message. I just go on gumtree and it's on my account already
+  - This has been going on for months though
+  - I just browse
+  user_goal_summary: 'User reports Technical Support: Hi. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - No error message. I just go on gumtree and it's on my account already
+  - This has been going on for months though
+  - I just browse
+  user_goal_summary: 'User wants Gumtree''s search to show listings only in their local area (Worsley Manchester) and restore
+    the posting date display, as it used to work daily. They are frustrated because the issue has persisted for months. Drift:
+    soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - No error message. I just go on gumtree and it's on my account already
+  - This has been going on for months though
+  - I just browse
+  user_goal_summary: 'User wants Gumtree''s search to show listings only in their local area (Worsley Manchester) and restore
+    the posting date display, as it used to work daily. They are frustrated because the issue has persisted for months. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User is located in Worsley Manchester'''
+- 'unsupported_hidden_fact_dropped: ''The search issues have been ongoing for several months'''

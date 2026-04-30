@@ -19,6 +19,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008vyxJIAQ (case_id=cs_interactive_002)
 
@@ -37,6 +41,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iyS5IAI (case_id=cs_interactive_003)
 
@@ -58,6 +66,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000090OefIAE (case_id=cs_interactive_004)
 
@@ -67,18 +79,20 @@ _Sessions audited: **367**_
 - turn count: `26`
 - transcript outcome: `resolve`
 - transcript reason: agent transcript contains resolution/answer confirmation and no unresolved user signal
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 15, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 0, 'handover_or_case': 0, 'identifier_context': 15, 'user_requested_human': False}`
 - representative user messages:
   - Yes. Icannot see my ad after logging in. It says I have no live ads
   - I cannot see my add after logging recently posted
   - yes [EMAIL]
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=faq_miss_threshold_exceeded
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
-  - outcome_class: HR='resolve' vs final='escalate'
-  - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008RAwLIAW (case_id=cs_interactive_005)
 
@@ -98,6 +112,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008q1g9IAA (case_id=cs_interactive_006)
 
@@ -117,6 +135,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008O5htIAC (case_id=cs_interactive_007)
 
@@ -135,6 +157,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kMiTIAU (case_id=cs_interactive_008)
 
@@ -154,6 +180,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008g8KjIAI (case_id=cs_interactive_009)
 
@@ -175,6 +205,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pLozIAE (case_id=cs_interactive_010)
 
@@ -194,6 +228,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NWIjIAO (case_id=cs_interactive_011)
 
@@ -212,6 +250,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hx9tIAA (case_id=cs_interactive_012)
 
@@ -227,11 +269,33 @@ _Sessions audited: **367**_
   - Thank you and happy new year
   - Ok pls look in to this as soon as possible pls
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=user_requested_human,human_investigation_signals,handover_or_case_signals; reason=visitor explicitly requested a human or manager; trigger=user_requested
-- override applied: **YES** -> primary=UC-FP, secondary=['UC-K']
+- classification override applied: **YES** -> primary=UC-FP, secondary=['UC-K']
+- case-level override applied: **YES**
+  - override source: approved Wave A5 semantic review (merged with Wave A2.1 UC-B reclassification map)
+  - reviewer: human semantic review
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[5, 6, 8, 10, 12, 14]`
+  - rationale: Late phone/human request is a failure-path signal. The bot should first retrieve safe account, listing, and moderation context, then explain the kitten ad deletion reason with policy-grounded next steps.
+  - status: `approved`
+  - case_id_hint: `cs_interactive_012`
+  - changed expected fields:
+    - `answer_must_not_contain`: `["I've fixed", 'I have sent you an email', 'I can restore/delete/ban this directly', "I'll resolve this for you"]` -> `[]`
+    - `bot_handling_pattern`: `Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_requested.` -> `Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, record_outcome), and answer from the knowledge base. Do not escalate.`
+    - `escalation_trigger`: `user_requested` -> `None`
+    - `expected_tool_sequence`: `['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']` -> `['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']`
+    - `outcome_class`: `escalate` -> `resolve`
+    - `should_escalate`: `True` -> `False`
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context']
+  - outcome_class: HR='escalate' vs final='resolve'
+  - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008dPjVIAU (case_id=cs_interactive_013)
 
@@ -251,6 +315,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008u9gjIAA (case_id=cs_interactive_014)
 
@@ -269,11 +337,15 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008WmXxIAK (case_id=cs_interactive_015)
 
 - original primary_uc (HR): `UC-B`
-- final primary_uc: `UC-K`
+- final primary_uc: `UC-FP`
 - turns file: `badcase_turns.csv`
 - turn count: `17`
 - transcript outcome: `escalate`
@@ -283,12 +355,34 @@ _Sessions audited: **367**_
   - ok so how do I change it?
   - so I can't just change it?
   - you mean my ankles in the image???
-- outcome decision: partial_uc_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals,handover_or_case_signals; reason=agent transcript includes handover/case signal(s): escalation; trigger=user_distress
-- override applied: **YES** -> primary=UC-K, secondary=['UC-FP', 'UC-B']
+- outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals,handover_or_case_signals; reason=agent transcript includes handover/case signal(s): escalation; trigger=user_distress
+- classification override applied: **YES** -> primary=UC-FP, secondary=['UC-B', 'UC-K']
+- case-level override applied: **YES**
+  - override source: approved Wave A6 semantic re-review (supersedes Wave A2.1 UC-K legacy pin)
+  - reviewer: human semantic review
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[5, 6, 7, 8, 9, 11, 13]`
+  - rationale: The human agent gave clear policy reasons in turns 5-7 ("men only" wording, body parts in image, ad title flagged). The user's "ok so how do I change it?" / "so I can't just change it?" is the canonical UC-FP edit-and-repost request. Late escalation in turn 11 is failure-path evidence -- the bot's golden target is to retrieve safe customer/listing/moderation context, ground the answer in policy, and escalate only on explicit appeal/review/restoration/human-support requests, strong distress, or when a safe reason cannot be produced.
+  - status: `approved`
+  - case_id_hint: `cs_interactive_015`
+  - changed expected fields:
+    - `answer_must_not_contain`: `["I've fixed", 'I have sent you an email', 'I can restore/delete/ban this directly', "I'll resolve this for you"]` -> `[]`
+    - `bot_handling_pattern`: `Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.` -> `Retrieve safe customer/listing/moderation context, explain why the ad was removed or flagged, clarify whether the user can edit/repost/change it, and escalate only if the reason cannot be produced, the user requests review/restoration/human support, or a human-only action is required.`
+    - `escalation_trigger`: `user_distress` -> `None`
+    - `expected_tool_sequence`: `['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']` -> `['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']`
+    - `outcome_class`: `escalate` -> `resolve`
+    - `should_escalate`: `True` -> `False`
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
-  - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
+  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
+  - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context']
+  - outcome_class: HR='escalate' vs final='resolve'
+  - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008bSlVIAU (case_id=cs_interactive_016)
 
@@ -297,8 +391,8 @@ _Sessions audited: **367**_
 - turns file: `badcase_turns.csv`
 - turn count: `29`
 - transcript outcome: `escalate`
-- transcript reason: unresolved user signal(s) combined with agent investigation/follow-up language
-- evidence signal counts: `{'unresolved_user': 2, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 8, 'user_requested_human': False}`
+- transcript reason: repeated unresolved/account-confusion signal(s) in visitor turns
+- evidence signal counts: `{'unresolved_user': 2, 'human_investigation': 0, 'handover_or_case': 0, 'identifier_context': 8, 'user_requested_human': False}`
 - representative user messages:
   - Hello,Lerato.I would like to find an old transaction, from a bike I bought few years ago.Is that possible?Thanks
   - I m not sure which one I used in the past.They are both mine
@@ -308,6 +402,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pEh3IAE (case_id=cs_interactive_017)
 
@@ -327,6 +425,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008t1riIAA (case_id=cs_interactive_018)
 
@@ -346,6 +448,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008qgjJIAQ (case_id=cs_interactive_019)
 
@@ -365,6 +471,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000090RcaIAE (case_id=cs_interactive_020)
 
@@ -384,6 +494,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kCnxIAE (case_id=cs_interactive_021)
 
@@ -393,7 +507,7 @@ _Sessions audited: **367**_
 - turn count: `22`
 - transcript outcome: `escalate`
 - transcript reason: agent transcript includes handover/case signal(s): escalation
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 2, 'handover_or_case': 1, 'identifier_context': 11, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 1, 'handover_or_case': 1, 'identifier_context': 11, 'user_requested_human': False}`
 - representative user messages:
   - cant replace my old one?
   - which email?
@@ -403,6 +517,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zYjJIAU (case_id=cs_interactive_022)
 
@@ -421,6 +539,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hVf3IAE (case_id=cs_interactive_023)
 
@@ -439,6 +561,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008rjIXIAY (case_id=cs_interactive_024)
 
@@ -459,6 +585,10 @@ _Sessions audited: **367**_
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
   - escalation_trigger: HR='payment_dispute_detected' vs final='user_requested'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008tUNRIA2 (case_id=cs_interactive_025)
 
@@ -468,7 +598,7 @@ _Sessions audited: **367**_
 - turn count: `33`
 - transcript outcome: `escalate`
 - transcript reason: agent transcript includes handover/case signal(s): escalation
-- evidence signal counts: `{'unresolved_user': 1, 'human_investigation': 3, 'handover_or_case': 2, 'identifier_context': 25, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 1, 'human_investigation': 2, 'handover_or_case': 2, 'identifier_context': 25, 'user_requested_human': False}`
 - representative user messages:
   - I was just checking 'all ads' both active and inaccurate
   - Yes please delete everything else - I'm easily confused 👍
@@ -478,6 +608,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008jM6DIAU (case_id=cs_interactive_026)
 
@@ -487,15 +621,22 @@ _Sessions audited: **367**_
 - turn count: `25`
 - transcript outcome: `resolve`
 - transcript reason: agent transcript contains resolution/answer confirmation and no unresolved user signal
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 2, 'handover_or_case': 0, 'identifier_context': 17, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 0, 'handover_or_case': 0, 'identifier_context': 17, 'user_requested_human': False}`
 - representative user messages:
   - Says there have been 2 replies to my ad but I’ve never received any
   - Ok. That’s not clear. Thanks bye.
   - If I look in my account I will loose the chat with you
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=user_distress
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
+  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
+  - outcome_class: HR='escalate' vs final='resolve'
+  - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008oS9OIAU (case_id=cs_interactive_027)
 
@@ -514,6 +655,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008VtJlIAK (case_id=cs_interactive_028)
 
@@ -532,6 +677,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kDiPIAU (case_id=cs_interactive_029)
 
@@ -550,6 +699,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uDdtIAE (case_id=cs_interactive_030)
 
@@ -568,6 +721,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008oPmcIAE (case_id=cs_interactive_031)
 
@@ -587,6 +744,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008Wf3RIAS (case_id=cs_interactive_032)
 
@@ -606,6 +767,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xTasIAE (case_id=cs_interactive_033)
 
@@ -625,6 +790,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008LEZeIAO (case_id=cs_interactive_034)
 
@@ -643,6 +812,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kyB3IAI (case_id=cs_interactive_035)
 
@@ -662,6 +835,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hOYjIAM (case_id=cs_interactive_036)
 
@@ -671,7 +848,7 @@ _Sessions audited: **367**_
 - turn count: `26`
 - transcript outcome: `escalate`
 - transcript reason: agent transcript includes handover/case signal(s): escalation
-- evidence signal counts: `{'unresolved_user': 3, 'human_investigation': 4, 'handover_or_case': 1, 'identifier_context': 1, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 3, 'human_investigation': 5, 'handover_or_case': 1, 'identifier_context': 1, 'user_requested_human': False}`
 - representative user messages:
   - Hi i have questions
   - I wrote to the courier company many times but no response. Only today they wrote that they would try to deliver as soon as possible but they don't know when. So, according to the law, I am entitled to a refund for the delay in delivery and the courier company's failure to meet the delivery date. When buying it said for 2-4 days delivery today passes this day still no shipment
@@ -681,6 +858,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fIqnIAE (case_id=cs_interactive_037)
 
@@ -690,7 +871,7 @@ _Sessions audited: **367**_
 - turn count: `23`
 - transcript outcome: `escalate`
 - transcript reason: agent transcript includes handover/case signal(s): case_reference
-- evidence signal counts: `{'unresolved_user': 2, 'human_investigation': 3, 'handover_or_case': 2, 'identifier_context': 9, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 2, 'human_investigation': 4, 'handover_or_case': 2, 'identifier_context': 9, 'user_requested_human': False}`
 - representative user messages:
   - Hello, I was told false information about the condition of a car I bought on gumtree, what can I do about this? I have already reported the seller
   - I'm not sure how to find the ad ID. The title is: Ford KA, hatchback, 2013, manual, 1242 (cc), 3 doors
@@ -700,6 +881,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008TPw5IAG (case_id=cs_interactive_038)
 
@@ -709,7 +894,7 @@ _Sessions audited: **367**_
 - turn count: `23`
 - transcript outcome: `escalate`
 - transcript reason: agent transcript includes handover/case signal(s): case_reference
-- evidence signal counts: `{'unresolved_user': 1, 'human_investigation': 2, 'handover_or_case': 1, 'identifier_context': 4, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 1, 'human_investigation': 3, 'handover_or_case': 1, 'identifier_context': 4, 'user_requested_human': False}`
 - representative user messages:
   - There a scamer on gumtree
   - I paid for a parkside impact wrench £40 and no item
@@ -719,6 +904,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008t4zFIAQ (case_id=cs_interactive_039)
 
@@ -738,6 +927,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pMbOIAU (case_id=cs_interactive_040)
 
@@ -759,6 +952,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008aQLxIAM (case_id=cs_interactive_041)
 
@@ -778,6 +975,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fHI1IAM (case_id=cs_interactive_042)
 
@@ -797,6 +998,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008WJ2vIAG (case_id=cs_interactive_043)
 
@@ -818,6 +1023,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008TVtRIAW (case_id=cs_interactive_044)
 
@@ -837,6 +1046,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008b8I9IAI (case_id=cs_interactive_045)
 
@@ -856,6 +1069,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iiyPIAQ (case_id=cs_interactive_046)
 
@@ -875,6 +1092,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ZIgbIAG (case_id=cs_interactive_047)
 
@@ -894,6 +1115,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008qnBJIAY (case_id=cs_interactive_048)
 
@@ -913,6 +1138,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uTXNIA2 (case_id=cs_interactive_049)
 
@@ -934,6 +1163,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kGGTIA2 (case_id=cs_interactive_050)
 
@@ -952,6 +1185,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008k56XIAQ (case_id=cs_interactive_051)
 
@@ -961,7 +1198,7 @@ _Sessions audited: **367**_
 - turn count: `40`
 - transcript outcome: `escalate`
 - transcript reason: unresolved user signal(s) combined with agent investigation/follow-up language
-- evidence signal counts: `{'unresolved_user': 1, 'human_investigation': 3, 'handover_or_case': 0, 'identifier_context': 22, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 1, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 22, 'user_requested_human': False}`
 - representative user messages:
   - Yes sorry couldn’t find ad number
   - Shall I just change contact email back to tiscali that would be easier
@@ -970,6 +1207,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008DtYLIA0 (case_id=cs_interactive_052)
 
@@ -988,6 +1229,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zPZZIA2 (case_id=cs_interactive_053)
 
@@ -1006,6 +1251,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008mLwpIAE (case_id=cs_interactive_054)
 
@@ -1025,6 +1274,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008TMmvIAG (case_id=cs_interactive_055)
 
@@ -1040,11 +1293,24 @@ _Sessions audited: **367**_
   - So when will my ad be live im not happy
   - Ive paid for the advertising of my ad too
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=unresolved_user_signals,human_investigation_signals; reason=unresolved user signal(s) combined with agent investigation/follow-up language; trigger=user_distress
-- override applied: **YES** -> primary=UC-FP, secondary=['UC-K']
+- classification override applied: **YES** -> primary=UC-FP, secondary=['UC-K']
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: Paid promotion + temporary hold; UC-FP with UC-K fallback.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008SPtJIAW (case_id=cs_interactive_056)
 
@@ -1063,6 +1329,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008Ye01IAC (case_id=cs_interactive_057)
 
@@ -1082,6 +1352,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008OowjIAC (case_id=cs_interactive_058)
 
@@ -1100,6 +1374,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NOoDIAW (case_id=cs_interactive_059)
 
@@ -1109,7 +1387,7 @@ _Sessions audited: **367**_
 - turn count: `35`
 - transcript outcome: `escalate`
 - transcript reason: unresolved user signal(s) combined with agent investigation/follow-up language
-- evidence signal counts: `{'unresolved_user': 3, 'human_investigation': 5, 'handover_or_case': 0, 'identifier_context': 21, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 3, 'human_investigation': 4, 'handover_or_case': 0, 'identifier_context': 21, 'user_requested_human': False}`
 - representative user messages:
   - Hi I received an email about questions to help recover my account. I can't find the I for needed to answer them and I am annoyed as it is not my problem that my account got hacked it is gumtree and I need to sell some furniture but can't
   - Your company is so bad
@@ -1118,6 +1396,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uCQ5IAM (case_id=cs_interactive_060)
 
@@ -1136,6 +1418,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008i6JdIAI (case_id=cs_interactive_061)
 
@@ -1154,6 +1440,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008rbEXIAY (case_id=cs_interactive_062)
 
@@ -1172,6 +1462,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008TzmfIAC (case_id=cs_interactive_063)
 
@@ -1181,7 +1475,7 @@ _Sessions audited: **367**_
 - turn count: `26`
 - transcript outcome: `escalate`
 - transcript reason: agent required investigation or async follow-up: async_update
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 2, 'handover_or_case': 0, 'identifier_context': 13, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 13, 'user_requested_human': False}`
 - representative user messages:
   - You just cut me off
   - Do both
@@ -1190,6 +1484,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008l7flIAA (case_id=cs_interactive_064)
 
@@ -1209,6 +1507,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008c8eHIAQ (case_id=cs_interactive_065)
 
@@ -1228,6 +1530,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fBsXIAU (case_id=cs_interactive_066)
 
@@ -1245,6 +1551,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008bQa1IAE (case_id=cs_interactive_067)
 
@@ -1264,6 +1574,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kNQ2IAM (case_id=cs_interactive_068)
 
@@ -1283,6 +1597,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008odJJIAY (case_id=cs_interactive_069)
 
@@ -1301,6 +1619,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008U6zRIAS (case_id=cs_interactive_070)
 
@@ -1319,6 +1641,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008t32HIAQ (case_id=cs_interactive_071)
 
@@ -1338,6 +1664,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000091B97IAE (case_id=cs_interactive_072)
 
@@ -1357,6 +1687,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fN8wIAE (case_id=cs_interactive_073)
 
@@ -1376,6 +1710,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hVjtIAE (case_id=cs_interactive_074)
 
@@ -1395,6 +1733,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008SWpxIAG (case_id=cs_interactive_075)
 
@@ -1414,6 +1756,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NOeXIAW (case_id=cs_interactive_076)
 
@@ -1433,6 +1779,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008dsiHIAQ (case_id=cs_interactive_077)
 
@@ -1451,6 +1801,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008n3bFIAQ (case_id=cs_interactive_078)
 
@@ -1471,6 +1825,10 @@ _Sessions audited: **367**_
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
   - escalation_trigger: HR='user_requested' vs final='out_of_scope'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008v7ZdIAI (case_id=cs_interactive_079)
 
@@ -1490,6 +1848,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008qfaLIAQ (case_id=cs_interactive_080)
 
@@ -1510,6 +1872,10 @@ _Sessions audited: **367**_
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
   - escalation_trigger: HR='user_requested' vs final='out_of_scope'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008za3ZIAQ (case_id=cs_interactive_081)
 
@@ -1519,15 +1885,22 @@ _Sessions audited: **367**_
 - turn count: `56`
 - transcript outcome: `resolve`
 - transcript reason: agent transcript contains resolution/answer confirmation and no unresolved user signal
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 3, 'handover_or_case': 0, 'identifier_context': 14, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 4, 'handover_or_case': 0, 'identifier_context': 14, 'user_requested_human': False}`
 - representative user messages:
   - Why did Nuraan end the chat after just one minute?
   - Ok and once I receive a response that is not satisfactory, how do I escalate that complaint?
   - How do I make a complaint?
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=user_distress
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
+  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
+  - outcome_class: HR='escalate' vs final='resolve'
+  - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008cVqzIAE (case_id=cs_interactive_082)
 
@@ -1537,7 +1910,7 @@ _Sessions audited: **367**_
 - turn count: `17`
 - transcript outcome: `escalate`
 - transcript reason: unresolved user signal(s) combined with agent investigation/follow-up language
-- evidence signal counts: `{'unresolved_user': 3, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 7, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 3, 'human_investigation': 2, 'handover_or_case': 0, 'identifier_context': 7, 'user_requested_human': False}`
 - representative user messages:
   - I would like to advise you that I bought an iPhone 17 from your website. The phone was not authentic and I have reported this to the police . I paid your seller £825 and I am not happy. Please can you advise me on how I get my money back
   - How can I get my money back
@@ -1547,6 +1920,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ynMDIAY (case_id=cs_interactive_083)
 
@@ -1566,6 +1943,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008l0xdIAA (case_id=cs_interactive_084)
 
@@ -1585,6 +1966,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008vDTlIAM (case_id=cs_interactive_085)
 
@@ -1603,6 +1988,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fp8PIAQ (case_id=cs_interactive_086)
 
@@ -1621,6 +2010,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fvqXIAQ (case_id=cs_interactive_087)
 
@@ -1640,6 +2033,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008syVdIAI (case_id=cs_interactive_088)
 
@@ -1659,6 +2056,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008vCKnIAM (case_id=cs_interactive_089)
 
@@ -1678,6 +2079,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008tbwpIAA (case_id=cs_interactive_090)
 
@@ -1697,6 +2102,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ghQXIAY (case_id=cs_interactive_091)
 
@@ -1715,6 +2124,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fE8rIAE (case_id=cs_interactive_092)
 
@@ -1733,6 +2146,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008eU7dIAE (case_id=cs_interactive_093)
 
@@ -1752,6 +2169,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kGOXIA2 (case_id=cs_interactive_094)
 
@@ -1773,6 +2194,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008U5C9IAK (case_id=cs_interactive_095)
 
@@ -1782,19 +2207,30 @@ _Sessions audited: **367**_
 - turn count: `18`
 - transcript outcome: `resolve`
 - transcript reason: agent transcript contains resolution/answer confirmation and no unresolved user signal
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 2, 'handover_or_case': 0, 'identifier_context': 14, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 14, 'user_requested_human': False}`
 - representative user messages:
   - Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before
   - No I will try that. Thank you
   - Thanks I'll try that. And then will it stay as that address for next time?
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=faq_miss_threshold_exceeded
-- override applied: **YES** -> primary=UC-A, secondary=['UC-D', 'UC-K']
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
+- classification override applied: **YES** -> primary=UC-A, secondary=['UC-D', 'UC-K']
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: Wrong email, no adverts showing -- UC-A with UC-D / UC-K fallback.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
-  - outcome_class: HR='resolve' vs final='escalate'
-  - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008t5H0IAI (case_id=cs_interactive_096)
 
@@ -1814,6 +2250,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008w5YzIAI (case_id=cs_interactive_097)
 
@@ -1833,6 +2273,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008f6fyIAA (case_id=cs_interactive_098)
 
@@ -1854,6 +2298,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008n3szIAA (case_id=cs_interactive_099)
 
@@ -1873,6 +2321,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hHozIAE (case_id=cs_interactive_100)
 
@@ -1894,6 +2346,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fmDlIAI (case_id=cs_interactive_101)
 
@@ -1913,6 +2369,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008I9TFIA0 (case_id=cs_interactive_102)
 
@@ -1932,6 +2392,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008VO4gIAG (case_id=cs_interactive_103)
 
@@ -1951,6 +2415,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008maHVIAY (case_id=cs_interactive_104)
 
@@ -1970,6 +2438,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iANFIA2 (case_id=cs_interactive_105)
 
@@ -1989,6 +2461,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008duqXIAQ (case_id=cs_interactive_106)
 
@@ -2008,6 +2484,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008VIldIAG (case_id=cs_interactive_107)
 
@@ -2016,8 +2496,8 @@ _Sessions audited: **367**_
 - turns file: `intake_tool_contract_turns.csv`
 - turn count: `13`
 - transcript outcome: `escalate`
-- transcript reason: unresolved user signal(s) combined with agent investigation/follow-up language
-- evidence signal counts: `{'unresolved_user': 2, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 8, 'user_requested_human': False}`
+- transcript reason: repeated unresolved/account-confusion signal(s) in visitor turns
+- evidence signal counts: `{'unresolved_user': 2, 'human_investigation': 0, 'handover_or_case': 0, 'identifier_context': 8, 'user_requested_human': False}`
 - representative user messages:
   - I won't let me enter the ad as it's been removed but you have charged me over £10 and taken the money don't understand why it's been removed just trying to rehome my do
 - outcome decision: mandatory_policy_escalation: UC-H must hand over; trigger=appeal_requires_human
@@ -2025,6 +2505,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008vzQLIAY (case_id=cs_interactive_108)
 
@@ -2044,6 +2528,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008TtirIAC (case_id=cs_interactive_109)
 
@@ -2063,6 +2551,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000090VmbIAE (case_id=cs_interactive_110)
 
@@ -2082,6 +2574,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pLAfIAM (case_id=cs_interactive_111)
 
@@ -2101,6 +2597,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008wnoXIAQ (case_id=cs_interactive_112)
 
@@ -2120,6 +2620,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008i0yzIAA (case_id=cs_interactive_113)
 
@@ -2139,6 +2643,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008g9GnIAI (case_id=cs_interactive_114)
 
@@ -2158,6 +2666,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008sV8fIAE (case_id=cs_interactive_115)
 
@@ -2177,6 +2689,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fkdNIAQ (case_id=cs_interactive_116)
 
@@ -2196,6 +2712,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008eJx0IAE (case_id=cs_interactive_117)
 
@@ -2215,6 +2735,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008VrMoIAK (case_id=cs_interactive_118)
 
@@ -2234,6 +2758,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iDL7IAM (case_id=cs_interactive_119)
 
@@ -2253,6 +2781,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000091um9IAA (case_id=cs_interactive_120)
 
@@ -2272,6 +2804,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008LordIAC (case_id=cs_interactive_121)
 
@@ -2281,7 +2817,7 @@ _Sessions audited: **367**_
 - turn count: `32`
 - transcript outcome: `escalate`
 - transcript reason: unresolved user signal(s) combined with agent investigation/follow-up language
-- evidence signal counts: `{'unresolved_user': 5, 'human_investigation': 4, 'handover_or_case': 0, 'identifier_context': 12, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 5, 'human_investigation': 2, 'handover_or_case': 0, 'identifier_context': 12, 'user_requested_human': False}`
 - representative user messages:
   - Hi, I placed an ad a few weeks ago and paid £7.99 - I was not aware it was a subscription and was just charged another £7.99 - please note I have had no enquiries so was a bit frustrated to be charged again. I have deleted the ad, please can you confirm if I will be refunded for the most recent charge?
   - So what does this mean please?
@@ -2291,6 +2827,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008VPqMIAW (case_id=cs_interactive_122)
 
@@ -2309,6 +2849,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fJRtIAM (case_id=cs_interactive_123)
 
@@ -2328,6 +2872,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008Ro2XIAS (case_id=cs_interactive_124)
 
@@ -2347,6 +2895,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008b9KfIAI (case_id=cs_interactive_125)
 
@@ -2365,6 +2917,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008gVpCIAU (case_id=cs_interactive_126)
 
@@ -2384,6 +2940,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008sQ2XIAU (case_id=cs_interactive_127)
 
@@ -2403,6 +2963,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008TIZdIAO (case_id=cs_interactive_128)
 
@@ -2421,6 +2985,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008OpkjIAC (case_id=cs_interactive_129)
 
@@ -2438,6 +3006,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008wmKbIAI (case_id=cs_interactive_130)
 
@@ -2453,11 +3025,24 @@ _Sessions audited: **367**_
   - I don't understand why you didn't do this about 20 mins ago
   - Well thank you
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=unresolved_user_signals,human_investigation_signals,handover_or_case_signals; reason=agent transcript includes handover/case signal(s): handover; trigger=user_requested
-- override applied: **YES** -> primary=UC-A, secondary=['UC-H', 'UC-D']
+- classification override applied: **YES** -> primary=UC-A, secondary=['UC-H', 'UC-D']
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: Trader flag wrong on account -- UC-A with UC-H / UC-D fallback.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fyMzIAI (case_id=cs_interactive_131)
 
@@ -2476,6 +3061,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008q19tIAA (case_id=cs_interactive_132)
 
@@ -2485,7 +3074,7 @@ _Sessions audited: **367**_
 - turn count: `16`
 - transcript outcome: `escalate`
 - transcript reason: agent transcript includes handover/case signal(s): escalation
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 3, 'handover_or_case': 2, 'identifier_context': 2, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 4, 'handover_or_case': 2, 'identifier_context': 2, 'user_requested_human': False}`
 - representative user messages:
   - I want to make a complaint about Candice - a rude and impolite Gumtree
   - Thank you. Must go now
@@ -2494,6 +3083,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ZBLlIAO (case_id=cs_interactive_133)
 
@@ -2512,6 +3105,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zV0fIAE (case_id=cs_interactive_134)
 
@@ -2530,6 +3127,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NMzJIAW (case_id=cs_interactive_135)
 
@@ -2548,6 +3149,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008U8OXIA0 (case_id=cs_interactive_136)
 
@@ -2566,6 +3171,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kwQzIAI (case_id=cs_interactive_137)
 
@@ -2584,6 +3193,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008tdAbIAI (case_id=cs_interactive_138)
 
@@ -2605,6 +3218,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008SajtIAC (case_id=cs_interactive_139)
 
@@ -2623,6 +3240,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008RsXZIA0 (case_id=cs_interactive_140)
 
@@ -2641,6 +3262,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pDOPIA2 (case_id=cs_interactive_141)
 
@@ -2659,6 +3284,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008cg85IAA (case_id=cs_interactive_142)
 
@@ -2668,7 +3297,7 @@ _Sessions audited: **367**_
 - turn count: `27`
 - transcript outcome: `escalate`
 - transcript reason: agent transcript includes handover/case signal(s): escalation
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 4, 'handover_or_case': 1, 'identifier_context': 11, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 3, 'handover_or_case': 1, 'identifier_context': 11, 'user_requested_human': False}`
 - representative user messages:
   - I’m getting emails saying I have incoming messages that I haven’t replied to but there’s nothing in my inbox
   - No thanks, if you could try and sort asap please in case I have people interested in my ad
@@ -2677,6 +3306,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uyhdIAA (case_id=cs_interactive_143)
 
@@ -2695,6 +3328,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008sydhIAA (case_id=cs_interactive_144)
 
@@ -2703,16 +3340,20 @@ _Sessions audited: **367**_
 - turns file: `escalation_turns.csv`
 - turn count: `18`
 - transcript outcome: `escalate`
-- transcript reason: agent required investigation or async follow-up: async_update, investigation_needed
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 4, 'handover_or_case': 0, 'identifier_context': 10, 'user_requested_human': False}`
+- transcript reason: agent required investigation or async follow-up: investigation_needed, async_update
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 3, 'handover_or_case': 0, 'identifier_context': 10, 'user_requested_human': False}`
 - representative user messages:
   - It just says David at the top ?
   - [EMAIL], thank you !
   - Your chat will not let me copy and paste the message . It is from someone called Jordan
-- outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals; reason=agent required investigation or async follow-up: async_update, investigation_needed; trigger=clarification_budget_exhausted
+- outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals; reason=agent required investigation or async follow-up: investigation_needed, async_update; trigger=clarification_budget_exhausted
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008rf6rIAA (case_id=cs_interactive_145)
 
@@ -2731,6 +3372,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xR9FIAU (case_id=cs_interactive_146)
 
@@ -2749,6 +3394,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000090FptIAE (case_id=cs_interactive_147)
 
@@ -2769,6 +3418,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008b7xBIAQ (case_id=cs_interactive_148)
 
@@ -2778,7 +3431,7 @@ _Sessions audited: **367**_
 - turn count: `14`
 - transcript outcome: `escalate`
 - transcript reason: unresolved user signal(s) combined with agent investigation/follow-up language
-- evidence signal counts: `{'unresolved_user': 2, 'human_investigation': 2, 'handover_or_case': 0, 'identifier_context': 16, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 2, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 16, 'user_requested_human': False}`
 - representative user messages:
   - I have changed my phone number and it is hard to log in
   - I don't understand what is AD ID
@@ -2787,6 +3440,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NTUXIA4 (case_id=cs_interactive_149)
 
@@ -2805,6 +3462,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008dCKrIAM (case_id=cs_interactive_150)
 
@@ -2823,6 +3484,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008lUUHIA2 (case_id=cs_interactive_151)
 
@@ -2841,6 +3506,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uPn7IAE (case_id=cs_interactive_152)
 
@@ -2860,6 +3529,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008q1D7IAI (case_id=cs_interactive_153)
 
@@ -2878,6 +3551,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ijssIAA (case_id=cs_interactive_154)
 
@@ -2896,6 +3573,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ZrzJIAS (case_id=cs_interactive_155)
 
@@ -2914,6 +3595,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008qnmPIAQ (case_id=cs_interactive_156)
 
@@ -2935,6 +3620,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008W3hJIAS (case_id=cs_interactive_157)
 
@@ -2954,6 +3643,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008dEg1IAE (case_id=cs_interactive_158)
 
@@ -2973,6 +3666,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iy8jIAA (case_id=cs_interactive_159)
 
@@ -2992,6 +3689,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008g4qbIAA (case_id=cs_interactive_160)
 
@@ -3011,6 +3712,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NSYTIA4 (case_id=cs_interactive_161)
 
@@ -3030,6 +3735,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008f6w5IAA (case_id=cs_interactive_162)
 
@@ -3049,6 +3758,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008oe7LIAQ (case_id=cs_interactive_163)
 
@@ -3068,6 +3781,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008btQjIAI (case_id=cs_interactive_164)
 
@@ -3089,6 +3806,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008dLpZIAU (case_id=cs_interactive_165)
 
@@ -3108,6 +3829,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008WpyrIAC (case_id=cs_interactive_166)
 
@@ -3129,6 +3854,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xH0DIAU (case_id=cs_interactive_167)
 
@@ -3150,6 +3879,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008vITRIA2 (case_id=cs_interactive_168)
 
@@ -3168,6 +3901,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008TTI9IAO (case_id=cs_interactive_169)
 
@@ -3187,6 +3924,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008gVUDIA2 (case_id=cs_interactive_170)
 
@@ -3201,11 +3942,17 @@ _Sessions audited: **367**_
   - Hi you have made it now harder for sellers taking the call feature away now sellers will feel it harder not always there for email email is not safe you can be spammed more with email than calling someone now sellers will not use the service as you get time waisters on email your not always there to get email sales will be lost then sellers will leave gumtree now and use other platforms
   - I will move to another platform that doesn't take my rights away and ine where I can use a telephone number as your a selling platform and there should be a call setting on a platform
   - Goodluck on losing a lot of customers everyone is not happy we won't use the service again until call option is returned
-- outcome decision: partial_uc_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=user_distress
+- outcome decision: partial_uc_transcript_resolve: transcript evidence indicates resolution; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
+  - outcome_class: HR='escalate' vs final='resolve'
+  - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008gTqbIAE (case_id=cs_interactive_171)
 
@@ -3225,6 +3972,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008k3uMIAQ (case_id=cs_interactive_172)
 
@@ -3244,6 +3995,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kJHZIA2 (case_id=cs_interactive_173)
 
@@ -3253,7 +4008,7 @@ _Sessions audited: **367**_
 - turn count: `26`
 - transcript outcome: `escalate`
 - transcript reason: agent transcript includes handover/case signal(s): escalation
-- evidence signal counts: `{'unresolved_user': 5, 'human_investigation': 2, 'handover_or_case': 2, 'identifier_context': 7, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 5, 'human_investigation': 3, 'handover_or_case': 2, 'identifier_context': 7, 'user_requested_human': False}`
 - representative user messages:
   - I would like my add reposted or a refund as it was only active for around 20 minutes . Thank you
   - Why does it need a specialist team can you explain why . The add was approved then removed . My payment was still taken .
@@ -3263,6 +4018,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008sDmrIAE (case_id=cs_interactive_174)
 
@@ -3284,6 +4043,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fMw1IAE (case_id=cs_interactive_175)
 
@@ -3302,6 +4065,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NMRRIA4 (case_id=cs_interactive_176)
 
@@ -3321,6 +4088,10 @@ _Sessions audited: **367**_
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
   - escalation_trigger: HR='clarification_budget_exhausted' vs final='user_requested'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008aPw9IAE (case_id=cs_interactive_177)
 
@@ -3339,6 +4110,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pwJtIAI (case_id=cs_interactive_178)
 
@@ -3358,6 +4133,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xcB7IAI (case_id=cs_interactive_179)
 
@@ -3377,6 +4156,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008g16LIAQ (case_id=cs_interactive_180)
 
@@ -3396,6 +4179,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iJLhIAM (case_id=cs_interactive_181)
 
@@ -3417,6 +4204,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000090NNdIAM (case_id=cs_interactive_182)
 
@@ -3436,6 +4227,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kyW1IAI (case_id=cs_interactive_183)
 
@@ -3455,6 +4250,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008G3WnIAK (case_id=cs_interactive_184)
 
@@ -3476,6 +4275,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008dwQvIAI (case_id=cs_interactive_185)
 
@@ -3495,6 +4298,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008q1bJIAQ (case_id=cs_interactive_186)
 
@@ -3516,6 +4323,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NV89IAG (case_id=cs_interactive_187)
 
@@ -3534,6 +4345,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008nJOIIA2 (case_id=cs_interactive_188)
 
@@ -3555,6 +4370,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uP2LIAU (case_id=cs_interactive_189)
 
@@ -3574,6 +4393,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000009060DIAQ (case_id=cs_interactive_190)
 
@@ -3589,11 +4412,24 @@ _Sessions audited: **367**_
   - Paid Role – Wellness Session Support (Urgent)
   - Finally which job category gets the most views
 - outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
-- override applied: **YES** -> primary=UC-A, secondary=['UC-K']
+- classification override applied: **YES** -> primary=UC-A, secondary=['UC-K']
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: "Where is my ad" -- UC-A with UC-K fallback.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008w24rIAA (case_id=cs_interactive_191)
 
@@ -3609,11 +4445,24 @@ _Sessions audited: **367**_
   - My ad id
   - Here’s is my ad id
 - outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
-- override applied: **YES** -> primary=UC-FP, secondary=['UC-F']
+- classification override applied: **YES** -> primary=UC-FP, secondary=['UC-F']
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: Cancel auto-renewal -- UC-FP with UC-F fallback.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008rbcjIAA (case_id=cs_interactive_192)
 
@@ -3633,6 +4482,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008c5TWIAY (case_id=cs_interactive_193)
 
@@ -3654,6 +4507,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008YlntIAC (case_id=cs_interactive_194)
 
@@ -3673,6 +4530,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008SYYPIA4 (case_id=cs_interactive_195)
 
@@ -3692,6 +4553,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kj8nIAA (case_id=cs_interactive_196)
 
@@ -3711,6 +4576,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008flO9IAI (case_id=cs_interactive_197)
 
@@ -3730,6 +4599,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fvYoIAI (case_id=cs_interactive_198)
 
@@ -3744,13 +4617,15 @@ _Sessions audited: **367**_
   - Hello Carmen
   - Carmen sorry
   - and my phone number is not in site i ask for pout plz
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=faq_miss_threshold_exceeded
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
-  - outcome_class: HR='resolve' vs final='escalate'
-  - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xYibIAE (case_id=cs_interactive_199)
 
@@ -3770,6 +4645,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000091nMTIAY (case_id=cs_interactive_200)
 
@@ -3791,6 +4670,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fDKrIAM (case_id=cs_interactive_201)
 
@@ -3810,6 +4693,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008LvbNIAS (case_id=cs_interactive_202)
 
@@ -3831,6 +4718,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zgAbIAI (case_id=cs_interactive_203)
 
@@ -3852,6 +4743,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uM1FIAU (case_id=cs_interactive_204)
 
@@ -3871,6 +4766,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uNuzIAE (case_id=cs_interactive_205)
 
@@ -3890,6 +4789,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008gm0PIAQ (case_id=cs_interactive_206)
 
@@ -3909,6 +4812,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008XMjVIAW (case_id=cs_interactive_207)
 
@@ -3927,6 +4834,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kjFGIAY (case_id=cs_interactive_208)
 
@@ -3948,6 +4859,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008vFCDIA2 (case_id=cs_interactive_209)
 
@@ -3967,6 +4882,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008by5UIAQ (case_id=cs_interactive_210)
 
@@ -3986,6 +4905,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NOD7IAO (case_id=cs_interactive_211)
 
@@ -4005,6 +4928,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kN3RIAU (case_id=cs_interactive_212)
 
@@ -4024,6 +4951,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008u7qDIAQ (case_id=cs_interactive_213)
 
@@ -4043,6 +4974,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hKEzIAM (case_id=cs_interactive_214)
 
@@ -4064,6 +4999,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008gdA1IAI (case_id=cs_interactive_215)
 
@@ -4083,6 +5022,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008eVzlIAE (case_id=cs_interactive_216)
 
@@ -4102,6 +5045,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008cdi5IAA (case_id=cs_interactive_217)
 
@@ -4123,6 +5070,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008P2mpIAC (case_id=cs_interactive_218)
 
@@ -4142,6 +5093,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008t4kkIAA (case_id=cs_interactive_219)
 
@@ -4163,6 +5118,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ppBxIAI (case_id=cs_interactive_220)
 
@@ -4182,6 +5141,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fG5qIAE (case_id=cs_interactive_221)
 
@@ -4197,13 +5160,26 @@ _Sessions audited: **367**_
   - and you
   - ok thank you for your help
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals,handover_or_case_signals; reason=agent transcript includes handover/case signal(s): escalation; trigger=faq_miss_threshold_exceeded
-- override applied: **YES** -> primary=UC-FP, secondary=['UC-K', 'UC-C']
+- classification override applied: **YES** -> primary=UC-FP, secondary=['UC-K', 'UC-C']
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: Ad breaking rules; phone rejected -- UC-FP with UC-K / UC-C fallback.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context']
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008L6DtIAK (case_id=cs_interactive_222)
 
@@ -4223,6 +5199,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008t5NRIAY (case_id=cs_interactive_223)
 
@@ -4244,6 +5224,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008oarhIAA (case_id=cs_interactive_224)
 
@@ -4265,6 +5249,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008noezIAA (case_id=cs_interactive_225)
 
@@ -4286,6 +5274,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NaSnIAK (case_id=cs_interactive_226)
 
@@ -4305,6 +5297,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fwY6IAI (case_id=cs_interactive_227)
 
@@ -4323,6 +5319,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008btIgIAI (case_id=cs_interactive_228)
 
@@ -4342,6 +5342,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008Sh2DIAS (case_id=cs_interactive_229)
 
@@ -4360,6 +5364,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fOplIAE (case_id=cs_interactive_230)
 
@@ -4379,6 +5387,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008f2hBIAQ (case_id=cs_interactive_231)
 
@@ -4397,6 +5409,10 @@ _Sessions audited: **367**_
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
   - escalation_trigger: HR='user_requested' vs final='out_of_scope'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008Lqi9IAC (case_id=cs_interactive_232)
 
@@ -4416,6 +5432,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008QNFhIAO (case_id=cs_interactive_233)
 
@@ -4434,6 +5454,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008g81NIAQ (case_id=cs_interactive_234)
 
@@ -4454,6 +5478,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fCNBIA2 (case_id=cs_interactive_235)
 
@@ -4473,6 +5501,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008qmYbIAI (case_id=cs_interactive_236)
 
@@ -4491,6 +5523,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xNVRIA2 (case_id=cs_interactive_237)
 
@@ -4510,6 +5546,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008q5tRIAQ (case_id=cs_interactive_238)
 
@@ -4529,6 +5569,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008wU9BIAU (case_id=cs_interactive_239)
 
@@ -4548,6 +5592,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xVG5IAM (case_id=cs_interactive_240)
 
@@ -4569,6 +5617,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fETpIAM (case_id=cs_interactive_241)
 
@@ -4588,6 +5640,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fjscIAA (case_id=cs_interactive_242)
 
@@ -4602,13 +5658,15 @@ _Sessions audited: **367**_
   - The option to use " Phone Only " is not there when I try to list an addI am away from my computer all day.
   - Please cotacting me by email on [EMAIL] Thanks for your help, Thierry
   - Is this a recent change to contact details?
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=faq_miss_threshold_exceeded
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
-  - outcome_class: HR='resolve' vs final='escalate'
-  - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008bFgDIAU (case_id=cs_interactive_243)
 
@@ -4630,6 +5688,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008caqfIAA (case_id=cs_interactive_244)
 
@@ -4643,11 +5705,24 @@ _Sessions audited: **367**_
 - representative user messages:
   - Put the wrong sale price for dog.
 - outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
-- override applied: **YES** -> primary=UC-D, secondary=[]
+- classification override applied: **YES** -> primary=UC-D, secondary=[]
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: Wrong price on specific ad -- agent asked for ad ID; UC-D.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kKC1IAM (case_id=cs_interactive_245)
 
@@ -4667,6 +5742,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uy1iIAA (case_id=cs_interactive_246)
 
@@ -4686,6 +5765,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fyDJIAY (case_id=cs_interactive_247)
 
@@ -4706,6 +5789,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zX8vIAE (case_id=cs_interactive_248)
 
@@ -4725,6 +5812,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008IwKHIA0 (case_id=cs_interactive_249)
 
@@ -4740,13 +5831,26 @@ _Sessions audited: **367**_
   - I need urgent help.please I paid for a 30-Day Booster Package, but my job advert expired immediately due to a system issue. I did not intend to expire the ad, and I have just paid for it today. Please restore my advert or reactivate it, as I should still have 30 days remaining.
   - All good thanks
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=unresolved_user_signals,human_investigation_signals; reason=unresolved user signal(s) combined with agent investigation/follow-up language; trigger=faq_miss_threshold_exceeded
-- override applied: **YES** -> primary=UC-FP, secondary=['UC-K']
+- classification override applied: **YES** -> primary=UC-FP, secondary=['UC-K']
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: Paid 30-day Booster expired -- UC-FP with UC-K fallback.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context']
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iwZxIAI (case_id=cs_interactive_250)
 
@@ -4762,13 +5866,26 @@ _Sessions audited: **367**_
   - Okay thank you
   - We’ve added the kittens mother to the picture can you please remove this issue because we are trying to sell the kittens
 - outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=either, policy_should_escalate=True
-- override applied: **YES** -> primary=UC-K, secondary=['UC-FP', 'UC-B']
+- classification override applied: **YES** -> primary=UC-K, secondary=['UC-FP', 'UC-B']
+- case-level override applied: **YES**
+  - override source: Wave A2.1 reclassification map
+  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
+  - date: 2026-04-30
+  - confidence: `high`
+  - supporting turns: `[]`
+  - rationale: Advert on hold 2nd time, please restore -- UC-K with UC-FP / UC-B fallback.
+  - status: `approved`
+  - migrated_from_legacy: `true`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ScvNIAS (case_id=cs_interactive_251)
 
@@ -4783,13 +5900,15 @@ _Sessions audited: **367**_
   - Hi why is my add not live yet
   - Ok thanks
   - I did it there now
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=faq_miss_threshold_exceeded
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context']
-  - outcome_class: HR='resolve' vs final='escalate'
-  - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000090KPlIAM (case_id=cs_interactive_252)
 
@@ -4811,6 +5930,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iwmrIAA (case_id=cs_interactive_253)
 
@@ -4832,6 +5955,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008a2ebIAA (case_id=cs_interactive_254)
 
@@ -4853,6 +5980,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008rKnBIAU (case_id=cs_interactive_255)
 
@@ -4874,6 +6005,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008cma5IAA (case_id=cs_interactive_256)
 
@@ -4893,6 +6028,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pzXtIAI (case_id=cs_interactive_257)
 
@@ -4912,6 +6051,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q500000920WbIAI (case_id=cs_interactive_258)
 
@@ -4931,6 +6074,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008OqaLIAS (case_id=cs_interactive_259)
 
@@ -4948,6 +6095,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zXorIAE (case_id=cs_interactive_260)
 
@@ -4969,6 +6120,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008J5sDIAS (case_id=cs_interactive_261)
 
@@ -4988,6 +6143,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kJr3IAE (case_id=cs_interactive_262)
 
@@ -5007,6 +6166,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008JGajIAG (case_id=cs_interactive_263)
 
@@ -5026,6 +6189,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kwlxIAA (case_id=cs_interactive_264)
 
@@ -5044,6 +6211,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008TsBhIAK (case_id=cs_interactive_265)
 
@@ -5057,13 +6228,15 @@ _Sessions audited: **367**_
 - representative user messages:
   - Yesterday
   - It is friday
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=faq_miss_threshold_exceeded
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
-  - outcome_class: HR='resolve' vs final='escalate'
-  - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008DC8QIAW (case_id=cs_interactive_266)
 
@@ -5083,6 +6256,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008Wf8HIAS (case_id=cs_interactive_267)
 
@@ -5104,6 +6281,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008aTLRIA2 (case_id=cs_interactive_268)
 
@@ -5123,6 +6304,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008bpoXIAQ (case_id=cs_interactive_269)
 
@@ -5142,6 +6327,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008oMIVIA2 (case_id=cs_interactive_270)
 
@@ -5161,6 +6350,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hJArIAM (case_id=cs_interactive_271)
 
@@ -5180,6 +6373,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008VLjVIAW (case_id=cs_interactive_272)
 
@@ -5201,6 +6398,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008l1SHIAY (case_id=cs_interactive_273)
 
@@ -5219,6 +6420,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000091n4jIAA (case_id=cs_interactive_274)
 
@@ -5238,6 +6443,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008yFijIAE (case_id=cs_interactive_275)
 
@@ -5259,6 +6468,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008lXK5IAM (case_id=cs_interactive_276)
 
@@ -5278,6 +6491,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008l4DFIAY (case_id=cs_interactive_277)
 
@@ -5297,6 +6514,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ZR0jIAG (case_id=cs_interactive_278)
 
@@ -5316,6 +6537,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008v73NIAQ (case_id=cs_interactive_279)
 
@@ -5335,6 +6560,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ehhZIAQ (case_id=cs_interactive_280)
 
@@ -5354,6 +6583,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uxOzIAI (case_id=cs_interactive_281)
 
@@ -5373,6 +6606,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008mIMDIA2 (case_id=cs_interactive_282)
 
@@ -5392,6 +6629,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008i4hfIAA (case_id=cs_interactive_283)
 
@@ -5411,6 +6652,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zS61IAE (case_id=cs_interactive_284)
 
@@ -5430,6 +6675,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zM0bIAE (case_id=cs_interactive_285)
 
@@ -5451,6 +6700,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008jYc2IAE (case_id=cs_interactive_286)
 
@@ -5469,6 +6722,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ZQO1IAO (case_id=cs_interactive_287)
 
@@ -5487,6 +6744,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008qkyDIAQ (case_id=cs_interactive_288)
 
@@ -5508,6 +6769,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008lhPtIAI (case_id=cs_interactive_289)
 
@@ -5527,6 +6792,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008OpO9IAK (case_id=cs_interactive_290)
 
@@ -5548,6 +6817,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008U2kXIAS (case_id=cs_interactive_291)
 
@@ -5567,6 +6840,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008RpD7IAK (case_id=cs_interactive_292)
 
@@ -5586,6 +6863,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008vJcPIAU (case_id=cs_interactive_293)
 
@@ -5595,7 +6876,7 @@ _Sessions audited: **367**_
 - turn count: `19`
 - transcript outcome: `resolve`
 - transcript reason: agent transcript contains resolution/answer confirmation and no unresolved user signal
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 0, 'handover_or_case': 0, 'identifier_context': 7, 'user_requested_human': False}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 7, 'user_requested_human': False}`
 - representative user messages:
   - Keep getting on hotmail I have messages on gumtree tree but there’s nothing there
   - No iv only one account
@@ -5605,6 +6886,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008IVtZIAW (case_id=cs_interactive_294)
 
@@ -5624,6 +6909,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008frwbIAA (case_id=cs_interactive_295)
 
@@ -5632,19 +6921,23 @@ _Sessions audited: **367**_
 - turns file: `golden_turns.csv`
 - turn count: `27`
 - transcript outcome: `escalate`
-- transcript reason: agent required investigation or async follow-up: internal_team
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 13, 'user_requested_human': False}`
+- transcript reason: agent required investigation or async follow-up: internal_team, async_update
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 2, 'handover_or_case': 0, 'identifier_context': 13, 'user_requested_human': False}`
 - representative user messages:
   - There is an ad for a room in portswood and the messages are on my name but it’s not my ad
   - I’ll do now bye
   - Ok thank you
-- outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals; reason=agent required investigation or async follow-up: internal_team; trigger=faq_miss_threshold_exceeded
+- outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals; reason=agent required investigation or async follow-up: internal_team, async_update; trigger=faq_miss_threshold_exceeded
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008Rq2jIAC (case_id=cs_interactive_296)
 
@@ -5666,6 +6959,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008puWbIAI (case_id=cs_interactive_297)
 
@@ -5685,6 +6982,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008G4npIAC (case_id=cs_interactive_298)
 
@@ -5703,6 +7004,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xbIHIAY (case_id=cs_interactive_299)
 
@@ -5722,6 +7027,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008XSs9IAG (case_id=cs_interactive_300)
 
@@ -5741,6 +7050,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008p1DZIAY (case_id=cs_interactive_301)
 
@@ -5760,6 +7073,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008nFAzIAM (case_id=cs_interactive_302)
 
@@ -5781,6 +7098,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008raNJIAY (case_id=cs_interactive_303)
 
@@ -5802,6 +7123,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xOT7IAM (case_id=cs_interactive_304)
 
@@ -5823,6 +7148,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008aXAXIA2 (case_id=cs_interactive_305)
 
@@ -5842,6 +7171,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008q90zIAA (case_id=cs_interactive_306)
 
@@ -5863,6 +7196,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hysLIAQ (case_id=cs_interactive_307)
 
@@ -5882,6 +7219,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q500000908rdIAA (case_id=cs_interactive_308)
 
@@ -5901,6 +7242,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008eYBFIA2 (case_id=cs_interactive_309)
 
@@ -5920,6 +7265,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pNVpIAM (case_id=cs_interactive_310)
 
@@ -5941,6 +7290,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008la8HIAQ (case_id=cs_interactive_311)
 
@@ -5955,13 +7308,15 @@ _Sessions audited: **367**_
   - Having issue receiving email password reset or logging in
   - https://www.gumtree.com/p/business-for-sale/window-cleaning-rounds-for-sale/1506802397
   - Here’s one of my adverts
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=faq_miss_threshold_exceeded
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
-  - outcome_class: HR='resolve' vs final='escalate'
-  - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ftWzIAI (case_id=cs_interactive_312)
 
@@ -5981,6 +7336,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008NZ6vIAG (case_id=cs_interactive_313)
 
@@ -6000,6 +7359,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008YoU1IAK (case_id=cs_interactive_314)
 
@@ -6019,6 +7382,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'answer_grounded', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['resolve_article', 'search_knowledge'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008STIbIAO (case_id=cs_interactive_315)
 
@@ -6038,6 +7405,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000091ATCIA2 (case_id=cs_interactive_316)
 
@@ -6057,6 +7428,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008yDgvIAE (case_id=cs_interactive_317)
 
@@ -6076,6 +7451,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008zcDRIAY (case_id=cs_interactive_318)
 
@@ -6095,6 +7474,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ebCLIAY (case_id=cs_interactive_319)
 
@@ -6114,6 +7497,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008p5qfIAA (case_id=cs_interactive_320)
 
@@ -6135,6 +7522,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008O2gnIAC (case_id=cs_interactive_321)
 
@@ -6154,6 +7545,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008EinlIAC (case_id=cs_interactive_322)
 
@@ -6173,6 +7568,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com', 'ad ID is REDACTED_AD_ID']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008J9uDIAS (case_id=cs_interactive_323)
 
@@ -6192,6 +7591,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008hL6EIAU (case_id=cs_interactive_324)
 
@@ -6211,6 +7614,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008yucDIAQ (case_id=cs_interactive_325)
 
@@ -6220,7 +7627,7 @@ _Sessions audited: **367**_
 - turn count: `18`
 - transcript outcome: `escalate`
 - transcript reason: visitor explicitly requested a human or manager
-- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 7, 'handover_or_case': 1, 'identifier_context': 14, 'user_requested_human': True}`
+- evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 6, 'handover_or_case': 1, 'identifier_context': 14, 'user_requested_human': True}`
 - representative user messages:
   - Hi, I’m looking to ensure my full account is deleted . I’m having issues with the process and need it actioned asap please .
   - No thanks, have a nice evening .
@@ -6230,6 +7637,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008n3D3IAI (case_id=cs_interactive_326)
 
@@ -6249,6 +7660,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008jyBWIAY (case_id=cs_interactive_327)
 
@@ -6266,6 +7681,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008kmRdIAI (case_id=cs_interactive_328)
 
@@ -6285,6 +7704,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000009228bIAA (case_id=cs_interactive_329)
 
@@ -6304,6 +7727,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008tXBdIAM (case_id=cs_interactive_330)
 
@@ -6323,6 +7750,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008qcEHIAY (case_id=cs_interactive_331)
 
@@ -6342,6 +7773,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008afT3IAI (case_id=cs_interactive_332)
 
@@ -6361,6 +7796,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008u8KrIAI (case_id=cs_interactive_333)
 
@@ -6378,6 +7817,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008mJ6zIAE (case_id=cs_interactive_334)
 
@@ -6398,6 +7841,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008UD87IAG (case_id=cs_interactive_335)
 
@@ -6417,6 +7864,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iIO1IAM (case_id=cs_interactive_336)
 
@@ -6436,6 +7887,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ntpxIAA (case_id=cs_interactive_337)
 
@@ -6457,6 +7912,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008gd0LIAQ (case_id=cs_interactive_338)
 
@@ -6475,6 +7934,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008sECfIAM (case_id=cs_interactive_339)
 
@@ -6496,6 +7959,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008QWinIAG (case_id=cs_interactive_340)
 
@@ -6513,6 +7980,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008gaC9IAI (case_id=cs_interactive_341)
 
@@ -6534,6 +8005,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ylx7IAA (case_id=cs_interactive_342)
 
@@ -6555,6 +8030,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008qew1IAA (case_id=cs_interactive_343)
 
@@ -6567,13 +8046,15 @@ _Sessions audited: **367**_
 - evidence signal counts: `{'unresolved_user': 0, 'human_investigation': 1, 'handover_or_case': 0, 'identifier_context': 7, 'user_requested_human': False}`
 - representative user messages:
   - Applicant is Conor Thompson his email is [EMAIL] I have emailed him but no responce. the mobile number sent has only 10 digits instead of 11 are you able to get me the correct phone no
-- outcome decision: faq_transcript_escalation: flags=human_investigation_signals; reason=agent transcript contains resolution/answer confirmation and no unresolved user signal; trigger=faq_miss_threshold_exceeded
+- outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
 - policy-vs-HR mismatches:
-  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
+  - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
-  - outcome_class: HR='resolve' vs final='escalate'
-  - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008U9dxIAC (case_id=cs_interactive_344)
 
@@ -6593,6 +8074,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fzvlIAA (case_id=cs_interactive_345)
 
@@ -6611,6 +8096,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008jSGTIA2 (case_id=cs_interactive_346)
 
@@ -6630,6 +8119,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008k8h7IAA (case_id=cs_interactive_347)
 
@@ -6651,6 +8144,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008gkeXIAQ (case_id=cs_interactive_348)
 
@@ -6672,6 +8169,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008uR8zIAE (case_id=cs_interactive_349)
 
@@ -6690,6 +8191,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008le0bIAA (case_id=cs_interactive_350)
 
@@ -6710,6 +8215,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q50000090Qa1IAE (case_id=cs_interactive_351)
 
@@ -6727,6 +8236,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008nzc2IAA (case_id=cs_interactive_352)
 
@@ -6746,6 +8259,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008xcpRIAQ (case_id=cs_interactive_353)
 
@@ -6765,6 +8282,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008g2SDIAY (case_id=cs_interactive_354)
 
@@ -6784,6 +8305,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'ask_user', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008w4g9IAA (case_id=cs_interactive_355)
 
@@ -6803,6 +8328,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008mJ0XIAU (case_id=cs_interactive_356)
 
@@ -6822,6 +8351,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008LBBxIAO (case_id=cs_interactive_357)
 
@@ -6841,6 +8374,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008rhv5IAA (case_id=cs_interactive_358)
 
@@ -6862,6 +8399,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008vsK1IAI (case_id=cs_interactive_359)
 
@@ -6881,6 +8422,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008WDITIA4 (case_id=cs_interactive_360)
 
@@ -6902,6 +8447,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='escalate' vs final='resolve'
   - should_escalate: HR=True vs final=False
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008ZmLKIA0 (case_id=cs_interactive_361)
 
@@ -6923,6 +8472,10 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pGm5IAE (case_id=cs_interactive_362)
 
@@ -6942,6 +8495,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008WufBIAS (case_id=cs_interactive_363)
 
@@ -6961,6 +8518,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['get_customer_context', 'search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008pyjtIAA (case_id=cs_interactive_364)
 
@@ -6979,6 +8540,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008iF1xIAE (case_id=cs_interactive_365)
 
@@ -6998,6 +8563,10 @@ _Sessions audited: **367**_
   - expected_tool_sequence: HR=['fixed_script_library', 'create_case_controlled', 'request_handover', 'record_outcome'] vs final=['create_case_controlled', 'request_handover', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['get_customer_context', 'resolve_article', 'search_knowledge'] vs policy=['get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad', 'resolve_article', 'search_knowledge']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008fpLJIAY (case_id=cs_interactive_366)
 
@@ -7016,6 +8585,10 @@ _Sessions audited: **367**_
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`
 
 ## 570Q5000008mcZRIAY (case_id=cs_interactive_367)
 
@@ -7037,3 +8610,7 @@ _Sessions audited: **367**_
   - outcome_class: HR='resolve' vs final='escalate'
   - should_escalate: HR=False vs final=True
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
+- llm_cache_hit: `False`
+- llm_offline_fallback: `True`
+- llm_acceptance_reason: `n/a`
+- llm_confidence: `n/a`

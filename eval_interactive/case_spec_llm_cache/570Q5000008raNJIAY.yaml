@@ -1,0 +1,31 @@
+source_session_id: 570Q5000008raNJIAY
+case_id_hint: row_303
+llm_model: deepseek-v4-pro
+prompt_hash: f9dbdd6121fbb8a3ddbd43f693a480f83c68039c043a44cab33de3858c2fccc0
+generated_at: '2026-04-30T19:53:20.155159+00:00'
+llm_confidence: high
+llm_rationale: 'The original seed_messages included ''thankyou'', which is a thanks and not issue-bearing. Replaced with another
+  password-related turn. The goal is clear: password reset. No additional hidden facts groundable.'
+rule_draft:
+  seed_messages:
+  - i need to reset my paword please
+  - thankyou
+  - are you there ?
+  user_goal_summary: 'User reports Account Support: password reset. Drift: none.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - i need to reset my paword please
+  - pasword please
+  user_goal_summary: 'The user wants to reset their Gumtree account password. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - i need to reset my paword please
+  - pasword please
+  user_goal_summary: 'The user wants to reset their Gumtree account password. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

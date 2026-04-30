@@ -1,0 +1,49 @@
+source_session_id: 570Q5000008za3ZIAQ
+case_id_hint: row_81
+llm_model: deepseek-v4-pro
+prompt_hash: 057501ea6e46c9948a5027dab7113677debd865ce1649a419924d776987325e6
+generated_at: '2026-04-30T13:27:35.084894+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages capture key user turns expressing the issue. Improved user_goal_summary to reflect the actual
+  goal (message delivery, policy explanation, complaint escalation) and added hidden_facts supported by the transcript (message
+  content and charity representation).
+rule_draft:
+  seed_messages:
+  - Why did Nuraan end the chat after just one minute?
+  - Ok and once I receive a response that is not satisfactory, how do I escalate that complaint?
+  - How do I make a complaint?
+  user_goal_summary: 'User reports Replies & Messaging: Message not appearing. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Why did Nuraan end the chat after just one minute?
+  - Ok and once I receive a response that is not satisfactory, how do I escalate that complaint?
+  - How do I make a complaint?
+  user_goal_summary: 'User''s Gumtree reply was removed as spam, and he seeks delivery, policy clarification, eventually escalating
+    to a formal complaint process. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'The user''s removed message was about requesting funds for generators for Ukraine, mentioning a charity and the
+      humanitarian situation: ''At present Putin is unfortunately targeting civilians by bombing energy infrastructure. We
+      have regular reports of people freezing in as low as minus 17 degree cold at night with no electricity or heating. At
+      this moment in time, generators are the number 1 requested item - our charity has the means and the logistics to ship
+      them but not the funds.'''
+    disclose_when: When the bot asks what the message said or why it was flagged.
+accepted_value:
+  seed_messages:
+  - Why did Nuraan end the chat after just one minute?
+  - Ok and once I receive a response that is not satisfactory, how do I escalate that complaint?
+  - How do I make a complaint?
+  user_goal_summary: 'User''s Gumtree reply was removed as spam, and he seeks delivery, policy clarification, eventually escalating
+    to a formal complaint process. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'The user''s removed message was about requesting funds for generators for Ukraine, mentioning a charity and the
+      humanitarian situation: ''At present Putin is unfortunately targeting civilians by bombing energy infrastructure. We
+      have regular reports of people freezing in as low as minus 17 degree cold at night with no electricity or heating. At
+      this moment in time, generators are the number 1 requested item - our charity has the means and the logistics to ship
+      them but not the funds.'''
+    disclose_when: When the bot asks what the message said or why it was flagged.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user represents a charity trying to buy generators for Ukraine.'''

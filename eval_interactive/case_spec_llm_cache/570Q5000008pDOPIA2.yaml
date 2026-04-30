@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008pDOPIA2
+case_id_hint: row_141
+llm_model: deepseek-v4-pro
+prompt_hash: 5892f870186aa1903a091654a9b2e19b4d7b1bddcb16c11c15fb0b565e8c2d45
+generated_at: '2026-04-30T13:41:54.741768+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed_messages are exact verbatim quotes from visitor turns 3, 13, and 12, capturing the core
+  issue. The user_goal_summary has been revised to be a specific factual description of the user's objective, with the drift
+  appended. A hidden_fact was added to cover the ad ID the user mentioned in turn 10, as it may be useful for the simulator.
+rule_draft:
+  seed_messages:
+  - I am trying to reply to ads for electricians, I am filling out the online form but when I press 'sedn' nothing happens
+  - first attempt today
+  - I cant send request, therefor I am NOT getting any replies.
+  user_goal_summary: 'User reports Technical Support: Reply to ads. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I am trying to reply to ads for electricians, I am filling out the online form but when I press 'sedn' nothing happens
+  - first attempt today
+  - I cant send request, therefor I am NOT getting any replies.
+  user_goal_summary: 'The user wants to be able to send replies to electrician ads using the online form, which currently
+    does nothing when they click ''send''. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user is trying to reply to multiple electrician ads, one of which has Ad ID 1508162839.
+    disclose_when: when asked for account details or an example ad ID
+accepted_value:
+  seed_messages:
+  - I am trying to reply to ads for electricians, I am filling out the online form but when I press 'sedn' nothing happens
+  - first attempt today
+  - I cant send request, therefor I am NOT getting any replies.
+  user_goal_summary: 'The user wants to be able to send replies to electrician ads using the online form, which currently
+    does nothing when they click ''send''. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user is trying to reply to multiple electrician ads, one of which has Ad ID 1508162839.
+    disclose_when: when asked for account details or an example ad ID
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

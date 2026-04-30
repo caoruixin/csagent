@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008J5sDIAS
+case_id_hint: row_261
+llm_model: deepseek-v4-pro
+prompt_hash: 8bbd3bcbebe601849b8fd089c19dcf8830afc387e31d2fda154aaa51d69afd34
+generated_at: '2026-04-30T19:42:14.806146+00:00'
+llm_confidence: medium
+llm_rationale: Removed the closing/thank you seed message as it's not issue-describing. Kept the two issue-bearing quotes.
+  Updated user_goal_summary to reflect the actual goal from transcript. No hidden facts required as conversation resolved
+  without needing deeper disclosure.
+rule_draft:
+  seed_messages:
+  - Hi . i try to post the ad on but your website does not taking the payment please help
+  - 'Payment process started. Please do not go back or close the browser until payment has been made. Total payment: £17.92
+    Paying with PayPal [EMAIL] PayPal Choose another way to pay'
+  - hi , thank you its okey now cheers
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi . i try to post the ad on but your website does not taking the payment please help
+  - 'Payment process started. Please do not go back or close the browser until payment has been made. Total payment: £17.92
+    Paying with PayPal [EMAIL] PayPal Choose another way to pay'
+  user_goal_summary: 'User is trying to post a job ad on the website, but the payment process is not completing, and they
+    need assistance to complete the payment so they can publish the ad. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi . i try to post the ad on but your website does not taking the payment please help
+  - 'Payment process started. Please do not go back or close the browser until payment has been made. Total payment: £17.92
+    Paying with PayPal [EMAIL] PayPal Choose another way to pay'
+  - hi , thank you its okey now cheers
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: rule_fallback_low_confidence
+validation_notes: []
