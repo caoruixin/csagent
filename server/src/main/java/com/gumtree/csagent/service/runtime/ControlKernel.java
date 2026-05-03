@@ -173,21 +173,36 @@ public class ControlKernel {
                 // opening-template guard.)
                 trackRepeatedAction(session, deriveRunResultKey(runResult));
 
-                long latencyMs = System.currentTimeMillis() - startTime;
-                recordRunResult(session, userMessage, plan, runResult,
-                        phaseBefore, phaseAfter, latencyMs);
-
-                // Emit ESCALATION_REQUESTED if the decision is an escalation
+                // Emit ESCALATION_REQUESTED + create runtime case BEFORE
+                // recordRunResult so the persisted tool_calls trace can
+                // surface create_case_controlled in the right order
+                // (Codex 1.2 / 1.3 / phase2 §2.10.4). The legacy
+                // PhaseEvaluator.evaluateIntake path already creates the
+                // case before its own recordTurn; the AgentRunLoop path
+                // used to short-circuit on request_handover without ever
+                // creating the case, which left case_id missing from the
+                // handover payload (cs_038 / cs_040 L2:case_id_present
+                // failures).
                 boolean shouldEscalate = "ESCALATE".equals(decision.nextPhase());
+                ToolResult runtimeCaseResult = null;
                 if (shouldEscalate) {
+                    // Fallback must be a canonical EscalationTrigger value
+                    // (case_spec/schema.py); ``service_degraded`` is the
+                    // Phase 2 §2.4 catch-all used when the agent loop terminated
+                    // in ESCALATE without a more specific reason.
                     String escalationReason = decision.escalationReason() != null
-                            ? decision.escalationReason() : "agent_escalated";
+                            ? decision.escalationReason() : "service_degraded";
                     session.setEscalationReason(escalationReason);
                     session.setHandlingState("QUEUE_TO_HUMAN");
                     session.setContainmentOutcome("escalated");
                     eventEmitter.emitEscalationRequested(session.getSessionId(),
                             session.getTotalBotTurns(), escalationReason);
+                    runtimeCaseResult = createCaseIfNeeded(session);
                 }
+
+                long latencyMs = System.currentTimeMillis() - startTime;
+                recordRunResult(session, userMessage, plan, runResult,
+                        phaseBefore, phaseAfter, latencyMs, runtimeCaseResult);
 
                 // D16.D: mirror the legacy evaluateClose state-setting when the
                 // agent loop terminates in CLOSE. SessionManager reads
@@ -310,14 +325,19 @@ public class ControlKernel {
 
         long latencyMs = System.currentTimeMillis() - startTime;
 
-        // Create case for intake UCs (UC-H/J/K) even on forced escalation
-        createCaseIfNeeded(session);
+        // Create case for intake UCs (UC-H/J/K) even on forced escalation.
+        // Capture the result so the synthesized turn can include a
+        // create_case_controlled tool_call entry (Codex 1.3 / phase2 §2.10.4).
+        ToolResult runtimeCaseResult = createCaseIfNeeded(session);
 
         // Record the turn. Persist a synthesized handover tool_call so the trace
         // remains consistent with LLM-driven escalations under the single-layer
         // tool-use contract (phase0 §0.6 / phase3 §3.3.3).
+        // Fallback must be a canonical EscalationTrigger value
+        // (case_spec/schema.py); ``service_degraded`` is the Phase 2 §2.4
+        // catch-all used when forceEscalate runs without a more specific reason.
         String escalationReason = session.getEscalationReason() != null
-                ? session.getEscalationReason() : "forced_escalation";
+                ? session.getEscalationReason() : "service_degraded";
         BotTurn turn = BotTurn.builder()
                 .turnId(UUID.randomUUID().toString())
                 .sessionId(session.getSessionId())
@@ -332,6 +352,12 @@ public class ControlKernel {
                 .build();
         try {
             List<Map<String, Object>> toolCallsList = new ArrayList<>();
+            // Codex 1.3: surface runtime-only create_case_controlled before the
+            // synthesized request_handover so the persisted tool sequence
+            // matches the expected order documented in phase2 §2.10.4.
+            if (runtimeCaseResult != null) {
+                toolCallsList.add(synthesizeCreateCaseToolCall(runtimeCaseResult));
+            }
             toolCallsList.add(synthesizeHandoverToolCall(escalationReason));
             turn.setToolCalls(objectMapper.writeValueAsString(toolCallsList));
         } catch (Exception ex) {
@@ -356,17 +382,24 @@ public class ControlKernel {
     }
 
     /**
-     * Create a case for intake UCs (UC-H, UC-J, UC-K) during forced escalation.
+     * Create a case for intake UCs (UC-H, UC-J, UC-K) when escalating. Used by
+     * both the forced-escalation path and the AgentRunLoop ESCALATE branch.
      * Non-blocking: failures logged but don't prevent escalation.
+     *
+     * @return the {@link ToolResult} from the runtime tool, or {@code null} if
+     *         the session is not eligible (UC not in {UC-H, UC-J, UC-K}) or a
+     *         case was already created. Callers may use the returned result to
+     *         append a {@code create_case_controlled} entry to the persisted
+     *         tool_calls trace so eval can verify the runtime side-effect order.
      */
-    private void createCaseIfNeeded(BotSession session) {
+    ToolResult createCaseIfNeeded(BotSession session) {
         String activeUc = session.getActiveUseCase();
         Set<String> caseCreationUcs = Set.of("UC-H", "UC-J", "UC-K");
         if (activeUc == null || !caseCreationUcs.contains(activeUc)) {
-            return;
+            return null;
         }
         if (session.getCaseId() != null && !session.getCaseId().isBlank()) {
-            return; // Case already created
+            return null; // Case already created
         }
 
         try {
@@ -394,16 +427,18 @@ public class ControlKernel {
             }
 
             ToolResult result = createCaseTool.execute(session, params);
-            if (result.isSuccess() && result.getData() != null) {
+            if (result != null && result.isSuccess() && result.getData() != null) {
                 String caseId = (String) result.getData().get("case_id");
                 if (caseId != null) {
                     session.setCaseId(caseId);
-                    log.info("Session {}: case created during forced escalation: {}", session.getSessionId(), caseId);
+                    log.info("Session {}: case created during escalation: {}", session.getSessionId(), caseId);
                     eventEmitter.emitCaseCreated(session.getSessionId(), session.getTotalBotTurns(), caseId, activeUc);
                 }
             }
+            return result;
         } catch (Exception e) {
-            log.warn("Session {}: case creation during forced escalation failed: {}", session.getSessionId(), e.getMessage());
+            log.warn("Session {}: case creation during escalation failed: {}", session.getSessionId(), e.getMessage());
+            return null;
         }
     }
 
@@ -419,6 +454,38 @@ public class ControlKernel {
         handoverCall.put("tool_name", "request_handover");
         handoverCall.put("arguments", Map.of("escalation_reason", escalationReason));
         return handoverCall;
+    }
+
+    /**
+     * Build a single {@code tool_calls} entry representing a runtime-issued
+     * {@code create_case_controlled} call (UC-H/J/K). Lets the legacy and
+     * forced-escalation paths surface the runtime-only side effect in the
+     * persisted trace just like {@link #recordRunResult} does for the
+     * AgentRunLoop path. The {@code source: runtime} marker tells eval
+     * tooling this entry was synthesized rather than LLM-issued.
+     */
+    @SuppressWarnings("unchecked")
+    Map<String, Object> synthesizeCreateCaseToolCall(ToolResult result) {
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("tool_name", "create_case_controlled");
+        entry.put("source", "runtime");
+        Map<String, Object> args = new LinkedHashMap<>();
+        if (result != null) {
+            entry.put("success", result.isSuccess());
+            if (result.isSuccess() && result.getData() != null) {
+                Object caseId = ((Map<String, Object>) result.getData()).get("case_id");
+                if (caseId != null) {
+                    args.put("case_id", caseId);
+                }
+            } else if (result.getErrorMessage() != null) {
+                entry.put("error_message", result.getErrorMessage());
+            }
+        } else {
+            entry.put("success", true);
+        }
+        // Trace contract requires arguments map even when empty.
+        entry.put("arguments", args);
+        return entry;
     }
 
     private void recordTurn(BotSession session, String userMessage,
@@ -459,7 +526,10 @@ public class ControlKernel {
                     .createdAt(OffsetDateTime.now())
                     .build();
 
-            // D12.4: Populate tool_calls if knowledge was retrieved
+            // D12.4: Populate tool_calls if knowledge was retrieved.
+            // Trace contract requires every tool_call entry to carry an
+            // ``arguments`` map (collector.py REQUIRED_TOOL_CALL_FIELDS), so
+            // emit an empty one even when we don't capture the original query.
             if (phaseResult.knowledgeHits() != null && !phaseResult.knowledgeHits().isEmpty()) {
                 try {
                     List<Map<String, Object>> toolCallsList = new ArrayList<>();
@@ -467,6 +537,7 @@ public class ControlKernel {
                     searchCall.put("tool_name", "search_knowledge");
                     searchCall.put("status", "success");
                     searchCall.put("result_count", phaseResult.knowledgeHits().size());
+                    searchCall.put("arguments", Map.of());
                     toolCallsList.add(searchCall);
                     turn.setToolCalls(objectMapper.writeValueAsString(toolCallsList));
                 } catch (Exception ex) {
@@ -481,8 +552,12 @@ public class ControlKernel {
             // check. Synthesize one when this turn ends in ESCALATE, mirroring
             // the contract used by forceEscalate() and AgentRunLoop.
             if ("ESCALATE".equals(phaseAfter)) {
+                // Fallback must be a canonical EscalationTrigger value
+                // (case_spec/schema.py). ``service_degraded`` is the Phase 2
+                // §2.4 catch-all; preserves previous behaviour without
+                // breaking the trace contract enum check.
                 String escalationReason = session.getEscalationReason() != null
-                        ? session.getEscalationReason() : "unspecified";
+                        ? session.getEscalationReason() : "service_degraded";
                 List<Map<String, Object>> toolCallsList = null;
                 String existing = turn.getToolCalls();
                 boolean alreadyHasHandover = false;
@@ -506,15 +581,51 @@ public class ControlKernel {
                         toolCallsList = null;
                     }
                 }
+                // Codex 1.3: legacy evaluateIntake path calls
+                // PhaseEvaluator.createCaseIfAllowed which sets session.caseId
+                // but does not surface a create_case_controlled entry in the
+                // bot_turns trace. Detect that here (INTAKE UC + ESCALATE +
+                // case_id present + entry not already in this turn) and append.
+                String activeUc = session.getActiveUseCase();
+                boolean caseCreated = session.getCaseId() != null
+                        && !session.getCaseId().isBlank();
+                boolean alreadyHasCreateCase = false;
+                if (toolCallsList != null) {
+                    for (Map<String, Object> entry : toolCallsList) {
+                        if ("create_case_controlled".equals(entry.get("tool_name"))) {
+                            alreadyHasCreateCase = true;
+                            break;
+                        }
+                    }
+                }
+                boolean addedCreateCase = false;
+                if (caseCreated && !alreadyHasCreateCase
+                        && activeUc != null
+                        && Set.of("UC-H", "UC-J", "UC-K").contains(activeUc)) {
+                    if (toolCallsList == null) {
+                        toolCallsList = new ArrayList<>();
+                    }
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("tool_name", "create_case_controlled");
+                    entry.put("source", "runtime");
+                    entry.put("success", true);
+                    entry.put("arguments", Map.of("case_id", session.getCaseId()));
+                    toolCallsList.add(entry);
+                    addedCreateCase = true;
+                }
+                boolean modified = addedCreateCase;
                 if (!alreadyHasHandover) {
                     if (toolCallsList == null) {
                         toolCallsList = new ArrayList<>();
                     }
                     toolCallsList.add(synthesizeHandoverToolCall(escalationReason));
+                    modified = true;
+                }
+                if (modified) {
                     try {
                         turn.setToolCalls(objectMapper.writeValueAsString(toolCallsList));
                     } catch (Exception ex) {
-                        log.warn("Session {}: failed to serialize synthesized handover tool_calls: {}",
+                        log.warn("Session {}: failed to serialize synthesized escalation tool_calls: {}",
                                 session.getSessionId(), ex.getMessage());
                     }
                 }
@@ -552,7 +663,8 @@ public class ControlKernel {
     @SuppressWarnings("unchecked")
     private void recordRunResult(BotSession session, String userMessage,
                                   PhasePlan plan, AgentRunResult result,
-                                  String phaseBefore, String phaseAfter, long latencyMs) {
+                                  String phaseBefore, String phaseAfter, long latencyMs,
+                                  ToolResult runtimeCaseResult) {
         try {
             // Build tool_calls JSONB from the loop's ToolEvents
             String toolCallsJson = null;
@@ -572,9 +684,13 @@ public class ControlKernel {
                     if (te.errorMessage() != null) {
                         entry.put("error_message", te.errorMessage());
                     }
-                    if (te.arguments() != null && !te.arguments().isEmpty()) {
-                        entry.put("arguments", te.arguments());
-                    }
+                    // Trace contract requires every tool_call entry to carry an
+                    // ``arguments`` map, even when empty (eval_interactive
+                    // collector.py REQUIRED_TOOL_CALL_FIELDS). Always emit a
+                    // map so the strict-mode validator does not flag empty
+                    // tool calls as CONTRACT_VIOLATION:arguments.
+                    entry.put("arguments",
+                            te.arguments() != null ? te.arguments() : Map.of());
                     toolCallsList.add(entry);
 
                     // Aggregate observability info from search_knowledge results
@@ -597,6 +713,34 @@ public class ControlKernel {
                 if (!collectedSourceIds.isEmpty()) {
                     sourceIds = collectedSourceIds.toArray(new String[0]);
                 }
+            }
+
+            // Codex 1.3 / phase2 §2.10.4: surface runtime-only side effects in
+            // the trace. When the runtime created a Case for an INTAKE escalation
+            // (UC-H/J/K), prepend a synthesized create_case_controlled entry
+            // before the eventual request_handover so eval can verify the
+            // expected_tool_sequence (create_case_controlled → request_handover →
+            // record_outcome). Skipped when the runtime did not create a case
+            // (already-created session, ineligible UC, or tool failure).
+            if (runtimeCaseResult != null) {
+                Map<String, Object> caseEntry = new LinkedHashMap<>();
+                caseEntry.put("sequence_index", toolCallsList.size());
+                caseEntry.put("step_index", -1);
+                caseEntry.put("tool_name", "create_case_controlled");
+                caseEntry.put("success", runtimeCaseResult.isSuccess());
+                caseEntry.put("latency_ms", 0);
+                caseEntry.put("source", "runtime");
+                Map<String, Object> caseArgs = new LinkedHashMap<>();
+                if (runtimeCaseResult.isSuccess() && runtimeCaseResult.getData() != null) {
+                    Object caseId = ((Map<String, Object>) runtimeCaseResult.getData()).get("case_id");
+                    if (caseId != null) {
+                        caseArgs.put("case_id", caseId);
+                    }
+                } else if (runtimeCaseResult.getErrorMessage() != null) {
+                    caseEntry.put("error_message", runtimeCaseResult.getErrorMessage());
+                }
+                caseEntry.put("arguments", caseArgs);
+                toolCallsList.add(caseEntry);
             }
 
             // Step 2.6: ensure ESCALATE outcomes always carry a request_handover

@@ -134,15 +134,21 @@ public class PhaseEvaluator {
      * exit. See the call site for rationale (Codex 1.9). Falls back to
      * {@code turn_budget_exhausted} when nothing more specific applies.
      *
-     * <p>Heuristics, in priority order:
+     * <p>Heuristics, in priority order (Codex 2026-05-03 round 3 — clarification
+     * count is checked before knowledge search so a mixed search + clarify
+     * loop attributes to the user-feedback-driven signal that actually stalled
+     * the conversation, instead of the first FAQ attempt):
      * <ol>
      *   <li>Plan is INTAKE (UC-G/H/I/J/K) → {@code incomplete_intake} (the loop
      *       exhausted without collecting all required fields).</li>
-     *   <li>Loop ran search_knowledge at least once but produced no successful
-     *       FAQ answer → {@code faq_miss_threshold_exceeded}.</li>
-     *   <li>Loop produced clarification turns (CLARIFICATION_NEEDED) without
-     *       converging → {@code clarification_budget_exhausted}.</li>
-     *   <li>Otherwise → {@code turn_budget_exhausted}.</li>
+     *   <li>Session has at least one logged clarification turn → {@code
+     *       clarification_budget_exhausted} (the agent kept asking instead of
+     *       converging).</li>
+     *   <li>Loop ran search_knowledge at least once → {@code
+     *       faq_miss_threshold_exceeded} (only reachable when the agent did
+     *       not also stall on clarification).</li>
+     *   <li>Otherwise → {@code turn_budget_exhausted} (catch-all per Phase 2
+     *       §2.4).</li>
      * </ol>
      */
     String resolveMaxStepsReason(PhasePlan plan,
@@ -150,6 +156,10 @@ public class PhaseEvaluator {
                                  BotSession session) {
         if (plan != null && plan.useCase() != null && INTAKE_UCS.contains(plan.useCase())) {
             return "incomplete_intake";
+        }
+        if (session != null && session.getClarificationCount() != null
+                && session.getClarificationCount() > 0) {
+            return "clarification_budget_exhausted";
         }
         boolean searchedKnowledge = false;
         if (result != null && result.toolEvents() != null) {
@@ -162,10 +172,6 @@ public class PhaseEvaluator {
         }
         if (searchedKnowledge) {
             return "faq_miss_threshold_exceeded";
-        }
-        if (session != null && session.getClarificationCount() != null
-                && session.getClarificationCount() > 0) {
-            return "clarification_budget_exhausted";
         }
         return "turn_budget_exhausted";
     }

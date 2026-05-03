@@ -1,9 +1,0 @@
-{
-  "review_id": "REV-001",
-  "ad_id": "AD-1002",
-  "review_type": "AUTOMATED",
-  "decision": "REMOVED",
-  "reason_code": "MULTIPLE_ACCOUNTS",
-  "reason_display": "Your ad was removed because we detected multiple accounts being used, which violates our fair usage policy.",
-  "reviewed_at": "2025-12-15T10:30:00Z"
-}
