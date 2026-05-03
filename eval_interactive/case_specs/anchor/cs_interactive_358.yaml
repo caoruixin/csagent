@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Car sale
 persona:
-  user_goal_summary: 'User reports Technical Support: Car sale. Drift: soft_shift.'
+  user_goal_summary: 'User wants to know if a suspicious message about their car ad was spam, why it disappeared, and whether
+    interested buyers can see their phone number. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift
@@ -18,8 +19,10 @@ persona:
   - I think so. I wasn't at home so I didn't have much time to look or think. I opened the link which then asked me to log
     in. That's when I got suspicious and came out of it. The message or notification has now gone I can't find it. Do you
     know what it was
-  - And you thanks 👍
-  hidden_facts: []
+  - Ok I can't see anything on my page. If people are interested do they have the phone number visible
+  hidden_facts:
+  - fact: 'Ad ID: 1508873706'
+    disclose_when: when asked for ad reference or to look up the ad
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: Can't log in
 persona:
-  user_goal_summary: 'User reports Account Support: Can''t log in. Drift: soft_shift.'
+  user_goal_summary: 'User wants to regain access to her Gumtree account because she changed her phone number and can''t receive
+    the verification code sent to the old number. She is puzzled that the agent says no account exists under her email. Drift:
+    soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eval Report - smoke-step3-discover-routing-error-threshold-enum-sync (20260501-201044)</title>
+<style>
+:root {
+    --green: #22c55e;
+    --green-bg: #f0fdf4;
+    --amber: #f59e0b;
+    --amber-bg: #fffbeb;
+    --red: #ef4444;
+    --red-bg: #fef2f2;
+    --blue: #3b82f6;
+    --blue-bg: #eff6ff;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-500: #6b7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--gray-900);
+    background: var(--gray-50);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+h2 { font-size: 1.35rem; margin: 2rem 0 1rem; border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem; }
+h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+
+.header {
+    background: white;
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+.header-meta { color: var(--gray-500); font-size: 0.9rem; }
+.header-meta span { margin-right: 2rem; }
+
+/* --- Metric cards --- */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-left: 4px solid var(--gray-300);
+}
+.card.green  { border-left-color: var(--green);  background: var(--green-bg); }
+.card.amber  { border-left-color: var(--amber);  background: var(--amber-bg); }
+.card.red    { border-left-color: var(--red);    background: var(--red-bg); }
+.card-label  { font-size: 0.8rem; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em; }
+.card-value  { font-size: 1.6rem; font-weight: 700; margin: 0.25rem 0; }
+.card-target { font-size: 0.75rem; color: var(--gray-500); }
+
+/* --- Overview bar --- */
+.overview-box {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+}
+.bar-container { display: flex; height: 28px; border-radius: 6px; overflow: hidden; margin: 0.75rem 0; }
+.bar-pass { background: var(--green); }
+.bar-fail { background: var(--red); }
+.overview-stats { display: flex; gap: 2rem; font-size: 0.95rem; }
+.overview-stats span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot.green { background: var(--green); }
+.dot.red   { background: var(--red); }
+
+/* --- Tables --- */
+table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--gray-200); }
+th { background: var(--gray-100); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+td { font-size: 0.9rem; }
+tr:hover td { background: var(--gray-50); }
+
+/* --- Per-case details --- */
+details {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--gray-200);
+}
+details[open] { border-color: var(--blue); }
+summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    user-select: none;
+}
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "\25B6"; font-size: 0.7rem; transition: transform 0.15s; }
+details[open] > summary::before { transform: rotate(90deg); }
+.case-body { padding: 0.5rem 1rem 1rem; }
+
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.badge.pass { background: var(--green-bg); color: #166534; }
+.badge.fail { background: var(--red-bg); color: #991b1b; }
+.badge.stall { background: var(--amber-bg); color: #92400e; }
+
+.tag {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    background: var(--red-bg);
+    color: #991b1b;
+    margin-right: 0.3rem;
+    margin-bottom: 0.2rem;
+}
+
+.kv-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem 1.5rem;
+    font-size: 0.88rem;
+    margin-bottom: 0.75rem;
+}
+.kv-grid dt { color: var(--gray-500); }
+.kv-grid dd { font-weight: 500; }
+
+.check-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; padding: 0.2rem 0; }
+.check-icon { font-weight: 700; width: 1.2em; text-align: center; }
+.check-icon.pass { color: var(--green); }
+.check-icon.fail { color: var(--red); }
+
+/* --- Regression section --- */
+.regression-improved td { background: var(--green-bg); }
+.regression-regressed td { background: var(--red-bg); }
+
+.delta { font-weight: 600; }
+.delta.pos { color: #166534; }
+.delta.neg { color: #991b1b; }
+
+.footer {
+    text-align: center;
+    color: var(--gray-500);
+    font-size: 0.8rem;
+    padding: 2rem 0 1rem;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Evaluation Report</h1>
+  <div class="header-meta">
+    <span><strong>Run ID:</strong> 20260501-201044</span>
+    <span><strong>Label:</strong> smoke-step3-discover-routing-error-threshold-enum-sync</span>
+    <span><strong>Timestamp:</strong> 2026-05-01 20:14:23 UTC</span>
+    <span><strong>Total Cases:</strong> 14</span>
+  </div>
+</div>
+<h2>Key Metrics Dashboard</h2>
+<div class="cards">
+<div class="card red">
+  <div class="card-label">Task Success Rate</div>
+  <div class="card-value">0.0%</div>
+  <div class="card-target">target: &ge; 80%</div>
+</div><div class="card green">
+  <div class="card-label">Stall Rate</div>
+  <div class="card-value">0.0%</div>
+  <div class="card-target">target: 0%</div>
+</div><div class="card ">
+  <div class="card-label">Correct Tool Invocation Rate</div>
+  <div class="card-value">N/A</div>
+  <div class="card-target">target: &ge; 90%</div>
+</div><div class="card ">
+  <div class="card-label">Escalation Correctness Rate</div>
+  <div class="card-value">N/A</div>
+  <div class="card-target">target: &ge; 95%</div>
+</div><div class="card ">
+  <div class="card-label">Grounded Final Answer Rate</div>
+  <div class="card-value">N/A</div>
+  <div class="card-target">target: &ge; 98%</div>
+</div><div class="card green">
+  <div class="card-label">Policy Compliance Rate</div>
+  <div class="card-value">100.0%</div>
+  <div class="card-target">target: &ge; 100%</div>
+</div><div class="card green">
+  <div class="card-label">Turns to Resolution</div>
+  <div class="card-value">0.57</div>
+  <div class="card-target">target: &le; 6</div>
+</div>
+</div>
+<h2>Pass / Fail Overview</h2>
+<div class="overview-box">
+  <div class="overview-stats">
+    <span><span class="dot green"></span> Passed: 0</span>
+    <span><span class="dot red"></span> Failed: 14</span>
+    <span>Mean Composite: 0.00</span>
+  </div>
+  <div class="bar-container">
+    <div class="bar-pass" style="width:0.0%"></div>
+    <div class="bar-fail" style="width:100.0%"></div>
+  </div>
+  <h3>Composite Score Distribution</h3>
+  <table>
+    <thead><tr><th>Range</th><th>Count</th></tr></thead>
+    <tbody><tr><td>0.0-0.2</td><td>14</td></tr><tr><td>0.2-0.4</td><td>0</td></tr><tr><td>0.4-0.6</td><td>0</td></tr><tr><td>0.6-0.8</td><td>0</td></tr><tr><td>0.8-1.0</td><td>0</td></tr></tbody>
+  </table>
+</div>
+<h2>Per Use-Case Breakdown</h2>
+<table>
+  <thead>
+    <tr><th>Use Case</th><th>Count</th><th>Passed</th><th>Failed</th><th>Mean Composite</th><th>Task Success Rate</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>UC-A</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-B</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-C</td><td>4</td><td>0</td><td>4</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-D</td><td>2</td><td>0</td><td>2</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-E</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-F</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-FP</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-I</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-J</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-K</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr>
+  </tbody>
+</table>
+<h2>Per-Case Details</h2>
+<details>
+  <summary>cs_interactive_001 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-C</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>ea7ec6a1-5614-476b-85ee-c77928a28e6d</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;unspecified&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;latency_ms&#x27;, &#x27;sequence_index&#x27;, &#x27;step_index&#x27;, &#x27;success&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_002 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-C</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>c472698f-b230-4e0d-bc28-7be7f67bf2af</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;unspecified&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;latency_ms&#x27;, &#x27;sequence_index&#x27;, &#x27;step_index&#x27;, &#x27;success&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_004 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-D</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>9ffb4cff-a4ee-4f57-acbb-718dfa2b49e4</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;unspecified&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;latency_ms&#x27;, &#x27;sequence_index&#x27;, &#x27;step_index&#x27;, &#x27;success&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_011 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-D</dd><dt>Actual UC</dt><dd>UC-D</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>1.00</dd><dt>Judge Score (L3)</dt><dd>0.60</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>080142b0-3ad7-44c6-bf17-467cbd5ef2ce</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;user_requested&#x27;, actual=&#x27;user_distress&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>source_citation_present</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a procedural escalation message (&#x27;Let me connect you with a specialist.&#x27;) with no factual claims about the user&#x27;s login issue, password reset process, or system behavior. Since there are no factual assertions requiring grounding in sources, the response automatically qualifies for the highest score per the instructions.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user describes a specific, multi-step technical issue with password reset functionality failing repeatedly despite following correct procedures. The bot ignores all technical details (link expiration, UI unresponsiveness, conflicting email notifications) and offers no troubleshooting, explanation, or acknowledgment—immediately escalating without attempting resolution or even confirming understanding of the problem.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is overly dismissive and fails to acknowledge the customer&#x27;s high frustration or the detailed technical issue described. Offering an immediate escalation without validation, empathy, or even a brief acknowledgment of the problem (&#x27;I hear how frustrating this must be...&#x27;) comes across as robotic and uncaring—especially after the customer explicitly stated they&#x27;ve spoken to two prior agents with no resolution. It misses an opportunity to de-escalate and shows no attempt to demonstrate understanding or ownership.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:escalation_compliance</span><span class="tag">L2_GATE_MISSING:handover_completeness</span><span class="tag">L3:relevance</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_014 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-C</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>36954a38-5941-4ab2-8c85-2b919e052531</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;unspecified&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;latency_ms&#x27;, &#x27;sequence_index&#x27;, &#x27;step_index&#x27;, &#x27;success&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_015 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-FP</dd><dt>Actual UC</dt><dd>UC-A</dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.60</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>52b99d60-cdd8-43eb-88e4-7633ecf33862</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon pass">&#10003;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation not required)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>source_citation_present</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=resolve, actual=escalate</td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-FP, actual=UC-A</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a procedural escalation message (&#x27;Let me connect you with a specialist&#x27;) and makes no factual claims about the user&#x27;s issue or any product, policy, or process. Since there are no factual claims requiring grounding, the response automatically qualifies for the highest score per instructions.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user asks &#x27;how do I change it?&#x27;, seeking a direct, step-by-step explanation or guidance. The bot completely bypasses the question and instead offers escalation to a specialist without attempting to answer, clarify, or even acknowledge what &#x27;it&#x27; refers to—failing to address the core request for instructions.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot responds with an abrupt handoff without acknowledging the user&#x27;s question or mild frustration. It fails to validate the user&#x27;s intent (&#x27;how do I change it?&#x27;), offer any immediate guidance, or express empathy—making the response feel dismissive and tone-deaf for a mildly frustrated customer.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE:correct_outcome</span><span class="tag">L2:correct_outcome</span><span class="tag">L2:correct_uc</span><span class="tag">L3:relevance</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_029 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-C</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>5a9e4a58-e7e2-40e5-92c0-6172bcb84d77</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;user_requested_escalation&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_036 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-I</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.70</dd><dt>Judge Score (L3)</dt><dd>0.80</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>93871f73-4d15-4b1a-b5d7-c77812bb72d6</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>intake_no_knowledge_tool</div><div class="check-row"><span class="check-icon fail">&#10007;</span>phase_transition_validity <span style="color:var(--gray-500);">(invalid transitions: [&#x27;turn 0: INIT-&gt;ESCALATE&#x27;])</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;payment_dispute_detected&#x27;, actual=&#x27;out_of_scope&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-I, actual=</td></tr><tr><td>handover_completeness</td><td style="color:var(--green);font-weight:600;">0.80</td><td style="font-size:0.82rem;color:var(--gray-500);">missing fields: [&#x27;primary_use_case&#x27;]</td></tr><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a pure procedural escalation message (&#x27;This conversation has been transferred to a human agent. Please wait for them to respond.&#x27;) with no factual claims about British law, refunds, carrier obligations, or delivery timelines. Since no factual assertions are made, no grounding is required, and the score is 5 per instructions.</td></tr><tr><td>relevance</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot correctly recognizes the user&#x27;s urgent issue—a delayed delivery and demand for a refund under British law—and escalates to a human agent without deflecting, arguing, or providing irrelevant information. Given the legal and potentially complex nature of the request (refunds due to carrier failure under UK consumer law), immediate human escalation is the appropriate and direct response; the bot does not ignore, misinterpret, or sidestep the core request.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot responds with a generic, automated handoff without acknowledging the customer&#x27;s mild frustration, legal reference, or core request for a refund. It fails to validate concerns, offer reassurance, or provide any interim support—making it appear dismissive and tone-deaf to the customer’s justified expectation of accountability under British law.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:phase_transition_validity</span><span class="tag">L1:escalation_compliance</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE:handover_completeness</span><span class="tag">L2:correct_uc</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_038 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-J</dd><dt>Actual UC</dt><dd>UC-J</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>1.00</dd><dt>Judge Score (L3)</dt><dd>0.87</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>2</dd><dt>Session ID</dt><dd>fd7f55ff-1d2b-4275-a86d-d0c879117226</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>intake_no_knowledge_tool</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;trust_safety_required&#x27;, actual=&#x27;intake_complete_for_uc_j&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>handover_completeness</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response in Turn 2 is a pure procedural escalation (&#x27;Let me connect you with a specialist&#x27;) with no factual claims about the user&#x27;s issue, scammer details, product, payment, or external warnings. No grounding is required for such a response, and the task explicitly states to score 5 when there are no factual claims needing source support.</td></tr><tr><td>relevance</td><td style="color:var(--green);font-weight:600;">4.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot correctly acknowledges the scam and initiates escalation in Turn 1. In Turn 2, it responds appropriately by offering to connect the user with a specialist—this aligns with the user’s implied need for resolution after reporting. However, the bot misses an opportunity to confirm receipt of the user’s prior report (email + form submission), validate their effort, or clarify next steps (e.g., case reference, timeline, or whether further action is needed). While not irrelevant, this slight omission of acknowledgment and guidance reduces precision from a 5 to a 4.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--green);font-weight:600;">4.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot opens with empathy and a clear, helpful offer—addressing the user by name and acknowledging the issue. It asks for relevant details efficiently. In Turn 2, the response &#x27;Let me connect you with a specialist&#x27; is appropriate and action-oriented, but it lacks acknowledgment of the user’s added effort (e.g., mentioning they’ve already emailed and submitted a report) and misses a brief empathetic reinforcement (e.g., &#x27;Thanks for providing those details and for your patience&#x27;). This small omission makes the tone slightly transactional rather than fully attuned to mild frustration—hence a 4, not 5.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:escalation_compliance</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_040 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-K</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>797ba328-17ed-4605-9b74-02d38467487a</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;budget_exceeded:max-repeated-same-action&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_066 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-E</dd><dt>Actual UC</dt><dd>UC-K</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.67</dd><dt>Judge Score (L3)</dt><dd>0.67</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>3</dd><dt>Session ID</dt><dd>4d4e0423-2b4e-42db-afb6-ff5ded639d4f</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;clarification_budget_exhausted&#x27;, actual=&#x27;intake_complete_for_uc_k&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon fail">&#10007;</span>source_citation_present <span style="color:var(--gray-500);">(turn 1: answer without sources; turn 2: answer without sources)</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-E, actual=UC-K</td></tr><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot makes no factual claims about why the phone number option was removed or whether it was intentionally removed — it explicitly states &#x27;I don&#x27;t have visibility into whether this was intentionally removed or a bug&#x27; and escalates to a specialist. The rest of the response is procedural (asking for troubleshooting steps, offering escalation) with no unsupported factual assertions. No grounding is required for such non-factual, non-assertive statements.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user&#x27;s core question is &#x27;Why was it removed?&#x27; and &#x27;Just want my phone number back as a contact option.&#x27; The bot repeatedly avoids answering the &#x27;why&#x27; — deflecting to lack of visibility, requesting screenshots, suggesting cache clearing, and escalating — without acknowledging or addressing the user’s explicit request for an explanation or restoration of the feature. It treats the issue as a technical bug requiring investigation rather than responding to the user’s direct demand for transparency and resolution.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--amber);font-weight:600;">3.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot maintains professionalism and clarity but lacks sufficient empathy and acknowledgment of the user&#x27;s high frustration. It repeatedly asks for information (screenshot, cache clearing) without validating the user’s emotion or urgency, and phrases like &#x27;I don&#x27;t have visibility&#x27; and &#x27;our Technical Support team will need to investigate&#x27; feel passive and distancing. While it escalates appropriately in Turn 3, earlier responses miss opportunities to apologize, reassure, or affirm the legitimacy of the concern—making the tone somewhat mechanical rather than supportive.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:escalation_compliance</span><span class="tag">L1:source_citation_present</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE_MISSING:handover_completeness</span><span class="tag">L2:correct_uc</span><span class="tag">L3:relevance</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_095 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-A</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>3c310e91-e10c-492f-9733-ff1adcbe6078</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;unspecified&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;latency_ms&#x27;, &#x27;sequence_index&#x27;, &#x27;step_index&#x27;, &#x27;success&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_192 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-B</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>b3531aff-502f-47ed-9525-714392e7b6d8</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;unspecified&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;latency_ms&#x27;, &#x27;sequence_index&#x27;, &#x27;step_index&#x27;, &#x27;success&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_259 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-F</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>d525668a-9d06-4449-a881-5f45abf8bbc4</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_active_use_case <span style="color:var(--gray-500);">(Required telemetry field &#x27;active_use_case&#x27; missing/invalid in phase &#x27;session&#x27; (reason=missing_after_turns). available_keys=[&#x27;activeUseCase&#x27;, &#x27;articlesShown&#x27;, &#x27;candidateUseCases&#x27;, &#x27;caseId&#x27;, &#x27;clarificationCount&#x27;, &#x27;closedAt&#x27;, &#x27;containmentOutcome&#x27;, &#x27;createdAt&#x27;, &#x27;currentPhase&#x27;, &#x27;customerContext&#x27;, &#x27;escalationReason&#x27;, &#x27;faqMissCount&#x27;, &#x27;formContext&#x27;, &#x27;formTopicSubject&#x27;, &#x27;handlingState&#x27;, &#x27;intakeFields&#x27;, &#x27;intentConfidence&#x27;, &#x27;lastAction&#x27;, &#x27;listingContext&#x27;, &#x27;modelVersion&#x27;, &#x27;moderationContext&#x27;, &#x27;projectionVersion&#x27;, &#x27;promptVersion&#x27;, &#x27;repeatedActionCount&#x27;, &#x27;runtimeErrorCount&#x27;, &#x27;sessionId&#x27;, &#x27;sfBotSessionId&#x27;, &#x27;totalBotTurns&#x27;, &#x27;trafficVariant&#x27;, &#x27;updatedAt&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:active_use_case</span></div>
+  </div>
+</details>
+<div class="footer">
+  Generated by Interactive Eval Harness
+</div>
+</body></html>

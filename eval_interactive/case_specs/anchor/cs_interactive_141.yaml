@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Reply to ads
 persona:
-  user_goal_summary: 'User reports Technical Support: Reply to ads. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to be able to send replies to electrician ads using the online form, which currently
+    does nothing when they click ''send''. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,9 @@ persona:
   - I am trying to reply to ads for electricians, I am filling out the online form but when I press 'sedn' nothing happens
   - first attempt today
   - I cant send request, therefor I am NOT getting any replies.
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user is trying to reply to multiple electrician ads, one of which has Ad ID 1508162839.
+    disclose_when: when asked for account details or an example ad ID
   will_request_human_if: ''
 expected:
   outcome_class: escalate

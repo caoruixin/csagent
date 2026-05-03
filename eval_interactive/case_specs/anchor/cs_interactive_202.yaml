@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  user_goal_summary: 'User wants their Gumtree account issue resolved immediately after no response to last week''s report;
+    they say they replied to verification email but it''s still not sorted. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,9 @@ persona:
   - I contacted you last week about my account and still no response this is annoying
   - I did to the hotmail and it's still not been sorted
   - No just sort my account so I can use
-  hidden_facts: []
+  hidden_facts:
+  - fact: An account verification email was sent to the user's Gmail address on 25/11/2025.
+    disclose_when: when the bot asks about the verification email or account status
   will_request_human_if: ''
 expected:
   outcome_class: escalate

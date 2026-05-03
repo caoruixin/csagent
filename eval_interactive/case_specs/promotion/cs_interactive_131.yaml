@@ -9,8 +9,8 @@ form_context:
   description: hi hope you very well, this is my business add and it's paid add so please active my add am so worried please
     help me.
 persona:
-  user_goal_summary: 'User reports Account Support: hi hope you very well, this is my business add and it''s paid add so please
-    active my add am so worried please help me. Drift: soft_shift.'
+  user_goal_summary: 'The user wants their paid business ad with ID 1508288194 activated and their account to remain active
+    for long-term business use, insisting it''s their first ad and they haven''t violated any guidelines. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

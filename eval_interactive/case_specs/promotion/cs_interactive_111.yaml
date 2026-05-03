@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: add removed for none reason
 persona:
-  user_goal_summary: 'User reports Pro Contract: add removed for none reason. Drift: hard_shift.'
+  user_goal_summary: 'User wants to know why their ad 1508819706 was removed, disputes that the email p***********@gmx.com
+    is theirs, and demands an investigation, threatening an ombudsman complaint. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
@@ -17,7 +18,9 @@ persona:
   - ok how linked two accounts
   - I am not understand realy what you talking about I will investigate and fill complain to Ombudsmen , consider britch data
     policy act 1973 and 2010 I will write you officialy
-  hidden_facts: []
+  hidden_facts:
+  - fact: The removed ad 1508819706 was a pet rehoming ad.
+    disclose_when: when asked about the nature of the ad or the reason for removal
   will_request_human_if: ''
 expected:
   outcome_class: escalate

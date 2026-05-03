@@ -1,5 +1,11 @@
 # Phase 2 — Domain Realization Spec
 
+> **Version**: v9 (2026-05-01)
+>
+> **Changelog**:
+> - **v9 (2026-05-01)**: 移除 §2.2 各 UC 的 `allowed_actions:` 字段；§2.6 UC-G/H/I/J/K override 的"禁用 search_knowledge"重写为 Tool Policy 形式；§2.9 grounded 行补充 RESOLVE 回复的 tool-use 判定语义。对齐 `phase0_normative_freeze.md` §0.6 deviation 2026-05-01（action 抽象层移除）。
+> - v8 (2026-04-22): Human review 全量标注完成，Topic Subject 路由策略与 OUT_OF_SCOPE 分类校准。
+>
 > 把通用规范映射成 Gumtree Customer Service 领域的业务控制模型。
 >
 > **前置输入**: `phase0_normative_freeze.md`、`phase1_solution_input_pack.md`、`customer_service_agent_tech_spec.md`、`PRD_biz_part.md`、`customer_service_tool_spec_v0_1.yaml`、`customer_service_conversation_samples_organized.xlsx`、`inferred_tool_candidates_from_human_conversations.xlsx`
@@ -38,6 +44,8 @@
 
 > Schema 参见 `customer_service_agent_tech_spec.md` §9.2 / `phase0_normative_freeze.md` §0.3。
 
+> **[DEVIATION 2026-05-01]** 本节中各 UC 已移除 `allowed_actions:` 字段。LLM 响应采用 OpenAI-style tool-use 格式 `{user_message, reasoning, tool_calls: [{name, arguments}]}`；UC × tool 约束统一由 §2.10 工具矩阵承担。详见 `phase0_normative_freeze.md` §0.6 deviation log。
+
 ### UC-A-01: Ad Status & Visibility（帖子/广告状态与可见性）
 
 ```yaml
@@ -64,12 +72,6 @@ knowledge_scope:
 risk_level: low
 allow_clarification: true
 allow_bot_resolution: true
-allowed_actions:
-  - retrieve_knowledge
-  - answer_grounded
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - user_requests_human
   - faq_miss_ge_2
@@ -103,12 +105,6 @@ knowledge_scope:
 risk_level: low
 allow_clarification: true
 allow_bot_resolution: true
-allowed_actions:
-  - retrieve_knowledge
-  - answer_grounded
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - user_requests_human
   - faq_miss_ge_2
@@ -145,12 +141,6 @@ knowledge_scope:
 risk_level: low
 allow_clarification: true
 allow_bot_resolution: true
-allowed_actions:
-  - retrieve_knowledge
-  - answer_grounded
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - user_requests_human
   - faq_miss_ge_2
@@ -186,12 +176,6 @@ knowledge_scope:
 risk_level: low
 allow_clarification: true
 allow_bot_resolution: true
-allowed_actions:
-  - retrieve_knowledge
-  - answer_grounded
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - user_requests_human
   - faq_miss_ge_2
@@ -225,12 +209,6 @@ knowledge_scope:
 risk_level: low
 allow_clarification: true
 allow_bot_resolution: true
-allowed_actions:
-  - retrieve_knowledge
-  - answer_grounded
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - user_requests_human
   - faq_miss_ge_2
@@ -263,12 +241,6 @@ knowledge_scope:
 risk_level: medium
 allow_clarification: true
 allow_bot_resolution: true
-allowed_actions:
-  - retrieve_knowledge
-  - answer_grounded
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - user_requests_human
   - faq_miss_ge_2
@@ -308,12 +280,6 @@ knowledge_scope:
 risk_level: medium
 allow_clarification: true
 allow_bot_resolution: true
-allowed_actions:
-  - retrieve_knowledge
-  - answer_grounded
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - user_requests_human
   - faq_miss_ge_2
@@ -349,12 +315,6 @@ knowledge_scope:
 risk_level: high
 allow_clarification: true       # 仅用于收集 intake 必要字段
 allow_bot_resolution: false     # V1 Bot 不做 GDPR 操作
-allowed_actions:
-  - ask_user                    # 收集 email / 请求类型
-  - escalate_human
-  - finish
-  # 注：tool_spec 下 search_knowledge / resolve_article 不允许用于 UC-G；
-  # GDPR 流程解释仅使用固定话术库（prompt-template 级，不经由 retrieve_knowledge 动作）
 escalation_conditions:
   - intake_complete              # required_fields 齐 → 立即 handover
   - user_requests_human
@@ -388,12 +348,6 @@ knowledge_scope:
 risk_level: high
 allow_clarification: true       # 最多 2 轮，收集 ad_id + email
 allow_bot_resolution: false
-allowed_actions:
-  - ask_user
-  - escalate_human
-  - finish
-  # 注：search_knowledge / resolve_article 不在 UC-H allowed_use_cases（tool_spec）
-  # Bot 回答用固定话术模板（不 grounded-generate）
 escalation_conditions:
   - intake_complete_with_ad_id_and_email  # 标准 intake 齐 → handover
   - user_requests_human
@@ -401,7 +355,7 @@ escalation_conditions:
   - user_expresses_strong_emotion
 outcome_class: escalate
 runtime_required:
-  - get_customer_context (限 UC-A/UC-FP/UC-K，对 UC-H 不可，因此仅靠 ask_user 收集)
+  - get_customer_context (限 UC-A/UC-FP/UC-K，对 UC-H 不可，因此仅靠 user_message 提问收集)
   - create_case_controlled (UC-H 允许)
   - request_handover (UC-H 允许)
 tool_spec_mapping: UC-H
@@ -439,10 +393,6 @@ knowledge_scope:
 risk_level: high
 allow_clarification: true
 allow_bot_resolution: false
-allowed_actions:
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - intake_complete_with_email_and_payment_reference
   - user_requests_human
@@ -480,10 +430,6 @@ knowledge_scope:
 risk_level: critical
 allow_clarification: true
 allow_bot_resolution: false
-allowed_actions:
-  - ask_user
-  - escalate_human
-  - finish
 escalation_conditions:
   - intake_complete_with_target_and_description
   - user_requests_human
@@ -524,13 +470,6 @@ knowledge_scope:
 risk_level: medium
 allow_clarification: true
 allow_bot_resolution: partial     # 能通过 get_customer_context 回拉状态解释的走 bot；需后端投诉的走 intake + case
-allowed_actions:
-  - ask_user
-  - answer_grounded                 # 基于 get_customer_context 的 safe_summary 回答（非 Help Centre 知识）
-  - escalate_human
-  - finish
-  # 注：search_knowledge / resolve_article 未在 UC-K allowed_use_cases；
-  # answer_grounded 的 grounding 来源仅限 get_customer_context 的 safe_summary + 固定话术库
 escalation_conditions:
   - clarification_budget_exhausted
   - user_requests_human
@@ -918,7 +857,7 @@ clarification_policy_override:
     - additional_details
 
 resolution_policy_override:
-  - **禁用 search_knowledge**（tool_spec disallowed）
+  - **Tool Policy: disallowed_tools 包括 search_knowledge / resolve_article**（见 §2.10 矩阵；UC-G 走 fixed_script_library 而非 grounded retrieval）
   - 使用固定话术库（已通过合规审批，v5）："Your request needs to be handled by our privacy team for identity verification. I'll pass your details on — you'll hear back by email within {SLA}."
   - 仅在用户要求"如何提交"时返回 Help Centre GDPR overview 的 static 链接（不作为 grounded answer）
 
@@ -949,7 +888,7 @@ clarification_policy_override:
     - stated_reason_or_context
 
 resolution_policy_override:
-  - **禁用 search_knowledge**（tool_spec disallowed）
+  - **Tool Policy: disallowed_tools 包括 search_knowledge / resolve_article**（见 §2.10 矩阵；UC-H 不做 grounded-generate，仅用 fixed_script_library）
   - 使用固定安抚话术模板："I'm sorry to hear your ad was removed. Let me help you get this looked into by our team."
   - **绝不调用 moderation_enforcement_action**（human_only）
   - **绝不说"the ads have now been removed" 或 "your restriction is lifted"**（真实坐席 transcript 中出现过的模式，Bot 禁止模仿）
@@ -978,7 +917,7 @@ clarification_policy_override:
     - brief_description
 
 resolution_policy_override:
-  - **禁用 search_knowledge**
+  - **Tool Policy: disallowed_tools 包括 search_knowledge / resolve_article**（见 §2.10 矩阵）
   - 使用固定免责 + 移交话术："Payment disputes are handled by our specialist team — I'll pass on what you've told me so they can investigate."
   - 不做金额承诺、不做退款承诺、不做责任判定
   - 达到 intake_complete → `request_handover`（UC-I 不允许 create_case_controlled，所以仅做 handover）
@@ -1004,7 +943,7 @@ clarification_policy_override:
     - evidence_references
 
 resolution_policy_override:
-  - **禁用 search_knowledge**
+  - **Tool Policy: disallowed_tools 包括 search_knowledge / resolve_article**（见 §2.10 矩阵）
   - 使用固定结构化举报话术："Thank you for reporting this. I'll gather a few details and pass them to our Trust & Safety team for review."
   - **绝不调用 moderation_enforcement_action**（human_only）
   - **绝不承诺"账户已封禁" / "广告已删除"**（真实坐席 transcript 出现该承诺，Bot 禁止）
@@ -1030,7 +969,7 @@ clarification_policy_override:
     - screenshot_reference
 
 resolution_policy_override:
-  - **禁用 search_knowledge**（UC-K 未在 allowed_use_cases）
+  - **Tool Policy: disallowed_tools 包括 search_knowledge / resolve_article**（UC-K 未在 search_knowledge.allowed_use_cases；见 §2.10 矩阵）
   - 允许调用 `get_customer_context`（UC-K 唯一同时允许 account+listing 的 UC）用于确认账户/广告状态
   - 状态可解释（如"your account is fine, ad is live"）→ 固定话术回复并进入 confirmation
   - 状态不可解释或疑似后端故障 → intake + `create_case_controlled`（UC-K 允许）+ `request_handover`
@@ -1133,7 +1072,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 |------|------|---------|
 | **Bot 身份披露** | INIT 阶段必须出示身份："I'm the Gumtree Support Assistant" | tech_spec §11.3 INIT；BRD §6.3 opening |
 | **不伪装人工** | 任何场景禁止暗示 "I'm a human agent"；真实 transcript 中出现 "Are you a real human?" 的用户提问需用固定诚实回应 | prompt-level + grader 检测 |
-| **不在无依据时编造** | UC-A/B/C/D/E/F/FP 的 RESOLVE 回复必须 grounded（含 source_ids）；UC-G/H/I/J/K 完全使用固定话术，不 grounded-generate | tech_spec §14.3 answer contract；eval grounded_pass_rate |
+| **不在无依据时编造** | UC-A/B/C/D/E/F/FP 的 RESOLVE 回复（即 user_message 非空且未触发 request_handover）必须 grounded（含 source_ids）；UC-G/H/I/J/K 完全使用固定话术，不 grounded-generate | tech_spec §14.3 answer contract；eval grounded_pass_rate |
 | **不做高风险自动裁决** | 见 §2.3 Forbidden Automation | use case allow_bot_resolution=false 或强制升级 |
 | **不做越权承诺** | 禁止 "I've fixed that" / "I'll process your refund" / "The ads have now been removed" / "I have also restricted your number" / "Your restriction is lifted" 等（真实坐席 transcript 出现的模式，Bot 禁止模仿）| BRD §6.3 phrases to avoid + transcript 样本 + grader 检测 forbidden phrases |
 | **工具 scope 强约束** | 每次 tool call 前 runtime 检查 `active_use_case ∈ tool.allowed_use_cases`；违规返回 `scope_blocked` 并触发 `tool_scope_blocked` 升级 | tool_spec runtime 实施 |
@@ -1162,7 +1101,7 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 
 > ✅ = tool_spec v0.2 允许（in `allowed_use_cases`）；❌ = 禁用（in `disallowed_use_cases`）
 >
-> **v0.2 变更**：`get_customer_context` 的 `disallowed_use_cases` 明确为 [UC-B, UC-E, UC-G, UC-H, UC-I, UC-J]。UC-B/UC-E 不需要账户/广告上下文（纯 FAQ）；UC-G/H/I/J 为 intake-only UC，Bot 不做 context lookup（通过 ask_user 收集标识符后直接 handover）。
+> **v0.2 变更**：`get_customer_context` 的 `disallowed_use_cases` 明确为 [UC-B, UC-E, UC-G, UC-H, UC-I, UC-J]。UC-B/UC-E 不需要账户/广告上下文（纯 FAQ）；UC-G/H/I/J 为 intake-only UC，Bot 不做 context lookup（通过 user_message 提问收集标识符后直接 handover）。
 >
 > **Pre-chat form 影响**：`get_customer_context` 增加 `form_context` 输入 + `must_auto_trigger_on_form_context: true` policy — 当 INIT 阶段有 email 时自动触发（不等对话中问 email）。
 
@@ -1206,10 +1145,10 @@ V1 允许以下 use case 间的降判/路由（所有 UC 均在 V1 范围内，�
 | UC-E-01 | `search_knowledge` → `resolve_article` → `record_outcome`（`get_customer_context` 对 UC-E 禁用）|
 | UC-F-01 | [INIT: auto `get_customer_context`(listing)] → `search_knowledge` → `resolve_article` → `record_outcome` |
 | UC-FP-01 | [INIT: auto `get_customer_context`(account+listing, 含 `get_moderation_review_context` 链式调用)] → `search_knowledge` → `resolve_article` → `record_outcome` |
-| UC-G-01 | [intake via ask_user + fixed_script_library] → `request_handover`(is_business_hours) → `record_outcome` |
-| UC-H-01 | [intake via ask_user + fixed_script_library] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
-| UC-I-01 | [intake via ask_user + fixed_script_library] → `request_handover` → `record_outcome` |
-| UC-J-01 | [intake via ask_user + fixed_script_library] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
+| UC-G-01 | [intake via user_message 提问 + fixed_script_library] → `request_handover`(is_business_hours) → `record_outcome` |
+| UC-H-01 | [intake via user_message 提问 + fixed_script_library] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
+| UC-I-01 | [intake via user_message 提问 + fixed_script_library] → `request_handover` → `record_outcome` |
+| UC-J-01 | [intake via user_message 提问 + fixed_script_library] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
 | UC-K-01 | [INIT: auto `get_customer_context`] → [若 safe_summary 可解释] → `record_outcome`；[若需后端调查] → runtime `create_case_controlled` → `request_handover` → `record_outcome` |
 
 ### 2.10.5 `create_case_controlled` Required Fields 合约（v4 已与 tool_spec v0.2 + Salesforce 对齐）
@@ -1310,7 +1249,7 @@ Stage 2: Description 文本分类
 
 1. **跳过 Stage 1 先验**：不假设 UC-D，直接进入全候选集 Description 分类
 2. **增加 spillover 检测权重**：对 UC-H（37%）、UC-C（11%）、UC-G（8%）等高频 spillover UC 降低分类阈值
-3. **分类信心不足时**（confidence < 0.6）：使用 `ask_user` 澄清 1 轮，而非默认 UC-D
+3. **分类信心不足时**（confidence < 0.6）：通过 `user_message` 提问澄清 1 轮（无 tool_calls），而非默认 UC-D
 4. **Observability**：记录 `topic_uc_mismatch` 事件，用于持续优化分类器
 
 ### 2.11.3 Topic Subject 内 UC 消歧关键信号

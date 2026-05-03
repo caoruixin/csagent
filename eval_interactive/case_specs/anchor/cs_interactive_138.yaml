@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: What Email address can I use to make a request
 persona:
-  user_goal_summary: 'User reports Account Support: What Email address can I use to make a request. Drift: soft_shift.'
+  user_goal_summary: 'User wants to consolidate two Gumtree accounts and have ad replies sent to their active email address,
+    avoiding having to delete the app. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift
@@ -19,7 +20,9 @@ persona:
     sent to my email address. Is it possible for you to
   - simply sort out ONE account using the [EMAIL] and ensure that any ad messages will be duplicated by Email. I would prefer
     to continue with Gumtree instead of deleting the entire App..
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's old Gumtree account uses the email [EMAIL] and has not been used for over ten years.
+    disclose_when: when asked about the old account or email address
   will_request_human_if: ''
 expected:
   outcome_class: resolve

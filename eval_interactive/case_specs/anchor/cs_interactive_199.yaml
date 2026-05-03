@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: have an email askinh if available but am unable to reply
 persona:
-  user_goal_summary: 'User reports Account Support: have an email askinh if available but am unable to reply. Drift: soft_shift.'
+  user_goal_summary: 'User received an email from a buyer asking if an item is still available, but the message does not appear
+    in Gumtree messages on the website, and clicking ''reply to message'' does nothing. They want to respond to the buyer.
+    Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
@@ -17,7 +19,9 @@ persona:
   - are we still talking
   - this does not make sense. if i click on 'reply to message' nothing happens, if i look at messages in website no message
     from Denver exists
-  hidden_facts: []
+  hidden_facts:
+  - fact: The buyer's message was 'Is this still available?' sent on 29/01/2026 at 14:21.
+    disclose_when: when asked about the content or timing of the buyer's message
   will_request_human_if: ''
 expected:
   outcome_class: resolve

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Brattsound 3 gun safe cabinet
 persona:
-  user_goal_summary: 'User reports Account Support: Brattsound 3 gun safe cabinet. Drift: minor_drift.'
+  user_goal_summary: 'User wants to find his live ad for a Brattsound 3 gun safe cabinet after seeing ''no live ads'' when
+    logged in. Drift: minor_drift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: minor

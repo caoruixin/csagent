@@ -8,15 +8,17 @@ form_context:
   ad_id: ''
   description: Regarding car purchase
 persona:
-  user_goal_summary: 'User reports Account Support: Regarding car purchase. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to obtain information about a Toyota Verso (YR61ZLY) they bought on Gumtree a year ago,
+    suspecting the seller did not disclose its Category N write-off status. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Hi i bought a car from gumtree a year ago would you still have the information toyota verso YR61ZLY
-  - Ok thanks
   - I believe the person who sold it didn't declare its category n
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user suspects the seller did not declare its Category N status.
+    disclose_when: when bot asks about the issue
   will_request_human_if: ''
 expected:
   outcome_class: escalate

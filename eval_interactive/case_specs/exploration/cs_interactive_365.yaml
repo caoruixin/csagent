@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: Will no longer use your app as telephone number taken away this isn't helping buyers or sellers
 persona:
-  user_goal_summary: 'User reports Account Support: Will no longer use your app as telephone number taken away this isn''t
-    helping buyers or sellers. Drift: hard_shift.'
+  user_goal_summary: 'User wants to complain about the removal of phone numbers from ads, insists it harms buying/selling,
+    and states they will leave for other platforms. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

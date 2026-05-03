@@ -8,16 +8,20 @@ form_context:
   ad_id: ''
   description: Delete account in full
 persona:
-  user_goal_summary: 'User reports Account Support: Delete account in full. Drift: hard_shift.'
+  user_goal_summary: 'User wants their Gumtree account fully deleted and insists on speaking with a manager because previous
+    deletion attempts via the app were unsuccessful. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - Hi, I’m looking to ensure my full account is deleted . I’m having issues with the process and need it actioned asap please
     .
-  - No thanks, have a nice evening .
+  - I have tried many times a few months ago. I don’t understand why it’s so difficult. I’ve never had this issue with other
+    companies or apps etc to delete my own account. Please can you escalate this .
   - Do you have a reference number ? I would like to ensure this happens and the correct information is captured.
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user was given reference number 00400918 for the current request.
+    disclose_when: when asked for a reference number or confirmation details.
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

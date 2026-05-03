@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  user_goal_summary: 'The user wants their account deleted immediately because they''ve been waiting since November 13, 2025,
+    and are unable to verify identity. They are frustrated with ignored escalations. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift
@@ -20,7 +21,9 @@ persona:
     should clarify which to remove.
   - I’ll await a reply
   - Is it 30 days Monday to Friday?
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user is unable to confirm payments, posts, or ID numbers for account verification.
+    disclose_when: when asked for identity verification or account details
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

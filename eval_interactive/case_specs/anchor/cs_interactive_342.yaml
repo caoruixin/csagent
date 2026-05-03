@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: Interested in purchasing but website not connecting me
 persona:
-  user_goal_summary: 'User reports Account Support: Interested in purchasing but website not connecting me. Drift: soft_shift.'
+  user_goal_summary: 'User wants to view all pictures and contact a seller on a Gumtree listing on their computer, and needs
+    to know if an account is required and if it costs money, to complete the purchase interest. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Do I need an account to contact the seller
-  - Done then. thank oyu
+  - Can't see the second picture or the map
   - Does it cost to have an accoutn
   hidden_facts: []
   will_request_human_if: ''

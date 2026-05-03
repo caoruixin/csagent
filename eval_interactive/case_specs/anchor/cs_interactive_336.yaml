@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Enquiry
 persona:
-  user_goal_summary: 'User reports Account Support: Enquiry. Drift: soft_shift.'
+  user_goal_summary: 'User wants his ad to display his phone number again, help pages updated to reflect email-only contact,
+    and asks how to arrange local pickup without sharing prohibited contact details. Drift: soft_shift.'
   frustration_level: none
   verbosity: verbose
   drift_behavior: soft_shift

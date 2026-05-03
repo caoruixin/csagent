@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: The location isn't working correctly.
 persona:
-  user_goal_summary: 'User reports Technical Support: The location isn''t working correctly. Drift: soft_shift.'
+  user_goal_summary: 'User wants the location search on Gumtree to show items for Blackheath, Welling, Bexleyheath rather
+    than thousands of distant listings like Dagenham. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift

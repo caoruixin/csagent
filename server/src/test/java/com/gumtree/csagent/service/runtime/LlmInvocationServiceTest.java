@@ -71,8 +71,10 @@ class LlmInvocationServiceTest {
 
         assertNotNull(result, "Should return safe escalation, not null");
         assertEquals("error_fallback", result.getFinishReason());
-        assertTrue(result.getContent().contains("escalate_human"),
-                "Safe escalation should contain escalate_human action");
+        assertTrue(result.getContent().contains("request_handover"),
+                "Safe escalation should call the request_handover tool");
+        assertTrue(result.getContent().contains("system_failure"),
+                "Safe escalation should carry escalation_reason=system_failure");
         assertTrue(result.getContent().contains("technical issue"),
                 "Safe escalation should mention technical issue");
     }
@@ -87,7 +89,7 @@ class LlmInvocationServiceTest {
 
         assertNotNull(result);
         assertEquals("error_fallback", result.getFinishReason());
-        assertTrue(result.getContent().contains("escalate_human"));
+        assertTrue(result.getContent().contains("request_handover"));
     }
 
     @Test
@@ -127,7 +129,7 @@ class LlmInvocationServiceTest {
 
         assertNotNull(result);
         assertEquals("error_fallback", result.getFinishReason());
-        assertTrue(result.getContent().contains("escalate_human"));
+        assertTrue(result.getContent().contains("request_handover"));
     }
 
     @Test

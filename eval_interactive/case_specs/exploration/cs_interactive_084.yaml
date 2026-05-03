@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: My add appears to have a banner at the bottom why is this please
 persona:
-  user_goal_summary: 'User reports Account Support: My add appears to have a banner at the bottom why is this please. Drift:
-    hard_shift.'
+  user_goal_summary: 'User wants confirmation that their ad (ID 1508570107) is live and wants a fraud warning banner removed,
+    as they paid for front page placement. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
@@ -17,7 +17,9 @@ persona:
   - Is my add live please as l have not had a conformation either thank you
   - SEE THIS I PAID TO HAVE IT ON THE FRONT PAGE JUST THIS AFTERNOON
   - PLEASE EMAIL ME AS SOON AS POSSIBLE AND REMOVE THIS OFFENDING MESSAGE
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad ID is 1508570107 and it is for a mobility recliner chair.
+    disclose_when: when asked for ad ID or ad details
   will_request_human_if: ''
 expected:
   outcome_class: escalate

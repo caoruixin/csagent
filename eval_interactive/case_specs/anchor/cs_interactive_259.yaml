@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
+  user_goal_summary: 'User wants to know how to receive payment for an item they are selling on Gumtree. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none

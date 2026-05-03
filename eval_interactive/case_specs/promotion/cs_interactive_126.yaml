@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Let down by seller
 persona:
-  user_goal_summary: 'User reports Delivery: Let down by seller. Drift: hard_shift.'
+  user_goal_summary: 'User reports that a Gumtree seller reneged on a sale agreement after she made significant efforts (hired
+    a van, son-in-law took day off). She wants Gumtree to investigate the seller and take appropriate action. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift
@@ -21,7 +22,9 @@ persona:
   - I was so disappointed, especially as I'd tried so hard to get to buy. Items were perfect for me. Also, as you'll see from
     messages, I'd had an op on 3.12, so it really was a huge effort for me, which I conveyed in my message exchange with him
   - Sorry, meant reneging on our agreement I meant
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user had an operation on 3.12 and arranged for others to help her with the collection.
+    disclose_when: When asked about why this was particularly disappointing or if the user wants to share more about the situation.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

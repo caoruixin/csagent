@@ -8,13 +8,13 @@ form_context:
   ad_id: ''
   description: Hi, ive just paid too put my car up for sale and its in my inactive ads section , have you removed it???
 persona:
-  user_goal_summary: 'User reports Account Support: Hi, ive just paid too put my car up for sale and its in my inactive ads
-    section , have you removed it???. Drift: hard_shift.'
+  user_goal_summary: 'User wants their car ad, which they paid to list, to be made active and remain advertised for the full
+    paid period. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Thank you , [EMAIL]
+  - As i just paid too list my car and its been removed?????
   - Well please let me know asap as ive paid money too list it and I expect it too be up advertised for the full period i
     paid for
   - So where do I stand

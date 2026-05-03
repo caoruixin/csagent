@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports Help. Drift: hard_shift.'
+  user_goal_summary: 'User wants to close their old restricted Gumtree account (with a defunct email) and open a new one to
+    message sellers and buy a bed. Drift: hard_shift.'
   frustration_level: none
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Candice. I need your help.
-  - Thanks ☺️
-  - Have a great rest of your day
-  hidden_facts: []
+  - The trouble is the email address associated with the account is no longer active and I know I can’t change it
+  - The previous agent said there was a restriction on my account
+  - Could you just close this account and I open a new one?
+  hidden_facts:
+  - fact: The email associated with the old account is no longer active and cannot be changed.
+    disclose_when: when the bot asks about the old account email or why the user wants to close it
   will_request_human_if: ''
 expected:
   outcome_class: escalate

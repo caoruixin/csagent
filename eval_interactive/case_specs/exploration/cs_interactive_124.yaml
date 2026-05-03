@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: leather  jacket
 persona:
-  user_goal_summary: 'User reports Payments: leather jacket. Drift: hard_shift.'
+  user_goal_summary: 'User wants to confirm Gumtree''s online payment procedure: payment transfer after item receipt and postage
+    reimbursement for seller''s indicated postage. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - just checking the procedure re people making a purchase online.
   - 4. gumtree tranfers payment to me
-  - thansk and bye now
+  - does gumtree pay my postage that i indicated on the advert?
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:

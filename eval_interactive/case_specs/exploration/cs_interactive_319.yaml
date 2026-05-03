@@ -8,16 +8,18 @@ form_context:
   ad_id: ''
   description: CHODU wake up your mum
 persona:
-  user_goal_summary: 'User reports Account Support: CHODU wake up your mum. Drift: hard_shift.'
+  user_goal_summary: 'User wants to file a complaint about a support agent who called them an antisemitic slur and disconnected
+    the chat, and demands the agent be fired. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - 1508059319 1508056756 1508039994 1508039626
-  - ok I will drop gumtree, will move over to ebay I guess. I wasted my time posting Ads not great staff and great systems
-    Gumtree has!!!!!!
-  - ok blessing tochodumum
-  hidden_facts: []
+  - your agent was bad to me, he called me a filthy jewish
+  - then disconnect the chat
+  - Help me File a Complaint and Fire his Ass""""
+  hidden_facts:
+  - fact: 'The user provided reference numbers: 1508059319, 1508056756, 1508039994, 1508039626.'
+    disclose_when: when asked for details about the prior interaction or account
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

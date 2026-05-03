@@ -9,15 +9,13 @@ form_context:
   description: Hi, hope you are well m I just noticed that someone has given me bad feedback for finding out that I had just
     sold a bicycle. And it was not available. Can this be removed? Many thanks Mark 133 days ago. Buyer user id SYRO
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: Hi, hope you are well m I just noticed that someone has given me bad
-    feedback for finding out that I had just sold a bicycle. Drift: hard_shift.'
+  user_goal_summary: 'User wants a 1-star feedback removed because a buyer left negative feedback after finding the bicycle
+    was already sold when they tried to purchase. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Courtney. Thanks you 😊
   - He was very angry it was not for sale anymore. I had literally just sold it
-  - 🙏
   hidden_facts: []
   will_request_human_if: ''
 expected:

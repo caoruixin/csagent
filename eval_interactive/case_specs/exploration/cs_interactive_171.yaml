@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Not happy you've taken call setting away from add
 persona:
-  user_goal_summary: 'User reports Account Support: Not happy you''ve taken call setting away from add. Drift: hard_shift.'
+  user_goal_summary: 'The user demands the phone call feature on ads be restored, arguing it helps sales and email is equally
+    susceptible to fraud; they threaten to close account and encourage others to leave. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

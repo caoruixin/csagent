@@ -8,16 +8,19 @@ form_context:
   ad_id: ''
   description: Keep Fit Bench
 persona:
-  user_goal_summary: 'User reports Account Support: Keep Fit Bench. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to ensure they are not charged twice for promoting a keep fit bench advertised on Gumtree,
+    and if they were, to get a refund for the duplicate promotion. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - Hello Courtney, I have just advertised a keep fit bench for sale at £59. But for some reason it got posted twice. Ive
     paid to promote the advert through PayPal Pal. Can you make sure I've not paid twice for promotion
-  - Goodnight
-  - Thank you Courtney for your help
-  hidden_facts: []
+  - Can you only charge me for the promo once please
+  hidden_facts:
+  - fact: 'The user has a deleted advertisement (ID: 1508532412) and a live advertisement (ID: 1508532588) for the same keep
+      fit bench.'
+    disclose_when: When the agent asks for the ad ID or to locate the account.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,14 +8,16 @@ form_context:
   ad_id: ''
   description: Replies
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Replies. Drift: none.'
+  user_goal_summary: 'User wants Gumtree to investigate whether multiple no-show respondents (James, Gary, David, Lance Patton)
+    on ads 1503529622 and 1505659236 are the same person. Drift: none.'
   frustration_level: high
-  verbosity: terse
+  verbosity: normal
   drift_behavior: none
   seed_messages:
-  - ok, thanks
-  - thanks a lot
-  - ok, I didn't know that
+  - I have few items for sell. The problem is i have had few replies interested in the items, then arrange for a view, then
+    no one show up. I was wondering if could be the same person doing this?
+  - 'Ad ID: 1503529622 Ad ID: 1505659236'
+  - James Gary David Lance Patton
   hidden_facts: []
   will_request_human_if: ''
 expected:

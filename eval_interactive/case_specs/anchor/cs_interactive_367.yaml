@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Swedish massage by rose
 persona:
-  user_goal_summary: 'User reports Ad Support: Swedish massage by rose. Drift: soft_shift.'
+  user_goal_summary: 'User wants their phone number displayed on their ad so they can receive direct phone calls, and feels
+    the ad is not worth the money without this feature. They prefer faster direct communication over messaging. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,9 @@ persona:
   - Hi I don’t seem to get any phone calls as I think my phone number is not showing
   - I have paid so much money for the add it’s not worth it if I am not getting any business
   - It takes longer to respond and reply here texts , easier to connect directly
-  hidden_facts: []
+  hidden_facts:
+  - fact: They believe spending money on ads is not worth it if they cannot receive direct phone calls.
+    disclose_when: when discussing the value of the ad
   will_request_human_if: ''
 expected:
   outcome_class: escalate

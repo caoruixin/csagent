@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Get no replies contacting adds
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Get no replies contacting adds. Drift: none.'
+  user_goal_summary: 'The user wants to know why they haven''t received any replies to their ad for a drum kit in Glasgow
+    after two days, and to confirm if the messaging system works. Drift: none.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: none

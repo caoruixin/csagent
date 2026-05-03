@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: User wants to delete account [EMAIL] as the email was hacked. Please contact them on [EMAIL] for cancellation
 persona:
-  user_goal_summary: 'User reports Account Support: User wants to delete account [EMAIL] as the email was hacked. Drift: hard_shift.'
+  user_goal_summary: 'User wants to delete their Gumtree account linked to a hacked email and provide an alternative contact
+    email for confirmation. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

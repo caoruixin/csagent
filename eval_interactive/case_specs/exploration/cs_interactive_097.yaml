@@ -10,16 +10,15 @@ form_context:
     balance of £150 after receiving the phone. I have been asking the seller to refund my £150 since he's refusing to post
     the post phone to me.
 persona:
-  user_goal_summary: 'User reports Account Support: I paid a deposit of £150 to the seller with an agreement that he will
-    post the phone to me and I will pay the balance of £150 after receiving the phone. Drift: hard_shift.'
+  user_goal_summary: 'User needs Gumtree to help recover a £150 deposit from a seller who hasn''t sent the phone, and requests
+    resending of the support email asking for screenshots because they didn''t receive it. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - I already brought this issue to the attention of one of your colleagues who promised to escalate the matter and get back
     to me via email. I have still not heard from gumtree while the seller still holds on to my £150.
   - I'm not sure that I received this email.
-  - Thank you. I'll look out for it.
   hidden_facts: []
   will_request_human_if: ''
 expected:

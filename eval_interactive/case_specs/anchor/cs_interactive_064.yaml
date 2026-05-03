@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: Not receiving replies
 persona:
-  user_goal_summary: 'User reports Ad Support: Not receiving replies. Drift: soft_shift.'
+  user_goal_summary: 'User wants to receive messages and email notifications for replies to their posted ads. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

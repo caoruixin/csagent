@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Cannot get messages
 persona:
-  user_goal_summary: 'User reports Account Support: Cannot get messages. Drift: soft_shift.'
+  user_goal_summary: 'User gets error code 500 when trying to view messages on Gumtree and cannot see messages despite email
+    notifications. Wants the error resolved to access messages. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

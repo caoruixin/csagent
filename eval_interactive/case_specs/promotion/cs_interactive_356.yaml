@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Daschundblack tan smooth hair
 persona:
-  user_goal_summary: 'User reports Account Support: Daschundblack tan smooth hair. Drift: soft_shift.'
+  user_goal_summary: 'User wants his ''Daschunds 4 sale'' advertisement to be listed under the correct category in South Australia
+    on Gumtree. Drift: soft_shift.'
   frustration_level: none
   verbosity: normal
   drift_behavior: soft_shift

@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: My ad was removed for breaking rules and I don't know which rule I broke. I did not receive any email.
 persona:
-  user_goal_summary: 'User reports Ad Support: My ad was removed for breaking rules and I don''t know which rule I broke.
-    Drift: hard_shift.'
+  user_goal_summary: 'User wants to know which rule she broke that led to ad removal and account block, and she expects to
+    receive an email with an explanation and resolution. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I went through and noticed that the ad was duplicated
-  - You too
-  - Okay, thank you.
+  - it was duplicated 5 times, but I did not know
+  - because of the network
   hidden_facts: []
   will_request_human_if: ''
 expected:

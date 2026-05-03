@@ -8,14 +8,16 @@ form_context:
   ad_id: ''
   description: having trouble logging into account. Password reset link is not recognised
 persona:
-  user_goal_summary: 'User reports Account Support: having trouble logging into account. Drift: none.'
+  user_goal_summary: 'User wants to regain access to their Gumtree account after encountering login issues. Drift: none.'
   frustration_level: mild
   verbosity: terse
   drift_behavior: none
   seed_messages:
   - September 2024
   - okay let me try 1 min
-  hidden_facts: []
+  hidden_facts:
+  - fact: User last accessed their account in September 2024.
+    disclose_when: when bot asks about last login time
   will_request_human_if: ''
 expected:
   outcome_class: resolve

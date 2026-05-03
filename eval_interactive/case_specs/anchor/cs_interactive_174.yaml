@@ -8,8 +8,9 @@ form_context:
   ad_id: ''
   description: This ad says i have 55 replies but i cant find a single one
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: This ad says i have 55 replies but i cant find a single one. Drift:
-    soft_shift.'
+  user_goal_summary: 'User wants to view the 55 replies indicated on their ad listing and resolve the issue of not seeing
+    any messages when clicking on replies. Later, after following agent''s advice, they become locked out and need help regaining
+    account access. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: None of my replies to my messages are coming
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: None of my replies to my messages are coming. Drift: soft_shift.'
+  user_goal_summary: 'User wants to understand why their replies to messages result in delivery error 550:5.7.1 (relaying
+    denied) and to get their replies working again. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Will do give me a minute
-  - Thank you for checking
-  - No the error message came later to my email in the spam folder
+  - Yours has come through but when i replied back to some people yestetday it came up with delivery error and did not gobthrough
+  - It said error 550:5.7.1
+  - It said relaying denied
   hidden_facts: []
   will_request_human_if: ''
 expected:

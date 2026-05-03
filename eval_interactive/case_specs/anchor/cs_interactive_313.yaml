@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: child furniture
 persona:
-  user_goal_summary: 'User reports Account Support: child furniture. Drift: minor_drift.'
+  user_goal_summary: 'User wants to post their ad and pay, but the green ''post my add'' button is unresponsive and nothing
+    happens when clicked. Drift: minor_drift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: minor
   seed_messages:
   - just signed up and trying to post my add and all filed in and then doesnt let me post and pay
-  - ok thansk
+  - at foot green box post my add than clikck and nothingh happends
   - doesnrt work still ???
   hidden_facts: []
   will_request_human_if: ''

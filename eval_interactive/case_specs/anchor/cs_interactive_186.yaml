@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Workers accomdation
 persona:
-  user_goal_summary: 'User reports Ad Support: Workers accomdation. Drift: soft_shift.'
+  user_goal_summary: 'User wants to understand why his ad for a caravan did not go live and how to resolve the issue, after
+    having replied to a verification email. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

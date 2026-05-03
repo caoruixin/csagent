@@ -8,14 +8,13 @@ form_context:
   ad_id: ''
   description: I dont receive an email to tell me i have received a response to my add
 persona:
-  user_goal_summary: 'User reports Ad Support: I dont receive an email to tell me i have received a response to my add. Drift:
-    soft_shift.'
+  user_goal_summary: 'User plans to post an ad on Gumtree but previously did not receive email notifications for ad responses;
+    they want to verify that notifications will work for future ads. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Hi i have no adds at the moment i was just about to post one, but the last time i did i never got email notifications
-  - Ok thats great, thanks
   - Yes there is no message in my junk or inbox
   hidden_facts: []
   will_request_human_if: ''

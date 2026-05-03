@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports Help. Drift: hard_shift.'
+  user_goal_summary: 'User wants a refund for the second £7.99 charge, cancellation of auto-renewal, and explanation for why
+    they were charged again after deleting the ad. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift
@@ -18,7 +19,9 @@ persona:
     can you confirm if I will be refunded for the most recent charge?
   - So what does this mean please?
   - Your auto renewal has been cancelled
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user received an email confirming 'Your auto renewal has been cancelled'.
+    disclose_when: When asked about the auto-renewal status or if the user mentions the email.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: I have blocked seller by mistake and now can't get hold of her leah is her name
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: I have blocked seller by mistake and now can''t get hold of her leah
-    is her name. Drift: hard_shift.'
+  user_goal_summary: 'User wants to contact seller Leah after accidentally blocking and deleting the conversation on Gumtree.
+    She cannot unblock or message her and seeks help to reach her for an agreed cat pickup. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

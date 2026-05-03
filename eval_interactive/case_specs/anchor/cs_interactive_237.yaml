@@ -8,15 +8,14 @@ form_context:
   ad_id: ''
   description: I am trying to pay for item on gumtree and having trouble offering the full amount of money.
 persona:
-  user_goal_summary: 'User reports Payments: I am trying to pay for item on gumtree and having trouble offering the full amount
-    of money. Drift: none.'
+  user_goal_summary: 'User wants to purchase an oxygen concentrator (£70) through Gumtree''s delivery and payments system.
+    Drift: none.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - Oxygen concentrator seventy pounds
-  - At least its stopped raining 🌧 🙃
-  - Yes thank you.
+  - So I can't buy said item through gumtree
   hidden_facts: []
   will_request_human_if: ''
 expected:

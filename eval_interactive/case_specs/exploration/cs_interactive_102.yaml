@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports Subject to Access Request/Info for Ad needed. Drift: hard_shift.'
+  user_goal_summary: 'Wants to retrieve details of a past purchase and buyer conversation for insurance; if not accessible,
+    requests full SAR under GDPR for two Gumtree accounts. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift
@@ -18,8 +19,9 @@ persona:
     If this isn't something you can access easily and is classed as archived, I would like to request a subject to access
     request that includes all of my data under data protection GDPR laws in the UK.
   - Okay thank you, I will need this information for two of my Gumtree accounts - the account with the email [EMAIL] and [EMAIL]
-  - Thank you so much
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad and conversation have disappeared and are assumed archived due to age.
+    disclose_when: When asked about the nature of the missing data.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

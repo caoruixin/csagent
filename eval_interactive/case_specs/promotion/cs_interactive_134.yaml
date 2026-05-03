@@ -9,8 +9,8 @@ form_context:
   description: I recently posted an ad and unlike every other time I did so, I had no email notifications to my dedicated
     email account which made me miss a few emails/sales.
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: I recently posted an ad and unlike every other time I did so, I had
-    no email notifications to my dedicated email account which made me miss a few emails/sales. Drift: hard_shift.'
+  user_goal_summary: 'User wants to receive email notifications for her ad replies at her Gmail address instead of the Hotmail
+    login email, without losing her account history and ratings. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift

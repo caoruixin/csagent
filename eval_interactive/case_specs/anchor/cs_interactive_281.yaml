@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: fridge freezer#2
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: fridge freezer#2. Drift: soft_shift.'
+  user_goal_summary: 'User wants to confirm his messages about a fridge freezer to two advertisers are being delivered, as
+    he''s received no replies. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Sending messages to both advertisers, getting no response…how can I confirm that my messages are getting through?
-  - great input, appreciated and thanks again. Cheerio.
-  - ok thanks for that, we can do no more, c`est la vie.
-  hidden_facts: []
+  - 'Ad ID: 1508729474 2 days ago Ad ID: 1506084884 4 days ago, 6 days ago & 19 th jan'
+  hidden_facts:
+  - fact: 'The user sent messages to two advertisers: Ad ID 1508729474 2 days ago; Ad ID 1506084884 4 days ago, 6 days ago,
+      and January 19th.'
+    disclose_when: when the bot asks about the specific advertisements or when the messages were sent.
   will_request_human_if: ''
 expected:
   outcome_class: resolve

@@ -9,7 +9,8 @@ form_context:
   description: Need review removed. The person contacted you but you wouldn't remove it asked me to contact you. Please can
     you remove review.
 persona:
-  user_goal_summary: 'User reports Account Support: Need review removed. Drift: hard_shift.'
+  user_goal_summary: 'The user wants the one-star review from Tom removed because it was left for no reason and Tom has already
+    contacted the platform about it. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

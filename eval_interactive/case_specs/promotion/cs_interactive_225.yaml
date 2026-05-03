@@ -9,14 +9,16 @@ form_context:
   description: couldn't respond to advert above. gumtree didn't like my email address that i have had for ever.  so sent a
     request to change password. didn;t receive notification to update passsword. what is going on
 persona:
-  user_goal_summary: 'User reports Account Support: couldn''t respond to advert above. Drift: hard_shift.'
+  user_goal_summary: 'User needs to regain access to her Gumtree account after failed password reset and security threat error,
+    so she can respond to an advert. Drift: hard_shift.'
   frustration_level: mild
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - '[EMAIL] cant remember last time i logged in, maybe 9 months ago when i bought a car seat'
-  - i hope i haven't confused u.
-  - i need to go out to pick my grandson up. can i discuss this later perhaps
+  - wrong, i managed to update password on the actual gumtree log in page, but all that came up was an infomation sign above
+    email address suggesting it was wrong
+  - No it didn't work. A linked 11 message came up saying that my address was a security threat.
   hidden_facts: []
   will_request_human_if: ''
 expected:

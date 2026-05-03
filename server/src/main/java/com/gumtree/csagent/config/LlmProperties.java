@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class LlmProperties {
 
     private KimiProperties kimi = new KimiProperties();
+    private DeepSeekProperties deepseek = new DeepSeekProperties();
     private DashScopeProperties dashscope = new DashScopeProperties();
 
     @Data
@@ -15,6 +16,13 @@ public class LlmProperties {
         private String apiKey;
         private String baseUrl = "https://api.moonshot.ai/v1";
         private String model = "kimi-k2.6";
+    }
+
+    @Data
+    public static class DeepSeekProperties {
+        private String apiKey;
+        private String baseUrl = "https://api.deepseek.com/v1";
+        private String model = "deepseek-v4-pro";
     }
 
     @Data

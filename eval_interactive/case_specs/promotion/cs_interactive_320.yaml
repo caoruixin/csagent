@@ -8,16 +8,18 @@ form_context:
   ad_id: ''
   description: Item sold
 persona:
-  user_goal_summary: 'User reports Payments: Item sold. Drift: hard_shift.'
+  user_goal_summary: 'User wants to understand how to get paid after selling an item, especially as a first-time seller who
+    didn''t know delivery was enabled by default. Drift: hard_shift.'
   frustration_level: none
-  verbosity: verbose
+  verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - One of my item was sold on 15th. Buyer has paid for it but this is my first selling experience with gumtree.
-  - Okay so you would get paid once the item has been delivered to the buyer. The buyer would confirm everything is okay and
-    then that would be released to your method of payment
+  - I didnt know there was delievy option in my account
   - How would I get paid after I sell the item
-  hidden_facts: []
+  hidden_facts:
+  - fact: Order number is 13765468
+    disclose_when: when asked for order number or identifier
   will_request_human_if: ''
 expected:
   outcome_class: escalate

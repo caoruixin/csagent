@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: Problem signing into account
 persona:
-  user_goal_summary: 'User reports Account Support: Problem signing into account. Drift: soft_shift.'
+  user_goal_summary: 'User locked out of Gumtree account with live ads (fridge, Sakura bike, job lot); sees old accounts.
+    Wants agent to locate correct account (Graham Anderson, andersontransport.co.uk) and restore access, prefers phone call.
+    Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

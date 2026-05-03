@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: I am trying to post an ad but need to update my contact email but it will not let me. How do I correct this?
 persona:
-  user_goal_summary: 'User reports Account Support: I am trying to post an ad but need to update my contact email but it will
-    not let me. Drift: soft_shift.'
+  user_goal_summary: 'User wants to post an ad but cannot because Gumtree disabled email changes and the old email is inaccessible.
+    Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

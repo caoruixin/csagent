@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: cant access account
 persona:
-  user_goal_summary: 'User reports Account Support: cant access account. Drift: soft_shift.'
+  user_goal_summary: 'User cannot access their Gumtree account. They changed password twice and tried incognito, but still
+    locked out. They want help logging in. Drift: soft_shift.'
   frustration_level: high
-  verbosity: terse
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - ad id - 508088108
   - I cant access my acc
-  - ok thank you
+  - just tried incognito and same issue
   hidden_facts: []
   will_request_human_if: ''
 expected:

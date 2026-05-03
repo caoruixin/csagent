@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Hi,can you stop to take the payment from my account every month!! B
 persona:
-  user_goal_summary: 'User reports Payments: Hi,can you stop to take the payment from my account every month!!. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to stop recurring unauthorized monthly payments of £8-9 from their account and is demanding
+    to speak with a customer service representative over the phone. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

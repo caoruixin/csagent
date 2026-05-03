@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Why is my account still on when I have deleted it
 persona:
-  user_goal_summary: 'User reports Account Support: Why is my account still on when I have deleted it. Drift: hard_shift.'
+  user_goal_summary: 'User wants to know why their account remains active after they attempted to delete it and needs to identify
+    their account manager to resolve the issue. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

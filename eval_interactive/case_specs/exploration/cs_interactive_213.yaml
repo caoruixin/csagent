@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Apple airmax pro
 persona:
-  user_goal_summary: 'User reports Payments: Apple airmax pro. Drift: hard_shift.'
+  user_goal_summary: 'User wants a refund from Gumtree for a sold item that was never paid for, and an investigation of the
+    scam buyer. They have proof of packaging, posting, and the buyer''s address. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
@@ -17,7 +18,9 @@ persona:
   - I believe my item was sold on your platform and was scammed and have spoken to police and been advised Gumtree should
     refund the amount it was sold for
   - I have proof of pakaging and posting, buyers address
-  hidden_facts: []
+  hidden_facts:
+  - fact: 'Ad ID: 1505741468'
+    disclose_when: bot asks for the ad ID
   will_request_human_if: ''
 expected:
   outcome_class: escalate

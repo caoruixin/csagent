@@ -8,16 +8,18 @@ form_context:
   ad_id: ''
   description: Today I played a order first 4 apple watches I was told by the seller the order I'd apparently cancelled
 persona:
-  user_goal_summary: 'User reports Account Support: Today I played a order first 4 apple watches I was told by the seller
-    the order I''d apparently cancelled. Drift: hard_shift.'
+  user_goal_summary: 'User ordered 4 Apple watches via Gumtree, seller informed that Gumtree cancelled the order; user wants
+    to confirm refund status and get funds to reorder. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Cool
+  - It's the orders I made today I don't know this
+  - The seller said they was told the order was cancelled
   - I just need my funds to order
-  - Gumtree stuff it's cancelled
-  hidden_facts: []
+  hidden_facts:
+  - fact: Order number is 13787918 and there are 4 Apple watches.
+    disclose_when: when asked for order details
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

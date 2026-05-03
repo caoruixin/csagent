@@ -12,7 +12,6 @@ class TurnTrace:
     turn_index: int
     user_message: str
     bot_response: str
-    action_selected: str
     tool_calls: list[dict]  # [{tool_name, latency_ms, status, result_count, faq_miss}]
     source_ids: list[str]
     phase_before: str

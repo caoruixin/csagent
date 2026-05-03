@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: where is my ad
 persona:
-  user_goal_summary: 'User reports Account Support: where is my ad. Drift: soft_shift.'
+  user_goal_summary: 'User wants to access their Gumtree account to manage an expired listing from 2022, but is unable to
+    reset password. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,11 @@ persona:
   - I havent used gumtree for few years
   - I dont know cant access gum tree to answer that question
   - waiting for new link to arrive from my email address
-  hidden_facts: []
+  hidden_facts:
+  - fact: Their Gumtree ad ID is 1436278360
+    disclose_when: when asked for ad ID
+  - fact: The user hasn't used Gumtree for a few years and last posted in 2022
+    disclose_when: when asked about account activity or history
   will_request_human_if: ''
 expected:
   outcome_class: resolve

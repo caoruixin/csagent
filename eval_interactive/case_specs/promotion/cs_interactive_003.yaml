@@ -8,15 +8,17 @@ form_context:
   ad_id: ''
   description: Good bad ugly house clearance service
 persona:
-  user_goal_summary: 'User reports Ad Support: Good bad ugly house clearance service. Drift: soft_shift.'
+  user_goal_summary: 'The user''s ad for house clearance services has received no inquiries, and they feel the ad spend was
+    wasted. They want the ad performance investigated and the issue resolved. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Courtney still not had any inquiries for my advert feel as if a totally wasted my money on this advert
-  - Ok thanks
   - It under removal services
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's ad ID is 1508322653 and the ad title is 'GOOD, BAD, UGLY ,HOUSE CLEARANCES'.
+    disclose_when: when bot asks for ad ID or account details
   will_request_human_if: ''
 expected:
   outcome_class: escalate

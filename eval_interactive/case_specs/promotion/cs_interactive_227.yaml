@@ -10,14 +10,15 @@ form_context:
     business purposes. We are interested in working properly and long-term through this account. I sincerely request you to
     please allow us permission
 persona:
-  user_goal_summary: 'User reports Account Support: Hello Gumtree Team, Kindly do not deactivate our account. Drift: soft_shift.'
+  user_goal_summary: 'User wants Gumtree to not deactivate their new business account and grant permission to post ads and
+    operate long-term. Drift: soft_shift.'
   frustration_level: none
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - I am working on this account for the first time, so please allow me to do so. I have never worked on this account before.
-  - Ok thank you appreciate
-  - No thank you
+  - Hello Gumtree Team, Kindly do not deactivate our account. We would like to continue using this account for business purposes.
+  - I want to do business using this account. Please activate this email so that I can start working
   hidden_facts: []
   will_request_human_if: ''
 expected:

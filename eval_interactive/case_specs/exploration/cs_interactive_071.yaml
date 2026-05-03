@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Bedside Cabinets x2
 persona:
-  user_goal_summary: 'User reports Account Support: Bedside Cabinets x2. Drift: hard_shift.'
+  user_goal_summary: 'Report a Gumtree user for listing bedside cabinets as free, then demanding £30 after collection was
+    agreed, and provide screenshots as evidence. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

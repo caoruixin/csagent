@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: I need to edit or delete a review if possible, please.
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: I need to edit or delete a review if possible, please. Drift: hard_shift.'
+  user_goal_summary: 'User wants to delete a review left 14 days ago for seller TJ on ad ''Mens gold watch with diamonds.
+    Brand new'' as it was too harsh and affects their only rating. The original ad may have been relisted, so the review needs
+    removal from seller''s profile. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +18,9 @@ persona:
   - I would like to edit or delete a review I left recently. Thanks.
   - Can you not delete the review from the seller's profile?
   - I no longer have the messages, sadly.
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad ID 1507942834 might not show the review because the ad has been relisted.
+    disclose_when: when asked for the ad ID or why the review can't be found
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  user_goal_summary: 'User wants Gumtree to acknowledge and explain a malware/broken link issue in the app that prevented
+    them from receiving messages for ads, led to account deletion, and is under investigation by Apple. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

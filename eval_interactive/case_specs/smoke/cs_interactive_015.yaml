@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Hi - can you tell me what happened to my ad?
 persona:
-  user_goal_summary: 'User reports Ad Support: Hi - can you tell me what happened to my ad?. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to edit their rejected Gumtree ad because it was flagged for containing ''men only''
+    text and visible body parts, specifically their ankles. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,9 @@ persona:
   - ok so how do I change it?
   - so I can't just change it?
   - you mean my ankles in the image???
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad title was 'Male Massage and Waxing, by a Male'.
+    disclose_when: if the bot asks for details about the ad
   will_request_human_if: ''
 expected:
   outcome_class: resolve

@@ -10,16 +10,18 @@ form_context:
     can't do a "forgotten password" process because I can't access my emails. Can I change my email address from [EMAIL] to
     [EMAIL]?
 persona:
-  user_goal_summary: 'User reports Account Support: I''ve forgotten my Gumtree password & lost access to the email account
-    associated with my Gumtree account. Drift: hard_shift.'
+  user_goal_summary: 'User wants to deactivate their old Gumtree account that they cannot access due to forgotten password
+    and lost email access. They have already created a new account but need the old one deactivated without logging in. Drift:
+    hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Cortney
+  - I have created a new account. How will I be able to deactivate the other account without logging in though?
   - Thanks. It's [EMAIL]. I can still access my old emails if it helps to verify me but I just can't send or receive any new
     emails.
-  - OK, thank you
+  - It's not a spam issue - something's gone wrong with the setup of my email account, nothing has been able to go in or out
+    in about a month now.
   hidden_facts: []
   will_request_human_if: ''
 expected:

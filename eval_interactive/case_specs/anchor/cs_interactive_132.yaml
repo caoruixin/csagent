@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: Complaint
 persona:
-  user_goal_summary: 'User reports Account Support: Complaint. Drift: none.'
+  user_goal_summary: 'User wants to complain about rude agent Candice (who cut off chat after failing to help) and get his
+    original tech issue resolved quickly as a loyal 10+ year customer. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - I want to make a complaint about Candice - a rude and impolite Gumtree
-  - Thank you. Must go now
+  - I certainly won't tolerate Candice telling me to "take care" before cutting off the chat, having failed yo
   - Hoping it can be resolved ASAP, especially as a customer for over 10 years. Thanks
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user has been a loyal Gumtree customer for over 10 years.
+    disclose_when: when discussing the urgency of the resolution or the user's frustration
   will_request_human_if: ''
 expected:
   outcome_class: escalate

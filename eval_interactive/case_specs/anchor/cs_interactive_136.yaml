@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: I'm not receiving e-mails to my e-mail account when potential purchasers reply to my ad
 persona:
-  user_goal_summary: 'User reports Account Support: I''m not receiving e-mails to my e-mail account when potential purchasers
-    reply to my ad. Drift: soft_shift.'
+  user_goal_summary: 'User wants to confirm that their reply to a potential purchaser was delivered and hopes the purchaser
+    will still be interested. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -17,7 +17,9 @@ persona:
   - Thanks, can you tell me whether my reply on the web-site has been delivered to the potential purchaser?
   - Thanks, hopefully not too late if she/he still interested.
   - just about an hour ago
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user replied 'Yes still available' to the potential purchaser about an hour ago.
+    disclose_when: when the bot asks about the reply content or timing
   will_request_human_if: ''
 expected:
   outcome_class: escalate

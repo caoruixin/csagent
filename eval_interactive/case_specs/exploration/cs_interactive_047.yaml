@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Ad not posted
 persona:
-  user_goal_summary: 'User reports Account Support: Ad not posted. Drift: hard_shift.'
+  user_goal_summary: 'User''s account is blocked and they cannot post ads. They want the account unblocked, similar to a previous
+    issue caused by inactivity. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Having problems posting again
-  - Have a nice weekend
-  - Much appreciated
+  - Had this issue before, and customer support said it was because i had not used account in a while and unblocked it
+  - Ive not used it in a while
   hidden_facts: []
   will_request_human_if: ''
 expected:

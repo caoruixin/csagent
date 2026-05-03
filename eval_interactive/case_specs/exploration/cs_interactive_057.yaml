@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: My add replies are not reaching me
 persona:
-  user_goal_summary: 'User reports Account Support: My add replies are not reaching me. Drift: hard_shift.'
+  user_goal_summary: 'User is not receiving replies to their Gumtree ads, including three specific replies, and wants them
+    resent and the issue escalated. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

@@ -9,8 +9,8 @@ form_context:
   description: My messages to requests do not get delivered, I used two different browsers and the app to test this. I also
     deleted the cache but this did not solve the issue.
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: My messages to requests do not get delivered, I used two different
-    browsers and the app to test this. Drift: hard_shift.'
+  user_goal_summary: 'The user needs to fix an issue where Gumtree messages she sends are not actually delivered despite showing
+    as sent, affecting communication with buyers. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift

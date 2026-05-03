@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Asus laptop not paid for
 persona:
-  user_goal_summary: 'User reports Payments: Asus laptop not paid for. Drift: hard_shift.'
+  user_goal_summary: 'User reported a buyer on Gumtree received the laptop but did not pay, and the case was closed by reportfraud.police.com.
+    User wants to either get paid or get the laptop back. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
@@ -17,7 +18,9 @@ persona:
     instead its part of a scam.
   - Ye got it. Just waiting for the email
   - I am just hoping to either get paid or get the laptop back. I will repond to the email as soon as I receive it
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user already reported the incident to reportfraud.police.com, but they closed the case without investigating.
+    disclose_when: when the bot suggests reporting to police or asks about previous reports
   will_request_human_if: ''
 expected:
   outcome_class: escalate

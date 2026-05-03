@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Cannot pay with my usual card to bump up ad
 persona:
-  user_goal_summary: 'User reports Payments: Cannot pay with my usual card to bump up ad. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to bump up their ad ''Common Entrance Tutor 11+ Kensington'' before the 30th using their
+    usual card, which is failing. They think it''s a technical issue on Gumtree''s end. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,9 @@ persona:
   - It says payment failed
   - Not happening!!!
   - I think it's a technical issue at your end
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad is 'Common Entrance Tutor 11+ Kensington' and dates from 2013.
+    disclose_when: when asked about the specific ad
   will_request_human_if: ''
 expected:
   outcome_class: escalate

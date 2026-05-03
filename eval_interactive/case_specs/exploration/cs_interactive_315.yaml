@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: hi I can't seem to post ad or they get removed. - why is that pls? Need some help
 persona:
-  user_goal_summary: 'User reports Account Support: hi I can''t seem to post ad or they get removed. Drift: hard_shift.'
+  user_goal_summary: 'User wants to understand why ads were removed, learn about posting limits, and find out where agency
+    charges are located. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Candice - great to reconnect!
-  - if we disconnect, pls do email it across if you can - many thanks again!
+  - ah...but I only have 1 account
+  - how many adverts are we allowed to post? is there a certain amount?
   - got it thanks - where can those charges be found pls?
   hidden_facts: []
   will_request_human_if: ''

@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: deactivate my account
 persona:
-  user_goal_summary: 'User reports Account Support: deactivate my account. Drift: none.'
+  user_goal_summary: 'User wants to find his bike ad but other accounts keep appearing when he tries to view his listings,
+    including one under a name he doesn''t recognize (Darren White). He wants these other accounts to stop interfering and
+    to locate his ad. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none

@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: Paid for Ad on Saturday 24/01/26 at 11.28 £70.97 - Ad is not showing on Gumtree, order ref 503900280
 persona:
-  user_goal_summary: 'User reports Account Support: Paid for Ad on Saturday 24/01/26 at 11.28 £70.97 - Ad is not showing on
-    Gumtree, order ref 503900280. Drift: none.'
+  user_goal_summary: 'I want to see my active ads when I visit the My ads section, not a message saying ''you have no ads''.
+    Drift: none.'
   frustration_level: none
   verbosity: normal
   drift_behavior: none

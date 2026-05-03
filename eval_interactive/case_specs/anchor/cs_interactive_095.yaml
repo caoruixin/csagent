@@ -9,8 +9,8 @@ form_context:
   description: I think I have the wrong email address on my app account so am not getting messages to the app and it's telling
     me I have no adverts..  I cant see where it can be changed, can you help
 persona:
-  user_goal_summary: 'User reports Account Support: I think I have the wrong email address on my app account so am not getting
-    messages to the app and it''s telling me I have no adverts.. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to change the email address associated with their app account to the one they use on
+    the computer, so they can see their live ads and receive messages on the app. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -18,7 +18,9 @@ persona:
   - Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before
   - No I will try that. Thank you
   - Thanks I'll try that. And then will it stay as that address for next time?
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's account profile with live ads is located at https://www.gumtree.com/profile/account/20709352fbc0a3c3eadf8a799b11fb76
+    disclose_when: when the bot asks for account details or profile link to verify identity
   will_request_human_if: ''
 expected:
   outcome_class: resolve

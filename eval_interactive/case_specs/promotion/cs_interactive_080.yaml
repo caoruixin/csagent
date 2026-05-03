@@ -9,16 +9,17 @@ form_context:
   description: Hi, I've had a LOT of trouble with lost deliveries and wonder if they can all be left at a local Evri collection
     point instead of home address? That would make it cheaper and a lot easier for me to retrieve. Thank you
 persona:
-  user_goal_summary: 'User reports Delivery: Hi, I''ve had a LOT of trouble with lost deliveries and wonder if they can all
-    be left at a local Evri collection point instead of home address?. Drift: hard_shift.'
+  user_goal_summary: 'User wants all future Gumtree deliveries sent to an Evri collection point (Post Office, Manchester Road,
+    Preston) instead of their home address, to prevent lost deliveries. Drift: hard_shift.'
   frustration_level: mild
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - No problem, can you please advise?
-  - Thank you. I hope you have a lovely day. Take care 🙂
-  - No thank you, just please make sure you let me know as this will make deliveries a lot safer - and persuade your boss
-    ;-) thanks, have a good day
+  - however I'd like to change delivery instructions as default rather than just 1 item
+  - THank you, can you please ask that they put all my delivery to be collected from local collection point? There is a post
+    office on Manchseter road, preston, that is a collection point for evri
+  - 'Hi, no I am receiving a parcel. THe reason for contacting you is this: I''d like to change my default delivery address
+    so that from now on every time I place an order via gumtree it is delivered to an evri local parcel collection point.'
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:

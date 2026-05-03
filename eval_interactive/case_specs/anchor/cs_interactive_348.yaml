@@ -8,14 +8,16 @@ form_context:
   ad_id: ''
   description: Im
 persona:
-  user_goal_summary: 'User reports Account Support: Im. Drift: soft_shift.'
+  user_goal_summary: 'User wants to regain access to their Gumtree account. They can log in but then get a message saying
+    they''ve been logged out and to contact customer service. They''ve tried password change and suspect account may be cancelled.
+    Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - I can log into my account
-  - Not sure
   - It's says that ive been logged out and to contact customer service
+  - My account has been cancelled
   hidden_facts: []
   will_request_human_if: ''
 expected:

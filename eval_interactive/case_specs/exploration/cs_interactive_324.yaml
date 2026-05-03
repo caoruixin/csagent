@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: I want to sell my car but the system is listing it as a trader. I’m not a trader
 persona:
-  user_goal_summary: 'User reports Ad Support: I want to sell my car but the system is listing it as a trader. Drift: hard_shift.'
+  user_goal_summary: 'User wants to sell his car as a private seller but the system mistakenly lists him as a trader; he wants
+    the classification corrected or the issue escalated. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Can you help
-  - Okay got it. Have a good day
-  - Although I have to start fresh and lose my history
+  - I’m not a trader
+  - The last time I posted an add was long time ago when I sold my previous car
+  - Can you escalate this
   hidden_facts: []
   will_request_human_if: ''
 expected:

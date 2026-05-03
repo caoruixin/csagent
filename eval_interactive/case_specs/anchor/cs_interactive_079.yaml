@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Services still posting on community ads for free
 persona:
-  user_goal_summary: 'User reports Technical Support: Services still posting on community ads for free. Drift: minor_drift.'
+  user_goal_summary: 'User demands immediate removal of two service ads (French lessons, Japanese tutor) posted free in the
+    community section, reported for months without action; they pay for their own ads. Drift: minor_drift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: minor
@@ -17,7 +18,12 @@ persona:
     section.
   - or someone who can help me?
   - Can I speak to your manager
-  hidden_facts: []
+  hidden_facts:
+  - fact: The reported ads are for 'French lessons with a native speaker online lessons' (ad ID 1504724735) and 'Japanese
+      tutor native speaker any level' (ad ID 1506559360).
+    disclose_when: When asked for ad IDs, links, or to identify the specific ads.
+  - fact: The user pays thousands of pounds per year to advertise their own services in the service section.
+    disclose_when: When asked why this is urgent or when expressing frustration about fairness or policy enforcement.
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

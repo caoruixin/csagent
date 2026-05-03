@@ -8,14 +8,14 @@ form_context:
   ad_id: ''
   description: SCAM ADVERT -  Lost money.  please contact me
 persona:
-  user_goal_summary: 'User reports Report a Safety Issue: SCAM ADVERT - Lost money. Drift: hard_shift.'
+  user_goal_summary: 'Report a scam ad (advert number 1508126982) on Gumtree after sending £200 via PayPal and the seller
+    disappearing. The user wants to provide the seller''s name, email, and phone number for investigation. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - advert number 1508126982. Have sent £200 to them by paypal to secure purchase but seller now not responding to phone or
     email or messeges. The money has been recived their end but they have now 'dissapeared'.
-  - thats it. Thanks.
   - ok. Would like the report this as a FRAUD via the gumtree ad. I have name of the person and email address. Also a phone
     number (all of which they are ignoring from myself.
   hidden_facts: []

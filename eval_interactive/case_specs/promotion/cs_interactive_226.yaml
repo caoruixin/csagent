@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ads not bumping up
 persona:
-  user_goal_summary: 'User reports Account Support: ads not bumping up. Drift: soft_shift.'
+  user_goal_summary: 'User needs urgent assistance with paid ads not bumping up and requests that the account manager contact
+    them at phone 07720 887859 or [EMAIL]. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift
@@ -18,7 +19,9 @@ persona:
   - can you ask them to contact us on in this email [EMAIL] or call us on 07720 887859 we been trying to contact but its not
     working out.
   - Please sort it out asap we are really appreciate
-  hidden_facts: []
+  hidden_facts:
+  - fact: 'Preferred contact method: email [EMAIL] or phone 07720 887859'
+    disclose_when: when asked for contact information
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: phone number
 persona:
-  user_goal_summary: 'User reports Account Support: phone number. Drift: soft_shift.'
+  user_goal_summary: 'User wants ability to include phone number in ads because they prefer phone contact and have limited
+    internet access; seeks explanation for discrepancy with other ads. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
@@ -17,7 +18,9 @@ persona:
   - when i try to post used to give me two option email and phone number i prefer contact with phone number but there is no
     phone number section no more only email
   - even now i checked there is a post whic is poster 5 hours ago and still see the phone option
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user prefers phone contact because they do not know how to use email and have limited internet access.
+    disclose_when: Bot asks why phone is preferred or about communication methods.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

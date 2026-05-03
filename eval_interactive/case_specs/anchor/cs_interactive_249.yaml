@@ -8,17 +8,24 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports Issue with Paid Job Ad Expiring Immediately. Drift: soft_shift.'
+  user_goal_summary: 'User paid for a 30-Day Booster Package, but his job advert expired immediately. He wants the ad reinstated
+    with the full 30-day duration and his phone number (07397 576230) added to the ad so applicants can contact him, plus
+    edit access. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
-  - Hi there
+  - Issue with Paid Job Ad Expiring Immediately
   - I need urgent help.please I paid for a 30-Day Booster Package, but my job advert expired immediately due to a system issue.
     I did not intend to expire the ad, and I have just paid for it today. Please restore my advert or reactivate it, as I
     should still have 30 days remaining.
-  - All good thanks
-  hidden_facts: []
+  - 'Also, I need to add my phone number to the advert so applicants can contact me directly. Please enable the phone number
+    display or allow me to edit this section when you restore the ad. My phone number is: 07397 576230.'
+  hidden_facts:
+  - fact: The user paid for a 30-Day Booster Package on the same day.
+    disclose_when: When asked about the payment or booster details.
+  - fact: The user's phone number is 07397 576230.
+    disclose_when: When asked for contact phone number or to add phone number to ad.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

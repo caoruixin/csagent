@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: Faulty product
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Faulty product. Drift: hard_shift.'
+  user_goal_summary: 'The user bought a TV from a private seller on the platform. The listing described a 65" TV, but it was
+    actually 55", with a broken backlight and missing buttons. The seller refused a refund. The user wants to know his rights
+    and options to address this. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift
@@ -16,9 +18,11 @@ persona:
   - I bought a TV from a guy. His discretion was incorrect. He stated it was a 65" , it was 55". He stated the brightness
     needed turned up. Wrong, the back light is broken. Basically he sold me a non working product. What are my rights or what
     can I do. I contacted him and he said, no refunds.
-  - Cheers Jason. Have a good day
-  - Appreciate that
-  hidden_facts: []
+  - I've basically bought a lump of useless plastic for £60 lol
+  - He said it can be operated from buttons on the bottom. The buttons have been removed too
+  hidden_facts:
+  - fact: The ad ID is 1508767543.
+    disclose_when: when the bot asks for the ad ID or listing details
   will_request_human_if: ''
 expected:
   outcome_class: escalate

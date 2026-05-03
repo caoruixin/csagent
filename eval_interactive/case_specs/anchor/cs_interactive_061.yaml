@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: I can’t send messages to reply to ads
 persona:
-  user_goal_summary: 'User reports Account Support: I can’t send messages to reply to ads. Drift: soft_shift.'
+  user_goal_summary: 'User is unable to reply to ads on Gumtree, preventing her from answering flat listings. She also wants
+    to correct the automatically linked email address that is not hers. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
-  - Hello Thato, thank you
   - It’s for all the ads, each time I try to reply to an ad it won’t let me. I am looking for a flat and unable to answer
     ads of other people. I didn’t post an ad myself
-  - Exactly ok thanks
+  - I think it’s an email that has been linked automatically to my account but it’s not my email address
   hidden_facts: []
   will_request_human_if: ''
 expected:

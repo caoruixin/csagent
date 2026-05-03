@@ -12,16 +12,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for ContextProjectionBuilder (D11.2 - Context Projection Enhancement).
- * Verifies that the 5 new fields (task_summary, allowed_actions, risk_flags,
- * budget_state, tool_schemas) are correctly included in the projected context.
+ * Unit tests for ContextProjectionBuilder.
+ * Verifies projection fields (task_summary, risk_flags, budget_state, tool_schemas)
+ * after the Phase 0 §0.6 deviation removed the action abstraction layer in favor of
+ * single-layer tool-use. tool_schemas now carries full per-tool schema objects
+ * (name + description + arguments_schema) and there is no top-level allowed_actions field.
  */
 @ExtendWith(MockitoExtension.class)
 class ContextProjectionBuilderTest {
@@ -42,6 +45,8 @@ class ContextProjectionBuilderTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+        // @PostConstruct is not invoked by Spring in unit tests; trigger schema init manually.
+        builder.initToolSchemas();
     }
 
     // --- D11.2: task_summary field ---
@@ -85,10 +90,10 @@ class ContextProjectionBuilderTest {
         assertTrue(taskSummary.contains("Ad Support"));
     }
 
-    // --- D11.2: allowed_actions field ---
+    // --- Phase 0 §0.6 deviation: allowed_actions has been removed ---
 
     @Test
-    void buildProjection_resolvePhase_faqUc_shouldIncludeFullActionSet() throws Exception {
+    void buildProjection_shouldNotContainAllowedActions_faqUc() throws Exception {
         BotSession session = buildSession("UC-A", "RESOLVE");
 
         UseCaseRegistryService.UseCaseDefinition ucDef = new UseCaseRegistryService.UseCaseDefinition(
@@ -102,21 +107,12 @@ class ContextProjectionBuilderTest {
         String projection = builder.buildProjection(session, List.of(), null, "test");
         JsonNode root = objectMapper.readTree(projection);
 
-        assertTrue(root.has("allowed_actions"));
-        JsonNode actions = root.get("allowed_actions");
-        assertTrue(actions.isArray());
-
-        List<String> actionList = new java.util.ArrayList<>();
-        actions.forEach(n -> actionList.add(n.asText()));
-        assertTrue(actionList.contains("retrieve_knowledge"), "FAQ UC in RESOLVE should allow retrieve_knowledge");
-        assertTrue(actionList.contains("answer_grounded"), "FAQ UC in RESOLVE should allow answer_grounded");
-        assertTrue(actionList.contains("ask_user"), "FAQ UC in RESOLVE should allow ask_user");
-        assertTrue(actionList.contains("escalate_human"), "FAQ UC in RESOLVE should allow escalate_human");
-        assertTrue(actionList.contains("finish"), "FAQ UC in RESOLVE should allow finish");
+        assertFalse(root.has("allowed_actions"),
+                "Projection MUST NOT contain top-level allowed_actions per Phase 0 §0.6 deviation");
     }
 
     @Test
-    void buildProjection_resolvePhase_intakeUc_shouldOnlyAllowAskUserAndEscalate() throws Exception {
+    void buildProjection_shouldNotContainAllowedActions_intakeUc() throws Exception {
         BotSession session = buildSession("UC-H", "RESOLVE");
 
         UseCaseRegistryService.UseCaseDefinition ucDef = new UseCaseRegistryService.UseCaseDefinition(
@@ -130,17 +126,12 @@ class ContextProjectionBuilderTest {
         String projection = builder.buildProjection(session, List.of(), null, "test");
         JsonNode root = objectMapper.readTree(projection);
 
-        JsonNode actions = root.get("allowed_actions");
-        List<String> actionList = new java.util.ArrayList<>();
-        actions.forEach(n -> actionList.add(n.asText()));
-        assertTrue(actionList.contains("ask_user"), "Intake UC in RESOLVE should allow ask_user");
-        assertTrue(actionList.contains("escalate_human"), "Intake UC in RESOLVE should allow escalate_human");
-        assertFalse(actionList.contains("retrieve_knowledge"), "Intake UC should NOT allow retrieve_knowledge");
-        assertFalse(actionList.contains("finish"), "Intake UC should NOT allow finish");
+        assertFalse(root.has("allowed_actions"),
+                "Projection MUST NOT contain top-level allowed_actions per Phase 0 §0.6 deviation");
     }
 
     @Test
-    void buildProjection_discoverPhase_shouldAllowAskUserAndEscalate() throws Exception {
+    void buildProjection_shouldNotContainAllowedActions_discoverPhase() throws Exception {
         BotSession session = buildSession(null, "DISCOVER");
 
         when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
@@ -150,12 +141,8 @@ class ContextProjectionBuilderTest {
         String projection = builder.buildProjection(session, List.of(), null, "test");
         JsonNode root = objectMapper.readTree(projection);
 
-        JsonNode actions = root.get("allowed_actions");
-        List<String> actionList = new java.util.ArrayList<>();
-        actions.forEach(n -> actionList.add(n.asText()));
-        assertTrue(actionList.contains("ask_user"));
-        assertTrue(actionList.contains("escalate_human"));
-        assertEquals(2, actionList.size(), "DISCOVER phase should only have ask_user and escalate_human");
+        assertFalse(root.has("allowed_actions"),
+                "Projection MUST NOT contain top-level allowed_actions per Phase 0 §0.6 deviation");
     }
 
     // --- D11.2: risk_flags field ---
@@ -227,10 +214,10 @@ class ContextProjectionBuilderTest {
         assertEquals(2, budget.get("max_faq_miss").asInt());
     }
 
-    // --- D11.2: tool_schemas field ---
+    // --- tool_schemas field (Phase 0 §0.6: enriched to full schema objects) ---
 
     @Test
-    void buildProjection_withVisibleTools_shouldContainToolSchemas() throws Exception {
+    void buildProjection_ucA_toolSchemasShouldContainFullSchemaObjects() throws Exception {
         BotSession session = buildSession("UC-A", "RESOLVE");
 
         UseCaseRegistryService.UseCaseDefinition ucDef = new UseCaseRegistryService.UseCaseDefinition(
@@ -239,16 +226,74 @@ class ContextProjectionBuilderTest {
         when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
         when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
         when(controlPolicy.getMaxFaqMiss()).thenReturn(2);
-        when(toolPolicyEnforcer.getVisibleToolsForUc("UC-A")).thenReturn(
-                List.of("search_knowledge", "resolve_article", "lookup_listing"));
+        // UC-A agent_visible per tool-policy.yaml: search_knowledge, resolve_article,
+        // get_customer_context, request_handover, record_outcome.
+        when(toolPolicyEnforcer.getVisibleToolsForUc("UC-A")).thenReturn(List.of(
+                "search_knowledge", "resolve_article", "get_customer_context",
+                "request_handover", "record_outcome"));
 
         String projection = builder.buildProjection(session, List.of(), null, "test");
         JsonNode root = objectMapper.readTree(projection);
 
         assertTrue(root.has("tool_schemas"));
         JsonNode tools = root.get("tool_schemas");
+        assertTrue(tools.isArray(), "tool_schemas must be an array");
+        assertEquals(5, tools.size());
+
+        Set<String> names = new HashSet<>();
+        for (JsonNode tool : tools) {
+            assertTrue(tool.isObject(), "Each tool_schemas entry must be an object, not a string");
+            assertTrue(tool.has("name"), "Each entry must have 'name'");
+            assertTrue(tool.has("description"), "Each entry must have 'description'");
+            assertTrue(tool.has("arguments_schema"), "Each entry must have 'arguments_schema'");
+            assertTrue(tool.get("arguments_schema").isObject(),
+                    "arguments_schema must be a JSON object (JSON Schema-style)");
+            assertFalse(tool.get("description").asText().isBlank(),
+                    "description must be non-empty");
+            names.add(tool.get("name").asText());
+        }
+
+        assertTrue(names.contains("search_knowledge"));
+        assertTrue(names.contains("resolve_article"));
+        assertTrue(names.contains("get_customer_context"));
+        assertTrue(names.contains("request_handover"));
+        assertTrue(names.contains("record_outcome"));
+    }
+
+    @Test
+    void buildProjection_ucK_toolSchemasShouldExcludeKnowledgeTools() throws Exception {
+        BotSession session = buildSession("UC-K", "RESOLVE");
+
+        UseCaseRegistryService.UseCaseDefinition ucDef = new UseCaseRegistryService.UseCaseDefinition(
+                "UC-K", "Technical Bug Report", List.of("Technical Support"), "MEDIUM", false, "INTAKE");
+        when(useCaseRegistry.getUseCase("UC-K")).thenReturn(ucDef);
+        when(controlPolicy.getMaxBotTurnsIntake()).thenReturn(8);
+        when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
+        when(controlPolicy.getMaxFaqMiss()).thenReturn(2);
+        // UC-K agent_visible per tool-policy.yaml: get_customer_context, request_handover,
+        // record_outcome (NO search_knowledge / resolve_article).
+        when(toolPolicyEnforcer.getVisibleToolsForUc("UC-K")).thenReturn(List.of(
+                "get_customer_context", "request_handover", "record_outcome"));
+
+        String projection = builder.buildProjection(session, List.of(), null, "test");
+        JsonNode root = objectMapper.readTree(projection);
+
+        JsonNode tools = root.get("tool_schemas");
         assertTrue(tools.isArray());
-        assertEquals(3, tools.size());
+
+        Set<String> names = new HashSet<>();
+        for (JsonNode tool : tools) {
+            assertTrue(tool.isObject());
+            names.add(tool.get("name").asText());
+        }
+
+        assertFalse(names.contains("search_knowledge"),
+                "UC-K must NOT expose search_knowledge per tool-policy.yaml");
+        assertFalse(names.contains("resolve_article"),
+                "UC-K must NOT expose resolve_article per tool-policy.yaml");
+        assertTrue(names.contains("get_customer_context"));
+        assertTrue(names.contains("request_handover"));
+        assertTrue(names.contains("record_outcome"));
     }
 
     @Test
@@ -356,9 +401,14 @@ class ContextProjectionBuilderTest {
         assertTrue(root.has("knowledge_hits"));
         assertTrue(root.has("knowledge_instruction"));
         String instruction = root.get("knowledge_instruction").asText();
-        assertTrue(instruction.contains("answer_grounded"), "Instruction should tell LLM to use answer_grounded");
-        assertTrue(instruction.contains("Do NOT return action 'retrieve_knowledge'"),
-                "Instruction should tell LLM not to use retrieve_knowledge");
+        assertTrue(instruction.contains("Do NOT call search_knowledge again"),
+                "Instruction should tell LLM not to call search_knowledge again");
+        assertTrue(instruction.contains("non-empty user_message"),
+                "Instruction should describe answering via user_message");
+        assertTrue(instruction.contains("request_handover"),
+                "Instruction should describe escalation via request_handover tool_call");
+        assertTrue(instruction.contains("source_ids"),
+                "Instruction should describe citing source_ids from knowledge_hits");
     }
 
     private BotSession buildSession(String activeUseCase, String phase) {

@@ -2,6 +2,7 @@ package com.gumtree.csagent.service.tools;
 
 import com.gumtree.csagent.config.MockProperties;
 import com.gumtree.csagent.model.BotSession;
+import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.service.guardrails.ProgressPlaceholderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -149,6 +150,59 @@ class ToolDispatcherTest {
         assertTrue(tools.contains("search_knowledge"));
         assertTrue(tools.contains("request_handover"));
         verify(policyEnforcer).getVisibleToolsForUc("UC-A");
+    }
+
+    // --- validateAgainstPlan (D16.A) ---
+
+    @Test
+    void validateAgainstPlan_nullPlan_returnsOk() {
+        ToolResult result = dispatcher.validateAgainstPlan(null, "search_knowledge");
+        assertTrue(result.isSuccess(),
+                "Null plan should not constrain tools (legacy path)");
+    }
+
+    @Test
+    void validateAgainstPlan_toolInAllowedList_returnsOk() {
+        PhasePlan plan = PhasePlan.builder()
+                .phase("RESOLVE")
+                .allowedTools(List.of("get_customer_context", "search_knowledge"))
+                .build();
+
+        ToolResult result = dispatcher.validateAgainstPlan(plan, "search_knowledge");
+
+        assertTrue(result.isSuccess());
+    }
+
+    @Test
+    void validateAgainstPlan_toolNotInAllowedList_returnsErrorWithReason() {
+        PhasePlan plan = PhasePlan.builder()
+                .phase("RESOLVE")
+                .allowedTools(List.of("request_handover"))
+                .build();
+
+        ToolResult result = dispatcher.validateAgainstPlan(plan, "search_knowledge");
+
+        assertFalse(result.isSuccess());
+        assertNotNull(result.getErrorMessage());
+        assertTrue(result.getErrorMessage().startsWith("tool_not_in_plan"),
+                "Error must start with tool_not_in_plan reason code");
+        assertTrue(result.getErrorMessage().contains("search_knowledge"),
+                "Error must reference the rejected tool name");
+    }
+
+    @Test
+    void validateAgainstPlan_emptyAllowedList_rejectsAllTools() {
+        // PhasePlan compact constructor maps null -> empty list, so any tool
+        // is rejected.
+        PhasePlan plan = PhasePlan.builder()
+                .phase("RESOLVE")
+                .allowedTools(List.of())
+                .build();
+
+        ToolResult result = dispatcher.validateAgainstPlan(plan, "search_knowledge");
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getErrorMessage().startsWith("tool_not_in_plan"));
     }
 
     private BotSession buildSession(String activeUseCase) {

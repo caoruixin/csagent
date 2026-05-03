@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: My add was removed after i pay £25.95 with no legitimate reason
 persona:
-  user_goal_summary: 'User reports Ad Support: My add was removed after i pay £25.95 with no legitimate reason. Drift: hard_shift.'
+  user_goal_summary: 'User wants explanation for the removal of her ad for selling puppies (ID 1507323039) which she paid
+    £25.95 for, and she believes the removal was without legitimate reason. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Great
+  - I put an add to sell my puppies
+  - but the add was removed
   - But i do not understand the reason as the points on the email do not make sense to me…
-  - and also email of my add removed
-  hidden_facts: []
+  hidden_facts:
+  - fact: Ad ID is 1507323039
+    disclose_when: when asked for the ad ID
   will_request_human_if: ''
 expected:
   outcome_class: escalate

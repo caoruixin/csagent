@@ -9,15 +9,15 @@ form_context:
   description: Hi there, I have received a message about one of my ads but there is no reply button to respond to the customer
     on your site.
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Hi there, I have received a message about one of my ads but there
-    is no reply button to respond to the customer on your site. Drift: none.'
+  user_goal_summary: 'User wants to reply to a customer message about their Kia Ceed ad but cannot find a reply button on
+    the site. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - sorry I can't find the AD id
-  - Not right now. Thanks for your help
-  - Brilliant, thanks so much
+  - The car is a Kia Ceed
+  - Ok, so is this issue one of the issues you are trying to fix?
   hidden_facts: []
   will_request_human_if: ''
 expected:

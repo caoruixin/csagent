@@ -14,6 +14,13 @@ tools:
   record_outcome:
     type: AGENT_VISIBLE
     allowed-ucs: [ALL]
+  # 2026-05-02 — Fix 3c: lets the LLM commit a UC classification during DISCOVER.
+  # `allowed-ucs: [ALL]` because by definition the call happens before
+  # `activeUseCase` is set; the per-phase whitelist in `PhaseEvaluator.plan()`
+  # restricts actual exposure to the DISCOVER plan only.
+  classify_use_case:
+    type: AGENT_VISIBLE
+    allowed-ucs: [ALL]
   lookup_customer_account:
     type: RUNTIME_ONLY
     allowed-ucs: [UC-C, UC-D, UC-FP, UC-K]

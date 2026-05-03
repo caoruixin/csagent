@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  user_goal_summary: 'User wants to edit her active Gumtree ad for a carer/cleaner job to add the job ID ''Contract''. Drift:
+    hard_shift.'
   frustration_level: none
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,9 @@ persona:
   - I looked at add to add to it was still up then went back it was gone I must can mistake
   - Yes I just looked seen it I can show u payment in my bank
   - could u pls put job id Contract
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad ID is 5417649478
+    disclose_when: when the agent asks for the ad ID or the user wants to identify the advertisement
   will_request_human_if: ''
 expected:
   outcome_class: resolve

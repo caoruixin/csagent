@@ -8,13 +8,13 @@ form_context:
   ad_id: REDACTED_AD_ID
   description: ''
 persona:
-  user_goal_summary: 'User reports Payments. Drift: hard_shift.'
+  user_goal_summary: 'User has not received payment for a black dinner suit sold via Gumtree Pay & Ship, delivered on 26 Nov,
+    and asks how the payments team will contact her. Drift: hard_shift.'
   frustration_level: none
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Hi, I haven received my money yet. The item was delivered on 26 Nov
-  - Ok, thank you
   - Will they join the chat, via email, phone call?
   hidden_facts: []
   will_request_human_if: ''

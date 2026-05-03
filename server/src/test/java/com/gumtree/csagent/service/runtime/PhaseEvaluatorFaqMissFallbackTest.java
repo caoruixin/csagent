@@ -70,16 +70,16 @@ class PhaseEvaluatorFaqMissFallbackTest {
         when(contextProjection.buildProjection(eq(session), anyList(), isNull(), anyString()))
                 .thenReturn(projectionJson);
 
-        // Stub the LLM response for the faq_miss_instruction call
+        // Stub the LLM response for the faq_miss_instruction call (tool-use shape)
         LlmResponse llmResponse = LlmResponse.builder()
-                .content("{\"action\":\"answer_grounded\",\"user_message\":\"Based on what you described, here is how to appeal...\"}")
+                .content("{\"user_message\":\"Based on what you described, here is how to appeal...\",\"reasoning\":\"used form context\",\"tool_calls\":[]}")
                 .finishReason("stop")
                 .build();
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(llmResponse);
 
         ParsedAction parsedAction = ParsedAction.builder()
-                .action("answer_grounded")
+                .toolCalls(List.of())
                 .userMessage("Based on what you described, here is how to appeal...")
                 .reasoning("Used form context")
                 .build();
@@ -207,12 +207,12 @@ class PhaseEvaluatorFaqMissFallbackTest {
                 .thenReturn(projectionJson);
 
         LlmResponse llmResponse = LlmResponse.builder()
-                .content("{\"action\":\"ask_user\",\"user_message\":\"Let me help you with that.\"}")
+                .content("{\"user_message\":\"Let me help you with that.\",\"reasoning\":\"\",\"tool_calls\":[]}")
                 .build();
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(llmResponse);
         when(actionParser.parse(anyString())).thenReturn(
-                ParsedAction.builder().action("ask_user").userMessage("Let me help.").build());
+                ParsedAction.builder().toolCalls(List.of()).userMessage("Let me help.").build());
 
         phaseEvaluator.evaluate(session, "help me", List.of());
 
@@ -294,13 +294,13 @@ class PhaseEvaluatorFaqMissFallbackTest {
                 .thenReturn(projectionJson);
 
         LlmResponse llmResponse = LlmResponse.builder()
-                .content("{\"action\":\"answer_grounded\",\"user_message\":\"Here is the answer.\"}")
+                .content("{\"user_message\":\"Here is the answer.\",\"reasoning\":\"\",\"tool_calls\":[]}")
                 .build();
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(llmResponse);
 
         ParsedAction parsedAction = ParsedAction.builder()
-                .action("answer_grounded")
+                .toolCalls(List.of())
                 .userMessage("Here is the answer.")
                 .build();
         when(actionParser.parse(anyString())).thenReturn(parsedAction);
@@ -356,12 +356,12 @@ class PhaseEvaluatorFaqMissFallbackTest {
                 .thenReturn(projectionJson);
 
         LlmResponse llmResponse = LlmResponse.builder()
-                .content("{\"action\":\"answer_grounded\",\"user_message\":\"Answer\"}")
+                .content("{\"user_message\":\"Answer\",\"reasoning\":\"\",\"tool_calls\":[]}")
                 .build();
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(llmResponse);
         when(actionParser.parse(anyString())).thenReturn(
-                ParsedAction.builder().action("answer_grounded").userMessage("Answer").build());
+                ParsedAction.builder().toolCalls(List.of()).userMessage("Answer").build());
 
         String rawMessage = "How can I reset my password and recover my account?";
         // History has 3 turns (turnIndex = 3, not early) and message is long (>= 20 chars)

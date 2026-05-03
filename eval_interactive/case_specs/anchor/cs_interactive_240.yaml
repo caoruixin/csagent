@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Hi
 persona:
-  user_goal_summary: 'User reports Account Support: Hi. Drift: soft_shift.'
+  user_goal_summary: 'User wants to list booklets, fridge magnets, and boxing magazines on Gumtree and have them eligible
+    for delivery, so they plan to relist them in the correct category. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

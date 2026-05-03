@@ -8,15 +8,17 @@ form_context:
   ad_id: ''
   description: hoodie
 persona:
-  user_goal_summary: 'User reports Account Support: hoodie. Drift: hard_shift.'
+  user_goal_summary: 'User wants Gumtree to stop sending emails chasing dispatch of a Nike hoodie (order #13755068) that has
+    already been posted and collected. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - You keep e mailing me to post this item but it has been posted today ?
-  - Nat, I'm sorry about this. We can see that the parcel has been collected from you. Apologies for any inconvenience caused.
-  - Nat I'm still here, just looking into this
-  hidden_facts: []
+  - Ive posted it for delivery and you are chasing me to desapatch it
+  hidden_facts:
+  - fact: Order number is 13755068.
+    disclose_when: Bot asks for order number.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

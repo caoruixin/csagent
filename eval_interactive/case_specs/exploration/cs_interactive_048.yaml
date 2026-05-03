@@ -9,14 +9,14 @@ form_context:
   description: Hi, someone came to buy my phone off me yesterday and i’ve now realised it’s a scam. I’ve reported it to the
     fraud agency but are you able to provide the email address used on his account please?
 persona:
-  user_goal_summary: 'User reports Report a Safety Issue: Hi, someone came to buy my phone off me yesterday and i’ve now realised
-    it’s a scam. Drift: hard_shift.'
+  user_goal_summary: 'User wants to report a scam where a buyer named John came to buy their iPhone 16 Pro (ad ID 1508692235)
+    for £685, and asks for the email address on his account. Drift: hard_shift.'
   frustration_level: mild
   verbosity: terse
   drift_behavior: hard_shift
   seed_messages:
-  - sure hang on
-  - sure
+  - 'Ad id: 1508692235 , John'
+  - iphone 16 pro
   - 685£
   hidden_facts: []
   will_request_human_if: ''

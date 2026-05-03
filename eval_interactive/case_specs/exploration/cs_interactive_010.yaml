@@ -9,15 +9,15 @@ form_context:
   description: hello, there's 3 contact emails on my account [EMAIL] & [EMAIL] & [EMAIL] can you please delete them so I can
     add a new one. The email for my account is [EMAIL]
 persona:
-  user_goal_summary: 'User reports Account Support: hello, there''s 3 contact emails on my account [EMAIL] & [EMAIL] & [EMAIL]
-    can you please delete them so I can add a new one. Drift: hard_shift.'
+  user_goal_summary: 'User wants to delete three old contact emails from their Gumtree account and add a new one. When told
+    it''s impossible, they request account deletion instead. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Monisha
+  - the other emails are just contact emails. can they not be deleted?
+  - okay. how do i delete this account?
   - I can't receieve that email, I no longer have access to any of the email address on my account
-  - no, that is all thanks
   hidden_facts: []
   will_request_human_if: ''
 expected:

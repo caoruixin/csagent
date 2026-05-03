@@ -8,16 +8,19 @@ form_context:
   ad_id: ''
   description: I cannot send replies to ads
 persona:
-  user_goal_summary: 'User reports Account Support: I cannot send replies to ads. Drift: soft_shift.'
+  user_goal_summary: 'I cannot send replies to ads on Gumtree. The send button doesn''t work and the phone number is invalid.
+    This occurs on housing ads in London, while a test ad reply worked. Drift: soft_shift.'
   frustration_level: high
-  verbosity: verbose
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Hello thanks
-  - 'Please view this ad: Double Mezzanine Semi-Studio - Holland Road, Holland Park/Shepherds Bush [POSTCODE] - All Bills
-    Inc Price:£240pw https://www.gumtree.com/p/flats-houses/double-mezzanine-semi-studio-holland-road-holland-parkshepherds-bush-w14-8bb-all-bills-inc/1475855411?utm_source=unknown&utm_campaign=socialbuttons&utm_content=app_ios&utm_medium=Social'
+  - The button to send a message doesn’t work, and when I try to call it says the phone number is invalid. This happens with
+    all ads I’ve been trying to reply to
+  - but not on real ads
   - I am looking for a flat in London so maybe the issue is in the housing section
-  hidden_facts: []
+  hidden_facts:
+  - fact: The problematic ad ID is 1475855411 (Holland Road flat).
+    disclose_when: when the bot asks for an ad ID or asks the user to try replying to a specific ad again
   will_request_human_if: ''
 expected:
   outcome_class: resolve

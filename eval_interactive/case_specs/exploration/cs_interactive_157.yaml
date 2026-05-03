@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Ad removed
 persona:
-  user_goal_summary: 'User reports Ad Support: Ad removed. Drift: hard_shift.'
+  user_goal_summary: 'User wants his Gumtree ad (ID 1507847487) made live after it was removed; he has amended the ad and
+    resolved account issues. He is frustrated by delays and wants to respond to interested parties. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,9 @@ persona:
   - my ad was removed
   - really appreciate your help
   - I don’t want to look bad
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's ad ID is 1507847487.
+    disclose_when: when asked for ad details or account reference
   will_request_human_if: ''
 expected:
   outcome_class: escalate

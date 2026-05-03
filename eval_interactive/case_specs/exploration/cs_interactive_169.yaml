@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Refund
 persona:
-  user_goal_summary: 'User reports Account Support: Refund. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to know the progress of their refund for a removed advert, get assurance of an email
+    update within 24 hours, and is frustrated that previous agents ended chats. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Hello, it’s me again you ended the chat? Why did you end the chat I still had queries
   - I want to ask on the progress of my refund
-  - Alright
+  - I was told ill be emailed yesterday within 24 hours but no one ever reaches out on email.
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:

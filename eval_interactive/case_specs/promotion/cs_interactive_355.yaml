@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: False review - follow up
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: False review - follow up. Drift: hard_shift.'
+  user_goal_summary: 'User wants to dispute an old false review beyond 30 days, override the policy, and file a formal complaint
+    about the previous handling. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Please review my chat with Cortney on 24th January
-  - Thanks - I’ll use the email address
+  - I need to put in a complaint about the result of this - how do I do that?
   - I understand the 30 day policy but it can be overridden
   hidden_facts: []
   will_request_human_if: ''

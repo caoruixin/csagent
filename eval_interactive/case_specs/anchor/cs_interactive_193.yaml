@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: My ad is live but I can't find it on my home page
 persona:
-  user_goal_summary: 'User reports Account Support: My ad is live but I can''t find it on my home page. Drift: none.'
+  user_goal_summary: 'User''s job listing (order GER_01436904) is live but he can''t find it in his Gumtree account. He wants
+    to know which email to log in with to see and manage the ad. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none

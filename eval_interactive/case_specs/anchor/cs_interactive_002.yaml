@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: I am not receiving notifications from you when messages are arriving in my inbox.
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: I am not receiving notifications from you when messages are arriving
-    in my inbox. Drift: soft_shift.'
+  user_goal_summary: 'Wants to receive message notifications without having to enable marketing preferences that would cause
+    unwanted spam. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - How long do I have to wait to sort this out? Its been this way since day 1.
-  - So in order to receive notifications I HAVE to receive messages from you that I don't want and am not interested in??
   - I don't want to receive spam from you.
+  - So in order to receive notifications I HAVE to receive messages from you that I don't want and am not interested in??
   hidden_facts: []
   will_request_human_if: ''
 expected:

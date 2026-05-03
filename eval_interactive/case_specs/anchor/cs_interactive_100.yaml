@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: I have lost access to my account
 persona:
-  user_goal_summary: 'User reports Technical Support: I have lost access to my account. Drift: soft_shift.'
+  user_goal_summary: 'Wants to reset forgotten password but no reset email arrives despite trying multiple devices and browsers;
+    also wants to download chat transcript. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift
@@ -17,7 +18,9 @@ persona:
     marketing emails from you to that address but I am not receiving emails as I try to change my forgotten password.
   - Can I download this conversation?
   - I have used a device which doesn't have the app on it. The resets have still failed due to no reset email arriving.
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user has the mobile app installed on their phone.
+    disclose_when: when asked about app installation
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -10,7 +10,8 @@ form_context:
     Could you please let me know the reason why my ads are being deleted and how I can resolve this problem? I would like
     to continue using Gumtre
 persona:
-  user_goal_summary: 'User reports Account Support: Hello, I am facing an issue with my Gumtree account. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to know why all their Gumtree ads were deleted and why new ads are immediately removed,
+    and they want this issue resolved so they can post ads again. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

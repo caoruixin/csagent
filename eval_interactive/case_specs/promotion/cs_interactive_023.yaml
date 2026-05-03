@@ -8,15 +8,14 @@ form_context:
   ad_id: ''
   description: if i update my add will it be my third or will i have one left
 persona:
-  user_goal_summary: 'User reports Ad Support: if i update my add will it be my third or will i have one left. Drift: soft_shift.'
+  user_goal_summary: 'User wants to repost a puppy ad and needs clarification on whether it counts as a third ad against a
+    limit of 3, or if they can post another litter without violating the rules. Drift: soft_shift.'
   frustration_level: mild
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - my puppy ad has run out and i would like to repost it but am i only aloud 3 ads is this classed as my third or can i post
     another litter thanks
-  - thanks talk soon
-  - are you there
   hidden_facts: []
   will_request_human_if: ''
 expected:

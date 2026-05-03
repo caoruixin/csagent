@@ -10,8 +10,8 @@ form_context:
     have reported this to the police . I paid your seller £825 and I am not happy. Please can you advise me on how I get my
     money back
 persona:
-  user_goal_summary: 'User reports Account Support: I would like to advise you that I bought an iPhone 17 from your website.
-    Drift: hard_shift.'
+  user_goal_summary: 'User wants a full refund of £825 for an inauthentic iPhone 17 purchased via Gumtree, and has already
+    reported the matter to the police. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

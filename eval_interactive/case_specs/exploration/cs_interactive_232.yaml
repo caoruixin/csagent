@@ -8,16 +8,20 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports Payments. Drift: hard_shift.'
+  user_goal_summary: 'User paid for featured ad and bump-ups but ad not showing in correct category; wants it working or full
+    refunds. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hello?
   - I've bumped my ad up for it to only be on the 1st page for less then a day. Now I've paid for it to be featured for 17
     days but it isn't showing?
+  - This is idiotic featuring it only based on the phones model
   - Separating them into brands makes it more difficult to sell
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad is for a Poco X6 Pro Plus phone and was posted in the Mobile Phones > Xiaomi category, but it does not appear
+      in general mobile phone searches.
+    disclose_when: when troubleshooting the ad visibility
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

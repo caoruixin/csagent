@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Unable the log in
 persona:
-  user_goal_summary: 'User reports Account Support: Unable the log in. Drift: soft_shift.'
+  user_goal_summary: 'The user cannot log in to their Gumtree account because the email address is not recognized. They want
+    to access their existing account where they previously posted listings. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

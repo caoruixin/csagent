@@ -8,14 +8,14 @@ form_context:
   ad_id: ''
   description: My ad
 persona:
-  user_goal_summary: 'User reports Account Support: My ad. Drift: hard_shift.'
+  user_goal_summary: 'The user wants a refund for the duplicate payment of £19 and £21 they made by mistake because their
+    ad was not showing. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - My add is not showing and I have paid twice buy mistake. £19 AND £21 pounds
   - Yes i have paid twice because I thought that's why it was not showing my add could I have a refund please
-  - Thanks have a lovely day take care 🙂
   hidden_facts: []
   will_request_human_if: ''
 expected:

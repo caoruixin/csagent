@@ -80,7 +80,6 @@ def _make_turn(
         turn_index=turn_index,
         user_message="hello",
         bot_response=bot_response,
-        action_selected="answer",
         tool_calls=tool_calls or [],
         source_ids=[],
         phase_before="DISCOVER",

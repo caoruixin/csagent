@@ -104,7 +104,6 @@ def _make_turn(
     turn_index: int = 1,
     tool_calls: list[dict] | None = None,
     source_ids: list[str] | None = None,
-    action_selected: str = "answer",
     phase_before: str = "RESOLVE",
     phase_after: str = "RESOLVE",
 ) -> TurnTrace:
@@ -112,7 +111,6 @@ def _make_turn(
         turn_index=turn_index,
         user_message="hello",
         bot_response="response",
-        action_selected=action_selected,
         tool_calls=tool_calls or [],
         source_ids=source_ids or [],
         phase_before=phase_before,

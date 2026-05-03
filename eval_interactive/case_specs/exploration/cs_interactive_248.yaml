@@ -8,15 +8,20 @@ form_context:
   ad_id: ''
   description: Cant see my add
 persona:
-  user_goal_summary: 'User reports Account Support: Cant see my add. Drift: hard_shift.'
+  user_goal_summary: 'User cannot see their active moped ad in search results due to category mismatch and requests a refund
+    for two overpaid urgent fee charges. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - No i usd phone number
   - Ok will do ive still got 2 more problem ive over payed 2 times for urgent which i didn,t need so can please have refund
-  - Yes going to post new add thank you very much jason
-  hidden_facts: []
+  - Cant see it live
+  hidden_facts:
+  - fact: The ad ID is 1509234155
+    disclose_when: bot asks for ad ID or ad details
+  - fact: The ad is listed under Motors - Other Vehicles, causing it to not appear in searches under Motorbikes & scooters
+    disclose_when: bot asks about search visibility or category issue
   will_request_human_if: ''
 expected:
   outcome_class: escalate

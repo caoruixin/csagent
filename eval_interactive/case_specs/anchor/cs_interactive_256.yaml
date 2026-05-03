@@ -9,16 +9,20 @@ form_context:
   description: When I go to "double room for rent kilburn"  I do not see my ad listed.  I have not been getting responses
     over the past 2 weeks and I am wondering why I do not see my ad when I search for it?
 persona:
-  user_goal_summary: 'User reports Account Support: When I go to "double room for rent kilburn" I do not see my ad listed.
-    Drift: soft_shift.'
+  user_goal_summary: 'The user wants to find his own ad (ID 1506986492) when searching ''double room for rent Kilburn'' on
+    Gumtree, and to understand why he hasn''t received responses in two weeks. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - 'My Ad ID: 1506986492, I can''t find my ad when I click on "double room for rent Kilburn"'
-  - Thanks happy new year to you
-  - Ok thanks.
-  hidden_facts: []
+  - No replies in past 2 weeks.
+  - I can see my ad when I go to manage my ads. I just can't see my ad when I go to gumtree and search for "double room for
+    rent kilburn"
+  hidden_facts:
+  - fact: The user priced the double room at the lower end of £1150-1250 pcm because ChatGPT suggested it based on location
+      and room details.
+    disclose_when: when the agent asks about the rental price or why the ad may not be attracting interest.
   will_request_human_if: ''
 expected:
   outcome_class: resolve

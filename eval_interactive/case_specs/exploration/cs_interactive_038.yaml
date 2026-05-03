@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Parkside impact wrench  and more item
 persona:
-  user_goal_summary: 'User reports Report a Safety Issue: Parkside impact wrench and more item. Drift: none.'
+  user_goal_summary: 'User wants action on a Gumtree scam: paid £40 for an impact wrench, never received. Seller Diane has
+    18 items; bank confirmed fraud. User has attempted to email details. Drift: none.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: none
@@ -16,7 +17,9 @@ persona:
   - There a scamer on gumtree
   - I paid for a parkside impact wrench £40 and no item
   - She has 18 item on gumtree I've contacted my bank and they said yes it a fraudulent transaction they seen it before
-  hidden_facts: []
+  hidden_facts:
+  - fact: User has pictures of the item and there is a warning on Facebook about the scammer Diane.
+    disclose_when: if asked for evidence or additional details
   will_request_human_if: ''
 expected:
   outcome_class: escalate

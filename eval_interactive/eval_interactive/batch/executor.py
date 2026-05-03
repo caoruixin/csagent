@@ -198,6 +198,18 @@ class BatchExecutor:
             session_runner = SessionRunner(agent_client, user_simulator, stall_detector)
             session_result: SessionResult = session_runner.run_session(case_spec)
 
+            # Fail fast: if session creation itself failed, the synthetic
+            # "error-<hex>" id has no backend record. Skip trace collection
+            # to avoid masking infrastructure failure as a contract violation.
+            if session_result.creation_error is not None:
+                msg = (
+                    f"session_create_failed: {session_result.creation_error}. "
+                    f"Backend at {self._config.bot.base_url} unreachable or "
+                    f"returned an error during POST /v1/chat/sessions."
+                )
+                click.echo(f"  ERROR    {case_spec.case_id}: {msg}")
+                return self._error_result(case_spec, msg)
+
             # 2. Collect trace
             trace_collector = TraceCollector(agent_client)
             trace_data = trace_collector.collect(session_result.session_id)

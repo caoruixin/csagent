@@ -8,16 +8,17 @@ form_context:
   ad_id: ''
   description: Hi I posted a single room for rent at and £2.99 but my ad is not seen on your website please advise
 persona:
-  user_goal_summary: 'User reports Account Support: Hi I posted a single room for rent at and £2.99 but my ad is not seen
-    on your website please advise. Drift: hard_shift.'
+  user_goal_summary: 'User wants their paid ad (Order ID 503333648) for a room at £2.99 to appear on Gumtree. Drift: hard_shift.'
   frustration_level: mild
-  verbosity: terse
+  verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I am the landlord
-  - Ok thanks
-  - Hello are you there
-  hidden_facts: []
+  - my add not seen on your website posted today
+  - Order ID 503333648
+  hidden_facts:
+  - fact: User's PayPal Order ID for the ad is 503333648
+    disclose_when: When the bot asks for ad ID, transaction ID, or proof of payment.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

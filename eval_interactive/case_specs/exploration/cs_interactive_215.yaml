@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: I just paid to Boost my ad but I think I paid twice
 persona:
-  user_goal_summary: 'User reports Account Support: I just paid to Boost my ad but I think I paid twice. Drift: hard_shift.'
+  user_goal_summary: 'The user wants a refund for the mistaken homepage spotlight payment because they only intended to pay
+    for the bump up. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Where can I find the number
-  - Phone number please
-  - Complaints department please
-  hidden_facts: []
+  - I just want the bump up
+  - I thought it was just paying for the bump up please cancel
+  - It was like 30 mins ago
+  hidden_facts:
+  - fact: The user's ad ID is 1507950107.
+    disclose_when: when asked for ad ID or reference number
   will_request_human_if: ''
 expected:
   outcome_class: escalate

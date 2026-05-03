@@ -34,12 +34,13 @@ from typing import Literal, Optional, get_args
 #
 # NOTE(policy-review): Wave A1.1 brief asked for "17 values" (per
 # phase5_evaluation_design.md §4.1 line 316), but the canonical
-# ``request_handover.escalation_reason`` enum currently lists 22 values
+# ``request_handover.escalation_reason`` enum currently lists 23 values
 # (the five ``intake_complete_for_uc_<g|h|i|j|k>`` values are spelled out
 # individually, and ``service_degraded`` / ``turn_budget_exhausted`` /
-# ``tool_scope_blocked`` are present even though §2.4 marks them as
-# infrastructure / guardrail-only). We use the canonical 22 here; the
-# scoring layer can decide which subset is exercised by the eval suite.
+# ``tool_scope_blocked`` / ``runtime_error_threshold`` are present even
+# though §2.4 marks them as infrastructure / guardrail-only). We use the
+# canonical 23 here; the scoring layer can decide which subset is
+# exercised by the eval suite.
 EscalationTrigger = Literal[
     "user_requested",
     "faq_miss_threshold_exceeded",
@@ -63,6 +64,7 @@ EscalationTrigger = Literal[
     "service_degraded",
     "turn_budget_exhausted",
     "tool_scope_blocked",
+    "runtime_error_threshold",
 ]
 
 ESCALATION_TRIGGER_VALUES: tuple[str, ...] = get_args(EscalationTrigger)

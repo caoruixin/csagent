@@ -8,15 +8,20 @@ form_context:
   ad_id: ''
   description: Kitten
 persona:
-  user_goal_summary: 'User reports Ad Support: Kitten. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to know why their ad for 11-week-old kittens keeps getting deleted, to understand what
+    they are doing wrong, and to have the issue investigated and resolved; they also request a phone number to speak with
+    support. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Hi Jason
-  - Thank you and happy new year
-  - Ok pls look in to this as soon as possible pls
-  hidden_facts: []
+  - This add I put it keep deleting by your side
+  - Can you pls tell me what am I doing wrong
+  - Sure ,but I checked other people add on this side they even put new born kittens and allready trying to sale it on side
+    11 days old kittens
+  hidden_facts:
+  - fact: The user's ad ID is 1508388583.
+    disclose_when: When asked for a reference number or ad ID.
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: resolve

@@ -20,6 +20,7 @@ ERROR. See ``batch/executor.py``.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Literal
@@ -351,12 +352,19 @@ class TraceCollector:
 
         - ``active_use_case`` is set during routing on the first user
           message. A session that ended before any bot turn has no UC,
-          and that is not a contract violation.
+          and that is not a contract violation. Out-of-scope escalations
+          (escalation_reason == "out_of_scope") legitimately have no UC
+          even when a synthetic handover-evidence turn was persisted by
+          the server's SessionManager hard-OOS path.
         - ``containment_outcome`` is set when the session terminates
           (CLOSE / ESCALATE) or a handover is recorded. Mid-conversation
           sessions legitimately have an empty value.
         """
-        if turns and not session_state.active_use_case:
+        is_oos_escalation = (
+            session_state.containment_outcome == "escalated"
+            and session_state.escalation_reason == "out_of_scope"
+        )
+        if turns and not session_state.active_use_case and not is_oos_escalation:
             self._violate(
                 field="active_use_case",
                 phase="session",
@@ -417,6 +425,26 @@ class TraceCollector:
             warnings=warnings,
         )
 
+        # form_context / customer_context arrive as JSONB-encoded strings
+        # from the server (BotSession entity persists them as String with
+        # @Column(columnDefinition="jsonb")). Parse here so downstream
+        # consumers see proper dicts. Forward-compatible with a future
+        # server-side DTO fix that returns objects directly.
+        form_context_raw = g(raw, "formContext", "form_context", default={})
+        form_context = self._parse_jsonb_field(
+            raw=form_context_raw,
+            field_name="form_context",
+            session_id=session_id,
+            fallback={},
+        )
+        customer_context_raw = g(raw, "customerContext", "customer_context", default={})
+        customer_context = self._parse_jsonb_field(
+            raw=customer_context_raw,
+            field_name="customer_context",
+            session_id=session_id,
+            fallback={},
+        )
+
         return SessionState(
             session_id=session_id,
             active_use_case=active_uc,
@@ -426,11 +454,42 @@ class TraceCollector:
             total_bot_turns=int(g(raw, "totalBotTurns", "total_bot_turns", default=0)),
             clarification_count=int(g(raw, "clarificationCount", "clarification_count", default=0)),
             faq_miss_count=int(g(raw, "faqMissCount", "faq_miss_count", default=0)),
-            form_context=g(raw, "formContext", "form_context", default={}) or {},
-            customer_context=g(raw, "customerContext", "customer_context", default={}) or {},
+            form_context=form_context,
+            customer_context=customer_context,
             articles_shown=g(raw, "articlesShown", "articles_shown", default=[]) or [],
             current_phase=current_phase,
         )
+
+    def _parse_jsonb_field(
+        self,
+        *,
+        raw,
+        field_name: str,
+        session_id: str,
+        fallback,
+    ):
+        """Parse a JSONB column that the server returns as a JSON-encoded
+        string (BotTurn / BotSession persist these as Java String with
+        @Column(columnDefinition="jsonb")).
+
+        Forward-compatible: also accepts already-decoded list/dict so a
+        future server-side DTO fix won't require a harness change.
+        """
+        if isinstance(raw, str):
+            try:
+                return json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(
+                    "TraceCollector: failed to json.loads %s for session=%s; "
+                    "falling back to %r",
+                    field_name,
+                    session_id,
+                    fallback,
+                )
+                return fallback
+        if isinstance(raw, (list, dict)):
+            return raw
+        return fallback
 
     def _build_turns(
         self,
@@ -453,11 +512,27 @@ class TraceCollector:
                 )
                 phase_after = ""
 
-            tool_calls_raw = g(entry, "toolCalls", "tool_calls", default=[]) or []
+            # tool_calls / projected_context arrive as JSONB-encoded
+            # strings from the server. Parse before downstream use so
+            # _validate_tool_calls (isinstance(list) check) and scorers
+            # see real Python objects.
+            tool_calls_raw = self._parse_jsonb_field(
+                raw=g(entry, "toolCalls", "tool_calls", default=[]),
+                field_name="tool_calls",
+                session_id=session_id,
+                fallback=[],
+            )
             tool_calls = self._validate_tool_calls(
                 session_id=session_id,
                 tool_calls_raw=tool_calls_raw,
                 warnings=warnings,
+            )
+
+            projected_context = self._parse_jsonb_field(
+                raw=g(entry, "projectedContext", "projected_context", default={}),
+                field_name="projected_context",
+                session_id=session_id,
+                fallback={},
             )
 
             turns.append(
@@ -465,14 +540,13 @@ class TraceCollector:
                     turn_index=int(g(entry, "turnIndex", "turn_index", default=len(turns))),
                     user_message=g(entry, "userMessage", "user_message"),
                     bot_response=g(entry, "botResponse", "bot_response"),
-                    action_selected=g(entry, "actionSelected", "action_selected"),
                     tool_calls=tool_calls,
                     source_ids=g(entry, "sourceIds", "source_ids", default=[]) or [],
                     phase_before=g(entry, "phaseBefore", "phase_before"),
                     phase_after=phase_after,
                     active_use_case=g(entry, "activeUseCase", "active_use_case"),
                     latency_ms=int(g(entry, "latencyMs", "latency_ms", default=0)),
-                    projected_context=g(entry, "projectedContext", "projected_context", default={}) or {},
+                    projected_context=projected_context,
                 )
             )
         return turns

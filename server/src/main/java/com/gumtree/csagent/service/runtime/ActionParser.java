@@ -4,30 +4,43 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gumtree.csagent.model.ParsedAction;
+import com.gumtree.csagent.model.ToolCall;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Parses LLM JSON responses into ParsedAction objects.
- * Falls back to escalate_human on any parse failure.
+ * Parses LLM JSON responses (OpenAI-style tool-use shape) into ParsedAction objects.
+ *
+ * <p>Expected response shape (Task #8 contract, see phase3 §3.3.3):
+ * <pre>{@code
+ * {
+ *   "user_message": "...",     // string, may be empty
+ *   "reasoning":    "...",     // string, internal
+ *   "tool_calls":   [          // array, may be empty
+ *     {"name": "search_knowledge", "arguments": {"query": "..."}}
+ *   ]
+ * }
+ * }</pre>
+ *
+ * <p>Falls back to a {@code request_handover} tool call on any parse failure.
+ *
+ * <p>Tool-name validity is NOT enforced here — that is the responsibility of
+ * {@code ToolPolicyEnforcer} downstream.
+ *
+ * <p>Task #10: synthetic legacy-action derivation removed; this parser now only
+ * fills {@code toolCalls}, {@code userMessage}, {@code reasoning}.
  */
 @Slf4j
 @Service
 public class ActionParser {
 
-    private static final Set<String> VALID_ACTIONS = Set.of(
-            "ask_user", "retrieve_knowledge", "answer_grounded", "escalate_human", "finish"
-    );
-
-    private static final ParsedAction FALLBACK_ESCALATION = ParsedAction.builder()
-            .action("escalate_human")
-            .parameters(Map.of())
-            .userMessage("I'm having trouble processing your request. Let me connect you with a human agent who can help.")
-            .reasoning("LLM response parse failure - fallback to escalation")
-            .build();
+    private static final String FALLBACK_USER_MESSAGE =
+            "I'm having trouble processing your request. Let me connect you with a human agent who can help.";
 
     private final ObjectMapper objectMapper;
 
@@ -37,53 +50,83 @@ public class ActionParser {
 
     /**
      * Parse LLM raw response JSON into a ParsedAction.
-     * Expected format: {"action": "...", "parameters": {...}, "user_message": "...", "reasoning": "..."}
      */
     public ParsedAction parse(String llmRawResponse) {
         if (llmRawResponse == null || llmRawResponse.isBlank()) {
-            log.warn("Empty LLM response, falling back to escalation");
-            return FALLBACK_ESCALATION;
+            log.warn("Empty LLM response, falling back to request_handover");
+            return buildFallback();
         }
 
         try {
-            // Strip markdown code fences if present
             String cleaned = cleanResponse(llmRawResponse);
-
             JsonNode root = objectMapper.readTree(cleaned);
-
-            String action = root.has("action") ? root.get("action").asText("") : "";
-            if (!VALID_ACTIONS.contains(action)) {
-                log.warn("Invalid action '{}' in LLM response, falling back to escalation", action);
-                return FALLBACK_ESCALATION;
-            }
-
-            Map<String, Object> parameters = Map.of();
-            if (root.has("parameters") && root.get("parameters").isObject()) {
-                parameters = objectMapper.convertValue(
-                        root.get("parameters"),
-                        new TypeReference<Map<String, Object>>() {}
-                );
-            }
 
             String userMessage = root.has("user_message") ? root.get("user_message").asText("") : "";
             String reasoning = root.has("reasoning") ? root.get("reasoning").asText("") : "";
 
-            if (userMessage.isBlank()) {
-                log.warn("Empty user_message in LLM response for action '{}', using fallback message", action);
+            List<ToolCall> toolCalls = parseToolCalls(root);
+
+            // Default fallback user_message when both tool_calls and user_message are empty
+            if (toolCalls.isEmpty() && userMessage.isBlank()) {
+                log.warn("Both tool_calls and user_message empty in LLM response, using fallback message");
                 userMessage = "I'm looking into this for you.";
             }
 
             return ParsedAction.builder()
-                    .action(action)
-                    .parameters(parameters)
+                    .toolCalls(toolCalls)
                     .userMessage(userMessage)
                     .reasoning(reasoning)
                     .build();
 
         } catch (Exception e) {
             log.warn("Failed to parse LLM response: {}", e.getMessage());
-            return FALLBACK_ESCALATION;
+            return buildFallback();
         }
+    }
+
+    /**
+     * Parse the {@code tool_calls} array out of the response root, tolerating
+     * missing/null fields and individual malformed entries.
+     */
+    private List<ToolCall> parseToolCalls(JsonNode root) {
+        List<ToolCall> result = new ArrayList<>();
+        if (!root.has("tool_calls") || !root.get("tool_calls").isArray()) {
+            return result;
+        }
+        for (Iterator<JsonNode> it = root.get("tool_calls").elements(); it.hasNext(); ) {
+            JsonNode tc = it.next();
+            if (!tc.isObject()) continue;
+            String name = tc.has("name") ? tc.get("name").asText("") : "";
+            if (name.isBlank()) {
+                log.warn("Skipping tool_call with missing/blank name: {}", tc);
+                continue;
+            }
+            Map<String, Object> arguments = Map.of();
+            if (tc.has("arguments") && tc.get("arguments").isObject()) {
+                arguments = objectMapper.convertValue(
+                        tc.get("arguments"),
+                        new TypeReference<Map<String, Object>>() {}
+                );
+            }
+            result.add(ToolCall.builder().name(name).arguments(arguments).build());
+        }
+        return result;
+    }
+
+    /**
+     * Fallback returned on any parse failure: a single {@code request_handover}
+     * tool call with a customer-facing apology.
+     */
+    private ParsedAction buildFallback() {
+        ToolCall handover = ToolCall.builder()
+                .name("request_handover")
+                .arguments(Map.of("escalation_reason", "system_failure"))
+                .build();
+        return ParsedAction.builder()
+                .toolCalls(List.of(handover))
+                .userMessage(FALLBACK_USER_MESSAGE)
+                .reasoning("LLM response parse failure - fallback to handover")
+                .build();
     }
 
     /**

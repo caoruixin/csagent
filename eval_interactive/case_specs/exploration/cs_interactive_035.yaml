@@ -9,8 +9,8 @@ form_context:
   description: My add has only got 8 views, and i keep getting calls from spam marketing companies. i would like this add
     deleted and my money refunded
 persona:
-  user_goal_summary: 'User reports Ad Support: My add has only got 8 views, and i keep getting calls from spam marketing companies.
-    Drift: hard_shift.'
+  user_goal_summary: 'I want my ad deleted and a refund because it only got 8 views and I received spam calls from marketing
+    companies after placing it. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -19,7 +19,9 @@ persona:
   - im not here to explain myself, the add has 8 views and i paid a premium thats not good enough 2 of those views have been
     spam callers
   - i would like a copy
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user placed an ad for a man and van service on Gumtree.
+    disclose_when: when the bot asks what the ad is for or what their business is
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to regain access to their account after an agent named THATO allegedly blocked their
+    password without consent, and to file a formal complaint about THATO''s conduct. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

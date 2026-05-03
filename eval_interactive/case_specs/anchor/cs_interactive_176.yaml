@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: I pad to put my ad for my business and it's not at the top
 persona:
-  user_goal_summary: 'User reports Technical Support: I pad to put my ad for my business and it''s not at the top. Drift:
-    soft_shift.'
+  user_goal_summary: 'The user wants either a £50 refund or their business advertisement to be placed at the top of the listing,
+    as they paid for. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Give me my £50 back or put my business to the top like I paid for
-  - That's good why is this so hard to do
   - What about giving a phone number to talk to someone
+  - That's good why is this so hard to do
   hidden_facts: []
   will_request_human_if: ''
 expected:

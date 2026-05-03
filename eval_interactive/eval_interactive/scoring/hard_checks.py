@@ -24,6 +24,31 @@ class HardCheckResult:
     severity: str = "critical"
 
 
+def _has_handover_tool_call(turn) -> bool:
+    """Return True if this turn invoked ``request_handover`` as a tool call.
+
+    Replaces the legacy ``action_selected in {escalate, handover, transfer}``
+    check after the abstract action layer was dropped in favor of OpenAI-style
+    single-layer tool-use.
+    """
+    return any(
+        (tc.get("tool_name", "") if isinstance(tc, dict) else "").lower()
+        == "request_handover"
+        for tc in (turn.tool_calls or [])
+    )
+
+
+def _is_answer_turn(turn) -> bool:
+    """A turn is an answer if the bot produced user-facing text without escalating.
+
+    Replaces the legacy ``action_selected in {answer, answer_grounded}`` check
+    after the abstract action layer was dropped in favor of OpenAI-style
+    single-layer tool-use.
+    """
+    has_text = bool((turn.bot_response or "").strip())
+    return has_text and not _has_handover_tool_call(turn)
+
+
 class HardChecker:
     """L1 Hard Checks -- deterministic, zero tolerance."""
 
@@ -401,7 +426,7 @@ class HardChecker:
                 if t.phase_after.upper() == "ESCALATE":
                     escalated = True
                     break
-                if t.action_selected.lower() in ("escalate", "handover", "transfer"):
+                if _has_handover_tool_call(t):
                     escalated = True
                     break
 
@@ -415,13 +440,18 @@ class HardChecker:
         return HardCheckResult("user_requested_escalation", True)
 
     def _check_source_citation_present(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
-        """If grounding_mode=faq_source_backed and action=answer_grounded -> source_ids non-empty."""
+        """If grounding_mode=faq_source_backed -> any answer turn must have source_ids.
+
+        With the abstract action layer removed, an "answer turn" is any turn
+        where the bot produced user-facing text without invoking
+        ``request_handover``. See ``_is_answer_turn``.
+        """
         if case_spec.expected.grounding_mode != "faq_source_backed":
             return HardCheckResult("source_citation_present", True, "grounding_mode not faq_source_backed")
 
         missing: list[str] = []
         for turn in trace.turns:
-            if turn.action_selected.lower() in ("answer_grounded", "answer"):
+            if _is_answer_turn(turn):
                 if not turn.source_ids:
                     missing.append(f"turn {turn.turn_index}: answer without sources")
 

@@ -8,15 +8,17 @@ form_context:
   ad_id: ''
   description: I need to contact the seller
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: I need to contact the seller. Drift: hard_shift.'
+  user_goal_summary: 'User wants to retrieve deleted message trail with seller of last purchased item, providing seller name
+    (Stephen), location (Twickenham), and alternative email (Apple ID) to locate the transaction and re-contact seller. Drift:
+    hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Basically I need to contact the seller of the last item i bought. I have unfortunately deleted the message trail :( can
     you help me retrieve it please?
-  - You too !
-  - Yes 👍 much appreciated thank you!!
+  - His name was Stephen, basen in twickenham and he had other ads of some lawn mower of some type
+  - I must have used my Apple ID
   hidden_facts: []
   will_request_human_if: ''
 expected:

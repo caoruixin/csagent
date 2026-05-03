@@ -8,8 +8,9 @@ form_context:
   ad_id: ''
   description: Hello I’m having trouble changing my email address on my account. I no longer have access to [EMAIL]
 persona:
-  user_goal_summary: 'User reports Account Support: Hello I’m having trouble changing my email address on my account. Drift:
-    soft_shift.'
+  user_goal_summary: 'User wants to access email messages for their items for sale and transfer their active ads from the
+    currently accessible account (davi05) to their desired account (daviesnineteenseventy) because they cannot change the
+    login email. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

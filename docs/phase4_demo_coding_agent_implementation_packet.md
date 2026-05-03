@@ -6,6 +6,8 @@
 >
 > **Inputs**: All Phase 0–5 design documents, `customer_service_tool_spec_v0_2.yaml`, eval datasets (601 sessions), human review annotations (367 sessions), `.env.local` (LLM keys), `design-extract/` (UI reference)
 
+> **[DEVIATION 2026-05-01]** 本 implementation packet 中 D11.2 / D12.4 / D13.4 / D14.7 的验收标准已从 5-action 模型修订为 OpenAI-style tool-use 模型。已完成的 D-tasks 中涉及 ActionParser / allowed_actions / actionSelected 的实现需在新一轮代码迁移中重做（见 server-side migration tasks）。详见 `phase0_normative_freeze.md` §0.6 deviation log。
+
 ---
 
 ## D0. Local Mac Environment Setup
@@ -72,6 +74,12 @@ KIMI_API_KEY=sk-GXVVb0AJBZQpLBfWbOl9CL8QWU359ChkCGiPUZTbfsxaUVV7
 KIMI_BASE_URL=https://api.moonshot.ai/v1
 KIMI_MODEL=kimi-k2.6
 
+# DeepSeek v4 pro — server-side chat-completion fallback (deviation 2026-05-01 — phase0 §0.6).
+# Required when fallback path is enabled. BASE_URL / MODEL have safe defaults if omitted.
+DEEPSEEK_API_KEY=<set-in-secret-store>
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+DEEPSEEK_MODEL=deepseek-v4-pro
+
 DASHSCOPE_API_KEY=sk-f4ada48271a54810a13147ac708555dd
 DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 DASHSCOPE_CHAT_MODEL=qwen-plus
@@ -85,7 +93,9 @@ VITE_GETSTREAM_API_KEY=b2g8vgf3xue3
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
-**LLM Abstraction**: all LLM calls go through a `LlmClient` interface. Local demo uses `OpenAiCompatibleLlmClient` (Kimi / QWEN both support OpenAI chat completions format). Dev/prod implementations swap in via Spring profile — no code changes.
+**LLM Abstraction**: all LLM calls go through a `LlmClient` interface. Local demo uses `OpenAiCompatibleLlmClient` (Kimi / DeepSeek / QWEN all support OpenAI chat completions format). Dev/prod implementations swap in via Spring profile — no code changes.
+
+**Server-side chat-completion fallback (deviation 2026-05-01 — phase0 §0.6)**: `LlmInvocationService` treats `KIMI_*` as the primary chat provider and `DEEPSEEK_*` as the fallback. On a defined set of transient failures from the primary call (timeout / 5xx / 429 / connection-reset — exact exception classes enumerated by the implementer against the actual client surface), the service automatically retries the same prompt against DeepSeek v4 pro before surfacing `AgentRunResult.ERROR`. Embeddings remain DashScope-only and are not in scope; the Python `eval_interactive` harness's own LLM (DashScope `qwen-plus`) is also out of scope. See Phase 3 §3.8.5 (per-request logging contract) and §3.9.1 "Degraded mode" row for the full decision logic.
 
 **Embedding Abstraction**: `EmbeddingClient` interface. Local uses `DashScopeEmbeddingClient` with `text-embedding-v3` (dimension=768, matching production Vertex AI 768-dim). Swap by profile.
 
@@ -254,6 +264,19 @@ Actions: `ask_user` | `retrieve_knowledge` | `answer_grounded` | `escalate_human
 | `get_message_moderation_context` | UC-C only (v0.2.1) |
 | `create_case_controlled` | UC-H/J/K → writes to `mock_cases` |
 | `request_handover` / `record_outcome` | All UCs + OUT_OF_SCOPE_* |
+| `classify_use_case` *(2026-05-02 — Fix 3c)* | All UCs (callable when `activeUseCase = null`); DISCOVER plan only |
+
+**Phase 2 follow-up — 2026-05-02 — Fix 3c: `classify_use_case` tool implementation checklist** (closes `CONTRACT_VIOLATION:active_use_case missing_after_turns` for soft-OOS DISCOVER sessions):
+- New tool class `server/src/main/java/com/gumtree/csagent/service/tools/ClassifyUseCaseTool.java` implementing `Tool` (snake_case name `classify_use_case`).
+- `ToolDispatcher` auto-registers via Spring's `List<Tool>` injection — no dispatcher edits beyond adding the tool bean.
+- `tool-policy.yaml` — add entry `classify_use_case: { type: AGENT_VISIBLE, allowed-ucs: [ALL] }` so policy enforcer permits the call when `activeUseCase = null`.
+- `ContextProjectionBuilder.initToolSchemas()` — register schema via new `buildClassifyUseCaseArgsSchema()` helper mirroring `buildRequestHandoverArgsSchema()` (enum on `use_case_id`, numeric `confidence`, free-form `reasoning`).
+- `PhaseEvaluator.plan()` — DISCOVER branch: `allowedTools = List.of("search_knowledge", "classify_use_case")` (was `search_knowledge` only).
+- `UseCaseRegistryService.isKnownUseCase(String)` — small helper returning `useCases.containsKey(ucId)`.
+- `system_prompt.txt` — add a paragraph explaining DISCOVER LLM may call `classify_use_case` once intent is clear, with confidence threshold guidance (≥0.7 clear / ≥0.5 with explicit topic + supporting detail / <0.5 → ask another clarifying question).
+- New test `server/src/test/java/com/gumtree/csagent/service/tools/ClassifyUseCaseToolTest.java`: valid commit, unknown UC, out-of-range confidence, missing args, session field write-through.
+
+**Phase 2 follow-up — 2026-05-02 — #16: canonical `escalation_reason` selection guidance in `system_prompt.txt`** (cite phase0 §0.6 deviation 2026-05-02 — "#16: LLM canonical escalation_reason selection guidance + drift_hard_shift canonicalization"): the system prompt MUST carry an explicit decision tree mapping situation → canonical `escalation_reason` enum value, grouped by USER-EXPLICIT REQUESTS / DISTRESS & SAFETY / APPEALS & RESTORATION / COMPLIANCE & ACCOUNT / INTAKE COMPLETION / BOT LIMITS / INFRASTRUCTURE & TOOLING. The 23 canonical values are the same enum surfaced by `ContextProjectionBuilder.buildRequestHandoverArgsSchema()` and `PhaseEvaluator.CANONICAL_ESCALATION_REASONS`; the prompt MUST instruct the LLM to "prefer specific over generic" so e.g. an explicit "I want a human" maps to `user_requested` (not `user_distress`) and a UC-J trust-and-safety urgency maps to `trust_safety_required` (not `intake_complete_for_uc_j`). A defensive validator in `ToolDispatcher.dispatch()` coerces any non-canonical reason to `service_degraded` with a WARN log so a sloppy LLM emission never reaches the trace as a CV.
 
 ### DM6: Guardrails & UX
 
@@ -709,7 +732,7 @@ The following features are **fully specified in Phase 3** and **have implementat
 | Gap | Design Reference | Current Code Status | Impact |
 |-----|-----------------|-------------------|--------|
 | `get_customer_context` not auto-triggered on session creation | Phase 3 §3.1.4 step 2b, §3.4.1.3, §3.4.3 | `GetCustomerContextTool.java` complete; `FormContextIngestionService.ingest()` does NOT call it | LLM has no account/listing/moderation context — `session.customerContext` always NULL; responses are generic |
-| Context projection missing 5 contract fields | Phase 3 §3.2.6 | `ContextProjectionBuilder` omits `allowed_actions`, `tool_schemas`, `task_summary`, `risk_flags`, `budget_state` | LLM lacks action-space awareness and budget visibility; contributes to action mismatch (e.g., `retrieve_knowledge` in intake) |
+| Context projection missing 4 contract fields | Phase 3 §3.2.6 (revised per §0.6 deviation 2026-05-01) | `ContextProjectionBuilder` omits `tool_schemas`, `task_summary`, `risk_flags`, `budget_state` (the previously listed `allowed_actions` field is removed per §0.6 deviation) | LLM lacks per-UC tool discovery and budget visibility; without rich `tool_schemas`, the LLM cannot reliably emit valid `tool_calls` for the current UC × phase |
 | `create_case_controlled` not called on intake completion | Phase 3 §3.3.1, §3.4.2 | `CreateCaseControlledTool.java` complete; `PhaseEvaluator.resolveIntake()` escalates without case creation | Handover payload has no `case_id` for UC-H/J/K; agent must create case manually |
 
 ### D11.1 get_customer_context Auto-Trigger
@@ -754,16 +777,15 @@ FormContextIngestionService.ingest(session, firstName, email, topicSubject, adId
 - Demo scenario #3 (UC-FP "Why was my ad removed?"): bot response includes specific moderation reason (e.g., "multiple accounts") instead of generic "policy violation"
 - Demo scenario #5 (UC-D "I can't log in"): bot response references account status
 
-### D11.2 Context Projection Enhancement
+### D11.2 Context Projection Enhancement  **REVISED 2026-05-01** ⚠️ partial — revised criteria require code re-work
 
-**Where**: `ContextProjectionBuilder.buildProjection()` — add 5 missing fields from Phase 3 §3.2.6 contract.
+**Where**: `ContextProjectionBuilder.buildProjection()` — add 4 missing fields from Phase 3 §3.2.6 contract (per §0.6 deviation, `allowed_actions` is REMOVED — tool constraints alone govern LLM choices).
 
 **New fields**:
 
 ```json
 {
   "task_summary": "User asks why their ad was removed. UC-FP detected with high confidence.",
-  "allowed_actions": ["retrieve_knowledge", "answer_grounded", "ask_user", "escalate_human", "finish"],
   "risk_flags": ["medium"],
   "budget_state": {
     "total_bot_turns": 3,
@@ -773,21 +795,58 @@ FormContextIngestionService.ingest(session, firstName, email, topicSubject, adId
     "faq_miss_count": 0,
     "max_faq_miss": 2
   },
-  "tool_schemas": ["search_knowledge", "resolve_article", "get_customer_context"]
+  "tool_schemas": [
+    {
+      "name": "search_knowledge",
+      "description": "Search the FAQ knowledge base for articles matching a query.",
+      "arguments": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "Natural-language search query." },
+          "top_k": { "type": "integer", "description": "Maximum number of hits to return.", "default": 5 }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "resolve_article",
+      "description": "Fetch the canonical body for a specific FAQ article id (returned by search_knowledge).",
+      "arguments": {
+        "type": "object",
+        "properties": {
+          "article_id": { "type": "string" }
+        },
+        "required": ["article_id"]
+      }
+    },
+    {
+      "name": "get_customer_context",
+      "description": "Look up account / listing / moderation context for the current customer.",
+      "arguments": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string" },
+          "ad_id": { "type": "string" }
+        },
+        "required": ["email"]
+      }
+    }
+  ]
 }
 ```
+
+**Acceptance criterion (revised)**: Context projection includes `task_summary`, `budget_state`, `risk_flags`, `tool_schemas` (per-UC visible tool list with full arguments schema). The `allowed_actions` field is REMOVED per §0.6 deviation; tool constraints alone govern LLM choices.
 
 **Implementation spec**:
 
 | Field | Source | Logic |
 |-------|--------|-------|
 | `task_summary` | session state | `"User inquiry about {formTopicSubject}. {activeUseCase} detected with {intentConfidence} confidence. Current phase: {currentPhase}."` |
-| `allowed_actions` | phase + UC type | INTAKE UCs: `["ask_user", "escalate_human"]`; FAQ UCs in RESOLVE: `["retrieve_knowledge", "answer_grounded", "ask_user", "escalate_human", "finish"]`; CONFIRM: `["answer_grounded", "escalate_human", "finish"]` |
 | `risk_flags` | UC registry | Read `risk_level` from `use-case-registry.yaml` for active UC |
 | `budget_state` | session counters | Read `totalBotTurns`, `clarificationCount`, `faqMissCount` + max values from `ControlPolicyService` |
-| `tool_schemas` | tool policy | `ToolPolicyEnforcer.getVisibleToolsForUc(activeUseCase)` — returns tool names allowed for this UC |
+| `tool_schemas` | tool policy | `ToolPolicyEnforcer.getVisibleToolsForUc(activeUseCase)` — returns an array of `{name, description, arguments}` objects (full JSON-schema arguments block) for every tool allowed in this UC × phase. This is the LLM's sole tool-discovery surface. |
 
-**Key benefit**: `allowed_actions` per phase eliminates the action mismatch bug (LLM returning `retrieve_knowledge` in intake mode) at the projection level, complementing the instruction-based fix already in `PhaseEvaluator.resolveIntake()`.
+**Key benefit**: Per-UC `tool_schemas` (with full arguments schemas) is the single source of truth for what the LLM may call. Because the LLM emits OpenAI-style `tool_calls` directly, there is no separate action vocabulary to keep in sync — `ToolPolicyEnforcer.isToolAllowed()` is the single enforcement point on the dispatch side, and the LLM only ever sees tools it is permitted to invoke.
 
 ### D11.3 create_case_controlled Integration
 
@@ -936,16 +995,16 @@ ToolDispatcher.dispatch(toolName, session, params):
 | `RETRIEVAL_EXECUTED` | Not emitted | Emit from `SearchKnowledgeTool.execute()` after KB search: `{query_hash, result_count, top_score, faq_miss, latency_ms}` |
 | `ARTICLE_SHOWN` | Not emitted | Emit from `ResolveArticleTool.execute()`: `{source_ids[], canonical_urls[]}` |
 | `CASE_CREATED` | Not emitted | Emit from D11.3 case creation: `{case_id, use_case_id, topic_subject}` |
-| `CLARIFICATION_ASKED` | Not emitted | Emit from `PhaseEvaluator.evaluateDiscover()` when `ask_user` action: `{clarification_count, question_topic}` |
+| `CLARIFICATION_ASKED` | Not emitted | Emit from `PhaseEvaluator.evaluateDiscover()` when bot turn yields non-empty `user_message` + empty `tool_calls` AND user_message ends with `?` or contains clarifying language (heuristic): `{clarification_count, question_topic}`. **[REVISED 2026-05-01 — 见 §0.6 deviation; 原 "when ask_user action" 不再成立。]** |
 | `OUTCOME_RECORDED` | Partially emitted | Add to `RecordOutcomeTool.execute()` or `SessionManager.recordOutcome()` |
 
 **Implementation**: Each emission is a one-line call to the existing `BotEventRepository.save()` pattern used throughout the codebase. No new infrastructure needed.
 
 **Verification**: Admin panel Event Timeline tab shows all 12 event types for a complete session lifecycle.
 
-### D12.4 Turn Log Enhancement
+### D12.4 Turn Log Enhancement  **REVISED 2026-05-01** ⚠️ partial — revised criteria require code re-work
 
-**Where**: `ControlKernel.recordTurn()` — add `tool_calls` field.
+**Where**: `ControlKernel.recordTurn()` — add `tool_calls` field. (Per §0.6 deviation, the `actionSelected` field is REMOVED; semantic actions such as escalate / clarify / answer / finish are derived downstream from `tool_calls` + `userMessage`.)
 
 **Current state**: `BotTurn.toolCalls` field exists in the entity and DB schema but is never populated.
 
@@ -955,9 +1014,10 @@ ToolDispatcher.dispatch(toolName, session, params):
 recordTurn() — after PhaseResult returned:
   │
   ├─ [NEW] If tool was dispatched during this turn:
-  │   Build tool_calls JSON array:
+  │   Build tool_calls JSON array (one entry per invocation, in order):
   │   [{
   │     "tool_name": "search_knowledge",
+  │     "arguments": { "query": "...", "top_k": 5 },
   │     "latency_ms": 320,
   │     "status": "success",
   │     "result_count": 3,
@@ -966,6 +1026,8 @@ recordTurn() — after PhaseResult returned:
   │
   └─ Save to BotTurn.toolCalls (JSONB)
 ```
+
+**Acceptance criterion (revised)**: Per-turn: `toolCalls` (JSONB) — semantic actions (escalate / clarify / answer / finish) derived from `toolCalls` + `userMessage` by downstream consumers; `actionSelected` field is REMOVED per §0.6 deviation.
 
 **Approach**: `ToolDispatcher.dispatch()` records each invocation to a thread-local or request-scoped `ToolCallLog`. `ControlKernel.recordTurn()` reads the log and serializes to `tool_calls` JSONB. Clear the log after each turn.
 
@@ -1083,7 +1145,7 @@ In addition to D6 done criteria, after D11+D12:
 - [ ] `session.customerContext` populated after session creation when email present and UC allows
 - [ ] Demo scenario #3 (UC-FP): bot cites specific moderation reason from `moderation_context`
 - [ ] Demo scenario #5 (UC-D): bot references account status from `customer_context`
-- [ ] Context projection includes `allowed_actions`, `task_summary`, `budget_state`, `risk_flags`, `tool_schemas`
+- [ ] Context projection includes `task_summary`, `budget_state`, `risk_flags`, `tool_schemas` (per-UC visible tool list with full arguments schema). The `allowed_actions` field is REMOVED per §0.6 deviation; tool constraints alone govern LLM choices.
 - [ ] `create_case_controlled` fires for UC-H/J/K on intake completion; `mock_cases` table has new row
 - [ ] Demo scenario #4 (UC-H): handover payload contains populated `case_id`
 - [ ] Demo scenario #8 (UC-I): NO case creation (UC-I not in allowed set)
@@ -1234,7 +1296,7 @@ run_session(case_spec, agent_client, user_simulator, stall_detector):
   └─ Return SessionTrace: {session_id, transcript, stop_reason, total_turns, elapsed_ms}
 ```
 
-### D13.4 Trace Collector
+### D13.4 Trace Collector  **REVISED 2026-05-01** ⚠️ partial — revised criteria require code re-work
 
 **Where**: `eval_interactive/eval_interactive/trace/collector.py`
 
@@ -1243,11 +1305,13 @@ After session completes, fetches full trace from CS Agent API:
 | Endpoint | Data Collected |
 |----------|---------------|
 | `GET /v1/chat/sessions/{id}` | Final session state: `activeUseCase`, `candidateUseCases`, `containmentOutcome`, `escalationReason`, `totalBotTurns`, `clarificationCount`, `faqMissCount`, `formContext`, `customerContext`, `articlesShown`, `currentPhase` |
-| `GET /v1/demo/sessions/{id}/trace` | Per-turn: `actionSelected`, `toolCalls` (JSONB), `sourceIds`, `phaseBefore`/`phaseAfter`, `projectedContext`, `latencyMs` |
+| `GET /v1/demo/sessions/{id}/trace` | Per-turn: `toolCalls` (JSONB), `userMessage`, `sourceIds`, `phaseBefore`/`phaseAfter`, `projectedContext`, `latencyMs`. (Per §0.6 deviation, the `actionSelected` field is REMOVED — semantic actions are derived by downstream consumers from `toolCalls` + `userMessage`.) |
 | `GET /v1/demo/sessions/{id}/events` | Event timeline: `eventType`, `turnIndex`, `payload` (all 12 types) |
 | `GET /v1/demo/handover-logs` | If escalated: `handoverPayload` (JSON with all Phase 3 §3.6.2 fields), `customerMessage`, `transcript` |
 
 **Output**: Structured `TraceData` object combining all sources, ready for scoring.
+
+**Acceptance criterion (revised)**: Tool-based reasoning replaces action-based — hard checks now read `tool_calls` to detect escalation (presence of `request_handover`), grounding (presence of `search_knowledge` / `resolve_article` + non-empty `source_ids`), clarification (empty `tool_calls` + non-empty `user_message` ending in `?`), and finish (empty `tool_calls` + non-empty `user_message` without follow-up question). The `actionSelected` field is no longer collected or expected.
 
 ### D13.5 3-Layer Scoring Implementation
 
@@ -1599,24 +1663,33 @@ After:  "Hi hr! <actual grounded answer based on form description>"  [ANSWERED]
 
 **Session state after auto-search**: `totalBotTurns = 1`, `currentPhase = CONFIRM` (if answered) or `RESOLVE` (if FAQ miss), `faqMissCount` and `articlesShown` updated.
 
-### D14.7 FAQ Miss Fallback Uses Form Context (Fix B)
+### D14.7 FAQ Miss Fallback Uses Form Context (Fix B)  **REVISED 2026-05-01** ⚠️ partial — revised criteria require code re-work
 
 > **Triggered by**: Session `5ea63180` Turn 1. Knowledge search returned `faqMiss=true` for query `"hi"`. Bot responded with hardcoded "Could you describe your issue in a bit more detail?" — even though `form_context.description = "why I can't post advert"` was available.
 
-**Current state**: `PhaseEvaluator.resolveFaq()` (lines 197-218) returns a hardcoded ask_user response on FAQ miss, regardless of whether form context contains a detailed description. No LLM is invoked for FAQ miss turns.
+**Current state**: `PhaseEvaluator.resolveFaq()` (lines 197-218) returns a hardcoded clarification response on FAQ miss, regardless of whether form context contains a detailed description. No LLM is invoked for FAQ miss turns.
 
-**Target state**: When `faqMiss=true` but `form_context.description` exists and is substantive (> 10 chars), invoke the main LLM with a special projection that includes the form description, instructing it to help based on general knowledge or escalate.
+**Target state**: When `faqMiss=true` but `form_context.description` exists and is substantive (> 10 chars), invoke the main LLM with a special projection that includes the form description, instructing it to help based on general knowledge or escalate via the `request_handover` tool.
 
 **Implementation**:
 
 | File | Change |
 |------|--------|
-| `PhaseEvaluator.java` | In `resolveFaq()`, replace the hardcoded FAQ miss response block (lines 210-218) with: if `session.getFormContext()` has a non-empty `description` field (> 10 chars), build a context projection with `form_context` and an instruction: `"Knowledge search did not find matching articles, but the user described their issue in the pre-chat form: {description}. Provide a helpful response using your general knowledge about the topic, or choose escalate_human if you cannot help."` Then call `llmInvocation.invokeChat()` and return the LLM's response. If description is absent/short, fall back to the current hardcoded response. |
+| `PhaseEvaluator.java` | In `resolveFaq()`, replace the hardcoded FAQ miss response block (lines 210-218) with: if `session.getFormContext()` has a non-empty `description` field (> 10 chars), build a context projection with `form_context` and an instruction: `"Knowledge search did not find matching articles, but the user described their issue in the pre-chat form: {description}. Either provide a helpful answer in user_message based on general knowledge about the topic, ask one focused clarifying question in user_message, or call the request_handover tool with escalation_reason='faq_miss_threshold_exceeded' if you cannot help."` Then call `llmInvocation.invokeChat()` and return the LLM's response (parsed from the OpenAI-style `{user_message, reasoning, tool_calls}` envelope). If description is absent/short, fall back to the current hardcoded response. |
+
+**Acceptance criterion (revised)**: On FAQ miss with form-context fallback, the LLM may either:
+(a) provide a grounded answer directly via `user_message` and cite sources (when applicable),
+(b) ask a clarifying question via `user_message` with no `tool_calls`, or
+(c) escalate via `tool_calls = [{ name: "request_handover", arguments: { escalation_reason: "faq_miss_threshold_exceeded" } }]` (or a similar reason such as `unsupported_request`).
+The 5-action vocabulary is no longer used per §0.6 deviation.
 
 **LLM invocation details**:
 - Build projection via `contextProjection.buildProjection(session, history, null, userMessage)` — null knowledge hits
 - Add a `faq_miss_instruction` field to the projection: explains what happened and instructs the LLM to use form context
-- The LLM can choose `answer_grounded` (without source_ids — general guidance), `ask_user` (specific follow-up), or `escalate_human`
+- The LLM expresses intent through `tool_calls` + `user_message`:
+  - **Direct answer**: non-empty `user_message`, no `tool_calls` (or only `search_knowledge` / `resolve_article` if it wants to retry retrieval)
+  - **Clarification**: non-empty `user_message` ending with a question, no `tool_calls`
+  - **Escalation**: `tool_calls = [{ name: "request_handover", arguments: { escalation_reason: "faq_miss_threshold_exceeded" } }]`, with optional companion `user_message` shown to the user
 - This path still increments `faqMissCount` — if the LLM can't help either, the budget limit will trigger escalation on the next turn
 
 **Guard conditions**:
@@ -1772,6 +1845,345 @@ All three are fully independent — different files, no shared state.
 - [ ] Escalation-only session → groundedness score ≥ 4.0 (not 1.0)
 - [ ] Re-run `cs_interactive_001` eval: verify corrected L2 score (~0.50) and improved L3 groundedness
 - [ ] Existing eval tests pass
+
+---
+
+## D16. Agent Run Loop Architecture ("Bot 真正会用工具")
+
+> **Triggered by**: Investigation of session `ac98cc6b-c737-45be-a7cc-27c491e5294d` Turn 2. The LLM correctly returned `tool_calls: [{name: get_customer_context, ...}]` after the user supplied "AD-1002", but the backend silently dropped the tool call. The bot was idle, not "still working." This revealed that the V1 design only executes hardcoded pre-planned tools (e.g., `search_knowledge` in FAQ phase); generic LLM-requested tool-use was never wired up.
+>
+> **Architectural decision**: Introduce `AgentRunLoop` as a dedicated model↔tool execution worker. Refactor `PhaseEvaluator` from *executor* to *planner* (returns a `PhasePlan`). Keep `ControlKernel` as the deterministic supervisor.
+>
+> **Reference**: See Phase 3 §3.3.3 for the architectural design and contracts.
+>
+> **Scope**: D16 delivers Phases A–D (foundational refactor + migration of all phases). D16 does NOT deliver streaming UX (Phase E — separate workstream).
+
+### D16.A Scaffolding (No Behavior Change)
+
+**Goal**: Introduce all new types and component stubs without changing any user-visible behavior. Existing eval-smoke must pass unchanged.
+
+#### D16.A.1 New Records (model package)
+
+| File | Purpose |
+|------|---------|
+| `model/PhasePlan.java` | Mission briefing record (see §3.3.3 contract) |
+| `model/AgentRunResult.java` | Result of one agent loop run |
+| `model/AgentMessage.java` | One bot-to-user message; types: `ACK \| PROGRESS \| FINAL` |
+| `model/TerminalOutcome.java` | Enum: `FINAL_ANSWER \| CLARIFICATION_NEEDED \| ESCALATE \| MAX_STEPS \| ERROR` |
+| `model/ToolEvent.java` | One tool dispatch with input/output/latency/status |
+| `model/LlmCallEvent.java` | One LLM invocation in the loop with sequence number |
+
+#### D16.A.2 New Service: `AgentRunLoop`
+
+**File**: `service/runtime/AgentRunLoop.java`
+
+```java
+public interface AgentRunLoop {
+    AgentRunResult run(PhasePlan plan, BotSession session, String userMessage,
+                        List<BotTurn> history);
+}
+```
+
+A default implementation `AgentRunLoopImpl` that wraps current behavior (single LLM invocation, no actual loop) so existing flows continue working. The loop body lands in Phase B.
+
+#### D16.A.3 PhaseEvaluator Stubs
+
+Add two new methods that wrap existing logic:
+
+```java
+public PhasePlan plan(BotSession session, String userMessage, List<BotTurn> history);
+public PhaseTransitionDecision interpretRunResult(PhasePlan plan, AgentRunResult result,
+                                                    BotSession session);
+```
+
+Existing `evaluate()` remains as-is; these new methods are not yet called by ControlKernel.
+
+#### D16.A.4 ToolDispatcher Plan Validation
+
+Add a new method that's a no-op when `plan == null`:
+
+```java
+public ToolResult validateAgainstPlan(PhasePlan plan, String toolName);
+```
+
+Returns `ToolResult.ok()` if `plan == null` or `plan.allowedTools.contains(toolName)`. Returns `ToolResult.error("tool_not_in_plan")` otherwise.
+
+#### D16.A.5 ControlKernel.recordRunResult
+
+Add a new persistence path that flattens an `AgentRunResult` into existing tables:
+
+- Each `LlmCallEvent` → row in `llm_call_log` (already exists from D14.3)
+- Each `ToolEvent` → entry in `bot_turns.tool_calls` JSONB
+- Each `AgentMessage` of type `FINAL` → `bot_response` field of the recorded turn
+- Sequence numbers preserved via `ToolEvent.sequenceIndex` and `LlmCallEvent.sequenceIndex`
+
+Existing `recordTurn()` continues working; `recordRunResult()` is the future path.
+
+#### D16.A.6 Feature Flag
+
+**File**: `application.yml` and `LlmProperties.java` (or new `AgentRunLoopProperties.java`)
+
+```yaml
+agent:
+  run-loop:
+    enabled-phases: []   # empty = use legacy path; populated = use AgentRunLoop for those phases
+    max-tool-steps-default: 4
+```
+
+ControlKernel reads this flag. If a phase is in `enabled-phases`, it goes through `PhaseEvaluator.plan() → AgentRunLoop.run() → PhaseEvaluator.interpretRunResult() → recordRunResult()`. Otherwise, current behavior unchanged.
+
+#### D16.A Done Criteria
+
+- [ ] All new records compile and have unit tests for builder/equality
+- [ ] `AgentRunLoopImpl` exists with placeholder logic
+- [ ] `PhaseEvaluator.plan()` and `interpretRunResult()` exist and pass-through to legacy logic
+- [ ] `ToolDispatcher.validateAgainstPlan()` works
+- [ ] `ControlKernel.recordRunResult()` persists correctly
+- [ ] Feature flag wired but `enabled-phases: []` by default
+- [ ] **Existing 309+ tests pass unchanged**
+- [ ] **eval-smoke results identical to baseline** (no behavior drift)
+
+---
+
+### D16.B Migrate RESOLVE/FAQ to AgentRunLoop
+
+**Goal**: The AD-1002 scenario works end-to-end. LLM-requested `get_customer_context` is actually executed.
+
+#### D16.B.1 Real PhasePlan for RESOLVE/FAQ
+
+In `PhaseEvaluator.plan()`, when the active phase is `RESOLVE` and UC is a FAQ UC (UC-A/B/C/D/E/F/FP):
+
+```java
+return PhasePlan.builder()
+    .phase("RESOLVE")
+    .useCase(activeUc)
+    .objective(ucDef.faqObjective())
+    .allowedTools(List.of("get_customer_context", "search_knowledge",
+                           "resolve_article", "request_handover"))
+    .requiredContextKeys(Set.of("form_context", "customer_context",
+                                  "listing_context", "moderation_context"))
+    .maxToolSteps(4)
+    .validTerminalOutcomes(Set.of(FINAL_ANSWER, CLARIFICATION_NEEDED, ESCALATE))
+    .systemInstruction(faqSystemInstruction(ucDef))
+    .groundingInstruction("If tool data contains ad/moderation status, answer from that first. " +
+                           "For policy explanations, cite knowledge source IDs.")
+    .build();
+```
+
+#### D16.B.2 Real AgentRunLoop Logic
+
+Implement the actual loop:
+
+```java
+public AgentRunResult run(PhasePlan plan, BotSession session, String userMessage,
+                           List<BotTurn> history) {
+    List<ToolEvent> toolEvents = new ArrayList<>();
+    List<LlmCallEvent> llmEvents = new ArrayList<>();
+    Map<String, Object> accumulatedToolResults = new LinkedHashMap<>();
+
+    for (int step = 0; step < plan.maxToolSteps(); step++) {
+        // Build projection with current state + tool results so far + the PhasePlan itself
+        String projection = contextProjectionBuilder.build(
+                session, history, plan, userMessage, accumulatedToolResults);
+
+        // Invoke LLM
+        long t0 = System.currentTimeMillis();
+        LlmResponse response = llmInvocation.invokeChat(projection, userMessage,
+                session.getSessionId(), session.getTotalBotTurns());
+        llmEvents.add(LlmCallEvent.of(step, response, System.currentTimeMillis() - t0));
+
+        ParsedAction action = actionParser.parse(response.getContent());
+
+        // No tool calls → final user message OR clarification
+        if (action.getToolCalls() == null || action.getToolCalls().isEmpty()) {
+            return AgentRunResult.finalAnswer(action.getUserMessage(), llmEvents, toolEvents);
+        }
+
+        // Dispatch each tool call (validated against plan)
+        for (var toolCall : action.getToolCalls()) {
+            ToolResult validation = toolDispatcher.validateAgainstPlan(plan, toolCall.getName());
+            if (!validation.isSuccess()) {
+                toolEvents.add(ToolEvent.rejected(step, toolCall, validation.getErrorMessage()));
+                continue;  // skip this tool but still process others
+            }
+            long tt = System.currentTimeMillis();
+            ToolResult result = toolDispatcher.dispatch(toolCall.getName(), session,
+                    toolCall.getArguments());
+            toolEvents.add(ToolEvent.of(step, toolCall, result, System.currentTimeMillis() - tt));
+            accumulatedToolResults.put(toolCall.getName(), result.getData());
+        }
+    }
+
+    // Loop exhausted
+    return AgentRunResult.maxSteps(llmEvents, toolEvents);
+}
+```
+
+#### D16.B.3 ContextProjectionBuilder Updates
+
+Add a new overload that accepts `PhasePlan` and `accumulatedToolResults`:
+
+```java
+public String build(BotSession session, List<BotTurn> history, PhasePlan plan,
+                     String userMessage, Map<String, Object> accumulatedToolResults);
+```
+
+The plan's `objective`, `allowedTools` (as tool schemas), `groundingInstruction`, `systemInstruction`, `validTerminalOutcomes` all get projected into the LLM context. `maxToolSteps` does NOT (server-side enforcement).
+
+#### D16.B.4 Enable Flag
+
+`application-local.yml`:
+```yaml
+agent:
+  run-loop:
+    enabled-phases: [RESOLVE_FAQ]
+```
+
+#### D16.B Done Criteria
+
+- [ ] `cs_interactive` test case: user types "AD-1002" → `get_customer_context` actually executes → grounded answer returned in single HTTP response
+- [ ] Trace API shows: 2+ `LlmCallEvent` rows, ≥1 `ToolEvent` for `get_customer_context`, all sequenced
+- [ ] `bot_turns.bot_response` contains the final grounded answer (not the placeholder)
+- [ ] eval-smoke passes with no regressions vs. legacy path
+
+---
+
+### D16.C Migrate INTAKE to AgentRunLoop (Parallel-Safe with D16.B)
+
+**Goal**: UC-G/H/I/J/K flows use AgentRunLoop with restricted tool set. Knowledge tools blocked.
+
+#### D16.C.1 INTAKE PhasePlan
+
+In `PhaseEvaluator.plan()`, when phase is `RESOLVE` and UC is an INTAKE UC:
+
+```java
+return PhasePlan.builder()
+    .phase("RESOLVE")
+    .useCase(activeUc)
+    .objective("Collect required intake fields and hand over to specialist")
+    .allowedTools(List.of("request_handover", "create_case_controlled"))
+    // explicitly NO search_knowledge, NO resolve_article, NO get_customer_context (intake doesn't need it)
+    .maxToolSteps(2)
+    .validTerminalOutcomes(Set.of(CLARIFICATION_NEEDED, ESCALATE))
+    .systemInstruction(intakeSystemInstruction(activeUc))
+    .groundingInstruction("Use fixed-script templates only. Do NOT cite knowledge articles.")
+    .build();
+```
+
+#### D16.C.2 Enable Flag
+
+`application-local.yml`:
+```yaml
+agent:
+  run-loop:
+    enabled-phases: [RESOLVE_FAQ, RESOLVE_INTAKE]
+```
+
+#### D16.C Done Criteria
+
+- [ ] UC-H/J/K eval cases pass without regressions
+- [ ] Attempting `search_knowledge` from INTAKE phase produces a `ToolEvent.rejected` with reason `tool_not_in_plan`
+- [ ] `create_case_controlled` is dispatched correctly when LLM requests it
+- [ ] eval-smoke INTAKE cases produce same outcomes as legacy path
+
+#### Parallel-Safety with D16.B
+
+D16.B and D16.C touch different code paths in `PhaseEvaluator.plan()` (FAQ vs INTAKE branch) and use different feature flag values. They can be developed in parallel after D16.A scaffolding lands. They merge into the same `enabled-phases` list at end-of-rollout.
+
+---
+
+### D16.D Migrate DISCOVER / CONFIRM / CLOSE / ESCALATE
+
+**Goal**: PhaseEvaluator becomes purely a planner. `grep "toolDispatcher.dispatch" PhaseEvaluator.java` returns zero hits.
+
+Each remaining phase gets a PhasePlan:
+
+| Phase | allowedTools | maxToolSteps | validTerminalOutcomes |
+|-------|--------------|--------------|------------------------|
+| DISCOVER | `[search_knowledge]` (optional, for refining UC) | 1 | `CLARIFICATION_NEEDED, FINAL_ANSWER` |
+| CONFIRM | `[record_outcome, request_handover]` | 1 | `CLOSE, RETRY_RESOLVE, ESCALATE` |
+| CLOSE | `[record_outcome]` | 1 | `CLOSE` |
+| ESCALATE | `[request_handover, create_case_controlled]` | 2 | `ESCALATE` |
+
+#### D16.D Done Criteria
+
+- [ ] All 5 phases (DISCOVER, RESOLVE/FAQ, RESOLVE/INTAKE, CONFIRM, CLOSE, ESCALATE) use AgentRunLoop
+- [ ] PhaseEvaluator no longer calls `llmInvocation` or `toolDispatcher` directly
+- [ ] Feature flag default becomes "all phases enabled"
+- [ ] eval-full passes; no regressions vs. v8 baseline
+
+---
+
+### D16.E Promote AgentRunLoop to Production Default (Option B)
+
+> **Triggered by**: Architectural alignment audit after D16.D. The legacy methods in `PhaseEvaluator` (evaluateDiscover, resolveFaq, resolveIntake, evaluateConfirm) still contained 9 LLM/tool calls because production `application.yml` baseline kept `enabled-phases: []` as a safety default — so production never exercised the new architecture, only `application-local.yml` did.
+>
+> **Decision**: Promote the new path to the production default. Keep legacy methods as a flag-disabled rollback target.
+
+#### D16.E.1 Flip the Production Default
+
+`server/src/main/resources/application.yml`:
+
+```yaml
+# Before
+agent:
+  run-loop:
+    enabled-phases: []
+
+# After
+agent:
+  run-loop:
+    enabled-phases: [RESOLVE_FAQ, RESOLVE_INTAKE, DISCOVER, CONFIRM, CLOSE, ESCALATE]
+```
+
+After this change, `application.yml` and `application-local.yml` are identical. Both exercise the new AgentRunLoop architecture.
+
+#### D16.E.2 Legacy Methods Stay (For Rollback)
+
+`PhaseEvaluator.evaluate()`, `evaluateDiscover()`, `resolveFaq()`, `resolveIntake()`, `evaluateConfirm()`, `evaluateClose()`, `evaluateEscalate()`, and `createCaseIfAllowed()` remain in place. They are dead code under the new default, but become live again instantly if any route key is removed from `enabled-phases`.
+
+The 10+ legacy-path tests in `PhaseEvaluatorFaqMissFallbackTest` continue to call `phaseEvaluator.evaluate(...)` directly to test the rollback path. Do NOT remove these tests.
+
+#### D16.E.3 Doc Honesty Update
+
+Phase 3 §3.3.3 was updated to reflect the two-track reality:
+- New path = planner (default after D16.E)
+- Legacy path = executor (rollback target, retained but flag-disabled)
+
+The earlier "PhaseEvaluator is purely a planner" wording was unconditional and misleading — it now reads as "planner when the flag is enabled, which is the default after D16.E."
+
+#### D16.E.4 Done Criteria
+
+- [ ] `application.yml` baseline has all 6 route keys in `enabled-phases`
+- [ ] `mvn clean verify -pl server` passes (existing 391 tests + any new ones)
+- [ ] AD-1002 integration test still passes
+- [ ] eval-smoke run with the new default shows no regression vs. previous run (label: `smoke_v3_after_d16e`)
+- [ ] Phase 3 §3.3.3 doc clarified
+- [ ] Future cleanup task tracked: "Delete legacy methods after ≥ 2 weeks of stable production"
+
+---
+
+### D16.F Delivery DAG (Updated)
+
+```
+D16.A (scaffolding, sequential — foundational)
+   │
+   ├──► D16.B (RESOLVE/FAQ migration)
+   │       │
+   │       ▼
+   │     D16.C (INTAKE migration — sequential due to shared loop infrastructure)
+   │       │
+   │       ▼
+   │     D16.D (DISCOVER / CONFIRM / CLOSE / ESCALATE)
+   │       │
+   │       ▼
+   │     QA verification
+   │       │
+   │       ▼
+   │     D16.E (promote to production default — Option B)
+```
+
+Practical sequencing note: D16.B/C/D run sequentially in implementation because they share infrastructure (`AgentRunLoopImpl.run()`, `ControlKernel.computeRouteKey`/`applyTransition`/`recordRunResult`, `ContextProjectionBuilder.build` overload). D16.E is the production default flip after QA passes.
 
 ---
 

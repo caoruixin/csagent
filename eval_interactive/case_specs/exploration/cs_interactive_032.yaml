@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: Ad removed
 persona:
-  user_goal_summary: 'User reports Ad Support: Ad removed. Drift: hard_shift.'
+  user_goal_summary: 'User wants his ad (ID 1507847487) reinstated after removal; he fixed it to meet guidelines and needs
+    it live to reach interested contacts. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Courtney
-  - understand you have you procedures
-  - I had people contacting me
-  hidden_facts: []
+  - my ad was removed 1507847487
+  - I adjusted the ad to make it correct
+  - ideally I just need to get the ad live
+  hidden_facts:
+  - fact: The user's ad ID is 1507847487
+    disclose_when: when bot asks for ad ID
   will_request_human_if: ''
 expected:
   outcome_class: escalate

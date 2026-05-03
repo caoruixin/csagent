@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: How do buyers contact me....no phone number on add. In the old version of app this was shown.  I am confused
 persona:
-  user_goal_summary: 'User reports Account Support: How do buyers contact me....no phone number on add. Drift: soft_shift.'
+  user_goal_summary: 'User wants to add a phone number to their ad for buyer contact, and asks when the missing functionality
+    will be restored and where the phone number will appear. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift

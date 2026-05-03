@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: Error 500
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Error 500. Drift: soft_shift.'
+  user_goal_summary: 'User cannot access messages, seeing error code 500, and wants help fixing it. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

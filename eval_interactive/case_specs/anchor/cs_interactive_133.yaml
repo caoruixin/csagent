@@ -9,14 +9,16 @@ form_context:
   description: Why can't I upload pictures  when I'm selling  items? And why am I getting notifications  that I have messages
     when I dont
 persona:
-  user_goal_summary: 'User reports Technical Support: Why can''t I upload pictures when I''m selling items?. Drift: soft_shift.'
+  user_goal_summary: 'User wants to successfully upload photos to a new advert and have the ongoing technical issue of false
+    new message notifications resolved. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - Hi I can't upload 2 photos to a new advert I was wondering if I send them to you can you up load for me
-  - I'll leave chat and wait for your email.
-  - Do you want me to send you the pictures
+  - There is a technical problem with my account .I keep getting messages stating I have mail when there is no mail this was
+    reported and I was told it's fixed but it's not and since then it does not allow me to upload .
+  - Sorry typo allows me to copy or take a picture but will not upload once I've shared or taken the picture
   hidden_facts: []
   will_request_human_if: ''
 expected:

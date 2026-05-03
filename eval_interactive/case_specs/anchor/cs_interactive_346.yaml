@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: Constantly receiving spam notifications from you despite them being turned off.
 persona:
-  user_goal_summary: 'User reports Account Support: Constantly receiving spam notifications from you despite them being turned
-    off. Drift: soft_shift.'
+  user_goal_summary: 'User wants to stop all spam notifications from the platform while still receiving notifications for
+    messages from buyers/sellers, without having to disable notifications at the phone level. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift
@@ -17,7 +17,9 @@ persona:
   - Hello Carmen. Hope you’re well. I’m in touch because I’m constantly receiving spam notifications even though they’re turned
     off in app. I don’t want to have to turn them off in my phone settings because I’d still like to receive message notifications
     when buying/selling. Please help.
-  - Okay thanks. Take care.
+  - Yes. To save some time here, can you make changes to my account settings? I only want to receive notifications when I
+    receive a message from a buyer/seller. Nothing else. If you can’t make changes to my account settings then I just need
+    instructions on how to stop all notifications except messages from buyers/sellers. Thanks.
   - Settings for all notifications except messages are already turned off yet I’m still receiving spam notifications from
     you.
   hidden_facts: []

@@ -8,16 +8,18 @@ form_context:
   ad_id: ''
   description: MY business add got deleted, can you please make it live or refund my deposit. Thanks!
 persona:
-  user_goal_summary: 'User reports Ad Support: MY business add got deleted, can you please make it live or refund my deposit.
+  user_goal_summary: 'User''s business ad was deleted and account blocked. They want the ad made live again, not a refund.
     Drift: hard_shift.'
   frustration_level: mild
   verbosity: terse
   drift_behavior: hard_shift
   seed_messages:
   - please help me
+  - make it live please
   - i don't need any refund
-  - Alright, Thank You!
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's ad ID is 1508995437.
+    disclose_when: When asked for their ad ID or reference number.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

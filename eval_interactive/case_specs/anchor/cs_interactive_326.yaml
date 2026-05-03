@@ -9,8 +9,8 @@ form_context:
   description: 2 bedroom flat unfurnished Sussex road southport merseyside landlord Terry how do I make an appointment for
     with him
 persona:
-  user_goal_summary: 'User reports Account Support: 2 bedroom flat unfurnished Sussex road southport merseyside landlord Terry
-    how do I make an appointment for with him. Drift: soft_shift.'
+  user_goal_summary: 'User wants to view a 2-bed flat on Sussex Road, Southport, Merseyside, listed by landlord Terry, and
+    asks how to contact him through Gumtree. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift

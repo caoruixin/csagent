@@ -9,8 +9,8 @@ form_context:
   description: Hi ,please advise why I cannot post my advert...I tried few times and keeps saying not being posted due to
     posting rules what is the issue pls explain???thanks
 persona:
-  user_goal_summary: 'User reports Ad Support: Hi ,please advise why I cannot post my advert...I tried few times and keeps
-    saying not being posted due to posting rules what is the issue pls explain???thanks. Drift: hard_shift.'
+  user_goal_summary: 'User wants to understand why his ad with ID 1508059319 was removed and to be contacted with a resolution,
+    preferably urgently because he is currently on a flight with limited data. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

@@ -9,7 +9,8 @@ form_context:
   description: I cannot log in. I have  requested a password reset and on checking the inbox and junk mail, no email has arrived.
     Please help.
 persona:
-  user_goal_summary: 'User reports Account Support: I cannot log in. Drift: hard_shift.'
+  user_goal_summary: 'User wants to regain access to their old account without losing history. Password reset emails are not
+    arriving despite using the original email, and they cannot log in. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -17,7 +18,12 @@ persona:
   - Yes, I have.
   - With a different browser, the reset email has not arrived.
   - I can see chats for a 2017 advert - cannot find the ID for that.
-  hidden_facts: []
+  hidden_facts:
+  - fact: User initially signed up over 12 years ago and still has the same email address.
+    disclose_when: when asked about account age or registration details
+  - fact: User has correspondence from ads running 2013-2016, including ad ID 1026924932, and can see chats for a 2017 advert
+      but cannot find the ID.
+    disclose_when: when asked for ad history or proof of account ownership
   will_request_human_if: ''
 expected:
   outcome_class: escalate

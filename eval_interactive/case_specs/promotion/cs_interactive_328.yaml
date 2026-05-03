@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Feedback left for buyer
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: Feedback left for buyer. Drift: hard_shift.'
+  user_goal_summary: 'User wants to delete a review left for a buyer after item collection, then asks about being charged
+    for reposting pet accessory ads and requests help reposting them. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I left feedback for a buyer, item collected this morning. Am I able to change or delete it ?
-  - You too 🌺
-  - Thank you again ;)
+  - Actually yes - could I ask why when I want to repost ads I am always asked to pay . If I don’t pay it won’t relist ?
+  - Could you repost the pet items for me then or should I create new ads ?
   hidden_facts: []
   will_request_human_if: ''
 expected:

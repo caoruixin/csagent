@@ -9,14 +9,13 @@ form_context:
   description: Hi, are you able to send me proof of my chat to purchase the Avondale Motorhome a few months ago. I have deleted
     it and now the police require it. Thank you! It was listed at £750.
 persona:
-  user_goal_summary: 'User reports Account Support: Hi, are you able to send me proof of my chat to purchase the Avondale
-    Motorhome a few months ago. Drift: hard_shift.'
+  user_goal_summary: 'User wants to retrieve a deleted conversation about buying an Avondale Motorhome for £750, as police
+    require it. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Okay thank you
-  - Haha okay. Thank you for your help today. Have a good evening.
+  - Right ok, they would need to request it themselves.
   - How long does that take?
   hidden_facts: []
   will_request_human_if: ''

@@ -8,16 +8,18 @@ form_context:
   ad_id: ''
   description: when I go through the account and check company tab or finance tab then its giving error
 persona:
-  user_goal_summary: 'User reports Pro Contract: when I go through the account and check company tab or finance tab then its
-    giving error. Drift: soft_shift.'
+  user_goal_summary: 'I want to be able to access the Company and Finance tabs in my Pro account without getting an authentication
+    error. This has been a problem since day one. Drift: soft_shift.'
   frustration_level: mild
-  verbosity: terse
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - no details ?
-  - 'no'
+  - when I go through the account and check company tab or finance tab then its giving error
+  - Problem Logging In We can’t log you in because of an authentication error.
   - this problem is from day one
-  hidden_facts: []
+  hidden_facts:
+  - fact: 'The error message shown is: ''Problem Logging In We can’t log you in because of an authentication error.'''
+    disclose_when: When the bot asks for details about the error.
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

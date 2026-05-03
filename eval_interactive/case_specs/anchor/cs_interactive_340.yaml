@@ -8,14 +8,16 @@ form_context:
   ad_id: ''
   description: Got an e-mail someone has sent a message about my ad but I caant et into messages on my gumtree
 persona:
-  user_goal_summary: 'User reports Account Support: Got an e-mail someone has sent a message about my ad but I caant et into
-    messages on my gumtree. Drift: soft_shift.'
+  user_goal_summary: 'She wants to know how to delete the Gumtree app, clear cache and cookies, and redownload it so she can
+    access a message about her ad. Drift: soft_shift.'
   frustration_level: high
   verbosity: terse
   drift_behavior: soft_shift
   seed_messages:
   - How do I do this
-  hidden_facts: []
+  hidden_facts:
+  - fact: She has an inquiry at 14/12/2025 at 19:00 about her ad.
+    disclose_when: when the bot asks for specifics or timing
   will_request_human_if: ''
 expected:
   outcome_class: resolve

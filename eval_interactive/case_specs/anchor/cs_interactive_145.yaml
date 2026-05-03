@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
+  user_goal_summary: 'User is unable to send or receive messages on Gumtree. Their account is blocked and they want to know
+    why and have the block lifted. Drift: none.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - people don't get my massage
-  - have a good day
-  - anyway i will be waiting for ur reply thanks
+  - not i get their msg
+  - but why they did block it
   hidden_facts: []
   will_request_human_if: ''
 expected:

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports Hey. Drift: hard_shift.'
+  user_goal_summary: 'The user sold a rechargeable LED hat on Gumtree and the item was delivered on 1st December, but they
+    haven''t received the money. They want to resolve the payment issue. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

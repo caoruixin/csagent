@@ -8,13 +8,13 @@ form_context:
   ad_id: ''
   description: Getting no response from seller
 persona:
-  user_goal_summary: 'User reports Account Support: Getting no response from seller. Drift: none.'
+  user_goal_summary: 'User wants help because they haven''t received a response from a seller on Gumtree after messaging them
+    yesterday. Drift: none.'
   frustration_level: high
   verbosity: terse
   drift_behavior: none
   seed_messages:
   - Yesterday
-  - It is friday
   hidden_facts: []
   will_request_human_if: ''
 expected:

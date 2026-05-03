@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  user_goal_summary: 'User wants their renewed garage ad, for which they paid £8.99, to appear in live ads, or a refund if
+    it cannot be resolved. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

@@ -8,15 +8,20 @@ form_context:
   ad_id: ''
   description: I have paid for an ad today which doesn't appear anywhere
 persona:
-  user_goal_summary: 'User reports Account Support: I have paid for an ad today which doesn''t appear anywhere. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to delete all Gumtree accounts associated with Google sign-in except the one where his
+    ad is live, and confirm the ad is under his hotmail email address. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I was just checking 'all ads' both active and inaccurate
+  - Ahh ok. I will look into this but are you able to delete incorrect account
   - Yes please delete everything else - I'm easily confused 👍
-  - No thank you again
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's ad is live and associated with his hotmail email address.
+    disclose_when: when asked about the email address for the ad
+  - fact: The user inadvertently created multiple Gumtree accounts by signing in with Google instead of his email.
+    disclose_when: when asked why he wants to delete accounts
   will_request_human_if: ''
 expected:
   outcome_class: escalate

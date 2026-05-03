@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: I can't seem to use "Phone Only" on contact details when placing an add
 persona:
-  user_goal_summary: 'User reports Account Support: I can''t seem to use "Phone Only" on contact details when placing an add.
-    Drift: soft_shift.'
+  user_goal_summary: 'The user wants to post a new Gumtree ad and select the ''Phone Only'' contact option, but the email
+    deselection checkbox is missing from the contact details interface. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -17,7 +17,9 @@ persona:
   - The option to use " Phone Only " is not there when I try to list an addI am away from my computer all day.
   - Please cotacting me by email on [EMAIL] Thanks for your help, Thierry
   - Is this a recent change to contact details?
-  hidden_facts: []
+  hidden_facts:
+  - fact: I am away from my computer all day, so email is not convenient.
+    disclose_when: when bot asks about the reason for preferring phone-only contact or the urgency
   will_request_human_if: ''
 expected:
   outcome_class: resolve

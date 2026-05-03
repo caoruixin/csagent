@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: Contacting a seller
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Contacting a seller. Drift: hard_shift.'
+  user_goal_summary: 'Wants to contact seller of ad 1505576985 because messages not read, possibly due to spam. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -18,7 +18,9 @@ persona:
     folder and it gets missed
   - OK how do I contact the person as I've messaged a few times since last Friday. It's obviously gone in their spam folder
     too 🙈
-  hidden_facts: []
+  hidden_facts:
+  - fact: Ad number is 1505576985
+    disclose_when: when asked for ad number or listing details
   will_request_human_if: ''
 expected:
   outcome_class: escalate

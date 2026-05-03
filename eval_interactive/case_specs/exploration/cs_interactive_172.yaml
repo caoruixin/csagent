@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Review
 persona:
-  user_goal_summary: 'User reports Account Support: Review. Drift: hard_shift.'
+  user_goal_summary: 'User wants a 1-star review removed because it was left by a scammer and harms their selling ability.
+    Told it can''t be disputed, they request complaint form and threaten to delete account. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

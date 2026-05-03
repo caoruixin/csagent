@@ -8,15 +8,14 @@ form_context:
   ad_id: ''
   description: I would like to check as I have given my bank details that I am now set up .
 persona:
-  user_goal_summary: 'User reports Account Support: I would like to check as I have given my bank details that I am now set
-    up . Drift: hard_shift.'
+  user_goal_summary: 'To verify that her bank details are safe after being asked for them for a business account, and to clarify
+    if she needs a business account after someone accused her of deceiving buyers by posting under personal. Drift: hard_shift.'
   frustration_level: mild
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - Yes business and then I was asked for my bank details but I am worried that I may be scammed as not sure if the details
     given are safe
-  - That is kind yes please
   - Oh I am sorry I posted before and someone messaged me saying I was deceiving them because I hadn't posted under business
   hidden_facts: []
   will_request_human_if: ''

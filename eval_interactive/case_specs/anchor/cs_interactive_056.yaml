@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: I can't reply to messages
 persona:
-  user_goal_summary: 'User reports Account Support: I can''t reply to messages. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to resolve the issue of not being able to reply to messages, access emails, or click
+    the Menu button on Gumtree, especially because a prospective buyer is coming to collect an item and needs her address.
+    Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

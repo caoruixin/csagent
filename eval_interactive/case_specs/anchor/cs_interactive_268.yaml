@@ -8,15 +8,19 @@ form_context:
   ad_id: ''
   description: He man replica sword- not sharp or a real weapon
 persona:
-  user_goal_summary: 'User reports Ad Support: He man replica sword- not sharp or a real weapon. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to confirm that their listing of a replica sword (a prop, not a weapon) is permitted
+    on the platform. Drift: soft_shift.'
   frustration_level: high
-  verbosity: terse
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - No problem
-  - You too. Thanks again
-  - Very welcome nuraan
-  hidden_facts: []
+  - I posted an item to sell on here a while ago and I just need to make sure it's OK with you
+  - It's a replica sword that is a prop and for display, not an actual weapon
+  hidden_facts:
+  - fact: The ad ID is 1508009125.
+    disclose_when: when asked for the ad ID or listing details
+  - fact: The ad is associated with a different email account than the one used to contact support.
+    disclose_when: when the agent mentions inability to find the ad or email mismatch
   will_request_human_if: ''
 expected:
   outcome_class: resolve

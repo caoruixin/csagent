@@ -8,15 +8,16 @@ form_context:
   ad_id: ''
   description: cannot include phone number
 persona:
-  user_goal_summary: 'User reports Ad Support: cannot include phone number. Drift: soft_shift.'
+  user_goal_summary: 'User wants to know why she cannot include her phone number in her Gumtree ad (ID 1508254218) and to
+    have the option restored. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - hello, i just placed an ad on gumtree which has the following ad id... 1508254218, it did not let me publish the ad with
     my phone number like it always has done please can you tell me why this is
-  - and you
-  - ok thank you for your help
+  - theres no option, only the option to have my email as a contact option
+  - it wont let me and says my ad is breaking rules and i have been sent an email i dont understand this?
   hidden_facts: []
   will_request_human_if: ''
 expected:

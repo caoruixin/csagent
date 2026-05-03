@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eval Report - smoke-p2-step2-classify-uc-tool (20260501-212636)</title>
+<style>
+:root {
+    --green: #22c55e;
+    --green-bg: #f0fdf4;
+    --amber: #f59e0b;
+    --amber-bg: #fffbeb;
+    --red: #ef4444;
+    --red-bg: #fef2f2;
+    --blue: #3b82f6;
+    --blue-bg: #eff6ff;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-500: #6b7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--gray-900);
+    background: var(--gray-50);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+h2 { font-size: 1.35rem; margin: 2rem 0 1rem; border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem; }
+h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+
+.header {
+    background: white;
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+.header-meta { color: var(--gray-500); font-size: 0.9rem; }
+.header-meta span { margin-right: 2rem; }
+
+/* --- Metric cards --- */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-left: 4px solid var(--gray-300);
+}
+.card.green  { border-left-color: var(--green);  background: var(--green-bg); }
+.card.amber  { border-left-color: var(--amber);  background: var(--amber-bg); }
+.card.red    { border-left-color: var(--red);    background: var(--red-bg); }
+.card-label  { font-size: 0.8rem; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em; }
+.card-value  { font-size: 1.6rem; font-weight: 700; margin: 0.25rem 0; }
+.card-target { font-size: 0.75rem; color: var(--gray-500); }
+
+/* --- Overview bar --- */
+.overview-box {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+}
+.bar-container { display: flex; height: 28px; border-radius: 6px; overflow: hidden; margin: 0.75rem 0; }
+.bar-pass { background: var(--green); }
+.bar-fail { background: var(--red); }
+.overview-stats { display: flex; gap: 2rem; font-size: 0.95rem; }
+.overview-stats span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot.green { background: var(--green); }
+.dot.red   { background: var(--red); }
+
+/* --- Tables --- */
+table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--gray-200); }
+th { background: var(--gray-100); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+td { font-size: 0.9rem; }
+tr:hover td { background: var(--gray-50); }
+
+/* --- Per-case details --- */
+details {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--gray-200);
+}
+details[open] { border-color: var(--blue); }
+summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    user-select: none;
+}
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "\25B6"; font-size: 0.7rem; transition: transform 0.15s; }
+details[open] > summary::before { transform: rotate(90deg); }
+.case-body { padding: 0.5rem 1rem 1rem; }
+
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.badge.pass { background: var(--green-bg); color: #166534; }
+.badge.fail { background: var(--red-bg); color: #991b1b; }
+.badge.stall { background: var(--amber-bg); color: #92400e; }
+
+.tag {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    background: var(--red-bg);
+    color: #991b1b;
+    margin-right: 0.3rem;
+    margin-bottom: 0.2rem;
+}
+
+.kv-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem 1.5rem;
+    font-size: 0.88rem;
+    margin-bottom: 0.75rem;
+}
+.kv-grid dt { color: var(--gray-500); }
+.kv-grid dd { font-weight: 500; }
+
+.check-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; padding: 0.2rem 0; }
+.check-icon { font-weight: 700; width: 1.2em; text-align: center; }
+.check-icon.pass { color: var(--green); }
+.check-icon.fail { color: var(--red); }
+
+/* --- Regression section --- */
+.regression-improved td { background: var(--green-bg); }
+.regression-regressed td { background: var(--red-bg); }
+
+.delta { font-weight: 600; }
+.delta.pos { color: #166534; }
+.delta.neg { color: #991b1b; }
+
+.footer {
+    text-align: center;
+    color: var(--gray-500);
+    font-size: 0.8rem;
+    padding: 2rem 0 1rem;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Evaluation Report</h1>
+  <div class="header-meta">
+    <span><strong>Run ID:</strong> 20260501-212636</span>
+    <span><strong>Label:</strong> smoke-p2-step2-classify-uc-tool</span>
+    <span><strong>Timestamp:</strong> 2026-05-01 21:29:48 UTC</span>
+    <span><strong>Total Cases:</strong> 14</span>
+  </div>
+</div>
+<h2>Key Metrics Dashboard</h2>
+<div class="cards">
+<div class="card red">
+  <div class="card-label">Task Success Rate</div>
+  <div class="card-value">7.1%</div>
+  <div class="card-target">target: &ge; 80%</div>
+</div><div class="card red">
+  <div class="card-label">Stall Rate</div>
+  <div class="card-value">14.3%</div>
+  <div class="card-target">target: 0%</div>
+</div><div class="card ">
+  <div class="card-label">Correct Tool Invocation Rate</div>
+  <div class="card-value">N/A</div>
+  <div class="card-target">target: &ge; 90%</div>
+</div><div class="card ">
+  <div class="card-label">Escalation Correctness Rate</div>
+  <div class="card-value">N/A</div>
+  <div class="card-target">target: &ge; 95%</div>
+</div><div class="card ">
+  <div class="card-label">Grounded Final Answer Rate</div>
+  <div class="card-value">N/A</div>
+  <div class="card-target">target: &ge; 98%</div>
+</div><div class="card green">
+  <div class="card-label">Policy Compliance Rate</div>
+  <div class="card-value">100.0%</div>
+  <div class="card-target">target: &ge; 100%</div>
+</div><div class="card green">
+  <div class="card-label">Turns to Resolution</div>
+  <div class="card-value">1.64</div>
+  <div class="card-target">target: &le; 6</div>
+</div>
+</div>
+<h2>Pass / Fail Overview</h2>
+<div class="overview-box">
+  <div class="overview-stats">
+    <span><span class="dot green"></span> Passed: 1</span>
+    <span><span class="dot red"></span> Failed: 13</span>
+    <span>Mean Composite: 0.07</span>
+  </div>
+  <div class="bar-container">
+    <div class="bar-pass" style="width:7.1%"></div>
+    <div class="bar-fail" style="width:92.9%"></div>
+  </div>
+  <h3>Composite Score Distribution</h3>
+  <table>
+    <thead><tr><th>Range</th><th>Count</th></tr></thead>
+    <tbody><tr><td>0.0-0.2</td><td>13</td></tr><tr><td>0.2-0.4</td><td>0</td></tr><tr><td>0.4-0.6</td><td>0</td></tr><tr><td>0.6-0.8</td><td>0</td></tr><tr><td>0.8-1.0</td><td>1</td></tr></tbody>
+  </table>
+</div>
+<h2>Per Use-Case Breakdown</h2>
+<table>
+  <thead>
+    <tr><th>Use Case</th><th>Count</th><th>Passed</th><th>Failed</th><th>Mean Composite</th><th>Task Success Rate</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>UC-A</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-B</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-C</td><td>4</td><td>0</td><td>4</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-D</td><td>2</td><td>0</td><td>2</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-E</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-F</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-FP</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-I</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-J</td><td>1</td><td>0</td><td>1</td><td>0.00</td><td>0.0%</td></tr><tr><td>UC-K</td><td>1</td><td>1</td><td>0</td><td>0.93</td><td>0.0%</td></tr>
+  </tbody>
+</table>
+<h2>Per-Case Details</h2>
+<details>
+  <summary>cs_interactive_001 <span class="badge fail">FAIL</span> <span class="badge stall">STALL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-C</dd><dt>Actual UC</dt><dd>UC-A</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.67</dd><dt>Judge Score (L3)</dt><dd>0.67</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>4</dd><dt>Session ID</dt><dd>9856eda8-b9f5-4ca0-82d9-e8a3462c4ebd</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>source_citation_present <span style="color:var(--gray-500);">(turn 1: answer without sources; turn 2: answer without sources; turn 3: answer without sources)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;clarification_budget_exhausted&#x27;, actual=&#x27;turn_budget_exhausted&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon fail">&#10007;</span>no_stall <span style="color:var(--gray-500);">(stall at turn 1: PLACEHOLDER_WITHOUT_FOLLOWUP)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-C, actual=UC-A</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s final response in Turn 4 is a procedural escalation message (&#x27;I&#x27;m having difficulty resolving this. Let me connect you with a specialist.&#x27;) with no factual claims about the user&#x27;s account, email behavior, or Gumtree&#x27;s messaging system. Since there are no factual assertions requiring grounding, and the response does not attempt to explain causes, mechanisms, or policies, no source citation is needed — satisfying the condition for a score of 5.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot repeatedly asks clarifying questions instead of directly addressing the user&#x27;s core issue: not receiving replies to ads due to two email addresses in account settings. By Turn 4, the user explicitly states the problem (no replies received), yet the bot still fails to explain how Gumtree routes messages (e.g., whether replies go to the primary login email or another address), offer steps to verify or update the contact email, or confirm which email receives ad replies—choosing instead to escalate without resolving the clear, stated concern.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--amber);font-weight:600;">3.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot is polite and uses the customer&#x27;s name, showing basic personalization, but lacks empathy and proactive reassurance given the user&#x27;s mild frustration about not receiving replies. It repeatedly asks clarifying questions without acknowledging the user&#x27;s concern or offering immediate guidance (e.g., explaining how Gumtree routes messages or confirming which email is primary). The final response — &#x27;I&#x27;m having difficulty resolving this&#x27; — sounds vague and slightly defeatist rather than confident or supportive; a more professional response would express ownership (&#x27;Let me verify your notification settings right away&#x27;) before escalating. Tone is adequate but feels mechanical and reactive, not empathetically aligned.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:source_citation_present</span><span class="tag">L1:escalation_compliance</span><span class="tag">L1:no_stall</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE_MISSING:handover_completeness</span><span class="tag">L2:correct_uc</span><span class="tag">L3:relevance</span><span class="tag">STALL:PLACEHOLDER_WITHOUT_FOLLOWUP</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_002 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-C</dd><dt>Actual UC</dt><dd>UC-H</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.67</dd><dt>Judge Score (L3)</dt><dd>0.73</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>2</dd><dt>Session ID</dt><dd>2845cdda-8bf2-4656-9b52-07a1bbc74aa7</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>source_citation_present <span style="color:var(--gray-500);">(turn 1: answer without sources)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;user_distress&#x27;, actual=&#x27;turn_budget_exhausted&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-C, actual=UC-H</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot makes no factual claims about email notification settings, causes, or solutions. Its response is purely procedural—acknowledging the issue and escalating to a specialist—so no grounding is required.</td></tr><tr><td>relevance</td><td style="color:var(--amber);font-weight:600;">3.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot correctly identifies the core issue (missing email notifications) in Turn 2 by confirming the user&#x27;s clarification, but in Turn 1 it misdirects by asking a binary question that conflates two distinct issues (email notifications vs. inbox visibility), even though the user explicitly stated messages *do* appear in the inbox and the problem is solely the lack of email alerts. The escalation in Turn 2 is appropriate but comes only after an initial response that didn&#x27;t fully focus on the confirmed pain point—timely email notification failure—and failed to acknowledge or address the user’s expressed urgency (&#x27;How long do I have to wait... since day 1?&#x27;).</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--amber);font-weight:600;">3.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot starts empathetically by acknowledging the user&#x27;s frustration, but the abrupt shift to &#x27;I&#x27;m having difficulty resolving this&#x27; in Turn 2 sounds mechanical and slightly dismissive—especially given the mild frustration level. It offers no explanation, reassurance, or interim step (e.g., confirming troubleshooting already attempted), and the handoff lacks warmth or ownership. A more professional response would briefly validate, summarize the issue, and frame the escalation as proactive support rather than a sign of limitation.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:source_citation_present</span><span class="tag">L1:escalation_compliance</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE_MISSING:handover_completeness</span><span class="tag">L2:correct_uc</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_004 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-D</dd><dt>Actual UC</dt><dd>UC-D</dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.50</dd><dt>Judge Score (L3)</dt><dd>0.80</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>9ab1c7ae-5b59-4ddc-a8c6-e2f32e24a420</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon pass">&#10003;</span>source_citation_present</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation not required)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=resolve, actual=escalate</td></tr><tr><td>correct_uc</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a procedural escalation message (&#x27;Let me connect you with a specialist&#x27;) with no factual claims about the user&#x27;s ad status, account, or system behavior. Since no factual assertions requiring grounding are made, no source citation is needed, satisfying the condition for a score of 5.</td></tr><tr><td>relevance</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user reports an issue: they cannot see their ad after logging in and the system states they have no live ads. The bot acknowledges the difficulty in resolving the issue and immediately escalates to a specialist—this is an appropriate, direct, and empathetic response to a technical problem that likely requires human investigation or backend access. No irrelevant information is provided; the response stays focused on addressing the user&#x27;s core concern.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is abrupt and dismissive, offering no acknowledgment of the customer&#x27;s issue or mild frustration. Phrases like &#x27;I&#x27;m having difficulty resolving this&#x27; sound unconfident and shift responsibility without explanation or reassurance. It fails to validate the user&#x27;s concern, provide any troubleshooting step, or convey empathy—making it inappropriate for a mildly frustrated customer.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L2_GATE:correct_outcome</span><span class="tag">L2:correct_outcome</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_011 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-D</dd><dt>Actual UC</dt><dd>UC-D</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>1.00</dd><dt>Judge Score (L3)</dt><dd>0.60</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>910bbda4-b68d-4db4-8bc2-72a1dbd4d453</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon pass">&#10003;</span>source_citation_present</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;user_requested&#x27;, actual=&#x27;user_distress&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a pure procedural escalation (&#x27;Let me connect you with a specialist&#x27;) with no factual claims about the user&#x27;s login issue, password reset process, or system behavior. Since there are no factual assertions requiring grounding in sources, the response meets the criterion for a score of 5.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user described a detailed, specific technical issue with the password reset flow—link not recognized on second click, contradictory email confirmation, and persistent login failure. The bot ignored all these details and defaulted to escalation without attempting diagnosis, troubleshooting (e.g., checking link expiration, browser/cache issues, or email delivery), or even acknowledging the reported symptoms. This is talking past the user’s actual problem.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is abrupt and dismissive, offering no acknowledgment of the customer&#x27;s high frustration or the detailed technical issue described. It fails to express empathy, validate the customer&#x27;s experience, or provide any immediate reassurance or troubleshooting—instead opting for an immediate handoff without explanation, which can feel like avoidance and exacerbates the customer&#x27;s sense of being unheard.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:escalation_compliance</span><span class="tag">L2_GATE_MISSING:handover_completeness</span><span class="tag">L3:relevance</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_014 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-C</dd><dt>Actual UC</dt><dd>UC-F</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.67</dd><dt>Judge Score (L3)</dt><dd>0.60</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>2</dd><dt>Session ID</dt><dd>b38a4c6f-6ebb-494c-9c02-30ae073ab530</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>source_citation_present <span style="color:var(--gray-500);">(turn 1: answer without sources)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;user_distress&#x27;, actual=&#x27;turn_budget_exhausted&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-C, actual=UC-F</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response in Turn 2 is a procedural escalation (&#x27;I&#x27;m having difficulty resolving this. Let me connect you with a specialist.&#x27;) with no factual claims about account behavior, email matching, message delivery, or platform functionality. Since it makes no verifiable factual assertions, grounding is not required — consistent with the instruction that pure escalation messages score 5.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot misinterprets the user&#x27;s core request: the user explicitly asks why an administrator *can&#x27;t* make the contact email match the main account email — a question about system capability or policy — but the bot treats it as a request to *perform* the update. In Turn 1, it asks clarifying questions about merging or delivery issues, which the user didn’t raise. In Turn 2, instead of addressing the &#x27;why can’t an admin do this?&#x27; concern (e.g., explaining technical constraints, policy limitations, or role permissions), the bot defaults to escalation with no explanation — failing to engage with the actual question about administrative capability.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot fails to acknowledge or validate the customer&#x27;s high frustration, using a detached, procedural tone (&#x27;Just to clarify...&#x27;) instead of empathetic language. Phrases like &#x27;I&#x27;m having difficulty resolving this&#x27; sound passive and unhelpful, and abruptly escalating without offering any immediate solution or apology exacerbates the user&#x27;s sense of being dismissed. No warmth, no ownership, and no de-escalation—especially critical for a frustrated user.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:source_citation_present</span><span class="tag">L1:escalation_compliance</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE_MISSING:handover_completeness</span><span class="tag">L2:correct_uc</span><span class="tag">L3:relevance</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_015 <span class="badge fail">FAIL</span> <span class="badge stall">STALL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-FP</dd><dt>Actual UC</dt><dd>UC-A</dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd>resolved</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.50</dd><dt>Judge Score (L3)</dt><dd>0.67</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>6a54671f-3eb5-4567-b827-28f8703bfe48</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>source_citation_present <span style="color:var(--gray-500);">(turn 1: answer without sources; turn 2: answer without sources)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation not required)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon fail">&#10007;</span>no_stall <span style="color:var(--gray-500);">(stall at turn 1: PLACEHOLDER_WITHOUT_FOLLOWUP)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-FP, actual=UC-A</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response (&#x27;I&#x27;m looking into this for you.&#x27;) is purely procedural and makes no factual claims about the user&#x27;s issue or any domain-specific information. There are no assertions requiring grounding in sources, so no citation is needed. Per instructions, procedural messages without factual claims warrant a score of 5.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user asked a direct, action-oriented question—&#x27;how do I change it?&#x27;—which implies they need clear, step-by-step instructions. The bot&#x27;s response (&#x27;I&#x27;m looking into this for you&#x27;) is non-instructive, delays answering, and fails to acknowledge or address the request for guidance. It offers no information, no reassurance about timing, and no attempt to clarify what &#x27;it&#x27; refers to—thus talking past the user&#x27;s immediate need.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--amber);font-weight:600;">3.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is polite and action-oriented but lacks empathy or acknowledgment of the customer&#x27;s mild frustration. It&#x27;s somewhat mechanical—no validation (e.g., &#x27;I understand this can be confusing&#x27;), no warmth, and no clear next step or timeline, making it adequate but not fully attuned to the user&#x27;s emotional state.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:source_citation_present</span><span class="tag">L1:no_stall</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2:correct_uc</span><span class="tag">L3:relevance</span><span class="tag">STALL:PLACEHOLDER_WITHOUT_FOLLOWUP</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_029 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-C</dd><dt>Actual UC</dt><dd>UC-B</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.67</dd><dt>Judge Score (L3)</dt><dd>1.00</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>3</dd><dt>Session ID</dt><dd>6dd04904-53c9-4f91-afd0-660748a94988</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>source_citation_present <span style="color:var(--gray-500);">(turn 1: answer without sources; turn 2: answer without sources)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>escalation_compliance</div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-C, actual=UC-B</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot makes no factual claims about account unlocking policies, Gumtree procedures, or timelines. All responses are procedural (e.g., asking for a reference number, acknowledging inability to call, escalating to a human agent) or empathetic acknowledgments — none require grounding in sources. No unsourced factual assertions are present.</td></tr><tr><td>relevance</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot correctly identifies the user&#x27;s urgent need to unlock their Gumtree business account and acknowledges the lack of a reference number and response. It first attempts to gather necessary information (Turn 2), then—when the user explicitly requests to speak to someone and reiterates urgency—immediately escalates to human agent support (Turn 3), fully addressing the core request without deflection or irrelevant information.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot consistently demonstrates empathy (&#x27;I understand how urgent this is&#x27;), maintains professionalism (clear, solution-oriented language), and matches the customer&#x27;s mild frustration with appropriate warmth and urgency. It personalizes the interaction (using &#x27;Baz&#x27;), acknowledges the problem without defensiveness, offers immediate escalation when needed, and avoids robotic or dismissive phrasing — all while staying within its capabilities (e.g., honestly stating it can&#x27;t make calls but offering real-time support).</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:source_citation_present</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE_MISSING:handover_completeness</span><span class="tag">L2:correct_uc</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_036 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-I</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.70</dd><dt>Judge Score (L3)</dt><dd>0.80</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>4c03d65f-22db-4f28-8d1c-7358168dfa9d</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>intake_no_knowledge_tool</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;payment_dispute_detected&#x27;, actual=&#x27;out_of_scope&#x27;)</span></div><div class="check-row"><span class="check-icon fail">&#10007;</span>phase_transition_validity <span style="color:var(--gray-500);">(invalid transitions: [&#x27;turn 0: INIT-&gt;ESCALATE&#x27;])</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>handover_completeness</td><td style="color:var(--green);font-weight:600;">0.80</td><td style="font-size:0.82rem;color:var(--gray-500);">missing fields: [&#x27;primary_use_case&#x27;]</td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-I, actual=</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a pure procedural escalation message (&#x27;This conversation has been transferred to a human agent. Please wait for them to respond.&#x27;) with no factual claims about British law, refunds, carrier obligations, or the user&#x27;s order. Since no factual assertions are made, no grounding is required, and the response appropriately avoids making unsupported statements.</td></tr><tr><td>relevance</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot correctly recognizes the urgency and legal nature of the user&#x27;s complaint about a delayed delivery and entitlement to a refund under British law. Rather than attempting to handle a complex legal/refund issue it may not be authorized or equipped to resolve, the bot immediately escalates to a human agent—a fully appropriate and direct response to the user&#x27;s core request for a refund due to non-performance. Escalation is the precise, expected, and most effective action here.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot responds with a generic, automated handoff without acknowledging the customer&#x27;s mild frustration, legal reference, or core request for a refund. It fails to validate concerns, offer reassurance, or provide any interim support—making it appear dismissive and tone-deaf to the customer’s justified expectation of accountability under British law.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:escalation_compliance</span><span class="tag">L1:phase_transition_validity</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE:handover_completeness</span><span class="tag">L2:correct_uc</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_038 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-J</dd><dt>Actual UC</dt><dd>UC-J</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>1.00</dd><dt>Judge Score (L3)</dt><dd>0.80</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>3</dd><dt>Session ID</dt><dd>3fb59b7a-ac7b-4b0e-b906-42943e87a460</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>intake_no_knowledge_tool</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;trust_safety_required&#x27;, actual=&#x27;intake_complete_for_uc_j&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>handover_completeness</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s responses are purely procedural and empathetic—requesting information, acknowledging the user&#x27;s situation, and escalating to a specialist. No factual claims about Gumtree policies, scam resolution processes, timelines, or outcomes are made that would require grounding in sources. The final response (&#x27;Let me connect you with a specialist&#x27;) is an escalation with no factual assertions.</td></tr><tr><td>relevance</td><td style="color:var(--amber);font-weight:600;">3.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot correctly acknowledges the scam and attempts to gather necessary information, but persists in asking for the ad ID/link even after the user explicitly states they don’t have it and that the ad is likely removed. This misses the user’s implied need for immediate next steps (e.g., escalation path, fraud reporting guidance, or refund assistance) and fails to adapt to the user’s constraints. While the final response connects to a specialist, the prior two turns show a lack of flexibility in addressing the user’s actual situation.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--green);font-weight:600;">4.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot maintains a professional and empathetic tone throughout, acknowledging the user&#x27;s distress (&#x27;I&#x27;m really sorry this happened to you&#x27;) and using appropriate warmth (e.g., addressing by name, expressing concern). It responds promptly and stays focused on resolution. However, in Turn 2, it repeats the request for the ad ID/link immediately after the user has already indicated they don’t have it (Turn 3 clarifies this), which slightly undermines responsiveness and may feel mechanical—missing an opportunity to validate the difficulty of retrieving that info or pivot more smoothly to alternatives. This minor misstep prevents a perfect 5, but the overall tone remains supportive and appropriate for mild frustration.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:escalation_compliance</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_040 <span class="badge pass">PASS</span> &mdash; composite 0.93</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-K</dd><dt>Actual UC</dt><dd>UC-K</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.93</dd><dt>Outcome Score (L2)</dt><dd>1.00</dd><dt>Judge Score (L3)</dt><dd>0.87</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>2</dd><dt>Session ID</dt><dd>83401190-0f66-41b9-9dc1-ebea3c54eda2</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>intake_no_knowledge_tool</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon pass">&#10003;</span>escalation_compliance</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>handover_completeness</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response in Turn 2 is a pure procedural escalation (&#x27;Let me connect you with a specialist&#x27;) with no factual claims about the ad issue, the request-quote button, case number, or any technical or policy-related information. Since there are no factual assertions requiring grounding, no source citations are needed, and the response appropriately avoids making unsupported claims.</td></tr><tr><td>relevance</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user&#x27;s core concern is the missing request-quote button, impacting customer contact and ad value, and they explicitly reference an existing case number. The bot&#x27;s second response—&#x27;Let me connect you with a specialist&#x27;—directly addresses the urgency and technical nature of the issue, acknowledges the need for escalation (especially given the open case), and avoids asking redundant questions or deflecting. It appropriately bypasses further information gathering since the user already provided key details (issue, impact, case number), opting instead for immediate human escalation—a correct and efficient resolution path.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--amber);font-weight:600;">3.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot acknowledges the issue and escalates appropriately, but misses an opportunity to validate the customer&#x27;s high frustration—especially given the mention of lost customer contact, financial concern (&#x27;I&#x27;m paying for this ad&#x27;), and an existing case number. A more empathetic response would explicitly acknowledge the urgency and impact (e.g., &#x27;I understand how critical the request-quote button is for your business—and that this has been ongoing since case #00394953&#x27;). The transition to escalation is functional but feels abrupt and lacks reassurance or ownership.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span style="color:var(--gray-500);font-size:0.85rem;">None</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_066 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-E</dd><dt>Actual UC</dt><dd>UC-B</dd><dt>Expected Outcome</dt><dd>escalate</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.67</dd><dt>Judge Score (L3)</dt><dd>0.60</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>55270724-5473-4df6-9e6b-dc8b7a842def</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon pass">&#10003;</span>source_citation_present</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon fail">&#10007;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation_reason mismatch: expected=&#x27;clarification_budget_exhausted&#x27;, actual=&#x27;turn_budget_exhausted&#x27;)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>escalation_timing</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_outcome</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-E, actual=UC-B</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a procedural escalation message (&#x27;This conversation has been transferred to a human agent. Please wait for them to respond.&#x27;) with no factual claims about the user&#x27;s issue, email, or any domain-specific information. Since no factual assertions are made, grounding is not required, and the score is 5 per instructions.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user provided an email address (likely intending to share it for account verification, contact, or support), but the bot did not acknowledge, process, or act on the email. Instead, it abruptly declared a transfer to a human agent without addressing the user&#x27;s input—no confirmation, no follow-up question, no explanation of why transfer occurred. This is a non-responsive, generic fallback that talks past the user&#x27;s implicit need (e.g., &#x27;Here is my email—what happens next?&#x27;).</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is abrupt and dismissive, offering no acknowledgment of the customer&#x27;s frustration or the email they provided. It fails to express empathy, apologize for any inconvenience, or provide reassurance—just a cold, automated handoff. This is inappropriate for a high-frustration context where de-escalation and validation are critical.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L1:escalation_compliance</span><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE_MISSING:handover_completeness</span><span class="tag">L2:correct_uc</span><span class="tag">L3:relevance</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_095 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-A</dd><dt>Actual UC</dt><dd>UC-D</dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.60</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>551a2702-e45f-4554-a7fb-625b72e2652c</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon pass">&#10003;</span>source_citation_present</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation not required)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=resolve, actual=escalate</td></tr><tr><td>correct_uc</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=UC-A, actual=UC-D</td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a procedural escalation message (&#x27;This conversation has been transferred to a human agent. Please wait for them to respond.&#x27;) with no factual claims about email syncing, app behavior, or technical causes. Since no factual assertions requiring grounding are made, the response inherently satisfies the &#x27;no claims that require grounding&#x27; condition for a score of 5.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The user asked a specific technical question about whether an incorrect email address on the app could prevent syncing despite it having worked before. The bot did not address this question at all; instead, it immediately escalated to a human agent without providing any explanation, clarification, or acknowledgment of the user&#x27;s concern—effectively talking past the query.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot abruptly transfers to a human agent without acknowledging the customer&#x27;s high frustration or addressing their technical question about email syncing. It offers no empathy, validation, or interim support—making the response feel dismissive and tone-deaf in a high-frustration context.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L2_GATE:correct_uc</span><span class="tag">L2_GATE:correct_outcome</span><span class="tag">L2:correct_outcome</span><span class="tag">L2:correct_uc</span><span class="tag">L3:relevance</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_192 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-B</dd><dt>Actual UC</dt><dd>UC-B</dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd>escalated</dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.50</dd><dt>Judge Score (L3)</dt><dd>0.53</dd><dt>Stop Reason</dt><dd>bot_ended</dd><dt>Total Turns</dt><dd>1</dd><dt>Session ID</dt><dd>4cff10c9-029c-47dd-8805-04d0172482b1</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon pass">&#10003;</span>no_pii_leakage</div><div class="check-row"><span class="check-icon pass">&#10003;</span>source_citation_present</div><div class="check-row"><span class="check-icon pass">&#10003;</span>phase_transition_validity</div><div class="check-row"><span class="check-icon pass">&#10003;</span>escalation_compliance <span style="color:var(--gray-500);">(escalation not required)</span></div><div class="check-row"><span class="check-icon pass">&#10003;</span>budget_enforcement</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_stall</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_human_only_tool_exposure</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_critical_policy_violation</div><div class="check-row"><span class="check-icon pass">&#10003;</span>no_forbidden_tools</div>
+
+    <h3>L2 Outcome Scores</h3>
+    <table>
+  <thead><tr><th>Check</th><th>Score</th><th>Detail</th></tr></thead>
+  <tbody><tr><td>correct_outcome</td><td style="color:var(--red);font-weight:600;">0.00</td><td style="font-size:0.82rem;color:var(--gray-500);">expected=resolve, actual=escalate</td></tr><tr><td>correct_uc</td><td style="color:var(--green);font-weight:600;">1.00</td><td style="font-size:0.82rem;color:var(--gray-500);"></td></tr></tbody>
+</table>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Reasoning</th></tr></thead>
+  <tbody><tr><td>groundedness</td><td style="color:var(--green);font-weight:600;">5.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot&#x27;s response is a procedural escalation message with no factual claims about allowed items or any other domain-specific information; therefore, no grounding is required.</td></tr><tr><td>relevance</td><td style="color:var(--red);font-weight:600;">1.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot completely ignores the user&#x27;s direct question about which items are allowed and instead abruptly transfers the conversation to a human agent without providing any information, explanation, or acknowledgment of the query.</td></tr><tr><td>tone_appropriateness</td><td style="color:var(--red);font-weight:600;">2.0/5</td><td style="font-size:0.82rem;color:var(--gray-500);">The bot abruptly transfers to a human agent without acknowledging the user&#x27;s question or mild frustration, offering no explanation, reassurance, or interim assistance. This feels dismissive and unhelpful—especially since the query (&#x27;What items are allowed?&#x27;) is straightforward and likely answerable by the bot. No empathy, no attempt to de-escalate, and no professional courtesy.</td></tr></tbody>
+</table>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">L2_GATE:correct_outcome</span><span class="tag">L2:correct_outcome</span><span class="tag">L3:relevance</span><span class="tag">L3:tone_appropriateness</span></div>
+  </div>
+</details><details>
+  <summary>cs_interactive_259 <span class="badge fail">FAIL</span> &mdash; composite 0.00</summary>
+  <div class="case-body">
+    <dl class="kv-grid"><dt>Expected UC</dt><dd>UC-F</dd><dt>Actual UC</dt><dd></dd><dt>Expected Outcome</dt><dd>resolve</dd><dt>Actual Outcome</dt><dd></dd><dt>Composite Score</dt><dd>0.00</dd><dt>Outcome Score (L2)</dt><dd>0.00</dd><dt>Judge Score (L3)</dt><dd>0.00</dd><dt>Stop Reason</dt><dd>contract_violation</dd><dt>Total Turns</dt><dd>0</dd><dt>Session ID</dt><dd>c1b420e5-32ce-47c4-88f2-e711e817c794</dd></dl>
+
+    <h3>L1 Hard Checks</h3>
+    <div class="check-row"><span class="check-icon fail">&#10007;</span>trace_contract_escalation_reason <span style="color:var(--gray-500);">(Required telemetry field &#x27;escalation_reason&#x27; missing/invalid in phase &#x27;tool_call&#x27; (reason=enum_violation:value=&#x27;drift_hard_shift&#x27;). available_keys=[&#x27;arguments&#x27;, &#x27;tool_name&#x27;])</span></div>
+
+    <h3>L2 Outcome Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L2 checks.</p>
+
+    <h3>L3 LLM Judge Scores</h3>
+    <p style="color:var(--gray-500);font-size:0.85rem;">No L3 judge scores.</p>
+
+    <h3>Failure Tags</h3>
+    <div><span class="tag">CONTRACT_VIOLATION:escalation_reason</span></div>
+  </div>
+</details>
+<div class="footer">
+  Generated by Interactive Eval Harness
+</div>
+</body></html>

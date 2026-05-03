@@ -8,15 +8,19 @@ form_context:
   ad_id: ''
   description: Track my history
 persona:
-  user_goal_summary: 'User reports Account Support: Track my history. Drift: hard_shift.'
+  user_goal_summary: 'User wants to retrieve an old Gumtree bike listing from around 2021 to find the brand after the bike
+    was stolen. Drift: hard_shift.'
   frustration_level: mild
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - Hello,Lerato.I would like to find an old transaction, from a bike I bought few years ago.Is that possible?Thanks
   - I m not sure which one I used in the past.They are both mine
-  - No worries. Have a lovely new year 😊
-  hidden_facts: []
+  - My bike is stolen and I am not quite sure about the brand. I had bought it from Gumtree, so I believe the details I need
+    are shown in the advertisement
+  hidden_facts:
+  - fact: The bike transaction occurred around 2021.
+    disclose_when: when asked about the date or timeframe of the purchase
   will_request_human_if: ''
 expected:
   outcome_class: escalate

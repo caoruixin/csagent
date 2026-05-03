@@ -8,15 +8,22 @@ form_context:
   ad_id: ''
   description: Login issue
 persona:
-  user_goal_summary: 'User reports Account Support: Login issue. Drift: soft_shift.'
+  user_goal_summary: 'User wants to resolve login issues: password reset link not working, leading to continued incorrect
+    password/email error. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
-  - Hi Jason
+  - Your be the third agent today to try n resolve the issue im having. I’ve clearly explained to the previous to agents that
+    I am unable to log into my account. When I try to login it says pw or email incorrect. I then get a pw reset link sent
+    to my email. I use this link to reset my pw using upper n lower case with number n special character . Minimum of 8 characters.
+    I then press update and nothing happens . I then press again and it says the link is not recognised. I then get a email
+    saying ow updated. I then go back to login and it says pw or email incorrect correct.
   - Is that defo my login email Jason ?
   - How do I do that ?
-  hidden_facts: []
+  hidden_facts:
+  - fact: User's trading name is Fair Deal Vehicles Ltd.
+    disclose_when: When asked for business details or identity.
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: duvet
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: duvet. Drift: soft_shift.'
+  user_goal_summary: 'User wants to be able to reply to Gumtree messages on her phone via the website, as she receives email
+    notifications but the website shows no messages and requires her to log in on a laptop. Drift: soft_shift.'
   frustration_level: mild
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - I cannot reply to emails received on my phone.
   - I receive an email with a new message. I can read the message but cannot reply to it as I am told there are no messages
     in my Inbox. I have to log on with laptop to reply which is not convenient.
-  - ok I'll try
   hidden_facts: []
   will_request_human_if: ''
 expected:

@@ -10,7 +10,8 @@ form_context:
     get message from Gumtree saying you have unread messaged and I'm expecting them but nothing showing in my messages.  Pls
     advise asap.
 persona:
-  user_goal_summary: 'User reports Account Support: Hello, I not receiving messages from potential buyers. Drift: soft_shift.'
+  user_goal_summary: 'User wants to understand why Gumtree email says they have unread messages when the app shows no replies,
+    and why sent messages from 3 days ago are marked as delivered but unread. Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift

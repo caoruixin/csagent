@@ -8,14 +8,17 @@ form_context:
   ad_id: ''
   description: Account issues
 persona:
-  user_goal_summary: 'User reports Account Support: Account issues. Drift: soft_shift.'
+  user_goal_summary: 'User wants to know why their old account stopped sending messages after a Gumtree update, and whether
+    their newly created account has any restrictions that would prevent sending messages. They want any hold or restriction
+    removed so they can message landlords. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
-  - Hi Cortney
-  - this one i've not send any message yet to anyone from this
+  - sir i am facing issue i made a login id on gumtree and send message to landlords but did no get replies then i chat with
+    suppot he said your id is can't send messges this all happened after gumtree update
   - Sir is there any restriction with my new account also please clear
+  - this one i've not send any message yet to anyone from this
   hidden_facts: []
   will_request_human_if: ''
 expected:

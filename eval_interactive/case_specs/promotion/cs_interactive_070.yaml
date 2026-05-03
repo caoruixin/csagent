@@ -9,16 +9,14 @@ form_context:
   description: Have been asked for asecure payment account as I have an interested customer. I Have a Gateway Account but
     am retired. What do I need to do?
 persona:
-  user_goal_summary: 'User reports Account Support: Have been asked for asecure payment account as I have an interested customer.
-    Drift: soft_shift.'
+  user_goal_summary: 'User wants assistance completing the secure payment account setup because they are retired, do not pay
+    tax, and cannot submit the required form, despite having a Gateway account. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - I was chatting to somrone and lost connection. I am retired and although I have a Gateway no. I do not pay tax and cannot
     do the form.
-  - Exxactly what I have told you.
-  - Ate you there Courtnry???
   hidden_facts: []
   will_request_human_if: ''
 expected:

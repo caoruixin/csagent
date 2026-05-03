@@ -9,8 +9,8 @@ form_context:
   description: I tried the register but after three times and three different passwords Gumtree said they were weak. None
     of them were weak. Hence I have not joined.
 persona:
-  user_goal_summary: 'User reports Account Support: I tried the register but after three times and three different passwords
-    Gumtree said they were weak. Drift: none.'
+  user_goal_summary: 'User demands that Gumtree accept their password style (two random words, two caps, a number, a digit)
+    without forcing changes; otherwise they will not join. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none

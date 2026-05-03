@@ -8,16 +8,18 @@ form_context:
   ad_id: ''
   description: I would like to cancel our monthly payments to gumtree as we no longer have any need for the service
 persona:
-  user_goal_summary: 'User reports Account Support: I would like to cancel our monthly payments to gumtree as we no longer
-    have any need for the service. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to cancel their monthly payments to Gumtree because they no longer need the service.
+    Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - i have been trying to call gumtree for over a year now
-  - no thank you very much for your time
-  - it is of the utmost importance
-  hidden_facts: []
+  - i can give my account number if you would like
+  - please do ensure that i receive a call regarding this matter
+  hidden_facts:
+  - fact: Account number is GT0067295264
+    disclose_when: bot asks for account details
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: My email and account is incorrect, I had reviews and [EMAIL] before this ad I listed today
 persona:
-  user_goal_summary: 'User reports Account Support: My email and account is incorrect, I had reviews and [EMAIL] before this
-    ad I listed today. Drift: hard_shift.'
+  user_goal_summary: 'User accidentally created a new account; wants to keep the ad she posted today, not appear as a new
+    user, and manage both accounts without losing history. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - It's like a new account. I'm confused
-  - Ok, i'll try. Thank you
-  - New i mean?
+  - I don't want to lose ad if I find my original account. This one has Gmail displayed
+  - Just i've been posting a long time and didn't want to look new. Do I delete old account?
   hidden_facts: []
   will_request_human_if: ''
 expected:
