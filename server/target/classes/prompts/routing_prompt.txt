@@ -6,7 +6,8 @@ Customer's description: {description}
 
 Disambiguation guidance (use only when listed UC candidates allow):
 - Words like "flaw", "bug", "broken", "doesn't work", "not working", "error" describing app/site/backend behavior → prefer UC-K (technical issue intake + handover) over generic FAQ UCs.
-- "Can't log in", "password reset", "locked out", "wrong email on account" → UC-A (account/login).
+- "Can't log in", "password reset", "locked out", "wrong email on account" → UC-D (Account & Login).
+- "Ad not visible", "moderation status", "ad on hold pending review", "why isn't my ad showing" → UC-A (Ad Status & Visibility).
 - "Messages not sending", "replies not appearing" with no app-flaw signal → UC-C (messaging FAQ).
 - "Why was my ad deleted", "ad on hold", "policy violation reason", "appeal a removal" → UC-FP (ad-removal/policy).
 - "What happened to my ad", "where is my ad", with no further detail → UC-K (intake — needs moderation/account state lookup, then handover).
