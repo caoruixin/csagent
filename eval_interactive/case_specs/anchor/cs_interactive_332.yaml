@@ -8,13 +8,16 @@ form_context:
   ad_id: ''
   description: Posted an ad, it was confirmed,  I logged in. No ad
 persona:
-  user_goal_summary: 'User reports Technical Support: Posted an ad, it was confirmed, I logged in. Drift: soft_shift.'
+  user_goal_summary: 'She wants help locating her ad that she cannot find after posting and receiving confirmation. Drift:
+    soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Where do I find that if I can't find my ad?
-  hidden_facts: []
+  hidden_facts:
+  - fact: She received an email confirmation for the ad, which contains the ad ID.
+    disclose_when: when the agent asks for the ad ID or email confirmation
   will_request_human_if: ''
 expected:
   outcome_class: escalate

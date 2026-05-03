@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Help with selling
 persona:
-  user_goal_summary: 'User reports Account Support: Help with selling. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to sell roof bars to a local buyer, learn how to list the item, understand payment methods,
+    and whether Gumtree facilitates transactions like eBay or charges a commission. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

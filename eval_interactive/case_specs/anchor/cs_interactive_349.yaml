@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Password Reset not working on website or mobile app
 persona:
-  user_goal_summary: 'User reports Account Support: Password Reset not working on website or mobile app. Drift: soft_shift.'
+  user_goal_summary: 'User wants to reset their Gumtree password but the reset link from the email is not being recognized
+    by the system, especially when using the mobile app. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

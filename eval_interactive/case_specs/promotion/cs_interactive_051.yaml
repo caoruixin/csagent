@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Bronx wardrobe
 persona:
-  user_goal_summary: 'User reports Account Support: Bronx wardrobe. Drift: hard_shift.'
+  user_goal_summary: 'User wants to leave a positive review for the buyer of a wardrobe, resolve issues with seeing sold/unsold
+    items on the iPad app, and consolidate two accounts to use only the Google email. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Yes sorry couldn’t find ad number
-  - Shall I just change contact email back to tiscali that would be easier
-  - Bye … you to!
+  - I tried to place a good review for the buyer of this wardrobe but link goes to messages and nothing there to place a review?
+  - The other thing is on my iPad I can’t bring up sold/unsold items,
+  - How do I go about making sure Google account the only one
   hidden_facts: []
   will_request_human_if: ''
 expected:

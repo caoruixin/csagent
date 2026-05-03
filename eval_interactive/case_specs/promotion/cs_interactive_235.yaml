@@ -8,15 +8,17 @@ form_context:
   ad_id: ''
   description: resend activation code
 persona:
-  user_goal_summary: 'User reports Account Support: resend activation code. Drift: hard_shift.'
+  user_goal_summary: 'User wants to regain access to their Gumtree account. They initially request a reactivation email, but
+    later reveal they can''t log in. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I need an email resent to reactivate my account
   - yes can't log in
-  - no that's it many thanks
-  hidden_facts: []
+  hidden_facts:
+  - fact: A pet ad was removed by Gumtree for not including a required photo of the litter with the mother.
+    disclose_when: when asked about any removed ads or account restrictions.
   will_request_human_if: ''
 expected:
   outcome_class: resolve

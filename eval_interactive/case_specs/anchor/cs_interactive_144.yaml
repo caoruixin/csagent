@@ -9,9 +9,8 @@ form_context:
   description: I have received an email message of someone wanting to buy the item when I try to reply it takes me straight
     to theadd but does not let me reply and according to the app there are no messages for me . How can I reply ?
 persona:
-  user_goal_summary: 'User reports Account Support: I have received an email message of someone wanting to buy the item when
-    I try to reply it takes me straight to theadd but does not let me reply and according to the app there are no messages
-    for me . Drift: soft_shift.'
+  user_goal_summary: 'User wants help replying to a potential buyer''s message; email notification received but app shows
+    no messages and reply fails. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

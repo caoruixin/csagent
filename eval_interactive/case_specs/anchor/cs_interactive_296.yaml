@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Fiat Doblo 2007 Manual
 persona:
-  user_goal_summary: 'User reports Account Support: Fiat Doblo 2007 Manual. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to view all buyer messages on Gumtree, stop receiving notifications for deleted messages,
+    and ensure she doesn''t miss potential vehicle sales. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift

@@ -10,9 +10,8 @@ form_context:
     she's a leggier type girl strong fit and healthy as you can see in the pics , she's a super clean breather too can walk
     until you stop , she's lived
 persona:
-  user_goal_summary: 'User reports Account Support: This is panda she''s an old English bulldog, 3.5 years old she''s had
-    1 litter and hasn''t been spayed yet , she''s a leggier type girl strong fit and healthy as you can see in the pics ,
-    she''s a super clean breather too... Drift: hard_shift.'
+  user_goal_summary: 'The user wants a refund for a Gumtree ad that was approved and then removed after being active for only
+    about 20 minutes, and wants to know if reposting a similar ad is allowed before the refund is processed. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

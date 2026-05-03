@@ -8,15 +8,19 @@ form_context:
   ad_id: ''
   description: Chairs
 persona:
-  user_goal_summary: 'User reports Account Support: Chairs. Drift: hard_shift.'
+  user_goal_summary: 'User is not receiving customer messages to their account email, wants to use a different email or have
+    messages redirected. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I am not receiving customer messages on my email?
-  - Understood and out
-  - Thanks for claryfying. Is there another way around it?
-  hidden_facts: []
+  - I have added another email address on my account but still messages arent being received
+  - Or can you redirect messages ?
+  hidden_facts:
+  - fact: User's account has a contact email address that differs from the login email, but it is no longer functional due
+      to platform changes.
+    disclose_when: when bot asks about the specific email addresses on the account
   will_request_human_if: ''
 expected:
   outcome_class: escalate

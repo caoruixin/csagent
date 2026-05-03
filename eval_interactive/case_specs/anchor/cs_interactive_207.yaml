@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: My ad has disappeared after paying for the ad to go live
 persona:
-  user_goal_summary: 'User reports Ad Support: My ad has disappeared after paying for the ad to go live. Drift: soft_shift.'
+  user_goal_summary: 'The user wants help recovering access to her paid ad for a budgie and cage, which disappeared from her
+    account. She insists the ad confirmation went to laura.stokoe@gmail.com and that she only has one Gumtree account. Drift:
+    soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift
@@ -16,7 +18,9 @@ persona:
   - The ad which disappeared is for a budgie and cage, only posted 2 days ago. Which I paid for
   - You have not asked me which account I want to use moving forward because I only have one account!!!!!!
   - I ALSO TOLD YOU THAT IS HOW I KNOW IT IS LINKED TO THAT EMAIL ADDRESS. YOU ARE NOT LISTENING TO A WORD I HAVE SAID
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad ID for the budgie and cage is 1507786350.
+    disclose_when: when the bot asks for the ad ID or reference number
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: Ad not bumped up as paid for
 persona:
-  user_goal_summary: 'User reports Ad Support: Ad not bumped up as paid for. Drift: soft_shift.'
+  user_goal_summary: 'The user paid to bump up their ad and expects it to appear second in the search results (most relevant
+    sort) because only one other ad was bumped up today; they want the paid bump to effectively raise their ad''s position.
+    Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift
@@ -19,7 +21,10 @@ persona:
     what have I paid for? It's now no higher than before it was bumped up but, to reiterate, only one persons ad has been
     updated since
   - I expect to get whats been paid for, simple as that.
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user historically observed that bump-ups put their ad at the top of the most relevant list, which is not happening
+      this time.
+    disclose_when: the bot questions the user's expectation that the ad should appear second
   will_request_human_if: ''
 expected:
   outcome_class: escalate

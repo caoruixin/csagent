@@ -8,16 +8,15 @@ form_context:
   ad_id: ''
   description: I can only see my old ad, and I cannot see the replies, if any, to the new ad posted yesterday. Please advise.
 persona:
-  user_goal_summary: 'User reports Ad Support: I can only see my old ad, and I cannot see the replies, if any, to the new
-    ad posted yesterday. Drift: hard_shift.'
+  user_goal_summary: 'User cannot see replies to new ad and only sees old ad in messages. Frustrated because they receive
+    many replies on care.com. Wants to either find replies or cancel and get a refund. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - ??
+  - How do I find the replies and why do I only see my very old ad when I click on messages?
   - Strange, as I am also on care.com and I receive three replies an hour! Perhaps I should cancel my ad with Gumtree and
     get.a refund, please, as something is not right. Thank you in advance. ctb
-  - Ah, sorry, let me try.
   hidden_facts: []
   will_request_human_if: ''
 expected:

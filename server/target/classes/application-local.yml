@@ -17,6 +17,10 @@ llm:
     api-key: ${KIMI_API_KEY:}
     base-url: ${KIMI_BASE_URL:https://api.moonshot.ai/v1}
     model: ${KIMI_MODEL:kimi-k2.6}
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:}
+    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}
+    model: ${DEEPSEEK_MODEL:deepseek-v4-pro}
   dashscope:
     api-key: ${DASHSCOPE_API_KEY:}
     base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
@@ -26,3 +30,9 @@ llm:
 
 mock:
   business-hours: true
+
+# D16.B/C/D: enable AgentRunLoop for ALL phases in local dev.
+# Baseline application.yml keeps the list empty for production safety.
+agent:
+  run-loop:
+    enabled-phases: [RESOLVE_FAQ, RESOLVE_INTAKE, DISCOVER, CONFIRM, CLOSE, ESCALATE]

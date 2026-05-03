@@ -8,15 +8,20 @@ form_context:
   ad_id: ''
   description: Afghani hand woven rug
 persona:
-  user_goal_summary: 'User reports Payments: Afghani hand woven rug. Drift: hard_shift.'
+  user_goal_summary: 'The user wants Gumtree to refund the payment sent by a customer for an Afghani hand-woven rug they listed
+    but no longer wish to sell, after facing a legal threat over a failed Revolut transaction. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I recently posted a Afghani hand woven rug on gumtree.
   - Can you refund the amount he sent to me back to the customer.
-  - '0415510234'
-  hidden_facts: []
+  - The customer threatened legal action against me if i didn't comply to his transaction.
+  hidden_facts:
+  - fact: The customer threatened legal action if the user did not comply with the transaction.
+    disclose_when: when asked about any urgency or the customer's reaction
+  - fact: The user's bank declined any transactions into Revolut.
+    disclose_when: when asked about payment issues or bank involvement
   will_request_human_if: ''
 expected:
   outcome_class: escalate

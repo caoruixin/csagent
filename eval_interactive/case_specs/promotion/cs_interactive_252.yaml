@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Hi, just been disconnected by agent
 persona:
-  user_goal_summary: 'User reports Ad Support: Hi, just been disconnected by agent. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to repost a car ad and is checking if the agent has their account for assistance. Drift:
+    soft_shift.'
   frustration_level: mild
   verbosity: terse
   drift_behavior: soft_shift

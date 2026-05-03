@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: My ad is instant removed
 persona:
-  user_goal_summary: 'User reports Ad Support: My ad is instant removed. Drift: hard_shift.'
+  user_goal_summary: 'I want to know why my ad was instantly removed and my account blocked, and whether I should delete and
+    sign up again or stop using VPN to post successfully. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - 'Ad ID: 1508292738'
-  - Okay thanks
+  - I am using a VPN connection, can that be of any problem?
   - Is it best to delete and sign up again?
   hidden_facts: []
   will_request_human_if: ''

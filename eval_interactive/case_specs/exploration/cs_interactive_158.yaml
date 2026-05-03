@@ -9,8 +9,8 @@ form_context:
   description: Not sure why my advert has been removed immediately after posting? It says I’ll be emailed why but I have not
     received anything to explain
 persona:
-  user_goal_summary: 'User reports Ad Support: Not sure why my advert has been removed immediately after posting?. Drift:
-    hard_shift.'
+  user_goal_summary: 'User wants to know why their recently posted advert was removed and why their account was restricted,
+    and they have not received an email explanation. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

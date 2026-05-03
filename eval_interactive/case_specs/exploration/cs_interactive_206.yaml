@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: Hi can you help me with details from an expired add I have messaged a seller about please ?
 persona:
-  user_goal_summary: 'User reports Ad Support: Hi can you help me with details from an expired add I have messaged a seller
-    about please ?. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to view the description of an expired ad for a dog they are planning to see, to verify
+    the seller''s claims match the ad before purchasing. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Hi there I have messaged about an ad and planning on going to see dog but the ad has now expired
-  - No worries thanks anyway
-  - No worries
+  - Is there anyway you can send me the details so I can ensure it all matches when I go
+  - The description o listed on the ad is what I was after really
   hidden_facts: []
   will_request_human_if: ''
 expected:

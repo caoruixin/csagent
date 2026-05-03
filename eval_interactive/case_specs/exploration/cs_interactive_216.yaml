@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: Bogus review
 persona:
-  user_goal_summary: 'User reports Account Support: Bogus review. Drift: hard_shift.'
+  user_goal_summary: 'User wants a fraudulent negative review removed from their Gumtree account. They claim they haven''t
+    sold anything and fear it''s a scam. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Someone left a negative review, i dont know how or why and I can't get rid of it. Can you help?
-  - Oh man...its clearly fraudulent.
   - Who done it? Because I dont recall selling anything!!
-  hidden_facts: []
+  - Oh man...its clearly fraudulent.
+  hidden_facts:
+  - fact: A negative review was left on the user's account in 2024.
+    disclose_when: when asked about the review details or when the user inquires about the negative review
   will_request_human_if: ''
 expected:
   outcome_class: escalate

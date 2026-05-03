@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: No replies received
 persona:
-  user_goal_summary: 'User reports Ad Support: No replies received. Drift: soft_shift.'
+  user_goal_summary: 'User wants to receive the 2 replies that Gumtree indicates exist on their ad but which they never got.
+    Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

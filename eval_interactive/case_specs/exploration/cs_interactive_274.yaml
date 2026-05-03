@@ -8,13 +8,13 @@ form_context:
   ad_id: ''
   description: P.a. equipment
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: P.a. Drift: hard_shift.'
+  user_goal_summary: 'Locate the P.A. Equipment ad I uploaded 2 days ago; I expected it at [EMAIL] but cannot find it. Drift:
+    hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - 2 days I uploaded an ad for a P.A.Equipment I cannot find it now?
-  - Ok. Thank you
   - I expect the email would have been [EMAIL]
   hidden_facts: []
   will_request_human_if: ''

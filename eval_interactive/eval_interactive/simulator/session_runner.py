@@ -29,10 +29,15 @@ class SessionResult:
     # [{role: "user"|"bot", message: str, turn_index: int}]
     stop_reason: str = ""
     # bot_ended | max_turns_exceeded | stall_detected |
-    # loop_detected | goal_achieved | goal_impossible
+    # loop_detected | goal_achieved | goal_impossible | session_create_failed
     total_turns: int = 0
     elapsed_ms: int = 0
     bot_greeting: str = ""
+    creation_error: str | None = None
+    # Set when create_session raises. Carries the original exception repr
+    # so the executor can short-circuit trace collection and surface the
+    # real cause (e.g. ConnectionRefused) instead of a downstream contract
+    # violation. session_id is set to "error-<hex>" in this case.
 
 
 class SessionRunner:
@@ -95,9 +100,10 @@ class SessionRunner:
         try:
             session_resp = self._agent.create_session(form_dict)
         except Exception as exc:
-            logger.error("Failed to create bot session: %s", exc)
+            logger.error("Failed to create bot session: %s", exc, exc_info=True)
             result.session_id = f"error-{uuid.uuid4().hex[:8]}"
-            result.stop_reason = "bot_ended"
+            result.stop_reason = "session_create_failed"
+            result.creation_error = repr(exc)
             result.elapsed_ms = _elapsed_ms(start_ns)
             return result
 

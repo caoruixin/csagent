@@ -8,15 +8,16 @@ form_context:
   ad_id: ''
   description: Hello I dont have the optin to add my phone number
 persona:
-  user_goal_summary: 'User reports Account Support: Hello I dont have the optin to add my phone number. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to add their phone number to an advertisement they are creating, but the phone number
+    field is missing, only showing an email option. Drift: soft_shift.'
   frustration_level: high
-  verbosity: terse
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
-  - Hello Nuraan
-  - bye thanks
-  - ok will thank you
-  hidden_facts: []
+  - Im adding a advert there and i don't have the option to add my phone number just a box to click email
+  hidden_facts:
+  - fact: User is using the main website on a computer.
+    disclose_when: when asked about their device or browser
   will_request_human_if: ''
 expected:
   outcome_class: resolve

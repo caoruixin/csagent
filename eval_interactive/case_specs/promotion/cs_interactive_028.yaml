@@ -9,16 +9,18 @@ form_context:
   description: The above account number is not activated, payments has been completed on Friday the 19.12.2025. also your
     general contact number is not responding. Our account manager is Ayaz.
 persona:
-  user_goal_summary: 'User reports Account Support: The above account number is not activated, payments has been completed
-    on Friday the 19.12.2025. Drift: soft_shift.'
+  user_goal_summary: 'The user''s account is not activated despite payment of an outstanding invoice on Friday 19.12.2025.
+    They need the account activated as soon as possible to resume business. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Ref 96385089
   - we had a outstaning invoice, and settled on Friday the 19.12.2025, still the account is not activated.
-  - LIKEWISE
-  hidden_facts: []
+  - Our Gumtree account Managers name is AYAZ
+  hidden_facts:
+  - fact: Reference number is 96385089.
+    disclose_when: When the bot asks for a reference number or account identifier.
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

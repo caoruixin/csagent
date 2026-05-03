@@ -8,13 +8,13 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  user_goal_summary: 'User wants Facebook to enforce posting policies against accounts that are violating them, after previous
+    complaints were ignored. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - is here any other expert i can tal; with
-  - okok
+  - regarding some accounts posting ads breaking posting policy
   - i complain organist those accounts before to you and you take no action
   hidden_facts: []
   will_request_human_if: ''

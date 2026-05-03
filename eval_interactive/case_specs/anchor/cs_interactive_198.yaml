@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: CLEANING WORK
 persona:
-  user_goal_summary: 'User reports Ad Support: CLEANING WORK. Drift: soft_shift.'
+  user_goal_summary: 'The user reports that her profile appears grey instead of green, cannot be contacted, and her phone
+    number is missing despite requesting it. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Hello Carmen
-  - Carmen sorry
+  - i contact you because in my profile on your site it remains grey and not green like the other profiles
+  - why cant people contact me?
   - and my phone number is not in site i ask for pout plz
   hidden_facts: []
   will_request_human_if: ''

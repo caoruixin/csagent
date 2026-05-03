@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Forgot my password like to change told number
 persona:
-  user_goal_summary: 'User reports Account Support: Forgot my password like to change told number. Drift: soft_shift.'
+  user_goal_summary: 'The user needs to reset their forgotten password and was unable to complete the reset with the temporary
+    password ''Euphemia4''. They require assistance to set a new password. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

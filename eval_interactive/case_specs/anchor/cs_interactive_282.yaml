@@ -9,9 +9,9 @@ form_context:
   description: I have changed my email address in the last few months on my account, however the emails to say I have messages
     are still not being sent to the correct email address - they are still going to an email I can only check maybe weekly?
 persona:
-  user_goal_summary: 'User reports Account Support: I have changed my email address in the last few months on my account,
-    however the emails to say I have messages are still not being sent to the correct email address - they are still going
-    to an email I can only check... Drift: soft_shift.'
+  user_goal_summary: 'User changed their email address on their account months ago, but notification emails for messages are
+    still being sent to the old email address which they rarely access; they want this fixed and they do not want to lose
+    the 47 messages stored in the account. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

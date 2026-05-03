@@ -101,6 +101,7 @@ public class SessionManager {
                 .clarificationCount(0)
                 .faqMissCount(0)
                 .repeatedActionCount(0)
+                .runtimeErrorCount(0)
                 .articlesShown(new String[0])
                 .candidateUseCases(new String[0])
                 .promptVersion("v1.0.0")
@@ -118,7 +119,7 @@ public class SessionManager {
         try {
             routingResult = useCaseRouter.route(session, topicSubject, description);
         } catch (Exception e) {
-            log.error("Session {}: routing failed, defaulting to DISCOVER with ask_user: {}",
+            log.error("Session {}: routing failed, defaulting to DISCOVER with clarifying question: {}",
                     sessionId, e.getMessage(), e);
             routingResult = RoutingResult.ambiguous(java.util.List.of());
         }
@@ -168,13 +169,30 @@ public class SessionManager {
                 }
             }
             case OUT_OF_SCOPE -> {
-                // Handover-only or out of scope — immediately escalate
-                session.setCurrentPhase("ESCALATE");
-                session.setHandlingState("QUEUE_TO_HUMAN");
-                session.setContainmentOutcome("escalated");
-                session.setEscalationReason("out_of_scope:" + routingResult.outOfScopeReason());
-                greeting = buildOutOfScopeGreeting(firstName, topicSubject);
-                shouldEndChat = true;
+                // Step 3a: differentiate soft OOS (UNKNOWN_TOPIC — no UC candidates
+                // matched the topic) from hard OOS (handover-only topic explicitly
+                // mapped to e.g. OUT_OF_SCOPE_DELIVERY). Soft OOS gets one
+                // clarifying turn in DISCOVER before any escalation; hard OOS
+                // escalates immediately as in Step 2.5b.
+                if ("UNKNOWN_TOPIC".equals(routingResult.outOfScopeReason())) {
+                    session.setCurrentPhase("DISCOVER");
+                    log.info("Session {}: soft OOS (UNKNOWN_TOPIC) -> DISCOVER for one clarifying turn",
+                            session.getSessionId());
+                    greeting = buildAmbiguousGreeting(firstName, topicSubject);
+                } else {
+                    // Hard OOS: handover-only topic — immediately escalate.
+                    // escalation_reason MUST be canonical (request_handover tool enum,
+                    // eval_interactive case_spec/schema.py:43-66). Routing detail is
+                    // logged for debugging but not stuffed into the enum value.
+                    session.setCurrentPhase("ESCALATE");
+                    session.setHandlingState("QUEUE_TO_HUMAN");
+                    session.setContainmentOutcome("escalated");
+                    session.setEscalationReason("out_of_scope");
+                    log.info("Session {}: OUT_OF_SCOPE routing detail={}",
+                            session.getSessionId(), routingResult.outOfScopeReason());
+                    greeting = buildOutOfScopeGreeting(firstName, topicSubject);
+                    shouldEndChat = true;
+                }
             }
             case AMBIGUOUS -> {
                 // Move to DISCOVER to disambiguate
@@ -199,6 +217,48 @@ public class SessionManager {
         session.setUpdatedAt(OffsetDateTime.now());
         sessionRepository.save(session);
 
+        // For hard OOS, persist a synthetic bot_turns row carrying the
+        // request_handover tool_call so the eval trace has L1 evidence of
+        // escalation compliance even though no LLM turn ever ran. See phase0
+        // §0.3 (form data == bot's "turn 0") and phase3 §3.3.3 (single-layer
+        // tool-use contract). Must happen AFTER sessionRepository.save so the
+        // bot_turns FK constraint is satisfied. Wrapped in try/catch so trace
+        // insertion never fails session creation.
+        // Step 3a: skip this for soft OOS (UNKNOWN_TOPIC) — those route to
+        // DISCOVER for a clarifying turn, not to ESCALATE.
+        boolean isHardOos = routingResult.outcome() == RoutingResult.RoutingOutcome.OUT_OF_SCOPE
+                && !"UNKNOWN_TOPIC".equals(routingResult.outOfScopeReason());
+        if (isHardOos) {
+            try {
+                String turn0UserMessage = (description != null && !description.isBlank())
+                        ? description : topicSubject;
+                List<Map<String, Object>> toolCallsList = new ArrayList<>();
+                toolCallsList.add(controlKernel.synthesizeHandoverToolCall(session.getEscalationReason()));
+                String toolCallsJson = objectMapper.writeValueAsString(toolCallsList);
+
+                BotTurn oosTurn = BotTurn.builder()
+                        .turnId(UUID.randomUUID().toString())
+                        .sessionId(session.getSessionId())
+                        .turnIndex(0)
+                        .userMessage(turn0UserMessage)
+                        .botResponse(greeting)
+                        .phaseBefore("INIT")
+                        .phaseAfter("ESCALATE")
+                        .activeUseCase(null)
+                        .latencyMs(0)
+                        .toolCalls(toolCallsJson)
+                        .createdAt(OffsetDateTime.now())
+                        .build();
+                botTurnRepository.save(oosTurn);
+                session.setTotalBotTurns(session.getTotalBotTurns() + 1);
+                session.setUpdatedAt(OffsetDateTime.now());
+                sessionRepository.save(session);
+            } catch (Exception e) {
+                log.warn("Session {}: failed to persist synthetic OOS handover turn: {}",
+                        session.getSessionId(), e.getMessage());
+            }
+        }
+
         // Emit session_started event
         emitEvent(session, "SESSION_STARTED", 0,
                 String.format("{\"topic_subject\":\"%s\",\"routing_outcome\":\"%s\"}",
@@ -210,8 +270,10 @@ public class SessionManager {
                             routingResult.activeUseCase(), routingResult.confidence()));
         }
 
-        // If OOS, also record the handover
-        if (routingResult.outcome() == RoutingResult.RoutingOutcome.OUT_OF_SCOPE) {
+        // If hard OOS, also record the handover. Soft OOS (UNKNOWN_TOPIC) is
+        // routed to DISCOVER for one clarifying turn (Step 3a) and so must NOT
+        // record a handover at session-creation time.
+        if (isHardOos) {
             emitEvent(session, "OUT_OF_SCOPE_HANDOVER", 0,
                     String.format("{\"reason\":\"%s\"}", routingResult.outOfScopeReason()));
             recordOutcome(session);

@@ -8,14 +8,14 @@ form_context:
   ad_id: ''
   description: no tel numbers
 persona:
-  user_goal_summary: 'User reports Account Support: no tel numbers. Drift: soft_shift.'
+  user_goal_summary: 'User wants phone numbers back on their ads because only email contact is shown now, unlike other sellers''
+    ads that still have phone numbers. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - hi,my teephone numbers are missing from my ads????the only way of contact now is email-is this normal now
-  - ok thanks and goodbye
-  - yes did that and no change
+  - buyers can only make contact via email now- it was much handier when my telephone number was displayed
   hidden_facts: []
   will_request_human_if: ''
 expected:

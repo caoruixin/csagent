@@ -9,14 +9,15 @@ form_context:
   description: I forgot my password and so just changed it. But when I used the new password, I got a message saying that
     an error had occurred and to contact you.
 persona:
-  user_goal_summary: 'User reports Account Support: I forgot my password and so just changed it. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to regain access to their Gumtree account after resetting their password. The new password
+    is not working, and they have clicked the activation email. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Are you there?
-  - Yes, and answered it by clicking through
+  - My new password doesn't work
   - This is the first time I have tired to use it to message someone
+  - Yes, and answered it by clicking through
   hidden_facts: []
   will_request_human_if: ''
 expected:

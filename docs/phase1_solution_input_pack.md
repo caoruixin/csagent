@@ -157,7 +157,7 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | 坐席主动索取 identifier（email / ad_id / phone）| 126/499（25%）| `collect_required_identifier` 作为受控动作；Bot 必须说明原因（"so I can locate your account"）|
 | "This has been escalated to the relevant department... I'll revert back via email within 24 hours" | 频繁出现于 UC-H/G | Bot handover 话术需对齐此模式：明确队列 + TTFR 预期 + 跟进渠道 |
 | 用户提供 identifier → 坐席"one moment please" → 解释/结论 | 占 UC-H/I/J 主流程 | Bot 需在 tool call 期间维持"正在查询"的占位话术（避免沉默引发 abandonment）|
-| 用户重复追问"Are you still there?" / "?????" | frustration_flag 主要来源 | Bot 需主动提供进度反馈；`max_repeated_same_action` 需考虑用户重复提问信号 |
+| 用户重复追问"Are you still there?" / "?????" | frustration_flag 主要来源 | Bot 需主动提供进度反馈；`max_repeated_same_tool_call` 需考虑用户重复提问信号 |
 | "End chat" / 自动 idle 关闭 | 多数 UC-H 收尾 | abandonment 归因需区分"Bot 主动关闭" vs "用户离开" |
 | Chat → Email 切换（"I'll send you an email"）| UC-H/G/K 共性 | V1 Bot 不直接发邮件；标记 handover_reason = async_followup_required，由坐席/后台触发 |
 
@@ -396,7 +396,7 @@ Chat 渠道的 **实际** 会话分布与全量 Case Reason 分布差异显著 �
 | **错误追踪** | Sentry / Raven |
 | **链路追踪** | Istio sidecar / GCP Cloud Trace（待显式确认）|
 
-**Bot 项目额外需求**：`Bot_Event__c` 事件日志 + 结构化 trace schema（trace_id / session_id / turn_id / prompt_version / model_version / projection_version / active_use_case / action_selected / tool_calls / source_ids / outcome — 见 tech_spec §17.2）。
+**Bot 项目额外需求**：`Bot_Event__c` 事件日志 + 结构化 trace schema（trace_id / session_id / turn_id / prompt_version / model_version / projection_version / active_use_case / tool_calls / source_ids / outcome — 见 tech_spec §17.2 与 phase0 §0.6 deviation 2026-05-01；`action_selected` 已移除，语义动作由 tool_calls 派生）。
 
 ### 1.4.8 密钥与配置
 

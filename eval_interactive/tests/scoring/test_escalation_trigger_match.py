@@ -81,13 +81,11 @@ def _make_turn(
     turn_index: int = 1,
     tool_calls: list[dict] | None = None,
     phase_after: str = "ESCALATE",
-    action_selected: str = "handover",
 ) -> TurnTrace:
     return TurnTrace(
         turn_index=turn_index,
         user_message="user msg",
         bot_response="bot says",
-        action_selected=action_selected,
         tool_calls=tool_calls or [],
         source_ids=[],
         phase_before="DISCOVER",
@@ -192,7 +190,6 @@ def test_no_escalation_expected_or_done_passes() -> None:
             _make_turn(
                 tool_calls=[{"tool_name": "search_knowledge", "status": "success"}],
                 phase_after="CLOSE",
-                action_selected="answer",
             )
         ],
         containment_outcome="resolved",
@@ -211,7 +208,7 @@ def test_should_escalate_but_no_handover_fails() -> None:
         risk_level="high",
     )
     trace = _make_trace(
-        turns=[_make_turn(tool_calls=[], phase_after="CLOSE", action_selected="answer")],
+        turns=[_make_turn(tool_calls=[], phase_after="CLOSE")],
         containment_outcome="resolved",
     )
     results = checker.run_checks(case, trace)

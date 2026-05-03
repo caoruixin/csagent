@@ -8,13 +8,13 @@ form_context:
   ad_id: ''
   description: please remove the charges to addvertize
 persona:
-  user_goal_summary: 'User reports Account Support: please remove the charges to addvertize. Drift: soft_shift.'
+  user_goal_summary: 'User wants to re-advertise items 1502436179 and 1502436282 without the £4.99 per-item charge. Drift:
+    soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Yes, 1502436179 and 1502436282 I would like to re advertise these, however you want to charge me £4.99 for each item.
-  - Thank you Candice for your time, may I wish you a Very Happy Christmas
   - Can you please remove the £4.99 for each item please?
   hidden_facts: []
   will_request_human_if: ''

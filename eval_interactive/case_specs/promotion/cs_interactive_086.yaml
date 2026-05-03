@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: Why can’t I put my telephone number on my ad
 persona:
-  user_goal_summary: 'User reports Account Support: Why can’t I put my telephone number on my ad. Drift: hard_shift.'
+  user_goal_summary: 'User, a carer for a partially blind client, insists Gumtree restore the phone call option for listings,
+    as blind and disabled users rely on calls and cannot use email. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - You have taken away the call option from adverts not good
-  - Shane really goodbye
+  - I will be deleting my account then I prefer call option as a blind person
   - From today my partially blind client can’t use your platform no more as there is no phone option but thanks for taking
     our complaint
   hidden_facts: []

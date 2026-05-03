@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Can you help me to update my adv thanks
 persona:
-  user_goal_summary: 'User reports Ad Support: Can you help me to update my adv thanks. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to upgrade their Gumtree advertisement but cannot log in due to a password problem. They
+    have already tried changing the password without success. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,9 @@ persona:
   - Hi I can’t to update my adv
   - Wrong password but I did changed still not happen
   - Website
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's Gumtree account ID is 1431733373.
+    disclose_when: when asked for account ID or identification
   will_request_human_if: ''
 expected:
   outcome_class: resolve

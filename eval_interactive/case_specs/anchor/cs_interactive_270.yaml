@@ -8,15 +8,19 @@ form_context:
   ad_id: ''
   description: Issue trying get replies
 persona:
-  user_goal_summary: 'User reports Technical Support: Issue trying get replies. Drift: soft_shift.'
+  user_goal_summary: 'User wants to understand why he is not receiving replies to messages he sends on Gumtree ads, and to
+    check if his account has restrictions causing the problem. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Hey my names tony slinger my email is [EMAIL]
-  - Thanks all.helps ill wait reply thanks sorry bother you bye
-  - Ok so im All ok no restrictioms At all just wait reply
-  hidden_facts: []
+  - Can tell me why when messge ads dont get any reply's
+  - Ad my account any restrictions is that why
+  - Just wounder if 2 tick means reading it
+  hidden_facts:
+  - fact: 'The user is trying to get replies about a Bose speaker ad (ad ID: 1506959247), and wants to know if it''s still
+      available, lowest price, and if they can swap numbers.'
+    disclose_when: When the bot asks about the specific ad or the content of the messages.
   will_request_human_if: ''
 expected:
   outcome_class: resolve

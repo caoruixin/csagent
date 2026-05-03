@@ -8,16 +8,21 @@ form_context:
   ad_id: ''
   description: This person scammed me. I have reported the add but it’s not been taken down.
 persona:
-  user_goal_summary: 'User reports Ad Support: This person scammed me. Drift: hard_shift.'
+  user_goal_summary: 'User wants the fraudulent ad (ID 1480135182) for a floor layer removed. She reported it days ago, but
+    it''s still active. The scammer ruined her floors, charged £250, and falsely claimed to be insured. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - I reported an add a few days ago as it’s recently been active again. This person claimed to be fully insured but he ruined
     my floors cost me a lot of money. He’s not insured so the add is fraudulent
-  - That’s all
   - His add still saying he is fully insured
-  hidden_facts: []
+  - Bradley Davidson is his name. £130 to lay the floors and £120 was the cost of the floors
+  hidden_facts:
+  - fact: The scammer's ad ID is 1480135182.
+    disclose_when: When asked for ad identification.
+  - fact: The user has CCTV footage of the flooring being damaged.
+    disclose_when: When asked for evidence or further details.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

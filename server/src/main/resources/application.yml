@@ -22,3 +22,14 @@ management:
   endpoint:
     health:
       show-details: always
+
+# D16 agent run loop feature flag.
+# D16.E (current default): all 6 phases routed through AgentRunLoop. The
+# legacy phase methods in PhaseEvaluator (evaluateDiscover/resolveFaq/
+# resolveIntake/evaluateConfirm/etc.) are retained as a flag-disabled
+# rollback target — clear or remove individual route keys to revert that
+# phase to the legacy executor.
+agent:
+  run-loop:
+    enabled-phases: [RESOLVE_FAQ, RESOLVE_INTAKE, DISCOVER, CONFIRM, CLOSE, ESCALATE]
+    max-tool-steps-default: 4

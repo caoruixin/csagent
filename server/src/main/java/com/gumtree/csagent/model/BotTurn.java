@@ -40,12 +40,6 @@ public class BotTurn {
     @Column(name = "llm_raw_response")
     private String llmRawResponse;
 
-    @Column(name = "action_selected")
-    private String actionSelected;
-
-    @Column(name = "action_parameters", columnDefinition = "jsonb")
-    private String actionParameters;
-
     @Column(name = "tool_calls", columnDefinition = "jsonb")
     private String toolCalls;
 

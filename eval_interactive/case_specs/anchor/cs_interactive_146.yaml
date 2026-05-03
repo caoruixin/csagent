@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
+  user_goal_summary: 'User wants Gumtree to investigate and stop harassing messages from users Christopher and Santosh so
+    he can sell his items without interruptions. Drift: none.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: none
@@ -16,7 +17,6 @@ persona:
   - Thankyou I’m trying to sell a drill and I had someone called Christopher ask if it was still available so i replied yes
     then he text saying who cares and also another person asked about stereo I’m selling can I deliver to India the thing
     is it’s stopping me from selling my items
-  - Thankyou very much
   - The dates are today’s date on both items and the one for the drill is Christopher and the stereo is Santosh
   hidden_facts: []
   will_request_human_if: ''

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Photo issues in ads
 persona:
-  user_goal_summary: 'User reports Account Support: Photo issues in ads. Drift: hard_shift.'
+  user_goal_summary: 'User wants the last photo in ads to display correctly, not be missing or unrelated; also wants a complaint
+    procedure because he feels support is unhelpful. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift

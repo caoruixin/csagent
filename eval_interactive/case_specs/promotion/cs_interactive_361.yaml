@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: Is gumtree not free to post anymore ?
 persona:
-  user_goal_summary: 'User reports Account Support: Is gumtree not free to post anymore ?. Drift: soft_shift.'
+  user_goal_summary: 'User wants to post a mobile phone ad for free but is being prompted to pay despite not selecting any
+    features. They need help posting in the correct free category. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Is gumtree not free to post for sale anymore?
   - Ive not added features and still not giving options to post
-  - Ill try thanks never had issue before
-  hidden_facts: []
+  - It's a mobile phone but low sale price so not want to pay to post ?
+  hidden_facts:
+  - fact: Your ad was posted in the Services category, not the For Sale category.
+    disclose_when: when agent investigates why you are being charged
   will_request_human_if: ''
 expected:
   outcome_class: escalate

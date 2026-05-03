@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Money taken from my credit cards
 persona:
-  user_goal_summary: 'User reports Account Support: Money taken from my credit cards. Drift: soft_shift.'
+  user_goal_summary: 'User wants to identify an unexpected £24.99 charge on his Amex card from Gumtree and confirm it relates
+    to a bump-up for his ad. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

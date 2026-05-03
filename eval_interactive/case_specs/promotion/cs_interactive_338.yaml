@@ -9,7 +9,8 @@ form_context:
   description: Hi there. I paid for my ad at 11/12/2025. But I can't access to my ad, messages, etc. Today I received a massage,  but
     I can't see it on the platform,  and I can't reply. What's going on?
 persona:
-  user_goal_summary: 'User reports Account Support: Hi there. Drift: hard_shift.'
+  user_goal_summary: 'User paid for an ad on 11/12/2025 but cannot access their ad, messages, or reply to received messages
+    on the platform. They want to regain access and reply. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

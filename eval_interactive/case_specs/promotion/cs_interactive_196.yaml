@@ -8,16 +8,19 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  user_goal_summary: 'User wants reviews they leave for buyers on Gumtree to be displayed on the buyers'' profiles, but currently
+    none of their reviews appear. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
   - Good morning, the above ID is just one of many for which I always leave a review, good or bad, my issue is that NONE of
     the reviews I leave are published against the buyer or potential buyer's account
-  - I will monitor things, have a good day.
+  - Noooooooooo, my issue is that all and any reviews that I leave are never applied to that buyer or messer
   - I will monitor this, how long doe it take to have a buyers reives left updated?
-  hidden_facts: []
+  hidden_facts:
+  - fact: User left a 1-star review for buyer Biyon on ad 1505285308.
+    disclose_when: when the agent asks for specific ad ID, buyer name, or review details
   will_request_human_if: ''
 expected:
   outcome_class: resolve

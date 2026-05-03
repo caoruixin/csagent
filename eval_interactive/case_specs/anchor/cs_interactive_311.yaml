@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Help logging in
 persona:
-  user_goal_summary: 'User reports Account Support: Help logging in. Drift: none.'
+  user_goal_summary: 'User cannot receive password reset emails for account associated with [EMAIL] and needs to regain access.
+    Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none

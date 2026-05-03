@@ -8,15 +8,17 @@ form_context:
   ad_id: ''
   description: Iphone 15 pro max
 persona:
-  user_goal_summary: 'User reports Account Support: Iphone 15 pro max. Drift: hard_shift.'
+  user_goal_summary: 'User wants to understand why their Gumtree ad was removed and to get it reinstated; they have full Apple
+    paperwork for the iPhone they were selling and were disconnected from a previous chat. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Courtney I was disconnected from previous chat
-  - All the best
+  - My add was removed, I dont know why?
   - What's the problem? its my phone I have full paper work from Apple
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's reference number from a previous interaction is 1509362225.
+    disclose_when: When asked for a reference number or to help locate the case.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

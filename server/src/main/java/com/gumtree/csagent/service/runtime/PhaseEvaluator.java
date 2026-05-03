@@ -17,6 +17,10 @@ import java.util.*;
 /**
  * Per-phase logic evaluator. Determines what action to take based on
  * the current session phase and state.
+ *
+ * <p>Task #10: control-flow decisions are now derived from {@link ParsedAction#getToolCalls()}
+ * and {@link ParsedAction#getUserMessage()} (single-layer tool-use contract — see phase0 §0.6
+ * and phase3 §3.3.3). The legacy 5-action switch has been removed.
  */
 @Slf4j
 @Service
@@ -24,6 +28,52 @@ public class PhaseEvaluator {
 
     /** Intake-only UCs that should never invoke knowledge search. */
     private static final Set<String> INTAKE_UCS = Set.of("UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
+
+    /**
+     * Canonical 23-value escalation_reason enum (mirrors
+     * {@code eval_interactive/eval_interactive/case_spec/schema.py:43-66}).
+     * Anything emitted by this evaluator that is NOT in this set must be
+     * mapped to {@code "service_degraded"} via {@link #canonicalize(String)}
+     * to keep the L1 trace contract green.
+     */
+    private static final Set<String> CANONICAL_ESCALATION_REASONS = Set.of(
+            "user_requested",
+            "faq_miss_threshold_exceeded",
+            "clarification_budget_exhausted",
+            "intake_complete_for_uc_g",
+            "intake_complete_for_uc_h",
+            "intake_complete_for_uc_i",
+            "intake_complete_for_uc_j",
+            "intake_complete_for_uc_k",
+            "incomplete_intake",
+            "payment_dispute_detected",
+            "appeal_requires_human",
+            "user_distress",
+            "imminent_harm",
+            "incorrect_deletion_appeal",
+            "trust_safety_required",
+            "account_compliance",
+            "gdpr_intake",
+            "identity_verification_required",
+            "out_of_scope",
+            "service_degraded",
+            "turn_budget_exhausted",
+            "tool_scope_blocked",
+            "runtime_error_threshold"
+    );
+
+    /**
+     * Map a possibly-non-canonical escalation reason to a canonical value.
+     * Returns {@code reason} when it is already canonical, otherwise
+     * {@code "service_degraded"} (the catch-all for infrastructure/agent
+     * fallbacks).
+     */
+    private String canonicalize(String reason) {
+        if (reason != null && CANONICAL_ESCALATION_REASONS.contains(reason)) {
+            return reason;
+        }
+        return "service_degraded";
+    }
 
     /** Map from intake UC ID to its script template prefix. */
     private static final Map<String, String> INTAKE_TEMPLATE_PREFIX = Map.of(
@@ -79,6 +129,32 @@ public class PhaseEvaluator {
         return INTAKE_ESCALATION_TRIGGER.getOrDefault(activeUc, "intake_complete");
     }
 
+    /**
+     * Build the INTAKE system instruction for a given UC. Mirrors the legacy
+     * {@code resolveIntake} prompt pattern: acknowledge with empathy, collect
+     * any missing required details, hand over to the named team, and (for
+     * UC-H/J/K) create a tracking case before handover.
+     */
+    private String buildIntakeSystemInstruction(String uc,
+                                                UseCaseRegistryService.UseCaseDefinition ucDef) {
+        String teamName = UC_TEAM_NAME.getOrDefault(uc, "specialist");
+        String slaHours = DEFAULT_SLA_HOURS;
+        StringBuilder sb = new StringBuilder();
+        sb.append("You are a Gumtree customer support agent collecting intake information for ");
+        sb.append(ucDef.name()).append(". ");
+        sb.append("Your role: (1) acknowledge the user's issue with empathy, ");
+        sb.append("(2) ask for any missing required details, ");
+        sb.append("(3) confirm the team handling this is ").append(teamName)
+                .append(" and SLA is ").append(slaHours).append(" hours, ");
+        sb.append("(4) call request_handover when intake is complete.");
+        if (Set.of("UC-H", "UC-J", "UC-K").contains(uc)) {
+            sb.append(" For this issue type, you MUST call create_case_controlled BEFORE request_handover ");
+            sb.append("so the human team has a tracking case.");
+        }
+        sb.append(" Do not attempt to resolve the issue yourself — you are an intake agent only.");
+        return sb.toString();
+    }
+
     private final UseCaseRegistryService useCaseRegistry;
     private final KnowledgeSearchService knowledgeSearchService;
     private final ScriptLibraryService scriptLibrary;
@@ -112,6 +188,70 @@ public class PhaseEvaluator {
         this.toolDispatcher = toolDispatcher;
     }
 
+    // ---------------- tool_calls / user_message helpers ----------------
+
+    /** True when the parsed response contains a tool_call with the given name. */
+    static boolean hasToolCall(ParsedAction action, String toolName) {
+        return action != null
+                && action.getToolCalls() != null
+                && action.getToolCalls().stream().anyMatch(tc -> toolName.equals(tc.getName()));
+    }
+
+    /** True when the only tool_call in the response is {@code record_outcome}. */
+    static boolean hasOnlyRecordOutcome(ParsedAction action) {
+        return action != null
+                && action.getToolCalls() != null
+                && action.getToolCalls().size() == 1
+                && "record_outcome".equals(action.getToolCalls().get(0).getName());
+    }
+
+    /** True when the LLM requested a knowledge fetch (search_knowledge or resolve_article). */
+    static boolean hasKnowledgeFetch(ParsedAction action) {
+        return hasToolCall(action, "search_knowledge") || hasToolCall(action, "resolve_article");
+    }
+
+    /** True when the LLM requested a handover. */
+    static boolean hasHandover(ParsedAction action) {
+        return hasToolCall(action, "request_handover");
+    }
+
+    /**
+     * Heuristic clarification detection: empty tool_calls + non-empty user_message
+     * that ends with '?' or contains a clarifying phrase.
+     * Used for clarification budget tracking and to derive a repetition key for
+     * loop detection.
+     */
+    static boolean isClarificationTurn(ParsedAction action) {
+        if (action == null) return false;
+        boolean noTools = action.getToolCalls() == null || action.getToolCalls().isEmpty();
+        if (!noTools) return false;
+        String msg = action.getUserMessage();
+        if (msg == null || msg.isBlank()) return false;
+        return msg.trim().endsWith("?") || containsClarifyingPhrase(msg);
+    }
+
+    private static boolean containsClarifyingPhrase(String msg) {
+        String lower = msg.toLowerCase(Locale.ROOT);
+        return lower.contains("could you")
+                || lower.contains("can you tell")
+                || lower.contains("what is")
+                || lower.contains("which")
+                || lower.contains("do you have");
+    }
+
+    /**
+     * True when the LLM produced a direct answer: empty tool_calls + non-empty
+     * user_message that is not a clarifying question.
+     */
+    static boolean isDirectAnswerTurn(ParsedAction action) {
+        if (action == null) return false;
+        boolean noTools = action.getToolCalls() == null || action.getToolCalls().isEmpty();
+        if (!noTools) return false;
+        String msg = action.getUserMessage();
+        if (msg == null || msg.isBlank()) return false;
+        return !isClarificationTurn(action);
+    }
+
     /**
      * Evaluate the current phase and produce a PhaseResult with the action to take
      * and the next phase to transition to.
@@ -136,6 +276,392 @@ public class PhaseEvaluator {
         };
     }
 
+    /**
+     * D16 planner entry point. Returns a {@link PhasePlan} describing the
+     * mission for the current phase, or {@code null} to signal the caller
+     * (typically {@code ControlKernel}) to fall back to the legacy
+     * {@link #evaluate} path.
+     *
+     * <p>D16.B added the RESOLVE/FAQ branch, D16.C added INTAKE, and D16.D
+     * adds DISCOVER / CONFIRM / CLOSE / ESCALATE. After D16.D this method
+     * returns a non-null plan for every (phase, UC) combination it
+     * encounters; a {@code null} return value signals the legacy fallback
+     * for unexpected inputs only.
+     *
+     * @param session     the current bot session
+     * @param userMessage the inbound user message
+     * @param history     prior turns in this session
+     * @return a phase plan, or {@code null} to use the legacy path
+     */
+    public PhasePlan plan(BotSession session, String userMessage, List<BotTurn> history) {
+        if (session == null) return null;
+        String phase = session.getCurrentPhase();
+        String activeUc = session.getActiveUseCase();
+
+        // D16.D: DISCOVER plan — identify use case via clarifying questions.
+        // 2026-05-02 (Fix 3c): added `classify_use_case` to allowedTools so
+        // the LLM can commit a UC once intent is clear; closes
+        // CONTRACT_VIOLATION:active_use_case missing_after_turns. See
+        // phase0 §0.6 deviation entry 2026-05-02.
+        if ("DISCOVER".equals(phase)) {
+            return PhasePlan.builder()
+                    .phase("DISCOVER")
+                    .useCase(activeUc) // may be null while still discovering
+                    .objective("Identify the user's use case by asking clarifying questions or "
+                            + "interpreting their message, then commit it via classify_use_case")
+                    .allowedTools(List.of("search_knowledge", "classify_use_case"))
+                    .requiredContextKeys(Set.of("form_context", "candidate_use_cases"))
+                    .maxToolSteps(2)
+                    .allowInterimMessage(false)
+                    .validTerminalOutcomes(Set.of(
+                            TerminalOutcome.CLARIFICATION_NEEDED,
+                            TerminalOutcome.FINAL_ANSWER,
+                            TerminalOutcome.ESCALATE))
+                    .systemInstruction(
+                            "You are in the DISCOVER phase. Your goal is to identify which Use Case "
+                                    + "applies to the customer. Look at the form context, candidate use cases, "
+                                    + "and conversation history. When the user's intent is clear (or you can "
+                                    + "infer it with a supporting detail), call classify_use_case with the "
+                                    + "matching use_case_id and a confidence in [0,1]. Otherwise ask one clear "
+                                    + "clarifying question, or escalate if the user's request is out of scope.")
+                    .groundingInstruction(
+                            "Do not commit to detailed answers in DISCOVER. Your job is to determine the "
+                                    + "use case category (call classify_use_case), then RESOLVE will produce the "
+                                    + "actual resolution.")
+                    .escalationPolicy(
+                            "Escalate if user explicitly requests human help, if request is clearly out of scope, "
+                                    + "or if you cannot disambiguate after one clarification.")
+                    .build();
+        }
+
+        // D16.D: CONFIRM plan — interpret whether the user is satisfied with prior answer.
+        // maxToolSteps=2 so the loop can: (1) call record_outcome / request_handover,
+        // then (2) emit a final friendly user_message that PhaseEvaluator maps to CLOSE.
+        if ("CONFIRM".equals(phase)) {
+            return PhasePlan.builder()
+                    .phase("CONFIRM")
+                    .useCase(activeUc)
+                    .objective("Determine whether the user is satisfied with the prior answer")
+                    .allowedTools(List.of("record_outcome", "request_handover"))
+                    .requiredContextKeys(Set.of("form_context", "conversation_history"))
+                    .maxToolSteps(2)
+                    .allowInterimMessage(false)
+                    .validTerminalOutcomes(Set.of(
+                            TerminalOutcome.FINAL_ANSWER,
+                            TerminalOutcome.CLARIFICATION_NEEDED,
+                            TerminalOutcome.ESCALATE))
+                    .systemInstruction(
+                            "You are in the CONFIRM phase. Interpret whether the user is satisfied with "
+                                    + "the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), "
+                                    + "call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., "
+                                    + "'no', 'still not working', 'I need more help'), call request_handover "
+                                    + "with reason 'user_dissatisfied' OR transition back to RESOLVE if "
+                                    + "appropriate.")
+                    .groundingInstruction(
+                            "Read the user's response carefully. Sentiment matters more than literal words. "
+                                    + "When unclear, ask a single yes/no clarification.")
+                    .escalationPolicy(
+                            "Escalate if user clearly expresses dissatisfaction or requests a human.")
+                    .build();
+        }
+
+        // D16.D: CLOSE plan — terminal closing turn. maxToolSteps=2 so the loop can
+        // optionally call record_outcome and still emit a final closing user_message.
+        if ("CLOSE".equals(phase)) {
+            return PhasePlan.builder()
+                    .phase("CLOSE")
+                    .useCase(activeUc)
+                    .objective("Send a polite closing message and record the final outcome")
+                    .allowedTools(List.of("record_outcome"))
+                    .requiredContextKeys(Set.of("form_context"))
+                    .maxToolSteps(2)
+                    .allowInterimMessage(false)
+                    .validTerminalOutcomes(Set.of(TerminalOutcome.FINAL_ANSWER))
+                    .systemInstruction(
+                            "You are in the CLOSE phase. Thank the user and confirm the outcome. "
+                                    + "Call record_outcome with the appropriate outcome if not already recorded.")
+                    .groundingInstruction(
+                            "Keep the closing message brief, warm, and final. Do not introduce new topics.")
+                    .escalationPolicy(
+                            "Do not escalate from CLOSE. The session is ending.")
+                    .build();
+        }
+
+        // D16.D: ESCALATE plan — finalize handover to a human agent.
+        if ("ESCALATE".equals(phase)) {
+            boolean isIntakeUc = activeUc != null && INTAKE_UCS.contains(activeUc);
+            List<String> tools = isIntakeUc
+                    ? List.of("request_handover", "create_case_controlled", "record_outcome")
+                    : List.of("request_handover", "record_outcome");
+            return PhasePlan.builder()
+                    .phase("ESCALATE")
+                    .useCase(activeUc)
+                    .objective("Complete the handover to a human agent and inform the customer")
+                    .allowedTools(tools)
+                    .requiredContextKeys(Set.of("form_context", "customer_context"))
+                    .maxToolSteps(2)
+                    .allowInterimMessage(false)
+                    .validTerminalOutcomes(Set.of(
+                            TerminalOutcome.ESCALATE,
+                            TerminalOutcome.FINAL_ANSWER))
+                    .systemInstruction(
+                            "You are in the ESCALATE phase. Send a clear handover message and ensure "
+                                    + "request_handover has been called with an appropriate escalation_reason.")
+                    .groundingInstruction(
+                            "Tell the user a human agent will assist them. Provide expected SLA if known. "
+                                    + "Do not promise specific outcomes.")
+                    .escalationPolicy(
+                            "Already in ESCALATE — finalize the handover.")
+                    .build();
+        }
+
+        if (!"RESOLVE".equals(phase)) {
+            // Unrecognized phase — fall back to legacy path.
+            return null;
+        }
+        if (activeUc == null || activeUc.isBlank()) {
+            return null;
+        }
+        if (INTAKE_UCS.contains(activeUc)) {
+            // D16.C: INTAKE branch.
+            UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
+            if (ucDef == null) {
+                return null;
+            }
+            String teamName = UC_TEAM_NAME.getOrDefault(activeUc, "specialist");
+
+            // UC-H/J/K need case_controlled creation; UC-G/I just handover.
+            boolean needsCase = Set.of("UC-H", "UC-J", "UC-K").contains(activeUc);
+            List<String> tools = needsCase
+                    ? List.of("request_handover", "create_case_controlled")
+                    : List.of("request_handover");
+
+            return PhasePlan.builder()
+                    .phase("RESOLVE")
+                    .useCase(activeUc)
+                    .objective("Collect required intake details for " + ucDef.name()
+                            + " and hand over to the " + teamName + " team")
+                    .allowedTools(tools)
+                    .requiredContextKeys(Set.of("form_context", "customer_context"))
+                    .maxToolSteps(3)
+                    .allowInterimMessage(false)
+                    .validTerminalOutcomes(Set.of(
+                            TerminalOutcome.CLARIFICATION_NEEDED,
+                            TerminalOutcome.ESCALATE))
+                    .systemInstruction(buildIntakeSystemInstruction(activeUc, ucDef))
+                    .groundingInstruction(
+                            "Use fixed-script templates and standard intake questions. "
+                                    + "Do NOT cite knowledge articles. Do NOT search the knowledge base. "
+                                    + "Your job is to collect required information and escalate to the human "
+                                    + teamName + " team. "
+                                    + (needsCase
+                                            ? "Before escalating, call create_case_controlled to create a tracking case."
+                                            : ""))
+                    .escalationPolicy(
+                            "Escalate via request_handover with reason='" + intakeCompleteTrigger(activeUc) + "' "
+                                    + "once intake fields are collected. "
+                                    + "Escalate immediately if the user explicitly requests human help.")
+                    .build();
+        }
+
+        // RESOLVE / FAQ branch.
+        UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
+        if (ucDef == null) {
+            return null;
+        }
+        // Skip plan if path is explicitly INTAKE (defense in depth — INTAKE_UCS
+        // already covers UC-G/H/I/J/K).
+        if ("INTAKE".equals(ucDef.path())) {
+            return null;
+        }
+
+        return PhasePlan.builder()
+                .phase("RESOLVE")
+                .useCase(activeUc)
+                .objective("Determine the customer's issue and provide a grounded, helpful answer for "
+                        + ucDef.name())
+                .allowedTools(List.of("get_customer_context", "search_knowledge",
+                        "resolve_article", "request_handover"))
+                .requiredContextKeys(Set.of("form_context", "customer_context",
+                        "listing_context", "moderation_context"))
+                .maxToolSteps(4)
+                .allowInterimMessage(false)
+                .validTerminalOutcomes(Set.of(
+                        TerminalOutcome.FINAL_ANSWER,
+                        TerminalOutcome.CLARIFICATION_NEEDED,
+                        TerminalOutcome.ESCALATE))
+                .systemInstruction(
+                        "You are a helpful Gumtree customer support agent. "
+                                + "Resolve the user's issue using the provided tools.")
+                .groundingInstruction(
+                        "If tool data contains specific information about the user's case "
+                                + "(account/ad/moderation), answer from that first. "
+                                + "For policy/process explanations, cite knowledge source IDs from "
+                                + "search_knowledge results.")
+                .escalationPolicy(
+                        "Escalate via request_handover if you cannot resolve, if user explicitly "
+                                + "requests human, or if the issue is out of scope.")
+                .build();
+    }
+
+    /**
+     * D16 post-loop interpreter. Given a {@link PhasePlan} and the
+     * {@link AgentRunResult} produced by the {@code AgentRunLoop}, decides
+     * what phase transition (if any) to apply and what response text to send
+     * back to the user.
+     *
+     * <p>D16.D extends the mapping to be phase-aware so DISCOVER, CONFIRM,
+     * CLOSE, and ESCALATE produce the right downstream transitions instead
+     * of always assuming RESOLVE→CONFIRM.
+     */
+    public PhaseTransitionDecision interpretRunResult(PhasePlan plan,
+                                                       AgentRunResult result,
+                                                       BotSession session) {
+        if (result == null) {
+            return new PhaseTransitionDecision("ESCALATE",
+                    "I'm experiencing a technical issue. Let me connect you with a specialist.",
+                    "service_degraded", "agent_error");
+        }
+        TerminalOutcome outcome = result.terminalOutcome();
+        if (outcome == null) {
+            return new PhaseTransitionDecision("ESCALATE",
+                    "I'm experiencing a technical issue. Let me connect you with a specialist.",
+                    "service_degraded", "agent_error");
+        }
+        // Step 3b: reset the per-session runtime error counter on any non-ERROR
+        // outcome so the retry threshold (≥2) only applies to *consecutive*
+        // errors within the same phase, not errors interleaved with success.
+        if (session != null && outcome != TerminalOutcome.ERROR
+                && session.getRuntimeErrorCount() != null
+                && session.getRuntimeErrorCount() > 0) {
+            session.setRuntimeErrorCount(0);
+        }
+        // For INTAKE plans, FINAL_ANSWER means the LLM produced a no-tool-call
+        // user_message — which in intake mode is a clarification question, not
+        // a customer-facing final answer. Keep the session in RESOLVE so the
+        // user can supply the missing details. INTAKE plans terminate via
+        // ESCALATE only.
+        boolean isIntakePlan = plan != null && plan.useCase() != null
+                && INTAKE_UCS.contains(plan.useCase());
+
+        String fromPhase = plan == null ? null : plan.phase();
+
+        switch (outcome) {
+            case FINAL_ANSWER:
+                return mapFinalAnswer(plan, result, session, fromPhase, isIntakePlan);
+            case CLARIFICATION_NEEDED:
+                // Stay in current phase for clarification (RESOLVE for legacy callers
+                // when plan is null).
+                String stayPhase = fromPhase != null ? fromPhase : "RESOLVE";
+                return new PhaseTransitionDecision(stayPhase,
+                        result.finalUserMessage(),
+                        null, "clarification_asked");
+            case ESCALATE: {
+                String msg = result.finalUserMessage() != null
+                        ? result.finalUserMessage()
+                        : "Let me connect you with a specialist.";
+                String reason = canonicalize(
+                        result.escalationReason().orElse("service_degraded"));
+                return new PhaseTransitionDecision("ESCALATE", msg, reason, "agent_escalated");
+            }
+            case MAX_STEPS:
+                return new PhaseTransitionDecision("ESCALATE",
+                        "I'm having difficulty resolving this. Let me connect you with a specialist.",
+                        "turn_budget_exhausted",
+                        "max_steps_exceeded");
+            case ERROR: {
+                // Step 3b: tolerate transient runtime errors. Only escalate on
+                // the *second* consecutive ERROR within the same phase; the
+                // first one stays in the current phase with a brief retry
+                // message so the next user turn re-runs the agent loop. The
+                // counter is reset above on any non-ERROR outcome.
+                int errCount = (session != null && session.getRuntimeErrorCount() != null)
+                        ? session.getRuntimeErrorCount() : 0;
+                errCount += 1;
+                if (session != null) {
+                    session.setRuntimeErrorCount(errCount);
+                }
+                if (errCount < 2) {
+                    String retryPhase = fromPhase != null ? fromPhase : "RESOLVE";
+                    String retryMsg = result.finalUserMessage() != null
+                            ? result.finalUserMessage()
+                            : "Let me try that again.";
+                    return new PhaseTransitionDecision(retryPhase, retryMsg, null,
+                            "agent_error_retry");
+                }
+                return new PhaseTransitionDecision("ESCALATE",
+                        "I'm experiencing repeated technical issues. Let me connect you with a specialist.",
+                        "runtime_error_threshold",
+                        "agent_error");
+            }
+            default:
+                throw new IllegalStateException("Unknown terminal outcome: " + outcome);
+        }
+    }
+
+    /**
+     * Phase-aware mapping for {@link TerminalOutcome#FINAL_ANSWER}. RESOLVE/FAQ
+     * → CONFIRM, RESOLVE/INTAKE → stay in RESOLVE (clarification), DISCOVER →
+     * RESOLVE if a UC has been committed (otherwise stay in DISCOVER), CONFIRM
+     * → CLOSE (user satisfied), CLOSE → CLOSE, ESCALATE → ESCALATE.
+     */
+    private PhaseTransitionDecision mapFinalAnswer(PhasePlan plan,
+                                                    AgentRunResult result,
+                                                    BotSession session,
+                                                    String fromPhase,
+                                                    boolean isIntakePlan) {
+        // Legacy callers (plan == null) fall back to the pre-D16.D contract:
+        // RESOLVE → CONFIRM with answer_provided.
+        if (fromPhase == null) {
+            return new PhaseTransitionDecision("CONFIRM",
+                    result.finalUserMessage(),
+                    null, "answer_provided");
+        }
+
+        switch (fromPhase) {
+            case "DISCOVER": {
+                String activeUc = session == null ? null : session.getActiveUseCase();
+                if (activeUc != null && !activeUc.isBlank()) {
+                    return new PhaseTransitionDecision("RESOLVE",
+                            result.finalUserMessage(),
+                            null, "uc_identified");
+                }
+                // No UC yet — stay in DISCOVER as clarification.
+                return new PhaseTransitionDecision("DISCOVER",
+                        result.finalUserMessage(),
+                        null, "clarification_asked");
+            }
+            case "RESOLVE": {
+                if (isIntakePlan) {
+                    return new PhaseTransitionDecision("RESOLVE",
+                            result.finalUserMessage(),
+                            null, "clarification_asked");
+                }
+                return new PhaseTransitionDecision("CONFIRM",
+                        result.finalUserMessage(),
+                        null, "answer_provided");
+            }
+            case "CONFIRM":
+                // FINAL_ANSWER from CONFIRM means the user is satisfied; the LLM
+                // should already have called record_outcome.
+                return new PhaseTransitionDecision("CLOSE",
+                        result.finalUserMessage(),
+                        null, "user_satisfied");
+            case "CLOSE":
+                return new PhaseTransitionDecision("CLOSE",
+                        result.finalUserMessage(),
+                        null, "session_closed");
+            case "ESCALATE":
+                return new PhaseTransitionDecision("ESCALATE",
+                        result.finalUserMessage(),
+                        null, "handover_completed");
+            default:
+                return new PhaseTransitionDecision(fromPhase,
+                        result.finalUserMessage(),
+                        null, "answer_provided");
+        }
+    }
+
     private PhaseResult evaluateDiscover(BotSession session, String userMessage,
                                           List<BotTurn> conversationHistory) {
         String activeUc = session.getActiveUseCase();
@@ -155,15 +681,15 @@ public class PhaseEvaluator {
                     session.getSessionId(), session.getTotalBotTurns());
         ParsedAction action = actionParser.parse(llmResponse.getContent());
 
-        // Track clarification
-        if ("ask_user".equals(action.getAction())) {
+        // Track clarification: empty tool_calls + clarifying user_message
+        if (isClarificationTurn(action)) {
             session.setClarificationCount(session.getClarificationCount() + 1);
             eventEmitter.emitClarificationAsked(session.getSessionId(), session.getTotalBotTurns(),
                     session.getClarificationCount());
         }
 
         // If LLM determined escalation (e.g. safe fallback during API failure), escalate immediately
-        if ("escalate_human".equals(action.getAction())) {
+        if (hasHandover(action)) {
             return PhaseResult.escalate(session, action.getUserMessage(),
                 "llm_determined_escalation");
         }
@@ -183,7 +709,7 @@ public class PhaseEvaluator {
         }
 
         // Intake UCs (UC-G/H/I/J/K) must NEVER invoke knowledge search —
-        // they use fixed script templates + ask_user for intake field collection.
+        // they use fixed script templates + clarifying questions for intake field collection.
         if ("INTAKE".equals(ucDef.path()) || INTAKE_UCS.contains(activeUc)) {
             return resolveIntake(session, userMessage, conversationHistory, ucDef);
         }
@@ -239,15 +765,16 @@ public class PhaseEvaluator {
                             session.getSessionId());
                     String projection = contextProjection.buildProjection(
                             session, conversationHistory, null, userMessage);
-                    // Inject faq_miss_instruction into the projection
+                    // Inject faq_miss_instruction into the projection (tool-use phrasing)
                     com.fasterxml.jackson.databind.node.ObjectNode projNode =
                             (com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.readTree(projection);
                     projNode.put("faq_miss_instruction",
                             "Knowledge search did not find matching articles for this query. " +
                             "However, the user described their issue in the pre-chat form: '" + formDescription + "'. " +
                             "Based on this context and your understanding of the topic, provide a helpful response. " +
-                            "Use 'answer_grounded' without source_ids for general guidance, " +
-                            "'ask_user' for a specific follow-up question, or 'escalate_human' if you cannot help.");
+                            "Return a non-empty user_message with general guidance, " +
+                            "or a clarifying question (ending with '?'), " +
+                            "or include a request_handover tool_call if you cannot help.");
                     String modifiedProjection = objectMapper.writeValueAsString(projNode);
 
                     LlmResponse llmResponse = llmInvocation.invokeChat(modifiedProjection, userMessage,
@@ -265,8 +792,7 @@ public class PhaseEvaluator {
             // Ask user to rephrase (no form context available or LLM fallback failed)
             return PhaseResult.respond(session,
                     ParsedAction.builder()
-                            .action("ask_user")
-                            .parameters(Map.of())
+                            .toolCalls(List.of())
                             .userMessage("I couldn't find a specific answer to that. Could you describe your issue in a bit more detail?")
                             .reasoning("FAQ miss - asking for clarification")
                             .build(),
@@ -303,39 +829,41 @@ public class PhaseEvaluator {
             }
         }
 
-        // If the LLM responded with answer_grounded, transition to CONFIRM
-        if ("answer_grounded".equals(action.getAction()) || "finish".equals(action.getAction())) {
+        // If the LLM produced a direct grounded answer or a record_outcome tool_call,
+        // transition to CONFIRM. (Both signal "answer delivered" to the customer.)
+        if (isDirectAnswerTurn(action) || hasOnlyRecordOutcome(action)) {
             return PhaseResult.transitionWithResponse(session, "CONFIRM", action, llmResponse, "answer_provided", searchResult.getHits());
         }
 
-        // Defense-in-depth: if LLM returned retrieve_knowledge despite knowledge being
-        // pre-loaded in context, re-invoke once with an explicit grounding instruction.
-        // This adds latency (double LLM call) but prevents the user from seeing
-        // an intermediate "Let me check..." message with no follow-up.
-        if ("retrieve_knowledge".equals(action.getAction())) {
-            log.warn("Session {}: LLM returned retrieve_knowledge despite pre-loaded knowledge. "
-                    + "Re-invoking with explicit grounding instruction.", session.getSessionId());
+        // Defense-in-depth: if LLM included `search_knowledge` in tool_calls despite
+        // pre-loaded knowledge, re-invoke with override. This adds latency (double LLM
+        // call) but prevents the user from seeing an intermediate "Let me check..."
+        // message with no follow-up.
+        if (hasToolCall(action, "search_knowledge")) {
+            log.warn("Session {}: LLM called search_knowledge despite pre-loaded knowledge. "
+                    + "Re-invoking with explicit grounding override.", session.getSessionId());
 
             String retryProjection = contextProjection.buildProjection(
                     session, conversationHistory, searchResult.getHits(), userMessage);
             String groundingOverride = "IMPORTANT: Knowledge articles have already been retrieved "
                     + "and are included in this context under 'knowledge_hits'. "
-                    + "You MUST use action 'answer_grounded' now and compose a helpful response "
-                    + "based on the provided knowledge snippets. Do NOT return 'retrieve_knowledge'.";
+                    + "Do NOT call search_knowledge again. "
+                    + "Compose a helpful user_message grounded in the provided knowledge snippets "
+                    + "and cite source_ids from knowledge_hits.";
             LlmResponse retryResponse = llmInvocation.invokeChat(
                     retryProjection, groundingOverride + "\n\nUser question: " + userMessage,
                     session.getSessionId(), session.getTotalBotTurns());
             ParsedAction retryAction = actionParser.parse(retryResponse.getContent());
 
-            if ("answer_grounded".equals(retryAction.getAction()) || "finish".equals(retryAction.getAction())) {
+            if (isDirectAnswerTurn(retryAction) || hasOnlyRecordOutcome(retryAction)) {
                 return PhaseResult.transitionWithResponse(session, "CONFIRM", retryAction, retryResponse, "answer_provided_retry", searchResult.getHits());
             }
-            // If still not answer_grounded, use whatever message the LLM produced
+            // If still not a direct answer, use whatever message the LLM produced
             return PhaseResult.respond(session, retryAction, retryResponse, searchResult.getHits());
         }
 
         // If LLM determined escalation (e.g. safe fallback during API failure), escalate immediately
-        if ("escalate_human".equals(action.getAction())) {
+        if (hasHandover(action)) {
             return PhaseResult.escalate(session, action.getUserMessage(),
                 "llm_determined_escalation");
         }
@@ -376,8 +904,7 @@ public class PhaseEvaluator {
 
             return PhaseResult.respond(session,
                     ParsedAction.builder()
-                            .action("ask_user")
-                            .parameters(Map.of("template", prefix + "_intake_prompt"))
+                            .toolCalls(List.of())
                             .userMessage(message)
                             .reasoning("Intake UC " + activeUc + ": presenting intake template")
                             .build(),
@@ -389,9 +916,11 @@ public class PhaseEvaluator {
         // and instead focuses on collecting remaining fields or escalating.
         String intakeInstruction = "You are collecting information for a " + UC_TEAM_NAME.getOrDefault(activeUc, "support")
                 + " case (use case " + activeUc + "). "
-                + "You must ONLY use action 'ask_user' to collect remaining required details, "
-                + "or 'escalate_human' when you have enough information to hand over to the team. "
-                + "Do NOT use 'retrieve_knowledge' — this is an intake flow, not a FAQ flow. "
+                + "Either ask the user a clarifying question (return a non-empty user_message ending with '?') "
+                + "to collect remaining required details, "
+                + "OR call request_handover with an appropriate escalation_reason "
+                + "when you have enough information to hand over to the team. "
+                + "Do NOT call search_knowledge — this is an intake flow, not a FAQ flow. "
                 + "Acknowledge what the user provided, then ask for anything still missing or escalate.";
 
         String projection = contextProjection.buildProjection(session, conversationHistory, null, userMessage);
@@ -400,8 +929,8 @@ public class PhaseEvaluator {
                 session.getSessionId(), session.getTotalBotTurns());
         ParsedAction action = actionParser.parse(llmResponse.getContent());
 
-        // If the LLM says escalate or finish, we escalate with intake-complete template
-        if ("escalate_human".equals(action.getAction()) || "finish".equals(action.getAction())) {
+        // If the LLM says escalate (handover) or finish (record_outcome), escalate with intake-complete template
+        if (hasHandover(action) || hasOnlyRecordOutcome(action)) {
             // Create case for UC-H/J/K before escalation
             createCaseIfAllowed(session, activeUc);
 
@@ -416,24 +945,27 @@ public class PhaseEvaluator {
             return PhaseResult.escalate(session, msg, intakeCompleteTrigger(activeUc));
         }
 
-        // Defense-in-depth: if LLM returned retrieve_knowledge in intake mode,
-        // map it to ask_user — the bot should acknowledge what the user gave
-        // and ask for remaining intake fields, not try to search.
-        if ("retrieve_knowledge".equals(action.getAction()) || "answer_grounded".equals(action.getAction())) {
-            log.warn("Session {}: LLM returned '{}' in intake mode for {}. "
-                    + "Re-invoking to collect intake fields.", session.getSessionId(), action.getAction(), activeUc);
+        // Defense-in-depth: if LLM called search_knowledge in intake mode OR produced a
+        // grounded answer (direct answer turn), it should instead acknowledge what the
+        // user gave and ask for remaining intake fields. Re-invoke once with override.
+        if (hasToolCall(action, "search_knowledge") || isDirectAnswerTurn(action)) {
+            String observed = hasToolCall(action, "search_knowledge")
+                    ? "search_knowledge tool_call"
+                    : "direct answer (no tool_call)";
+            log.warn("Session {}: LLM produced '{}' in intake mode for {}. "
+                    + "Re-invoking to collect intake fields.", session.getSessionId(), observed, activeUc);
 
             String retryInstruction = "IMPORTANT: This is an INTAKE case for " + UC_TEAM_NAME.getOrDefault(activeUc, "support")
-                    + ". You CANNOT search knowledge or provide answers. "
+                    + ". You CANNOT call search_knowledge or provide direct FAQ-style answers. "
                     + "The user just said: \"" + userMessage + "\". "
                     + "Acknowledge what they provided, then either: "
-                    + "(1) use 'ask_user' to collect any remaining details needed, or "
-                    + "(2) use 'escalate_human' if you have enough info to pass to the team.";
+                    + "(1) ask a clarifying question (non-empty user_message ending with '?') to collect any remaining details needed, or "
+                    + "(2) call request_handover with an appropriate escalation_reason if you have enough info to pass to the team.";
             LlmResponse retryResponse = llmInvocation.invokeChat(projection, retryInstruction,
                     session.getSessionId(), session.getTotalBotTurns());
             ParsedAction retryAction = actionParser.parse(retryResponse.getContent());
 
-            if ("escalate_human".equals(retryAction.getAction()) || "finish".equals(retryAction.getAction())) {
+            if (hasHandover(retryAction) || hasOnlyRecordOutcome(retryAction)) {
                 // Create case for UC-H/J/K before escalation
                 createCaseIfAllowed(session, activeUc);
 
@@ -447,12 +979,8 @@ public class PhaseEvaluator {
             return PhaseResult.respond(session, retryAction, retryResponse, null);
         }
 
-        // If LLM determined escalation (e.g. safe fallback during API failure), escalate immediately
-        if ("escalate_human".equals(action.getAction())) {
-            return PhaseResult.escalate(session, action.getUserMessage(),
-                "llm_determined_escalation");
-        }
-
+        // (Unreachable in normal flow — handover & outcome covered above; clarifying
+        // question falls through here and is returned via respond.)
         return PhaseResult.respond(session, action, llmResponse, null);
     }
 
@@ -668,10 +1196,10 @@ public class PhaseEvaluator {
                     session.getSessionId(), session.getTotalBotTurns());
         ParsedAction action = actionParser.parse(llmResponse.getContent());
 
-        if ("finish".equals(action.getAction())) {
+        if (hasOnlyRecordOutcome(action)) {
             return PhaseResult.transition(session, "CLOSE", null, "llm_determined_close");
         }
-        if ("escalate_human".equals(action.getAction())) {
+        if (hasHandover(action)) {
             return PhaseResult.escalate(session, action.getUserMessage(), "llm_determined_escalation");
         }
 

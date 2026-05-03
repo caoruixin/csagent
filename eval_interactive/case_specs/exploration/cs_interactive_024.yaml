@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Camera bought but money did not transfer
 persona:
-  user_goal_summary: 'User reports Payments: Camera bought but money did not transfer. Drift: hard_shift.'
+  user_goal_summary: 'The user wants help resolving a Gumtree payment issue where she sold a camera, the buyer showed proof
+    of transfer but she did not receive the money. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

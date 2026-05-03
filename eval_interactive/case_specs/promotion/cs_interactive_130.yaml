@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Hiya my account says it Trade when I try and sell my car
 persona:
-  user_goal_summary: 'User reports Account Support: Hiya my account says it Trade when I try and sell my car. Drift: hard_shift.'
+  user_goal_summary: 'User wants the advertisement for selling his car, currently in drafts, to be published without a payment
+    as a private seller, despite the account being labeled as a trader from a previous ad. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Why did the last person end the chat
-  - I don't understand why you didn't do this about 20 mins ago
-  - Well thank you
+  - My ad says I'm a trader but I'm not and trying to sell a car
+  - It's in my drafts
+  - And the last customer service agent said I wouldn't have to pay now your saying it can't be done.
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:

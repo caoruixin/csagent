@@ -8,15 +8,16 @@ form_context:
   ad_id: ''
   description: Cannot upload pictures to a new advert. Tried the helpful topics already.
 persona:
-  user_goal_summary: 'User reports Technical Support: Cannot upload pictures to a new advert. Drift: minor_drift.'
+  user_goal_summary: 'User wants to upload images from gallery to a new Gumtree app ad; select photos but they don''t appear,
+    and posting fails with missing pictures. Drift: minor_drift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: minor
   seed_messages:
   - Using the App but when I select pictures from my gallery it does not upload and checking the FAQ pages I think they are
     all fine to use.
-  - I will try that, thanks. Bye.
-  - Will I lose my current ads if I do that?
+  - I have loaded lots over the past week but today it just loojs like it is accepting it then nothing is on the advert and
+    cannot press the camera logo to upload another image.
   hidden_facts: []
   will_request_human_if: ''
 expected:

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Cat for sale
 persona:
-  user_goal_summary: 'User reports Account Support: Cat for sale. Drift: hard_shift.'
+  user_goal_summary: 'User wants a refund of the £14 paid for a cat sale ad that was cancelled due to pet ad policy violation.
+    Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,9 @@ persona:
   - Hi dear whi my post was cancelled ?
   - Ok I didn't know that, I'm sorry, can I have the money back that I paid for the ad?
   - I'm so disappointed I pay 14 pounds for the ad and then you delete my ad
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user had posted more than 2 pet ads within a 12 month period.
+    disclose_when: When the bot asks about posting history or explains the policy violation.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

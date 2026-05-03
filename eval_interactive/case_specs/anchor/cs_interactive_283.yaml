@@ -8,15 +8,20 @@ form_context:
   ad_id: ''
   description: hi i have a problem
 persona:
-  user_goal_summary: 'User reports Account Support: hi i have a problem. Drift: none.'
+  user_goal_summary: 'User wants to resolve an issue where viewers of their Gumtree advertisement cannot send them messages,
+    including the message tag not being highlighted, despite bumping the ad and having 173 views. Drift: none.'
   frustration_level: none
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - veiwers cant message me on my advertisement
-  - i might try that thanks
   - ive done the bump up, but strange no messages after ive had 173 veiws
-  hidden_facts: []
+  - when i try it dosnt work,,,,ive had 173 veiws but no messages
+  hidden_facts:
+  - fact: The user's advertisement is for 'Hunters safety Wellies/Boots Size Uk 9 Excellent condition'.
+    disclose_when: when asked about the specific ad or item
+  - fact: The user noticed the message tag is not highlighted in green.
+    disclose_when: when asked about specific symptoms of the messaging problem
   will_request_human_if: ''
 expected:
   outcome_class: resolve

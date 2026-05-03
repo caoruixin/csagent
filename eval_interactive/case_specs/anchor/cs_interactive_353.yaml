@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Nothing is working
 persona:
-  user_goal_summary: 'User reports Account Support: Nothing is working. Drift: soft_shift.'
+  user_goal_summary: 'The user wants help resetting a Gumtree account password because the reset process fails (the password
+    boxes close before completion). Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

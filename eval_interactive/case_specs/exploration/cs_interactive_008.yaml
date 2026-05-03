@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: How can I have an aggrement with gumtree
 persona:
-  user_goal_summary: 'User reports Account Support: How can I have an aggrement with gumtree. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to obtain a business agreement with Gumtree to post unlimited ads, and they also want
+    to report a Gumtree account that is posting many duplicate fake ads. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Hi how can I have an aggrement with Gumtree like business aggrement for posting as much as I want
-  - Take care
-  - Ok thanks
-  hidden_facts: []
+  - And one last thing can u plz look in to this account posting fake ads
+  - The whole account is full of fake free duplicate copy ads
+  hidden_facts:
+  - fact: The account URL to report is https://www.gumtree.com/profile/account/3046e0a00de405a8d43da7f5cb1f93cc
+    disclose_when: when asked for details about the reported account
   will_request_human_if: ''
 expected:
   outcome_class: escalate

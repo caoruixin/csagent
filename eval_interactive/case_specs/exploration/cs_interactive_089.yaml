@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: I am reporting a serious fraud and urgent safety issue.
 persona:
-  user_goal_summary: 'User reports Report a Safety Issue: I am reporting a serious fraud and urgent safety issue. Drift: hard_shift.'
+  user_goal_summary: 'The user wants the fraudulent listing removed, seller account restricted, and all account/listing data
+    preserved because the seller took a £1,000 deposit, never delivered the boat, has an unpaid CCJ, and re-listed the boat,
+    risking fraud. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift
@@ -20,7 +22,9 @@ persona:
     disclosure.
   - I will do that now
   - This is the listing
-  hidden_facts: []
+  hidden_facts:
+  - fact: I am applying for an injunction to prevent the seller from selling the boat again.
+    disclose_when: When asked about current legal actions.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

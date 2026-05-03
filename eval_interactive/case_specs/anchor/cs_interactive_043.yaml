@@ -9,16 +9,18 @@ form_context:
   description: Something is definitely not right with the website. I tend to have a quick look in my local area (Stirling)
     and usually there are between 2000 and 3000 ads. Today there are more than 35,000 and some are NOWHERE near Stirling
 persona:
-  user_goal_summary: 'User reports Technical Support: Something is definitely not right with the website. Drift: none.'
+  user_goal_summary: 'User wants the search for ''for sale and Stirling'' to return the usual ~2,500 local results, not 35,000
+    with far-away ads, and wants a follow-up email option after troubleshooting. Drift: none.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: none
   seed_messages:
-  - Standing by!
   - I can do that but it seems strange that one moment I get a sensible answer (this morning) and the next time I look the
     response to the url results in ten times as many results with the filter clearly not working as expected…
-  - Ok. Thanks. I’ll drop you a note shortly.
-  hidden_facts: []
+  - That is a much smaller number than I usually see - but less than the 35k I got half an hour ago!
+  hidden_facts:
+  - fact: The user is using a phone and may need to clear all browsing history and cache, which could disrupt the chat session.
+    disclose_when: when the bot suggests clearing cache and the user expresses concern about losing the chat
   will_request_human_if: ''
 expected:
   outcome_class: escalate

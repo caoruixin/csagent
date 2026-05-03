@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: I can't seem to delete my expired ads and as there are so many I want to tidy up my account
 persona:
-  user_goal_summary: 'User reports Account Support: I can''t seem to delete my expired ads and as there are so many I want
-    to tidy up my account. Drift: hard_shift.'
+  user_goal_summary: 'User wants to delete all expired ads from their account (over 300) because there is no option, and they
+    want to raise a complaint about this missing feature. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Not the issue, I want to remove completely all my expired ads
-  - you too
-  - Thanks, I will
+  - There is no option to do this so there are over 300 expired ads on my account
+  - Please raise this as a complaint about Gumtree because I love using it but this is becoming a real issue.
   hidden_facts: []
   will_request_human_if: ''
 expected:

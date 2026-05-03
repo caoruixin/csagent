@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: hi i am getting charged for ads and the app autimatically lists me as a business but i am not
 persona:
-  user_goal_summary: 'User reports Account Support: hi i am getting charged for ads and the app autimatically lists me as
-    a business but i am not. Drift: soft_shift.'
+  user_goal_summary: 'User wants Gumtree to stop charging them for ads, correct their account from business to personal, and
+    avoid having to re-explain their issue to multiple agents. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - ok thanks
-  - ok thank you may i have your e mail address pls
-  - dont know what that is dont think so
+  - i am not a business
+  - i already spoke to some one on 15 th dec aprox can i please get an e mail to register this so i dont have to start over
+    for a third time thanks
   hidden_facts: []
   will_request_human_if: ''
 expected:

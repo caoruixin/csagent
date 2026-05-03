@@ -8,13 +8,13 @@ form_context:
   ad_id: ''
   description: App shows notication but does not show when I log on
 persona:
-  user_goal_summary: 'User reports Account Support: App shows notication but does not show when I log on. Drift: soft_shift.'
+  user_goal_summary: 'User wants to understand why their app shows notifications but no message appears upon login. Drift:
+    soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - My app shows notifications, but when I log on there is no message there
-  - OK thanks
   - I've seen your test message
   hidden_facts: []
   will_request_human_if: ''

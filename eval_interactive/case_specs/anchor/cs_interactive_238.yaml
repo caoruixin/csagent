@@ -8,15 +8,16 @@ form_context:
   ad_id: ''
   description: Carer required posting in Dundee
 persona:
-  user_goal_summary: 'User reports Ad Support: Carer required posting in Dundee. Drift: soft_shift.'
+  user_goal_summary: 'User wants to confirm their carer required ad in Dundee is posted in the correct category (Jobs) so
+    carers can apply, and to understand why when checking replies it shows as themselves liking the job. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - This is the first carer required job posting I have made. When checking for any replies to the job advert I come up as
     it is me liking the job!
-  - No, that's all for now. Thanks again, cheers
-  - Perfect, thankyou!
+  - OK, thanks. Try [EMAIL]
+  - Thanks... So my carer required advert is correctly posted?
   hidden_facts: []
   will_request_human_if: ''
 expected:

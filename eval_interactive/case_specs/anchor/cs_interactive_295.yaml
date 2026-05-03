@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: Not my ar but the message in my name
 persona:
-  user_goal_summary: 'User reports Report a Safety Issue: Not my ar but the message in my name. Drift: soft_shift.'
+  user_goal_summary: 'User sees an ad for a cellar room with no windows in Portswood that he didn''t post, but his name appears
+    in the messages, making it look like his ad. He wants to know why and if his account is compromised. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - There is an ad for a room in portswood and the messages are on my name but it’s not my ad
-  - I’ll do now bye
-  - Ok thank you
-  hidden_facts: []
+  - Cellar room with no windows
+  - So it looks like I have posted it but I have not
+  hidden_facts:
+  - fact: The agent said to forward a screenshot to [EMAIL] if the problem appears on the browser.
+    disclose_when: when the user is asked to provide evidence or troubleshoot browser vs app
   will_request_human_if: ''
 expected:
   outcome_class: escalate

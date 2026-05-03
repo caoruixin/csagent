@@ -9,7 +9,8 @@ form_context:
   description: Hi, I submitted review today to Tan but it does not show. Please can you confirm it will not show as the teansaction
     went well at the end. Kind regards A
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: Hi, I submitted review today to Tan but it does not show. Drift: hard_shift.'
+  user_goal_summary: 'User wants to remove a buyer feedback review she left for Tan earlier today, because the transaction
+    ultimately went well. Drift: hard_shift.'
   frustration_level: none
   verbosity: normal
   drift_behavior: hard_shift
@@ -17,7 +18,9 @@ persona:
   - Today after 2pm I left the feedback, it was only feedback I left
   - Name of the buyer is Tan
   - He bought baby / toddler toys
-  hidden_facts: []
+  hidden_facts:
+  - fact: The listing Ad ID is 1502819921.
+    disclose_when: When the bot requests the Ad ID or listing details.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

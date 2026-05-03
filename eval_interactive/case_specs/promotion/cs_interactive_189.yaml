@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Mango desk
 persona:
-  user_goal_summary: 'User reports Ad Support: Mango desk. Drift: hard_shift.'
+  user_goal_summary: 'User wants all ads removed from her old Gumtree account because she cannot log in to manage them. She
+    wants to ensure only her new account remains, with no listings on it. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Sorry i must have two accounts and i cannot log into the old one to take an add down
+  - im unsure if there are clothing items but all adds on ole account need to be removed please as i can not manage the account
   - so i just have debsmc account now with nothing on too
-  - old
   hidden_facts: []
   will_request_human_if: ''
 expected:

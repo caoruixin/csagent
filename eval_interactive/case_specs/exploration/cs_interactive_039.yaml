@@ -8,17 +8,17 @@ form_context:
   ad_id: ''
   description: Fraudster going by the name 'Michelle' paying for items with counterfeit notes.
 persona:
-  user_goal_summary: 'User reports Report a Safety Issue: Fraudster going by the name ''Michelle'' paying for items with counterfeit
-    notes. Drift: hard_shift.'
+  user_goal_summary: 'User wants his warning ad about a counterfeit note fraudster to be approved so others can see the fraudster''s
+    appearance and note serial numbers to avoid being scammed. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Monisha
   - I posted an ad to warn other Gumtree users, it's "under review", it would help me and others if the ad is allowed so people
     know what she looks like and the serial numbers of her counterfeit notes, so they do not fall foul of her crimes too.
     https://www.gumtree.com/p/freebies/beware-of-this-fraudster-michelle-who-pays-with-counterfeit-notes/1509035262
-  - OK, thank you, I will be reporting her crimes to the police and action fraud.
+  - £50, 1x genuine £10 note and 2x counterfeit £20 notes, both with the serial DK92 639731
+  - 'The fraudster''s profile is: https://www.gumtree.com/profile/account/d6fe299c4bf1cd9515043884ab055c06'
   hidden_facts: []
   will_request_human_if: ''
 expected:

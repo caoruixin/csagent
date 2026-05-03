@@ -9,15 +9,15 @@ form_context:
   description: I have received an email saying I have a message but when I press the 'Reply to message' button there is no
     message in my account. I would like to reply to this message.
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: I have received an email saying I have a message but when I press
-    the ''Reply to message'' button there is no message in my account. Drift: hard_shift.'
+  user_goal_summary: 'I want to access and reply to a message I was notified about via email, but I cannot find the message
+    in my Gumtree account. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Yes, I am logged in online and have opened the message section but there is no message there.
   - So I am now logged on but I can't access the message.
-  - OK. Thank you very much.
+  - Yes, then I went to my account but the message is not there.
   hidden_facts: []
   will_request_human_if: ''
 expected:

@@ -10,7 +10,8 @@ form_context:
     sure my listings follow Gumtree’s policies and I am not posting anything prohibited.   please let me know the reason why
     my ads are being deleted
 persona:
-  user_goal_summary: 'User reports Ad Support: I am facing an issue with my Gumtree account. Drift: hard_shift.'
+  user_goal_summary: 'The user wants their Gumtree account reviewed and unblocked so they can post ads as a private seller,
+    as they claim they are selling only their own household items and are not a trader. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift

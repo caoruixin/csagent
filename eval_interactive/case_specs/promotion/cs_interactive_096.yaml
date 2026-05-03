@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: Just sold item. Unable to leave review. Tried troubleshooting.
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: Just sold item. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to leave a review for an item they just sold, but the review option in their conversation
+    with the buyer has disappeared. They want assistance restoring it or finding another way to submit the review. Drift:
+    hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - No, that is the issue. The option popped up earlier but that was before the sale was completed.
-  - Thank you. Shall we end chat now?
-  - Perfect, thank you Candice.
-  hidden_facts: []
+  - I am still chatting with the buyer but the option to leave a review has not reappeard
+  hidden_facts:
+  - fact: User has emailed a screenshot of the conversation with the buyer to support.
+    disclose_when: when the bot asks about evidence or the screenshot
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: Delete account
 persona:
-  user_goal_summary: 'User reports Account Support: Delete account. Drift: hard_shift.'
+  user_goal_summary: 'User wants to immediately delete their unused Gumtree account and is frustrated by the slow, question-filled
+    process. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - A want to delete my account immediately
-  - Ok thanks for your help
+  - Why do I have to wait ? Asking all these questions ! A just want it deleted now
   - A haven’t used it for 2 years or more and they ask silly questions like when my last post was ! A just want it deleted
     no big desp
   hidden_facts: []

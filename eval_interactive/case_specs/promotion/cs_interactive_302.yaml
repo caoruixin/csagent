@@ -8,15 +8,20 @@ form_context:
   ad_id: ''
   description: Change account contact
 persona:
-  user_goal_summary: 'User reports Account Support: Change account contact. Drift: hard_shift.'
+  user_goal_summary: 'User wants to change the phone number and email address on his account, and regain access to his account
+    after losing his phone and forgetting his password. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hello Jason
   - I am divorcing, and my phone is at the police station. I saved my password on the phone, but can't access it, now.
   - I don't know my password
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user is divorcing and his phone is at the police station; he saved his password on that phone and now can't
+      access it.
+    disclose_when: When asked about why he cannot access his password or phone.
+  - fact: The user has a Mini and a Toyota for sale on Gumtree and needs to update contact details for potential buyers.
+    disclose_when: When asked about the urgency or reason for updating contact information.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

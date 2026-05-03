@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: No call setting on advert
 persona:
-  user_goal_summary: 'User reports Ad Support: No call setting on advert. Drift: hard_shift.'
+  user_goal_summary: 'The user wants the call feature on their Gumtree ads reinstated, arguing email-only leads to spam and
+    lost sales, and they may leave the platform. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

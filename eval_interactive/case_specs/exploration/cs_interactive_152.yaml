@@ -9,8 +9,8 @@ form_context:
   description: thank for  trying to help, I only have one email adderss, I am trying to register but it tells me my emails
     already exists. Currently I cannot post any ads                      one email address I w
 persona:
-  user_goal_summary: 'User reports Account Support: thank for trying to help, I only have one email adderss, I am trying to
-    register but it tells me my emails already exists. Drift: hard_shift.'
+  user_goal_summary: 'I want to delete my Gumtree account registered with a gmx.com email and keep only my gmail.com account,
+    because the confusion is preventing me from posting ads. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

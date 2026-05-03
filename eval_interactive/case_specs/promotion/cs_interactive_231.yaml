@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Bad review from Lee
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: Bad review from Lee. Drift: hard_shift.'
+  user_goal_summary: 'User wants removal of a 1-star review from six years ago left by Lee, who became abusive after failing
+    to get a free TV the user was giving away. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

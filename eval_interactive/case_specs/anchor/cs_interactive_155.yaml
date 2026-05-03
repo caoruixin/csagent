@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Account
 persona:
-  user_goal_summary: 'User reports Account Support: Account. Drift: none.'
+  user_goal_summary: 'User wants to reset account password but is not receiving reset emails; also wants to check if they
+    have an account under a different email. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none

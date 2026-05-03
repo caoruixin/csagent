@@ -10,8 +10,8 @@ form_context:
     under a fake name and advertised a rental property in Islington with the intention to defraud me. I was led to believe
     the advertiser was call
 persona:
-  user_goal_summary: 'User reports Report a Safety Issue: I am reporting a fraudulent property advertisement listed on Gumtree.
-    Drift: hard_shift.'
+  user_goal_summary: 'Report a fraudulent Gumtree property listing and request investigation, data preservation, and removal
+    confirmation after losing £300 to scammer posing as Kate Miller. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

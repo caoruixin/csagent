@@ -9,15 +9,15 @@ form_context:
   description: CORSA 1.4 PETROL NEW MOT NO ADVISORS HEATED SEATS | in Paisley, Renfrewshire | Gumtree CORSA 1.4 PETROL NEW
     MOT NO ADVISORS HEATED SEATS | in Paisley, Renfrewshire | Gumtree
 persona:
-  user_goal_summary: 'User reports Ad Support: CORSA 1.4 PETROL NEW MOT NO ADVISORS HEATED SEATS | in Paisley, Renfrewshire
-    | Gumtree CORSA 1.4 PETROL NEW MOT NO ADVISORS HEATED SEATS | in Paisley, Renfrewshire | Gumtree. Drift: hard_shift.'
+  user_goal_summary: 'User wants to report being missold a car on Gumtree; the seller did not disclose Category S damage and
+    a mechanical issue, and the ad has been removed. Purchase was via phone, paid cash. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - Hi Carmen, I have been missold a car on gumtree how do I report this?
+  - The car was not advertised with category s damage therefore not fully disclosed before I bought it
   - Car was purchased via telephone and we paid cash.
-  - Ah ok send the email it says ok
   hidden_facts: []
   will_request_human_if: ''
 expected:

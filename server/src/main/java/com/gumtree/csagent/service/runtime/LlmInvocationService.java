@@ -27,9 +27,11 @@ public class LlmInvocationService {
     private static final String ROUTING_PROMPT_PATH = "prompts/routing_prompt.txt";
 
     private static final LlmResponse SAFE_ESCALATION_RESPONSE = LlmResponse.builder()
-            .content("{\"action\":\"escalate_human\",\"parameters\":{},\"user_message\":" +
-                     "\"I apologize, but I'm experiencing a technical issue. " +
-                     "Let me connect you with a human agent who can assist you.\",\"reasoning\":\"LLM invocation failure\"}")
+            .content("{\"user_message\":\"I apologize, but I'm experiencing a technical issue. " +
+                     "Let me connect you with a human agent who can assist you.\"," +
+                     "\"reasoning\":\"LLM invocation failure\"," +
+                     "\"tool_calls\":[{\"name\":\"request_handover\"," +
+                     "\"arguments\":{\"escalation_reason\":\"system_failure\"}}]}")
             .finishReason("error_fallback")
             .latencyMs(0)
             .build();

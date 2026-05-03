@@ -26,12 +26,10 @@ public class TraceWriter {
 
     public void recordTurn(String sessionId, int turnIndex, String userMessage,
                            String projectedContext, String llmRawResponse,
-                           String actionSelected, Map<String, Object> actionParameters,
                            List<Map<String, Object>> toolCalls, String botResponse,
                            String[] sourceIds, String phaseBefore, String phaseAfter,
                            String activeUseCase, int latencyMs) {
 
-        String actionParamsJson = serializeToJson(actionParameters, "action parameters");
         String toolCallsJson = serializeToJson(toolCalls, "tool calls");
 
         BotTurn turn = BotTurn.builder()
@@ -41,8 +39,6 @@ public class TraceWriter {
                 .userMessage(userMessage)
                 .projectedContext(projectedContext)
                 .llmRawResponse(llmRawResponse)
-                .actionSelected(actionSelected)
-                .actionParameters(actionParamsJson)
                 .toolCalls(toolCallsJson)
                 .botResponse(botResponse)
                 .sourceIds(sourceIds)
@@ -54,8 +50,8 @@ public class TraceWriter {
                 .build();
 
         botTurnRepository.save(turn);
-        log.debug("Turn recorded: sessionId={}, turnIndex={}, action={}, latencyMs={}",
-                sessionId, turnIndex, actionSelected, latencyMs);
+        log.debug("Turn recorded: sessionId={}, turnIndex={}, latencyMs={}",
+                sessionId, turnIndex, latencyMs);
     }
 
     private String serializeToJson(Object value, String fieldName) {

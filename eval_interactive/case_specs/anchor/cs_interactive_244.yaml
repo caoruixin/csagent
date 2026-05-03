@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: Need to change ad
 persona:
-  user_goal_summary: 'User reports Account Support: Need to change ad. Drift: none.'
+  user_goal_summary: 'Correct the sale price on a dog ad because the wrong price was listed. Drift: none.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: none

@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: i saved and continued with my ad, appplied payment but then an onscreen message said payment hadn't yet processed
 persona:
-  user_goal_summary: 'User reports Ad Support: i saved and continued with my ad, appplied payment but then an onscreen message
-    said payment hadn''t yet processed. Drift: soft_shift.'
+  user_goal_summary: 'User wants their ad for ''Freelance Beauty Therapist / Nail Technician'' to appear after completing
+    payment, but payment status shows unpaid and ad not visible. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -17,7 +17,9 @@ persona:
   - i cannot see my ad, not even inactive
   - i was not provided an ad id but it was all saved, i went through the payment process
   - Freelance Beauty Therapist / Nail Technician
-  hidden_facts: []
+  hidden_facts:
+  - fact: 'Ad title: Freelance Beauty Therapist / Nail Technician'
+    disclose_when: When asked about the ad listing details
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Dual Rise and Recline Armchair
 persona:
-  user_goal_summary: 'User reports Account Support: Dual Rise and Recline Armchair. Drift: soft_shift.'
+  user_goal_summary: 'User wants to change location on current ads from Blandford to Bournemouth, or learn to post ads in
+    Bournemouth using his same account without duplicating across locations. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift

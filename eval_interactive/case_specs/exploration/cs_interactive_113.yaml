@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: 60 LG TV
 persona:
-  user_goal_summary: 'User reports Account Support: 60 LG TV. Drift: hard_shift.'
+  user_goal_summary: 'The user wants Gumtree to remove the hold on their account, allow them to post ads for a 60 LG TV, and
+    update their registered email address. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

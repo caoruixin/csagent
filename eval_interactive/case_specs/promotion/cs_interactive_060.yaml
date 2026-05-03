@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  user_goal_summary: 'User wants to post a rental flat ad that keeps getting removed, receiving no email explanation, and
+    needs help resolving the issue. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift
@@ -18,7 +19,9 @@ persona:
     the issue is and hoped you could help me with this
   - No will you email me directly?
   - Ok thanks for your help. I am not posting yet until I hear from you
-  hidden_facts: []
+  hidden_facts:
+  - fact: Ad ID 1509094315 is the specific listing under temporary hold and pending support review.
+    disclose_when: When asked about the exact listing details or the hold reason
   will_request_human_if: ''
 expected:
   outcome_class: escalate

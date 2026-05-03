@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Not receiving my messages
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Not receiving my messages. Drift: soft_shift.'
+  user_goal_summary: 'User messaged a seller about two items but got no response. Wants to know if messages were sent, if
+    they can be nudged to respond, and will find another seller if not resolved. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
-  - Neither
-  - Not sure which is linked to my account
-  - Il just find another seller.
+  - I messaged this particular seller a few months back regarding this particular ad, she didn’t respond so I eventually gave
+    up but she has more recently posted another item that I want to buy as well but she’s not responding on that either
+  - 26th July last year was my original message. Is there any way of you prompting a nudge?
   hidden_facts: []
   will_request_human_if: ''
 expected:

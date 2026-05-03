@@ -9,14 +9,14 @@ form_context:
   description: Hi. I am getting no response from sellers when I contact them. My account has 2 email addresses and I'm wondering
     if it's causing some issues in sending or receiving messages.
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Hi. Drift: soft_shift.'
+  user_goal_summary: 'The user wants their contact email reverted to the original account email to fix messaging problems.
+    Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Ok thanks
+  - How come an administrator can't atleast make the contact email match the main account email?
   - I'd be happy enough if the contact email address was reverted to the original account address
-  - Not that anyone will care of course 🤪😃
   hidden_facts: []
   will_request_human_if: ''
 expected:

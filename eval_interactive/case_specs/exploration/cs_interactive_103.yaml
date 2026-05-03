@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Ads removed straight after posting and no email received
 persona:
-  user_goal_summary: 'User reports Account Support: Ads removed straight after posting and no email received. Drift: hard_shift.'
+  user_goal_summary: 'User wants to know why their ad was removed after posting and why their account is blocked, and seeks
+    confirmation that the issue has been escalated. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

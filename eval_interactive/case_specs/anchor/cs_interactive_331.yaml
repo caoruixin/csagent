@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: My add is not showing when searching for room to rent in bs14
 persona:
-  user_goal_summary: 'User reports Account Support: My add is not showing when searching for room to rent in bs14. Drift:
-    soft_shift.'
+  user_goal_summary: 'User wants their ad (ID 1508751621) to appear when they search for ''furnished room to rent in bs14''.
+    Drift: soft_shift.'
   frustration_level: high
-  verbosity: terse
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Furnished room to rent in bs14
   - 'Ad ID: 1508751621'
-  - Oke
+  - All the heading keywords i have put but its showing 0 results
   hidden_facts: []
   will_request_human_if: ''
 expected:

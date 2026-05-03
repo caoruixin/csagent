@@ -8,14 +8,16 @@ form_context:
   ad_id: ''
   description: Help with star rating
 persona:
-  user_goal_summary: 'User reports Account Support: Help with star rating. Drift: hard_shift.'
+  user_goal_summary: 'User wants to restore their GT account star rating (previously good, now zero) and understand why live
+    ads get no enquiries. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - Hi can you please confirm you are human
-  - Thanks 👍
-  - How will you can tact me BTW? After escalation
+  - Thanks, I have had a gt account for over 15 years and had a good star rating - my account seems to have been reset to
+    zero stars?
+  - Also I seem to be getting no enquiries on current live adds? But unusual to be this quiet? Feels like something had gone
+    wrong?
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:

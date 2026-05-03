@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Missing part of item sold, paid and delivered
 persona:
-  user_goal_summary: 'User reports Delivery: Missing part of item sold, paid and delivered. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to contact the buyer who collected an item in a cash sale to arrange collection of a
+    missing piece, but the chat was deleted and she does not have their phone number. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

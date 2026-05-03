@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Phone contact details
 persona:
-  user_goal_summary: 'User reports Ad Support: Phone contact details. Drift: hard_shift.'
+  user_goal_summary: 'User wants their ad''s call and message functions to work so customers can phone them, and wants the
+    issue investigated and resolved promptly. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift

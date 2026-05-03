@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: WILL NOT LET ME PUT MY PHONE NUMBER ON ANY NEW ad'S
 persona:
-  user_goal_summary: 'User reports Technical Support: WILL NOT LET ME PUT MY PHONE NUMBER ON ANY NEW ad''S. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to display a phone number in their ads, not use messaging. They demand the site stop
+    the email-only trial and restore the old phone option. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,9 @@ persona:
   - I do not want to be contacted by message I want Phone.
   - I won't use messaging service .
   - can I put my number in the AD, or will it get rejected?
-  hidden_facts: []
+  hidden_facts:
+  - fact: The site's trial removes phone number display; including a phone number in the ad text will likely get the ad rejected.
+    disclose_when: when the bot asks about the policy or why the user cannot use phone numbers
   will_request_human_if: ''
 expected:
   outcome_class: resolve

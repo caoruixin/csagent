@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: the ad doesnt show my phone number. it only shows email address
 persona:
-  user_goal_summary: 'User reports Account Support: the ad doesnt show my phone number. Drift: minor_drift.'
+  user_goal_summary: 'The user wants their Gumtree ad listings to display their phone number as before, but currently only
+    the email is shown. Drift: minor_drift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: minor
@@ -16,7 +17,9 @@ persona:
   - No I don't see that anymore
   - I always had my number and my email but now it's only email
   - it wasnt like this before
-  hidden_facts: []
+  hidden_facts:
+  - fact: User's three ad IDs are 1508254078, 1508254101, and 1508254130.
+    disclose_when: When the bot asks for ad IDs or more details about the affected listings.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,8 +8,8 @@ form_context:
   ad_id: ''
   description: My add will not post, posted and payed 3 times now and receive a refund withing 60 second of posting
 persona:
-  user_goal_summary: 'User reports Ad Support: My add will not post, posted and payed 3 times now and receive a refund withing
-    60 second of posting. Drift: hard_shift.'
+  user_goal_summary: 'User wants to post an ad on Gumtree Australia but each attempt results in a refund and the ad shows
+    as sold; they want the ad to publish successfully. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

@@ -102,6 +102,15 @@ public class UseCaseRegistryService {
     }
 
     /**
+     * Cheap lookup helper: returns true iff {@code ucId} is a known UC in the
+     * loaded registry. Added 2026-05-02 for the {@code classify_use_case} tool
+     * (Phase 2 Fix 3c) so the LLM cannot commit an out-of-registry UC string.
+     */
+    public boolean isKnownUseCase(String ucId) {
+        return ucId != null && useCases.containsKey(ucId);
+    }
+
+    /**
      * Get all use case definitions.
      */
     public Map<String, UseCaseDefinition> getAllUseCases() {

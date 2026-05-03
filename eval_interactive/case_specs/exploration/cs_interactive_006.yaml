@@ -9,7 +9,8 @@ form_context:
   description: Item arrived and not as described. There are no details for customers about what to do when this happens. Please
     explain how I get my money back
 persona:
-  user_goal_summary: 'User reports Account Support: Item arrived and not as described. Drift: hard_shift.'
+  user_goal_summary: 'Get an immediate refund for a wrong-sized item (boots) without having to go through a broken online
+    return process, and speak to a manager about legal rights. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift

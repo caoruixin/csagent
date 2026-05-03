@@ -8,15 +8,15 @@ form_context:
   ad_id: ''
   description: Is there a way to find out if sending and receiving messages for this ad is working properly?
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Is there a way to find out if sending and receiving messages for this
-    ad is working properly?. Drift: none.'
+  user_goal_summary: 'User wants to confirm that the Gumtree messaging system is functioning correctly, because several contacts
+    have stopped replying and they have had this problem before. Drift: none.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: none
   seed_messages:
-  - Sure, thanks
-  - It does. Many thanks and have a good day
-  - Thank you. Man, some people are so rude!
+  - I've been messaging back and forth with a couple of people. I just wanted to see if there's any way to check whether the
+    messaging system might not be working correctly
+  - I've had a few replies and been in conversation with these people, but they seem to have stopped replying to me
   hidden_facts: []
   will_request_human_if: ''
 expected:

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Job ad for therapists
 persona:
-  user_goal_summary: 'User reports Ad Support: Job ad for therapists. Drift: soft_shift.'
+  user_goal_summary: 'Post a job ad for therapists wanted in Kingsbury; when they click payment, the ad just gets saved and
+    they can''t pay. They had this ad running before and want to repost it. Drift: soft_shift.'
   frustration_level: none
   verbosity: normal
   drift_behavior: soft_shift

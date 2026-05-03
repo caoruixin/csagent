@@ -71,6 +71,10 @@ public class BotSession {
     @Builder.Default
     private Integer repeatedActionCount = 0;
 
+    @Column(name = "runtime_error_count", nullable = false)
+    @Builder.Default
+    private Integer runtimeErrorCount = 0;
+
     @Column(name = "last_action")
     private String lastAction;
 

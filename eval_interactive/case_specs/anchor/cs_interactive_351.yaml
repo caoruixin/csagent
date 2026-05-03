@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: password reset
 persona:
-  user_goal_summary: 'User reports Technical Support: password reset. Drift: soft_shift.'
+  user_goal_summary: 'I want to sign into my Gumtree account, but after password reset I still cannot sign in. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

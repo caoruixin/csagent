@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Hi
 persona:
-  user_goal_summary: 'User reports Ad Support: Hi. Drift: hard_shift.'
+  user_goal_summary: 'User wants to know why her two ads for toys were removed, and expects account restriction to be lifted
+    and to be contacted via email. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

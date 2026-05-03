@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Parcel lost
 persona:
-  user_goal_summary: 'User reports Delivery: Parcel lost. Drift: hard_shift.'
+  user_goal_summary: 'User is a seller on Gumtree who shipped an item via Evri, and it got lost. They want to know if they
+    must refund the buyer, and what steps to take. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift

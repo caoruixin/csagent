@@ -8,16 +8,20 @@ form_context:
   ad_id: ''
   description: Hi I've been locked out of my account, google created a new account accidently when i was trying to log in.
 persona:
-  user_goal_summary: 'User reports Account Support: Hi I''ve been locked out of my account, google created a new account accidently
-    when i was trying to log in. Drift: hard_shift.'
+  user_goal_summary: 'User wants to log into Gumtree account but is blocked by Link11 Web Application Security error when
+    using registered email. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - It wont let me use my saved password or email
   - Yes but my contact email is google
-  - ok i'll try that. thanks
-  hidden_facts: []
+  - Request Blocked An error has occurred Your request was blocked by Link11 Web Application Security. If you believe this
+    is the result of an error, contact the administrator of my.gumtree.com.
+  hidden_facts:
+  - fact: The user receives a 'Request Blocked' error with Link11 WAF, ID 64cfae26c1c15d78d992563249246169, Status Code 471
+      when trying to log in with their registered talktalk email.
+    disclose_when: When asked what error occurs or what happens when attempting to sign in.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

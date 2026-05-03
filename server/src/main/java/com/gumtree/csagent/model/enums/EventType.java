@@ -12,5 +12,7 @@ public enum EventType {
     SESSION_CLOSED,
     TOOL_SCOPE_BLOCKED,
     GUARDRAIL_VIOLATION,
-    OUT_OF_SCOPE_HANDOVER
+    OUT_OF_SCOPE_HANDOVER,
+    /** Emitted by classify_use_case tool when LLM commits a UC during DISCOVER. */
+    CLASSIFICATION_COMMITTED
 }

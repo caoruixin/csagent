@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to restore their premium service after a failed direct debit and requires immediate help
+    because their account manager has been unreachable for 4 days, causing business disruption. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

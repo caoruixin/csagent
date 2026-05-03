@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Dart board
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Dart board. Drift: none.'
+  user_goal_summary: 'User wants to contact a seller on Gumtree but the seller doesn''t seem to receive messages. User has
+    an account, has messaged multiple times, and asks if Gumtree can contact the seller. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none

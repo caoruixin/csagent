@@ -8,8 +8,7 @@ form_context:
   ad_id: ''
   description: how do I change my email address associated with my account ?
 persona:
-  user_goal_summary: 'User reports Account Support: how do I change my email address associated with my account ?. Drift:
-    soft_shift.'
+  user_goal_summary: 'User wants to change the email address associated with their Gumtree account. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -17,7 +16,9 @@ persona:
   - yes I need to change my email address
   - that is crazy ! shit website !
   - I want to change my email address
-  hidden_facts: []
+  hidden_facts:
+  - fact: Gumtree has disabled the ability for users to change their login or contact email addresses.
+    disclose_when: when discussing why the email change is not working or if the bot cannot provide a solution
   will_request_human_if: ''
 expected:
   outcome_class: resolve

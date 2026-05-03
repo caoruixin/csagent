@@ -8,14 +8,13 @@ form_context:
   ad_id: ''
   description: password reset
 persona:
-  user_goal_summary: 'User reports Account Support: password reset. Drift: none.'
+  user_goal_summary: 'The user wants to reset their Gumtree account password. Drift: none.'
   frustration_level: mild
-  verbosity: terse
+  verbosity: normal
   drift_behavior: none
   seed_messages:
   - i need to reset my paword please
-  - thankyou
-  - are you there ?
+  - pasword please
   hidden_facts: []
   will_request_human_if: ''
 expected:

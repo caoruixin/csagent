@@ -9,13 +9,13 @@ form_context:
   description: Technical issue with your activation in email, therefore I can't get registered. I properly filled in form
     and several times attempted to get my account activated using link in your email you sent me.Please fix this
 persona:
-  user_goal_summary: 'User reports Technical Support: Technical issue with your activation in email, therefore I can''t get
-    registered. Drift: soft_shift.'
+  user_goal_summary: 'User cannot activate their account because the email activation link shows ''Email Not Activated'' and
+    ''Email Link No Longer Valid''. They want the account to be activated successfully. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Hello Courtney, I assume Cortney is a typing error?
+  - The same screen appears staring ' Email Not Activated with a red cross
   - It also states Email Link No Longer Valid
   - It also states- Email Link No Longer Valod
   hidden_facts: []

@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: Payment plan enquiry
 persona:
-  user_goal_summary: 'User reports Payments: Payment plan enquiry. Drift: soft_shift.'
+  user_goal_summary: 'User wants to offer a payment plan to a potential buyer who replied to their Gumtree ad. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

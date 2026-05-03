@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Customer service member was very rude
 persona:
-  user_goal_summary: 'User reports Account Support: Customer service member was very rude. Drift: hard_shift.'
+  user_goal_summary: 'User requests removal of a one-star false review left by a non-customer that is affecting their business;
+    they are unable to view the review and will leave platform if not resolved. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

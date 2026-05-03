@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Persian kittens for sale
 persona:
-  user_goal_summary: 'User reports Ad Support: Persian kittens for sale. Drift: soft_shift.'
+  user_goal_summary: 'User paid twice to post an ad for Persian kittens; it was rejected due to multiple accounts. They want
+    to find out which other accounts they have and get the ad posted. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift

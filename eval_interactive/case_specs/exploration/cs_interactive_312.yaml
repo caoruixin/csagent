@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Change email address
 persona:
-  user_goal_summary: 'User reports Account Support: Change email address. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to delete their Gumtree account because both contact email addresses are locked and cannot
+    be changed, and one contact email is unrecognized. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

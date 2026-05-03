@@ -8,7 +8,9 @@ form_context:
   ad_id: ''
   description: Enquiry
 persona:
-  user_goal_summary: 'User reports Account Support: Enquiry. Drift: soft_shift.'
+  user_goal_summary: 'User sold an item and buyer wants to collect. After a change removed phone numbers from listings, user
+    is unsure if sharing address via Gumtree message is allowed or blocked, and wants help page updated to reflect changes.
+    Drift: soft_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: soft_shift
@@ -23,7 +25,7 @@ persona:
     to do. While In know this is not your fault. I feel that this will generate lots of contact from people asking the same
     questions and feeling frustrated. However, on that note. I must thank you for your kindness and patience and taking your
     valuable time to courteously reply to my questions. It has been appreciated.
-  - You are very welcome. Goodbye 😊
+  - And would gumtree block an address given for collection.
   hidden_facts: []
   will_request_human_if: ''
 expected:

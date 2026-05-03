@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: My address was deleted I need a refund
 persona:
-  user_goal_summary: 'User reports Ad Support: My address was deleted I need a refund. Drift: hard_shift.'
+  user_goal_summary: 'User wants a refund for a disallowed Gumtree property ad and to have her address reinstated, as it was
+    deleted. She experiences connection drops and requests to speak by phone. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,9 @@ persona:
   - Ok but I keep losing connection is there a number i can ring to talk directly?
   - Well my connection keeps getting cut off and I really need a refund as my ad was not allowed
   - No response?
-  hidden_facts: []
+  hidden_facts:
+  - fact: The user's email address is [EMAIL]
+    disclose_when: when the bot asks for contact information
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

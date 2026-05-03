@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: complete Ad
 persona:
-  user_goal_summary: 'User reports Technical Support: complete Ad. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to successfully post a selling ad for a sofa bed and update their bank account details,
+    as their old bank is now closed. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

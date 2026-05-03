@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  user_goal_summary: 'User wants to make their ad (ID 1507639333) live again after it was removed for the second time; they
+    have already complied with password change request. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,9 @@ persona:
   - I need to make my ad live
   - Yes, they asked me to change my password, and I did
   - AD IS REMOVED
-  hidden_facts: []
+  hidden_facts:
+  - fact: Ad ID is 1507639333.
+    disclose_when: when asked for ad details
   will_request_human_if: ''
 expected:
   outcome_class: escalate

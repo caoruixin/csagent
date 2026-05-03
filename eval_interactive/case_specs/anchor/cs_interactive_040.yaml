@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: My ad isn't allowing customers to send requests. There is a flaw on the app
 persona:
-  user_goal_summary: 'User reports Account Support: My ad isn''t allowing customers to send requests. Drift: none.'
+  user_goal_summary: 'User wants the request-quote button fixed so customers can contact them, as they''re paying for the
+    ad. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - There seems to be issues with my ad
-  - Ok thank you
-  - Is there a case reference
-  hidden_facts: []
+  - When a customer tries to request quote it doesn't work
+  - Can you tell me what am I supposed to do if I'm paying for this service but the customers cannot reach me
+  hidden_facts:
+  - fact: Case number 00394953 has been opened for this issue.
+    disclose_when: When asked about case reference.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

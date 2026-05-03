@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: Miniature Dachshund
 persona:
-  user_goal_summary: 'User reports Ad Support: Miniature Dachshund. Drift: soft_shift.'
+  user_goal_summary: 'User wants her ad for a Miniature Dachshund, rejected for having holiday gift images in the last photo,
+    to be live after removing it. Drift: soft_shift.'
   frustration_level: high
-  verbosity: terse
+  verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Hi why is my add not live yet
-  - Ok thanks
+  - I don't have Christmas pics
   - I did it there now
-  hidden_facts: []
+  hidden_facts:
+  - fact: The ad was rejected because the last image showed pride and groom products, interpreted as holiday gift images.
+    disclose_when: When asked about the specific image flagged.
   will_request_human_if: ''
 expected:
   outcome_class: resolve

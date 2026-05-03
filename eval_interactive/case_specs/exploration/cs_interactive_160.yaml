@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Will not put my add on
 persona:
-  user_goal_summary: 'User reports Account Support: Will not put my add on. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to understand why her ads are being deleted and to prevent further deletions. Drift:
+    hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I have tried to put a add on can you please let me know why there are deleting
-  - Okay thank you
-  - Try that one
+  - Been removed
+  - Yes just trying to find it because I don’t know if my son as used my email or his
   hidden_facts: []
   will_request_human_if: ''
 expected:

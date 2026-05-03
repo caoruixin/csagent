@@ -15,7 +15,7 @@ class AgentClient:
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/")
         self.client = httpx.Client(
-            timeout=30.0,
+            timeout=httpx.Timeout(60.0, connect=10.0),
             transport=httpx.HTTPTransport(proxy=None),
         )
 

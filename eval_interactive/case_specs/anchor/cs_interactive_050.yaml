@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: I lost a sale because my message was sent to wrong email
 persona:
-  user_goal_summary: 'User reports Account Support: I lost a sale because my message was sent to wrong email. Drift: soft_shift.'
+  user_goal_summary: 'User seeks explanation and fix for email delivery to old address instead of new primary, without deleting
+    account. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,7 @@ persona:
   - my messages are being sent to an old email address. Not the address which is registered for my account. And i lost a slae
     because of that
   - that is the best advice you can give me?
-  - are you still there?
+  - can you tell me why the emails are now going to my old address?
   hidden_facts: []
   will_request_human_if: ''
 expected:

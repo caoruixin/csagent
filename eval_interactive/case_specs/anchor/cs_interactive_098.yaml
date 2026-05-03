@@ -8,16 +8,19 @@ form_context:
   ad_id: ''
   description: Problem uploading photos
 persona:
-  user_goal_summary: 'User reports Technical Support: Problem uploading photos. Drift: minor_drift.'
+  user_goal_summary: 'I want the photo upload issue on my ad fixed so I can repost it, and I want the 7-day Boost timeline
+    restarted since I couldn''t use it due to the bug. Drift: minor_drift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: minor
   seed_messages:
   - Hi, i was given an email address to send some screenshots before and after I uploaded them but I haven't had no response
     and I would like to get it sorted ASAP please
   - I'm not sure what troubleshooting is sorry
-  - OK thanks
-  hidden_facts: []
+  - I've tried editing and uploading 3 times and taken the pics straight from the app but none of them work
+  hidden_facts:
+  - fact: I have two email addresses, but I can't access one of them right now.
+    disclose_when: when asked for an alternative contact email
   will_request_human_if: ''
 expected:
   outcome_class: escalate

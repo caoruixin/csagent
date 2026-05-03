@@ -8,14 +8,16 @@ form_context:
   ad_id: ''
   description: High end audio preamp
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: High end audio preamp. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to contact seller Anna about a specific high-end audio preamp listed on Gumtree, as they
+    have not received responses to messages. They ask if the agent can text the seller or provide contact details. Drift:
+    soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - That's OK, I'm keen on contacting Anna & ideally speaking to her re this advert, but am not getting any response to my
     messages
-  - OK thanks for your time
+  - No I want this particular unit
   - Can you text her ?
   hidden_facts: []
   will_request_human_if: ''

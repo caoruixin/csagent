@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: it is in regards to an ad
 persona:
-  user_goal_summary: 'User reports Account Support: it is in regards to an ad. Drift: none.'
+  user_goal_summary: 'User wants their paid ad (ID 1508016323) to appear on the front page as they believe was promised, because
+    they see many ads from a competitor there. Drift: none.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - i paid for this ad id 1508016323
   - this was the best pacakge i bought but still i am not on front page
-  - are you there
-  hidden_facts: []
+  - there is one company doing same services there are hundred of adds coming on front pages
+  hidden_facts:
+  - fact: The user purchased the best package for ad ID 1508016323.
+    disclose_when: when the bot asks about the ad details or package.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Missing texts
 persona:
-  user_goal_summary: 'User reports Account Support: Missing texts. Drift: soft_shift.'
+  user_goal_summary: 'User receives Hotmail notifications about new Gumtree messages but sees nothing in the mobile app; claims
+    only one account exists. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

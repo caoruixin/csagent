@@ -8,15 +8,17 @@ form_context:
   ad_id: ''
   description: My ads always get removed. I don't know what is wrong with them.
 persona:
-  user_goal_summary: 'User reports Account Support: My ads always get removed. Drift: hard_shift.'
+  user_goal_summary: 'User wants their removed ad to be reinstated and to understand why it was automatically blocked. Drift:
+    hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - It won't let me view the ad it just goes straight to removed
-  - Thank you. What was the issue?
-  - No worries
-  hidden_facts: []
+  - It doesn't allow me to even see an add id. It's there but greyed out. Won't let me see any info about it.
+  hidden_facts:
+  - fact: The account was automatically blocked by the system.
+    disclose_when: when the user asks why their ads were removed or the agent explains the issue.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

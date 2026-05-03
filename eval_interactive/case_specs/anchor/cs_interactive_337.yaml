@@ -8,14 +8,14 @@ form_context:
   ad_id: ''
   description: I cannot bump up my adverts. It won't allow me to pay
 persona:
-  user_goal_summary: 'User reports Ad Support: I cannot bump up my adverts. Drift: soft_shift.'
+  user_goal_summary: 'User wants to bump up his Gumtree adverts but the payment page gets stuck showing a green ''COMPLETE''
+    box and doesn''t proceed. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
-  - Are u human
-  - Internet
   - It just still at a green box with COMPLETE or similar on
+  - Internet
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:

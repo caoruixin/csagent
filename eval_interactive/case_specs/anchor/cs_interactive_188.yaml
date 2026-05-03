@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: No option to purchase at the bottom of my ad?.
 persona:
-  user_goal_summary: 'User reports Account Support: No option to purchase at the bottom of my ad?. Drift: soft_shift.'
+  user_goal_summary: 'User wants to add purchasing options to their Gumtree ad but cannot see any options when editing or
+    viewing the ad, and believes the ad is not displaying correctly for buyers. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

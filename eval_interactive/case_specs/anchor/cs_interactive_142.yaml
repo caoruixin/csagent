@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Why can’t I see messages in my inbox
 persona:
-  user_goal_summary: 'User reports Replies & Messaging: Why can’t I see messages in my inbox. Drift: soft_shift.'
+  user_goal_summary: 'User wants to know why they are receiving email notifications about unanswered messages but no messages
+    appear in their Gumtree or email inbox, and needs the issue fixed urgently to avoid missing potential buyers. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

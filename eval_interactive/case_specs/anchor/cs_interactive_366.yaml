@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Whay has my phone contact been taken off my ad? Can't reinstate it by trying to edit ad.
 persona:
-  user_goal_summary: 'User reports Technical Support: Whay has my phone contact been taken off my ad?. Drift: soft_shift.'
+  user_goal_summary: 'User wants the option to list their phone number restored and a safe way to arrange item collection
+    without phone numbers. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift

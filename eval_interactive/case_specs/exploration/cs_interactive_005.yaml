@@ -8,16 +8,17 @@ form_context:
   ad_id: ''
   description: Why have my paid for gumtree ads been removed?
 persona:
-  user_goal_summary: 'User reports Account Support: Why have my paid for gumtree ads been removed?. Drift: hard_shift.'
+  user_goal_summary: 'User wants their paid-for Gumtree ads that were automatically removed to be reinstated without manual
+    rework, as they found no listing terms breach. Drift: hard_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - Hi Nursan
   - Will they be put back on automatically or do I have to do it all manually again? I have paid for the ads to be featured
     too. I've also had a look at listing terms and there was nothing in the description or picture that would breach this.
-  - You too bye
-  hidden_facts: []
+  hidden_facts:
+  - fact: The support investigation reference number is 00381000.
+    disclose_when: When the user is asked for a reference number or wants to follow up on the case.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

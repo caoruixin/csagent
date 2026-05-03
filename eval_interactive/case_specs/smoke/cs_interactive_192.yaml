@@ -8,13 +8,15 @@ form_context:
   ad_id: ''
   description: I want to give away free items.  Can I do this on your site?  And if so then how do I do it?
 persona:
-  user_goal_summary: 'User reports Ad Support: I want to give away free items. Drift: soft_shift.'
+  user_goal_summary: 'User wants to give away second-hand clothes, a jute floor mat, a suitcase, picture frames, a CD/radio
+    player, and bric-a-brac on the site, and needs guidance on allowed items, account status, and photo requirements. Drift:
+    soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - OK. What items are allowed?
-  - OK. Thanks once again.
+  - Do I need an account to put this ad?
   - Before we end. Do I need to post photos as well?
   hidden_facts: []
   will_request_human_if: ''

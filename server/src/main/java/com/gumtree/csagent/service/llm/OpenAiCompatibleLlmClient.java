@@ -12,40 +12,70 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
 import java.util.List;
 
-@Service
+/**
+ * Generic OpenAI-compatible chat-completion client. The same class wires either
+ * Kimi (primary) or DeepSeek (fallback); the active provider is chosen by the
+ * Spring config that constructs the bean (see {@link com.gumtree.csagent.config.LlmClientConfig}).
+ */
 public class OpenAiCompatibleLlmClient implements LlmClient {
 
     private static final Logger log = LoggerFactory.getLogger(OpenAiCompatibleLlmClient.class);
 
-    private final LlmProperties llmProperties;
+    private final String providerLabel;
+    private final String apiKey;
+    private final String baseUrl;
+    private final String model;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    public OpenAiCompatibleLlmClient(LlmProperties llmProperties, ObjectMapper objectMapper) {
-        this.llmProperties = llmProperties;
+    public OpenAiCompatibleLlmClient(String providerLabel, String apiKey, String baseUrl,
+                                     String model, ObjectMapper objectMapper) {
+        this.providerLabel = providerLabel;
+        this.apiKey = apiKey;
+        this.baseUrl = baseUrl;
+        this.model = model;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5000);   // 5 seconds connect timeout
         factory.setReadTimeout(30000);      // 30 seconds read timeout (LLM can be slow)
         this.restTemplate = new RestTemplate(factory);
         this.objectMapper = objectMapper;
-        log.info("LLM config loaded: kimi=[model={}, baseUrl={}], dashscope=[chatModel={}, baseUrl={}]",
-                llmProperties.getKimi().getModel(), llmProperties.getKimi().getBaseUrl(),
-                llmProperties.getDashscope().getChatModel(), llmProperties.getDashscope().getBaseUrl());
+    }
+
+    /**
+     * @deprecated Legacy constructor preserved for test-source backward compatibility only.
+     *             Production wiring uses the explicit (providerLabel, apiKey, baseUrl, model, objectMapper)
+     *             constructor via {@code LlmClientConfig}. This shim picks Kimi if its key is set,
+     *             else DashScope — matching the pre-Step-4 behaviour of the deleted in-method fallback.
+     */
+    @Deprecated
+    public OpenAiCompatibleLlmClient(LlmProperties llmProperties, ObjectMapper objectMapper) {
+        this(
+            (llmProperties.getKimi().getApiKey() != null && !llmProperties.getKimi().getApiKey().isBlank())
+                ? "kimi" : "dashscope",
+            (llmProperties.getKimi().getApiKey() != null && !llmProperties.getKimi().getApiKey().isBlank())
+                ? llmProperties.getKimi().getApiKey() : llmProperties.getDashscope().getApiKey(),
+            (llmProperties.getKimi().getApiKey() != null && !llmProperties.getKimi().getApiKey().isBlank())
+                ? llmProperties.getKimi().getBaseUrl() : llmProperties.getDashscope().getBaseUrl(),
+            (llmProperties.getKimi().getApiKey() != null && !llmProperties.getKimi().getApiKey().isBlank())
+                ? llmProperties.getKimi().getModel() : llmProperties.getDashscope().getChatModel(),
+            objectMapper
+        );
     }
 
     @Override
     public LlmResponse chat(LlmRequest request) {
-        // Try up to 2 times (initial + 1 retry) for transient failures
+        // Try up to 2 times (initial + 1 retry) for transient failures within the same provider.
+        // Cross-provider fallback is handled by FallbackLlmClient one layer up.
         Exception lastException = null;
         for (int attempt = 0; attempt < 2; attempt++) {
             try {
@@ -53,33 +83,25 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
             } catch (RestClientException e) {
                 lastException = e;
                 if (attempt == 0) {
-                    log.warn("LLM API call failed on attempt 1, retrying in 500ms: {}", e.getMessage());
+                    log.warn("LLM API call failed on attempt 1 (provider={}), retrying in 500ms: {}",
+                            providerLabel, e.getMessage());
                     try { Thread.sleep(500); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
                 }
             }
         }
-        log.error("LLM API call failed after 2 attempts", lastException);
-        throw new RuntimeException("LLM API call failed after retry", lastException);
+        log.error("LLM API call failed after 2 attempts (provider={})", providerLabel, lastException);
+        throw new RuntimeException("LLM API call failed after retry (provider=" + providerLabel + ")", lastException);
     }
 
     private LlmResponse doChat(LlmRequest request) {
         long startTime = System.currentTimeMillis();
+        String url = baseUrl + "/chat/completions";
 
-        LlmProperties.KimiProperties kimiConfig = llmProperties.getKimi();
-        String url = kimiConfig.getBaseUrl() + "/chat/completions";
-        String apiKey = kimiConfig.getApiKey();
-        String model = kimiConfig.getModel();
-
-        // Fall back to DashScope if Kimi API key is not set
         if (apiKey == null || apiKey.isBlank()) {
-            LlmProperties.DashScopeProperties config = llmProperties.getDashscope();
-            url = config.getBaseUrl() + "/chat/completions";
-            apiKey = config.getApiKey();
-            model = config.getChatModel();
+            throw new IllegalStateException("LLM provider " + providerLabel + " has no api-key configured");
         }
 
-        log.info("LLM request: provider={}, model={}, url={}",
-                (apiKey == llmProperties.getKimi().getApiKey() ? "Kimi" : "DashScope"), model, url);
+        log.info("LLM request: provider={}, model={}, url={}", providerLabel, model, url);
 
         try {
             ObjectNode body = buildRequestBody(request, model);
@@ -93,15 +115,20 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
 
             long latencyMs = System.currentTimeMillis() - startTime;
             LlmResponse llmResponse = parseResponse(response.getBody(), latencyMs);
-            log.info("LLM response: model={}, latency={}ms, tokens={}/{}",
-                    model, latencyMs, llmResponse.getPromptTokens(), llmResponse.getCompletionTokens());
+            log.info("LLM response: provider={}, model={}, latency={}ms, tokens={}/{}",
+                    providerLabel, model, latencyMs, llmResponse.getPromptTokens(), llmResponse.getCompletionTokens());
             return llmResponse;
 
+        } catch (HttpStatusCodeException e) {
+            HttpStatusCode status = e.getStatusCode();
+            log.error("LLM HTTP error (provider={}, model={}): status={}, body={}",
+                    providerLabel, model, status.value(), e.getResponseBodyAsString());
+            throw e; // Surface to caller; FallbackLlmClient inspects status for transient classification.
         } catch (RestClientException e) {
-            throw e; // Let retry loop handle RestClientException
+            throw e; // Let retry loop handle other RestClientException (timeouts, connect failures).
         } catch (Exception e) {
-            log.error("Error processing LLM request: {}", e.getMessage(), e);
-            throw new RuntimeException("Error processing LLM request", e);
+            log.error("Error processing LLM request (provider={}): {}", providerLabel, e.getMessage(), e);
+            throw new RuntimeException("Error processing LLM request (provider=" + providerLabel + ")", e);
         }
     }
 

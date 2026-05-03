@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: one digit missing from the applicants phone number
 persona:
-  user_goal_summary: 'User reports Ad Support: one digit missing from the applicants phone number. Drift: hard_shift.'
+  user_goal_summary: 'The user wants to obtain the correct 11-digit mobile phone number for applicant Conor Thompson because
+    the number in the job listing was missing one digit. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

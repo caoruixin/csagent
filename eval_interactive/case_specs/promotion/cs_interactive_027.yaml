@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: About a review someone left me
 persona:
-  user_goal_summary: 'User reports Account Support: About a review someone left me. Drift: hard_shift.'
+  user_goal_summary: 'The user wants a negative review removed from his Gumtree account because he did not sell any item to
+    the person who left it; the review falsely implies a bad transaction. Drift: hard_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: hard_shift

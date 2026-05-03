@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: BMW Z4
 persona:
-  user_goal_summary: 'User reports Account Support: BMW Z4. Drift: hard_shift.'
+  user_goal_summary: 'User wants to list a silver BMW Z4 for sale on Gumtree but gets a ''not road registered'' error despite
+    the car being road registered. They want the error fixed so the ad can go live. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift
@@ -18,7 +19,9 @@ persona:
     even know what thst means
   - Oh leave it I'll advertise is somewhere else. I'm not messing about with sending messages. If you can't fix it it doesn't
     matter. I don't know what not road registered means or why its even an option
-  hidden_facts: []
+  hidden_facts:
+  - fact: The vehicle is a silver BMW Z4 with registration number YK60JXL.
+    disclose_when: when the agent asks for the vehicle details or the listing issue.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

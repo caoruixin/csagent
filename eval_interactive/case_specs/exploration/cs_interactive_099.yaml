@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Last chat transcript please
 persona:
-  user_goal_summary: 'User reports Account Support: Last chat transcript please. Drift: hard_shift.'
+  user_goal_summary: 'User wants to obtain a transcript of a previous chat with an agent about a scam seller named Ben, including
+    reference numbers and details needed to file a police report. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

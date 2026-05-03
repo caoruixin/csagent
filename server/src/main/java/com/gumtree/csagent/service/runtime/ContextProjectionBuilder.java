@@ -6,12 +6,16 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.BotTurn;
 import com.gumtree.csagent.model.KnowledgeHit;
+import com.gumtree.csagent.model.PhasePlan;
+import com.gumtree.csagent.model.TerminalOutcome;
 import com.gumtree.csagent.service.tools.ToolPolicyEnforcer;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -32,6 +36,13 @@ public class ContextProjectionBuilder {
     private final ControlPolicyService controlPolicy;
     private final ToolPolicyEnforcer toolPolicyEnforcer;
 
+    /**
+     * Static schema map for agent_visible tools, populated in {@link #initToolSchemas()}.
+     * Each entry contains an ObjectNode with {name, description, arguments_schema}
+     * conforming to the OpenAI-style tool schema contract (see phase0_normative_freeze §0.6).
+     */
+    private final Map<String, ObjectNode> toolSchemas = new LinkedHashMap<>();
+
     public ContextProjectionBuilder(ObjectMapper objectMapper,
                                      UseCaseRegistryService useCaseRegistry,
                                      ControlPolicyService controlPolicy,
@@ -40,6 +51,224 @@ public class ContextProjectionBuilder {
         this.useCaseRegistry = useCaseRegistry;
         this.controlPolicy = controlPolicy;
         this.toolPolicyEnforcer = toolPolicyEnforcer;
+    }
+
+    @PostConstruct
+    void initToolSchemas() {
+        toolSchemas.put("search_knowledge", buildToolSchema(
+                "search_knowledge",
+                "Search the knowledge base for FAQ articles relevant to the user's question. "
+                        + "Returns a list of articles with source_ids.",
+                buildSearchKnowledgeArgsSchema()));
+
+        toolSchemas.put("resolve_article", buildToolSchema(
+                "resolve_article",
+                "Fetch the full content of a specific knowledge article by source_id.",
+                buildSingleStringFieldSchema("source_id", true)));
+
+        toolSchemas.put("get_customer_context", buildToolSchema(
+                "get_customer_context",
+                "Look up the customer's account / ad / moderation context. "
+                        + "Auto-triggered at INIT when email is in form_context.",
+                buildGetCustomerContextArgsSchema()));
+
+        toolSchemas.put("request_handover", buildToolSchema(
+                "request_handover",
+                "Escalate the session to a human agent. Use when the user explicitly requests human help, "
+                        + "when the issue requires human action, or after intake is complete for UC-G/H/I/J/K.",
+                buildRequestHandoverArgsSchema()));
+
+        toolSchemas.put("record_outcome", buildToolSchema(
+                "record_outcome",
+                "Record the final outcome of the session (resolved / escalated / abandoned).",
+                buildRecordOutcomeArgsSchema()));
+
+        // 2026-05-02 — Fix 3c: classify_use_case tool exposed during DISCOVER
+        // so the LLM can commit a UC once intent is clear (closes
+        // CONTRACT_VIOLATION:active_use_case missing_after_turns).
+        toolSchemas.put("classify_use_case", buildToolSchema(
+                "classify_use_case",
+                "Commit a use-case classification once you have identified the user's intent. "
+                        + "Sets session.active_use_case + session.intent_confidence and unlocks the "
+                        + "DISCOVER -> RESOLVE transition. Use confidence >= 0.7 when the intent is "
+                        + "clear, >= 0.5 with explicit topic + at least one supporting detail; below "
+                        + "0.5, ask another clarifying question instead of calling this tool.",
+                buildClassifyUseCaseArgsSchema()));
+
+        log.info("Initialized {} tool schemas for context projection", toolSchemas.size());
+    }
+
+    private ObjectNode buildToolSchema(String name, String description, ObjectNode argumentsSchema) {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("name", name);
+        schema.put("description", description);
+        schema.set("arguments_schema", argumentsSchema);
+        return schema;
+    }
+
+    private ObjectNode buildSearchKnowledgeArgsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+        ObjectNode queryProp = objectMapper.createObjectNode();
+        queryProp.put("type", "string");
+        props.set("query", queryProp);
+        ObjectNode ucTagsProp = objectMapper.createObjectNode();
+        ucTagsProp.put("type", "array");
+        ObjectNode ucTagsItems = objectMapper.createObjectNode();
+        ucTagsItems.put("type", "string");
+        ucTagsProp.set("items", ucTagsItems);
+        props.set("uc_tags", ucTagsProp);
+        schema.set("properties", props);
+        ArrayNode required = objectMapper.createArrayNode();
+        required.add("query");
+        schema.set("required", required);
+        return schema;
+    }
+
+    private ObjectNode buildSingleStringFieldSchema(String fieldName, boolean isRequired) {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+        ObjectNode prop = objectMapper.createObjectNode();
+        prop.put("type", "string");
+        props.set(fieldName, prop);
+        schema.set("properties", props);
+        if (isRequired) {
+            ArrayNode required = objectMapper.createArrayNode();
+            required.add(fieldName);
+            schema.set("required", required);
+        }
+        return schema;
+    }
+
+    private ObjectNode buildGetCustomerContextArgsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+        ObjectNode emailProp = objectMapper.createObjectNode();
+        emailProp.put("type", "string");
+        props.set("email", emailProp);
+        ObjectNode adIdProp = objectMapper.createObjectNode();
+        adIdProp.put("type", "string");
+        props.set("ad_id", adIdProp);
+        schema.set("properties", props);
+        return schema;
+    }
+
+    private ObjectNode buildRequestHandoverArgsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+        ObjectNode reasonProp = objectMapper.createObjectNode();
+        reasonProp.put("type", "string");
+        ArrayNode enumValues = objectMapper.createArrayNode();
+        // Canonical 23-value escalation_reason enum. Mirrors
+        // eval_interactive/eval_interactive/case_spec/schema.py:43-66
+        // (EscalationTrigger Literal). Keep these two lists in lockstep.
+        // Grouped by source: user-driven, FAQ/clarification budget, intake-
+        // complete (UC-G..K), policy/safety, system/guardrail.
+        // User-driven
+        enumValues.add("user_requested");
+        enumValues.add("user_distress");
+        // FAQ / clarification budget
+        enumValues.add("faq_miss_threshold_exceeded");
+        enumValues.add("clarification_budget_exhausted");
+        enumValues.add("incomplete_intake");
+        // Intake-complete (per UC)
+        enumValues.add("intake_complete_for_uc_g");
+        enumValues.add("intake_complete_for_uc_h");
+        enumValues.add("intake_complete_for_uc_i");
+        enumValues.add("intake_complete_for_uc_j");
+        enumValues.add("intake_complete_for_uc_k");
+        // Policy / safety / compliance
+        enumValues.add("payment_dispute_detected");
+        enumValues.add("appeal_requires_human");
+        enumValues.add("imminent_harm");
+        enumValues.add("incorrect_deletion_appeal");
+        enumValues.add("trust_safety_required");
+        enumValues.add("account_compliance");
+        enumValues.add("gdpr_intake");
+        enumValues.add("identity_verification_required");
+        // System / guardrail / scope
+        enumValues.add("out_of_scope");
+        enumValues.add("service_degraded");
+        enumValues.add("turn_budget_exhausted");
+        enumValues.add("tool_scope_blocked");
+        enumValues.add("runtime_error_threshold");
+        reasonProp.set("enum", enumValues);
+        props.set("escalation_reason", reasonProp);
+        schema.set("properties", props);
+        ArrayNode required = objectMapper.createArrayNode();
+        required.add("escalation_reason");
+        schema.set("required", required);
+        return schema;
+    }
+
+    /**
+     * 2026-05-02 — Fix 3c: schema for the {@code classify_use_case} tool.
+     * Mirrors {@link #buildRequestHandoverArgsSchema()} structurally; the
+     * {@code use_case_id} enum lists the V1 UC IDs.
+     */
+    private ObjectNode buildClassifyUseCaseArgsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+
+        ObjectNode useCaseProp = objectMapper.createObjectNode();
+        useCaseProp.put("type", "string");
+        ArrayNode ucEnum = objectMapper.createArrayNode();
+        // Canonical V1 use-case ID set; mirrors UseCaseRegistryService entries.
+        ucEnum.add("UC-A");
+        ucEnum.add("UC-B");
+        ucEnum.add("UC-C");
+        ucEnum.add("UC-D");
+        ucEnum.add("UC-E");
+        ucEnum.add("UC-F");
+        ucEnum.add("UC-FP");
+        ucEnum.add("UC-G");
+        ucEnum.add("UC-H");
+        ucEnum.add("UC-I");
+        ucEnum.add("UC-J");
+        ucEnum.add("UC-K");
+        useCaseProp.set("enum", ucEnum);
+        props.set("use_case_id", useCaseProp);
+
+        ObjectNode confidenceProp = objectMapper.createObjectNode();
+        confidenceProp.put("type", "number");
+        confidenceProp.put("minimum", 0);
+        confidenceProp.put("maximum", 1);
+        props.set("confidence", confidenceProp);
+
+        ObjectNode reasoningProp = objectMapper.createObjectNode();
+        reasoningProp.put("type", "string");
+        props.set("reasoning", reasoningProp);
+
+        schema.set("properties", props);
+        ArrayNode required = objectMapper.createArrayNode();
+        required.add("use_case_id");
+        required.add("confidence");
+        schema.set("required", required);
+        return schema;
+    }
+
+    private ObjectNode buildRecordOutcomeArgsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+        ObjectNode outcomeProp = objectMapper.createObjectNode();
+        outcomeProp.put("type", "string");
+        ArrayNode enumValues = objectMapper.createArrayNode();
+        enumValues.add("resolve");
+        enumValues.add("escalate");
+        enumValues.add("abandon");
+        outcomeProp.set("enum", enumValues);
+        props.set("outcome_class", outcomeProp);
+        schema.set("properties", props);
+        ArrayNode required = objectMapper.createArrayNode();
+        required.add("outcome_class");
+        schema.set("required", required);
+        return schema;
     }
 
     /**
@@ -74,13 +303,6 @@ public class ContextProjectionBuilder {
             String taskSummary = buildTaskSummary(session);
             projection.put("task_summary", taskSummary);
 
-            // Allowed actions based on phase + UC type
-            ArrayNode allowedActionsNode = objectMapper.createArrayNode();
-            for (String action : getAllowedActions(session)) {
-                allowedActionsNode.add(action);
-            }
-            projection.set("allowed_actions", allowedActionsNode);
-
             // Risk flags from UC registry
             ArrayNode riskFlagsNode = objectMapper.createArrayNode();
             if (activeUc != null) {
@@ -101,11 +323,20 @@ public class ContextProjectionBuilder {
             budgetNode.put("max_faq_miss", controlPolicy.getMaxFaqMiss());
             projection.set("budget_state", budgetNode);
 
-            // Tool schemas (visible tools for current UC)
+            // Tool schemas (visible tools for current UC) — full per-tool schema objects.
+            // ToolPolicyEnforcer drives WHICH tools appear; the static schema map provides the
+            // {name, description, arguments_schema} payload. Per phase0 §0.6, this is the sole
+            // tool-discovery channel for the LLM (single-layer tool-use; no per-phase action list).
             ArrayNode toolSchemasNode = objectMapper.createArrayNode();
             if (activeUc != null) {
                 for (String toolName : toolPolicyEnforcer.getVisibleToolsForUc(activeUc)) {
-                    toolSchemasNode.add(toolName);
+                    ObjectNode schema = toolSchemas.get(toolName);
+                    if (schema != null) {
+                        toolSchemasNode.add(schema.deepCopy());
+                    } else {
+                        log.warn("No static tool schema registered for visible tool '{}' (UC={})",
+                                toolName, activeUc);
+                    }
                 }
             }
             projection.set("tool_schemas", toolSchemasNode);
@@ -134,7 +365,13 @@ public class ContextProjectionBuilder {
                 turnNode.put("turn_index", turn.getTurnIndex());
                 turnNode.put("user_message", redactPii(turn.getUserMessage()));
                 turnNode.put("bot_response", turn.getBotResponse());
-                turnNode.put("action", turn.getActionSelected());
+                if (turn.getToolCalls() != null && !turn.getToolCalls().isBlank()) {
+                    try {
+                        turnNode.set("tool_calls", objectMapper.readTree(turn.getToolCalls()));
+                    } catch (Exception ex) {
+                        turnNode.put("tool_calls", turn.getToolCalls());
+                    }
+                }
                 historyNode.add(turnNode);
             }
             projection.set("conversation_history", historyNode);
@@ -152,12 +389,14 @@ public class ContextProjectionBuilder {
                 }
                 projection.set("knowledge_hits", hitsNode);
 
-                // Phase-aware instruction: tell the LLM knowledge is pre-searched
+                // Phase-aware instruction: tell the LLM knowledge is pre-searched (tool-use phrasing)
                 projection.put("knowledge_instruction",
                         "Knowledge results have already been retrieved and are provided above in 'knowledge_hits'. "
-                        + "Do NOT return action 'retrieve_knowledge'. "
-                        + "Use action 'answer_grounded' to respond based on the provided knowledge, "
-                        + "or 'ask_user' if the knowledge does not address the user's question.");
+                        + "Do NOT call search_knowledge again. "
+                        + "To answer the user, return a non-empty user_message that grounds in the provided knowledge "
+                        + "(cite source_ids from knowledge_hits). "
+                        + "To ask a clarifying question, return a non-empty user_message ending with '?'. "
+                        + "To escalate, include a tool_call to request_handover with an appropriate escalation_reason.");
             }
 
             // Current user message
@@ -168,6 +407,134 @@ public class ContextProjectionBuilder {
         } catch (Exception e) {
             log.error("Failed to build context projection: {}", e.getMessage(), e);
             return "{}";
+        }
+    }
+
+    /**
+     * D16 PhasePlan-aware projection. Builds a base projection via the legacy
+     * {@link #buildProjection(BotSession, List, List, String)} path (with no
+     * pre-loaded knowledge hits — the loop fetches knowledge via tools, and
+     * results land in {@code accumulatedToolResults}), then injects two
+     * additional fields the {@code AgentRunLoop} requires:
+     *
+     * <ul>
+     *   <li>{@code phase_plan} — the full {@link PhasePlan} except
+     *       {@code maxToolSteps} (which is enforced server-side and not
+     *       shown to the model). Includes objective, allowed_tools (names),
+     *       grounding_instruction, system_instruction,
+     *       valid_terminal_outcomes, escalation_policy.</li>
+     *   <li>{@code accumulated_tool_results} — a map of {@code tool_name ->
+     *       result_data} so the LLM can see what previous loop iterations
+     *       have already discovered.</li>
+     * </ul>
+     *
+     * <p>Per Phase 4 §D16.B.3, the legacy {@link #buildProjection} method is
+     * preserved for non-loop callers.
+     *
+     * @param session                  current bot session
+     * @param history                  prior turns in the session
+     * @param plan                     the phase plan from {@code PhaseEvaluator.plan()}
+     * @param userMessage              the current user message
+     * @param accumulatedToolResults   map of tool_name -> result.data accumulated
+     *                                 across prior loop iterations (may be {@code null})
+     * @return JSON string representing the full plan-aware projection
+     */
+    public String build(BotSession session,
+                        List<BotTurn> history,
+                        PhasePlan plan,
+                        String userMessage,
+                        Map<String, Object> accumulatedToolResults) {
+        // Delegate to legacy path for the bulk of the projection. We pass
+        // null knowledgeHits because in the run-loop world, knowledge results
+        // arrive via accumulatedToolResults (under search_knowledge), not as
+        // a pre-loaded slot.
+        String baseJson = buildProjection(session, history, null, userMessage);
+
+        if (plan == null && (accumulatedToolResults == null || accumulatedToolResults.isEmpty())) {
+            return baseJson;
+        }
+
+        try {
+            ObjectNode projection = (ObjectNode) objectMapper.readTree(baseJson);
+
+            // Inject the PhasePlan (excluding maxToolSteps).
+            if (plan != null) {
+                ObjectNode planNode = objectMapper.createObjectNode();
+                planNode.put("phase", plan.phase());
+                if (plan.useCase() != null) planNode.put("use_case", plan.useCase());
+                if (plan.objective() != null) planNode.put("objective", plan.objective());
+
+                ArrayNode allowedToolsNode = objectMapper.createArrayNode();
+                if (plan.allowedTools() != null) {
+                    for (String t : plan.allowedTools()) allowedToolsNode.add(t);
+                }
+                planNode.set("allowed_tools", allowedToolsNode);
+
+                // 2026-05-02 — Fix 3c: when the PhasePlan whitelists tools that
+                // are not in the per-UC tool_schemas projection (e.g. DISCOVER
+                // exposes `classify_use_case` while activeUseCase is still
+                // null), enrich the top-level `tool_schemas` array with their
+                // schemas so the LLM has a callable contract for them. Without
+                // this, the LLM sees the tool name in `phase_plan.allowed_tools`
+                // but no arguments_schema, and tends not to call it.
+                if (plan.allowedTools() != null) {
+                    ArrayNode toolSchemasNode = projection.has("tool_schemas")
+                            ? (ArrayNode) projection.get("tool_schemas")
+                            : objectMapper.createArrayNode();
+                    java.util.Set<String> alreadyPresent = new java.util.HashSet<>();
+                    for (com.fasterxml.jackson.databind.JsonNode existing : toolSchemasNode) {
+                        if (existing.has("name")) alreadyPresent.add(existing.get("name").asText());
+                    }
+                    for (String toolName : plan.allowedTools()) {
+                        if (alreadyPresent.contains(toolName)) continue;
+                        ObjectNode schema = toolSchemas.get(toolName);
+                        if (schema != null) {
+                            toolSchemasNode.add(schema.deepCopy());
+                            alreadyPresent.add(toolName);
+                        }
+                    }
+                    projection.set("tool_schemas", toolSchemasNode);
+                }
+
+                if (plan.groundingInstruction() != null) {
+                    planNode.put("grounding_instruction", plan.groundingInstruction());
+                }
+                if (plan.systemInstruction() != null) {
+                    planNode.put("system_instruction", plan.systemInstruction());
+                }
+                if (plan.escalationPolicy() != null) {
+                    planNode.put("escalation_policy", plan.escalationPolicy());
+                }
+
+                ArrayNode terminalOutcomesNode = objectMapper.createArrayNode();
+                if (plan.validTerminalOutcomes() != null) {
+                    for (TerminalOutcome to : plan.validTerminalOutcomes()) {
+                        terminalOutcomesNode.add(to.name());
+                    }
+                }
+                planNode.set("valid_terminal_outcomes", terminalOutcomesNode);
+
+                projection.set("phase_plan", planNode);
+            }
+
+            // Inject accumulated tool results (last-write-wins per tool name).
+            if (accumulatedToolResults != null && !accumulatedToolResults.isEmpty()) {
+                ObjectNode toolResultsNode = objectMapper.createObjectNode();
+                for (Map.Entry<String, Object> e : accumulatedToolResults.entrySet()) {
+                    if (e.getValue() == null) {
+                        toolResultsNode.putNull(e.getKey());
+                    } else {
+                        toolResultsNode.set(e.getKey(), objectMapper.valueToTree(e.getValue()));
+                    }
+                }
+                projection.set("accumulated_tool_results", toolResultsNode);
+            }
+
+            return objectMapper.writeValueAsString(projection);
+        } catch (Exception ex) {
+            log.warn("Failed to inject phase_plan / accumulated_tool_results into projection: {}",
+                    ex.getMessage());
+            return baseJson;
         }
     }
 
@@ -207,49 +574,6 @@ public class ContextProjectionBuilder {
             sb.append("Current phase: ").append(phase).append(".");
         }
         return sb.toString().trim();
-    }
-
-    /**
-     * Get allowed actions based on current phase and UC type.
-     */
-    private List<String> getAllowedActions(BotSession session) {
-        String phase = session.getCurrentPhase();
-        String activeUc = session.getActiveUseCase();
-        boolean isIntakeUc = false;
-
-        if (activeUc != null) {
-            UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
-            isIntakeUc = ucDef != null && "INTAKE".equals(ucDef.path());
-        }
-
-        List<String> actions = new ArrayList<>();
-        switch (phase != null ? phase : "") {
-            case "DISCOVER":
-                actions.add("ask_user");
-                actions.add("escalate_human");
-                break;
-            case "RESOLVE":
-                if (isIntakeUc) {
-                    actions.add("ask_user");
-                    actions.add("escalate_human");
-                } else {
-                    actions.add("retrieve_knowledge");
-                    actions.add("answer_grounded");
-                    actions.add("ask_user");
-                    actions.add("escalate_human");
-                    actions.add("finish");
-                }
-                break;
-            case "CONFIRM":
-                actions.add("answer_grounded");
-                actions.add("escalate_human");
-                actions.add("finish");
-                break;
-            default:
-                actions.add("escalate_human");
-                break;
-        }
-        return actions;
     }
 
     /**

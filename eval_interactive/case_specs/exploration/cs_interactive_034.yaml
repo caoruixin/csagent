@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports My add has been removed. Drift: hard_shift.'
+  user_goal_summary: 'User wants to know why her ad was removed and to have it reinstated if it was removed in error. Drift:
+    hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift

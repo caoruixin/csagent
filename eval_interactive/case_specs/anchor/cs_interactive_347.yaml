@@ -9,16 +9,18 @@ form_context:
   description: I forgot my password,  I tryed several times to reset the password by the website but I do not receive any
     email
 persona:
-  user_goal_summary: 'User reports Technical Support: I forgot my password, I tryed several times to reset the password by
-    the website but I do not receive any email. Drift: soft_shift.'
+  user_goal_summary: 'User wants to reset their password and regain account access. They didn''t receive reset emails and
+    re-registration fails because email is already used. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Last time in the end of 2024
-  - Ok thank you for your advice
+  - It's impossible because showed me " this email is already registered "
   - You are able to send me email with resetting link ?
-  hidden_facts: []
+  hidden_facts:
+  - fact: Last access was around the end of 2024.
+    disclose_when: When asked about recent account activity.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

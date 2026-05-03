@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Hi, I can’t neither post and neither editing my ads
 persona:
-  user_goal_summary: 'User reports Ad Support: Hi, I can’t neither post and neither editing my ads. Drift: hard_shift.'
+  user_goal_summary: 'User cannot post or edit ads; encounters an endless loading sign in the app, despite reinstalling multiple
+    times. They want a solution to resolve the app loading issue. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - There’s a loading sign that never ends
-  - Thank you have a good day
   - So what can I do for the app
+  - I already tried to delete and reinstall the app a lot of times
   hidden_facts: []
   will_request_human_if: ''
 expected:

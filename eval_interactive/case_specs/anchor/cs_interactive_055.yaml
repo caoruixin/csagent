@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Darts board full set up
 persona:
-  user_goal_summary: 'User reports Ad Support: Darts board full set up. Drift: soft_shift.'
+  user_goal_summary: 'User paid £1.90 for 7-day ad coverage for a ''Darts board full set up'' and wants the ad to be live,
+    but there is a temporary hold and the ad is not showing. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
@@ -16,7 +17,9 @@ persona:
   - Hi ive just creates and posted and paid £1.9@ for better coverage for 7 days and its saying i have no ada
   - So when will my ad be live im not happy
   - Ive paid for the advertising of my ad too
-  hidden_facts: []
+  hidden_facts:
+  - fact: Ad ID is 1507672616
+    disclose_when: when the agent asks for the ad ID or any identifier
   will_request_human_if: ''
 expected:
   outcome_class: escalate

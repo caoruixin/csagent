@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: Star rating incorrect please adjust
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: Star rating incorrect please adjust. Drift: hard_shift.'
+  user_goal_summary: 'User wants to fix an incorrect star rating from years ago that doesn''t reflect their current situation.
+    Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
   - I don't know and can't them but my star rating is wrong
-  - That's a bit unfair but not alot I can do about it
   - It's from years ago and doesn't reflect my current affairs
+  - That's a bit unfair but not alot I can do about it
   hidden_facts: []
   will_request_human_if: ''
 expected:

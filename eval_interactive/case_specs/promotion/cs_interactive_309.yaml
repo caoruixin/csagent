@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  user_goal_summary: 'User wants to delete their Gumtree account but cannot access it because password reset emails are not
+    received; also wants to know if money is owed and what ad is on the account. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

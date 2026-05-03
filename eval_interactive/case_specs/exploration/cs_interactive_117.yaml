@@ -8,15 +8,17 @@ form_context:
   ad_id: ''
   description: Help with advert
 persona:
-  user_goal_summary: 'User reports Account Support: Help with advert. Drift: hard_shift.'
+  user_goal_summary: 'User wants to understand why their Gumtree ad for renting a room in their house was removed immediately
+    without explanation, and to get advice on how to reword it to avoid the same issue. Drift: hard_shift.'
   frustration_level: high
   verbosity: verbose
   drift_behavior: hard_shift
   seed_messages:
-  - Hello Bulelwa I hope you are well
   - I also have two spare rooms in my house, and I'm looking to rent them out to earn a bit of extra money. So I advertised
     one of these rooms online on gumtree today, and it was removed straight away with no explanation.
-  - Thank you for trying to get it resolved because I don’t understand what the issue is
+  - I live in the house, I'm not an agent, I just want to rent these rooms out. I wondered if maybe there is something I said
+    wrong in the advert, or if you can advise me on how to reword it better so that this doesn't happen.
+  - I would like to understand the exact reason why it was removed automatically without being manually reviewed.
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:

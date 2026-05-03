@@ -8,14 +8,14 @@ form_context:
   ad_id: ''
   description: Would like to NOT RENEWAL my ad please. I have tick that box by mistake
 persona:
-  user_goal_summary: 'User reports Payments: Would like to NOT RENEWAL my ad please. Drift: soft_shift.'
+  user_goal_summary: 'The user wants to cancel the automatic renewal for their Gumtree ad (1509201102). Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
+  - I need to cancel the renewal on my add please
   - https://www.gumtree.com/p/sports-massage-services/diamond-star-massage/1509201102
-  - My ad id
-  - Here’s is my ad id
+  - It’s locked
   hidden_facts: []
   will_request_human_if: ''
 expected:

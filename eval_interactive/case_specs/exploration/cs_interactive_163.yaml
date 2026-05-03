@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Stainless steel kitchen unit handles
 persona:
-  user_goal_summary: 'User reports Ad Support: Stainless steel kitchen unit handles. Drift: hard_shift.'
+  user_goal_summary: 'User wants her Gumtree ad for stainless steel kitchen unit handles, which was deleted, to be reinstated
+    and go live. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,9 @@ persona:
   - You have deleted my ad. I wanted to list it
   - Thank you hopefully ad will go live soon
   - Ok obviously problems at your end thank you
-  hidden_facts: []
+  hidden_facts:
+  - fact: This is the second time today an advert of mine has been deleted. The other one was sorted while I was in the chat.
+    disclose_when: When the agent asks about the issue or expresses confusion.
   will_request_human_if: ''
 expected:
   outcome_class: escalate

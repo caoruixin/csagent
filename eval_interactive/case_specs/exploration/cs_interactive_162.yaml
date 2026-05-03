@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Adds being removed immediately
 persona:
-  user_goal_summary: 'User reports Account Support: Adds being removed immediately. Drift: hard_shift.'
+  user_goal_summary: 'The user wants their new Gumtree adverts to remain live instead of being removed immediately, and they
+    are waiting for an explanation and resolution. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift

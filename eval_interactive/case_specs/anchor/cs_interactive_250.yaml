@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: 5 British kittens for sale
 persona:
-  user_goal_summary: 'User reports Account Support: 5 British kittens for sale. Drift: soft_shift.'
+  user_goal_summary: 'The user wants the hold on their advertisement for 5 British kittens removed so they can sell the kittens,
+    after adding the mother to the picture. Drift: soft_shift.'
   frustration_level: high
-  verbosity: normal
+  verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - Hi I just uploaded my advert. Edit it with the mother and the kittens please Restain the advert many thanks
-  - Okay thank you
+  - Why is the advertisement getting on hold 2 tme now this has never happened before with my Advert .
   - We’ve added the kittens mother to the picture can you please remove this issue because we are trying to sell the kittens
-  hidden_facts: []
+  hidden_facts:
+  - fact: The advertisement is for 5 British kittens for sale.
+    disclose_when: when the bot asks for details about the advertisement
   will_request_human_if: ''
 expected:
   outcome_class: escalate

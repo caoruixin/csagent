@@ -8,13 +8,14 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
+  user_goal_summary: 'User wants to complain about a rude disconnection by previous agent and resolve persistent login issues
+    with password reset and email link recognition. Drift: none.'
   frustration_level: high
   verbosity: normal
   drift_behavior: none
   seed_messages:
   - I was rudely dsicomnwcyed form my previous agent called Narran m
-  - Thankyou
+  - So I get a pw reset email and once I update my pw it says pw updated. When I go to login it says pw or email incorrect
   - This has been going on for a month and need to have this looked into
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts

@@ -27,7 +27,7 @@ stall_detector:
   followup_window_turns: 2
 
 batch:
-  parallel: 5
+  parallel: 3
   timeout_per_session_seconds: 120
 
 report:

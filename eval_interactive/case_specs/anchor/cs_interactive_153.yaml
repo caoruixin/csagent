@@ -8,14 +8,15 @@ form_context:
   ad_id: ''
   description: password failed
 persona:
-  user_goal_summary: 'User reports Account Support: password failed. Drift: soft_shift.'
+  user_goal_summary: 'User wants to reset their expired Gumtree account password. They attempted reset six times, failed,
+    and are confused by verification. Only uses desktop. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - you cancelled the link mprovided before I could create a new pass word
   - confusing.
-  - ok thank you
+  - it says reset failed 6 times now
   hidden_facts: []
   will_request_human_if: ''
 expected:

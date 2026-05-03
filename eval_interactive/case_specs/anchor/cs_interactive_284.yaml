@@ -8,15 +8,16 @@ form_context:
   ad_id: ''
   description: Unable to contact by phone appears to be incorrect number
 persona:
-  user_goal_summary: 'User reports Ad Support: Unable to contact by phone appears to be incorrect number. Drift: soft_shift.'
+  user_goal_summary: 'The user wants Gumtree to either notify the seller about their incorrect phone number, or remove the
+    ad listing. Drift: soft_shift.'
   frustration_level: mild
   verbosity: verbose
   drift_behavior: soft_shift
   seed_messages:
   - Just trying to contact regarding the car been there for 50+ days the number I tried to call and it says its not recognised
     is there an email address with the account I can send email to?
-  - The advertiser has entered the wrong phone number so you either help them or should remove the ad for them
   - Never mind you obviously can't help
+  - The advertiser has entered the wrong phone number so you either help them or should remove the ad for them
   hidden_facts: []
   will_request_human_if: ''
 expected:

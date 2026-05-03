@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Unable to access my account
 persona:
-  user_goal_summary: 'User reports Account Support: Unable to access my account. Drift: hard_shift.'
+  user_goal_summary: 'User wants to regain access to their original account after password reset fails, delete a duplicate
+    account created via Apple, and fix a listing issue where price field is missing in Household category. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,7 @@ persona:
   - I can’t get in to my account, when I reset password it fails saying there is a problem and try later. I logged on using
     Apple but that just opened a new account
   - '[EMAIL]. Not sure about the Apple ID, it was all automated'
-  - Thanks for your help 👍
+  - When posting and add there seems nowhere to put the price in
   hidden_facts: []
   will_request_human_if: ''
 expected:

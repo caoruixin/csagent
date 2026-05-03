@@ -8,7 +8,8 @@ form_context:
   ad_id: ''
   description: Apple airport max
 persona:
-  user_goal_summary: 'User reports Payments: Apple airport max. Drift: hard_shift.'
+  user_goal_summary: 'User sold Apple airport max on Gumtree (AD ID 1505741468) for £300, shipped item but never paid. Wants
+    Gumtree to investigate and help recover money or blacklist buyer. Drift: hard_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: hard_shift
@@ -16,7 +17,9 @@ persona:
   - Hi have you got a telephone number to call as I need to speak to someone asap
   - No I have not been paid by the buyer
   - Ok kindly investigate asap thanks
-  hidden_facts: []
+  hidden_facts:
+  - fact: 'AD ID: 1505741468'
+    disclose_when: when asked for the listing or AD ID
   will_request_human_if: bot cannot resolve after 2 attempts
 expected:
   outcome_class: escalate

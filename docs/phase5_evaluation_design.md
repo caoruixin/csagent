@@ -275,7 +275,7 @@ scoring:
     - tone_appropriateness
 ```
 
-**`escalation_trigger` enum (22 canonical values)** — source: `docs/customer_service_tool_spec_v0_2.yaml` lines 433-457, mirrored in `eval_interactive/eval_interactive/case_spec/schema.py` as `EscalationTrigger`. The CaseSpec validator enforces the should_escalate coupling: trigger required when `should_escalate=true`, must be null/empty when `should_escalate=false`.
+**`escalation_trigger` enum (23 canonical values)** — source: `docs/customer_service_tool_spec_v0_2.yaml` lines 433-457, mirrored in `eval_interactive/eval_interactive/case_spec/schema.py` as `EscalationTrigger`. The CaseSpec validator enforces the should_escalate coupling: trigger required when `should_escalate=true`, must be null/empty when `should_escalate=false`.
 
 | Group | Values |
 |-------|--------|
@@ -284,9 +284,11 @@ scoring:
 | Intake completion (per UC) | `intake_complete_for_uc_g`, `intake_complete_for_uc_h`, `intake_complete_for_uc_i`, `intake_complete_for_uc_j`, `intake_complete_for_uc_k` |
 | Trust & safety / appeals | `appeal_requires_human`, `incorrect_deletion_appeal`, `trust_safety_required`, `payment_dispute_detected` |
 | Compliance / identity | `account_compliance`, `gdpr_intake`, `identity_verification_required` |
-| Routing / infra | `out_of_scope`, `service_degraded`, `tool_scope_blocked` |
+| Routing / infra | `out_of_scope`, `service_degraded`, `tool_scope_blocked`, `runtime_error_threshold` |
 
-(The earlier "17 escalation reasons" wording in §4.1 Suite 2 reflected a legacy count; the canonical enum currently has 22 values. The five `intake_complete_for_uc_*` values are spelled out individually, and `service_degraded` / `turn_budget_exhausted` / `tool_scope_blocked` are infrastructure / guardrail-only triggers. Suites may exercise a subset.)
+`runtime_error_threshold` — Server-side AgentRunLoop hit ≥2 runtime ERRORs in the same phase; transient-failure escalation per phase0 §0.6 deviation 2026-05-01. Added 2026-05-02.
+
+(The earlier "17 escalation reasons" wording in §4.1 Suite 2 reflected a legacy count; the canonical enum currently has 23 values. The five `intake_complete_for_uc_*` values are spelled out individually, and `service_degraded` / `turn_budget_exhausted` / `tool_scope_blocked` / `runtime_error_threshold` are infrastructure / guardrail-only triggers. Suites may exercise a subset.)
 
 **Persona-only fields (do NOT contribute to scoring)**:
 
@@ -683,9 +685,9 @@ Wave A6.6 acceptance targets (unified override registry):
 
 | Test | What's Checked | Grader | Pass Criteria |
 |------|---------------|--------|---------------|
-| Action Selection Accuracy | Correct action type per phase + UC | Code (enum match) | ≥ 85% |
-| Termination Accuracy | Finish/continue/escalate at correct turn | Code | ≥ 90% |
-| Repeated Same Action | Same tool called >2 times consecutively | Code (sequence analysis) | Rate < 5% |
+| Tool Sequence Match (per UC × phase) | Bot's tool_calls timeline matches expected sequence per UC × phase (supersedes prior `Action Selection Accuracy` per §0.6 deviation 2026-05-01) | Code (sequence match) | ≥ 85% |
+| Correct Outcome | Bot reaches correct `containment_outcome` (resolve / escalate / abandon) at the correct turn (supersedes prior `Termination Accuracy` per §0.6 deviation 2026-05-01) | Code (outcome match) | ≥ 90% |
+| Repeated Same Tool Call | Same tool name appearing >2 times consecutively in tool_calls timeline | Code (sequence analysis) | Rate < 5% |
 | Unnecessary Clarification | `ask_user` when answer is available | Model (binary) | Rate < 10% |
 | Clarification Budget Enforcement | `clarification_count` never exceeds `max_clarification_rounds` (2) | Code | 100% enforcement |
 | FAQ Miss Budget Enforcement | `faq_miss_count ≥ 2` triggers escalation | Code | 100% enforcement |
@@ -719,6 +721,8 @@ Wave A6.6 acceptance targets (unified override registry):
 ---
 
 ## 5. Grader Specifications
+
+> **[DEVIATION 2026-05-01]** §5.4 L1 hard check `source_citation_present`、§6.6 control metrics、CaseSpec schema 中的 `allowed_actions` / `forbidden_actions` 字段已按 phase0 §0.6 deviation 调整，与新的 OpenAI-style tool-use 模型对齐。所有 L1/L2/L3 scorer 现在仅消费 tool_calls + 输出文本，不再读 action 词表。
 
 ### 5.1 Code-Based Graders
 
@@ -773,8 +777,14 @@ graders:
     
   source_citation_check:
     type: code
-    input: [action=answer_grounded, source_ids]
-    logic: len(source_ids) ≥ 1
+    input: [grounding_mode, user_message, tool_calls, source_ids]
+    logic: |
+      if grounding_mode == "faq_source_backed"
+         and user_message is non-empty
+         and "request_handover" not in [tc.name for tc in tool_calls]:
+        require len(source_ids) ≥ 1
+      # See §0.6 deviation: action=answer_grounded layer removed; grounded
+      # answer detection is now derived from tool_calls + user_message.
     
   phase_transition_validity:
     type: code
@@ -889,16 +899,20 @@ model_graders:
     type: model
     model: gemini-2.0-flash
     prompt_template: |
-      The bot ended the conversation. Was the user's issue actually resolved?
-      
+      The bot ended the conversation (containment_outcome=resolved, no further
+      tool_calls or user_message follow-up). Was the user's issue actually
+      resolved?
+
       Conversation: {transcript}
       Bot's final message: {final_message}
-      Action: finish
-      
+      Final tool_calls: {final_tool_calls}
+
       Was the user's issue genuinely resolved, or did the bot end prematurely?
       Answer: RESOLVED or PREMATURE_FINISH
       Reasoning:
     output: binary
+    # See §0.6 deviation: termination is now derived from outcome +
+    # tool_calls trace, not an `action=finish` enum.
 ```
 
 ### 5.3 Grader Calibration
@@ -929,9 +943,9 @@ Interactive evaluation scores each case through three explicit layers. This repl
 | `phase_transition_validity` | Only allowed FSM transitions occurred (checked via `phase_before`/`phase_after` per turn) | ControlGrader |
 | `no_critical_policy_violation` | Zero forbidden phrases, zero identity impersonation, zero false action/promise | PolicyGrader |
 | `no_pii_leakage` | No raw email/phone/card number patterns in bot responses | PolicyGrader |
-| `escalation_compliance` | If `should_escalate=true` AND `risk_level ∈ {critical, high}` → bot must have escalated, AND the bot's `request_handover.escalation_reason` must equal `expected.escalation_trigger` (canonical 22-value enum match). Wave B1.3 promoted this from a recall-only check to an enum-match check. | EscalationGrader |
+| `escalation_compliance` | If `should_escalate=true` AND `risk_level ∈ {critical, high}` → bot must have escalated, AND the bot's `request_handover.escalation_reason` must equal `expected.escalation_trigger` (canonical 22-value enum match). Wave B1.3 promoted this from a recall-only check to an enum-match check. **[2026-05-01 contract clarification — phase0 §0.6]** Both server-side write paths (the AgentRunLoop path and the legacy `ControlKernel.recordTurn()` / `forceEscalate()` path) now persist a `request_handover` entry into `bot_turns.tool_calls` via the shared `synthesizeHandoverToolCall` helper, so this check sees a uniform contract regardless of which path produced the escalation. | EscalationGrader |
 | `user_requested_escalation` | If user explicitly says "talk to agent/human" → bot must escalate within 1 turn | EscalationGrader |
-| `source_citation_present` | If `grounding_mode=faq_source_backed` and `action=answer_grounded` → `source_ids` non-empty | **NEW** |
+| `source_citation_present` | If `grounding_mode=faq_source_backed` AND `user_message` non-empty AND `tool_calls` does not contain `request_handover` → `source_ids` non-empty (i.e. any direct grounded answer must cite sources) | **NEW** |
 | `intake_no_knowledge_tool` | If `grounding_mode=fixed_script_only` → `search_knowledge`/`resolve_article` never called | **NEW** |
 | `no_stall` | Stall detector does not flag the session (see below) | **NEW** |
 | `no_human_only_tool_exposure` | Global, not per-case (Wave B1.2). Bot must never call OR verbally promise a human-only tool capability. Block-list comes from `policy_table.list_human_only_tools()` — currently `moderation_enforcement_action`, `send_followup_email_or_async_update`. Failure is zero-tolerance: any direct call OR verbal promise of the capability fails the case. | **NEW** |
@@ -961,7 +975,7 @@ stall_detector:
          c. If NO visible result within 2 turns → flag as STALL
     Session flagged if ANY turn produces a STALL.
   failure_tags:
-    - STALL_AFTER_TOOL_INTENT     # Promised action, no visible result
+    - STALL_AFTER_TOOL_INTENT     # Promise pattern in user_message, no visible result from tool_calls
     - TOOL_ERROR_NOT_SURFACED     # Tool errored but user not informed
     - PLACEHOLDER_WITHOUT_FOLLOWUP # Progress placeholder sent, no completion
 ```
@@ -1112,9 +1126,7 @@ claims that require grounding. Only score low when the bot makes factual claims 
 
 | Metric | Definition | Target | Source | **v8 HR Baseline** |
 |--------|-----------|--------|--------|-------------------|
-| `action_selection_accuracy` | Correct action per turn | ≥ 85% | Drift/Control dataset | — |
-| `termination_accuracy` | Correct finish/continue/escalate decision | ≥ 90% | Drift/Control dataset | — |
-| `repeated_same_action_rate` | >2 consecutive identical tool calls | < 5% | All datasets | — |
+| `repeated_same_tool_call_rate` | Same tool name appearing >2 times consecutively in a session's tool_calls timeline. Threshold: <5%. Source: tool_calls trace data. | < 5% | All datasets | — |
 | `premature_finish_rate` | Bot ends before resolution | < 3% | Golden + Drift | — |
 | `issue_loss_rate` | Original UC lost after drift | = 0% | Drift dataset | **HR: 90.2% sessions have drift; issue preservation is critical** |
 | `phase_transition_validity` | Only allowed FSM transitions | 100% | All datasets | — |
@@ -1138,7 +1150,7 @@ These 7 metrics provide the unified top-line view across both eval modes. They a
 | # | Metric | Definition | Target | Scoring Layer | Source Mode |
 |---|--------|-----------|--------|---------------|-------------|
 | 1 | `task_success_rate` | % cases with correct outcome: FAQ correctly contained OR intake/OOS correctly escalated | ≥ 80% | L2 Outcome | Both |
-| 2 | `stall_rate` | % sessions flagged by stall detector (bot promises action without visible result) | = 0% | L1 Hard | Interactive |
+| 2 | `stall_rate` | % sessions flagged by stall detector: bot's `user_message` contains a promise pattern (e.g. "let me check", "one moment") but the corresponding `tool_calls` produces no visible result (specific info / error explanation / handover / forward-moving question) within 2 turns. Detection is purely tool_calls + visible-result based. | = 0% | L1 Hard | Interactive |
 | 3 | `correct_tool_invocation_rate` | % cases with correct tool scope (no forbidden tools) AND correct sequence match | ≥ 90% | L1+L2 | Both |
 | 4 | `escalation_correctness_rate` | Composite: `escalation_recall` × `escalation_precision` × `escalation_timing` | ≥ 95% recall | L2 Outcome | Both |
 | 5 | `grounded_final_answer_rate` | FAQ answers have `source_ids`; intake UCs use fixed scripts only; no unsupported claims | ≥ 98% | L1+L3 | Both |
@@ -1176,7 +1188,7 @@ Any failure blocks release:
 |------|-----------|-------|
 | Active UC accuracy | ≥ 85% | Core E2E |
 | Candidate UC recall | ≥ 95% | Core E2E |
-| Repeated same action rate | < 5% | Control |
+| Repeated same tool-call rate | < 5% | Control |
 | Median turns for FAQ | ≤ 6 | Core E2E |
 | FAQ answer p95 | ≤ 5s | Runtime |
 | Summary quality score | ≥ 3.5 mean | Handover Contract |
@@ -1287,8 +1299,12 @@ turns:
 expected:
   active_use_case: UC-A-01
   outcome_class: resolve
-  allowed_actions: [retrieve_knowledge, answer_grounded, ask_user, finish]
-  forbidden_actions: [create_case_controlled]
+  # DEPRECATED 2026-05-01 (kept for backward-compat illustration only; scorers do not read these — see §0.6 deviation log):
+  # allowed_actions: [retrieve_knowledge, answer_grounded, ask_user, finish]
+  # forbidden_actions: [create_case_controlled]
+  # Canonical tool-centric replacements:
+  expected_tool_sequence: [search_knowledge]
+  forbidden_tools: [create_case_controlled]
   escalation_required: false
   expected_source_ids: [ka4P2000000xxxIAA]  # optional
 graders:
@@ -1445,7 +1461,7 @@ After launch, weekly sample of real Bot sessions replayed:
 
 | Failure | Detection | Severity | Response |
 |---------|-----------|----------|----------|
-| Repeated same action | Sequence analysis | Medium | Tighten `max_repeated_same_action` |
+| Repeated same tool call | Sequence analysis | Medium | Tighten `max_repeated_same_tool_call` |
 | Unnecessary clarification | Model grader | Low | Improve context projection |
 | Delayed escalation | Timing check | High | Fix trigger conditions |
 | Premature finish | Model grader | High | Adjust confirmation logic |
@@ -1482,9 +1498,9 @@ After launch, weekly sample of real Bot sessions replayed:
 
 | Failure | Detection | Severity | Response |
 |---------|-----------|----------|----------|
-| `STALL_AFTER_TOOL_INTENT` | Bot promised action (regex match), no visible result within 2 turns | **Critical** | Fix tool result surfacing in PhaseEvaluator |
+| `STALL_AFTER_TOOL_INTENT` | Bot's `user_message` contains a promise pattern (regex match) but no `tool_calls` produces a visible result within 2 turns | **Critical** | Fix tool result surfacing in PhaseEvaluator |
 | `TOOL_ERROR_NOT_SURFACED` | Tool returned error status but bot did not inform user or escalate | High | Add error handling path in ToolDispatcher |
-| `LOOP_DETECTED` | Repeated identical bot response ≥ 2 consecutive times | High | Fix `max_repeated_same_action` enforcement |
+| `LOOP_DETECTED` | Repeated identical bot response ≥ 2 consecutive times | High | Fix `max_repeated_same_tool_call` enforcement |
 | `PLACEHOLDER_WITHOUT_FOLLOWUP` | Progress placeholder sent (`"One moment..."`) but no completion message followed | High | Fix async completion in ProgressPlaceholderService |
 | `SILENT_TURN` | Bot returned empty or whitespace-only response | **Critical** | Fix LLM response parsing fallback |
 
@@ -1883,7 +1899,7 @@ gates:
   soft:
     active_uc_accuracy: 0.85
     candidate_uc_recall: 0.95
-    repeated_same_action_rate: 0.05
+    repeated_same_tool_call_rate: 0.05
     median_turns_faq: 6
     faq_answer_p95_ms: 5000
     summary_quality_mean: 3.5
@@ -2034,12 +2050,13 @@ Clarification Dataset (60)
 
 Drift/Control Dataset (30)
   └── Control Suite
-       ├── action_selection_accuracy (code)
-       ├── termination_accuracy (code)
-       ├── repeated_same_action_rate (code)
+       ├── repeated_same_tool_call_rate (code)
        ├── issue_loss (code)
        ├── phase_transition_validity (code)
        └── premature_finish (model)
+       # See §0.6 deviation 2026-05-01: action_selection_accuracy and
+       # termination_accuracy removed — superseded by L2 correct_outcome
+       # + tool_sequence_match.
 
 Intake/Tool Contract Dataset (50)
   └── Tool Contract Suite
@@ -2066,8 +2083,9 @@ expected:
   active_use_case: string          # e.g. UC-FP-01
   candidate_use_cases: [string]
   outcome_class: string            # resolve / escalate / abandon
-  allowed_actions: [string]
-  forbidden_actions: [string]
+  allowed_actions: [string]        # DEPRECATED 2026-05-01 — never read by scorers; tool-based checks (forbidden_tools, expected_tool_sequence) are canonical. Will be dropped from CaseSpec schema in next eval-harness release.
+  forbidden_actions: [string]      # DEPRECATED 2026-05-01 — same reason.
+  # See `phase0_normative_freeze.md` §0.6 deviation log.
   escalation_required: boolean
   escalation_reason: string        # if escalation_required=true
   expected_tool_sequence: [string]  # ordered list

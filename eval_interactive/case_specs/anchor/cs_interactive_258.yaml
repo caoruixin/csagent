@@ -8,15 +8,18 @@ form_context:
   ad_id: ''
   description: Can’t find my as
 persona:
-  user_goal_summary: 'User reports Account Support: Can’t find my as. Drift: soft_shift.'
+  user_goal_summary: 'User can’t find their paid advertisement, which they accessed via a payment confirmation link. The ad
+    is shown under an email the user does not recognize. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - Can’t find my advertisement
-  - I am following a link from confirmation of payment !!
-  - Trying that now one aec
-  hidden_facts: []
+  - It says I have no active ads
+  - Neither of these had anything to do with me !
+  hidden_facts:
+  - fact: The user received a payment confirmation email for ad ID 1509495375 and clicked the link.
+    disclose_when: when asked how they know about the ad or for proof of payment
   will_request_human_if: ''
 expected:
   outcome_class: resolve

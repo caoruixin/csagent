@@ -9,15 +9,15 @@ form_context:
   description: Hi, i just promote my ad with top ad $9.99,but it appear my bank account have 2 pending payment which is 11
     dec10.10 same time, can you help me to solve it, it may charge me twice, thx
 persona:
-  user_goal_summary: 'User reports Payments: Hi, i just promote my ad with top ad $9.99,but it appear my bank account have
-    2 pending payment which is 11 dec10.10 same time, can you help me to solve it, it may charge me twice, thx. Drift: soft_shift.'
+  user_goal_summary: 'User wants to resolve duplicate charge after promoting a Guinea pig ad for $9.99. They saw two pending
+    payments on their bank account and want the extra one refunded and an explanation. Drift: soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift
   seed_messages:
   - The ad id is [EMAIL]
   - I have 2 pending payment at my bank accoumt, i just promote once and i dont know why there is two payment
-  - Thx
+  - If the payment go tru,.pls help to.make.refind for.me
   hidden_facts: []
   will_request_human_if: ''
 expected:

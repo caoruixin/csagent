@@ -10,7 +10,9 @@ form_context:
     is in the search bar it's coming up with things all over the country. It's also not got the day it was posted anymore.
     Please can you help.  Thank y
 persona:
-  user_goal_summary: 'User reports Technical Support: Hi. Drift: soft_shift.'
+  user_goal_summary: 'User wants Gumtree''s search to show listings only in their local area (Worsley Manchester) and restore
+    the posting date display, as it used to work daily. They are frustrated because the issue has persisted for months. Drift:
+    soft_shift.'
   frustration_level: high
   verbosity: normal
   drift_behavior: soft_shift

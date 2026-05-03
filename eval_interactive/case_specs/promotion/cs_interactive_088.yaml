@@ -10,16 +10,16 @@ form_context:
     shouldn’t have been able to rate me at all; please could you delete their rating and feedback, thanks. The user’s name
     was ‘sam’.
 persona:
-  user_goal_summary: 'User reports Ratings & Reviews: Hi, I received a 1 star resting and negative feedback from a member,
-    but I never sold them anything, so they shouldn’t have been able to rate me at all; please could you delete their rating
-    and feedback, thanks. Drift: hard_shift.'
+  user_goal_summary: 'The user wants a 1-star review and negative feedback removed because they never sold anything to the
+    reviewer, so the review is fraudulent. Drift: hard_shift.'
   frustration_level: mild
   verbosity: normal
   drift_behavior: hard_shift
   seed_messages:
-  - Hi, ok, thanks.
-  - They say I cancelled an offer, that is a lie!
+  - 'It is fraudulent: to leave a review they should have bought the item, but they didn’t. So they clearly lied to be able
+    to leave it.'
   - No, I prefer you remove this fraudulent and harassing review
+  - They say I cancelled an offer, that is a lie!
   hidden_facts: []
   will_request_human_if: ''
 expected:
