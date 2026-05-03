@@ -310,7 +310,15 @@ class BatchExecutor:
                 for r in composite_score.l3_results
             ],
             "transcript": session_result.transcript,
-            "status": "PASS" if composite_score.case_passed else "FAIL",
+            # Codex (latest review) §1.1: per-case status must use the same
+            # gate as the summary pass count — case_passed AND composite>=0.7
+            # — so a low-composite case can never be serialised as "PASS"
+            # while the summary counts it as failed.
+            "status": (
+                "PASS"
+                if composite_score.case_passed and composite_score.composite >= 0.7
+                else "FAIL"
+            ),
             # Wave B1.4: surface lenient-mode contract warnings so they
             # show up in the per-case detail in reports without being
             # confused with bot misbehaviour.

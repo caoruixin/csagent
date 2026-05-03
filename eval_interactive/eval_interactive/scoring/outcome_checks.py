@@ -59,11 +59,21 @@ class OutcomeChecker:
     def run_checks(self, case_spec: CaseSpec, trace: TraceData) -> list[OutcomeCheckResult]:
         """Run all applicable outcome checks.
 
-        Only runs checks listed in ``case_spec.scoring.outcome_checks``.
+        Runs every check listed in ``case_spec.scoring.outcome_checks`` plus
+        any conditionally-mandatory check the composite scorer needs (Codex
+        finding 1.4): for ``outcome_class == "escalate"`` we always run
+        ``handover_completeness`` so the L2 gate has a real result to grade
+        instead of fail-closing on ``L2_GATE_MISSING:handover_completeness``.
+
         Aliases are deduplicated against their canonical check so the same
         underlying scorer never contributes to the L2 mean more than once.
         """
         configured = set(case_spec.scoring.outcome_checks)
+        # Auto-include conditionally-mandatory checks so the L2 gate logic in
+        # composite.py never has to fail-closed on a missing-but-configured
+        # check. Mirrors composite._conditional_mandatory_l2.
+        if case_spec.expected.outcome_class == "escalate":
+            configured.add("handover_completeness")
         results: list[OutcomeCheckResult] = []
 
         dispatch = {

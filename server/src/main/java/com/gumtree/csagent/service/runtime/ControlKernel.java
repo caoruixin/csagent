@@ -96,13 +96,15 @@ public class ControlKernel {
         if (exceededBudget.isPresent()) {
             log.info("Session {}: budget '{}' exceeded, forcing ESCALATE",
                     session.getSessionId(), exceededBudget.get());
-            // Canonicalize at the write site (Phase 2 #19): the legacy literal
-            // "budget_exceeded:<bucket>" is not in the 23-value escalation_reason
-            // enum and trips L1 trace_contract_escalation_reason. Map directly to
-            // the canonical "turn_budget_exhausted" (per-session limit semantics).
-            // The exceeded-bucket detail is preserved in the structured log line
-            // above and in BudgetChecker telemetry.
-            session.setEscalationReason("turn_budget_exhausted");
+            // Codex 1.5 / 1.9: pick the most specific canonical escalation_reason
+            // that matches the exceeded bucket, instead of always emitting the
+            // generic ``turn_budget_exhausted``. The Phase 2 §2.4 precedence has
+            // ``clarification_budget_exhausted`` and ``faq_miss_threshold_exceeded``
+            // strictly above the catch-all ``turn_budget_exhausted``; preserving
+            // the bucket → reason mapping here keeps the L1 escalation_compliance
+            // gate green for cases like cs_interactive_001 / 011 / 014 that were
+            // failing on a generic-vs-specific reason mismatch.
+            session.setEscalationReason(mapBudgetToEscalationReason(exceededBudget.get()));
             return forceEscalate(session, phaseBefore, userMessage, startTime,
                     "I've reached the limit of what I can assist with on this topic. " +
                     "Let me connect you with a human agent who can help further.");
@@ -266,6 +268,32 @@ public class ControlKernel {
         session.setUpdatedAt(OffsetDateTime.now());
 
         return new KernelResult(responseText, shouldEndChat, latencyMs);
+    }
+
+    /**
+     * Map a {@link BudgetChecker} bucket name to a canonical
+     * {@code escalation_reason} enum value. Aligned with the Phase 2 §2.4
+     * precedence ordering: clarification &gt; faq-miss &gt; per-path turn cap
+     * &gt; total turn cap. Buckets that do not have a more specific canonical
+     * representation fall back to {@code turn_budget_exhausted}, which is the
+     * spec-defined catch-all for control-plane stops.
+     */
+    static String mapBudgetToEscalationReason(String bucket) {
+        if (bucket == null) {
+            return "turn_budget_exhausted";
+        }
+        switch (bucket) {
+            case "max-clarification-rounds":
+                return "clarification_budget_exhausted";
+            case "max-faq-miss":
+                return "faq_miss_threshold_exceeded";
+            case "max-bot-turns-faq":
+            case "max-bot-turns-intake":
+            case "max-total-bot-turns":
+            case "max-repeated-same-action":
+            default:
+                return "turn_budget_exhausted";
+        }
     }
 
     private KernelResult forceEscalate(BotSession session, String phaseBefore,

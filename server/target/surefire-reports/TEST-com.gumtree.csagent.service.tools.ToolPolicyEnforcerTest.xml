@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.699" tests="73" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.11" tests="73" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="21"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -13,9 +13,8 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="GB"/>
     <property name="sun.boot.library.path" value="/opt/homebrew/Cellar/openjdk@21/21.0.10/libexec/openjdk.jdk/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/target/surefire/surefirebooter-20260502052404250_3.jar /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/target/surefire 2026-05-02T05-24-04_221-jvmRun1 surefire-20260502052404250_1tmp surefire_0-20260502052404250_2tmp"/>
+    <property name="sun.java.command" value="/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/target/surefire/surefirebooter-20260503160153124_3.jar /Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/target/surefire 2026-05-03T16-01-53_095-jvmRun1 surefire-20260503160153124_1tmp surefire_0-20260503160153124_2tmp"/>
     <property name="jdk.debug" value="release"/>
-    <property name="test" value="ToolDispatcherTest,ToolPolicyEnforcerTest,ContextProjectionBuilder*Test,PhaseEvaluator*Test"/>
     <property name="surefire.test.class.path" value="/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/target/test-classes:/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/target/classes:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-web/3.2.5/spring-boot-starter-web-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter/3.2.5/spring-boot-starter-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot/3.2.5/spring-boot-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-autoconfigure/3.2.5/spring-boot-autoconfigure-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-logging/3.2.5/spring-boot-starter-logging-3.2.5.jar:/Users/caoruixin/.m2/repository/ch/qos/logback/logback-classic/1.4.14/logback-classic-1.4.14.jar:/Users/caoruixin/.m2/repository/ch/qos/logback/logback-core/1.4.14/logback-core-1.4.14.jar:/Users/caoruixin/.m2/repository/org/apache/logging/log4j/log4j-to-slf4j/2.21.1/log4j-to-slf4j-2.21.1.jar:/Users/caoruixin/.m2/repository/org/apache/logging/log4j/log4j-api/2.21.1/log4j-api-2.21.1.jar:/Users/caoruixin/.m2/repository/org/slf4j/jul-to-slf4j/2.0.13/jul-to-slf4j-2.0.13.jar:/Users/caoruixin/.m2/repository/jakarta/annotation/jakarta.annotation-api/2.1.1/jakarta.annotation-api-2.1.1.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-json/3.2.5/spring-boot-starter-json-3.2.5.jar:/Users/caoruixin/.m2/repository/com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.15.4/jackson-datatype-jdk8-2.15.4.jar:/Users/caoruixin/.m2/repository/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.15.4/jackson-datatype-jsr310-2.15.4.jar:/Users/caoruixin/.m2/repository/com/fasterxml/jackson/module/jackson-module-parameter-names/2.15.4/jackson-module-parameter-names-2.15.4.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-tomcat/3.2.5/spring-boot-starter-tomcat-3.2.5.jar:/Users/caoruixin/.m2/repository/org/apache/tomcat/embed/tomcat-embed-core/10.1.20/tomcat-embed-core-10.1.20.jar:/Users/caoruixin/.m2/repository/org/apache/tomcat/embed/tomcat-embed-websocket/10.1.20/tomcat-embed-websocket-10.1.20.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-web/6.1.6/spring-web-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-beans/6.1.6/spring-beans-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-webmvc/6.1.6/spring-webmvc-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-aop/6.1.6/spring-aop-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-context/6.1.6/spring-context-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-expression/6.1.6/spring-expression-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-data-jpa/3.2.5/spring-boot-starter-data-jpa-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-aop/3.2.5/spring-boot-starter-aop-3.2.5.jar:/Users/caoruixin/.m2/repository/org/aspectj/aspectjweaver/1.9.22/aspectjweaver-1.9.22.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-jdbc/3.2.5/spring-boot-starter-jdbc-3.2.5.jar:/Users/caoruixin/.m2/repository/com/zaxxer/HikariCP/5.0.1/HikariCP-5.0.1.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-jdbc/6.1.6/spring-jdbc-6.1.6.jar:/Users/caoruixin/.m2/repository/org/hibernate/orm/hibernate-core/6.4.4.Final/hibernate-core-6.4.4.Final.jar:/Users/caoruixin/.m2/repository/jakarta/persistence/jakarta.persistence-api/3.1.0/jakarta.persistence-api-3.1.0.jar:/Users/caoruixin/.m2/repository/jakarta/transaction/jakarta.transaction-api/2.0.1/jakarta.transaction-api-2.0.1.jar:/Users/caoruixin/.m2/repository/org/jboss/logging/jboss-logging/3.5.3.Final/jboss-logging-3.5.3.Final.jar:/Users/caoruixin/.m2/repository/org/hibernate/common/hibernate-commons-annotations/6.0.6.Final/hibernate-commons-annotations-6.0.6.Final.jar:/Users/caoruixin/.m2/repository/io/smallrye/jandex/3.1.2/jandex-3.1.2.jar:/Users/caoruixin/.m2/repository/com/fasterxml/classmate/1.6.0/classmate-1.6.0.jar:/Users/caoruixin/.m2/repository/net/bytebuddy/byte-buddy/1.14.13/byte-buddy-1.14.13.jar:/Users/caoruixin/.m2/repository/org/glassfish/jaxb/jaxb-runtime/4.0.5/jaxb-runtime-4.0.5.jar:/Users/caoruixin/.m2/repository/org/glassfish/jaxb/jaxb-core/4.0.5/jaxb-core-4.0.5.jar:/Users/caoruixin/.m2/repository/org/eclipse/angus/angus-activation/2.0.2/angus-activation-2.0.2.jar:/Users/caoruixin/.m2/repository/org/glassfish/jaxb/txw2/4.0.5/txw2-4.0.5.jar:/Users/caoruixin/.m2/repository/com/sun/istack/istack-commons-runtime/4.1.2/istack-commons-runtime-4.1.2.jar:/Users/caoruixin/.m2/repository/jakarta/inject/jakarta.inject-api/2.0.1/jakarta.inject-api-2.0.1.jar:/Users/caoruixin/.m2/repository/org/antlr/antlr4-runtime/4.13.0/antlr4-runtime-4.13.0.jar:/Users/caoruixin/.m2/repository/org/springframework/data/spring-data-jpa/3.2.5/spring-data-jpa-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/data/spring-data-commons/3.2.5/spring-data-commons-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-orm/6.1.6/spring-orm-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-tx/6.1.6/spring-tx-6.1.6.jar:/Users/caoruixin/.m2/repository/org/slf4j/slf4j-api/2.0.13/slf4j-api-2.0.13.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-aspects/6.1.6/spring-aspects-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-data-redis/3.2.5/spring-boot-starter-data-redis-3.2.5.jar:/Users/caoruixin/.m2/repository/io/lettuce/lettuce-core/6.3.2.RELEASE/lettuce-core-6.3.2.RELEASE.jar:/Users/caoruixin/.m2/repository/io/netty/netty-common/4.1.109.Final/netty-common-4.1.109.Final.jar:/Users/caoruixin/.m2/repository/io/netty/netty-handler/4.1.109.Final/netty-handler-4.1.109.Final.jar:/Users/caoruixin/.m2/repository/io/netty/netty-resolver/4.1.109.Final/netty-resolver-4.1.109.Final.jar:/Users/caoruixin/.m2/repository/io/netty/netty-buffer/4.1.109.Final/netty-buffer-4.1.109.Final.jar:/Users/caoruixin/.m2/repository/io/netty/netty-transport-native-unix-common/4.1.109.Final/netty-transport-native-unix-common-4.1.109.Final.jar:/Users/caoruixin/.m2/repository/io/netty/netty-codec/4.1.109.Final/netty-codec-4.1.109.Final.jar:/Users/caoruixin/.m2/repository/io/netty/netty-transport/4.1.109.Final/netty-transport-4.1.109.Final.jar:/Users/caoruixin/.m2/repository/io/projectreactor/reactor-core/3.6.5/reactor-core-3.6.5.jar:/Users/caoruixin/.m2/repository/org/reactivestreams/reactive-streams/1.0.4/reactive-streams-1.0.4.jar:/Users/caoruixin/.m2/repository/org/springframework/data/spring-data-redis/3.2.5/spring-data-redis-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/data/spring-data-keyvalue/3.2.5/spring-data-keyvalue-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-oxm/6.1.6/spring-oxm-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-context-support/6.1.6/spring-context-support-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-validation/3.2.5/spring-boot-starter-validation-3.2.5.jar:/Users/caoruixin/.m2/repository/org/apache/tomcat/embed/tomcat-embed-el/10.1.20/tomcat-embed-el-10.1.20.jar:/Users/caoruixin/.m2/repository/org/hibernate/validator/hibernate-validator/8.0.1.Final/hibernate-validator-8.0.1.Final.jar:/Users/caoruixin/.m2/repository/jakarta/validation/jakarta.validation-api/3.0.2/jakarta.validation-api-3.0.2.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-actuator/3.2.5/spring-boot-starter-actuator-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-actuator-autoconfigure/3.2.5/spring-boot-actuator-autoconfigure-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-actuator/3.2.5/spring-boot-actuator-3.2.5.jar:/Users/caoruixin/.m2/repository/io/micrometer/micrometer-observation/1.12.5/micrometer-observation-1.12.5.jar:/Users/caoruixin/.m2/repository/io/micrometer/micrometer-commons/1.12.5/micrometer-commons-1.12.5.jar:/Users/caoruixin/.m2/repository/io/micrometer/micrometer-jakarta9/1.12.5/micrometer-jakarta9-1.12.5.jar:/Users/caoruixin/.m2/repository/org/flywaydb/flyway-core/9.22.3/flyway-core-9.22.3.jar:/Users/caoruixin/.m2/repository/com/fasterxml/jackson/dataformat/jackson-dataformat-toml/2.15.4/jackson-dataformat-toml-2.15.4.jar:/Users/caoruixin/.m2/repository/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar:/Users/caoruixin/.m2/repository/org/postgresql/postgresql/42.6.2/postgresql-42.6.2.jar:/Users/caoruixin/.m2/repository/org/checkerframework/checker-qual/3.31.0/checker-qual-3.31.0.jar:/Users/caoruixin/.m2/repository/com/pgvector/pgvector/0.1.6/pgvector-0.1.6.jar:/Users/caoruixin/.m2/repository/org/jsoup/jsoup/1.17.2/jsoup-1.17.2.jar:/Users/caoruixin/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.15.4/jackson-databind-2.15.4.jar:/Users/caoruixin/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.15.4/jackson-annotations-2.15.4.jar:/Users/caoruixin/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.15.4/jackson-core-2.15.4.jar:/Users/caoruixin/.m2/repository/com/fasterxml/jackson/dataformat/jackson-dataformat-yaml/2.15.4/jackson-dataformat-yaml-2.15.4.jar:/Users/caoruixin/.m2/repository/org/yaml/snakeyaml/2.2/snakeyaml-2.2.jar:/Users/caoruixin/.m2/repository/org/projectlombok/lombok/1.18.32/lombok-1.18.32.jar:/Users/caoruixin/.m2/repository/io/micrometer/micrometer-registry-prometheus/1.12.5/micrometer-registry-prometheus-1.12.5.jar:/Users/caoruixin/.m2/repository/io/micrometer/micrometer-core/1.12.5/micrometer-core-1.12.5.jar:/Users/caoruixin/.m2/repository/org/hdrhistogram/HdrHistogram/2.1.12/HdrHistogram-2.1.12.jar:/Users/caoruixin/.m2/repository/org/latencyutils/LatencyUtils/2.0.3/LatencyUtils-2.0.3.jar:/Users/caoruixin/.m2/repository/io/prometheus/simpleclient_common/0.16.0/simpleclient_common-0.16.0.jar:/Users/caoruixin/.m2/repository/io/prometheus/simpleclient/0.16.0/simpleclient-0.16.0.jar:/Users/caoruixin/.m2/repository/io/prometheus/simpleclient_tracer_otel/0.16.0/simpleclient_tracer_otel-0.16.0.jar:/Users/caoruixin/.m2/repository/io/prometheus/simpleclient_tracer_common/0.16.0/simpleclient_tracer_common-0.16.0.jar:/Users/caoruixin/.m2/repository/io/prometheus/simpleclient_tracer_otel_agent/0.16.0/simpleclient_tracer_otel_agent-0.16.0.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-starter-test/3.2.5/spring-boot-starter-test-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-test/3.2.5/spring-boot-test-3.2.5.jar:/Users/caoruixin/.m2/repository/org/springframework/boot/spring-boot-test-autoconfigure/3.2.5/spring-boot-test-autoconfigure-3.2.5.jar:/Users/caoruixin/.m2/repository/com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar:/Users/caoruixin/.m2/repository/jakarta/xml/bind/jakarta.xml.bind-api/4.0.2/jakarta.xml.bind-api-4.0.2.jar:/Users/caoruixin/.m2/repository/jakarta/activation/jakarta.activation-api/2.1.3/jakarta.activation-api-2.1.3.jar:/Users/caoruixin/.m2/repository/net/minidev/json-smart/2.5.1/json-smart-2.5.1.jar:/Users/caoruixin/.m2/repository/net/minidev/accessors-smart/2.5.1/accessors-smart-2.5.1.jar:/Users/caoruixin/.m2/repository/org/ow2/asm/asm/9.6/asm-9.6.jar:/Users/caoruixin/.m2/repository/org/assertj/assertj-core/3.24.2/assertj-core-3.24.2.jar:/Users/caoruixin/.m2/repository/org/awaitility/awaitility/4.2.1/awaitility-4.2.1.jar:/Users/caoruixin/.m2/repository/org/hamcrest/hamcrest/2.2/hamcrest-2.2.jar:/Users/caoruixin/.m2/repository/org/junit/jupiter/junit-jupiter/5.10.2/junit-jupiter-5.10.2.jar:/Users/caoruixin/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.10.2/junit-jupiter-api-5.10.2.jar:/Users/caoruixin/.m2/repository/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/Users/caoruixin/.m2/repository/org/junit/platform/junit-platform-commons/1.10.2/junit-platform-commons-1.10.2.jar:/Users/caoruixin/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/caoruixin/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.10.2/junit-jupiter-params-5.10.2.jar:/Users/caoruixin/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.10.2/junit-jupiter-engine-5.10.2.jar:/Users/caoruixin/.m2/repository/org/junit/platform/junit-platform-engine/1.10.2/junit-platform-engine-1.10.2.jar:/Users/caoruixin/.m2/repository/org/mockito/mockito-core/5.7.0/mockito-core-5.7.0.jar:/Users/caoruixin/.m2/repository/net/bytebuddy/byte-buddy-agent/1.14.13/byte-buddy-agent-1.14.13.jar:/Users/caoruixin/.m2/repository/org/objenesis/objenesis/3.3/objenesis-3.3.jar:/Users/caoruixin/.m2/repository/org/mockito/mockito-junit-jupiter/5.7.0/mockito-junit-jupiter-5.7.0.jar:/Users/caoruixin/.m2/repository/org/skyscreamer/jsonassert/1.5.1/jsonassert-1.5.1.jar:/Users/caoruixin/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-core/6.1.6/spring-core-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-jcl/6.1.6/spring-jcl-6.1.6.jar:/Users/caoruixin/.m2/repository/org/springframework/spring-test/6.1.6/spring-test-6.1.6.jar:/Users/caoruixin/.m2/repository/org/xmlunit/xmlunit-core/2.9.1/xmlunit-core-2.9.1.jar:"/>
     <property name="sun.cpu.endian" value="little"/>
     <property name="user.home" value="/Users/caoruixin"/>
@@ -30,7 +29,7 @@
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/target/surefire/surefirebooter-20260502052404250_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/target/surefire/surefirebooter-20260503160153124_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="21.0.10"/>
     <property name="user.name" value="caoruixin"/>
@@ -57,304 +56,299 @@
     <property name="sun.io.unicode.encoding" value="UnicodeBig"/>
     <property name="java.class.version" value="65.0"/>
   </properties>
-  <testcase name="isToolAllowed_createCaseControlled_ucI_shouldBlock" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.562">
-    <system-out><![CDATA[05:24:05.046 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
-]]></system-out>
-    <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (/Users/caoruixin/.m2/repository/net/bytebuddy/byte-buddy-agent/1.14.13/byte-buddy-agent-1.14.13.jar)
-WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
-WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
-WARNING: Dynamic loading of agents will be disallowed by default in a future release
-]]></system-err>
-  </testcase>
-  <testcase name="isToolAllowed_unknownTool_shouldBlock" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.003">
-    <system-out><![CDATA[05:24:05.056 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
-05:24:05.057 [main] WARN com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- No policy found for tool 'nonexistent_tool', blocking by default
+  <testcase name="isToolAllowed_createCaseControlled_ucI_shouldBlock" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.016">
+    <system-out><![CDATA[16:01:54.535 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.008">
-    <system-out><![CDATA[05:24:05.069 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_unknownTool_shouldBlock" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
+    <system-out><![CDATA[16:01:54.537 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+16:01:54.537 [main] WARN com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- No policy found for tool 'nonexistent_tool', blocking by default
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.078 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.005">
+    <system-out><![CDATA[16:01:54.546 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+]]></system-out>
+  </testcase>
+  <testcase name="isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.552 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.080 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.554 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.082 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.555 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.085 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.557 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.088 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.559 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.090 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.560 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.092 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.562 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.094 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.563 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.095 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.564 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.097 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.565 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_resolveArticle_faqUcs_shouldAllow(String)[7]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.099 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.567 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="getToolType_runtimeOnlyTool_shouldReturnRuntimeOnly" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.100 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="getToolType_runtimeOnlyTool_shouldReturnRuntimeOnly" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.568 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_getCustomerContext_blockedUcs_shouldBlock(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.103 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.569 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_getCustomerContext_blockedUcs_shouldBlock(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.104 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.571 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_getCustomerContext_blockedUcs_shouldBlock(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.105 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.572 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_getCustomerContext_blockedUcs_shouldBlock(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.003">
-    <system-out><![CDATA[05:24:05.109 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_getCustomerContext_blockedUcs_shouldBlock(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.573 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_getCustomerContext_blockedUcs_shouldBlock(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.111 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.574 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_getCustomerContext_blockedUcs_shouldBlock(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.114 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_getCustomerContext_blockedUcs_shouldBlock(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.576 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_nullUc_shouldAllow" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.115 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.577 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_resolveArticle_intakeUcs_shouldBlock(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.117 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.578 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_resolveArticle_intakeUcs_shouldBlock(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.118 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_resolveArticle_intakeUcs_shouldBlock(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
+    <system-out><![CDATA[16:01:54.579 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_resolveArticle_intakeUcs_shouldBlock(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.120 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_resolveArticle_intakeUcs_shouldBlock(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
+    <system-out><![CDATA[16:01:54.580 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_resolveArticle_intakeUcs_shouldBlock(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.121 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.581 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_resolveArticle_intakeUcs_shouldBlock(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.122 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.582 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="emitBlockedEvent_shouldPersistEvent" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.009">
-    <system-out><![CDATA[05:24:05.123 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
-05:24:05.129 [main] WARN com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- TOOL_SCOPE_BLOCKED: tool='search_knowledge', activeUC='UC-G', sessionId='session-123'
+  <testcase name="emitBlockedEvent_shouldPersistEvent" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.583 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+16:01:54.584 [main] WARN com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- TOOL_SCOPE_BLOCKED: tool='search_knowledge', activeUC='UC-G', sessionId='session-123'
 ]]></system-out>
   </testcase>
   <testcase name="getVisibleToolsForUc_faqUc_shouldIncludeSearchKnowledge" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.132 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.585 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="getVisibleToolsForUc_shouldNeverIncludeRuntimeOnlyTools" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.134 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.586 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_createCaseControlled_allowedUcs_shouldAllow(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.135 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.587 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_createCaseControlled_allowedUcs_shouldAllow(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.137 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.588 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_createCaseControlled_allowedUcs_shouldAllow(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.138 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.589 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_searchKnowledge_nullUc_shouldBlock" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.139 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.590 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="getVisibleToolsForUc_intakeUc_shouldExcludeSearchKnowledge" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.140 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.591 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.141 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.592 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.142 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.593 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.143 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.594 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.145 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.595 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.146 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.596 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.147 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.598 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[7]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.148 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.599 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[8]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.149 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.600 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[9]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.150 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.601 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[10]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.151 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.602 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[11]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.152 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.603 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_requestHandover_allUcs_shouldAllow(String)[12]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.153 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.604 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.154 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
+    <system-out><![CDATA[16:01:54.605 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.155 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.607 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.156 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.608 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.157 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.609 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.158 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.610 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.159 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.611 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String)[7]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.160 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.611 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="emitBlockedEvent_nullUc_shouldHandleGracefully" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.002">
-    <system-out><![CDATA[05:24:05.161 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
-05:24:05.161 [main] WARN com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- TOOL_SCOPE_BLOCKED: tool='some_tool', activeUC='null', sessionId='session-123'
+  <testcase name="emitBlockedEvent_nullUc_shouldHandleGracefully" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.612 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+16:01:54.613 [main] WARN com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- TOOL_SCOPE_BLOCKED: tool='some_tool', activeUC='null', sessionId='session-123'
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.163 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
+    <system-out><![CDATA[16:01:54.614 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.164 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
+    <system-out><![CDATA[16:01:54.615 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.164 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.616 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.165 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.617 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.166 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.618 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.167 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.619 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[7]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.168 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[7]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
+    <system-out><![CDATA[16:01:54.619 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[8]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.169 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.620 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_createCaseControlled_otherUcs_shouldBlock(String)[9]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.170 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.621 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="getToolType_agentVisibleTool_shouldReturnAgentVisible" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.171 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="getToolType_agentVisibleTool_shouldReturnAgentVisible" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.622 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[1]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.172 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.623 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.173 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[2]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.624 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.174 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[3]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.625 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.175 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[4]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.626 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
   <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[5]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.176 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+    <system-out><![CDATA[16:01:54.626 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.177 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_getCustomerContext_allowedUcs_shouldAllow(String)[6]" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
+    <system-out><![CDATA[16:01:54.627 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="getToolType_unknownTool_shouldReturnNull" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
-    <system-out><![CDATA[05:24:05.177 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="getToolType_unknownTool_shouldReturnNull" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
+    <system-out><![CDATA[16:01:54.628 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
-  <testcase name="isToolAllowed_recordOutcome_anyUc_shouldAllow" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.0">
-    <system-out><![CDATA[05:24:05.178 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
+  <testcase name="isToolAllowed_recordOutcome_anyUc_shouldAllow" classname="com.gumtree.csagent.service.tools.ToolPolicyEnforcerTest" time="0.001">
+    <system-out><![CDATA[16:01:54.629 [main] INFO com.gumtree.csagent.service.tools.ToolPolicyEnforcer -- Loaded tool policies for 11 tools
 ]]></system-out>
   </testcase>
 </testsuite>

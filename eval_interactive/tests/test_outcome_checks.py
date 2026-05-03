@@ -165,14 +165,18 @@ class TestCorrectOutcome:
         case = _make_case_spec(outcome_checks=["correct_outcome"], outcome_class="escalate")
         trace = _make_trace(containment_outcome="escalated")
         results = checker.run_checks(case, trace)
-        assert results[0].score == 1.0
+        # Codex 1.4: escalate cases also auto-run handover_completeness; look
+        # up correct_outcome by name rather than by index.
+        co = next(r for r in results if r.check_name == "correct_outcome")
+        assert co.score == 1.0
 
     def test_fail_resolve_but_escalated(self):
         checker = OutcomeChecker()
         case = _make_case_spec(outcome_checks=["correct_outcome"], outcome_class="resolve")
         trace = _make_trace(containment_outcome="escalated")
         results = checker.run_checks(case, trace)
-        assert results[0].score == 0.0
+        co = next(r for r in results if r.check_name == "correct_outcome")
+        assert co.score == 0.0
 
 
 class TestToolSequenceMatch:

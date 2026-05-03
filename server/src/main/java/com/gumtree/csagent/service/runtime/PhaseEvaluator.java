@@ -130,6 +130,47 @@ public class PhaseEvaluator {
     }
 
     /**
+     * Pick the canonical escalation_reason for a {@link TerminalOutcome#MAX_STEPS}
+     * exit. See the call site for rationale (Codex 1.9). Falls back to
+     * {@code turn_budget_exhausted} when nothing more specific applies.
+     *
+     * <p>Heuristics, in priority order:
+     * <ol>
+     *   <li>Plan is INTAKE (UC-G/H/I/J/K) → {@code incomplete_intake} (the loop
+     *       exhausted without collecting all required fields).</li>
+     *   <li>Loop ran search_knowledge at least once but produced no successful
+     *       FAQ answer → {@code faq_miss_threshold_exceeded}.</li>
+     *   <li>Loop produced clarification turns (CLARIFICATION_NEEDED) without
+     *       converging → {@code clarification_budget_exhausted}.</li>
+     *   <li>Otherwise → {@code turn_budget_exhausted}.</li>
+     * </ol>
+     */
+    String resolveMaxStepsReason(PhasePlan plan,
+                                 AgentRunResult result,
+                                 BotSession session) {
+        if (plan != null && plan.useCase() != null && INTAKE_UCS.contains(plan.useCase())) {
+            return "incomplete_intake";
+        }
+        boolean searchedKnowledge = false;
+        if (result != null && result.toolEvents() != null) {
+            for (ToolEvent te : result.toolEvents()) {
+                if ("search_knowledge".equals(te.toolName())) {
+                    searchedKnowledge = true;
+                    break;
+                }
+            }
+        }
+        if (searchedKnowledge) {
+            return "faq_miss_threshold_exceeded";
+        }
+        if (session != null && session.getClarificationCount() != null
+                && session.getClarificationCount() > 0) {
+            return "clarification_budget_exhausted";
+        }
+        return "turn_budget_exhausted";
+    }
+
+    /**
      * Build the INTAKE system instruction for a given UC. Mirrors the legacy
      * {@code resolveIntake} prompt pattern: acknowledge with empathy, collect
      * any missing required details, hand over to the named team, and (for
@@ -147,10 +188,9 @@ public class PhaseEvaluator {
         sb.append("(3) confirm the team handling this is ").append(teamName)
                 .append(" and SLA is ").append(slaHours).append(" hours, ");
         sb.append("(4) call request_handover when intake is complete.");
-        if (Set.of("UC-H", "UC-J", "UC-K").contains(uc)) {
-            sb.append(" For this issue type, you MUST call create_case_controlled BEFORE request_handover ");
-            sb.append("so the human team has a tracking case.");
-        }
+        // Codex 1.8: case creation is a runtime-only side effect; do NOT instruct
+        // the LLM to order it. The runtime creates the tracking case
+        // deterministically before handover for UC-H/J/K.
         sb.append(" Do not attempt to resolve the issue yourself — you are an intake agent only.");
         return sb.toString();
     }
@@ -389,10 +429,15 @@ public class PhaseEvaluator {
 
         // D16.D: ESCALATE plan — finalize handover to a human agent.
         if ("ESCALATE".equals(phase)) {
-            boolean isIntakeUc = activeUc != null && INTAKE_UCS.contains(activeUc);
-            List<String> tools = isIntakeUc
-                    ? List.of("request_handover", "create_case_controlled", "record_outcome")
-                    : List.of("request_handover", "record_outcome");
+            // Codex 1.8 / customer_service_tool_spec_v0_2.yaml: create_case_controlled
+            // is a ``runtime_only`` tool (visibility: runtime_only). The runtime
+            // already creates the case deterministically via
+            // ControlKernel.createCaseIfNeeded for forced escalations and
+            // PhaseEvaluator.createCaseIfAllowed for intake completion, so the LLM
+            // must not be permitted to order this side effect. Drop it from the
+            // LLM-visible tool list. record_outcome stays so the agent can
+            // close out the session.
+            List<String> tools = List.of("request_handover", "record_outcome");
             return PhasePlan.builder()
                     .phase("ESCALATE")
                     .useCase(activeUc)
@@ -430,11 +475,14 @@ public class PhaseEvaluator {
             }
             String teamName = UC_TEAM_NAME.getOrDefault(activeUc, "specialist");
 
-            // UC-H/J/K need case_controlled creation; UC-G/I just handover.
+            // Codex 1.8: case creation is runtime-only (tool_spec
+            // visibility: runtime_only). The deterministic
+            // PhaseEvaluator.createCaseIfAllowed / ControlKernel.createCaseIfNeeded
+            // hooks already create UC-H/J/K cases before handover, so the LLM
+            // must never be permitted to call create_case_controlled. Both UCs
+            // and UC-G/I therefore expose only request_handover here.
             boolean needsCase = Set.of("UC-H", "UC-J", "UC-K").contains(activeUc);
-            List<String> tools = needsCase
-                    ? List.of("request_handover", "create_case_controlled")
-                    : List.of("request_handover");
+            List<String> tools = List.of("request_handover");
 
             return PhasePlan.builder()
                     .phase("RESOLVE")
@@ -455,7 +503,8 @@ public class PhaseEvaluator {
                                     + "Your job is to collect required information and escalate to the human "
                                     + teamName + " team. "
                                     + (needsCase
-                                            ? "Before escalating, call create_case_controlled to create a tracking case."
+                                            ? "A tracking case will be created automatically by the runtime when you escalate; "
+                                              + "you do not need to call any case-creation tool yourself."
                                             : ""))
                     .escalationPolicy(
                             "Escalate via request_handover with reason='" + intakeCompleteTrigger(activeUc) + "' "
@@ -564,11 +613,24 @@ public class PhaseEvaluator {
                         result.escalationReason().orElse("service_degraded"));
                 return new PhaseTransitionDecision("ESCALATE", msg, reason, "agent_escalated");
             }
-            case MAX_STEPS:
+            case MAX_STEPS: {
+                // Codex 1.9: ``turn_budget_exhausted`` masks the more specific
+                // semantic reason. When the agent loop ran out of steps it is
+                // almost always one of:
+                //   - FAQ plans where retrieval did not return a usable answer
+                //     after multiple search_knowledge attempts → faq_miss_threshold_exceeded
+                //   - DISCOVER / RESOLVE plans where the agent kept asking the
+                //     user clarifying questions but never converged → clarification_budget_exhausted
+                //   - INTAKE plans where required fields could not be collected
+                //     → incomplete_intake
+                // Fall back to ``turn_budget_exhausted`` only when none of the
+                // above apply.
+                String maxStepsReason = resolveMaxStepsReason(plan, result, session);
                 return new PhaseTransitionDecision("ESCALATE",
                         "I'm having difficulty resolving this. Let me connect you with a specialist.",
-                        "turn_budget_exhausted",
+                        maxStepsReason,
                         "max_steps_exceeded");
+            }
             case ERROR: {
                 // Step 3b: tolerate transient runtime errors. Only escalate on
                 // the *second* consecutive ERROR within the same phase; the

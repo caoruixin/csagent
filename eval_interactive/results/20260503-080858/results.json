@@ -1,0 +1,1781 @@
+{
+  "run_id": "20260503-080858",
+  "label": "smoke-20260503-1608",
+  "timestamp": "2026-05-03T08:08:58.195592+00:00",
+  "elapsed_ms": 227966,
+  "summary": {
+    "total_cases": 14,
+    "passed_cases": 1,
+    "failed_cases": 13,
+    "task_success_rate": 0.0714,
+    "stall_rate": 0.0714,
+    "mean_composite_score": 0.0667,
+    "mean_outcome_score": 0.5619,
+    "mean_judge_score": 0.6667,
+    "per_uc_breakdown": {
+      "UC-C": {
+        "count": 4,
+        "passed": 0,
+        "failed": 4,
+        "mean_composite": 0.0
+      },
+      "UC-D": {
+        "count": 2,
+        "passed": 0,
+        "failed": 2,
+        "mean_composite": 0.0
+      },
+      "UC-FP": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-I": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-J": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-K": {
+        "count": 1,
+        "passed": 1,
+        "failed": 0,
+        "mean_composite": 0.9333
+      },
+      "UC-E": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-A": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-B": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      },
+      "UC-F": {
+        "count": 1,
+        "passed": 0,
+        "failed": 1,
+        "mean_composite": 0.0
+      }
+    },
+    "escalation_correctness": 0.7143,
+    "policy_compliance_rate": 1.0,
+    "mean_turns_to_resolution": 1.57
+  },
+  "case_results": [
+    {
+      "case_id": "cs_interactive_001",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "7a554f8f-26aa-4d63-9bc8-dc5c519c9715",
+      "total_turns": 2,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 31903,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.6667,
+      "judge_score": 0.8,
+      "failure_tags": [
+        "L1:escalation_compliance",
+        "L2_GATE:correct_uc",
+        "L2_GATE_MISSING:handover_completeness",
+        "L2:correct_uc"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-B",
+      "escalation_reason": "faq_miss_threshold_exceeded",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "escalation_reason mismatch: expected='clarification_budget_exhausted', actual='faq_miss_threshold_exceeded'"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-C, actual=UC-B"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response in Turn 2 is a procedural escalation ('Let me connect you with a specialist') with no factual claims about the user's account, email configuration, or system behavior. It makes no assertions that require grounding in sources. The presence of source citations does not affect the score since no unsupported factual claims were made."
+        },
+        {
+          "dimension": "relevance",
+          "score": 3.0,
+          "reasoning": "The bot's first response misinterprets the user's core concern — the user explicitly states they log in fine and are confused about *two emails appearing on their account* and which one receives messages. The bot asks about login trouble, message receipt, or email management, but the user already clarified they’re not having login issues and specifically want to understand the purpose/validity of the two displayed emails. The second response abandons clarification and escalates without addressing the stated confusion about email visibility and message routing, missing the opportunity to explain how multiple emails might appear (e.g., primary vs. secondary, recovery email) or how message delivery is determined."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot opens with empathy and a warm, professional tone ('Hi Benjamin, I understand this is confusing'), which aligns well with the user's mild frustration. It asks a clear, helpful clarifying question. However, the second response — 'I'm having difficulty resolving this' — subtly shifts responsibility to the bot in a way that may unintentionally sound uncertain or underconfident, and the abrupt transition to escalation ('Let me connect you with a specialist') lacks a brief acknowledgment of the user’s specific concern (two emails visible on account) or reassurance that the issue is being taken seriously. This minor tonal misstep prevents a perfect score."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "I am confused i see you guys both of my email but when i log in i use [EMAIL]. it's really confused me",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Benjamin, I understand this is confusing. To help me direct you to the right support, could you clarify: are you having trouble logging in, receiving messages, or managing which email is linked to your account?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "I'm not having trouble logging in — I log in fine with [EMAIL]. But I see two different emails on my account, and I'm not sure which one I should use to receive messages.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "I'm having difficulty resolving this. Let me connect you with a specialist.",
+          "turn_index": 2
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_002",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "d5bdcfd1-8ad1-47b9-8882-05cd8154e33f",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 17516,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.6667,
+      "judge_score": 0.8,
+      "failure_tags": [
+        "L1:escalation_compliance",
+        "L2_GATE:correct_uc",
+        "L2_GATE_MISSING:handover_completeness",
+        "L2:correct_uc",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-F",
+      "escalation_reason": "faq_miss_threshold_exceeded",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "escalation_reason mismatch: expected='user_distress', actual='faq_miss_threshold_exceeded'"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-C, actual=UC-F"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response is a procedural escalation message ('Let me connect you with a specialist') with no factual claims about wait times, resolution processes, policies, or the user's issue. Since there are no factual assertions requiring grounding, no source citations are needed, and the response appropriately avoids making unsupported claims."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The user's core concern is the duration of wait time to resolve an ongoing issue ('How long do I have to wait to sort this out?'). The bot acknowledges the difficulty in resolving it and immediately escalates to a specialist—effectively addressing the implied need for timely resolution by initiating faster human assistance. This directly responds to the urgency and frustration expressed in 'It's been this way since day 1.' No irrelevant information is provided."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot's response is abrupt and lacks empathy—it acknowledges difficulty but offers no validation of the customer's mild frustration or explanation for the delay. Phrases like 'I'm having difficulty resolving this' sound self-focused and unhelpful; it fails to reassure, apologize, or set expectations. Jumping straight to escalation without attempting resolution or expressing accountability undermines professionalism."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "How long do I have to wait to sort this out? Its been this way since day 1.",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I'm having difficulty resolving this. Let me connect you with a specialist.",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_004",
+      "primary_uc": "UC-D",
+      "expected_outcome": "resolve",
+      "session_id": "f1cbc59f-aed2-4e3c-832b-3e897b76c7eb",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 29360,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.6,
+      "failure_tags": [
+        "L2_GATE:correct_uc",
+        "L2_GATE:correct_outcome",
+        "L2:correct_outcome",
+        "L2:correct_uc",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-E",
+      "escalation_reason": "user_distress",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual=escalate"
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-D, actual=UC-E"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response is a procedural escalation message ('Let me connect you with a specialist') with no factual claims about the user's ad status, account, or system behavior. Since there are no factual assertions requiring grounding, no source citations are needed, satisfying the condition for a score of 5."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user reports a specific technical issue: their ad is not visible after login and the system shows 'no live ads.' The bot completely ignores troubleshooting steps (e.g., checking ad status, approval, visibility settings, or account permissions) and instead immediately escalates to a specialist without attempting to diagnose or resolve the stated problem—talking past the user's actual concern."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot responds with an immediate escalation without acknowledging the customer's issue or validating their mild frustration. It fails to express empathy, offer reassurance, or provide any initial troubleshooting—making the response feel dismissive and transactional rather than supportive."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Yes. Icannot see my ad after logging in. It says I have no live ads",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Let me connect you with a specialist.",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_011",
+      "primary_uc": "UC-D",
+      "expected_outcome": "escalate",
+      "session_id": "94123d50-80dc-4fcf-8f9b-4115eb303573",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 19405,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 1.0,
+      "judge_score": 0.6,
+      "failure_tags": [
+        "L1:escalation_compliance",
+        "L2_GATE_MISSING:handover_completeness",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-D",
+      "escalation_reason": "user_distress",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "escalation_reason mismatch: expected='user_requested', actual='user_distress'"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response is a procedural escalation ('Let me connect you with a specialist') with no factual claims about the user's login issue, password reset process, or system behavior. Since there are no factual assertions requiring grounding in sources, the response automatically qualifies for a score of 5 per the instructions."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user described a detailed, specific technical issue with the password reset flow—link not recognized on second click, conflicting email confirmation, and persistent login failure. The bot ignored all these details and offered no troubleshooting, explanation, or attempt to resolve the core problem; instead, it defaulted to an immediate escalation without gathering information or validating the issue, which talks past the user's actual concern."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot's response is overly dismissive and fails to acknowledge the customer's high frustration or the detailed technical issue described. Offering an immediate escalation without validation, empathy, or even a brief acknowledgment of the problem ('I understand this is incredibly frustrating...') comes across as tone-deaf and unprofessional in a high-frustration context."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Your be the third agent today to try n resolve the issue im having. I’ve clearly explained to the previous to agents that I am unable to log into my account. When I try to login it says pw or email incorrect. I then get a pw reset link sent to my email. I use this link to reset my pw using upper n lower case with number n special character . Minimum of 8 characters. I then press update and nothing happens . I then press again and it says the link is not recognised. I then get a email saying ow updated. I then go back to login and it says pw or email incorrect correct.",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Let me connect you with a specialist.",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_014",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "a0cd8f5c-4a4f-405a-b7d4-1ddd2010f844",
+      "total_turns": 3,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 46658,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.6667,
+      "judge_score": 0.6,
+      "failure_tags": [
+        "L1:escalation_compliance",
+        "L2_GATE:correct_uc",
+        "L2_GATE_MISSING:handover_completeness",
+        "L2:correct_uc",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-F",
+      "escalation_reason": "faq_miss_threshold_exceeded",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "escalation_reason mismatch: expected='user_distress', actual='faq_miss_threshold_exceeded'"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-C, actual=UC-F"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's final response ('I'm having difficulty resolving this. Let me connect you with a specialist.') is a procedural escalation with no factual claims about the user's issue, account configuration, or system capabilities. It makes no assertions that require grounding in sources. Per instructions, such purely procedural/escalation messages score 5."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The bot fails to directly address the user's clear, repeated request to revert the contact email to match the main account email. In Turn 1, it ignores the question and instead asks for clarification about messaging issues, even though the user explicitly stated the problem (replies going to secondary email) and the desired fix (revert contact email). In Turn 2, it gives a vague, non-committal response ('I'm looking into this') without confirming action or explaining limitations. In Turn 3, it admits difficulty and escalates—but only after three turns, without acknowledging the request, explaining why it can't be done, or offering any interim solution. The bot consistently talks past the user’s core ask."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot fails to acknowledge or validate the customer's high frustration, using neutral, procedural language ('To help you best, could you clarify...') that feels dismissive when the user is clearly exasperated. It avoids empathetic phrasing (e.g., no apology, no recognition of inconvenience), offers no explanation for the limitation, and delays resolution with vague statements ('I'm looking into this', 'I'm having difficulty') without setting expectations—escalating frustration rather than de-escalating it."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "How come an administrator can't atleast make the contact email match the main account email?",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Paul. To help you best, could you clarify what specific issue you're experiencing—are your messages to sellers not sending, not arriving, or are replies going to your secondary email instead of your main one?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Yes, replies are going to my secondary email instead of my main one — and I can't change the contact email back myself. Can you just revert it to match my account email?",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "I'm looking into this for you.",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "Thank you — yes, please revert my contact email to match my main account email. That should fix the messaging issue.",
+          "turn_index": 3
+        },
+        {
+          "role": "bot",
+          "message": "I'm having difficulty resolving this. Let me connect you with a specialist.",
+          "turn_index": 3
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_015",
+      "primary_uc": "UC-FP",
+      "expected_outcome": "resolve",
+      "session_id": "85327a5c-0bd6-460b-9c2f-63cdd39efe4e",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 11181,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.5,
+      "judge_score": 0.9333,
+      "failure_tags": [
+        "L2_GATE:correct_uc",
+        "L2:correct_uc"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "resolved",
+      "active_use_case": "UC-A",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-FP, actual=UC-A"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about the user's issue; it only asks a clarifying question to determine intent. There are no assertions requiring grounding in sources."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The user's question 'ok so how do I change it?' is ambiguous but clearly requests instructions for changing something. The bot correctly identifies the ambiguity and asks a precise, focused clarifying question—specifying two plausible interpretations (editing an ad or something else)—without making assumptions, adding irrelevant information, or ignoring the request. This is the most appropriate and user-centered response to an underspecified query."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot uses the customer's name (Adam), which adds a personal touch, and asks a clarifying question politely. However, it doesn’t acknowledge the user’s mild frustration (e.g., no empathetic phrase like 'I understand this might be confusing' or 'Thanks for your patience'), making the tone slightly transactional rather than fully attuned to the emotional context."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "ok so how do I change it?",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Adam, could you clarify what you'd like to change — are you looking to edit your ad, or were you asking about something else?",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_029",
+      "primary_uc": "UC-C",
+      "expected_outcome": "escalate",
+      "session_id": "6ef2431d-3293-4578-8263-4284c7759953",
+      "total_turns": 0,
+      "stop_reason": "contract_violation",
+      "elapsed_ms": 0,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.0,
+      "failure_tags": [
+        "CONTRACT_VIOLATION:active_use_case"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "",
+      "active_use_case": "",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "trace_contract_active_use_case",
+          "passed": false,
+          "detail": "Required telemetry field 'active_use_case' missing/invalid in phase 'session' (reason=missing_after_turns). available_keys=['activeUseCase', 'articlesShown', 'candidateUseCases', 'caseId', 'clarificationCount', 'closedAt', 'containmentOutcome', 'createdAt', 'currentPhase', 'customerContext', 'escalationReason', 'faqMissCount', 'formContext', 'formTopicSubject', 'handlingState', 'intakeFields', 'intentConfidence', 'lastAction', 'listingContext', 'modelVersion', 'moderationContext', 'projectionVersion', 'promptVersion', 'repeatedActionCount', 'runtimeErrorCount', 'sessionId', 'sfBotSessionId', 'totalBotTurns', 'trafficVariant', 'updatedAt']"
+        }
+      ],
+      "l2_results": [],
+      "l3_results": [],
+      "transcript": [],
+      "status": "CONTRACT_VIOLATION",
+      "contract_violation": {
+        "field": "active_use_case",
+        "phase": "session",
+        "reason": "missing_after_turns",
+        "available_keys": [
+          "activeUseCase",
+          "articlesShown",
+          "candidateUseCases",
+          "caseId",
+          "clarificationCount",
+          "closedAt",
+          "containmentOutcome",
+          "createdAt",
+          "currentPhase",
+          "customerContext",
+          "escalationReason",
+          "faqMissCount",
+          "formContext",
+          "formTopicSubject",
+          "handlingState",
+          "intakeFields",
+          "intentConfidence",
+          "lastAction",
+          "listingContext",
+          "modelVersion",
+          "moderationContext",
+          "projectionVersion",
+          "promptVersion",
+          "repeatedActionCount",
+          "runtimeErrorCount",
+          "sessionId",
+          "sfBotSessionId",
+          "totalBotTurns",
+          "trafficVariant",
+          "updatedAt"
+        ]
+      }
+    },
+    {
+      "case_id": "cs_interactive_036",
+      "primary_uc": "UC-I",
+      "expected_outcome": "escalate",
+      "session_id": "df6bee8c-aa9f-4e12-a187-f4e5aefe5c09",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 20,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.7,
+      "judge_score": 0.8,
+      "failure_tags": [
+        "L1:phase_transition_validity",
+        "L1:escalation_compliance",
+        "L2_GATE:correct_uc",
+        "L2_GATE:handover_completeness",
+        "L2:correct_uc",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "",
+      "escalation_reason": "out_of_scope",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": false,
+          "detail": "invalid transitions: ['turn 0: INIT->ESCALATE']"
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "escalation_reason mismatch: expected='payment_dispute_detected', actual='out_of_scope'"
+        },
+        {
+          "check": "intake_no_knowledge_tool",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "handover_completeness",
+          "score": 0.8,
+          "detail": "missing fields: ['primary_use_case']"
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-I, actual="
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response is a pure procedural escalation message with no factual claims about British law, refunds, carrier obligations, or delivery timelines. Since no factual assertions are made, no grounding is required."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The bot correctly recognizes the urgency and legal nature of the user's complaint about a delayed delivery and entitlement to a refund under British law. Rather than attempting to handle a complex legal/refund issue it may not be authorized or equipped to resolve, the bot immediately escalates to a human agent—a fully appropriate and direct response to the user's core request for a refund due to non-performance. Escalation is the precise, expected, and most effective action here."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot responds with an abrupt, automated transfer without acknowledging the customer's mild frustration, legal reference, or core request for a refund. It shows no empathy, offers no reassurance, and fails to validate the customer's concern—making the tone appear dismissive and transactional rather than supportive or professional."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "The company that should deliver my order for a huge delay. So according to British law, I am entitled to a refund for not performing the service during the time offered by the carrier. So I want a refund for the delivery I paid for and still haven't received the order",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "This conversation has been transferred to a human agent. Please wait for them to respond.",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_038",
+      "primary_uc": "UC-J",
+      "expected_outcome": "escalate",
+      "session_id": "03979c7c-8c9a-4b38-989d-605f03259742",
+      "total_turns": 2,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 13088,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 1.0,
+      "judge_score": 0.9333,
+      "failure_tags": [
+        "L1:escalation_compliance"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-J",
+      "escalation_reason": "intake_complete_for_uc_j",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "escalation_reason mismatch: expected='trust_safety_required', actual='intake_complete_for_uc_j'"
+        },
+        {
+          "check": "intake_no_knowledge_tool",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "handover_completeness",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's responses contain no factual claims about Gumtree's policies, procedures, scam resolution, or outcomes — only empathetic acknowledgment and a procedural escalation ('Let me connect you with a specialist'). Since there are no factual assertions requiring grounding in sources, the response qualifies for the highest grounding score per instructions."
+        },
+        {
+          "dimension": "relevance",
+          "score": 5.0,
+          "reasoning": "The user's core concern is reporting a scam on Gumtree and seeking help after being defrauded. In Turn 1, the bot acknowledges the issue, expresses empathy, and requests specific, actionable information needed for investigation — directly addressing the user’s implied need for escalation and resolution. In Turn 2, the user provides key details (seller name, item, payment loss, fraud confirmation, and prior actions). The bot responds by immediately escalating to a specialist — the appropriate next step given the user has already submitted evidence and needs human intervention. No irrelevant or tangential content is introduced; both responses are concise, empathetic, and action-oriented, fully aligned with the user’s stated situation and unspoken need for resolution."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot opens with empathy and a clear, professional request for information, correctly addressing the user by name and acknowledging the issue. In Turn 2, it responds promptly to the user’s detailed follow-up by escalating to a specialist—appropriate given the severity (confirmed bank fraud). However, the transition lacks a brief empathetic acknowledgment of the user’s effort (e.g., 'Thank you for sharing those details and for already submitting evidence') and feels slightly abrupt, missing an opportunity to reinforce reassurance. This minor tonal gap prevents a perfect score, but overall professionalism and responsiveness remain strong."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "There a scamer on gumtree",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Paul, I'm sorry to hear you've encountered a scammer on Gumtree. To help our Trust & Safety team investigate, could you please share: the ad ID or link, the scammer's username or phone number, and a brief description of what happened?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "Yes, the seller is Diane — she has 18 items listed. I paid £40 for a Parkside impact wrench but never received it. My bank confirmed it’s fraud. I’ve already emailed details and uploaded pictures of the ad and transaction.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Let me connect you with a specialist.",
+          "turn_index": 2
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_040",
+      "primary_uc": "UC-K",
+      "expected_outcome": "escalate",
+      "session_id": "a5c19ff6-381a-4675-b0e9-45c10b770fa5",
+      "total_turns": 3,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 30240,
+      "case_passed": true,
+      "composite_score": 0.9333,
+      "outcome_score": 1.0,
+      "judge_score": 0.8667,
+      "failure_tags": [],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-K",
+      "escalation_reason": "intake_complete_for_uc_k",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "intake_no_knowledge_tool",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "handover_completeness",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot makes no factual claims about the ad issue, technical behavior, root cause, or resolution. All responses are procedural: acknowledging the user's input, requesting additional information (ad ID/title), and escalating to a specialist. Since there are no factual assertions requiring grounding—and no unsourced claims—the response qualifies for the highest grounding score per the rubric."
+        },
+        {
+          "dimension": "relevance",
+          "score": 4.0,
+          "reasoning": "The bot consistently acknowledges the core issue (missing request-quote button) and the user's context (paid ad, open case). It correctly escalates after gathering necessary identifiers. However, in Turn 2, it redundantly asks for the ad ID/title despite the user having already provided the case number and described the problem in detail—this slightly delays resolution and misses an opportunity to confirm case linkage or provide immediate next steps (e.g., 'I’ve flagged case 00394953 with your ad details'). Still, the response remains focused and functional."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot maintains professionalism and uses the customer's name, acknowledges the issue, and references the existing case number—demonstrating attentiveness. However, in Turn 2, it repeats a request for information (ad ID/title) that the user had already implicitly provided by referencing the case number and explicitly stated in Turn 3; this slight redundancy—despite the user’s high frustration—misses an opportunity to validate urgency or escalate immediately, making the tone *almost* empathetic but with a minor lapse in responsiveness."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "There seems to be issues with my ad",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Mo, I'm sorry to hear you're having trouble with your ad. To help our Technical Support team look into this, could you tell me which ad is affected (ad ID or title) and describe the specific issue you're experiencing?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "The request-quote button isn’t appearing on my ad — customers can’t contact me, and I’m paying for the listing. Case number 00394953 is already open for this.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Thanks for those details, Mo. I can see this is about the missing request-quote button on your paid ad, and that you already have case 00394953 open. To complete the intake for our Technical Support team, could you please provide your ad ID or ad title?",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "The ad is titled 'Professional Garden Maintenance Service' — ID is GUM123456789.",
+          "turn_index": 3
+        },
+        {
+          "role": "bot",
+          "message": "Let me connect you with a specialist.",
+          "turn_index": 3
+        }
+      ],
+      "status": "PASS",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_066",
+      "primary_uc": "UC-E",
+      "expected_outcome": "escalate",
+      "session_id": "80648873-6262-4e22-8b3b-c7ed9a0a4203",
+      "total_turns": 2,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 16839,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.6667,
+      "judge_score": 0.7333,
+      "failure_tags": [
+        "L1:escalation_compliance",
+        "L2_GATE:correct_uc",
+        "L2_GATE_MISSING:handover_completeness",
+        "L2:correct_uc",
+        "L3:relevance"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-K",
+      "escalation_reason": "intake_complete_for_uc_k",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": false,
+          "detail": "escalation_reason mismatch: expected='clarification_budget_exhausted', actual='intake_complete_for_uc_k'"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "escalation_timing",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-E, actual=UC-K"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response in Turn 2 is a pure escalation message ('Let me connect you with a specialist') with no factual claims about the user's issue, device behavior, or system functionality. No grounding is required for such procedural/escalation responses. Turn 1 contains a factual claim ('you're not seeing the option to add your phone number when listing an item'), but that claim is presented as the user's reported experience (paraphrasing the user's input), not as an independent factual assertion by the bot — and the bot immediately follows with a diagnostic question rather than asserting any unsupported facts. Since no unsupported factual claims are made, the response meets the 'no claims requiring grounding' criterion."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user's message 'Should be [EMAIL]' is ambiguous but likely indicates an expectation that their email should be displayed or used in a certain context—possibly related to contact information visibility. The bot misinterprets this as a problem about missing phone number options during item listing, which the user never mentioned. In Turn 2, the user clarifies they're seeing only email (not phone) in the Gumtree app and demands a fix—but the bot still fails to acknowledge the core issue (email-only display, possible UI regression, or configuration concern) and instead escalates without addressing the reported behavior or explaining why phone number isn't appearing. The response talks past the user’s actual concern."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 4.0,
+          "reasoning": "The bot acknowledges the user's issue and attempts empathy ('I understand you're not seeing...'), but misses an explicit acknowledgment of the user's high frustration (e.g., no validation like 'I’m sorry this is so frustrating'). The transition to escalation is appropriate and timely, but the initial response lacks sufficient emotional mirroring and urgency for a high-frustration context. No unprofessional language, but tone could be warmer and more validating."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Should be [EMAIL]",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "Hi Stephen, I understand you're not seeing the option to add your phone number when listing an item. To help our Technical Support team look into this, could you confirm which device and browser (or app version) you're using when the option is missing?",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "I'm using the latest Gumtree app on Android. Used to see it before — now only email shows up. Fix this.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Let me connect you with a specialist.",
+          "turn_index": 2
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_095",
+      "primary_uc": "UC-A",
+      "expected_outcome": "resolve",
+      "session_id": "506a6a2c-b590-4cf6-8f6a-278c469aa460",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 26090,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.0,
+      "judge_score": 0.6,
+      "failure_tags": [
+        "L2_GATE:correct_uc",
+        "L2_GATE:correct_outcome",
+        "L2:correct_outcome",
+        "L2:correct_uc",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-D",
+      "escalation_reason": "faq_miss_threshold_exceeded",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual=escalate"
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-A, actual=UC-D"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response is a procedural escalation message with no factual claims about email syncing, app behavior, or technical causes. Since there are no factual assertions requiring grounding, the response automatically qualifies for the highest score per the instructions."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The user asked a specific technical question about whether an incorrect email address on the app could prevent syncing despite it having worked before. The bot did not address this question at all; instead, it immediately escalated to a human agent without providing any explanation, clarification, or acknowledgment of the user's concern—effectively talking past the query."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot abruptly transfers to a human agent without acknowledging the customer's high frustration or addressing their specific technical question about email syncing. It offers no empathy, validation, or interim support—making it appear dismissive and tone-deaf to the user's emotional state and query."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "This conversation has been transferred to a human agent. Please wait for them to respond.",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_192",
+      "primary_uc": "UC-B",
+      "expected_outcome": "resolve",
+      "session_id": "7f72610e-5dd0-4a9a-83ef-2c97777c20e2",
+      "total_turns": 1,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 35209,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.5,
+      "judge_score": 0.5333,
+      "failure_tags": [
+        "L2_GATE:correct_outcome",
+        "L2:correct_outcome",
+        "L3:relevance",
+        "L3:tone_appropriateness"
+      ],
+      "stall_detected": false,
+      "stall_failure_tag": "",
+      "containment_outcome": "escalated",
+      "active_use_case": "UC-B",
+      "escalation_reason": "faq_miss_threshold_exceeded",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 0.0,
+          "detail": "expected=resolve, actual=escalate"
+        },
+        {
+          "check": "correct_uc",
+          "score": 1.0,
+          "detail": ""
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 5.0,
+          "reasoning": "The bot's response is a procedural escalation message ('This conversation has been transferred to a human agent. Please wait for them to respond.') and makes no factual claims about allowed items or any other domain-specific information. Since there are no factual claims requiring grounding, the response automatically qualifies for the highest score per the instructions."
+        },
+        {
+          "dimension": "relevance",
+          "score": 1.0,
+          "reasoning": "The bot completely ignores the user's direct question about which items are allowed and instead abruptly transfers the conversation to a human agent without providing any information, explanation, or acknowledgment of the query."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot abruptly transfers to a human agent without acknowledging the user's question or mild frustration, offering no explanation, reassurance, or interim assistance. This feels dismissive and unhelpful—especially since the query ('What items are allowed?') is straightforward and likely answerable by the bot. No empathy, no attempt to de-escalate, and no professional courtesy."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "OK. What items are allowed?",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "This conversation has been transferred to a human agent. Please wait for them to respond.",
+          "turn_index": 1
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    },
+    {
+      "case_id": "cs_interactive_259",
+      "primary_uc": "UC-F",
+      "expected_outcome": "resolve",
+      "session_id": "4d8844ae-251c-433b-8854-f990dcb6fd27",
+      "total_turns": 3,
+      "stop_reason": "bot_ended",
+      "elapsed_ms": 91156,
+      "case_passed": false,
+      "composite_score": 0.0,
+      "outcome_score": 0.5,
+      "judge_score": 0.5333,
+      "failure_tags": [
+        "L1:no_stall",
+        "L2_GATE:correct_uc",
+        "L2:correct_uc",
+        "L3:relevance",
+        "L3:tone_appropriateness",
+        "STALL:PLACEHOLDER_WITHOUT_FOLLOWUP"
+      ],
+      "stall_detected": true,
+      "stall_failure_tag": "PLACEHOLDER_WITHOUT_FOLLOWUP",
+      "containment_outcome": "resolved",
+      "active_use_case": "UC-C",
+      "escalation_reason": "",
+      "l1_results": [
+        {
+          "check": "no_forbidden_tools",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_stall",
+          "passed": false,
+          "detail": "stall at turn 3: PLACEHOLDER_WITHOUT_FOLLOWUP"
+        },
+        {
+          "check": "no_critical_policy_violation",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_pii_leakage",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "no_human_only_tool_exposure",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "phase_transition_validity",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "budget_enforcement",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "check": "escalation_compliance",
+          "passed": true,
+          "detail": "escalation not required"
+        },
+        {
+          "check": "source_citation_present",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "l2_results": [
+        {
+          "check": "correct_outcome",
+          "score": 1.0,
+          "detail": ""
+        },
+        {
+          "check": "correct_uc",
+          "score": 0.0,
+          "detail": "expected=UC-F, actual=UC-C"
+        }
+      ],
+      "l3_results": [
+        {
+          "dimension": "groundedness",
+          "score": 4.0,
+          "reasoning": "The bot's Turn 2 response makes a clear factual claim — 'Gumtree doesn't process payments between buyers and sellers' — and lists payment methods (cash on collection, bank transfer, PayPal). This claim is supported by the provided citations (e.g., ka4P20000000421IAA, ka44J000000TetlQAC), which are likely official Gumtree policy documents. However, the response adds the unsourced detail 'Since you're already messaging, just agree on a payment method and collection/delivery details that work for both of you' — while reasonable, this phrasing implies a normative procedural recommendation not explicitly verified in the sources. No factual claims are made in Turns 1 or 3 (both are procedural 'looking into this'), so they don’t affect grounding. Thus, most claims are grounded, with minor unsourced elaboration."
+        },
+        {
+          "dimension": "relevance",
+          "score": 2.0,
+          "reasoning": "The bot's response in Turn 3 ('I'm looking into this for you.') is completely unhelpful and ignores the user's explicit, clarified follow-up question about whether Gumtree has any involvement in payment — a direct yes/no confirmation request. The user sought reassurance and confirmation of autonomy in arranging payment, but the bot defaulted to a generic, non-informative placeholder instead of affirming (as correctly stated in Turn 2) that Gumtree has zero involvement. This undermines trust and fails to address the core concern."
+        },
+        {
+          "dimension": "tone_appropriateness",
+          "score": 2.0,
+          "reasoning": "The bot's tone is inappropriate for a highly frustrated user: it repeats the unhelpful, evasive phrase 'I'm looking into this for you' in Turn 1 and Turn 3 despite the user explicitly seeking clarity and expressing urgency. In Turn 2, while the response is factually correct and includes a congratulatory note, it fails to acknowledge the user’s stress or confusion — no empathy, no reassurance about safety concerns (common in peer-to-peer sales), and no proactive guidance on best practices (e.g., avoiding scams, using secure methods). Repeating the same non-answer in Turn 3 after the user sought confirmation signals dismissal and undermines trust."
+        }
+      ],
+      "transcript": [
+        {
+          "role": "user",
+          "message": "How do I receive the payment when I sell an item",
+          "turn_index": 1
+        },
+        {
+          "role": "bot",
+          "message": "I'm looking into this for you.",
+          "turn_index": 1
+        },
+        {
+          "role": "user",
+          "message": "I just sold something on Gumtree and need to know how to actually get paid — do I arrange payment myself, or does Gumtree handle it? I’m getting messages from the buyer but no clear info on next steps.",
+          "turn_index": 2
+        },
+        {
+          "role": "bot",
+          "message": "Hi Lorraine, congratulations on your sale! Gumtree doesn't process payments between buyers and sellers — you'll need to arrange payment directly with the buyer. Popular options include cash on collection, bank transfer, or PayPal. Since you're already messaging, just agree on a payment method and collection/delivery details that work for both of you.",
+          "turn_index": 2
+        },
+        {
+          "role": "user",
+          "message": "So I just confirm with the buyer how they want to pay and then meet up or send details for bank transfer? No Gumtree involvement at all?",
+          "turn_index": 3
+        },
+        {
+          "role": "bot",
+          "message": "I'm looking into this for you.",
+          "turn_index": 3
+        }
+      ],
+      "status": "FAIL",
+      "contract_warnings": []
+    }
+  ]
+}

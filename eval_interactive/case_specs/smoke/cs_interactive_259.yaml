@@ -55,6 +55,8 @@ scoring:
   - correct_outcome
   - resolution_achieved
   - answer_accuracy
+  - tool_sequence_match
+
   llm_judge_dimensions:
   - groundedness
   - relevance
