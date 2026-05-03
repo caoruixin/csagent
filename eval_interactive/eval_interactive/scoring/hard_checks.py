@@ -49,6 +49,82 @@ def _is_answer_turn(turn) -> bool:
     return has_text and not _has_handover_tool_call(turn)
 
 
+# Codex finding 1.3 — phrases that signal the bot is acknowledging /
+# stalling / clarifying rather than making factual claims. These turns must
+# not trip the source-citation gate even under faq_source_backed grounding.
+_NON_FACTUAL_LEAD_PATTERNS = [
+    r"^\s*hi\b[^.!?\n]{0,80}[.!]?\s*$",
+    r"^\s*hello\b[^.!?\n]{0,80}[.!]?\s*$",
+    r"\bone moment\b",
+    r"\bjust a (moment|second)\b",
+    r"\b(thanks|thank you) for (your patience|reaching out)\b",
+    r"\bi(?:'m| am)\s+(?:looking|checking|searching|investigating|verifying|finding)\b",
+    r"\b(?:let me|allow me to)\s+(?:check|look|verify|search|find|investigate|look into)\b",
+    r"\bi(?:'ll| will)\s+(?:look into|check|investigate|find|verify)\b",
+    r"\bcould you (?:please )?(?:tell|share|confirm|provide|clarify|let me know)\b",
+    r"\bcan you (?:please )?(?:tell|share|confirm|provide|clarify|let me know)\b",
+    r"\bto (?:better )?(?:help|assist) you\b",
+    r"\bwhich (?:email|account|ad|listing)\b",
+]
+
+# Heuristic length thresholds. A short reply that is a pure question or
+# acknowledgement does not need citations; a long substantive reply does.
+_NON_FACTUAL_MAX_LEN = 200
+
+
+def _is_substantive_factual_answer(turn) -> bool:
+    """Return True iff the bot turn is a substantive factual FAQ answer.
+
+    The source-citation gate only applies to substantive answers per Codex
+    finding 1.3 — clarifying questions, acknowledgement / progress messages,
+    pure greetings, and turns that did not retrieve any KB material are
+    exempt because they do not assert factual claims.
+
+    A turn is treated as substantive when at least one of these is true:
+
+    1. The bot invoked ``search_knowledge`` or ``resolve_article`` on this
+       turn (it actively retrieved KB material to answer).
+    2. The reply is long-form (>= ``_NON_FACTUAL_MAX_LEN`` characters), and
+       it is neither a pure clarifying question nor an acknowledgement /
+       progress / greeting message.
+
+    Otherwise the turn is treated as non-factual and skipped.
+    """
+    text = (turn.bot_response or "").strip()
+    if not text:
+        return False
+
+    knowledge_called = any(
+        (tc.get("tool_name", "") if isinstance(tc, dict) else "").lower()
+        in {"search_knowledge", "resolve_article"}
+        for tc in (turn.tool_calls or [])
+    )
+    if knowledge_called:
+        return True
+
+    # Acknowledgement / progress / greeting / clarifying-prompt phrasing
+    # short-circuits the substantive check independent of length: an
+    # explicit "could you clarify ..." prompt is a clarifying turn even
+    # when the question itself runs long.
+    for pat in _NON_FACTUAL_LEAD_PATTERNS:
+        if re.search(pat, text, re.IGNORECASE):
+            return False
+
+    # Pure clarifying question: text ends with "?" and contains few
+    # statement sentences. Length-independent so a multi-part question
+    # still counts as clarifying.
+    stripped = text.rstrip()
+    if stripped.endswith("?"):
+        # Drop the final "?" before counting statement-terminators so a
+        # question that is itself a single sentence still passes.
+        body = stripped[:-1]
+        if body.count(".") <= 1 and body.count("!") == 0:
+            return False
+
+    # Otherwise: long-form factual reply -> substantive.
+    return len(text) >= 50
+
+
 class HardChecker:
     """L1 Hard Checks -- deterministic, zero tolerance."""
 
@@ -440,20 +516,25 @@ class HardChecker:
         return HardCheckResult("user_requested_escalation", True)
 
     def _check_source_citation_present(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
-        """If grounding_mode=faq_source_backed -> any answer turn must have source_ids.
+        """If grounding_mode=faq_source_backed -> substantive answer turns must have source_ids.
 
-        With the abstract action layer removed, an "answer turn" is any turn
-        where the bot produced user-facing text without invoking
-        ``request_handover``. See ``_is_answer_turn``.
+        Per Codex finding 1.3, the gate now applies only to *substantive*
+        FAQ answers (turns that retrieved KB material or produced a
+        long-form factual reply). Clarifying questions, acknowledgement /
+        progress messages, and pure greetings are exempt because they do
+        not make factual claims.
         """
         if case_spec.expected.grounding_mode != "faq_source_backed":
             return HardCheckResult("source_citation_present", True, "grounding_mode not faq_source_backed")
 
         missing: list[str] = []
         for turn in trace.turns:
-            if _is_answer_turn(turn):
-                if not turn.source_ids:
-                    missing.append(f"turn {turn.turn_index}: answer without sources")
+            if not _is_answer_turn(turn):
+                continue
+            if not _is_substantive_factual_answer(turn):
+                continue
+            if not turn.source_ids:
+                missing.append(f"turn {turn.turn_index}: answer without sources")
 
         if missing:
             return HardCheckResult("source_citation_present", False, "; ".join(missing[:5]))
