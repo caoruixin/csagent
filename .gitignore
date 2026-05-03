@@ -18,6 +18,10 @@ __pycache__/
 target/
 *.jar.original
 
+# Eval run artifacts — regenerated per run; keep the directory via .gitkeep
+eval_interactive/results/*
+!eval_interactive/results/.gitkeep
+
 # Log file
 *.log
 
