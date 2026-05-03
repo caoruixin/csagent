@@ -47,6 +47,13 @@ from eval_interactive.scoring.stall_detector import StallResult
 class _StubExpected:
     should_escalate: bool = False
     outcome_class: str = "resolve"
+    # Codex 2026-05-03 round 3 promoted ``case_id_present`` and
+    # ``tool_sequence_match`` to conditionally-mandatory L2 gates that
+    # depend on the expected primary UC and tool sequence. Stub defaults
+    # leave them off so the existing gate-tests stay focused on the
+    # outcome_class branch they were written for.
+    primary_uc: str = ""
+    expected_tool_sequence: list = field(default_factory=list)
 
 
 @dataclass

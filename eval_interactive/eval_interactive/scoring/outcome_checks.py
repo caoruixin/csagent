@@ -21,6 +21,12 @@ class OutcomeCheckResult:
 # Use-case families that require case_id in handover payload
 _CASE_ID_UCS = {"UC-H", "UC-J", "UC-K"}
 
+# Use-case families where the production tool-order contract is a release
+# gate (Codex 2026-05-03 round 3). Mirror of
+# ``composite._TOOL_SEQUENCE_GATE_UCS`` so auto-include logic on either
+# side stays in sync.
+_TOOL_SEQUENCE_GATE_UCS = {"UC-H", "UC-J", "UC-K", "UC-I"}
+
 # Map containment_outcome values to expected outcome_class values
 _OUTCOME_MAP = {
     "resolved": "resolve",
@@ -72,7 +78,26 @@ class OutcomeChecker:
         # Auto-include conditionally-mandatory checks so the L2 gate logic in
         # composite.py never has to fail-closed on a missing-but-configured
         # check. Mirrors composite._conditional_mandatory_l2.
-        if case_spec.expected.outcome_class == "escalate":
+        expected = case_spec.expected
+        uc_family = self._uc_family(expected.primary_uc)
+        if expected.outcome_class == "escalate":
+            configured.add("handover_completeness")
+            # Codex 2026-05-03 round 3: case_id_present is now mandatory for
+            # UC-H/J/K escalations. Auto-include so gate has a real result.
+            if uc_family in _CASE_ID_UCS:
+                configured.add("case_id_present")
+            # Codex 2026-05-03 round 3: tool_sequence_match is mandatory for
+            # UC-H/J/K/I escalations whenever the spec lists an expected
+            # sequence. The composite gate uses a >=0.9 threshold so LCS
+            # partial credit is acceptable at the edge.
+            if uc_family in _TOOL_SEQUENCE_GATE_UCS and expected.expected_tool_sequence:
+                configured.add("tool_sequence_match")
+        # Codex 2026-05-03 round 3 §3.3: also exercise handover_completeness
+        # whenever the bot ACTUALLY escalated, even if the spec expected
+        # resolve. Production safety wants over-escalations to still produce
+        # a complete payload. The check itself short-circuits to 1.0 when
+        # the session did not escalate, so this is a no-op for resolve runs.
+        if trace.session_state.containment_outcome.lower() == "escalated":
             configured.add("handover_completeness")
         results: list[OutcomeCheckResult] = []
 
@@ -296,6 +321,17 @@ class OutcomeChecker:
         """Normalize use-case identifier: upper-case, strip trailing -NN suffixes."""
         uc = uc.strip().upper()
         return re.sub(r"-\d+$", "", uc)
+
+    @staticmethod
+    def _uc_family(uc: str | None) -> str:
+        """Return the ``UC-X`` family stub of a use-case identifier (or "")."""
+        if not uc:
+            return ""
+        normalized = OutcomeChecker._normalize_uc(uc)
+        parts = normalized.split("-")
+        if len(parts) >= 2:
+            return f"{parts[0]}-{parts[1]}"
+        return normalized
 
     @staticmethod
     def _lcs_length(a: list[str], b: list[str]) -> int:

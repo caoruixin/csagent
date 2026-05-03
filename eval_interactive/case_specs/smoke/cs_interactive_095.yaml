@@ -62,6 +62,8 @@ scoring:
   - resolution_achieved
   - answer_accuracy
   - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
 
   llm_judge_dimensions:
   - groundedness

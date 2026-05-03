@@ -30,8 +30,46 @@ _ALWAYS_MANDATORY_L2: tuple[str, ...] = (
 )
 
 
+# Codex 2026-05-03 round 3: per-check pass thresholds used by the gate
+# logic. Defaults to 1.0 (perfect score) for any check not listed here.
+# ``tool_sequence_match`` accepts >=0.9 because the LCS scorer awards
+# partial credit for near-matches that still satisfy the production
+# tool-order contract for UC-H/J/K/I.
+_GATE_THRESHOLDS: dict[str, float] = {
+    "tool_sequence_match": 0.9,
+}
+
+
+_CASE_ID_UCS = frozenset({"UC-H", "UC-J", "UC-K"})
+_TOOL_SEQUENCE_GATE_UCS = frozenset({"UC-H", "UC-J", "UC-K", "UC-I"})
+
+
+def _uc_family(uc: str | None) -> str:
+    """Strip ``-NN`` suffix from a use-case identifier (``UC-J-01`` -> ``UC-J``)."""
+    if not uc:
+        return ""
+    parts = uc.upper().split("-")
+    if len(parts) >= 2:
+        return f"{parts[0]}-{parts[1]}"
+    return uc.upper()
+
+
 def _conditional_mandatory_l2(case_spec: CaseSpec) -> tuple[str, ...]:
     """Return the conditionally-mandatory L2 check names for this case.
+
+    Codex 2026-05-03 round 3 promotes two production-critical checks to
+    mandatory gates so the rubric stops being gameable on UC-H/J/K/I
+    escalations:
+
+    - ``case_id_present`` becomes mandatory when ``outcome_class ==
+      escalate`` AND the expected primary UC is in ``{UC-H, UC-J, UC-K}``.
+      Phase 5 names case linkage as a 100% release gate; without this, a
+      handover that loses ``case_id`` could still pass composite.
+    - ``tool_sequence_match`` becomes mandatory when ``outcome_class ==
+      escalate`` AND the expected primary UC is in ``{UC-H, UC-J, UC-K,
+      UC-I}`` AND the spec declares an ``expected_tool_sequence``. The
+      threshold is ``>=0.9`` (see ``_GATE_THRESHOLDS``) so LCS partial
+      credit is allowed only when the runtime is essentially compliant.
 
     Note: ``escalation_compliance`` is *intentionally not* listed here.
     It is an L1 hard check (see ``hard_checks.py``) that runs globally on
@@ -44,6 +82,14 @@ def _conditional_mandatory_l2(case_spec: CaseSpec) -> tuple[str, ...]:
     conditional: list[str] = []
     if expected.outcome_class == "escalate":
         conditional.append("handover_completeness")
+        uc_family = _uc_family(expected.primary_uc)
+        if uc_family in _CASE_ID_UCS:
+            conditional.append("case_id_present")
+        if (
+            uc_family in _TOOL_SEQUENCE_GATE_UCS
+            and expected.expected_tool_sequence
+        ):
+            conditional.append("tool_sequence_match")
     return tuple(conditional)
 
 
@@ -217,15 +263,20 @@ def compute_composite(
 
 
 def _outcome_passed(r: OutcomeCheckResult) -> bool:
-    """An outcome check "passes" the gate iff its score is 1.0.
+    """An outcome check "passes" the gate iff its score meets the threshold.
 
     Mandatory L2 gates are pass/fail in spirit even though the underlying
-    OutcomeCheckResult carries a 0..1 score. We require a perfect 1.0 so
-    that partial-credit (e.g. handover completeness with one missing field)
-    still trips the gate -- this matches the audit's intent: outcome
-    failures must not be masked by graded L3 scores.
+    OutcomeCheckResult carries a 0..1 score. The default threshold is 1.0
+    so that partial-credit (e.g. handover completeness with one missing
+    field) still trips the gate -- this matches the audit's intent:
+    outcome failures must not be masked by graded L3 scores. Specific
+    checks may override the threshold via ``_GATE_THRESHOLDS`` when the
+    underlying scorer awards graded partial credit and a near-match is
+    operationally acceptable (Codex 2026-05-03 round 3 — applies to
+    ``tool_sequence_match`` only).
     """
-    return r.score >= 1.0
+    threshold = _GATE_THRESHOLDS.get(r.check_name, 1.0)
+    return r.score + 1e-9 >= threshold
 
 
 def _build_detail(
