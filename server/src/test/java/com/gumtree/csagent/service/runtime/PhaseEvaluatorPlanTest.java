@@ -89,7 +89,10 @@ class PhaseEvaluatorPlanTest {
     }
 
     @Test
-    void plan_resolveIntakeUcH_returnsPlanWithCaseCreation() {
+    void plan_resolveIntakeUcH_caseCreationIsRuntimeOnly() {
+        // Codex 1.8 + customer_service_tool_spec_v0_2.yaml: create_case_controlled
+        // is a runtime_only tool. The LLM must NOT see it in allowedTools; the
+        // runtime creates the tracking case before handover deterministically.
         when(useCaseRegistry.getUseCase("UC-H")).thenReturn(
                 new UseCaseRegistryService.UseCaseDefinition(
                         "UC-H", "Ad Removal Appeal",
@@ -101,8 +104,8 @@ class PhaseEvaluatorPlanTest {
         assertEquals("RESOLVE", plan.phase());
         assertEquals("UC-H", plan.useCase());
         assertTrue(plan.allowedTools().contains("request_handover"));
-        assertTrue(plan.allowedTools().contains("create_case_controlled"),
-                "UC-H must allow create_case_controlled");
+        assertFalse(plan.allowedTools().contains("create_case_controlled"),
+                "UC-H must NOT expose create_case_controlled to the LLM (runtime_only tool)");
         assertFalse(plan.allowedTools().contains("search_knowledge"),
                 "INTAKE plan must NOT allow search_knowledge");
         assertFalse(plan.allowedTools().contains("resolve_article"),
@@ -111,8 +114,8 @@ class PhaseEvaluatorPlanTest {
                 "INTAKE plan must NOT allow get_customer_context");
         assertEquals(3, plan.maxToolSteps());
         assertNotNull(plan.systemInstruction());
-        assertTrue(plan.systemInstruction().contains("create_case_controlled"),
-                "UC-H system instruction should mention case creation");
+        assertFalse(plan.systemInstruction().contains("create_case_controlled"),
+                "Intake system instruction must not steer the LLM toward calling create_case_controlled");
         assertNotNull(plan.groundingInstruction());
         assertNotNull(plan.escalationPolicy());
     }
@@ -150,7 +153,8 @@ class PhaseEvaluatorPlanTest {
     }
 
     @Test
-    void plan_resolveIntakeUcJ_returnsPlanWithCaseCreation() {
+    void plan_resolveIntakeUcJ_caseCreationIsRuntimeOnly() {
+        // Codex 1.8: case creation is runtime-only; LLM must not see it.
         when(useCaseRegistry.getUseCase("UC-J")).thenReturn(
                 new UseCaseRegistryService.UseCaseDefinition(
                         "UC-J", "Trust & Safety",
@@ -159,13 +163,15 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-J"), "msg", List.of());
 
         assertNotNull(plan);
-        assertTrue(plan.allowedTools().contains("create_case_controlled"));
-        assertTrue(plan.allowedTools().contains("request_handover"));
+        assertEquals(List.of("request_handover"), plan.allowedTools(),
+                "UC-J must only allow request_handover; case creation is runtime-only");
+        assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
 
     @Test
-    void plan_resolveIntakeUcK_returnsPlanWithCaseCreation() {
+    void plan_resolveIntakeUcK_caseCreationIsRuntimeOnly() {
+        // Codex 1.8: case creation is runtime-only; LLM must not see it.
         when(useCaseRegistry.getUseCase("UC-K")).thenReturn(
                 new UseCaseRegistryService.UseCaseDefinition(
                         "UC-K", "Technical Support",
@@ -174,8 +180,9 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-K"), "msg", List.of());
 
         assertNotNull(plan);
-        assertTrue(plan.allowedTools().contains("create_case_controlled"));
-        assertTrue(plan.allowedTools().contains("request_handover"));
+        assertEquals(List.of("request_handover"), plan.allowedTools(),
+                "UC-K must only allow request_handover; case creation is runtime-only");
+        assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
 
@@ -300,14 +307,18 @@ class PhaseEvaluatorPlanTest {
     }
 
     @Test
-    void plan_escalatePhase_intakeUc_includesCreateCaseControlled() {
+    void plan_escalatePhase_intakeUc_excludesCreateCaseControlled() {
+        // Codex 1.8: case creation is runtime-only — even on ESCALATE for an
+        // INTAKE UC the LLM must not see create_case_controlled. The runtime
+        // creates the tracking case in ControlKernel.createCaseIfNeeded /
+        // PhaseEvaluator.createCaseIfAllowed before request_handover fires.
         PhasePlan plan = evaluator.plan(session("ESCALATE", "UC-H"), "ok", List.of());
         assertNotNull(plan);
         assertEquals("ESCALATE", plan.phase());
         assertTrue(plan.allowedTools().contains("request_handover"));
         assertTrue(plan.allowedTools().contains("record_outcome"));
-        assertTrue(plan.allowedTools().contains("create_case_controlled"),
-                "ESCALATE plan for INTAKE UC should include create_case_controlled");
+        assertFalse(plan.allowedTools().contains("create_case_controlled"),
+                "ESCALATE plan must never expose create_case_controlled to the LLM (runtime_only)");
     }
 
     @Test

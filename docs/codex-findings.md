@@ -1,581 +1,374 @@
-# Codex Findings: Interactive Eval Review
+# Codex Findings: Latest Implementation Review
 
 Date: 2026-05-03
 
-Primary reference: `eval_interactive/results/20260501-215807/results.json`
+Reviewed inputs:
 
-This review focuses on why the current interactive smoke run is failing, which parts of the proposed Phase 3 plan are valid, and what minimal changes should be made before spending more time on prompt tuning or KB authoring.
+- `docs/10-handoff.md`
+- `docs/phase0_normative_freeze.md`
+- `docs/phase1_solution_input_pack.md`
+- `docs/phase2_domain_realization_spec.md`
+- `docs/phase3_detailed_technical_design.md`
+- `docs/phase4_demo_coding_agent_implementation_packet.md`
+- `docs/phase5_evaluation_design.md`
+- `docs/interactive_case_spec_generation_plan.md`
+- `docs/fixed_script_library_v1.md`
+- `docs/customer_service_tool_spec_v0_2.yaml`
+- `eval_interactive/case_specs/smoke/*.yaml`
+- `eval_interactive/results/20260503-065357/results.json`
+- `git diff HEAD~1..HEAD`
 
 ## Executive Summary
 
-The proposed Phase 3 plan needs one correction before execution: the referenced run is not a `1/14` pass baseline. `eval_interactive/results/20260501-215807/results.json` reports:
+HEAD contains only two implementation-relevant source changes:
 
-| Metric | Actual value |
+1. `eval_interactive/eval_interactive/scoring/hard_checks.py`: narrows the source-citation gate to "substantive factual answers".
+2. `server/src/main/resources/prompts/routing_prompt.txt`: fixes the UC-A/UC-D account-login label mismatch. The same generated resource is also committed under `server/target/classes/...`.
+
+Everything else in the diff is documentation and generated eval output. The latest smoke run is still not production-close:
+
+| Metric | `20260503-065357` |
 | --- | ---: |
 | Total cases | 14 |
-| Passed cases | 0 |
-| Failed cases | 14 |
-| Task success rate | 0.0 |
-| Mean composite score | 0.0 |
-| Mean outcome score | 0.6452 |
-| Mean judge score | 0.7048 |
-| Escalation correctness | 0.7143 |
+| Passed cases | 1 |
+| Failed cases | 13 |
+| Task success rate | 0.0714 |
+| Mean composite | 0.0691 |
+| Mean outcome score | 0.5500 |
+| Mean judge score | 0.6476 |
+| Escalation correctness | 0.5714 |
+| Stall rate | 0.0714 |
 | Policy compliance rate | 1.0 |
-| Mean turns to resolution | 1.86 |
 
-The earlier `1/14` and `0.069` composite baseline appears to describe a different run. The current referenced run also contains `ERROR:session_create_failed` on `cs_interactive_066`, so the "hold session_create_failed at 0" guard is already failing.
+The single pass is `cs_interactive_040` (UC-K technical issue intake). The run still has one `CONTRACT_VIOLATION`, one stall, six escalation-reason failures, six handover-completeness failures, seven UC failures, and six outcome failures.
 
-The KB field correction is valid: `public.kb_articles` uses `uc_tags`, not `uc_mappings`, and the mapping report shows 218/218 articles mapped. The primary issue is not article-to-UC tag coverage. The immediate blockers are runtime correctness, scoring hygiene, routing, exact escalation reasons, and missing or weak content for a few smoke-relevant topics.
+My review conclusion: the latest patch is a useful narrow eval cleanup, but it does not yet address the production-critical runtime defects. The proposed next work in `docs/10-handoff.md` is directionally right, but several failure root causes are misassigned, the rubric remains gameable, and the smoke cases do not yet enforce the tool, case-creation, handover, source-support, latency, and human-escalation contracts that matter for production.
 
-Recommended sequencing:
+## Diff Review
 
-1. Tier 0: stabilize eval/runtime gates.
-2. Tier 1: deterministic routing and escalation-reason resolver.
-3. Tier 2: resolve-before-escalate behavior for FAQ UCs.
-4. Tier 3: targeted KB article updates/drafts.
-5. Tier 4: prompt few-shots only for residual ambiguity.
+### Source-citation gate change
 
-I would not start with prompt few-shots or KB articles before Tier 0/Tier 1. They would produce mixed signal because several cases are currently zeroed by source-citation, handover, timeout, and exact-enum gates.
+The change in `hard_checks.py` exempts bot turns that look like greetings, acknowledgements, progress messages, or clarifying questions. That fixes the original false-positive class, but the implementation is now too permissive:
 
-## Baseline Failure Inventory
+- Any uncited factual answer shorter than 50 characters can pass.
+- Any answer ending in `?` with at most one period can pass, even if it embeds factual claims.
+- A factual answer can avoid citation by including a leading pattern such as "I'm looking into..." or "to help you".
+- It only treats a turn as KB-backed when `search_knowledge` or `resolve_article` was called on the same turn. If retrieval happened on an earlier tool-only turn and the next visible answer lacks `source_ids`, the heuristic may miss it.
+- It does not validate that `source_ids` support the answer. Presence is enough.
+- No committed test in `eval_interactive/tests` appears to cover the new citation heuristic. `rg` finds no source-citation-specific tests for clarifying vs factual answers.
 
-From `20260501-215807`:
+This change partially matches the proposal, but it should not be considered complete until citation-scope and citation-support tests exist.
 
-| Case | Expected UC | Actual UC | Outcome | Reason | Main blockers |
-| --- | --- | --- | --- | --- | --- |
-| `cs_interactive_001` | UC-C | UC-C | escalated | `turn_budget_exhausted` | source citation, reason mismatch, missing handover |
-| `cs_interactive_002` | UC-C | UC-I | escalated | `turn_budget_exhausted` | source citation, reason mismatch, wrong UC, missing handover |
-| `cs_interactive_004` | UC-D | UC-E | escalated | `user_requested` | source citation, wrong UC, wrong outcome |
-| `cs_interactive_011` | UC-D | UC-D | escalated | `user_distress` | source citation, reason mismatch, missing handover |
-| `cs_interactive_014` | UC-C | UC-C | escalated | `user_requested` | source citation, reason mismatch, missing handover |
-| `cs_interactive_015` | UC-FP | UC-A | resolved | none | source citation, wrong UC |
-| `cs_interactive_029` | UC-C | UC-F | escalated | `turn_budget_exhausted` | source citation, reason mismatch, wrong UC, missing handover |
-| `cs_interactive_036` | UC-I | empty | escalated | `out_of_scope` | invalid transition, reason mismatch, wrong UC, incomplete handover |
-| `cs_interactive_038` | UC-J | UC-J | escalated | `intake_complete_for_uc_j` | reason mismatch |
-| `cs_interactive_040` | UC-K | UC-K | escalated | `turn_budget_exhausted` | reason mismatch |
-| `cs_interactive_066` | UC-E | empty | empty | empty | `session_create_failed` timeout |
-| `cs_interactive_095` | UC-A | UC-D | escalated | `turn_budget_exhausted` | wrong UC, wrong outcome |
-| `cs_interactive_192` | UC-B | UC-B | resolved | none | source citation only |
-| `cs_interactive_259` | UC-F | UC-F | escalated | `turn_budget_exhausted` | source citation, wrong outcome |
+### Routing-prompt UC-A/UC-D fix
 
-The most important implication: a simple enum fix cannot unlock six cases by itself. Several enum-mismatch cases also fail L1 source citation and/or L2 handover completeness.
+The prompt fix is correct: login/password/wrong-email belongs to UC-D, while ad visibility/moderation belongs to UC-A. This aligns with `use-case-registry.yaml`, Phase 2, and the KB mapping report.
+
+Limitations:
+
+- This is prompt-only, not deterministic routing logic.
+- The latest eval was run against a server that may not have reloaded the changed prompt; `LlmInvocationService` loads prompts at `@PostConstruct`.
+- The server still uses non-zero temperatures for chat/routing (`0.3` and `0.1`), and for Kimi models the client skips the temperature field entirely. So route behavior can still vary run to run.
+- Committing `server/target/classes/prompts/routing_prompt.txt` is generated-artifact churn and does not guarantee the running JVM used the new prompt.
+
+### No runtime fixes landed
+
+The diff does not implement the production-side proposals:
+
+- no cheap deterministic `createSession()`;
+- no server-side escalation-reason resolver;
+- no complete handover emission on every escalation path;
+- no Delivery+refund semantic override before hard OOS;
+- no runtime-owned case creation contract for UC-H/J/K;
+- no deterministic answer-after-retrieval step;
+- no stricter hard gates for contract violations/stalls/tool sequence/case IDs.
+
+## Latest Eval Findings
+
+Per-case latest state:
+
+| Case | Expected | Actual | Primary problem |
+| --- | --- | --- | --- |
+| `cs_interactive_001` | UC-C escalate | UC-B escalate, `turn_budget_exhausted` | wrong UC, wrong reason, missing handover |
+| `cs_interactive_002` | UC-C escalate | UC-F escalate, `turn_budget_exhausted` | wrong UC, wrong reason, missing handover |
+| `cs_interactive_004` | UC-D resolve | UC-D escalate, `user_distress` | premature escalation despite correct UC |
+| `cs_interactive_011` | UC-D escalate | UC-D escalate, `user_distress` | wrong reason, missing handover, weak handling |
+| `cs_interactive_014` | UC-C escalate | UC-C escalate, `turn_budget_exhausted` | wrong reason, missing handover |
+| `cs_interactive_015` | UC-FP resolve | UC-A escalate, `user_distress` | wrong UC, premature escalation |
+| `cs_interactive_029` | UC-C escalate | contract violation | trace/runtime contract failure; root cause not proven by result alone |
+| `cs_interactive_036` | UC-I escalate | OOS escalate | Delivery hard-OOS overrides payment dispute semantics |
+| `cs_interactive_038` | UC-J escalate | UC-J escalate, `intake_complete_for_uc_j` | reason precedence bug: fraud should be `trust_safety_required` |
+| `cs_interactive_040` | UC-K escalate | UC-K escalate, `intake_complete_for_uc_k` | pass |
+| `cs_interactive_066` | UC-E escalate | UC-K escalate, `turn_budget_exhausted` | wrong UC, stall, wrong reason, missing handover |
+| `cs_interactive_095` | UC-A resolve | UC-D escalate, `turn_budget_exhausted` | wrong UC, wrong outcome |
+| `cs_interactive_192` | UC-B resolve | UC-B escalate, `turn_budget_exhausted` | immediate over-escalation of FAQ case |
+| `cs_interactive_259` | UC-F resolve | UC-C escalate, `turn_budget_exhausted` | wrong UC, wrong outcome |
+
+The latest result confirms that the dominant failure surface is still runtime routing/control, not KB tagging.
 
 ## 1. Correctness Bugs
 
-### 1.1 Baseline status is misreported
+### 1.1 Result status serialization can disagree with summary PASS
 
-The supplied status says `1/14` pass and mean composite `0.069`, but the referenced result file reports `0/14` and `0.0`. This matters because it changes the interpretation of Phase 3 progress and guardrails. `cs_interactive_040`, which likely passed in an earlier run, regressed to `turn_budget_exhausted` in the referenced run.
-
-Minimal fix:
-
-- Use one canonical baseline run in all Phase 3 planning.
-- Add a small summary verifier that prints total/pass/composite/error counts before any plan is approved.
-
-### 1.2 Session creation performs expensive agent work
-
-`SessionManager.createSession()` can trigger FAQ auto-search/control-kernel work during session creation. In the current run, `cs_interactive_066` fails during `POST /v1/chat/sessions` with a read timeout.
-
-This is a product and eval correctness problem. Session creation should be cheap, deterministic, and resilient. Resolution work should happen after the user sends the first actual message.
+`BatchExecutor._build_case_result()` writes `"status": "PASS"` when `case_passed` is true, but top-line pass count requires `case_passed and composite_score >= 0.7`. That contradicts the Phase 5 status definition and can mark a low-composite case as `PASS` in per-case JSON while the summary counts it as failed.
 
 Minimal fix:
 
-- Remove LLM/KB/control-kernel execution from `createSession()`.
-- Return a static, low-risk greeting or no bot message.
-- Move any auto-search/resolution to the first user turn.
-- Add an eval case that asserts session creation returns within the timeout and cannot call external/LLM tools.
+- Serialize per-case `status` using the same condition as the summary: `case_passed and composite_score >= 0.7`.
+- Add a regression test for `case_passed=True, composite_score=0.69`.
 
-### 1.3 Source citation gate is too broad
+### 1.2 Handoff misassigns several root causes
 
-`source_citation_present` currently flags any user-facing bot message without `source_ids` when `grounding_mode=faq_source_backed`. This catches messages such as "I'm looking into this for you" and clarifying questions.
+`docs/10-handoff.md` is useful, but several case-level assignments are too broad or wrong:
 
-That is likely a rubric/scoring bug. Clarifying, acknowledgement, and handover messages are not factual KB answers and should not require article citations.
-
-Minimal fix:
-
-- Require citations only for substantive FAQ answers that make factual claims or recommend policy steps.
-- Exempt acknowledgement, clarification, progress, and pure handover turns.
-- Add test fixtures for "clarifying question without source" and "factual answer without source".
-
-### 1.4 Handover completeness is missing on escalation paths
-
-Several escalated FAQ cases fail `L2_GATE_MISSING:handover_completeness`. The runtime appears able to record handover data, but not all escalation paths reliably surface a complete handover object to the eval trace.
+- `cs_interactive_004` has correct UC-D in latest run. The root cause is premature escalation / resolve-before-escalate failure, not routing.
+- `cs_interactive_015` is not a Delivery/OOS issue. It is UC-FP vs UC-A routing plus premature escalation.
+- `cs_interactive_066` did not fail session creation in the latest run. It failed because phone-contact/listing behavior was routed to UC-K, stalled after tool intent, and escalated with the wrong reason. Cheap session creation remains a risk, but it is not the latest root cause.
+- `cs_interactive_192` is not a handover-completeness problem in the latest run; it is immediate over-escalation of a resolvable UC-B FAQ case.
+- `cs_interactive_259` is shown in the handoff table as `resolved`, but the latest JSON says `escalated` with `turn_budget_exhausted`.
+- `cs_interactive_029` has `total_turns=0` in the serialized failure result. Calling it "runtime emitted an invalid UC field" is plausible but not proven from the JSON alone; the raw trace/session state should be inspected before assigning blame.
 
 Minimal fix:
 
-- Guarantee a single runtime-owned handover event for every `ESCALATE` outcome.
-- Required fields: `session_id`, `primary_use_case`, `summary`, `escalation_reason`, `total_bot_turns`.
-- Add tests for FAQ escalation, fixed-script escalation, hard out-of-scope escalation, and budget escalation.
+- Generate the handoff failure table directly from `results.json`.
+- Separate "observed failure tag" from "hypothesized root cause".
+- Require a raw trace link for every `CONTRACT_VIOLATION`.
 
-### 1.5 Escalation reason selection is non-deterministic
+### 1.3 Citation gate is now gameable
 
-The prompt instructs the LLM to choose a canonical enum, but exact reason correctness is a hard gate. Current examples:
-
-- `cs_interactive_038`: expected `trust_safety_required`, actual `intake_complete_for_uc_j`.
-- `cs_interactive_040`: expected `intake_complete_for_uc_k`, actual `turn_budget_exhausted`.
-- `cs_interactive_001`: expected `clarification_budget_exhausted`, actual `turn_budget_exhausted`.
+The new `_is_substantive_factual_answer()` heuristic fixes false positives but opens false negatives.
 
 Minimal fix:
 
-- Add a server-side escalation-reason resolver.
-- Give it precedence rules that are tested independently of LLM output.
-- Let the LLM provide evidence/intake summary, not the final canonical enum in cases where the runtime can decide.
+- Replace length/pattern-only logic with turn-type evidence:
+  - if the bot makes a factual/policy/procedural answer in a FAQ-grounded case, citation is required;
+  - clarifying/progress/handover turns are exempt;
+  - retrieval on prior turns counts for the next visible answer;
+  - source IDs must support the answer, not merely exist.
+- Add tests for short factual uncited answers, long clarifying questions, progress text with factual claims, and prior-turn retrieval followed by an uncited answer.
 
-### 1.6 Routing prompt contradicts use-case registry semantics
+### 1.4 Smoke specs list expected tools but do not score them
 
-`routing_prompt.txt` maps "Can't log in", "password reset", "locked out", and "wrong email on account" to UC-A, described as account/login. The KB mapping report says UC-A is "Ad Status & Visibility"; UC-D is "Account & Login".
-
-This can cause systematic UC-A/UC-D errors and confuses downstream tool policy.
-
-Minimal fix:
-
-- Align routing prompt labels with the registry and eval definitions.
-- Add routing regression tests for login, password reset, wrong email, ad not visible, app sync, and contact email.
-
-### 1.7 Hard out-of-scope routing runs before semantic dispute detection
-
-`cs_interactive_036` expects UC-I payment dispute intake but is routed/escalated as hard out-of-scope because the topic subject is Delivery. The case text includes refund/payment/legal-dispute signals that should override generic Delivery OOS handling.
+Every smoke CaseSpec has an `expected_tool_sequence`, but none of the 14 smoke specs configure `tool_sequence_match`. `case_id_present`, `turn_efficiency`, `issue_preservation`, and canonical `escalation_timing` are also absent from smoke scoring. The aliases `escalation_triggered` and `intake_fields_collected` run timing/handover checks, but the production tool-order contract is effectively inert.
 
 Minimal fix:
 
-- In routing, evaluate high-confidence in-scope payment dispute, trust/safety, and refund signals before hard topic-subject OOS.
-- For Delivery plus refund/charge/dispute/legal liability, route to UC-I.
-- Keep plain courier/logistics delivery questions out of scope.
+- Add `tool_sequence_match` to smoke outcome checks where `expected_tool_sequence` is non-empty.
+- Make it mandatory at least for UC-G/H/I/J/K and any case that expects `get_customer_context` before grounded answering.
+- Add `case_id_present` to UC-H/J/K smoke cases.
 
-### 1.8 Runtime-only case creation is assigned to the agent
+### 1.5 `fixed_script_adherence` only checks "no knowledge tools"
 
-The plan logic tells the LLM to call `create_case_controlled` before handover for UC-H/UC-J/UC-K. This is fragile because case creation is a side effect and the tool is intended to be runtime-controlled.
-
-Minimal fix:
-
-- Runtime should create the case deterministically once the fixed-script intake is complete.
-- The LLM should not be responsible for ordering side-effect tool calls before handover.
-- Add duplicate-case and missing-case tests.
-
-### 1.9 `turn_budget_exhausted` masks semantic failures
-
-Several cases end with `turn_budget_exhausted` even when a more specific outcome is expected. This makes failures hard to diagnose and can produce poor customer experience.
+In `hard_checks.py`, `fixed_script_adherence` aliases to `_check_intake_no_knowledge_tool()`. That does not verify fixed-script template selection, required intake fields, case creation, SLA language, forbidden promises, or safe policy wording.
 
 Minimal fix:
 
-- If the runtime reaches the final allowed turn after having enough classification/intake evidence, emit the semantic reason, not generic budget exhaustion.
-- Reserve `turn_budget_exhausted` for true loop exhaustion where no better reason applies.
+- Split into explicit checks:
+  - `intake_no_knowledge_tool`;
+  - `fixed_script_template_used`;
+  - `required_intake_fields_collected`;
+  - `case_created_when_required`;
+  - `fixed_script_forbidden_claims_absent`.
+
+### 1.6 Escalation correctness summary is too weak
+
+The summary `escalation_correctness` only compares expected and actual outcome class. It does not include reason enum correctness, timely escalation, or handover completeness. The latest run reports `0.5714` even though six cases fail exact escalation reason and six fail handover completeness.
+
+Minimal fix:
+
+- Split summary metrics:
+  - `escalation_decision_accuracy`;
+  - `escalation_reason_accuracy`;
+  - `handover_completeness_rate`;
+  - `escalation_timing_rate`.
+
+### 1.7 Server eval is not deterministic
+
+The eval config sets simulator temperature to `0.7`; the server sets chat/routing temperatures to `0.3`/`0.1`, and Kimi requests omit temperature. The two committed reruns show large swings in outcome and escalation correctness.
+
+Minimal fix:
+
+- Add a deterministic replay smoke mode using scripted user turns from `seed_messages`, not LLM-generated follow-up turns.
+- Pin server-side routing/chat temperature for eval mode.
+- Record model, provider, temperature, prompt version, and prompt hash in every eval result.
+
+### 1.8 Session creation still performs resolution work
+
+Phase 4 D14.6 explicitly asks `createSession()` to auto-run `ControlKernel.processMessage()` on form descriptions. The latest findings recommend the opposite because session creation timeouts previously broke `cs_interactive_066`.
+
+This is a design contradiction across docs and implementation.
+
+Minimal fix:
+
+- Decide the product contract: session creation should either be cheap/static, or it is allowed to perform resolution and must have latency/error gates.
+- My recommendation: make session creation cheap; move auto-resolution to the first normal bot turn.
+- Add a hard eval case that fails if session creation calls LLM/KB or exceeds the session-create latency budget.
 
 ## 2. Missing Eval Cases
 
-The current smoke set is useful, but it does not isolate several important failure modes. Add targeted evals before scaling Phase 3.
+The smoke set does test some production-relevant behavior: routing across common UCs, FAQ vs fixed-script handling, payment dispute, safety/fraud, technical intake, and several bad-case/drift examples. It is not enough to validate production readiness.
 
-### 2.1 Runtime and infrastructure cases
+Missing production-critical cases:
 
-- Session creation must not call LLM/KB tools.
-- Session creation must return inside timeout under normal backend load.
-- Tool timeout should produce a controlled fallback, not `session_create_failed`.
-- No run should contain `ERROR`, `CONTRACT_VIOLATION`, `session_create_failed`, or `max_steps_exceeded`.
-
-### 2.2 Scoring hygiene cases
-
-- Clarifying question without `source_ids` should pass source-citation gate.
-- Acknowledgement/progress message without `source_ids` should pass.
-- Factual FAQ answer without `source_ids` should fail.
-- Factual FAQ answer with irrelevant `source_ids` should fail or receive a lower citation-quality score.
-- Handover-only response should not require KB citation.
-
-### 2.3 Escalation reason precedence cases
-
-Add a matrix covering:
-
-- Explicit human request beats general distress.
-- Trust/safety urgency beats intake completion.
-- Payment dispute beats generic Delivery OOS.
-- Clarification budget exhaustion beats generic turn budget exhaustion.
-- Intake completion for UC-H/UC-J/UC-K is used only when no stronger safety/dispute trigger exists.
-
-### 2.4 Routing ambiguity cases
-
-Add one-turn and multi-turn cases for:
-
-- Login/password/wrong email -> UC-D.
-- Ad visibility/moderation status -> UC-A.
-- Reply/message delivery -> UC-C.
-- Contact email vs login email vs app notification sync -> UC-D or UC-A depending product decision.
-- Phone number visibility/contact option -> UC-E or UC-B depending product decision.
-- Seller payment guidance -> UC-F.
-- Deletion appeal vs deletion explanation -> UC-H vs UC-FP.
-- Delivery scam vs delivery logistics vs delivery refund dispute -> UC-J/UC-E vs OOS vs UC-I.
-
-### 2.5 Fixed-script and case-creation cases
-
-- UC-H, UC-J, UC-K intake completes required fields before handover.
-- Runtime creates a case exactly once before handover.
-- Handover summary contains the collected fixed-script fields.
-- Safety/fraud case can escalate early when risk is high, without forcing full intake.
-
-### 2.6 Tool policy cases
-
-- Agent cannot expose or call human-only tools for refunds, account mutations, moderation enforcement, GDPR deletion, or payment actions.
-- Agent-visible tools are constrained by active UC.
-- Misrouting should not unlock unsafe tools.
-- Tool errors should not be represented as successful customer-facing actions.
-
-### 2.7 Knowledge retrieval cases
-
-- Retrieval should find existing article coverage for known KB-backed topics.
-- Retrieval should fail closed when active UC filter hides relevant articles.
-- Multi-UC articles should be returned for all intended UCs.
-- Missing smoke-relevant topics should be tracked as content gaps, not mapping gaps.
+1. Explicit "talk to a human" from first turn and mid-conversation, with hard `user_requested_escalation`.
+2. Session creation latency and no-heavy-work-on-create.
+3. Tool sequence and negative tool access for each UC.
+4. UC-H/UC-J/UC-K case creation with `case_id` in handover.
+5. Handover quality, not just presence of required fields.
+6. Same-thread continuity / Omni-Channel transfer contract.
+7. Offline vs business-hours escalation messages.
+8. Tool timeout, backend error, and partial-result fallback behavior.
+9. Source citation support quality, including irrelevant source IDs.
+10. KB retrieval miss vs weak retrieval vs wrong-UC-filtered retrieval.
+11. Phone-contact/product-contact-option policy.
+12. Login email vs contact email vs messaging email policy.
+13. Seller payment guidance and safe-payment disclaimers.
+14. Delivery logistics OOS vs Delivery+refund dispute vs Delivery scam/fraud.
+15. PII minimization beyond regex leakage: account status summaries, email/phone repetition, evidence upload guidance.
+16. Human-only tool promise cases: "I removed the ad", "I refunded you", "I emailed you", "I banned the seller".
+17. Reproducibility cases: scripted deterministic smoke alongside LLM-simulated smoke.
 
 ## 3. Weak Rubric Dimensions
 
-### 3.1 Composite score is too opaque for development
+### 3.1 Source citation is presence-based
 
-The all-or-nothing L1/L2 gate is appropriate for release blocking, but it hides partial progress during development. In this run, many cases have non-zero outcome and judge scores but composite `0.0`.
+`source_ids` presence is scored, but source relevance/support is not. A hallucinated or irrelevant article ID can satisfy the L1 citation gate.
 
-Recommended change:
+### 3.2 Tool behavior is mostly advisory or unused
 
-- Keep release PASS strict.
-- Add a diagnostic score that reports independent buckets: infra, contract, routing, outcome, handover, citation, LLM quality.
+The Phase 5 design includes `tool_sequence_match`, but smoke does not configure it. Production-critical tool behavior can be wrong while the case still passes if UC/outcome/handover happen to align.
 
-### 3.2 Source citation metric checks presence, not citation quality
+### 3.3 Policy compliance is undercounted
 
-The current source gate appears to check whether sources exist, not whether the cited sources actually support the answer.
+Summary `policy_compliance_rate` only looks for `no_critical_policy_violation` and `no_pii_leakage` failure tags. It ignores wrong containment, wrong escalation reason, handover failure, unsafe payment/fraud handling, and human-only tool promises unless those exact hard checks fire.
 
-Recommended change:
+### 3.4 L3 can reward procedural non-answers
 
-- Split into `citation_required`, `citation_present`, and `citation_supports_answer`.
-- Use retrieval/article IDs plus answer spans for support checks where possible.
+Groundedness can be high when the bot makes no factual claims, even if the user needed a resolvable FAQ answer. This is why over-escalation can look semantically clean while failing the actual customer task.
 
-### 3.3 Groundedness can reward non-answers
+### 3.5 No direct customer-effort score
 
-Generic escalation messages can receive high groundedness because they make no factual claims. That is logically defensible but weak as a customer-service measure.
+The rubric does not explicitly score whether the user had to repeat themselves, whether the bot used form context, whether a next step was clear, or whether the bot prematurely dumped the user to a human.
 
-Recommended change:
+### 3.6 Fixed-script quality is not measured
 
-- Add an "answer usefulness" or "actionability" dimension separate from groundedness.
-- For resolvable FAQ cases, penalize generic escalation even if it is grounded.
+The docs define detailed fixed-script templates, but the current hard check only prevents knowledge retrieval for fixed-script UCs. It does not assert template semantics or required safe phrasing.
 
-### 3.4 Handover completeness is binary and shallow
+### 3.7 Interactive metrics are still advisory
 
-The current gate checks required fields but does not measure whether the handover is useful to a human agent.
-
-Recommended change:
-
-- Add handover quality dimensions: concise issue summary, customer objective, identifiers collected, attempted resolution, reason for escalation, no unnecessary PII, and next action.
-
-### 3.5 Policy compliance is too narrow
-
-Policy compliance is `1.0` in a run where the agent misroutes payment/dispute/safety cases, times out at session creation, and escalates incorrectly. The metric is probably catching only severe violations.
-
-Recommended change:
-
-- Add policy-specific checks for payment/refund disclaimers, fraud/safety escalation urgency, privacy minimization, human availability, and prohibited promises.
-
-### 3.6 No customer-effort metric
-
-The rubric does not directly measure whether the user had to repeat themselves, got a clear next step, or was blocked from human escalation.
-
-Recommended change:
-
-- Add dimensions for repeated-information burden, directness, next-step clarity, and escalation availability.
-
-### 3.7 Latency and resilience are not first-class quality dimensions
-
-`cs_interactive_066` failed with a session creation timeout, but the summary does not elevate latency as a product-quality metric.
-
-Recommended change:
-
-- Track session create latency, first response latency, tool latency, timeout fallbacks, and retry behavior.
+Phase 5 says interactive task success and stall rate are advisory in V1. Given the current architecture, that is too weak. Current smoke has a stall and contract violation; both should be release blockers for this agent class.
 
 ## 4. Agent Design Problems
 
-### 4.1 LLM is responsible for deterministic control decisions
-
-Exact UC, exact escalation reason, fixed-script completion, and side-effect ordering are currently too dependent on model behavior. These are better handled by deterministic runtime logic.
-
-Recommended design:
-
-- LLM handles language understanding, summarization, and user-facing phrasing.
-- Runtime owns routing constraints, phase transitions, canonical escalation reasons, handover creation, and case creation.
-
-### 4.2 Session lifecycle mixes initialization and resolution
-
-The system appears to do resolution work during session creation. That creates timeout risk and makes the first visible bot turn hard to reason about.
-
-Recommended design:
-
-- `createSession()` only initializes state.
-- First user turn enters routing/discover/resolution.
-- Any proactive greeting should be static and not tool-backed.
-
-### 4.3 Routing, prompt, and KB labels are not synchronized
-
-Routing prompt, KB mapping, and case specs do not consistently describe the same UC semantics. The UC-A/UC-D contradiction is the clearest example.
-
-Recommended design:
-
-- Generate routing prompt examples from one authoritative UC registry.
-- Add a CI check that catches prompt examples pointing to the wrong UC.
-
-### 4.4 Hard OOS is too coarse
-
-Topic subject "Delivery" is treated as handover/out-of-scope before the runtime considers whether the actual issue is a payment dispute, fraud/scam, or product-safety issue.
-
-Recommended design:
-
-- Use topic subject as a prior, not a hard override.
-- Apply semantic overrides for high-risk or in-scope exception patterns.
-
-### 4.5 Fixed-script intake conflicts with safety escalation
-
-The prompt says trust/safety urgency beats `intake_complete_for_uc_j`, but runtime plans can still steer UC-J toward intake-complete escalation.
-
-Recommended design:
-
-- Build explicit precedence into runtime reason resolver.
-- Allow early safety escalation when required fields are incomplete but risk is high.
-
-### 4.6 Tool loop does not reliably convert retrieval into an answer
-
-Some cases retrieve or classify but end in `turn_budget_exhausted` rather than a final answer. This suggests the loop lacks a deterministic post-tool answer fallback.
-
-Recommended design:
-
-- After successful KB retrieval, force an answer generation step.
-- If answer generation fails, escalate with a specific recoverable reason and complete handover.
+1. The LLM still controls exact escalation reason in places where exact enum correctness is a hard gate.
+2. Runtime-owned side effects are still partly described as things the LLM should call or order.
+3. `create_case_controlled` is runtime-only in the tool spec, but intake prompts/plans still instruct tool ordering around it.
+4. The routing prompt fix is not enough for high-impact disambiguation; hard deterministic rules are needed for account/login, payment dispute, trust/safety, and hard OOS exceptions.
+5. `UseCaseRouter` checks handover-only topics before semantic dispute/safety overrides, so Delivery+refund is forced OOS.
+6. `ControlKernel` maps exceeded budgets to generic `turn_budget_exhausted`, masking more specific root causes.
+7. The server can auto-answer during session creation, which mixes initialization, routing, retrieval, and response generation into one latency-sensitive API call.
+8. Prompt/design docs conflict on whether auto-search during session creation is desirable.
+9. Eval and production runtime use different temperature controls, so smoke results are not reproducible enough for regression attribution.
 
 ## 5. Tool-Use Risks
 
-### 5.1 Misrouting changes tool access
-
-Tool policy depends on active UC. If routing is wrong, the agent may lose access to needed tools or gain access to irrelevant tools.
-
-Risk:
-
-- Correct answer is impossible after a wrong UC filter.
-- Unsafe tools may become available if future policies expand.
-
-Minimal mitigation:
-
-- Add routing confidence and re-route checks before tool execution.
-- Keep human-only and sensitive tools inaccessible regardless of UC.
-
-### 5.2 Search is filtered by active UC
-
-UC-filtered retrieval is good for precision, but a wrong active UC can hide the right article. This is likely affecting several FAQ cases.
-
-Minimal mitigation:
-
-- When confidence is low or retrieval returns weak results, allow a controlled cross-UC retrieval probe.
-- Do not expose cross-UC results unless they pass relevance checks.
-
-### 5.3 Side-effect tools should not be LLM-ordered
-
-Case creation, handover, refunds, enforcement, account mutation, GDPR actions, and follow-up emails are side effects. The LLM should not decide their ordering or execution.
-
-Minimal mitigation:
-
-- Runtime owns side-effect execution.
-- LLM can propose a summary and fields, but runtime validates and executes.
-
-### 5.4 Tool timeouts can become user-visible failures
-
-The `session_create_failed` timeout shows that tool/runtime latency can kill a case before the agent responds.
-
-Minimal mitigation:
-
-- Add timeout budgets per phase.
-- Use controlled fallback responses for read-only tool failure.
-- Never run slow tools during session creation.
-
-### 5.5 Citation metadata can satisfy the system without helping the user
-
-The eval checks `source_ids`, but the customer needs clear, relevant guidance. A hidden or irrelevant source ID can pass a shallow metric while still producing poor support.
-
-Minimal mitigation:
-
-- Tie source IDs to answer claims.
-- Prefer visible article references or traceable article titles in the answer where product UX allows it.
+1. Wrong UC changes tool access. `cs_interactive_066` becoming UC-K moves a phone/contact-option FAQ into technical intake behavior.
+2. UC-filtered retrieval can hide the right article after a wrong route.
+3. Human-only tools are blocked as calls, but verbal promises around refunds, emails, moderation actions, and account changes need stronger checks.
+4. Runtime-only case creation must not depend on model tool-call ordering.
+5. `record_outcome` is expected but not scored in smoke; analytics can silently degrade.
+6. `request_handover` is agent-visible and accepts many reason enums; a server-side resolver should validate or override unsafe choices.
+7. Tool errors and timeouts need customer-visible fallback checks. A stall after "I'm looking into this" is already present in the latest run.
+8. Committing `server/target/classes` makes it harder to know whether source resources or generated resources are authoritative.
 
 ## 6. Customer Service Policy Gaps
 
-### 6.1 Human escalation availability
-
-BRD expectations say the customer should be able to request a human at any point. Current behavior sometimes escalates for the wrong reason and sometimes fails before session creation.
-
-Policy gap:
-
-- The runtime needs deterministic "human requested" detection and must not block the user behind extra turns when they explicitly ask for an agent.
-
-### 6.2 Payment, refund, and dispute boundaries
-
-Payment/refund issues are high-stakes and often require specialist or human handling. The bot should give safe general guidance but not promise refunds, adjudicate disputes, or imply Gumtree controls third-party payments.
-
-Policy gap:
-
-- The system needs clearer boundaries between UC-F payment guidance, UC-I payment dispute intake, Delivery OOS, and fraud/safety reports.
-
-### 6.3 Trust and safety urgency
-
-Fraud, scams, dangerous goods, threats, and urgent safety issues should not be reduced to generic intake completion.
-
-Policy gap:
-
-- `trust_safety_required` should override normal intake-complete reasons when risk is clear.
-- The handover should include safety-relevant details already collected.
-
-### 6.4 Phone contact and privacy
-
-Users may ask why phone contact is unavailable, hidden, or unsafe. The KB has related safety material, but the product policy needs a direct answer path.
-
-Policy gap:
-
-- Clarify when phone numbers are visible, when sellers choose contact options, and when messaging is preferred for safety/privacy.
-
-### 6.5 Login email, contact email, and messaging email
-
-Existing articles distinguish login email, account/contact email, and communications, but this is not surfaced reliably in the agent behavior.
-
-Policy gap:
-
-- Define a canonical answer for customers seeing multiple emails or missing replies.
-- Specify when the bot can answer from KB vs when account lookup or human handover is needed.
-
-### 6.6 Seller payment guidance
-
-There is existing safe-payment content, but seller-specific "how should I get paid" guidance is not clearly routed to UC-F and may be filtered out.
-
-Policy gap:
-
-- Provide a seller-payment policy answer that avoids guaranteeing safety, discourages risky off-platform behavior, and recommends inspect/meet/safe-payment practices.
-
-### 6.7 Out-of-scope Delivery exceptions
-
-Delivery as logistics may be out of scope, but delivery scams and delivery-related payment disputes are not the same as courier support.
-
-Policy gap:
-
-- Define exception handling for Delivery plus scam, refund, chargeback, missing item, legal threat, or seller/buyer dispute signals.
+1. Human escalation availability is not hard-tested, despite BRD requiring access to a human at any point.
+2. Payment/refund/dispute boundaries are still ambiguous across UC-F, UC-I, Delivery OOS, and UC-J scam/fraud.
+3. Trust and safety urgency must override generic intake completion. `cs_interactive_038` shows the current opposite.
+4. Phone contact option policy is not codified clearly enough for UC-E/UC-B vs UC-K.
+5. Email/contact/login/messaging identity needs a canonical answer path; several UC-C/UC-D cases expose this.
+6. Seller payment guidance needs safe, grounded policy language that avoids promising payment protection.
+7. Delivery exceptions need explicit policy: plain courier logistics can be OOS, but delivery-related refund disputes and scams should route to UC-I/UC-J.
+8. Offline handover messaging and business-hours routing are specified but not tested.
+9. PII handling around evidence, email addresses, phone numbers, and fraud reports needs more than regex-based leak detection.
 
 ## 7. Recommended Minimal Fixes
 
-### Fix 0: Establish a clean baseline
+### Fix A: Make the eval result contract consistent
 
-Scope:
+- Fix per-case `status` serialization to include the `composite >= 0.7` threshold.
+- Add top-level counts for `ERROR`, `TIMEOUT`, `CONTRACT_VIOLATION`, `STALL`, and `session_create_failed`.
+- Make any non-zero count in those buckets fail smoke.
 
-- Use `20260501-215807` as the baseline or rerun once and record the new canonical baseline.
-- Add a script/check that reports pass count, mean composite, error count, and guard failures.
+### Fix B: Add regression tests for the citation-gate change
 
-Acceptance criteria:
+Minimum tests:
 
-- Baseline summary is reproducible.
-- Planning documents no longer mix results from different runs.
+- short factual uncited answer fails;
+- long clarifying question passes;
+- progress/acknowledgement without facts passes;
+- progress phrase plus factual claim fails;
+- prior-turn KB retrieval followed by uncited answer fails;
+- factual answer with relevant source IDs passes.
 
-### Fix 1: Make session creation deterministic and cheap
+### Fix C: Activate production-critical smoke checks
 
-Scope:
+- Add `tool_sequence_match` to every smoke case with `expected_tool_sequence`.
+- Add `case_id_present` to UC-H/J/K cases.
+- Add `turn_efficiency` and `issue_preservation` where drift is expected.
+- Add `user_requested_escalation` cases and configure the hard check.
+- Replace `fixed_script_adherence` alias with real fixed-script checks.
 
-- Remove LLM/KB/control-kernel calls from `createSession()`.
-- Return only initialized session state and static greeting behavior.
+### Fix D: Make server-side control deterministic before prompt work
 
-Acceptance criteria:
+Implement a narrow resolver service with unit tests:
 
-- `cs_interactive_066` no longer fails during session creation.
-- New eval asserts no tool/LLM work on `POST /v1/chat/sessions`.
+- input: active UC, risk, user-requested flag, safety/fraud signals, payment dispute signals, budget state, intake completion;
+- output: canonical `escalation_reason`;
+- tested precedence: `trust_safety_required` over intake-complete, payment dispute over Delivery OOS, user-requested over distress, clarification exhaustion over generic turn budget.
 
-### Fix 2: Repair scoring gates that create false negatives
+### Fix E: Fix handover emission once, centrally
 
-Scope:
+- Every `ESCALATE` terminal path must produce one complete handover record.
+- Required payload fields should match Phase 3 section 3.6.2.
+- UC-H/J/K must include `case_id`.
+- Add integration tests for FAQ escalation, hard OOS, payment dispute, trust/safety, and technical intake.
 
-- Update source citation gate to apply only to substantive FAQ answers.
-- Ensure handover completeness is emitted for every escalation.
+### Fix F: Resolve the session-creation contradiction
 
-Acceptance criteria:
+- Decide whether session creation may call LLM/KB.
+- Recommended minimal path: remove auto-search from `createSession()` and perform resolution on first user turn.
+- Add a smoke case or unit test proving session creation is fast and tool-free.
 
-- `cs_interactive_192` should pass if its only blocker remains source citation false positive.
-- FAQ escalation cases no longer fail `L2_GATE_MISSING:handover_completeness`.
+### Fix G: Separate deterministic smoke from LLM-simulated smoke
 
-### Fix 3: Add server-side escalation reason resolver
+- Add a deterministic mode that replays `seed_messages` exactly.
+- Keep the LLM simulator as exploratory/adversarial testing, not the only smoke signal.
+- Pin server eval temperatures and record prompt hashes.
 
-Scope:
+### Fix H: Correct root-cause reporting
 
-- Implement deterministic reason precedence:
-  - explicit human request -> `user_requested`
-  - safety/fraud urgency -> `trust_safety_required`
-  - payment/refund dispute -> `payment_dispute_detected`
-  - clarification exhausted -> `clarification_budget_exhausted`
-  - fixed-script completion -> `intake_complete_for_uc_h/j/k`
-  - true loop exhaustion -> `turn_budget_exhausted`
-  - plain OOS -> `out_of_scope`
+- Generate `docs/10-handoff.md` case tables from the latest result JSON.
+- Include actual UC/outcome/reason from JSON.
+- Keep hypotheses separate from observed failure tags.
+- For contract violations, include raw trace/session payload or a link to it.
 
-Acceptance criteria:
+### Fix I: Defer KB authoring until runtime gates are stable
 
-- `cs_interactive_001`, `011`, `014`, `038`, and `040` use expected canonical reasons when their routing/outcome is otherwise correct.
+KB content still matters for phone contact, email/contact distinction, seller payment, and delivery/refund policy. But authoring those articles before routing, handover, and tool-sequence gates are stable will produce noisy signal. The next useful KB work is retrieval-probe-driven, not broad article creation.
 
-### Fix 4: Align routing and UC semantics
+## Priority Order
 
-Scope:
+1. Fix eval contract/status and add hard top-level gates.
+2. Add tests for the source-citation heuristic.
+3. Enable smoke scoring for tool sequence, case ID, user-requested escalation, and real fixed-script adherence.
+4. Implement deterministic server-side escalation reason resolver.
+5. Guarantee complete handover on every escalation path.
+6. Fix Delivery+refund/fraud semantic routing before hard OOS.
+7. Make session creation cheap or explicitly gate its latency/tool behavior.
+8. Rerun deterministic smoke and then LLM-sim smoke.
+9. Only then proceed to targeted KB content updates and residual prompt tuning.
 
-- Fix UC-A/UC-D prompt mismatch.
-- Add semantic overrides for Delivery plus dispute/fraud signals.
-- Add targeted routing examples for UC-FP deletion compliance, UC-F payment guidance, UC-C replies, UC-E phone/contact options, and UC-A app/ad visibility sync.
+## Verification Notes
 
-Acceptance criteria:
-
-- `cs_interactive_002`, `004`, `015`, `029`, `036`, `095`, and `259` route to expected UCs or produce a documented product-policy exception.
-
-### Fix 5: Runtime-owned case creation and handover
-
-Scope:
-
-- For UC-H/UC-J/UC-K, runtime creates a case exactly once after fixed-script intake or urgent safety trigger.
-- Runtime then records complete handover.
-
-Acceptance criteria:
-
-- No missing or duplicate case creation.
-- Handover includes collected fields and next action.
-
-### Fix 6: Force answer after successful KB retrieval
-
-Scope:
-
-- For FAQ UCs, successful retrieval should lead to a concise answer with supporting source IDs.
-- If retrieval is weak, ask one clarification or escalate with a specific reason.
-
-Acceptance criteria:
-
-- `cs_interactive_004`, `095`, `192`, and `259` do not end as generic `turn_budget_exhausted` after tool use.
-
-### Fix 7: Author or update only the minimum KB content
-
-Do this after Fixes 1-6, otherwise article changes will be hard to evaluate.
-
-Minimum content work:
-
-- Phone/contact option article or update for UC-E/UC-B.
-- Email/app/contact/login distinction article or update for UC-D/UC-A.
-- Seller receiving payment guidance for UC-F, or retag/update existing safe-payment content so UC-F retrieval can find it.
-- Delivery/refund dispute note only if product policy wants a user-facing article; it will not unblock fixed-script-only UC-I cases without routing/intake changes.
-
-Acceptance criteria:
-
-- Retrieval probes find the intended article for each smoke-relevant query.
-- Article IDs are returned under the expected UC filters.
-
-## Suggested Phase 3 Execution Order
-
-I recommend a modified ROI sequence:
-
-1. Tier 0 substrate fix: baseline, session creation, citation gate, handover completeness.
-2. Smoke.
-3. Tier 1 deterministic routing/reason resolver.
-4. Smoke.
-5. Tier 2 resolve-before-escalate loop improvements.
-6. Smoke.
-7. Tier 3 minimal KB articles/retagging.
-8. Smoke.
-9. Tier 4 prompt few-shots only for remaining ambiguous failures.
-
-Expected result:
-
-- Tier 0 + Tier 1 should make `5-6/14` plausible if the eval gates are repaired.
-- Tier 2 + Tier 3 are needed to reach `6-8/14`.
-- Prompt-only T1 is not recommended because exact enum, handover, case creation, and timeout behavior are runtime responsibilities.
+I attempted to run the targeted eval-interactive pytest subset referenced in `docs/10-handoff.md`, but `python -m pytest ...` exited with code `-1` and produced no output in this environment. I did not edit source code. This file is the only intended change from this review.
