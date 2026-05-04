@@ -1,4 +1,4 @@
-# Codex Findings - Latest Interactive Eval Review
+# Codex Findings - Round 5 Interactive Eval Review
 
 Date: 2026-05-04
 
@@ -6,204 +6,186 @@ Reviewed scope:
 
 - Design docs from phase 0 through phase 5, handoff, interactive case generation plan, fixed script library, and customer service tool spec.
 - Smoke case specs under `eval_interactive/case_specs/smoke`.
-- Latest interactive result: `eval_interactive/results/20260504-071557/results.json`.
-- Latest implementation diff: `HEAD~1..HEAD` at `bb39363`.
+- Latest interactive result: `eval_interactive/results/20260504-081853/results.json`.
+- Latest implementation diff: `HEAD~1..HEAD` at `32b0779`.
 
 ## Executive Summary
 
-The latest scoring update moves in the right direction by demoting exact tool-sequence matching, but it currently over-corrects. The new rubric can be made to pass non-answers if specs start adding broad `acceptable_outcomes: [resolve, escalate]` without a service-quality gate.
+The latest implementation fixes several prior evaluator defects: session-create replies are now visible in the transcript, the YAML escalation enum is synced to 23 values, `trace_minimum` and `required_escalation` were added as global L1 checks, `acceptable_outcomes` has a cross-class quality guard, and secondary-UC credit was narrowed. Those are directionally correct and mostly minimal.
 
-The most important issue is not a model answer issue. The interactive runner omits the create-session form turn and `bot_greeting` from the stored transcript, L3 judge input, JSON results, and HTML report. This directly explains the weird `cs_interactive_192` trace: the UI shows an initial answer to the form description, then the result transcript starts only at the follow-up. That means downstream scoring and review are judging an incomplete conversation.
+The eval is still not ready to act as a production gate. The latest run remains `4/14` passed, with `stall_rate=7.1%`. More importantly, the new run exposes remaining root-cause and rubric issues: `cs_interactive_029` reports `escalation_reason=turn_budget_exhausted` but L1 `escalation_compliance` passes; `cs_interactive_066` likely penalizes a reasonable UC-K technical intake because the case spec expects UC-E; and `cs_interactive_015` gets a stall failure from a session-create placeholder even though the next bot turn asks a clarifying question.
 
-The current run is `4/14` passed. The three new passes are mostly due to gate demotion and semantic escalation-family matching. The remaining failures are a mix of real runtime/agent defects, eval instrumentation defects, and expected-spec mistakes. Treating them all as "acceptable over-escalation" would hide production-critical behavior gaps.
+The largest gaming risk is reduced but not closed. A cross-class resolve-to-escalate fallback now needs a handover summary of at least 10 characters and a reason, but that is still not a useful handover. A generic summary like "User needs help" would pass the guard without answering the customer or proving the handover contains source/status evidence.
 
-## Direct Answers To The Review Questions
+## Direct Answers
 
-1. The smoke eval partly tests production-critical behavior, but it is too thin for launch readiness. It covers some UC routing, handover, and FAQ resolution paths, but misses GDPR/account deletion, moderation appeals, out-of-scope handling, explicit human-request handling, payment answer quality, tool errors, and source-backed policy details.
+1. The smoke cases partly test production-critical behavior, but not enough. They cover some FAQ, routing, escalation, and handover paths, but they still miss GDPR deletion, moderation appeal, tool errors, out-of-scope handling, explicit callback requests, payment FAQ safety advice, and policy-specific free-items restrictions.
 
-2. The rubric can be gamed. `acceptable_outcomes` accepts raw terminal outcomes (`resolve`, `escalate`) rather than service outcomes. A bot can escalate immediately with a generic message and pass `correct_outcome` if a spec lists escalation as acceptable.
+2. The rubric can still be gamed. The new `acceptable_outcomes` guard is syntactic, not semantic; `correct_uc` trusts `candidate_use_cases`; and L3 groundedness can give a 5 to a conversation that contains an unsupported turn-0 factual answer.
 
-3. Several failures are assigned to the wrong root cause. The clearest example is `cs_interactive_029`: the handoff says expected `clarification_budget_exhausted`, but the case spec expects `user_requested`. The actual `turn_budget_exhausted` is a cross-family mismatch, so the L1 failure is valid.
+3. Some failures are assigned to the wrong root cause. `cs_interactive_029` is the clearest mismatch: the reported session reason is cross-family with the expected trigger, but L1 passes. `cs_interactive_066` also looks like a case-spec/root-cause problem rather than a bot failure.
 
-4. The proposed design changes are minimal in code size, but not yet minimal and testable as a product-eval design. The implementation added a small schema field and relaxed gates, but deferred the hard gates that would make that relaxation safe.
+4. The design changes are small and mostly testable, but the tests cover scorer fixtures more than end-to-end behavior. There is no regression test proving session-create transcript rows align with trace rows, stall detection, L3 judge input, or report output.
 
-5. Hard gates are missing around transcript/trace completeness, required escalation independent of risk level, useful handover for over-escalation, answer usefulness for resolve-capable FAQs, and enum/schema synchronization.
+5. Missing hard gates remain: escalation reason consistency, global user-requested escalation, trace/transcript alignment, semantic useful handover, turn-0 source grounding, and service-outcome quality.
 
-6. Implementation changes match only part of the proposal. The Phase 4 action schema update and tool-sequence demotion match. The richer service-outcome taxonomy, grounded-truth gate, useful-handover gate, and drift-safe issue matching were not implemented.
-
-## Specific Smoke Trace Notes
-
-- Trace/session `33c2e411-a10e-4a02-824a-51d625aef9b7` (`cs_interactive_259`) is a real product failure, not just a strict-path failure. The user asked "How do I receive the payment when I sell an item" and the bot immediately escalated with a generic FAQ-miss message. The UI note "No LLM call for this turn" points to deterministic runtime fallback or downstream state handling, not an LLM answer-quality decision. This case should remain failing until the agent can answer or produce a useful issue-specific handover.
-- Trace/session `78e29e2e-13c9-4344-a137-6ff20f0308de` (`cs_interactive_192`) exposes the transcript split. The create-session form question was answered in the trace, but the stored result transcript starts at the follow-up "OK. What items are allowed?" and then escalates. The downstream service is receiving or reporting a conversation path that does not match the full user-visible interaction.
+6. Implementation changes match the proposals only partially. The code fixes the obvious prior issues, but the proposed H1 grounded-truth gate, H4 useful-handover gate, full service-outcome taxonomy, and transcript-based issue matching remain incomplete.
 
 ## Correctness Bugs
 
-### P0. Session-create turns are missing from eval transcripts
+### P0. Escalation reason consistency is not enforced
 
-`SessionRunner` creates the bot session and stores `bot_greeting`, but it does not append the form description or bot greeting to the transcript. The transcript starts with `generate_first_message()` instead. See [session_runner.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/simulator/session_runner.py:100) and [user_simulator.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/simulator/user_simulator.py:107).
+`cs_interactive_029` expected `user_requested`, because the user asks "can you please call me now?" The latest result displays `escalation_reason=turn_budget_exhausted`, but `escalation_compliance` passes. See [results.json](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/results/20260504-081853/results.json:1073).
 
-The runner then passes only `session_result.transcript` to the L3 judge and serializes only that same transcript into results. See [executor.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/batch/executor.py:237) and [executor.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/batch/executor.py:282).
+This can only happen if the scorer is reading a different reason from the value serialized in `session_state` or result output. `_check_escalation_compliance` reads the first `request_handover` tool call via `_first_handover_escalation_reason`, while the report displays `trace.session_state.escalation_reason`. See [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:542).
 
-Impact:
+Minimal fix: add an L1 `escalation_reason_consistency` gate requiring the first/terminal `request_handover` tool call, handover payload, and `session_state.escalation_reason` to agree or explicitly record an approved override. The result should display the same reason used for scoring.
 
-- `cs_interactive_192` has form text asking how to give away free items, but the results transcript only starts at "OK. What items are allowed?" The UI trace shows the omitted initial answer. See [cs_interactive_192.yaml](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/case_specs/smoke/cs_interactive_192.yaml:9).
-- L2 tool traces may include actions from session creation while L3 and the report judge a shorter conversation.
-- Any root-cause analysis based on the result transcript can be wrong because the user-visible first bot reply is missing.
+### P0. `cs_interactive_066` likely has the wrong expected root cause
 
-Minimal fix: represent session creation as turn 0 in transcript/results/judge input, or explicitly serialize `form_context`, `bot_greeting`, and an `init_trace` section and make all scorers aware of it. Add a trace-minimum hard gate that every user-visible bot reply is present in the eval artifact.
+The case description asks why the phone-number contact option is missing when listing an item. The bot routes to UC-K technical intake, collects Android/app details, asks whether the option is missing/greyed out/erroring, then escalates. The result fails on `no_forbidden_tools`, `escalation_compliance`, and `correct_uc` because the spec expects UC-E and forbids `create_case_controlled`. See [cs_interactive_066.yaml](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/case_specs/smoke/cs_interactive_066.yaml:21) and [results.json](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/results/20260504-081853/results.json:1778).
 
-### P0. `acceptable_outcomes` can turn a non-answer into a pass
+Based on the domain docs, "option missing / used to work / app regression" belongs closer to UC-K than UC-E product/search guidance. Penalizing `create_case_controlled` here risks teaching the agent not to escalate real technical regressions.
 
-The current implementation gives full `correct_outcome` credit when the raw actual outcome is listed in `Expected.acceptable_outcomes`. See [outcome_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/outcome_checks.py:156).
+Minimal fix: reclassify this smoke case as UC-K, or split it into two cases: a UC-E "how do contact options work?" FAQ and a UC-K "phone option disappeared in app" technical intake.
 
-This is unsafe for cases such as `cs_interactive_259`, where the customer asks how they receive payment when selling an item and the bot immediately escalates with "I'm having difficulty resolving this." The case is resolve-capable and FAQ-backed. See [cs_interactive_259.yaml](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/case_specs/smoke/cs_interactive_259.yaml:20). Marking escalation as acceptable would reward a generic FAQ miss instead of a payment answer.
+### P1. The cross-class `acceptable_outcomes` guard is still too weak
 
-Minimal fix: do not use raw `resolve/escalate` as the only acceptable-outcome taxonomy. Add service outcomes such as `resolved_acceptably`, `partially_answered_then_escalated`, `escalated_with_useful_handover`, and `failed_non_answer`. For resolve-capable FAQ cases, escalation should pass only if the bot provided a useful partial answer or a useful, issue-specific handover.
+The new guard requires only `summary >= 10` and a non-empty `escalation_reason` for resolve-to-escalate fallback. See [outcome_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/outcome_checks.py:225).
 
-### P1. Handoff misdiagnoses `cs_interactive_029`
+That blocks completely empty handovers, but it still allows generic non-answers. It does not require the summary to mention the user's actual issue, identifiers, sources searched, partial answer, or unresolved question.
 
-The latest handoff states that `cs_interactive_029` expected `clarification_budget_exhausted` and should pass as same-family with `turn_budget_exhausted`. See [10-handoff.md](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/docs/10-handoff.md:195).
+Minimal fix: make `escalated_acceptably` require issue-specific summary text, evidence of attempted source/status checks where applicable, and either a partial answer or a clear reason the bot could not answer.
 
-The actual case spec expects `user_requested`. See [cs_interactive_029.yaml](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/case_specs/smoke/cs_interactive_029.yaml:29). The latest result escalates with `turn_budget_exhausted`. That is `user_intent` versus `bot_limit`, so the L1 `escalation_compliance` failure is assigned correctly by the scorer and incorrectly by the handoff.
+### P1. Secondary UC credit still relies on runtime candidates, not handled issue evidence
 
-Minimal fix: update the handoff triage and add a regression assertion for this case. If the desired behavior is "call me now" equals `user_requested`, test that reason precedence wins over turn budget.
+`correct_uc` now gives full credit for a secondary UC if the primary UC appears in `candidate_use_cases`. See [outcome_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/outcome_checks.py:154).
 
-### P1. Required escalation is only hard-enforced for high/critical risk
+This is better than unconditional secondary credit, but it is still gameable. `cs_interactive_095` gets `correct_uc=1.0` because UC-A is preserved in candidates while actual UC is UC-D, yet the bot immediately escalates and does not answer the email/app/no-adverts question. See [results.json](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/results/20260504-081853/results.json:1960).
 
-`_check_escalation_compliance` only hard-fails missing escalation for `should_escalate=true` when risk is high or critical. Low and medium required escalations fall through unless the bot happens to escalate. See [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:472).
+Minimal fix: full secondary-UC credit should require transcript or handover evidence that the secondary issue was actually handled and the original issue was answered or preserved. Candidate-list presence should be diagnostic only.
 
-This becomes dangerous once `correct_outcome` is relaxed. A low-risk but policy-required handover could be bot-resolved and still avoid L1 failure.
+### P1. User-requested escalation is not a global hard gate and misses callback language
 
-Minimal fix: add an L1 `required_escalation` gate based on `should_escalate=true`, `allow_bot_resolution=false`, and specific UC families that require human handling, independent of risk severity.
+`user_requested_escalation` is available but not global, and none of the smoke specs configure it. The patterns also cover "speak/talk/connect/transfer" but not callback language such as "call me now", "phone me", "ring me", or "callback". See [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:251) and [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:665).
 
-### P1. Tool spec and runtime/eval escalation enums are out of sync
+Minimal fix: make explicit human/callback request handling a global L1 gate, and expand patterns to callback language. Add a reason-precedence assertion that user-requested escalation beats `turn_budget_exhausted`.
 
-The YAML tool spec lists escalation reasons through `tool_scope_blocked` and omits `runtime_error_threshold`. See [customer_service_tool_spec_v0_2.yaml](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/docs/customer_service_tool_spec_v0_2.yaml:433).
+### P1. Trace minimum is still not trace/transcript alignment
 
-The eval schema says the canonical enum has 23 values and includes `runtime_error_threshold`. See [schema.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/case_spec/schema.py:35).
+`trace_minimum` now catches blank containment and trace turns with user text but no bot reply. See [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:621).
 
-Minimal fix: choose one source of truth and add an enum-sync test across YAML, eval schema, and runtime tool schema.
+It does not check that the transcript rows injected by `SessionRunner` have corresponding trace rows, tool evidence, source IDs, or turn-count alignment. This matters because `SessionRunner` now injects turn-0 form and greeting rows into transcript, but the trace collector may still only contain runtime turns. See [session_runner.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/simulator/session_runner.py:113).
 
-### P1. Incomplete final turns are not hard-gated
+Minimal fix: either synthesize a trace turn for session-create with source/tool metadata, or add a separate transcript/trace alignment gate in the executor after both artifacts exist.
 
-`cs_interactive_066` has a second user turn asking "Can I speak to someone?", but there is no bot response in the serialized transcript. The result has blank `containment_outcome` and no escalation reason, yet it is not surfaced as a trace contract violation.
+### P1. Stall detection likely false-positives on session-create placeholders
 
-Minimal fix: add a trace-minimum hard gate requiring every simulator user turn to have a bot response or an explicit tool/runtime error. Blank containment at terminal state should be a hard failure tagged as instrumentation/runtime, not just L2 outcome failure.
+`cs_interactive_015` now fails `L1:no_stall` because turn 0 says "I'm looking into this for you." The next bot turn asks a clarifying question ("Are you asking how to edit your ad, or how to appeal a removal?"), which is forward progress even if the overall answer is wrong. See [results.json](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/results/20260504-081853/results.json:922).
 
-### P2. Code comments contradict implemented semantic families
+The visible-result regex recognizes "could/can you tell/share/confirm" but not "are you asking" or "to confirm". See [stall_detector.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/stall_detector.py:42).
 
-The comment in `hard_checks.py` says `intake_complete_for_uc_j` versus `trust_safety_required` is cross-family, but the map intentionally treats them as the same `trust_safety` family. See [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:487).
+Minimal fix: either exclude session-create greetings from stall detection unless they include a tool-backed promise, or broaden visible follow-up patterns to include clarification forms such as "are you asking", "do you mean", and "to confirm".
 
-Minimal fix: update the comment. This is not behavioral, but it will mislead the next reviewer.
+### P2. Turn-0 factual answers can still evade groundedness review
+
+`cs_interactive_192` now includes the form question and bot's initial answer, which is good. But L3 groundedness still reasons only about the final escalation turn and gives groundedness 5, despite the turn-0 answer making factual claims about free-item posting. See [results.json](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/results/20260504-081853/results.json:2117).
+
+The deterministic citation gate also exempts short factual answers unless a knowledge tool was called or the text is long enough. See [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:128).
+
+Minimal fix: apply groundedness to every factual bot turn, including session-create turn 0. Short policy/process claims should still require source support when `grounding_mode=faq_source_backed`.
 
 ## Missing Eval Cases
 
-Add cases before treating the smoke set as production-critical:
+Add or fix these before using smoke as a production gate:
 
-- Session-create follow-up case: form description is answered during `create_session`, then user asks a follow-up. The judge must see both turns. `cs_interactive_192` already exposes this, but the harness does not test it explicitly.
-- UC-F payment FAQ case: "How do I receive payment when I sell an item?" should be answered from source, not escalated on FAQ miss.
-- Free-items allowed/prohibited case: answer should cite or use the relevant allowed/prohibited items policy and avoid overbroad claims.
-- Explicit human request: "Can I speak to someone?" and "call me now" should produce `user_requested` or approved equivalent, not budget exhaustion.
+- UC-F seller payment FAQ: "How do I receive payment when I sell an item?" should provide safe source-backed guidance and distinguish Gumtree payments from buyer/seller arrangements.
+- Free-items allowed/prohibited policy: not just "set price to free"; test what items are allowed and banned.
+- Explicit callback/human request: "call me now", "ring me", "can someone phone me", "speak to a human".
 - UC-G GDPR/account deletion and identity verification intake.
 - UC-H moderation/deletion appeal with case creation and required identifiers.
-- UC-I payment dispute/refund execution boundary: explain process but do not promise or issue refund.
-- UC-J scam/fraud/safety report with case id and safety handover.
-- Out-of-scope topics such as delivery couriers, pro contracts, legal advice, and reviews/ratings.
-- Tool failure/timeouts: knowledge search empty, resolver timeout, create-case failure, handover failure.
-- Business-hours/offline handover phrasing, including no false email promise from the bot.
-- Drift handling where the final user issue differs from the form issue, and the handover must preserve both.
+- UC-I payment dispute/refund boundary: explain process and collect intake without promising refund.
+- UC-J scam report versus general scam-safety advice. Mentioning "scam" in a payment FAQ should not always create a trust/safety case.
+- UC-K technical regression with case creation, separate from UC-E feature explanation.
+- Out-of-scope topics such as delivery courier disputes, legal advice, pro contracts, and reviews/ratings.
+- Tool errors/timeouts: knowledge search empty, resolver timeout, create-case failure, and handover failure.
+- Session-create transcript alignment: form description, bot greeting, trace turn, sources, L3 input, and HTML output all match.
 
 ## Weak Rubric Dimensions
 
-### `correct_uc` gives full credit for any secondary UC
-
-The implementation awards `1.0` when actual UC matches any `secondary_ucs`. See [outcome_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/outcome_checks.py:129).
-
-This masks wrong routing in cases where secondary UCs were generated broadly. `cs_interactive_095` is labeled expected UC-A but actual UC-D; it receives full `correct_uc` credit because UC-D is secondary, while the bot still escalates a weak/non-useful handover.
-
-Minimal fix: replace this with `handled_issue_match`. Secondary UC should earn full credit only when the transcript shows a real user drift to that issue and the original issue is answered or preserved in handover. Otherwise score partial diagnostic credit.
-
-### `correct_outcome` is not service-outcome aware
-
-The current field answers "did the terminal state match one of these words?" It does not answer "did the customer get a useful answer or useful handover?"
-
-Minimal fix: introduce a separate `acceptable_service_outcomes` field or change `acceptable_outcomes` values to service outcomes. Raw terminal outcome should remain a lower-level diagnostic.
-
-### Policy compliance can look perfect while customer service fails
-
-The latest run reports `policy_compliance_rate: 1.0` even though multiple cases produce generic escalation, missing final bot response, wrong route, or no useful answer. This shows the policy layer is checking forbidden text/tool exposure, not service success.
-
-Minimal fix: split policy compliance into safety compliance, truth grounding, required handling, and service usefulness.
-
-### Handover completeness is too generic
-
-The current handover completeness logic can pass if generic fields exist, but it does not prove the human receives the actual user ask, source/status checks already performed, identifiers, or next action.
-
-Minimal fix: require issue-specific payload fields: active issue summary, original form issue if different, collected identifiers, source/status checks, escalation reason family, and case id where policy requires case creation.
+- `correct_outcome` still checks terminal class first and service quality second. Same-class matches get full credit even if the bot resolved with a weak answer. See [outcome_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/outcome_checks.py:216).
+- `correct_uc` uses `candidate_use_cases` as proof of preserved issue. Candidate presence is easy to satisfy without actually handling or handing over the issue.
+- `handover_completeness` is too generic. It can pass without proving that the handover contains the user's actual ask, collected identifiers, searched sources, or unresolved question.
+- `source_citation_present` remains a heuristic for source IDs, not a grounded-truth classifier. It does not classify status claims, policy claims, possible explanations, and commitments.
+- `policy_compliance_rate=1.0` in the summary does not mean the customer-service behavior is safe or useful. It mainly reflects no forbidden phrases/PII/human-only promises.
+- L3 groundedness is too forgiving for procedural escalations and can ignore earlier factual turns in the same transcript.
 
 ## Agent Design Problems
 
-- FAQ miss fallback is too eager. `cs_interactive_259` and `cs_interactive_192` both escalate on questions that should be answerable from knowledge. The fallback should distinguish "no answer after grounded search" from "retrieval failed or no source resolved."
-- The session-create answer and subsequent message handling are not aligned. The bot can answer the form description during create-session, then fail on the next follow-up without the evaluator preserving the context.
-- Reason precedence is weak. User-requested escalation should beat budget exhaustion when the user explicitly asks to be called or speak to someone.
-- Routing is still fragile across account, ad, payment, and technical issues. `cs_interactive_001`, `002`, `014`, `015`, `066`, and `095` show wrong active UC or generic fallback.
-- Generic escalation copy is not enough for resolve-capable FAQs. A useful handover should state what was searched and what question remains unresolved.
+- FAQ miss fallback is still too eager. `cs_interactive_192` and `cs_interactive_259` both ask answerable FAQ/policy questions and end in escalation.
+- Routing overreacts to safety terms. `cs_interactive_259` becomes UC-J after the user says they do not want to get scammed, even though the core question is seller payment mechanics.
+- Session-create copy has duplicated greetings in several cases ("Hi Rita! Hi Rita!", "Hi Anthony! Hi Anthony!").
+- Reason precedence is still weak. User-requested callback language should not end up serialized as `turn_budget_exhausted`.
+- The simulator can produce odd user turns, such as `cs_interactive_002` where the simulated user says "Let me check your notification settings...", which reads like an assistant response and can pollute root-cause analysis.
 
 ## Tool-Use Risks
 
-- Trace and transcript are not the same artifact. Tool calls from session initialization can influence state while the transcript shown to L3 and humans omits the initial exchange.
-- The eval does not hard-fail missing bot replies or blank terminal containment.
-- Relaxing tool sequence is reasonable, but no replacement evidence gate was added. A status claim should still require status tools; a policy answer should still require knowledge support.
-- Enum drift between the YAML tool spec and eval schema can make traces appear valid in one layer and invalid in another.
-- No tests were added for the new `acceptable_outcomes`, secondary-UC full credit, semantic reason families, or transcript inclusion behavior. The `HEAD~1..HEAD` diff changes schema and scorer behavior only.
+- `create_case_controlled` is invoked in `cs_interactive_259` after wrong UC-J routing, causing `no_forbidden_tools` on a resolve-capable payment FAQ. See [results.json](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/results/20260504-081853/results.json:2274).
+- Tool-sequence demotion is fine, but no replacement evidence gate ensures required lookup/search tools were used before factual answers or handovers.
+- The YAML enum is now synced by adding `runtime_error_threshold`, but there is still no automated cross-source enum test. See [customer_service_tool_spec_v0_2.yaml](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/docs/customer_service_tool_spec_v0_2.yaml:458).
+- `trace_minimum` allows a blank `bot_response` when a handover tool call exists. That may be acceptable internally, but customer-facing transcript must still show a handover message.
+- Session-create transcript rows are not covered by trace tool/source checks, which creates a gap for grounding, stall detection, and auditability.
 
 ## Customer Service Policy Gaps
 
-- Free-items guidance needs explicit allowed/prohibited item boundaries, not only "use Community and set price to free."
-- Payment guidance must distinguish seller payment arrangements from Gumtree payments/refund/dispute flows. The bot should not imply Gumtree receives or releases all seller payments unless source-backed.
-- Email follow-up phrasing is inconsistent. The fixed script library contains "You'll hear back by email" and "I've passed your details" templates, while hard checks mainly catch first-person "I'll send/email you" promises. See [fixed_script_library_v1.md](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/docs/fixed_script_library_v1.md:90) and [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:198).
-- Refund, restoration, deletion, moderation, and trust/safety commitments need explicit approved wording and negative tests.
-- Business-hours/offline handover scripts should say what has actually happened in the system. "I've created a case" is only allowed after case creation succeeded and a case id is present.
+- Free-items guidance needs allowed/prohibited item boundaries and source backing.
+- Payment guidance needs a clear distinction between seller-arranged payment, Gumtree payment products, refund/dispute handling, and scam safety.
+- The fixed script library still uses email follow-up phrasing such as "You'll hear back by email" and "I've passed your details", while hard checks mainly catch first-person "I'll send/email you" promises. See [fixed_script_library_v1.md](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/docs/fixed_script_library_v1.md:90) and [hard_checks.py](/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/eval_interactive/eval_interactive/scoring/hard_checks.py:200).
+- Refund, restoration, deletion, moderation, and trust/safety commitments need explicit approved wording plus negative tests.
+- Case-created wording should only be allowed when `create_case_controlled` succeeded and a case id is present.
 
-## Implementation Match To Proposals
+## Implementation Match
 
-Matches:
+Matches the proposals:
 
-- Phase 4 legacy action schema was updated to the tool-calls model.
-- `tool_sequence_match` was demoted from mandatory gating.
-- `Expected.acceptable_outcomes` was added to schema/loader.
-- Escalation reason matching now supports semantic families.
+- Session-create form and bot greeting are now serialized into transcript.
+- `runtime_error_threshold` was added to the YAML enum.
+- `trace_minimum` and `required_escalation` were added as global L1 checks.
+- The misleading escalation-family comment was fixed.
+- `acceptable_outcomes` gained a cross-class quality guard.
+- Secondary-UC credit was narrowed from unconditional full credit.
+- Tests were added for scorer-level `acceptable_outcomes`, secondary UC, `required_escalation`, and `trace_minimum`.
 
-Does not match or is only partial:
+Still partial or missing:
 
-- H1 grounded-truth gate was not implemented.
-- H4 useful-handover gate was not implemented beyond existing generic fields.
-- H6 trace-minimum gate does not catch omitted init turns or missing final bot replies.
-- Service-outcome taxonomy was not implemented; raw `resolve/escalate` is too weak.
-- Drift-safe issue matching was not implemented; secondary UC now gives unconditional full credit.
-- No tests were added for the relaxed behavior.
-- The handoff says no Java/runtime changes are needed, but the latest traces still show runtime/control issues: omitted init transcript, generic FAQ miss escalation, reason precedence, and blank final state.
+- No end-to-end test proves session-create rows appear in results, report, L3 judge input, and trace alignment.
+- `required_escalation` only applies when `allow_bot_resolution=false`; explicit user-request and other `should_escalate=true` cases can still rely on softer mechanisms.
+- No reason-consistency gate checks tool call reason versus session state versus handover payload.
+- Useful handover remains a length/reason heuristic, not a semantic payload check.
+- Grounded-truth gate is still deferred.
+- Service-outcome taxonomy is still deferred.
+- Smoke specs were not corrected or expanded.
 
 ## Recommended Minimal Fixes
 
-1. Fix eval instrumentation first. Include create-session form text and `bot_greeting` in transcript/results/L3 input, or serialize them separately and update scorers. Add a hard gate for trace/transcript alignment.
+1. Add `escalation_reason_consistency` as an L1 hard gate and make reports display the same reason the scorer used.
 
-2. Do not mark `cs_interactive_259` as accepting escalation. Keep it failing until the agent can answer the seller-payment question from a source or produce a genuinely useful partial answer plus handover.
+2. Make `user_requested_escalation` global; add callback/ring/phone patterns and a reason-precedence test for `call me now`.
 
-3. Replace raw `acceptable_outcomes` with service outcomes, or gate escalation alternatives with `answer_or_useful_handover`.
+3. Reclassify `cs_interactive_066` as UC-K or split it into separate UC-E and UC-K cases.
 
-4. Add `required_escalation` as an L1 hard gate independent of risk level.
+4. Strengthen cross-class `acceptable_outcomes`: require issue-specific handover summary, searched sources/status checks where applicable, and a partial answer or clear blocker.
 
-5. Replace unconditional secondary-UC full credit with `handled_issue_match`, requiring evidence of real user drift and issue preservation.
+5. Replace candidate-list secondary UC credit with transcript/handover evidence that the active issue was actually handled and the original issue was preserved.
 
-6. Add a trace-minimum gate for missing bot replies, blank terminal containment, missing `bot_greeting`, and mismatched trace/result turn counts.
+6. Add a trace/transcript alignment gate after trace collection: turn indexes, bot replies, source IDs, handover messages, and `total_turns` must reconcile.
 
-7. Sync escalation reason enums across YAML, eval schema, and runtime; add an automated test.
+7. Update stall detection for session-create placeholders and broader clarification phrasing.
 
-8. Fix the `cs_interactive_029` handoff diagnosis and add a reason-precedence test for user-requested escalation.
+8. Apply groundedness checks to every factual bot turn, including short turn-0 answers.
 
-9. Add targeted smoke cases for GDPR, appeal, trust/safety, payment FAQ, payment dispute, out-of-scope, tool errors, and explicit human requests.
+9. Add an automated enum sync test across YAML, eval schema, and runtime.
 
-10. Add tests for every scoring relaxation introduced in `HEAD~1..HEAD`: `acceptable_outcomes`, secondary UC, same-family escalation reasons, and mandatory-gate behavior.
+10. Add missing production-critical smoke cases listed above, then rerun the smoke suite.
 
-Verification note: I attempted to run targeted pytest checks, but `python -m pytest eval_interactive/tests/scoring/test_escalation_trigger_match.py eval_interactive/tests/test_outcome_checks.py -q` exited with code `-1` and no output in this environment. No test files were changed by the latest diff.
+Verification note: I attempted `python -m pytest eval_interactive/tests/test_hard_checks.py eval_interactive/tests/test_outcome_checks.py eval_interactive/tests/test_stall_detector.py -q`; it exited with code `-1` and no output in this environment.

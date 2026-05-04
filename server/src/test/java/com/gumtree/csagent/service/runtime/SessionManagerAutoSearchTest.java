@@ -51,11 +51,15 @@ class SessionManagerAutoSearchTest {
 
     @BeforeEach
     void setUp() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        EscalationReasonResolver resolver = new EscalationReasonResolver();
+        HandoverPayloadAssembler handoverAssembler = new HandoverPayloadAssembler(
+                botTurnRepository, resolver, objectMapper);
         sessionManager = new SessionManager(
                 sessionRepository, eventRepository, outcomeRepository,
                 handoverLogRepository, botTurnRepository, formIngestion,
                 useCaseRouter, controlKernel, controlPolicy,
-                useCaseRegistry, new ObjectMapper());
+                useCaseRegistry, objectMapper, handoverAssembler, resolver);
     }
 
     /**

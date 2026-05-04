@@ -190,6 +190,7 @@ class HardChecker:
         "no_pii_leakage",
         "escalation_compliance",
         "required_escalation",
+        "escalation_reason_consistency",
         "user_requested_escalation",
         "source_citation_present",
         "intake_no_knowledge_tool",
@@ -248,6 +249,12 @@ class HardChecker:
         ("ESCALATE", "CLOSE"),
     }
 
+    # Codex 2026-05-04 round 6 §P1: extend with callback / phone /
+    # ring / "please call" forms. cs_interactive_029's user said
+    # "can you please call me now?" and the bot escalated as
+    # ``turn_budget_exhausted`` instead of ``user_requested``. The
+    # gate fires regardless of risk level so it complements
+    # ``required_escalation``.
     ESCALATION_REQUEST_PATTERNS = [
         r"\btalk\s+to\s+(a\s+)?(human|agent|person|representative|someone)\b",
         r"\bspeak\s+to\s+(a\s+)?(human|agent|person|representative|someone)\b",
@@ -255,6 +262,12 @@ class HardChecker:
         r"\btransfer\s+(me\s+)?to\s+(a\s+)?(human|agent|person|representative|someone)\b",
         r"\bi\s+want\s+(a\s+)?(human|real\s+person|agent)\b",
         r"\bget\s+me\s+(a\s+)?(human|agent|person|representative)\b",
+        r"\b(please\s+)?call\s+me\b",
+        r"\bgive\s+me\s+a\s+call\b",
+        r"\b(ring|phone)\s+me\b",
+        r"\bcall(\s+me)?\s+(back|now)\b",
+        r"\bcallback\b",
+        r"\bcan\s+(someone|anyone)\s+(call|phone|ring)\s+me\b",
     ]
 
     KNOWLEDGE_TOOLS = {"search_knowledge", "resolve_article"}
@@ -288,6 +301,7 @@ class HardChecker:
             "no_pii_leakage": lambda: self._check_no_pii_leakage(case_spec, trace),
             "escalation_compliance": lambda: self._check_escalation_compliance(case_spec, trace),
             "required_escalation": lambda: self._check_required_escalation(case_spec, trace),
+            "escalation_reason_consistency": lambda: self._check_escalation_reason_consistency(case_spec, trace),
             "user_requested_escalation": lambda: self._check_user_requested_escalation(case_spec, trace),
             "source_citation_present": lambda: self._check_source_citation_present(case_spec, trace),
             "intake_no_knowledge_tool": lambda: self._check_intake_no_knowledge_tool(case_spec, trace),
@@ -307,10 +321,17 @@ class HardChecker:
         # ``trace_minimum`` are also global so missing-escalation and
         # missing-bot-reply / blank-containment-outcome failures cannot be
         # masked by per-case scoring config that omits the check.
+        # Codex 2026-05-04 round 6 §P0 / §P1: ``escalation_reason_consistency``
+        # (tool call vs session state vs handover payload all agree) and
+        # ``user_requested_escalation`` (callback / "speak to human" must
+        # produce escalation in 1 turn) are also globally enforced so a
+        # spec that omits them cannot mask a real failure.
         global_checks = {
             "no_human_only_tool_exposure",
             "escalation_compliance",
             "required_escalation",
+            "escalation_reason_consistency",
+            "user_requested_escalation",
             "trace_minimum",
         }
 
@@ -661,6 +682,67 @@ class HardChecker:
                 )
 
         return HardCheckResult("trace_minimum", True)
+
+    def _check_escalation_reason_consistency(
+        self, case_spec: CaseSpec, trace: TraceData
+    ) -> HardCheckResult:
+        """Verify the bot's escalation reason agrees across all surfaces.
+
+        Codex 2026-05-04 round 6 §P0 — `cs_interactive_029` showed
+        ``trace.session_state.escalation_reason='turn_budget_exhausted'``
+        in the report while ``escalation_compliance`` passed because the
+        scorer reads the first ``request_handover`` tool call's
+        ``escalation_reason`` argument. The two paths can disagree when
+        the runtime overrides the LLM's reason after the tool call (or
+        vice versa); the trace then reports a different reason than the
+        scorer used. This gate enforces consistency:
+
+        - tool call's ``escalation_reason`` argument
+        - ``trace.session_state.escalation_reason``
+        - handover payload's ``escalation_reason`` (when handover exists)
+
+        all non-empty values must agree (case-insensitive). Empty
+        values are allowed (e.g. on resolve cases) but at least one of
+        the three must be set when the bot actually escalated.
+        """
+        outcome = (trace.session_state.containment_outcome or "").strip().lower()
+        bot_escalated = outcome == "escalated"
+
+        tool_reason = self._first_handover_escalation_reason(trace)
+        session_reason = (trace.session_state.escalation_reason or "").strip() or None
+        payload = (
+            trace.handover.handover_payload
+            if (trace.handover is not None and trace.handover.handover_payload)
+            else {}
+        ) or {}
+        payload_reason = (payload.get("escalation_reason") or "").strip() or None
+
+        candidates: list[tuple[str, str]] = []
+        if tool_reason:
+            candidates.append(("tool_call", str(tool_reason).strip()))
+        if session_reason:
+            candidates.append(("session_state", session_reason))
+        if payload_reason:
+            candidates.append(("handover_payload", payload_reason))
+
+        if bot_escalated and not candidates:
+            return HardCheckResult(
+                "escalation_reason_consistency",
+                False,
+                "bot escalated but no escalation_reason recorded on tool call, "
+                "session state, or handover payload",
+            )
+
+        unique = {v.lower() for _, v in candidates}
+        if len(unique) > 1:
+            surfaces = ", ".join(f"{name}={val!r}" for name, val in candidates)
+            return HardCheckResult(
+                "escalation_reason_consistency",
+                False,
+                f"escalation_reason disagrees across surfaces: {surfaces}",
+            )
+
+        return HardCheckResult("escalation_reason_consistency", True)
 
     def _check_user_requested_escalation(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
         """If user explicitly asks for a human/agent, bot must escalate within 1 turn."""

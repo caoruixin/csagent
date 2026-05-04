@@ -38,6 +38,8 @@ public class SessionManager {
     private final ControlPolicyService controlPolicy;
     private final UseCaseRegistryService useCaseRegistry;
     private final ObjectMapper objectMapper;
+    private final HandoverPayloadAssembler handoverPayloadAssembler;
+    private final EscalationReasonResolver escalationResolver;
 
     public SessionManager(BotSessionRepository sessionRepository,
                           BotEventRepository eventRepository,
@@ -49,7 +51,9 @@ public class SessionManager {
                           ControlKernel controlKernel,
                           ControlPolicyService controlPolicy,
                           UseCaseRegistryService useCaseRegistry,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          HandoverPayloadAssembler handoverPayloadAssembler,
+                          EscalationReasonResolver escalationResolver) {
         this.sessionRepository = sessionRepository;
         this.eventRepository = eventRepository;
         this.outcomeRepository = outcomeRepository;
@@ -61,6 +65,8 @@ public class SessionManager {
         this.controlPolicy = controlPolicy;
         this.useCaseRegistry = useCaseRegistry;
         this.objectMapper = objectMapper;
+        this.handoverPayloadAssembler = handoverPayloadAssembler;
+        this.escalationResolver = escalationResolver;
     }
 
     /**
@@ -280,6 +286,22 @@ public class SessionManager {
             recordHandover(session);
         }
 
+        // Sprint §A3: when the auto-search path itself terminated the
+        // session in ESCALATE (cs_interactive_192-style: bot exhausted FAQ
+        // search and handed over before any subsequent processMessage
+        // call), the session never sees another turn — so the handover
+        // payload would otherwise never be persisted. Funnel it through
+        // the assembler now so the eval trace carries the same payload
+        // regardless of which path produced the escalation.
+        boolean autoSearchEscalated = !isHardOos
+                && shouldEndChat
+                && ("ESCALATE".equals(session.getCurrentPhase())
+                        || "QUEUE_TO_HUMAN".equals(session.getHandlingState()));
+        if (autoSearchEscalated) {
+            recordOutcome(session);
+            recordHandover(session);
+        }
+
         log.info("Session {} created: phase={}, uc={}, routing={}",
                 sessionId, session.getCurrentPhase(), session.getActiveUseCase(), routingResult.outcome());
 
@@ -421,38 +443,25 @@ public class SessionManager {
 
     private void recordHandover(BotSession session) {
         try {
-            String status = session.getEscalationReason() != null
-                    && session.getEscalationReason().startsWith("intake_complete")
-                    ? "intake_complete" : "escalation_triggered";
+            // Sprint §A1: ensure the session reason persists as a canonical
+            // 23-value enum even when older code paths stamped a literal
+            // (``user_requested_escalation`` etc.). The deterministic
+            // {@link EscalationReasonResolver} maps non-canonical values to
+            // ``service_degraded`` rather than letting them slip into the
+            // payload and trip the L1 enum gate.
+            String canonicalReason = escalationResolver.canonicalize(session.getEscalationReason());
+            if (canonicalReason != null && !canonicalReason.equals(session.getEscalationReason())) {
+                session.setEscalationReason(canonicalReason);
+            }
 
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("version", "1.0");
-            payload.put("session_id", session.getSessionId());
-            payload.put("bot_session_id", session.getSfBotSessionId());
-            payload.put("primary_use_case", session.getActiveUseCase());
-            payload.put("candidate_use_cases",
-                    session.getCandidateUseCases() != null
-                            ? Arrays.asList(session.getCandidateUseCases()) : List.of());
-            payload.put("current_status", status);
-            payload.put("summary", buildSummary(session));
-            payload.put("intent_confidence", session.getIntentConfidence());
-            payload.put("clarification_count", session.getClarificationCount());
-            payload.put("faq_miss_count", session.getFaqMissCount());
-            payload.put("articles_shown",
-                    session.getArticlesShown() != null
-                            ? Arrays.asList(session.getArticlesShown()) : List.of());
-            payload.put("escalation_reason", session.getEscalationReason());
-            payload.put("transcript_ref", "bot_session:" + session.getSessionId());
-            payload.put("case_id", session.getCaseId());
-            payload.put("identifiers_collected", buildIdentifiers(session));
-            payload.put("intake_fields",
-                    session.getIntakeFields() != null ? session.getIntakeFields() : "{}");
-            payload.put("total_bot_turns", session.getTotalBotTurns());
+            // Sprint §A3: hand the payload assembly off to the dedicated
+            // service. The assembler builds an issue-specific summary,
+            // identifiers, source/status checks, and partial-answer-or-blocker
+            // line deterministically from session state — independent of
+            // whatever (if any) summary the LLM produced.
+            Map<String, Object> payload = handoverPayloadAssembler.assemble(session);
             payload.put("handling_duration_seconds", calculateDuration(session));
-            payload.put("form_topic_subject", session.getFormTopicSubject());
             payload.put("topic_uc_mismatch", checkMismatch(session));
-            payload.put("prompt_version", session.getPromptVersion());
-            payload.put("model_version", session.getModelVersion());
 
             String payloadJson = objectMapper.writeValueAsString(payload);
 
@@ -519,53 +528,6 @@ public class SessionManager {
             log.warn("Session {}: failed to build transcript: {}", sessionId, e.getMessage());
             return "[]";
         }
-    }
-
-    /**
-     * Build a human-readable summary from session state for the handover payload.
-     */
-    private String buildSummary(BotSession session) {
-        StringBuilder sb = new StringBuilder();
-        if (session.getActiveUseCase() != null) {
-            UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(session.getActiveUseCase());
-            sb.append("Use case: ").append(ucDef != null ? ucDef.name() : session.getActiveUseCase()).append(". ");
-        }
-        // Include form description if available
-        try {
-            if (session.getFormContext() != null) {
-                var formNode = objectMapper.readTree(session.getFormContext());
-                String desc = formNode.has("description") ? formNode.get("description").asText("") : "";
-                if (!desc.isBlank()) {
-                    sb.append("Customer issue: ").append(desc).append(". ");
-                }
-            }
-        } catch (Exception ignored) { /* best effort */ }
-        if (session.getArticlesShown() != null && session.getArticlesShown().length > 0) {
-            sb.append("Articles shown: ").append(String.join(", ", session.getArticlesShown())).append(". ");
-        }
-        if (session.getEscalationReason() != null) {
-            sb.append("Escalation reason: ").append(session.getEscalationReason()).append(".");
-        }
-        return sb.toString().trim();
-    }
-
-    /**
-     * Extract identifiers (email, ad_id) from the formContext JSON.
-     */
-    private Map<String, String> buildIdentifiers(BotSession session) {
-        Map<String, String> identifiers = new LinkedHashMap<>();
-        try {
-            if (session.getFormContext() != null) {
-                var formNode = objectMapper.readTree(session.getFormContext());
-                if (formNode.has("email") && !formNode.get("email").asText("").isBlank()) {
-                    identifiers.put("email", formNode.get("email").asText());
-                }
-                if (formNode.has("ad_id") && !formNode.get("ad_id").asText("").isBlank()) {
-                    identifiers.put("ad_id", formNode.get("ad_id").asText());
-                }
-            }
-        } catch (Exception ignored) { /* best effort */ }
-        return identifiers;
     }
 
     /**
