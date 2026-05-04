@@ -1495,3 +1495,134 @@ In priority order:
 4. **L3 judge calibration sprint** (deferred D15) — currently
    the largest source of flapping pass/fail across smoke runs.
 5. **Carry-overs** D1–D7 — all remain deferred.
+
+# Sprint 4.1 P1 fix round — smoke review report alignment with Sprint 4 overrides
+
+Date: 2026-05-05
+Branch: `design-v1-without-human-review`
+Source review: `docs/codex-findings.md` (Sprint 4 review, blocking_count=1)
+Scope: docs / report consistency only — no Java runtime, no spec, no
+prompt, no skill, and no eval-pipeline changes.
+
+## 1. Exact P1 fixed
+
+**E3 override / audit consistency (`qa-reports/smoke-case-review.md`):**
+the smoke review report was stale against the final smoke YAML / approved
+override / generation-audit state. Specifically:
+
+- The latest `HEAD~1..HEAD` diff that landed Sprint 4 removed
+  `eval_interactive/case_specs/smoke/cs_interactive_004.yaml` and added
+  `cs_interactive_176.yaml`, but `qa-reports/smoke-case-review.md` still
+  carried the cs_004 review row and had no cs_176 row.
+- Sprint 4 formalized two expected-field flips through the approved
+  override registry (`eval_interactive/case_spec_overrides.yaml`):
+  - `cs_interactive_011` (570Q5000008NWIjIAO): UC-D escalate,
+    `escalation_trigger=faq_miss_threshold_exceeded` (Sprint 4 §E1
+    supporting fix; supersedes the prior Codex 2026-05-03 round 3
+    §1.6 smoke YAML hand-edit `user_distress`).
+  - `cs_interactive_066` (570Q5000008fBsXIAU): UC-K escalate,
+    `escalation_trigger=intake_complete_for_uc_k` (Sprint 4 §E3
+    formalization of the Codex 2026-05-04 round 6 §P0 reclassification).
+- The smoke review report still claimed cs_011 was UC-D /
+  `user_requested` and cs_066 was UC-E / `clarification_budget_exhausted`,
+  in direct contradiction of the smoke YAML and the audit.
+- A pre-existing `cs_interactive_012` row was also stale (cs_012 left
+  smoke in commit `fc25787`); cleaned up in this round so the report
+  matches the current 14-case smoke fixture set.
+
+This violated Sprint 4 §E3's requirement that smoke-case-review agree
+with the final expected fields.
+
+## 2. Files changed
+
+| File | Change |
+|---|---|
+| `qa-reports/smoke-case-review.md` | Rewrote summary counts (ok 9, needs_override 5; total 14) and "Notable follow-up" bullets to reflect the current smoke fixture set. Replaced stale `cs_interactive_004` review row with `cs_interactive_176` review (UC-E escalate, `user_requested`, supporting turns 2/3/5/7/10). Flipped `cs_interactive_011` from `ok` (UC-D / `user_requested`) to `needs_override` (applied) (UC-D / `faq_miss_threshold_exceeded`) and rewrote its rationale around the Sprint 4 §E1 runtime gate. Flipped `cs_interactive_066` from `ok` (UC-E / `clarification_budget_exhausted`) to `needs_override` (applied) (UC-K / `intake_complete_for_uc_k`) and rewrote its rationale around the Sprint 4 §E3 formalization. Removed the stale `cs_interactive_012` row that had been carried since commit `fc25787`. |
+| `eval_interactive/tests/regression/test_case_spec_overrides.py` | Added `test_smoke_review_report_tracks_smoke_set_and_overrides` (test #19): a narrow consistency guard that catches three classes of staleness in `qa-reports/smoke-case-review.md` — (a) headings missing for cases that have entered smoke (e.g. cs_176), (b) headings present for cases that have left smoke (e.g. cs_004, cs_012), and (c) `Recommended outcome` lines for overridden cases that disagree with the override-pipeline smoke YAML on `primary_uc` / `outcome_class` / `escalation_trigger`. The check only inspects headings + the leading recommended-outcome line; it does not rewrite the report generator. |
+
+No Java code, no spec YAML, no override registry, no audit, no prompt, no
+skill orchestration, no eval pipeline, and no other report file was
+touched in this round.
+
+## 3. Tests run
+
+| Suite | Result |
+|---|---|
+| `pytest eval_interactive/tests/regression/test_case_spec_overrides.py::test_smoke_review_report_tracks_smoke_set_and_overrides` | **1 / 1 passed** (new Sprint 4.1 §E3 consistency guard) |
+| `pytest eval_interactive/tests` | **286 / 286 passed** (was 285; +1 new Sprint 4.1 test). All Sprint 4 / 3.1 / 3 / 2.1 / 2 regression guards remain green: `test_v2_schema_loads_cleanly`, `test_cs_interactive_012_override_survives_fresh_extraction`, `test_cs_interactive_015_override_survives_fresh_extraction`, `test_cs_interactive_029_override_survives_fresh_extraction`, `test_smoke_yaml_matches_override_pipeline_output` all still pass. |
+
+No smoke eval re-run was required: this is a docs / report consistency
+fix and does not touch any Java runtime path, prompt, override registry,
+generation audit, or eval pipeline. The Sprint 4 canonical smoke baseline
+(`eval_interactive/results/20260504-221916/results.json`, 8/14, mean
+composite 0.4915) and the Sprint 4 nondeterminism reference
+(`eval_interactive/results/20260504-223153/results.json`, 6/14, mean
+composite 0.3615) remain authoritative.
+
+## 4. Does smoke-case-review now agree with smoke YAML / override / audit?
+
+**Yes.** Three independent checks corroborate this:
+
+1. **Smoke YAML expected fields ↔ smoke-case-review headings + recommended
+   outcomes.** New `test_smoke_review_report_tracks_smoke_set_and_overrides`
+   passes — every smoke YAML has a matching `### cs_interactive_xxx`
+   section in the report, no extra report sections refer to cases that
+   left smoke, and every overridden case's `Recommended outcome` line
+   matches the smoke YAML's `primary_uc` / `outcome_class` /
+   `escalation_trigger`.
+2. **Smoke YAML ↔ approved override registry.** Existing Sprint 4 §E3
+   guard `test_smoke_yaml_matches_override_pipeline_output` continues
+   to pass — every committed smoke YAML's `expected.*` block equals the
+   output of `extract_case_specs` with the production override file.
+3. **Generation audit ↔ approved override registry.** Existing Sprint 4
+   tests `test_v2_schema_loads_cleanly`,
+   `test_cs_interactive_012_override_survives_fresh_extraction`,
+   `test_cs_interactive_015_override_survives_fresh_extraction`,
+   `test_cs_interactive_029_override_survives_fresh_extraction` all
+   still pass; the audit (regenerated by `dump_audit_to`) records the
+   approved cs_011 / cs_029 / cs_066 / cs_014 / cs_012 / cs_015 entries
+   verbatim.
+
+Manual cross-check confirmed: for cs_011 the smoke YAML, the override
+registry entry, the audit row, and the smoke-case-review section all
+agree on UC-D escalate / `faq_miss_threshold_exceeded`; for cs_066 they
+all agree on UC-K escalate / `intake_complete_for_uc_k`; for cs_176
+they all agree on UC-E escalate / `user_requested` (no override entry —
+this is the non-overridden generator output).
+
+## 5. Remaining P0 / P1 blockers
+
+P0: none.
+
+P1 (carried forward, all out of Sprint 4 / 4.1 scope, listed in §9 of
+the Sprint 4 handoff above):
+
+1. Kimi `session_create_failed: ReadTimeout` smoke-side latency.
+2. cs_176 UC-E classification flake (the bot LLM emits
+   `payment_dispute_detected` for a feature-explanation form context).
+3. cs_259 routing / stall stabilisation.
+4. L3 relevance / tone_appropriateness judge volatility (D15).
+5. Pre-existing tracked-doc secret scrub.
+6. D1–D7 deferrals.
+
+None of these is reopened or affected by Sprint 4.1.
+
+## 6. Can Sprint 4 now be closed?
+
+**Yes.** The single blocking P1 from the Sprint 4 Codex review (E3
+override / audit consistency, smoke-case-review staleness) is resolved
+and pinned by a new regression guard. No P0/P1 blocker remains inside
+Sprint 4 / 4.1 scope. The Sprint 4 primary metrics (E1, E2, E3) all
+hold:
+
+- E1 cs_001 / cs_002 escalation-reason expectations align with
+  transcript / persona evidence and the Sprint 4 §E1 runtime gate.
+- E2 cs_029 no longer fails on the UC-D fallback vs spec UC-C
+  mismatch.
+- E3 every CaseSpec expected-field change goes through the approved
+  override / audit path AND the smoke review report agrees with the
+  smoke YAML / override registry / generation audit.
+
+`docs/current_eval_baseline.md` and `docs/action_bank.md` were
+intentionally NOT updated in this round (per Sprint 4.1 scope). Sprint
+4 archival is the next maintenance step.

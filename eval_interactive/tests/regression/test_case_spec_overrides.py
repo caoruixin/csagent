@@ -7,6 +7,7 @@ Covers loader validation, the three application stages
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -829,4 +830,148 @@ def test_smoke_yaml_matches_override_pipeline_output(tmp_path: Path) -> None:
         "`extract_case_specs` with the production override registry. "
         "Each mismatch below is either a missing override entry or an "
         "unauthorised hand edit:\n  - " + "\n  - ".join(mismatches)
+    )
+
+
+# ---------------------------------------------------------------------------
+# 19. Sprint 4.1 §E3: qa-reports/smoke-case-review.md tracks the smoke set.
+#
+# Lightweight consistency guard between the on-disk smoke fixtures and the
+# committed smoke review report. Catches three classes of staleness without
+# rewriting the report generator:
+#   - stale report rows after a case leaves smoke (e.g. cs_interactive_004)
+#   - missing rows after a case joins smoke    (e.g. cs_interactive_176)
+#   - stale recommended outcome lines for cases with approved overrides
+#     (the fields the override registry actively pins).
+# ---------------------------------------------------------------------------
+
+
+SMOKE_REVIEW_REPORT = REPO_ROOT / "qa-reports" / "smoke-case-review.md"
+
+_HEADING_RE = re.compile(r"^### (cs_interactive_\d+)\s*$", re.MULTILINE)
+_OUTCOME_RE = re.compile(
+    r"Recommended outcome:\s*(?P<uc>UC-[A-Z]+)\s+"
+    r"(?P<outcome>resolve|escalate)"
+    r"(?:,\s*(?P<trigger>`[^`]+`|no escalation trigger))?",
+)
+
+
+def _parse_smoke_review_sections(text: str) -> dict[str, dict[str, str | None]]:
+    """Return {case_id: {primary_uc, outcome_class, escalation_trigger}}.
+
+    Only parses the leading ``Recommended outcome`` line of each
+    ``### cs_interactive_xxx`` section. Anything that cannot be parsed is
+    returned with values None so the test surfaces it as a mismatch.
+    """
+    result: dict[str, dict[str, str | None]] = {}
+    matches = list(_HEADING_RE.finditer(text))
+    for idx, m in enumerate(matches):
+        case_id = m.group(1)
+        start = m.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
+        section = text[start:end]
+        outcome_match = _OUTCOME_RE.search(section)
+        if not outcome_match:
+            result[case_id] = {
+                "primary_uc": None,
+                "outcome_class": None,
+                "escalation_trigger": None,
+            }
+            continue
+        trigger_raw = outcome_match.group("trigger")
+        if trigger_raw is None or trigger_raw == "no escalation trigger":
+            trigger: str | None = None
+        else:
+            trigger = trigger_raw.strip("`")
+        result[case_id] = {
+            "primary_uc": outcome_match.group("uc"),
+            "outcome_class": outcome_match.group("outcome"),
+            "escalation_trigger": trigger,
+        }
+    return result
+
+
+def test_smoke_review_report_tracks_smoke_set_and_overrides() -> None:
+    """The committed smoke review report must:
+
+    1. Have one ``### cs_interactive_xxx`` heading per current smoke YAML
+       (catches missing rows after a case joins smoke).
+    2. Have no headings for cases no longer in the smoke directory
+       (catches stale rows after a case leaves smoke).
+    3. For each case with an approved expected-field override, the report's
+       ``Recommended outcome`` line must reflect the override-pipeline
+       fields (catches stale recommended-outcome lines).
+
+    The check is intentionally narrow: it only inspects headings and the
+    leading recommended-outcome line. It does not rewrite the report
+    generator.
+    """
+    text = SMOKE_REVIEW_REPORT.read_text(encoding="utf-8")
+    sections = _parse_smoke_review_sections(text)
+
+    smoke_dir = REPO_ROOT / "eval_interactive" / "case_specs" / "smoke"
+    smoke_yaml_by_case_id: dict[str, dict] = {}
+    for path in sorted(smoke_dir.glob("cs_interactive_*.yaml")):
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        smoke_yaml_by_case_id[loaded["case_id"]] = loaded
+    assert smoke_yaml_by_case_id, "smoke fixture directory is empty"
+
+    smoke_ids = set(smoke_yaml_by_case_id)
+    report_ids = set(sections)
+
+    missing_in_report = sorted(smoke_ids - report_ids)
+    stale_in_report = sorted(report_ids - smoke_ids)
+
+    problems: list[str] = []
+    for case_id in missing_in_report:
+        problems.append(
+            f"{case_id}: present in smoke fixtures but missing a "
+            f"`### {case_id}` section in qa-reports/smoke-case-review.md"
+        )
+    for case_id in stale_in_report:
+        problems.append(
+            f"{case_id}: has a `### {case_id}` section in "
+            f"qa-reports/smoke-case-review.md but is not in the current "
+            f"smoke fixture set"
+        )
+
+    # For overridden cases that are in smoke, the recommended outcome line
+    # must match the override-pipeline expected fields.
+    registry = _load_case_spec_overrides(PROD_OVERRIDES)
+    for case_id, on_disk in smoke_yaml_by_case_id.items():
+        session_id = on_disk["source_session_id"]
+        override = registry.applied.get(session_id)
+        if override is None:
+            continue
+        if override.classification is None and override.expected is None:
+            continue
+        section = sections.get(case_id)
+        if section is None:
+            continue  # already reported above
+        expected = on_disk["expected"]
+        report_uc = section["primary_uc"]
+        report_outcome = section["outcome_class"]
+        report_trigger = section["escalation_trigger"]
+        spec_uc = expected["primary_uc"]
+        spec_outcome = expected["outcome_class"]
+        spec_trigger = expected.get("escalation_trigger")
+        if (
+            report_uc != spec_uc
+            or report_outcome != spec_outcome
+            or report_trigger != spec_trigger
+        ):
+            problems.append(
+                f"{case_id}: smoke-case-review recommended outcome "
+                f"({report_uc} {report_outcome}, "
+                f"{report_trigger or 'no escalation trigger'}) does not "
+                f"match the override-pipeline smoke YAML "
+                f"({spec_uc} {spec_outcome}, "
+                f"{spec_trigger or 'no escalation trigger'}). Update the "
+                f"`### {case_id}` section to reflect the approved override."
+            )
+
+    assert not problems, (
+        "Sprint 4.1 §E3: qa-reports/smoke-case-review.md must track the "
+        "current smoke fixture set and approved overrides:\n  - "
+        + "\n  - ".join(problems)
     )
