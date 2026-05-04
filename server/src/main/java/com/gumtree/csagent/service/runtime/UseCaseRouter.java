@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -51,6 +52,85 @@ public class UseCaseRouter {
                     "can'?t\\s*(?:leave|post|submit|edit)|won'?t\\s*load|" +
                     "fail(?:ing|ed)?|glitch)\\w*",
             Pattern.CASE_INSENSITIVE);
+
+    /**
+     * UC-K technical-regression detector (Sprint §A2, codex round 6 §F-2 follow-up).
+     * Routes a description to UC-K when the user describes an in-app
+     * regression — a feature / button / option that <i>used to work</i>,
+     * is <i>missing / disappeared / greyed out</i>, or is now erroring.
+     *
+     * <p>The pattern intentionally requires a regression signal, not just
+     * a feature mention. "How do contact options work?" stays on UC-E
+     * (FAQ); "the phone-number contact option disappeared" / "the button
+     * is greyed out" / "it used to work on Android" / "I get an error
+     * when enabling phone contact" all flip to UC-K.
+     */
+    private static final Pattern UC_K_REGRESSION_PATTERN = Pattern.compile(
+            "\\b("
+                    // disappeared / missing / not appearing — explicit feature loss.
+                    + "(?:has\\s+)?(?:disappeared|gone\\s*missing|vanished)"
+                    + "|(?:option|button|feature|field|tab|link|page)\\s+is\\s+(?:missing|gone|unavailable)"
+                    // "not getting / seeing / receiving" must target a UI surface
+                    // (option / button / etc.) so we don't over-match general
+                    // complaints like "not getting messages on my app". Keep
+                    // "the / an / any / a" between verb and target so the
+                    // pattern only fires on a specific feature mention.
+                    + "|not\\s+(?:getting|seeing|receiving)\\s+(?:the|an|any|a)\\s+"
+                    + "(?:option|button|feature|tab|link|page|prompt|toggle|checkbox|setting|control)"
+                    // visual disabled / greyed-out states
+                    + "|grey(?:ed)?\\s*[- ]?out|gray(?:ed)?\\s*[- ]?out"
+                    // regression / used-to-work — broader "used to <verb>"
+                    // catches "used to be on the listing" / "used to allow"
+                    // / "used to show".
+                    + "|used\\s+to\\s+(?:work|appear|show|be\\b|let\\s+me|allow|let|display)"
+                    + "|stopped\\s+working|no\\s+longer\\s+works?|won'?t\\s+(?:work|load|open)"
+                    // "can't see the [adjective] option/button/..." — strict
+                    // noun pairing so "cant see where it can be changed"
+                    // (cs_095) does NOT fire.
+                    + "|(?:cannot|can'?t|unable\\s+to)\\s+see\\s+(?:the|an|any|a)\\s+"
+                    + "(?:\\w+\\s+){0,2}(?:option|button|feature|tab|link|page|toggle|prompt)"
+                    // platform / app-specific failures
+                    + "|app\\s+(?:keeps|crashes|won'?t|wont|broke|broken)"
+                    + "|(?:android|ios|iphone)\\s+(?:bug|issue|problem|crash)"
+                    // error when toggling a control
+                    + "|error\\s+when\\s+(?:enabling|disabling|toggling|tapping|opening)"
+                    + "|can'?t\\s+(?:enable|disable|toggle|tap)"
+                    + ")\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
+     * UC-E generic-FAQ detector. When the description matches this
+     * pattern AND does NOT match {@link #UC_K_REGRESSION_PATTERN}, the
+     * routing must NOT short-circuit to UC-K — the user is asking a
+     * "how does X work?" / "where do I find Y?" question, not reporting
+     * an in-app failure.
+     */
+    private static final Pattern UC_E_GENERIC_FAQ_PATTERN = Pattern.compile(
+            "\\b("
+                    + "how\\s+do(?:es)?(?:\\s+(?:i|you))?\\s+(?:contact|message|reach|"
+                    + "find|search|filter|browse|use|enable|disable)"
+                    + "|where\\s+(?:do\\s+i|can\\s+i|is)\\s+the"
+                    + "|can\\s+buyers?\\s+(?:call|message|contact)"
+                    + "|how\\s+can\\s+i"
+                    + "|what\\s+is\\s+the"
+                    + ")\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Topic Subjects that are eligible for the UC-K technical-regression
+     * override. The handover-only topics ({@code Delivery / Pro Contract /
+     * Ratings Reviews / Account Manager Support}) are not in this set —
+     * they have their own override table above. {@code Account Support}
+     * is included because cs_interactive_066 (the canonical regression
+     * case) submits with topic="Account Support" while describing a
+     * listing-flow regression.
+     */
+    private static final Set<String> UC_K_OVERRIDE_TOPICS = Set.of(
+            "Account Support",
+            "Ad Support",
+            "Technical Support",
+            "Replies or Messaging",
+            "Replies & Messaging");
 
     /**
      * Maps Topic Subject → ordered list of (pattern, target UC) overrides.
@@ -127,6 +207,33 @@ public class UseCaseRouter {
             return RoutingResult.routed(ucId, new BigDecimal("0.90"));
         }
 
+        // Stage 1.5 (Sprint §A2): UC-K technical-regression deterministic
+        // override. Cs_interactive_066-style cases ("the phone-number
+        // contact option disappeared", "the button is greyed out", "it
+        // used to work on Android", "I get an error when enabling phone
+        // contact") describe an in-app regression, not a feature
+        // explanation. Run this BEFORE the LLM classifier so a
+        // weak-prior topic (Account Support / Technical Support / etc.)
+        // cannot mis-route the case to UC-B / UC-E. Generic FAQ phrasing
+        // ("how do contact options work?") deliberately stays on the
+        // LLM path so UC-E remains reachable.
+        if (matchUcKTechnicalRegression(topicSubject, description)) {
+            log.info("Session {}: UC-K technical-regression override ('{}' / '{}')",
+                    session.getSessionId(), topicSubject,
+                    description == null ? "" : description);
+            session.setActiveUseCase("UC-K");
+            session.setIntentConfidence(new BigDecimal("0.85"));
+            // Preserve the LLM-style candidate list so secondary-UC
+            // diagnostics (UC-E in particular) survive the override.
+            List<String> candidates = useCaseRegistry.getCandidateUcsForTopic(topicSubject);
+            if (candidates != null && !candidates.isEmpty()) {
+                session.setCandidateUseCases(candidates.toArray(new String[0]));
+            } else {
+                session.setCandidateUseCases(new String[]{"UC-K"});
+            }
+            return RoutingResult.routed("UC-K", new BigDecimal("0.85"));
+        }
+
         // Stage 2: LLM classification for weak priors and "Account Support" (full candidate set)
         List<String> candidates = useCaseRegistry.getCandidateUcsForTopic(topicSubject);
         if (candidates.isEmpty()) {
@@ -137,6 +244,62 @@ public class UseCaseRouter {
         }
 
         return routeViaLlm(session, candidates, topicSubject, description);
+    }
+
+    /**
+     * True iff the {@code (topicSubject, description)} pair describes a
+     * UC-K technical regression. Visible for unit testing.
+     *
+     * <p>Rules (Sprint §A2):
+     * <ul>
+     *   <li>Topic must be in {@link #UC_K_OVERRIDE_TOPICS}.</li>
+     *   <li>Description must match {@link #UC_K_REGRESSION_PATTERN}.</li>
+     *   <li>If the description ALSO matches {@link #UC_E_GENERIC_FAQ_PATTERN}
+     *       and does NOT contain a strong regression keyword
+     *       (disappeared / missing / greyed out / used to work / app
+     *       crash / error when), the override defers to the LLM path
+     *       (UC-E remains reachable for "how do contact options work?").</li>
+     * </ul>
+     */
+    static boolean matchUcKTechnicalRegression(String topicSubject, String description) {
+        if (topicSubject == null || description == null || description.isBlank()) {
+            return false;
+        }
+        if (!UC_K_OVERRIDE_TOPICS.contains(topicSubject)) {
+            return false;
+        }
+        String desc = description.toLowerCase(Locale.ENGLISH);
+        if (!UC_K_REGRESSION_PATTERN.matcher(desc).find()) {
+            return false;
+        }
+        // Tie-breaker: the description matches UC_K_REGRESSION_PATTERN.
+        // If it ALSO matches the generic-FAQ pattern (e.g. "how do
+        // contact options work" with "how do") we still need to decide.
+        // The strong-regression keywords below (disappeared / used to /
+        // greyed / crashes / error when) imply the user is reporting a
+        // failure, not asking how something works. Without a strong
+        // keyword, defer to UC-E via the LLM path so we don't
+        // mis-route generic FAQ.
+        if (UC_E_GENERIC_FAQ_PATTERN.matcher(desc).find()
+                && !containsStrongRegressionKeyword(desc)) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean containsStrongRegressionKeyword(String descLower) {
+        // Strong regression markers — the user is definitely reporting a
+        // failure, not asking how something works. Used as the tie-breaker
+        // when both UC_K_REGRESSION and UC_E_GENERIC_FAQ patterns match.
+        return descLower.contains("disappear")
+                || descLower.contains("vanished")
+                || descLower.contains("used to ")
+                || descLower.contains("greyed")
+                || descLower.contains("error when")
+                || descLower.contains("crash")
+                || descLower.contains("stopped working")
+                || descLower.contains("won't load")
+                || descLower.contains("wont load");
     }
 
     private RoutingResult routeViaLlm(BotSession session, List<String> candidates,

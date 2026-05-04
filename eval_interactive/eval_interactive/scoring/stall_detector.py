@@ -39,11 +39,22 @@ _VISIBLE_RESULT_PATTERNS: list[re.Pattern] = [
         r"created a case|human agent|live agent)",
         re.IGNORECASE,
     ),
-    # Follow-up question that moves conversation forward
+    # Follow-up question that moves conversation forward.
+    # Codex 2026-05-04 round 6 §P1 broadens these so a bot greeting
+    # like "I'm looking into this" followed by a clarifying form
+    # ("Are you asking how to edit your ad, or how to appeal a
+    # removal?" / "Do you mean...?" / "To confirm, is it...?")
+    # counts as forward progress and does not trip
+    # ``PLACEHOLDER_WITHOUT_FOLLOWUP``.
     re.compile(
-        r"(could you (provide|share|confirm|tell)|"
-        r"can you (provide|share|confirm|tell)|"
-        r"what is your|may I ask|would you mind)",
+        r"(could you (provide|share|confirm|tell|clarify)|"
+        r"can you (provide|share|confirm|tell|clarify)|"
+        r"are you (asking|trying|saying|looking)|"
+        r"do you mean|did you mean|"
+        r"to confirm|just to confirm|"
+        r"which (one|email|account|ad|listing|order|item)|"
+        r"what (is|are) your|"
+        r"may I ask|would you mind)",
         re.IGNORECASE,
     ),
 ]

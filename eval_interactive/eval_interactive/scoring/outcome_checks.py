@@ -158,16 +158,30 @@ class OutcomeChecker:
                 for c in trace.session_state.candidate_use_cases
                 if c
             }
-            if expected in candidate_families:
-                return OutcomeCheckResult(
-                    "correct_uc",
-                    1.0,
-                    f"matched secondary UC {actual} with primary {expected} preserved in candidates",
+            primary_preserved = expected in candidate_families
+            handover_mentions_primary = self._handover_summary_mentions(
+                trace, expected, case_spec.form_context.description
+            )
+            # Codex 2026-05-04 round 6 §P1: candidate-list presence alone
+            # is gameable (cs_interactive_095 kept UC-A in candidates while
+            # the bot escalated UC-D without answering the original
+            # question). Full credit now requires *either* the primary UC
+            # appears in the handover summary text (real handoff
+            # preservation) *or* the primary UC is preserved in
+            # candidate_use_cases. Failing both → 0.5.
+            if primary_preserved or handover_mentions_primary:
+                detail = (
+                    f"matched secondary UC {actual}; primary {expected} "
+                    f"preserved (candidates={primary_preserved}, "
+                    f"handover_mentions={handover_mentions_primary})"
                 )
+                return OutcomeCheckResult("correct_uc", 1.0, detail)
             return OutcomeCheckResult(
                 "correct_uc",
                 0.5,
-                f"matched secondary UC {actual} but primary {expected} dropped from candidates {sorted(candidate_families)}",
+                f"matched secondary UC {actual} but primary {expected} "
+                f"dropped from candidates {sorted(candidate_families)} and "
+                f"not referenced in handover summary",
             )
 
         return OutcomeCheckResult(
@@ -423,6 +437,35 @@ class OutcomeChecker:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _handover_summary_mentions(
+        trace: TraceData, primary_uc: str, form_description: str
+    ) -> bool:
+        """Return True if the handover summary references the primary UC's
+        domain or the form-description issue text.
+
+        Codex 2026-05-04 round 6 §P1: secondary-UC drift credit needs
+        evidence the original issue was actually preserved on handoff,
+        not just that it was once in the candidate list. We accept either
+        a UC family token (e.g. ``UC-A``) or a content-bearing token from
+        the form description appearing in the handover summary.
+        """
+        if trace.handover is None:
+            return False
+        payload = trace.handover.handover_payload or {}
+        summary = (payload.get("summary") or "").lower()
+        if not summary:
+            return False
+        if primary_uc and primary_uc.lower() in summary:
+            return True
+        # Content-bearing tokens from the form description (skip stop-ish
+        # short words). 4-char minimum filters "the", "and", "for", etc.
+        tokens = re.findall(r"[a-zA-Z]{4,}", (form_description or "").lower())
+        for tok in tokens:
+            if tok in summary:
+                return True
+        return False
 
     @staticmethod
     def _normalize_uc(uc: str) -> str:

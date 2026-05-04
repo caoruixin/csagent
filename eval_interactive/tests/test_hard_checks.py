@@ -399,6 +399,8 @@ class TestRunChecksFiltering:
         "no_human_only_tool_exposure",
         "escalation_compliance",
         "required_escalation",
+        "escalation_reason_consistency",
+        "user_requested_escalation",
         "trace_minimum",
     }
 

@@ -1351,7 +1351,12 @@ public class PhaseEvaluator {
         }
 
         static PhaseResult escalate(BotSession session, String message, String reason) {
-            session.setEscalationReason(reason);
+            // Sprint §A1: do NOT directly stamp session.escalationReason here.
+            // ControlKernel funnels every reason through EscalationReasonResolver
+            // so a higher-priority semantic reason (e.g. user_requested set on
+            // an earlier turn) cannot be overwritten by a lower-priority
+            // evaluator-side reason. The reason still travels back to the
+            // caller via PhaseResult.escalationReason().
             session.setHandlingState("QUEUE_TO_HUMAN");
             session.setContainmentOutcome("escalated");
             return new PhaseResult("ESCALATE", null, null, null,

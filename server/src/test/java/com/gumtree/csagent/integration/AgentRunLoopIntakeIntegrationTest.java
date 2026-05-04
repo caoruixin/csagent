@@ -19,6 +19,7 @@ import com.gumtree.csagent.service.runtime.ContextProjectionBuilder;
 import com.gumtree.csagent.service.runtime.ControlKernel;
 import com.gumtree.csagent.service.runtime.ControlPolicyService;
 import com.gumtree.csagent.service.runtime.DriftDetector;
+import com.gumtree.csagent.service.runtime.EscalationReasonResolver;
 import com.gumtree.csagent.service.runtime.LlmInvocationService;
 import com.gumtree.csagent.service.runtime.PhaseEvaluator;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
@@ -111,7 +112,8 @@ class AgentRunLoopIntakeIntegrationTest {
         controlKernel = new ControlKernel(
                 turnRepository, eventRepository, budgetChecker, driftDetector,
                 phaseEvaluator, controlPolicy, objectMapper, createCaseTool,
-                eventEmitter, contextProjectionBuilder, props, agentRunLoop);
+                eventEmitter, contextProjectionBuilder, props, agentRunLoop,
+                new EscalationReasonResolver());
     }
 
     private BotSession buildIntakeSession() {

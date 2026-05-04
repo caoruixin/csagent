@@ -45,6 +45,7 @@ public class ControlKernel {
     private final ContextProjectionBuilder contextProjectionBuilder;
     private final AgentRunLoopProperties agentRunLoopProperties;
     private final AgentRunLoop agentRunLoop;
+    private final EscalationReasonResolver escalationResolver;
 
     public ControlKernel(BotTurnRepository turnRepository,
                          BotEventRepository eventRepository,
@@ -57,7 +58,8 @@ public class ControlKernel {
                          EventEmitter eventEmitter,
                          ContextProjectionBuilder contextProjectionBuilder,
                          AgentRunLoopProperties agentRunLoopProperties,
-                         AgentRunLoop agentRunLoop) {
+                         AgentRunLoop agentRunLoop,
+                         EscalationReasonResolver escalationResolver) {
         this.turnRepository = turnRepository;
         this.eventRepository = eventRepository;
         this.budgetChecker = budgetChecker;
@@ -70,6 +72,23 @@ public class ControlKernel {
         this.contextProjectionBuilder = contextProjectionBuilder;
         this.agentRunLoopProperties = agentRunLoopProperties;
         this.agentRunLoop = agentRunLoop;
+        this.escalationResolver = escalationResolver;
+    }
+
+    /**
+     * Set the session's escalation reason via the deterministic
+     * {@link EscalationReasonResolver}. Higher-priority reasons (e.g.
+     * {@code user_requested}) cannot be overwritten by lower-priority
+     * reasons (e.g. {@code turn_budget_exhausted}). Centralising the
+     * write site here is what makes Sprint §A1 hold across budget
+     * forced escalation, drift detection, agent loop transitions, and
+     * the legacy phase evaluator.
+     */
+    private void applyEscalationReason(BotSession session, String candidate) {
+        String resolved = escalationResolver.resolve(session.getEscalationReason(), candidate);
+        if (resolved != null) {
+            session.setEscalationReason(resolved);
+        }
     }
 
     /**
@@ -91,6 +110,22 @@ public class ControlKernel {
 
         // Step 2: Context projection is built inside PhaseEvaluator as needed
 
+        // Step 2.5 (Sprint §A1): detect explicit user-driven escalation BEFORE
+        // budget / drift checks. Without this, a user message asking for a
+        // callback on the same turn the clarification budget exhausts gets
+        // serialised as ``clarification_budget_exhausted`` / ``turn_budget_exhausted``
+        // (cs_interactive_029). The deterministic resolver still guards every
+        // downstream write site; running this first just means the canonical
+        // reason is set to ``user_requested`` from the outset so even if the
+        // budget path later fires, the resolver keeps the higher-priority
+        // semantic reason.
+        if (escalationResolver.detectExplicitUserEscalation(userMessage)) {
+            log.info("Session {}: user message contains explicit human / callback request", session.getSessionId());
+            applyEscalationReason(session, "user_requested");
+            return forceEscalate(session, phaseBefore, userMessage, startTime,
+                    "No problem, let me connect you with a human agent right away.");
+        }
+
         // Step 3: Check budgets — if exceeded, force ESCALATE
         Optional<String> exceededBudget = budgetChecker.checkBudgets(session);
         if (exceededBudget.isPresent()) {
@@ -104,7 +139,11 @@ public class ControlKernel {
             // the bucket → reason mapping here keeps the L1 escalation_compliance
             // gate green for cases like cs_interactive_001 / 011 / 014 that were
             // failing on a generic-vs-specific reason mismatch.
-            session.setEscalationReason(mapBudgetToEscalationReason(exceededBudget.get()));
+            //
+            // Sprint §A1: route through the resolver so a higher-priority
+            // semantic reason already on the session (e.g. ``user_requested``
+            // set in step 2.5) is not overwritten by the budget close-out.
+            applyEscalationReason(session, mapBudgetToEscalationReason(exceededBudget.get()));
             return forceEscalate(session, phaseBefore, userMessage, startTime,
                     "I've reached the limit of what I can assist with on this topic. " +
                     "Let me connect you with a human agent who can help further.");
@@ -113,14 +152,12 @@ public class ControlKernel {
         // Step 4: Check drift — may update activeUseCase or force ESCALATE
         DriftResult drift = driftDetector.detect(session, userMessage);
         if (drift.getType() == DriftType.USER_ESCALATION_REQUEST || drift.isEscalationRequested()) {
-            // User explicitly asked for a human agent — distinct from topic drift
-            log.info("Session {}: user explicitly requested human agent", session.getSessionId());
-            // Canonicalize at the write site (Phase 2 #17): the literal
-            // "user_requested_escalation" is not in the 23-value escalation_reason
-            // enum (canonical value is "user_requested"). Mapping here closes the
-            // third write site so AgentRunLoop / forceEscalate / interpretRunResult
-            // all emit canonical reasons.
-            session.setEscalationReason("user_requested");
+            // User explicitly asked for a human agent — distinct from topic drift.
+            // (Step 2.5 above catches most cases; this branch fires when
+            // DriftDetector matches on a pattern not in EscalationReasonResolver,
+            // e.g. "live agent" / "customer service".)
+            log.info("Session {}: drift detector flagged user escalation request", session.getSessionId());
+            applyEscalationReason(session, "user_requested");
             return forceEscalate(session, phaseBefore, userMessage, startTime,
                     "No problem, let me connect you with a human agent right away.");
         }
@@ -129,14 +166,11 @@ public class ControlKernel {
                 log.info("Session {}: hard drift shift to {}", session.getSessionId(), drift.getNewUseCase());
                 session.setActiveUseCase(drift.getNewUseCase());
             }
-            // Canonicalize at the write site (Phase 2 #16, sibling of #17/#19): the
-            // literal "drift_hard_shift" is not in the 23-value escalation_reason
-            // enum and trips L1 trace_contract_escalation_reason (cs_259 hits this
-            // at total_turns=0). Map to canonical "service_degraded" — semantically
-            // the bot can no longer continue serving the original UC after a hard
-            // topic shift, so an infrastructure-style fallback is the closest
-            // canonical match. Drift type is preserved in DriftDetector telemetry.
-            session.setEscalationReason("service_degraded");
+            // Canonicalize at the write site (Phase 2 #16, sibling of #17/#19):
+            // hard drift maps to the closest canonical infrastructure fallback.
+            // Routed through the resolver so a previously set semantic reason
+            // (e.g. user_requested from an earlier turn) survives.
+            applyEscalationReason(session, "service_degraded");
             return forceEscalate(session, phaseBefore, userMessage, startTime,
                     "I can see your concern has changed. Let me connect you with a specialist who can best assist you.");
         }
@@ -186,15 +220,18 @@ public class ControlKernel {
                 boolean shouldEscalate = "ESCALATE".equals(decision.nextPhase());
                 ToolResult runtimeCaseResult = null;
                 if (shouldEscalate) {
-                    // Fallback must be a canonical EscalationTrigger value
-                    // (case_spec/schema.py); ``service_degraded`` is the
-                    // Phase 2 §2.4 catch-all used when the agent loop terminated
-                    // in ESCALATE without a more specific reason.
-                    String escalationReason = decision.escalationReason() != null
+                    // Sprint §A1: route the agent loop's decision through the
+                    // resolver so the budget-close fallback ``service_degraded``
+                    // never overwrites an earlier-stamped semantic reason. The
+                    // canonical winner becomes the single source of truth
+                    // surfaced to the tool call, session state, and handover
+                    // payload.
+                    String candidate = decision.escalationReason() != null
                             ? decision.escalationReason() : "service_degraded";
-                    session.setEscalationReason(escalationReason);
+                    applyEscalationReason(session, candidate);
                     session.setHandlingState("QUEUE_TO_HUMAN");
                     session.setContainmentOutcome("escalated");
+                    String escalationReason = session.getEscalationReason();
                     eventEmitter.emitEscalationRequested(session.getSessionId(),
                             session.getTotalBotTurns(), escalationReason);
                     runtimeCaseResult = createCaseIfNeeded(session);
@@ -224,6 +261,13 @@ public class ControlKernel {
         }
 
         PhaseEvaluator.PhaseResult phaseResult = phaseEvaluator.evaluate(session, userMessage, history);
+
+        // Sprint §A1: PhaseResult.escalate no longer stamps the session reason
+        // directly. Apply it through the resolver so the precedence table
+        // protects already-set semantic reasons.
+        if (phaseResult.shouldEscalate() && phaseResult.escalationReason() != null) {
+            applyEscalationReason(session, phaseResult.escalationReason());
+        }
 
         // Step 7: Track repeated actions (label derived from tool_calls + user_message)
         if (phaseResult.action() != null) {
@@ -258,6 +302,10 @@ public class ControlKernel {
                 session.setCurrentPhase(reEval.nextPhase());
                 phaseAfter = reEval.nextPhase();
             }
+            // Sprint §A1: re-eval may itself escalate; route through the resolver.
+            if (reEval.shouldEscalate() && reEval.escalationReason() != null) {
+                applyEscalationReason(session, reEval.escalationReason());
+            }
             // Use the re-evaluation result for the turn record
             if (reEval.action() != null) {
                 phaseResult = reEval;
@@ -273,10 +321,15 @@ public class ControlKernel {
         long latencyMs = System.currentTimeMillis() - startTime;
         recordTurn(session, userMessage, phaseResult, phaseBefore, phaseAfter, latencyMs);
 
-        // Step 10: Emit escalation event (OUTCOME_RECORDED is emitted by SessionManager.recordOutcome)
+        // Step 10: Emit escalation event (OUTCOME_RECORDED is emitted by SessionManager.recordOutcome).
+        // Sprint §A1: emit the canonical session reason (post-resolver) rather
+        // than the evaluator's raw candidate so the event stream agrees with
+        // the persisted session and tool-call surfaces.
         if (phaseResult.shouldEscalate()) {
             eventEmitter.emitEscalationRequested(session.getSessionId(), session.getTotalBotTurns(),
-                    phaseResult.escalationReason());
+                    session.getEscalationReason() != null
+                            ? session.getEscalationReason()
+                            : phaseResult.escalationReason());
         }
 
         boolean shouldEndChat = "CLOSE".equals(phaseAfter) || "ESCALATE".equals(phaseAfter);
@@ -332,12 +385,15 @@ public class ControlKernel {
 
         // Record the turn. Persist a synthesized handover tool_call so the trace
         // remains consistent with LLM-driven escalations under the single-layer
-        // tool-use contract (phase0 §0.6 / phase3 §3.3.3).
-        // Fallback must be a canonical EscalationTrigger value
-        // (case_spec/schema.py); ``service_degraded`` is the Phase 2 §2.4
-        // catch-all used when forceEscalate runs without a more specific reason.
-        String escalationReason = session.getEscalationReason() != null
-                ? session.getEscalationReason() : "service_degraded";
+        // tool-use contract (phase0 §0.6 / phase3 §3.3.3). Sprint §A1: the
+        // session reason has already been set through the resolver by the
+        // caller; canonicalise here as a safety net for older code paths that
+        // may have stamped a non-canonical literal.
+        String escalationReason = escalationResolver.canonicalize(session.getEscalationReason());
+        if (escalationReason == null) {
+            escalationReason = "service_degraded";
+        }
+        session.setEscalationReason(escalationReason);
         BotTurn turn = BotTurn.builder()
                 .turnId(UUID.randomUUID().toString())
                 .sessionId(session.getSessionId())
@@ -867,16 +923,13 @@ public class ControlKernel {
         }
         if (controlPolicy.isValidTransition(phaseBefore, target)) {
             session.setCurrentPhase(target);
-            // Step 3 cleanup: when transitioning to ESCALATE, propagate the
-            // canonical escalation_reason from the decision onto the session
-            // so downstream record paths (recordRunResult / SessionManager)
-            // don't have to fabricate a non-canonical fallback. Don't
-            // overwrite an existing canonical session reason.
-            if ("ESCALATE".equals(target)
-                    && decision.escalationReason() != null
-                    && (session.getEscalationReason() == null
-                        || session.getEscalationReason().isBlank())) {
-                session.setEscalationReason(decision.escalationReason());
+            // Sprint §A1: when transitioning to ESCALATE, merge the
+            // decision's reason via the resolver. Higher-priority semantic
+            // reasons already on the session (e.g. user_requested set
+            // earlier in the turn) survive low-priority decisions like
+            // turn_budget_exhausted.
+            if ("ESCALATE".equals(target) && decision.escalationReason() != null) {
+                applyEscalationReason(session, decision.escalationReason());
             }
             log.info("Session {}: phase transition {} -> {} (reason: {})",
                     session.getSessionId(), phaseBefore, target, decision.transitionReason());
