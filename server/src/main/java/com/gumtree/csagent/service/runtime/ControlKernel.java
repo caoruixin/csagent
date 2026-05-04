@@ -83,9 +83,48 @@ public class ControlKernel {
      * write site here is what makes Sprint §A1 hold across budget
      * forced escalation, drift detection, agent loop transitions, and
      * the legacy phase evaluator.
+     *
+     * <p>Sprint §E1 gate: refuse to upgrade the canonical session reason
+     * to {@code user_distress} (priority 2) on the bot LLM's say-so. The
+     * deterministic B1 detector earns this Tier-0 reason on the session
+     * via {@link #applyDeterministicDistressReason(BotSession)} (called
+     * from step 2.4 after {@code detectDistressSignal} matches a
+     * DISTRESS_PATTERN or ALL-CAPS shout) and the SessionManager
+     * already-escalated reconciliation path (which itself gates on
+     * {@code detectDistressSignal} before calling
+     * {@link EscalationReasonResolver#resolve(String, String)} directly).
+     * An LLM-supplied {@code user_distress} (e.g. emitted in a
+     * {@code request_handover.arguments.escalation_reason}) without a
+     * prior B1 hit on this session is a subjective claim, so it gets
+     * downgraded to {@code faq_miss_threshold_exceeded} (same
+     * {@code bot_limit} family in the L1 escalation_compliance check as
+     * {@code clarification_budget_exhausted} / {@code turn_budget_exhausted}).
+     * Re-asserting an already-set {@code user_distress} (B1 fired earlier
+     * in the session) is a no-op via the resolver.
      */
     private void applyEscalationReason(BotSession session, String candidate) {
-        String resolved = escalationResolver.resolve(session.getEscalationReason(), candidate);
+        String canonCandidate = escalationResolver.canonicalize(candidate);
+        if ("user_distress".equals(canonCandidate)
+                && !"user_distress".equals(escalationResolver.canonicalize(session.getEscalationReason()))) {
+            log.debug("Session {}: refused unconfirmed user_distress upgrade; downgrading to faq_miss_threshold_exceeded",
+                    session.getSessionId());
+            canonCandidate = "faq_miss_threshold_exceeded";
+        }
+        String resolved = escalationResolver.resolve(session.getEscalationReason(), canonCandidate);
+        if (resolved != null) {
+            session.setEscalationReason(resolved);
+        }
+    }
+
+    /**
+     * Sprint §E1 deterministic distress write — bypasses
+     * {@link #applyEscalationReason(BotSession, String)}'s LLM gate
+     * because the caller has just confirmed the message contains a
+     * B1 distress phrase or ALL-CAPS shout. Used by step 2.4 in
+     * {@link #processMessage(BotSession, String)}.
+     */
+    void applyDeterministicDistressReason(BotSession session) {
+        String resolved = escalationResolver.resolve(session.getEscalationReason(), "user_distress");
         if (resolved != null) {
             session.setEscalationReason(resolved);
         }
@@ -124,7 +163,7 @@ public class ControlKernel {
         // the semantic ``user_distress``.
         if (escalationResolver.detectDistressSignal(userMessage)) {
             log.info("Session {}: distress signal detected in user message", session.getSessionId());
-            applyEscalationReason(session, "user_distress");
+            applyDeterministicDistressReason(session);
         }
 
         // Step 2.5 (Sprint §A1): detect explicit user-driven escalation BEFORE

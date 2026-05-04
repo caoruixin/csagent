@@ -112,11 +112,32 @@ def _build_minimal_spec(session_id: str = "sid-x") -> CaseSpec:
 def test_v2_schema_loads_cleanly() -> None:
     registry = _load_case_spec_overrides(PROD_OVERRIDES)
     assert isinstance(registry, OverrideRegistry)
-    # 12 approved entries: 9 legacy + 2 merged (cs_interactive_012,
+    # 15 approved entries: 9 legacy + 2 merged (cs_interactive_012,
     # cs_interactive_015) + 1 Sprint 2.1 P1 follow-up (cs_interactive_014,
-    # source_session_id=570Q5000008u9gjIAA).
-    assert len(registry.applied) == 12
+    # source_session_id=570Q5000008u9gjIAA) + 3 Sprint 4 follow-ups
+    # (cs_interactive_011, cs_interactive_029, cs_interactive_066).
+    assert len(registry.applied) == 15
     assert registry.pending == []
+    cs29 = registry.applied["570Q5000008kDiPIAU"]
+    assert cs29.case_id_hint == "cs_interactive_029"
+    assert cs29.classification == {
+        "primary_uc": "UC-D",
+        "secondary_ucs": ["UC-C"],
+    }
+    assert cs29.expected is None
+    assert cs29.migrated_from_legacy is False
+    assert cs29.supporting_turn_numbers == (3, 4, 6, 10, 43, 47)
+    cs66 = registry.applied["570Q5000008fBsXIAU"]
+    assert cs66.case_id_hint == "cs_interactive_066"
+    assert cs66.classification == {
+        "primary_uc": "UC-K",
+        "secondary_ucs": ["UC-E"],
+    }
+    cs11 = registry.applied["570Q5000008NWIjIAO"]
+    assert cs11.case_id_hint == "cs_interactive_011"
+    assert cs11.classification is None
+    assert cs11.expected is not None
+    assert cs11.expected["escalation_trigger"] == "faq_miss_threshold_exceeded"
     cs14 = registry.applied["570Q5000008u9gjIAA"]
     assert cs14.case_id_hint == "cs_interactive_014"
     assert cs14.expected is not None
@@ -652,3 +673,160 @@ def test_cs_interactive_015_override_survives_fresh_extraction(tmp_path: Path) -
     # Both stages should be flagged in the audit.
     assert "classification override applied: **YES**" in audit_text
     assert "changed expected fields:" in audit_text
+
+
+# ---------------------------------------------------------------------------
+# 17. cs_interactive_029 end-to-end: classification-only override (Sprint 4 §E2)
+# ---------------------------------------------------------------------------
+
+
+def test_cs_interactive_029_override_survives_fresh_extraction(tmp_path: Path) -> None:
+    """Sprint 4 §E2: a classification-only override flips primary_uc
+    from UC-C to UC-D (account-locked persona, not messaging-blocked).
+    Closes the L2 ``correct_uc`` gap (D12) without changing runtime
+    behaviour. Semantic escalation reason stays ``user_requested`` via
+    the explicit-callback path (priority 1)."""
+    out_dir = tmp_path / "case_specs"
+    cache_dir = tmp_path / "cache"
+    specs = extract_case_specs(
+        HR_CSV,
+        TURNS_DIR,
+        out_dir,
+        llm_offline=True,
+        llm_cache_dir=cache_dir,
+    )
+    spec = next(s for s in specs if s.case_id == "cs_interactive_029")
+    expected = spec.expected
+    assert spec.source_session_id == "570Q5000008kDiPIAU"
+    assert expected.primary_uc == "UC-D"
+    assert expected.secondary_ucs == ["UC-C"]
+    # The classification override flips the policy lookup so UC-D's
+    # forbidden_tools list applies. UC-D forbids the message-moderation
+    # tool that is allowed only for UC-C.
+    assert "get_message_moderation_context" in expected.forbidden_tools
+    # Semantic escalation reason still falls out as user_requested
+    # via the runtime explicit-callback path; the spec-derived
+    # escalation_trigger inherits from the persona/HR-derived
+    # transcript outcome resolver.
+    assert expected.escalation_trigger == "user_requested"
+    assert expected.outcome_class == "escalate"
+
+    audit_path = dump_audit_to(tmp_path / "case-spec-generation-audit.md")
+    audit_text = audit_path.read_text(encoding="utf-8")
+    assert "## 570Q5000008kDiPIAU (case_id=cs_interactive_029)" in audit_text
+    assert "classification override applied: **YES** -> primary=UC-D" in audit_text
+    assert "Sprint 4 §E2" in audit_text
+
+
+# ---------------------------------------------------------------------------
+# 18. Sprint 4 §E3: smoke YAMLs must equal the override-pipeline output.
+#
+# Lightweight regression check that prevents direct hand edits of the
+# committed smoke fixtures without a matching approved override entry.
+# A spec whose generated `expected.*` block diverges from the on-disk
+# smoke YAML is either a missing override or an unauthorised hand edit.
+# ---------------------------------------------------------------------------
+
+
+def test_smoke_yaml_matches_override_pipeline_output(tmp_path: Path) -> None:
+    """Sprint 4 §E3 guard: every committed smoke YAML must equal what
+    `extract_case_specs` produces with the production override file.
+
+    Running the extractor in offline mode (`llm_offline=True`) bypasses
+    the L2 LLM persona reviewer and uses the rule_draft persona. To keep
+    the comparison stable when L2 has cached a richer persona, this
+    guard only diffs the `expected.*` block — which is the sprint-4
+    contract surface — and requires the smoke YAML's `case_id`,
+    `source_session_id`, `source_dataset`, and `expected.*` fields to
+    match the regenerated spec exactly. Persona drift between rule_draft
+    and the cached LLM proposal is allowed; spec-expected drift is not,
+    because expected-field changes must flow through
+    `case_spec_overrides.yaml`.
+    """
+    out_dir = tmp_path / "case_specs"
+    cache_dir = tmp_path / "cache"
+    specs = extract_case_specs(
+        HR_CSV,
+        TURNS_DIR,
+        out_dir,
+        llm_offline=True,
+        llm_cache_dir=cache_dir,
+    )
+    by_case_id = {s.case_id: s for s in specs}
+
+    smoke_dir = REPO_ROOT / "eval_interactive" / "case_specs" / "smoke"
+    smoke_files = sorted(smoke_dir.glob("cs_interactive_*.yaml"))
+    assert smoke_files, "smoke fixture directory is empty"
+
+    mismatches: list[str] = []
+    for smoke_path in smoke_files:
+        on_disk = yaml.safe_load(smoke_path.read_text(encoding="utf-8"))
+        case_id = on_disk["case_id"]
+        regenerated = by_case_id.get(case_id)
+        if regenerated is None:
+            mismatches.append(
+                f"{smoke_path.name}: on-disk smoke YAML's case_id={case_id} "
+                f"is not produced by the extractor — regenerate the smoke "
+                f"corpus or add the missing source row."
+            )
+            continue
+
+        regen_expected = {
+            "outcome_class": regenerated.expected.outcome_class,
+            "primary_uc": regenerated.expected.primary_uc,
+            "secondary_ucs": list(regenerated.expected.secondary_ucs),
+            "should_escalate": regenerated.expected.should_escalate,
+            "allow_bot_resolution": regenerated.expected.allow_bot_resolution,
+            "bot_handling_pattern": regenerated.expected.bot_handling_pattern,
+            "escalation_trigger": regenerated.expected.escalation_trigger,
+            "risk_level": regenerated.expected.risk_level,
+            "expected_tool_sequence": list(regenerated.expected.expected_tool_sequence),
+            "forbidden_tools": list(regenerated.expected.forbidden_tools),
+            "grounding_mode": regenerated.expected.grounding_mode,
+            "answer_must_not_contain": list(regenerated.expected.answer_must_not_contain),
+            "max_turns": regenerated.expected.max_turns,
+        }
+        on_disk_expected = on_disk.get("expected") or {}
+        # Normalise list-valued fields the same way the extractor does
+        # so YAML's flow vs. block style differences do not register as
+        # diffs.
+        on_disk_expected_norm = {
+            "outcome_class": on_disk_expected.get("outcome_class"),
+            "primary_uc": on_disk_expected.get("primary_uc"),
+            "secondary_ucs": list(on_disk_expected.get("secondary_ucs") or []),
+            "should_escalate": on_disk_expected.get("should_escalate"),
+            "allow_bot_resolution": on_disk_expected.get("allow_bot_resolution"),
+            "bot_handling_pattern": on_disk_expected.get("bot_handling_pattern"),
+            "escalation_trigger": on_disk_expected.get("escalation_trigger"),
+            "risk_level": on_disk_expected.get("risk_level"),
+            "expected_tool_sequence": list(
+                on_disk_expected.get("expected_tool_sequence") or []
+            ),
+            "forbidden_tools": list(on_disk_expected.get("forbidden_tools") or []),
+            "grounding_mode": on_disk_expected.get("grounding_mode"),
+            "answer_must_not_contain": list(
+                on_disk_expected.get("answer_must_not_contain") or []
+            ),
+            "max_turns": on_disk_expected.get("max_turns"),
+        }
+        if regen_expected != on_disk_expected_norm:
+            differing = sorted(
+                key for key in regen_expected
+                if regen_expected[key] != on_disk_expected_norm.get(key)
+            )
+            mismatches.append(
+                f"{smoke_path.name}: expected.* differs from override-pipeline "
+                f"output on fields {differing}. Run "
+                f"`python -m eval_interactive.scripts.regenerate_case_specs` "
+                f"and route any reviewed change through "
+                f"eval_interactive/case_spec_overrides.yaml — direct hand "
+                f"edits to generated smoke YAML are not allowed."
+            )
+
+    assert not mismatches, (
+        "Sprint 4 §E3: smoke YAML expected-field guard. The committed "
+        "smoke fixtures must equal the output of "
+        "`extract_case_specs` with the production override registry. "
+        "Each mismatch below is either a missing override entry or an "
+        "unauthorised hand edit:\n  - " + "\n  - ".join(mismatches)
+    )

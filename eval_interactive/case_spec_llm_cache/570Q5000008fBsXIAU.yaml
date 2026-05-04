@@ -1,12 +1,11 @@
 source_session_id: 570Q5000008fBsXIAU
-case_id_hint: row_66
+case_id_hint: cs_interactive_066
 llm_model: deepseek-v4-pro
-prompt_hash: 2a10bffdf6c0d422323b7a903d86b2d6ec7378c90257d3efc47b4da66839bd67
-generated_at: '2026-04-30T13:18:18.755378+00:00'
-llm_confidence: low
-llm_rationale: The transcript contains minimal visitor turns that do not directly describe the issue. The only informative
-  turn is providing an email, which is not the core problem. The user_goal_summary is derived from the pre-chat form description,
-  but the actual conversation lacks detail, so confidence is low.
+prompt_hash: cf42f5637ed34671169cf182a515ab7fc72a859e649b7035624f99ec05109005
+generated_at: '2026-05-04T21:40:17.028283+00:00'
+llm_confidence: medium
+llm_rationale: Removed non-issue-bearing acknowledgment from seed_messages, keeping only the account-providing turn. Updated
+  summary to be concise and correct typo. No hidden facts identifiable from transcript.
 rule_draft:
   seed_messages:
   - Should be [EMAIL]
@@ -18,8 +17,8 @@ rule_draft:
 llm_proposal:
   seed_messages:
   - Should be [EMAIL]
-  user_goal_summary: 'Why am I not getting the option to add my phone number as a point of contact when listing an item any
-    more? Drift: soft_shift.'
+  user_goal_summary: 'User wants to know why the option to add a phone number as a point of contact is missing when listing
+    an item. Drift: soft_shift.'
   hidden_facts: []
 accepted_value:
   seed_messages:

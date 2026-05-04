@@ -12,16 +12,17 @@ Inputs reviewed for each smoke case:
 
 | review_status | count |
 | --- | ---: |
-| ok | 11 |
+| ok | 10 |
 | generator_bug | 0 |
 | policy_ambiguity | 0 |
-| needs_override | 3 |
+| needs_override | 4 |
 | needs_human_decision | 0 |
 
 Notable follow-up:
 - No stale generator bug remains in the smoke review set. `cs_interactive_004` and `cs_interactive_095` now align with final generated YAML as resolve/no-escalation cases.
 - `cs_interactive_015` was flipped from `ok` to `needs_override` in the Wave A6 semantic re-review: the transcript matches UC-FP ("why was my ad deleted?" + edit-and-repost), and the historical late escalation is failure-path evidence rather than the desired golden behavior. Override approved and applied in `case_spec_overrides.yaml`.
 - `cs_interactive_014` was flipped from `ok` to `needs_override` in the Sprint 2.1 P1 follow-up: the transcript persona is frustrated, but the *replayed* cs_014 form context + seed_messages contain no Sprint-B1 DISTRESS_PATTERNS hit and no ALL-CAPS shout — so the deterministic resolver cannot stamp `user_distress`. The truthful escalation reason on this UC-C Replies/Messaging case is `faq_miss_threshold_exceeded` (no FAQ article covers the admin-mediated email-revert request). Override approved and applied in `case_spec_overrides.yaml` for `source_session_id 570Q5000008u9gjIAA`.
+- `cs_interactive_029` was flipped from `ok` to `needs_override` in the Sprint 4 §E2 follow-up: the transcript shows an account-locked business user demanding a phone callback to the account manager — Phase 2 §2.2 places "account locked / can't advertise / business account access" issues under UC-D (Account & Login), not UC-C (Messages & Replies). The runtime deterministic UC fallback in `ControlKernel.inferFallbackUseCase` already picks UC-D for these account-locked seeds, so the spec override flips primary to UC-D / secondary to [UC-C] and closes the L2 `correct_uc` gap (D12) without changing runtime behaviour. Semantic escalation reason stays `user_requested` via the explicit-callback path (priority 1). Override approved and applied in `case_spec_overrides.yaml` for `source_session_id 570Q5000008kDiPIAU`.
 
 ## Case Reviews
 
@@ -86,6 +87,15 @@ Notable follow-up:
 - Recommended outcome: UC-FP resolve, no escalation trigger
 - Supporting turns: 5, 6, 7, 8, 9, 11, 13
 - Rationale: Wave A6 re-review supersedes the Wave A2.1 UC-K legacy pin. Phase 2 §2.2:282 places "why was my ad deleted?" plus reposting/editing under UC-FP; turns 5-7 show the human agent already giving the policy reasons (no "men only" wording, no body parts in images, ad title flagged), and the user's "how do I change it?" is the canonical UC-FP edit-and-repost ask. The late escalation in turn 11 is failure-path evidence (the human punted), not the desired golden behavior. Persona `frustration_level: mild` + empty `will_request_human_if` also fail to ground the previous `user_distress` escalation trigger. Mirrors cs_interactive_012's resolve-first override; applied via `case_spec_overrides.yaml`.
+- Confidence: high
+
+### cs_interactive_029
+
+- Source: `badcase`, session `570Q5000008kDiPIAU`
+- Status: `needs_override` (applied)
+- Recommended outcome: UC-D escalate, `user_requested`
+- Supporting turns: 3, 4, 6, 10, 43, 47
+- Rationale: Sprint 4 §E2 follow-up override. The user's actual issue is an account-locked business user demanding a phone callback so they can resume advertising — Phase 2 §2.2 places "account locked / can't advertise / business account access" issues under UC-D (Account & Login), not UC-C (Messages & Replies). Turns 3–6 ("HI MY ACCOUNT OS", "IS LOCKED", "I NEED MY ACCOUNT MANNAGER TO CALL ME"), turn 10 (agent referral to the Business for Gumtree contact form), and turns 43 / 47 (human agent escalates with a case number to the business team) all align with UC-D. The runtime deterministic UC fallback in `ControlKernel.inferFallbackUseCase` already picks UC-D for these account-locked seeds, so the spec override closes the L2 `correct_uc` gap (D12) without changing runtime behaviour. Semantic escalation reason stays `user_requested` via the explicit-callback path (priority 1). Override approved and applied in `case_spec_overrides.yaml`.
 - Confidence: high
 
 ### cs_interactive_036

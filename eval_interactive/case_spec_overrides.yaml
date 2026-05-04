@@ -143,6 +143,158 @@ overrides:
         (none), and hand over with reason faq_miss_threshold_exceeded once
         the FAQ corpus has no admin-mediated email-revert article.
 
+  # -----------------------------------------------------------------------
+  # cs_interactive_011 / 570Q5000008NWIjIAO
+  # Sprint 4 §E1 supporting fix override (2026-05-05): the Sprint 4 §E1
+  # runtime gate (ControlKernel.applyEscalationReason) refuses to upgrade
+  # the canonical session reason to `user_distress` on the bot LLM's
+  # say-so unless the deterministic §B1 detector fired earlier in the
+  # session. cs_011's seed messages (long detailed login-loop description
+  # in lower case + clarifying questions) contain no DISTRESS_PATTERN
+  # match and no ALL-CAPS shout, so the runtime gate downgrades the
+  # bot LLM's `user_distress` claim to `faq_miss_threshold_exceeded`
+  # — the truthful Phase 2 §2.4 reason because the FAQ corpus has no
+  # useful article for the cs_011 password-reset-loop pattern, so the
+  # bot exhausts FAQ search and hands over. This override aligns
+  # cs_011's expected.escalation_trigger with the deterministic
+  # post-§E1 runtime behaviour and supersedes the prior Codex
+  # 2026-05-03 round 3 §1.6 smoke YAML hand-edit (user_distress) that
+  # is no longer valid post-Sprint-4-§E1.
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008NWIjIAO
+    case_id_hint: cs_interactive_011
+    status: approved
+    source: Sprint 4 §E1 supporting fix — Sprint 4 §E1 runtime gate downgrades unconfirmed user_distress; this override aligns the cs_011 expected.escalation_trigger with the new runtime behaviour
+    reviewer: human semantic review (Sprint 4 §E1)
+    date: 2026-05-05
+    confidence: high
+    supporting_turn_numbers: [3, 5, 6, 23, 24, 25, 27]
+    rationale: >-
+      cs_011's replayed seed messages (long-form login-issue description
+      and clarifying questions) contain no Sprint §B1 DISTRESS_PATTERN
+      match and no ALL-CAPS shout, so `EscalationReasonResolver.detectDistressSignal`
+      cannot stamp `user_distress` on this session deterministically. The
+      Sprint 4 §E1 runtime gate added in `ControlKernel.applyEscalationReason`
+      refuses to let the bot LLM upgrade the canonical session reason
+      to `user_distress` (a Tier-0 semantic claim) without a prior B1
+      hit, downgrading the candidate to `faq_miss_threshold_exceeded`.
+      The truthful Phase 2 §2.4 reason for cs_011 is FAQ-miss: the FAQ
+      corpus has no useful article for the password-reset-loop the user
+      reports, so the bot exhausts FAQ search and hands over. The
+      Codex 2026-05-03 round 3 §1.6 smoke YAML hand-edit
+      (`user_distress`) was based on the persona's "frustration over
+      multiple failed agent attempts" subtext but is superseded by the
+      deterministic Sprint §B1 / Sprint 4 §E1 contract.
+    expected:
+      escalation_trigger: faq_miss_threshold_exceeded
+      bot_handling_pattern: >-
+        Acknowledge the issue, run policy-mandated tools
+        (get_customer_context, search_knowledge, resolve_article,
+        request_handover, record_outcome), collect required intake
+        fields (none), and hand over with reason
+        faq_miss_threshold_exceeded once FAQ search has no useful
+        article for the password-reset-loop the user reports.
+
+  # -----------------------------------------------------------------------
+  # cs_interactive_066 / 570Q5000008fBsXIAU
+  # Codex 2026-05-04 round 6 §P0 reclassification, formalized through
+  # the Wave A6.6 v2 override path during Sprint 4 §E3 (2026-05-05).
+  # The form description ("Why am I not getting the option to add my
+  # phone number as a point of contact when listening an item any more")
+  # is a technical regression intake (UC-K), not a feature explanation
+  # (UC-E). Phase 2 §2.2:500 places "in-app feature regression / option
+  # disappeared" under UC-K (Technical Support). UseCaseRouter.matchUcKTechnicalRegression
+  # correctly routes this to UC-K via the Sprint 1 §A2 deterministic
+  # rule, so the spec primary_uc must also be UC-K to match the
+  # runtime path. The HR-row primary_uc=UC-E was the L1 fallback;
+  # Codex round 6 §P0 reclassified this in the smoke YAML as a
+  # hand-edit, which Sprint 4 §E3 now formalizes through this override
+  # entry so the regenerator pipeline produces the corrected spec
+  # consistently in both anchor and smoke buckets.
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008fBsXIAU
+    case_id_hint: cs_interactive_066
+    status: approved
+    source: Codex 2026-05-04 round 6 §P0 reclassification (UC-E -> UC-K), formalized through Wave A6.6 v2 override path during Sprint 4 §E3
+    reviewer: human semantic review (Codex round 6 §P0; Sprint 4 §E3 formalization)
+    date: 2026-05-05
+    confidence: high
+    supporting_turn_numbers: [2, 3, 5, 7, 9, 10]
+    rationale: >-
+      The form description ("Why am I not getting the option to add my
+      phone number as a point of contact when listening an item any
+      more") is an in-app technical regression: a contact option that
+      used to be available has disappeared. Phase 2 §2.2:500 places
+      this under UC-K (Technical Support intake), not UC-E (product /
+      feature explanation FAQ). The Sprint 1 §A2 deterministic
+      `UseCaseRouter.matchUcKTechnicalRegression` rule (regression
+      pinned by `Cs014RouteAndDistressRegressionTest` and
+      `ClassifyUseCaseToolStrongPriorTest`) correctly routes this to
+      UC-K, and the runtime escalates with the UC-K-specific
+      `intake_complete_for_uc_k` reason once intake fields are
+      collected. The Codex round 6 §P0 hand-edit on smoke captured
+      this decision but was outside the override registry; this entry
+      formalizes both the classification flip (UC-E -> UC-K) and the
+      UC-K-specific escalation trigger so the regenerator pipeline
+      produces the corrected spec consistently in both anchor and
+      smoke buckets.
+    classification:
+      primary_uc: UC-K
+      secondary_ucs: [UC-E]
+    expected:
+      escalation_trigger: intake_complete_for_uc_k
+      bot_handling_pattern: >-
+        Acknowledge the technical regression, collect required intake
+        fields (platform, repro_steps_or_error_message), create a UC-K
+        case via create_case_controlled, hand over to Technical Support
+        with reason intake_complete_for_uc_k.
+
+  # -----------------------------------------------------------------------
+  # cs_interactive_029 / 570Q5000008kDiPIAU
+  # Sprint 4 §E2 follow-up override (2026-05-05): the deterministic
+  # generator records primary_uc=UC-C from the HR row, but the source
+  # transcript and the persona's actual issue are about an account
+  # locked out from advertising — the user demands a callback to the
+  # account/business manager so they can resume listing. Phase 2 §2.2
+  # places "account locked", "can't advertise", "business account
+  # access" issues under UC-D (Account & Login). The cs_029
+  # representative seed messages ("HI MY ACCOUNT OS", "IS LOCKED",
+  # "I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS", "can you please
+  # call me now?") and the human-agent referral to the Business for
+  # Gumtree contact form (turn 10) plus the case-number handover
+  # (turns 43 / 47) all match UC-D. The runtime
+  # `ControlKernel.inferFallbackUseCase` already deterministically
+  # picks UC-D for these account-locked seeds, so the spec override
+  # also closes the L2 `correct_uc` gap (D12) without any runtime
+  # behaviour change. Semantic escalation reason stays
+  # `user_requested` via Step 2.5 (priority 1) — preserved by the
+  # cs_029 contract pinned by `ControlKernelB3FallbackUseCaseTest`.
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008kDiPIAU
+    case_id_hint: cs_interactive_029
+    status: approved
+    source: Sprint 4 §E2 reviewer correction of CaseSpec primary_uc to match account-locked persona evidence
+    reviewer: human semantic review (Sprint 4 §E2)
+    date: 2026-05-05
+    confidence: high
+    supporting_turn_numbers: [3, 4, 6, 10, 43, 47]
+    rationale: >-
+      The cs_029 persona is account-locked, not messaging-blocked. Turns
+      3–6 ("HI MY ACCOUNT OS", "IS LOCKED", "I NEED MY ACCOUNT MANNAGER
+      TO CALL ME"), turn 10 (agent referral to the Business for Gumtree
+      contact form), and turns 43 / 47 (human agent escalates with a case
+      number to the business team) all align with UC-D (Account &
+      Login). The HR-row primary_uc=UC-C did not match the transcript,
+      and the runtime deterministic UC fallback in
+      `ControlKernel.inferFallbackUseCase` already picks UC-D for these
+      seeds. Flipping primary to UC-D / secondary to [UC-C] closes the
+      L2 `correct_uc` gap (D12) without changing runtime behaviour.
+      Semantic escalation reason stays `user_requested` via the
+      explicit-callback path (priority 1).
+    classification:
+      primary_uc: UC-D
+      secondary_ucs: [UC-C]
+
   - source_session_id: 570Q5000008TMmvIAG
     status: approved
     migrated_from_legacy: true

@@ -1,12 +1,13 @@
 source_session_id: 570Q5000008kDiPIAU
-case_id_hint: row_29
+case_id_hint: cs_interactive_029
 llm_model: deepseek-v4-pro
-prompt_hash: beb6cff9825f87383777cb99aed1124a2aa113a4e5ee1cfb9ef13d73e8c4227b
-generated_at: '2026-04-30T13:08:40.146014+00:00'
+prompt_hash: 5d15c468f76a62e819e48ada8128a02b64ca71984adfb02ce10b060e35e4b783
+generated_at: '2026-05-04T21:27:33.079707+00:00'
 llm_confidence: high
-llm_rationale: Rule draft seed_messages are verbatim issue-bearing visitor turns and accurately capture the user's problem.
-  The user_goal_summary was generic; refined to reflect actual user desire for urgent account unlocking and callback. Added
-  hidden_facts about prior failed contact attempts and business impact, both grounded in transcript statements.
+llm_rationale: The rule draft seed_messages were vague and contained frustration statements rather than clear issue descriptions.
+  By selecting verbatim turns that state the problem (account locked, need callback, affecting business) the persona better
+  represents the user's actual issue. The summary is expanded with specific details from the transcript. Hidden facts add
+  context about prior attempts.
 rule_draft:
   seed_messages:
   - HI MY ACCOUNT OS
@@ -17,24 +18,23 @@ rule_draft:
   verbosity: normal
 llm_proposal:
   seed_messages:
-  - HI MY ACCOUNT OS
-  - YOUR NO HELPING AT ALL
-  - I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS
-  user_goal_summary: 'User needs their locked Gumtree business account urgently unlocked to resume advertising, and demands
-    a phone callback now as prior requests were ignored. Drift: soft_shift.'
+  - MY ACCOUNT OS
+  - I NEED MY ACCOUNT MANNAGER TO CALL ME
+  - THIS IS AFFECTING MY BUSINESS
+  user_goal_summary: 'User''s account is locked, preventing them from advertising. They need immediate assistance and want
+    a callback because phone lines are down and prior messages went unanswered. This is affecting their business. Drift: soft_shift.'
   hidden_facts: []
 accepted_value:
   seed_messages:
-  - HI MY ACCOUNT OS
-  - YOUR NO HELPING AT ALL
-  - I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS
-  user_goal_summary: 'User needs their locked Gumtree business account urgently unlocked to resume advertising, and demands
-    a phone callback now as prior requests were ignored. Drift: soft_shift.'
+  - MY ACCOUNT OS
+  - I NEED MY ACCOUNT MANNAGER TO CALL ME
+  - THIS IS AFFECTING MY BUSINESS
+  user_goal_summary: 'User''s account is locked, preventing them from advertising. They need immediate assistance and want
+    a callback because phone lines are down and prior messages went unanswered. This is affecting their business. Drift: soft_shift.'
   hidden_facts: []
   verbosity: normal
 acceptance_reason: auto_accept_high_confidence
 validation_notes:
-- 'unsupported_hidden_fact_dropped: ''The user has already submitted a request through the provided Gumtree for Business link
-  but has not received any callback.'''
-- 'unsupported_hidden_fact_dropped: "The user''s business relies on Gumtree advertising, and the account lock is causing immediate
-  business impact."'
+- 'unsupported_hidden_fact_dropped: "The user''s account is locked, preventing them from advertising."'
+- 'unsupported_hidden_fact_dropped: ''The user has already tried the provided process (submitted messages via the link) but
+  received no response.'''
