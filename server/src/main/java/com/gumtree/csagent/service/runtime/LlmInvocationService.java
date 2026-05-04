@@ -61,6 +61,13 @@ public class LlmInvocationService {
     /**
      * Invoke the LLM for a standard chat turn.
      *
+     * <p>Sprint §C1: the underlying {@code OpenAiCompatibleLlmClient} retries
+     * once on transient failure and {@code FallbackLlmClient} engages a
+     * different provider on transient failure. If both fail, this method
+     * surfaces a {@link #SAFE_ESCALATION_RESPONSE} so the bot loop terminates
+     * gracefully rather than tearing down the session. The failure is logged
+     * with provider / class / message for traceability — no secrets.
+     *
      * @param projectedContext the JSON context string built by ContextProjectionBuilder
      * @param userMessage      the current user message
      * @param sessionId        session identifier for call logging
@@ -97,11 +104,42 @@ public class LlmInvocationService {
 
         } catch (Exception e) {
             int elapsed = (int) (System.currentTimeMillis() - start);
-            log.error("LLM invocation failed, returning safe escalation: {}", e.getMessage(), e);
+            // Sprint §C1: classify the failure tag for traceability so eval
+            // post-hoc analysis can distinguish auth misconfig from transport
+            // flakes without parsing free-form messages. The tag never
+            // includes secrets.
+            String failureTag = classifyFailure(e);
+            log.error("LLM [chat:exception] session={} turn={} failure_tag={} cause={}: {}",
+                    sessionId, turnIndex, failureTag, e.getClass().getSimpleName(), e.getMessage(), e);
             llmCallLogger.logFailure(sessionId, turnIndex, "chat", modelName,
-                    elapsed, requestSummary, e.getMessage());
+                    elapsed, requestSummary, "[" + failureTag + "] " + e.getMessage());
             return SAFE_ESCALATION_RESPONSE;
         }
+    }
+
+    /**
+     * Sprint §C1: classify an exception thrown out of the underlying LLM stack
+     * into a small set of trace-friendly tags. Keeps trace metadata stable
+     * across providers (Kimi vs DeepSeek wrap exceptions slightly differently).
+     */
+    static String classifyFailure(Throwable t) {
+        Throwable cur = t;
+        for (int depth = 0; cur != null && depth < 8; depth++, cur = cur.getCause()) {
+            if (cur instanceof org.springframework.web.client.HttpStatusCodeException hse) {
+                int code = hse.getStatusCode().value();
+                if (code == 401 || code == 403) return "llm_auth_error";
+                if (code == 429) return "llm_rate_limited";
+                if (code >= 500 && code <= 599) return "llm_server_error";
+                return "llm_http_error_" + code;
+            }
+            if (cur instanceof java.net.SocketTimeoutException) return "llm_timeout";
+            if (cur instanceof java.net.ConnectException) return "llm_connect_failed";
+            if (cur instanceof org.springframework.web.client.ResourceAccessException) return "llm_transport_error";
+            String msg = cur.getMessage() == null ? "" : cur.getMessage().toLowerCase();
+            if (msg.contains("timeout") || msg.contains("timed out")) return "llm_timeout";
+            if (msg.contains("rate limit") || msg.contains("429")) return "llm_rate_limited";
+        }
+        return "llm_unknown_error";
     }
 
     /**

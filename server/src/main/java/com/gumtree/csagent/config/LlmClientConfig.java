@@ -35,16 +35,21 @@ public class LlmClientConfig {
     /**
      * The single {@link LlmClient} bean injected everywhere downstream
      * ({@code LlmInvocationService}, etc.) is the fallback wrapper.
+     *
+     * <p>Sprint §C0: runs {@link LlmConfigValidator#validateOrThrow} at bean
+     * creation so an invalid endpoint / credential pair fails the startup
+     * with a clear diagnostic instead of silently surfacing as a 401 inside
+     * the bot loop and getting swallowed by {@code SAFE_ESCALATION_RESPONSE}.
+     * Secrets are never logged; the lineup describe string only reports key
+     * presence ({@code present|placeholder|blank}).
      */
     @Bean
     @Primary
     public LlmClient llmClient(OpenAiCompatibleLlmClient kimiLlmClient,
                                OpenAiCompatibleLlmClient deepseekLlmClient,
                                LlmProperties props) {
-        LlmProperties.KimiProperties k = props.getKimi();
-        LlmProperties.DeepSeekProperties d = props.getDeepseek();
-        log.info("LLM provider lineup: primary=kimi[model={}, base={}], fallback=deepseek[model={}, base={}]",
-                k.getModel(), k.getBaseUrl(), d.getModel(), d.getBaseUrl());
+        LlmConfigValidator.validateOrThrow(props);
+        log.info("LLM provider lineup: {}", LlmConfigValidator.describe(props));
         return new FallbackLlmClient(kimiLlmClient, deepseekLlmClient, "kimi", "deepseek");
     }
 }

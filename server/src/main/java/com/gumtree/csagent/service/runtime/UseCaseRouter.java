@@ -130,7 +130,8 @@ public class UseCaseRouter {
             "Ad Support",
             "Technical Support",
             "Replies or Messaging",
-            "Replies & Messaging");
+            "Replies & Messaging",
+            "Replies &amp; Messaging");
 
     /**
      * Sprint §B2 topic-string aliases. Live customer forms emit
@@ -143,8 +144,21 @@ public class UseCaseRouter {
      * Normalising up-front lets the strong-prior path fire and B2's
      * deterministic phrase bias take over from there.
      */
+    /**
+     * Sprint §C2 follow-up: the live form ingest path runs every topic
+     * through {@link com.gumtree.csagent.service.runtime.FormContextIngestionService#sanitize},
+     * which calls {@code Jsoup.clean(...)} with {@code Safelist.none()} —
+     * that strips HTML tags but ALSO entity-encodes any literal ampersand,
+     * turning "Replies & Messaging" into "Replies &amp; Messaging" before it
+     * ever reaches this router. Without the encoded alias the strong-prior
+     * lookup falls through to UNKNOWN_TOPIC and cs014 / cs001 / cs002 enter
+     * soft-OOS DISCOVER, where the LLM picks UC at random. We register
+     * BOTH the raw and HTML-encoded form so the alias path works regardless
+     * of whether an upstream sanitizer encoded the ampersand.
+     */
     private static final Map<String, String> TOPIC_ALIASES = Map.of(
-            "Replies & Messaging", "Replies or Messaging");
+            "Replies & Messaging", "Replies or Messaging",
+            "Replies &amp; Messaging", "Replies or Messaging");
 
     /**
      * Sprint §B2 deterministic phrase bias for account / messaging /
@@ -217,6 +231,7 @@ public class UseCaseRouter {
             "Account Support",
             "Replies or Messaging",
             "Replies & Messaging",
+            "Replies &amp; Messaging",
             "Ad Support");
 
     /**
@@ -536,6 +551,42 @@ public class UseCaseRouter {
             }
             return RoutingResult.ambiguous(candidates);
         }
+    }
+
+    /**
+     * Sprint §C2: derive the deterministic route basis a session would have if
+     * we re-ran routing right now using the form context only (topic +
+     * description). Returns the UC the strong-prior table or B2 phrase bias
+     * would produce, or empty when neither would fire.
+     *
+     * <p>Used by {@link com.gumtree.csagent.service.tools.ClassifyUseCaseTool}
+     * to refuse a mid-loop LLM-driven UC change when the original UC came
+     * from a high-confidence deterministic route. The bot loop's LLM has
+     * historically rotated cs_interactive_014's active UC to UC-B / UC-F /
+     * UC-H even though the form-context strong-prior table maps "Replies or
+     * Messaging" → UC-C; this derivation lets the tool detect the situation
+     * without persisting an extra column on {@link BotSession}.
+     *
+     * <p>The function is read-only and side-effect free — it does not mutate
+     * the session and does not invoke the LLM router.
+     *
+     * @param topicSubject the form topic (alias-normalised internally)
+     * @param description  the form description
+     * @param registry     the use-case registry (strong-prior table source)
+     * @return the deterministic UC for this form context, or empty
+     */
+    public static Optional<String> deriveStrongPriorUc(String topicSubject, String description,
+                                                        UseCaseRegistryService registry) {
+        if (registry == null) return Optional.empty();
+        String normalized = normalizeTopicSubject(topicSubject);
+        Optional<String> strongPrior = registry.getStrongPriorTopic(normalized);
+        if (strongPrior.isPresent()) {
+            return strongPrior;
+        }
+        // Fall back to B2 phrase bias for weak-prior topics where the bias
+        // produces a definite UC (cs_interactive_001 / 002 / 014 hit this
+        // when topic="Account Support" + messaging description).
+        return matchAccountMessagingBias(normalized, description);
     }
 
     /**
