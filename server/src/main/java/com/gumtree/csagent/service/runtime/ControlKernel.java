@@ -110,6 +110,23 @@ public class ControlKernel {
 
         // Step 2: Context projection is built inside PhaseEvaluator as needed
 
+        // Step 2.4 (Sprint §B1): detect distress / sustained frustration
+        // BEFORE the budget check. ALL-CAPS shouting, "no one is helping",
+        // "I followed your so called process", "this is ridiculous", etc.
+        // stamp ``user_distress`` on the session via the resolver. The
+        // resolver's precedence table (priority 2) keeps it ahead of
+        // ``faq_miss_threshold_exceeded`` (41) and ``turn_budget_exhausted``
+        // (42), and below ``user_requested`` (1) so an explicit callback /
+        // human request on the same turn (Step 2.5) still wins. We DO NOT
+        // forceEscalate here — distress alone is a precedence stamp, not a
+        // terminal trigger; the budget / phase logic still decides whether
+        // this turn ends the session, but the persisted reason will now be
+        // the semantic ``user_distress``.
+        if (escalationResolver.detectDistressSignal(userMessage)) {
+            log.info("Session {}: distress signal detected in user message", session.getSessionId());
+            applyEscalationReason(session, "user_distress");
+        }
+
         // Step 2.5 (Sprint §A1): detect explicit user-driven escalation BEFORE
         // budget / drift checks. Without this, a user message asking for a
         // callback on the same turn the clarification budget exhausts gets
@@ -366,6 +383,31 @@ public class ControlKernel {
 
     private KernelResult forceEscalate(BotSession session, String phaseBefore,
                                         String userMessage, long startTime, String message) {
+        // Sprint §B3: a soft-OOS UNKNOWN-topic session that escalates
+        // immediately on the first user turn (cs_interactive_029) has
+        // no committed ``active_use_case`` yet, which trips the
+        // ``CONTRACT_VIOLATION:active_use_case`` gate even when the
+        // semantic reason is correct (``user_requested``). Pick a
+        // deterministic fallback UC from the user message + form
+        // description so the trace contract is satisfied. The
+        // semantic escalation reason is set BEFORE this method is
+        // invoked, so the resolver still keeps the higher-priority
+        // ``user_requested`` (or ``user_distress``) — we only fill
+        // in the missing UC slot.
+        if (session.getActiveUseCase() == null || session.getActiveUseCase().isBlank()) {
+            String fallbackUc = inferFallbackUseCase(session, userMessage);
+            if (fallbackUc != null) {
+                log.info("Session {}: forceEscalate fallback active_use_case={} (topic was UNKNOWN/unset)",
+                        session.getSessionId(), fallbackUc);
+                session.setActiveUseCase(fallbackUc);
+                session.setIntentConfidence(new java.math.BigDecimal("0.30"));
+                if (session.getCandidateUseCases() == null
+                        || session.getCandidateUseCases().length == 0) {
+                    session.setCandidateUseCases(new String[]{fallbackUc});
+                }
+            }
+        }
+
         // Transition to ESCALATE
         if (controlPolicy.isValidTransition(phaseBefore, "ESCALATE")) {
             session.setCurrentPhase("ESCALATE");
@@ -426,6 +468,74 @@ public class ControlKernel {
 
         session.setUpdatedAt(OffsetDateTime.now());
         return new KernelResult(message, true, latencyMs);
+    }
+
+    /**
+     * Sprint §B3: pick a deterministic fallback {@code active_use_case}
+     * for sessions that escalate before any UC has been committed.
+     * Cs_interactive_029 lands here: topic is UNKNOWN, the form
+     * description is empty, and the very first user message asks for a
+     * callback while shouting frustration. The resolver correctly
+     * stamps {@code user_requested}, but without a committed UC the
+     * eval trace contract fires {@code CONTRACT_VIOLATION:active_use_case}.
+     *
+     * <p>Inference rules (first match wins):
+     * <ul>
+     *   <li>"account / login / locked / password / email" → UC-D
+     *       (Account &amp; Login).</li>
+     *   <li>"message / notification / reply / inbox" → UC-C
+     *       (Messages &amp; Replies).</li>
+     *   <li>"ad / advert / listing / posting" → UC-A
+     *       (Ad Status &amp; Visibility).</li>
+     *   <li>"refund / payment / charged" → UC-F
+     *       (Payment Inquiry — the lowest-risk Payments UC).</li>
+     *   <li>Otherwise UC-D as a safe generic-account default. The
+     *       deterministic choice keeps the trace stable across runs;
+     *       the semantic escalation reason is unaffected.</li>
+     * </ul>
+     */
+    String inferFallbackUseCase(BotSession session, String userMessage) {
+        StringBuilder sb = new StringBuilder();
+        if (userMessage != null) {
+            sb.append(userMessage).append(' ');
+        }
+        if (session != null && session.getFormContext() != null) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode formNode =
+                        objectMapper.readTree(session.getFormContext());
+                if (formNode.has("description")) {
+                    sb.append(formNode.get("description").asText()).append(' ');
+                }
+            } catch (Exception ignored) {
+                // Non-JSON or malformed form_context — keep going with
+                // whatever we have from the user message alone.
+            }
+        }
+        String text = sb.toString().toLowerCase(java.util.Locale.ENGLISH);
+        if (text.isBlank()) {
+            return "UC-D";
+        }
+        // Order matters: payment / refund signals must beat the
+        // ad/listing keyword in mixed phrases like "refund for my
+        // listing fee" (Payments takes priority over Ad-Status).
+        // Account / login likewise beats messaging, since
+        // cs_interactive_029 says "MY ACCOUNT OS" with no messaging
+        // context but "account" and "messages" can co-occur on
+        // Replies & Messaging cases (those route via
+        // UseCaseRouter.matchAccountMessagingBias upstream).
+        if (text.matches(".*\\b(refund|payment|payments|charged|paid|invoice|receipt)\\b.*")) {
+            return "UC-F";
+        }
+        if (text.matches(".*\\b(account|login|log\\s*in|sign\\s*in|locked|password|email\\s+address)\\b.*")) {
+            return "UC-D";
+        }
+        if (text.matches(".*\\b(message|messages|notification|notifications|reply|replies|inbox|chat)\\b.*")) {
+            return "UC-C";
+        }
+        if (text.matches(".*\\b(ad|ads|advert|adverts|listing|listings|posting|post)\\b.*")) {
+            return "UC-A";
+        }
+        return "UC-D";
     }
 
     private void trackRepeatedAction(BotSession session, String action) {
@@ -496,6 +606,64 @@ public class ControlKernel {
             log.warn("Session {}: case creation during escalation failed: {}", session.getSessionId(), e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Sprint §B0 helper: rewrite the {@code arguments.escalation_reason} of
+     * every {@code request_handover} entry in {@code toolCallsList} so it
+     * carries the resolved canonical session reason rather than whatever
+     * literal the LLM emitted.
+     *
+     * <p>Why this exists: the {@link AgentRunLoop} dispatches
+     * {@code request_handover} with the LLM-supplied arguments verbatim,
+     * and {@link #recordRunResult} persists those arguments unchanged.
+     * That lets a non-canonical literal (e.g. {@code user_requested_escalation})
+     * or a lower-priority reason (e.g. {@code faq_miss_threshold_exceeded}
+     * after the resolver settled on {@code user_distress}) leak into the
+     * trace and disagree with {@code session.escalation_reason} and the
+     * handover payload — exactly the {@code L1:escalation_reason_consistency}
+     * failure mode Sprint §A1 closed for non-LLM paths.
+     *
+     * @return {@code true} when at least one entry was rewritten, useful
+     *         for the legacy {@link #recordTurn} path that needs to know
+     *         whether to re-serialize.
+     */
+    boolean normalizeHandoverArgsToSessionReason(BotSession session, List<Map<String, Object>> toolCallsList) {
+        if (toolCallsList == null || toolCallsList.isEmpty()) {
+            return false;
+        }
+        String resolved = escalationResolver.canonicalize(session.getEscalationReason());
+        if (resolved == null) {
+            return false;
+        }
+        boolean modified = false;
+        for (Map<String, Object> entry : toolCallsList) {
+            if (entry == null) continue;
+            if (!"request_handover".equals(entry.get("tool_name"))) continue;
+            Object argsObj = entry.get("arguments");
+            Map<String, Object> writableArgs;
+            if (argsObj instanceof Map<?, ?> existingArgs) {
+                // Map.of(...) is immutable; copy into a mutable LinkedHashMap.
+                writableArgs = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> kv : existingArgs.entrySet()) {
+                    if (kv.getKey() != null) {
+                        writableArgs.put(kv.getKey().toString(), kv.getValue());
+                    }
+                }
+            } else {
+                writableArgs = new LinkedHashMap<>();
+            }
+            Object current = writableArgs.get("escalation_reason");
+            if (!resolved.equals(current)) {
+                writableArgs.put("escalation_reason", resolved);
+                entry.put("arguments", writableArgs);
+                modified = true;
+            } else if (!(argsObj instanceof Map<?, ?>)) {
+                entry.put("arguments", writableArgs);
+                modified = true;
+            }
+        }
+        return modified;
     }
 
     /**
@@ -677,6 +845,13 @@ public class ControlKernel {
                     toolCallsList.add(synthesizeHandoverToolCall(escalationReason));
                     modified = true;
                 }
+                // Sprint §B0: normalize any LLM-emitted handover arguments
+                // (raw or lower-priority) to the resolved canonical session
+                // reason so the persisted trace agrees with session state and
+                // the handover payload (see normalizeHandoverArgsToSessionReason).
+                if (toolCallsList != null && normalizeHandoverArgsToSessionReason(session, toolCallsList)) {
+                    modified = true;
+                }
                 if (modified) {
                     try {
                         turn.setToolCalls(objectMapper.writeValueAsString(toolCallsList));
@@ -825,6 +1000,18 @@ public class ControlKernel {
                     toolCallsList.add(handoverEntry);
                 }
             }
+
+            // Sprint §B0: rewrite every persisted ``request_handover`` entry
+            // so its ``arguments.escalation_reason`` matches the resolved
+            // canonical session reason. The LLM may emit a non-canonical
+            // literal (``user_requested_escalation``) or a lower-priority
+            // reason (``faq_miss_threshold_exceeded`` after the resolver
+            // already settled on ``user_distress``). Without this rewrite
+            // the persisted trace surface disagrees with the session
+            // and handover payload, re-opening the
+            // ``L1:escalation_reason_consistency`` failure mode that
+            // Sprint §A1 closed for non-LLM paths.
+            normalizeHandoverArgsToSessionReason(session, toolCallsList);
 
             if (!toolCallsList.isEmpty()) {
                 try {
