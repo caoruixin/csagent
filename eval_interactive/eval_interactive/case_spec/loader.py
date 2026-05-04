@@ -78,6 +78,7 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
         grounding_mode=e_raw.get("grounding_mode", "faq_source_backed"),
         answer_must_not_contain=e_raw.get("answer_must_not_contain", []),
         max_turns=int(e_raw.get("max_turns", 15)),
+        acceptable_outcomes=list(e_raw.get("acceptable_outcomes", []) or []),
     )
 
     s_raw = raw["scoring"]

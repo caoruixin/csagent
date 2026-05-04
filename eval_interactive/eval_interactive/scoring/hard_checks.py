@@ -52,6 +52,59 @@ def _is_answer_turn(turn) -> bool:
 # Codex finding 1.3 — phrases that signal the bot is acknowledging /
 # stalling / clarifying rather than making factual claims. These turns must
 # not trip the source-citation gate even under faq_source_backed grounding.
+# Codex 2026-05-04 round 4 §"Exact Escalation Reason" -- exact canonical
+# reason should not be a hard gate when the bot picked a reason in the
+# right semantic family. Mapping below is derived from round 4's
+# enumerated families ("user requested / user distress", "budget or
+# inability to resolve", "trust and safety", "payment dispute",
+# "appeal/moderation review", "GDPR/identity", "technical investigation",
+# "out of scope/service degraded") and the canonical 23-value enum on
+# ``request_handover`` (see customer_service_tool_spec_v0_2.yaml). Reasons
+# that are sibling values within a family no longer hard-fail the L1
+# gate; cross-family mismatches still fail because they imply wrong
+# routing or unsafe handling.
+_ESCALATION_REASON_FAMILY: dict[str, str] = {
+    # user requested / distress
+    "user_requested": "user_intent",
+    "user_distress": "user_intent",
+    # budget or inability to resolve
+    "clarification_budget_exhausted": "bot_limit",
+    "faq_miss_threshold_exceeded": "bot_limit",
+    "turn_budget_exhausted": "bot_limit",
+    "incomplete_intake": "bot_limit",
+    # intake-complete reasons inherit the destination-queue family of the
+    # UC that emitted them — codex round 4 §"Reinterpreting":
+    # ``intake_complete_for_uc_j`` versus ``trust_safety_required`` is a
+    # quality issue when the handover already lands on the right safety
+    # team. UC mapping:
+    #   UC-G -> GDPR/identity, UC-H -> appeal/moderation review,
+    #   UC-I -> payment dispute, UC-J -> trust and safety,
+    #   UC-K -> technical investigation.
+    "intake_complete_for_uc_g": "gdpr_identity",
+    "intake_complete_for_uc_h": "appeal_review",
+    "intake_complete_for_uc_i": "payment_dispute",
+    "intake_complete_for_uc_j": "trust_safety",
+    "intake_complete_for_uc_k": "tech_investigation",
+    # trust and safety
+    "trust_safety_required": "trust_safety",
+    "imminent_harm": "trust_safety",
+    # payment dispute
+    "payment_dispute_detected": "payment_dispute",
+    # appeal/moderation review
+    "appeal_requires_human": "appeal_review",
+    "incorrect_deletion_appeal": "appeal_review",
+    # GDPR / identity
+    "gdpr_intake": "gdpr_identity",
+    "identity_verification_required": "gdpr_identity",
+    "account_compliance": "gdpr_identity",
+    # out of scope / service degraded
+    "out_of_scope": "service_degraded",
+    "service_degraded": "service_degraded",
+    "tool_scope_blocked": "service_degraded",
+    "runtime_error_threshold": "service_degraded",
+}
+
+
 _NON_FACTUAL_LEAD_PATTERNS = [
     r"^\s*hi\b[^.!?\n]{0,80}[.!]?\s*$",
     r"^\s*hello\b[^.!?\n]{0,80}[.!]?\s*$",
@@ -431,8 +484,14 @@ class HardChecker:
                     f"but outcome={trace.session_state.containment_outcome.lower()}",
                 )
 
-            # Part 2: trigger must match (only when bot actually escalated
-            # AND the spec set an expected trigger).
+            # Part 2: trigger must match by semantic family (only when bot
+            # actually escalated AND the spec set an expected trigger).
+            # Codex 2026-05-04 round 4 §"Exact Escalation Reason" — exact
+            # canonical reason is no longer a hard gate; same-family
+            # picks (e.g. ``intake_complete_for_uc_j`` vs
+            # ``trust_safety_required`` are still cross-family, but
+            # ``user_requested`` vs ``user_distress`` are now equivalent)
+            # pass.
             if bot_escalated and expected_trigger is not None:
                 if actual_reason is None:
                     return HardCheckResult(
@@ -441,12 +500,19 @@ class HardChecker:
                         f"expected escalation_reason={expected_trigger!r}, "
                         f"but no request_handover tool call recorded",
                     )
-                if actual_reason != expected_trigger:
+                expected_family = _ESCALATION_REASON_FAMILY.get(expected_trigger)
+                actual_family = _ESCALATION_REASON_FAMILY.get(actual_reason)
+                same_family = (
+                    expected_family is not None
+                    and expected_family == actual_family
+                )
+                if actual_reason != expected_trigger and not same_family:
                     return HardCheckResult(
                         "escalation_compliance",
                         False,
-                        f"escalation_reason mismatch: "
-                        f"expected={expected_trigger!r}, actual={actual_reason!r}",
+                        f"escalation_reason cross-family mismatch: "
+                        f"expected={expected_trigger!r} (family={expected_family}), "
+                        f"actual={actual_reason!r} (family={actual_family})",
                     )
 
             return HardCheckResult("escalation_compliance", True)

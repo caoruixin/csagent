@@ -159,6 +159,13 @@ class Expected:
     grounding_mode: str = "faq_source_backed"  # faq_source_backed | fixed_script_only
     answer_must_not_contain: list[str] = field(default_factory=list)
     max_turns: int = 15
+    # Codex 2026-05-04 round 4 §"Resolve vs Escalate" / §"Recommended
+    # Next Implementation" — when populated, ``correct_outcome`` passes
+    # if the actual outcome is in this list. Falls back to the legacy
+    # single ``outcome_class`` match when omitted, so existing specs are
+    # unaffected. Element values mirror ``outcome_class`` (resolve /
+    # escalate / abandoned).
+    acceptable_outcomes: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         # ----- allow_bot_resolution domain -----

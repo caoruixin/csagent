@@ -21,12 +21,6 @@ class OutcomeCheckResult:
 # Use-case families that require case_id in handover payload
 _CASE_ID_UCS = {"UC-H", "UC-J", "UC-K"}
 
-# Use-case families where the production tool-order contract is a release
-# gate (Codex 2026-05-03 round 3). Mirror of
-# ``composite._TOOL_SEQUENCE_GATE_UCS`` so auto-include logic on either
-# side stays in sync.
-_TOOL_SEQUENCE_GATE_UCS = {"UC-H", "UC-J", "UC-K", "UC-I"}
-
 # Map containment_outcome values to expected outcome_class values
 _OUTCOME_MAP = {
     "resolved": "resolve",
@@ -82,16 +76,15 @@ class OutcomeChecker:
         uc_family = self._uc_family(expected.primary_uc)
         if expected.outcome_class == "escalate":
             configured.add("handover_completeness")
-            # Codex 2026-05-03 round 3: case_id_present is now mandatory for
-            # UC-H/J/K escalations. Auto-include so gate has a real result.
+            # Codex 2026-05-03 round 3 / 2026-05-04 round 4: case_id_present
+            # remains mandatory for UC-H/J/K escalations because losing it
+            # makes the handover unusable (round 4 §H4). Auto-include so
+            # the gate has a real result. ``tool_sequence_match`` is now a
+            # diagnostic only (round 4 §"What Should Become Soft or
+            # Diagnostic") -- it is graded when the spec lists it but no
+            # longer auto-included or gated.
             if uc_family in _CASE_ID_UCS:
                 configured.add("case_id_present")
-            # Codex 2026-05-03 round 3: tool_sequence_match is mandatory for
-            # UC-H/J/K/I escalations whenever the spec lists an expected
-            # sequence. The composite gate uses a >=0.9 threshold so LCS
-            # partial credit is acceptable at the edge.
-            if uc_family in _TOOL_SEQUENCE_GATE_UCS and expected.expected_tool_sequence:
-                configured.add("tool_sequence_match")
         # Codex 2026-05-03 round 3 §3.3: also exercise handover_completeness
         # whenever the bot ACTUALLY escalated, even if the spec expected
         # resolve. Production safety wants over-escalations to still produce
@@ -134,26 +127,58 @@ class OutcomeChecker:
     # ------------------------------------------------------------------
 
     def _check_correct_uc(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:
-        """1.0 if active_use_case matches expected primary_uc."""
+        """Drift-aware match against the case's expected UC family.
+
+        Codex 2026-05-04 round 4 §"Exact Primary UC" — exact-UC mismatch
+        is no longer a hard fail when the bot legitimately handled a
+        drifted issue. We award full credit for primary-UC match, full
+        credit for any UC declared as ``secondary_ucs``, and only fall
+        through to a 0.0 when the active UC matches neither.
+        """
         expected = self._normalize_uc(case_spec.expected.primary_uc)
         actual = self._normalize_uc(trace.session_state.active_use_case)
 
         if expected == actual:
             return OutcomeCheckResult("correct_uc", 1.0)
+
+        secondary = {self._normalize_uc(s) for s in case_spec.expected.secondary_ucs if s}
+        if actual and actual in secondary:
+            return OutcomeCheckResult(
+                "correct_uc",
+                1.0,
+                f"matched secondary UC {actual} (expected primary {expected})",
+            )
+
         return OutcomeCheckResult(
             "correct_uc", 0.0, f"expected={expected}, actual={actual}"
         )
 
     def _check_correct_outcome(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:
-        """1.0 if containment_outcome matches expected outcome_class."""
+        """Honor ``Expected.acceptable_outcomes`` when the spec lists alternatives.
+
+        Codex 2026-05-04 round 4 §"Resolve vs Escalate" — outcome should
+        be reframed as acceptable outcome. When a spec lists
+        ``acceptable_outcomes: [resolve, escalate]`` either path passes.
+        Falls back to the strict ``outcome_class`` match when the field
+        is absent, preserving legacy behaviour.
+        """
         expected = case_spec.expected.outcome_class.lower()
         raw_outcome = trace.session_state.containment_outcome.lower()
         actual = _OUTCOME_MAP.get(raw_outcome, raw_outcome)
 
-        if expected == actual:
-            return OutcomeCheckResult("correct_outcome", 1.0)
+        acceptable = {o.lower() for o in case_spec.expected.acceptable_outcomes}
+        if not acceptable:
+            acceptable = {expected}
+
+        if actual in acceptable:
+            return OutcomeCheckResult(
+                "correct_outcome",
+                1.0,
+                f"actual={actual} in acceptable={sorted(acceptable)}",
+            )
         return OutcomeCheckResult(
-            "correct_outcome", 0.0, f"expected={expected}, actual={actual}"
+            "correct_outcome", 0.0,
+            f"actual={actual} not in acceptable={sorted(acceptable)}",
         )
 
     def _check_tool_sequence_match(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:

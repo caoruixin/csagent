@@ -224,16 +224,27 @@ mock/
 | **Output** | Given user message + session state → action decision + bot response |
 | **Key files** | `SessionManager.java`, `FormContextIngestionService.java`, `ControlKernel.java`, `PhaseEvaluator.java`, `BudgetChecker.java`, `DriftDetector.java`, `UseCaseRouter.java`, `ContextProjectionBuilder.java`, `LlmInvocationService.java`, `ActionParser.java` |
 
-**LLM structured output** — Bot expects JSON from LLM:
+**LLM structured output** — OpenAI-style native tool-use shape (phase0 §0.6
+deviation 2026-05-01: the legacy 5-action abstraction layer was removed in
+favour of a single `tool_calls` layer). Bot expects JSON from LLM:
 ```json
 {
-  "action": "answer_grounded",
-  "parameters": { "query": "..." },
   "user_message": "Here's what I found...",
-  "reasoning": "User asks about ad removal..."
+  "reasoning": "User asks about ad removal...",
+  "tool_calls": [
+    { "name": "search_knowledge", "arguments": { "query": "ad removal policy" } }
+  ]
 }
 ```
-Actions: `ask_user` | `retrieve_knowledge` | `answer_grounded` | `escalate_human` | `finish`
+Intent ("ask the user", "answer", "escalate", "finish") is derived from the
+shape of `tool_calls` + whether `user_message` is empty:
+- `tool_calls` empty + non-empty `user_message` → answer / clarifying turn.
+- `tool_calls` contains `request_handover` → escalation (escalation_reason
+  argument selected from the canonical 23-value enum).
+- `tool_calls` contains `record_outcome` → close.
+
+Per-UC tool availability is enforced server-side by `ToolPolicyEnforcer`;
+the LLM does not see a separate `allowed_actions` list.
 
 **Two-stage UC routing** (v8 HR-calibrated, Phase 2 §2.11.2):
 - Stage 1: Topic Subject prior (strong >85% → direct route UC-G/J/C; weak → Stage 2; handover-only → check Description then OOS)
