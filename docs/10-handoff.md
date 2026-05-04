@@ -526,19 +526,40 @@ No production runtime code changed in Sprint 2.1.
 |---|---|
 | `mvn -pl server test` (server, all modules) | **538 / 538 passed** (was 537; +1 cs_014 case-level integration test) |
 | `pytest eval_interactive/tests` | **283 / 283 passed** (after updating the `_load_case_spec_overrides` count assertion to include the new cs_014 entry) |
-| Targeted cs_014 eval (`run --path .../cs_interactive_014.yaml`) | not green in this environment; bot-side Kimi LLM returned 401 (no `KIMI_API_KEY` in shell). Result file written but composite=0 / `CONTRACT_VIOLATION:active_use_case` because the bot could not run a turn. **This is the bot-side LLM credentials gap, not the Sprint 2.1 fix** — the new `Cs014RouteAndLoopHandoverIntegrationTest` covers the end-to-end route/loop/handover invariant the eval is meant to guard. The previous Sprint-2 follow-up targeted result (`eval_interactive/results/20260504-164044/results.json`, 1/1 / composite 0.852) remains the canonical green reference for this case under a working Kimi key. |
-| Smoke eval (`run --set smoke`) | run with the same Kimi-401 environment (0/14, all `bot_ended` after 1–2 turns). Re-run pending in an environment with `KIMI_API_KEY` set. |
+| Targeted cs_014 eval (`run --path .../cs_interactive_014.yaml`) | 1 case run, composite 0.000 — bot LLM picked **UC-F** (Payments) on this turn instead of UC-C, so `L2:correct_uc` failed. **B0 contract held**: zero `L1:escalation_reason_consistency` failures. The L1 enum gate also passed. |
+| Smoke eval run 1 (`run --set smoke`) | **5 / 14 passed** (mean composite 0.291). cs_014 routed UC-B / `user_requested` — same LLM-side cross-turn drift documented as deferred D11. cs_002 hit `L1:trace_minimum` (LLM stopped early); cs_029 / cs_066 / cs_095 pinned guards held. **B0**: 0 `L1:escalation_reason_consistency` failures. **B3 contract**: 0 `CONTRACT_VIOLATION:active_use_case`. |
+| Smoke eval run 2 (`run --set smoke`) | **5 / 14 passed** (mean composite 0.294). cs_014 routed UC-F / `account_compliance` (LLM noise — same D11 cross-turn drift). cs_002 stamped `user_distress` correctly (B1 contract held; LLM picked UC-H). cs_029 / cs_066 / cs_095 pinned guards held. **B0**: 0 `L1:escalation_reason_consistency` failures. **B3 contract**: 1 `CONTRACT_VIOLATION:active_use_case` on cs_259 — unrelated to cs_029 (the original B3 target case still has UC-D + `user_requested`). |
 | Regeneration (`python -m eval_interactive.scripts.regenerate_case_specs`) | 367 specs / smoke 14 — used to apply the override and refresh the audit. No `--clean` so other buckets were untouched. |
+
+The cs_014 cross-turn UC drift seen in the targeted run and both
+smoke runs is the same nondeterminism deferred as D11 in
+`docs/action_bank.md` (initial route is UC-C via the alias-normalised
+strong prior; the per-turn agent loop drifts to UC-B / UC-F / UC-H
+on this turn under bot-LLM nondeterminism). Sprint 2.1 P1 explicitly
+does not implement D11; the helper + new case-level integration
+test pin the deterministic Sprint-2 contracts so the L1
+escalation-reason-consistency gate stays green even when the
+upstream UC drifts.
 
 ## 4. Latest result paths
 
-- **Targeted cs_014 (Sprint 2.1 P1, no Kimi key — see §3 caveat):**
-  `eval_interactive/results/20260504-172130/results.json`
-- Smoke (same caveat): `eval_interactive/results/20260504-171959/results.json`
-- Reference targeted cs_014 with Kimi key (Sprint 2 follow-up canonical):
-  `eval_interactive/results/20260504-164044/results.json` (1/1, composite 0.852)
+- **Targeted cs_014 (Sprint 2.1 P1):**
+  `eval_interactive/results/20260504-172751/results.json` (1/1 run,
+  composite 0.000, UC-F drift, L1 contracts green)
+- **Smoke run 1 (Sprint 2.1 P1, canonical):**
+  `eval_interactive/results/20260504-172942/results.json` (5/14)
+- **Smoke run 2 (Sprint 2.1 P1, nondeterminism reference):**
+  `eval_interactive/results/20260504-173601/results.json` (5/14)
+- Reference targeted cs_014 with Kimi key (Sprint 2 follow-up
+  canonical when LLM picked UC-C): `eval_interactive/results/20260504-164044/results.json`
+  (1/1, composite 0.852).
 - Regenerated audit: `qa-reports/case-spec-generation-audit.md`
   (cs_014 section shows `case-level override applied: YES`).
+
+Run-2 used `KIMI_BASE_URL=https://api.moonshot.cn/v1` plus
+`KIMI_API_KEY=$MOONSHOT_API_KEY`; the default `https://api.moonshot.ai/v1`
+endpoint returned 401 in this shell — same upstream-credentials
+sensitivity carried forward as P1 #1 below.
 
 ## 5. cs_014 before / after
 
@@ -549,34 +570,31 @@ No production runtime code changed in Sprint 2.1.
 | `qa-reports/case-spec-generation-audit.md` cs_014 entry | `trigger=user_distress`, no `case-level override applied` line | `case-level override applied: YES` with reviewer / date / changed expected fields, override-applied trigger `faq_miss_threshold_exceeded` |
 | `qa-reports/smoke-case-review.md` cs_014 row | status `ok`, recommended `UC-C escalate, user_distress` | status `needs_override (applied)`, recommended `UC-C escalate, faq_miss_threshold_exceeded` |
 | Test coverage | helper-only `Cs014RouteAndDistressRegressionTest` (11 helper tests) | helpers preserved + new `Cs014RouteAndLoopHandoverIntegrationTest` (case-level integration: route → loop → persisted tool call → handover payload, with pairwise consistency assertions) |
-| Targeted eval reference | `20260504-164044` 1/1 composite 0.852 | unchanged reference; new env run could not verify under missing Kimi key (§3 caveat) |
+| Targeted eval — UC-C path | `20260504-164044` 1/1 composite 0.852 (UC-C / faq_miss) | not reproduced this round (LLM picked UC-F in `20260504-172751`); the deterministic tests pin the contract regardless. |
+| Targeted eval — L1 contracts | `L1:escalation_reason_consistency=0` | `L1:escalation_reason_consistency=0` ✓ (preserved) |
 
 ## 6. Sprint 2 guard outcomes
 
-The Sprint 2 contracts pinned in §6 of the previous handoff are
-unchanged: this fix round does not touch Sprint-2 production code,
-so the existing Java unit + integration tests for B0 / B1 / B2 / B3
-all still pass (538 / 538) and the existing test pins remain in
-force:
+End-to-end smoke results across the two Sprint 2.1 runs:
 
-- **B0 (`L1:escalation_reason_consistency`)**: covered by
-  `AgentRunLoopHandoverReasonNormalizationIntegrationTest` (2 tests)
-  and now additionally by the cs_014 case-level
-  `Cs014RouteAndLoopHandoverIntegrationTest` (5 pairwise asserts on
-  session vs persisted tool call vs handover payload).
-- **B1 (cs_002 distress)**: `Cs014RouteAndDistressRegressionTest`
-  still asserts cs_002's seed `"How long do I have to wait..."`
-  fires `detectDistressSignal`; the new cs_014 integration test does
-  not introduce a distress trigger on the cs_014 utterances.
-- **B3 (cs_029 contract)**: `ControlKernelB3FallbackUseCaseTest`
-  unchanged.
-- **B2 (cs_095 not UC-K, cs_066 stays UC-K)**:
-  `UseCaseRouterB2BiasTest` + `Cs014RouteAndDistressRegressionTest`
-  unchanged.
+| Guard | Run 1 (`172942`) | Run 2 (`173601`) | Status |
+|---|---|---|---|
+| `L1:escalation_reason_consistency` failures | **0** | **0** | ✅ B0 holds |
+| `CONTRACT_VIOLATION:active_use_case` failures | **0** | 1 (cs_259, unrelated to cs_029) | ✅ B3's cs_029 path still UC-D / `user_requested` in both runs |
+| cs_002 distress (B1) | `L1:trace_minimum` flake (LLM ended early) | UC-H / **`user_distress`** ✓ (LLM picked UC-H but distress fired correctly) | ✅ B1 detector still fires when LLM produces a turn |
+| cs_029 (B3) | UC-D / `user_requested` | UC-D / `user_requested` | ✅ both runs |
+| cs_066 (B2 / UC-K) | UC-K / `intake_complete_for_uc_k` (composite 0.820) | UC-K / `intake_complete_for_uc_k` (composite 0.886) | ✅ both runs |
+| cs_095 (B2 / not UC-K) | session_create_failed (transient backend timeout) | UC-A / `faq_miss_threshold_exceeded` (NOT UC-K) | ✅ run 2; run 1 was an unrelated transport flake |
+| cs_014 (this fix's target) | UC-B / `user_requested` (D11 drift) | UC-F / `account_compliance` (D11 drift) | ⚠ same upstream UC drift as deferred in Sprint 2 §8 D11; deterministic Sprint 2.1 contract is held by the new `Cs014RouteAndLoopHandoverIntegrationTest`. |
 
-End-to-end smoke verification of the guards was blocked by the same
-bot-side Kimi credentials gap (§3 caveat). Re-run in an env with
-`KIMI_API_KEY` set to confirm the targeted blocker counts.
+The Java contract surface (538 / 538 tests including
+`AgentRunLoopHandoverReasonNormalizationIntegrationTest`,
+`ControlKernelDistressPrecedenceIntegrationTest`,
+`UseCaseRouterB2BiasTest`, `ControlKernelB3FallbackUseCaseTest`,
+`Cs014RouteAndDistressRegressionTest`,
+`Cs014RouteAndLoopHandoverIntegrationTest`) all pass, so each
+B0 / B1 / B2 / B3 invariant is pinned independently of upstream
+LLM nondeterminism.
 
 ## 7. Remaining P0 / P1 blockers
 
@@ -585,12 +603,24 @@ P0: none.
 P1 (carried forward from Sprint 2; same scope as before):
 
 1. **Bot-side Kimi LLM credentials / rate-limit robustness** for
-   cs_001 / cs_002 / cs_014. Without a working `KIMI_API_KEY` the
-   `AgentRunLoop` returns the safe-fallback escalation, which means
-   smoke runs cannot exercise the route/loop path. Mitigation:
-   add a single retry on the bot-side LLM call or pre-warm the first
-   call; document the required `KIMI_API_KEY` in CI.
+   cs_001 / cs_002 / cs_014. The default `KIMI_BASE_URL`
+   (`https://api.moonshot.ai/v1`) returned 401 in this environment;
+   only after pointing it at `https://api.moonshot.cn/v1` with
+   `MOONSHOT_API_KEY` did the bot LLM auth succeed. Document the
+   working endpoint + key for CI; add a single retry on the bot-side
+   LLM call or pre-warm the first call to mitigate the rate-limit
+   stalls seen in run 1 (`L1:trace_minimum`).
 2. **cs_002 routes to UC-F under LLM noise.** Same as Sprint 2 §6.
+   (Run 2 above has it on UC-H — same family of upstream-UC drift.)
 3. **cs_029 outcome lift.** Same as Sprint 2 §6.
 4. **L3:relevance / L3:tone_appropriateness judge volatility.**
    Same as Sprint 2 §6 (explicitly out of scope).
+5. **D11 cs_014 cross-turn UC drift.** Initial route is UC-C via the
+   alias-normalised strong prior, but the bot-LLM agent loop drifts
+   the `active_use_case` to UC-B / UC-F / UC-H on the escalation turn
+   in 3/3 of the Sprint 2.1 smoke + targeted runs. Carried forward as
+   D11 in `docs/action_bank.md`. Either bias `DriftDetector` toward
+   UC-C for `Replies …` topics or carry the strong-prior signal
+   forward into the bot-turn agent loop projection. The Sprint 2.1
+   P1 fix correctly classifies the spec; the deterministic Sprint-2
+   contracts (B0, B1, B2, B3) all hold across both runs.
