@@ -1,6 +1,7 @@
 package com.gumtree.csagent.service.tools;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gumtree.csagent.model.BotEvent;
 import com.gumtree.csagent.model.BotSession;
@@ -8,6 +9,7 @@ import com.gumtree.csagent.model.enums.EventType;
 import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotSessionRepository;
 import com.gumtree.csagent.service.runtime.UseCaseRegistryService;
+import com.gumtree.csagent.service.runtime.UseCaseRouter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +18,8 @@ import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -93,6 +97,41 @@ public class ClassifyUseCaseTool implements Tool {
 
         String reasoning = asString(parameters.get("reasoning"));
 
+        // Sprint §C2: Replies/Messaging strong-prior carry-forward.
+        //
+        // The bot-turn AgentRunLoop has historically rotated cs_interactive_014's
+        // active_use_case to UC-B / UC-F / UC-H even though the form-context
+        // strong-prior table maps "Replies or Messaging" -> UC-C. The drift
+        // happens here: the LLM emits classify_use_case with a different UC,
+        // and this tool blindly overwrites session.activeUseCase.
+        //
+        // Policy: when the session already has an active_use_case that matches
+        // the deterministic strong-prior / B2 phrase-bias UC for the current
+        // form context, refuse to overwrite it with a different UC. The
+        // upstream {@link com.gumtree.csagent.service.runtime.DriftDetector}
+        // is the legitimate path for hard-shifts (UC-G GDPR, UC-I refund,
+        // UC-J safety, UC-H ad-removal) — those flip session.activeUseCase
+        // BEFORE the bot loop runs, so by the time the LLM gets here the
+        // strong-prior basis no longer matches and this guard releases.
+        //
+        // Idempotent re-classification (LLM picks the same UC the strong
+        // prior already chose) is allowed and continues to emit the
+        // CLASSIFICATION_COMMITTED event — that's still the LLM
+        // committing to the UC.
+        if (shouldPreserveStrongPrior(session, useCaseId)) {
+            String preservedUc = session.getActiveUseCase();
+            log.info("classify_use_case: preserved strong-prior active_use_case='{}' on session='{}' "
+                    + "(LLM proposed '{}' but form-context strong prior is '{}'); "
+                    + "no hard-shift drift signal observed",
+                    preservedUc, session.getSessionId(), useCaseId, preservedUc);
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("committed", false);
+            data.put("preserved_use_case_id", preservedUc);
+            data.put("rejected_use_case_id", useCaseId);
+            data.put("reason", "strong_prior_carry_forward");
+            return ToolResult.ok(data);
+        }
+
         // Apply to session.
         session.setActiveUseCase(useCaseId);
         // Intent confidence column is precision=4 scale=2 — clamp to 2 decimals.
@@ -133,6 +172,67 @@ public class ClassifyUseCaseTool implements Tool {
         data.put("confidence", storedConfidence);
         return ToolResult.ok(data);
     }
+
+    /**
+     * Sprint §C2 strong-prior carry-forward policy. Returns true iff the LLM's
+     * proposed UC should be REFUSED because the session's current active UC
+     * came from a deterministic high-confidence form-context route
+     * (strong-prior topic or B2 phrase bias) and the proposed UC is different.
+     *
+     * <p>Hard-shift exits via {@link com.gumtree.csagent.service.runtime.DriftDetector}:
+     * GDPR / refund / scam / ad-removal keywords flip {@code session.activeUseCase}
+     * BEFORE the bot loop runs, so by the time this tool is reached the
+     * deterministic re-derivation no longer matches the (now changed) active
+     * UC, and this guard releases — the LLM is free to commit the hard-shift UC.
+     */
+    boolean shouldPreserveStrongPrior(BotSession session, String proposedUcId) {
+        if (session == null) return false;
+        String activeUc = session.getActiveUseCase();
+        if (activeUc == null || activeUc.isBlank()) return false;
+        if (proposedUcId == null) return false;
+        if (proposedUcId.equals(activeUc)) return false; // idempotent — let it through
+
+        String topicSubject = session.getFormTopicSubject();
+        String description = extractFormDescription(session);
+        Optional<String> derived = UseCaseRouter.deriveStrongPriorUc(
+                topicSubject, description, useCaseRegistry);
+        if (derived.isEmpty()) return false;
+        // Only fire when the active UC matches what the deterministic router
+        // would have set — i.e. the strong-prior signal is still load-bearing.
+        // If DriftDetector already flipped activeUseCase to a hard-shift UC
+        // (UC-G/UC-I/UC-J/UC-H), the derivation no longer matches and this
+        // policy releases.
+        return derived.get().equals(activeUc);
+    }
+
+    /**
+     * Pull {@code description} out of the persisted form context JSON. Returns
+     * empty string when form context is absent or malformed — the strong-prior
+     * derivation will then fall back to topic-only logic via the registry.
+     */
+    String extractFormDescription(BotSession session) {
+        if (session == null) return "";
+        String formContextJson = session.getFormContext();
+        if (formContextJson == null || formContextJson.isBlank()) return "";
+        try {
+            JsonNode root = objectMapper.readTree(formContextJson);
+            JsonNode desc = root.get("description");
+            return desc == null ? "" : desc.asText("");
+        } catch (Exception ex) {
+            log.debug("classify_use_case: failed to parse formContext for description: {}", ex.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * Sprint §C2: UCs that escape the carry-forward policy regardless of the
+     * strong-prior signal. Currently empty — the {@link com.gumtree.csagent.service.runtime.DriftDetector}
+     * pre-empts hard-shift cases by mutating {@code activeUseCase} BEFORE the
+     * bot loop, so this set is reserved for any future hard-shift signal that
+     * may need to override the carry-forward without going through the drift
+     * detector first.
+     */
+    static final Set<String> HARD_SHIFT_BYPASS_UCS = Set.of();
 
     private static String asString(Object value) {
         return value == null ? null : value.toString();

@@ -42,12 +42,20 @@ class OpenAiCompatibleLlmClientTest {
                 .maxTokens(100)
                 .build();
 
-        // Act & Assert: Should throw because Kimi endpoint will reject our fake key,
-        // but the important thing is that it targets Kimi, not DashScope.
+        // Act & Assert: Should throw because Kimi endpoint will reject our fake key.
+        // Sprint §C1: 401 / auth errors are now classified as non-retryable and
+        // surface directly as HttpStatusCodeException (so the FallbackLlmClient
+        // can pick them up cleanly) instead of being wrapped under a generic
+        // "LLM API call failed after retry" message. The important assertion
+        // is that we hit the Kimi host (auth 401), not DashScope.
         RuntimeException ex = assertThrows(RuntimeException.class, () -> client.chat(request));
         assertNotNull(ex.getMessage());
-        assertTrue(ex.getMessage().contains("LLM API call failed"),
-                "Expected LLM API call failed, got: " + ex.getMessage());
+        boolean isAuthErrorOrWrappedFailure =
+                ex instanceof org.springframework.web.client.HttpStatusCodeException
+                        || ex.getMessage().contains("LLM API call failed");
+        assertTrue(isAuthErrorOrWrappedFailure,
+                "Expected HttpStatusCodeException (auth) or wrapped LLM API call failed, got: "
+                        + ex.getClass().getSimpleName() + ": " + ex.getMessage());
     }
 
     @Test

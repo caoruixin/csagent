@@ -33,6 +33,18 @@ class UseCaseRouterB2BiasTest {
     }
 
     @Test
+    void normalizeTopic_htmlEncodedAmpersandAlsoBecomesRepliesOr() {
+        // Sprint §C2: FormContextIngestionService.sanitize runs every topic
+        // through Jsoup.clean(...) with Safelist.none(), which entity-encodes
+        // the literal '&' to '&amp;' before this router ever sees it.
+        // Without recognising the encoded form, the strong-prior alias path
+        // would never fire on cs_interactive_001/002/014 even with the live
+        // form payload identical to "Replies & Messaging".
+        assertEquals("Replies or Messaging",
+                UseCaseRouter.normalizeTopicSubject("Replies &amp; Messaging"));
+    }
+
+    @Test
     void normalizeTopic_otherTopicsPassThrough() {
         assertEquals("Account Support",
                 UseCaseRouter.normalizeTopicSubject("Account Support"));

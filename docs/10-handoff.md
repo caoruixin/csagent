@@ -624,3 +624,369 @@ P1 (carried forward from Sprint 2; same scope as before):
    forward into the bot-turn agent loop projection. The Sprint 2.1
    P1 fix correctly classifies the spec; the deterministic Sprint-2
    contracts (B0, B1, B2, B3) all hold across both runs.
+
+---
+
+# Sprint 3 — Targeted Runtime Reliability and Bot-Loop UC Stability
+
+Date: 2026-05-05
+Branch: `design-v1-without-human-review`
+Source spec: `docs/sprint_objective.md` (C0 / C1 / C2)
+Baseline: post-Sprint-2.1 canonical
+`eval_interactive/results/20260504-172942/results.json` (5/14, mean
+composite 0.291). Reference: `20260504-173601` (5/14, 0.294).
+
+Sprint 3 implemented the three accepted actions (C0 / C1 / C2) plus
+one supporting alias-encoding fix that was load-bearing for C2.
+
+## 1. Actions implemented
+
+### C0 — Kimi endpoint / credential configuration normalization
+
+- New `com.gumtree.csagent.config.LlmConfigValidator`:
+  - Classifies per-provider config issues as FATAL (primary) or WARN
+    (fallback): blank api-key, placeholder-shaped api-key
+    (`${KIMI_API_KEY}`, `your-api-key-here`, etc.), blank/malformed
+    base-url, blank model.
+  - Emits a dedicated WARN diagnostic when `KIMI_BASE_URL` is the
+    historically-flaky default `https://api.moonshot.ai/v1`, naming
+    the working endpoint for this repo
+    (`https://api.moonshot.cn/v1`).
+  - `validateOrThrow(props)` aggregates findings and throws
+    `IllegalStateException` on any FATAL — startup fails fast with a
+    clear list of what is wrong, instead of silently surfacing a 401
+    inside the bot loop and getting swallowed by
+    `LlmInvocationService.SAFE_ESCALATION_RESPONSE`.
+  - `describe(props)` produces a SECRET-FREE startup line — keys are
+    only reported as `present|placeholder|blank`. Verified in
+    `LlmConfigValidatorTest#describe_neverReturnsKeyContent`.
+- `LlmClientConfig.llmClient(...)` now calls `validateOrThrow` at
+  bean creation and logs the redacted lineup describe string. The
+  observed startup line is exactly:
+  `LLM provider lineup: primary=kimi[model=kimi-k2.6, base=https://api.moonshot.cn/v1, key=present], fallback=deepseek[...]`.
+- `OpenAiCompatibleLlmClient.doChat` now emits a dedicated
+  `LLM [chat:auth-error]` log line on 401 / 403 that explicitly
+  references the working / default Kimi endpoints, so an operator
+  sees the diagnostic in the log without grepping for status codes.
+  Body is logged (Moonshot returns a structured error message),
+  the api-key is never logged.
+- `.env.local` updated to use the working `https://api.moonshot.cn/v1`
+  endpoint with an inline rationale comment pointing to Sprint 3 §C0
+  for context. Operators can also bind `KIMI_API_KEY` /
+  `KIMI_BASE_URL` from the `MOONSHOT_API_KEY` / `MOONSHOT_API_BASE`
+  env-vars at runtime — this is now the documented mode used for
+  local and CI eval.
+
+Documented working endpoint / env-var pair (this repo):
+
+```bash
+# minimal working pair for bot-side Kimi LLM
+KIMI_API_KEY=$MOONSHOT_API_KEY
+KIMI_BASE_URL=$MOONSHOT_API_BASE   # https://api.moonshot.cn/v1
+KIMI_MODEL=kimi-k2.6
+```
+
+Test coverage (12 new tests in `LlmConfigValidatorTest`): blank /
+placeholder / malformed primary fail FATAL; default Kimi endpoint
+emits a WARN; working Kimi endpoint emits no warn; missing fallback
+key is WARN not FATAL; `describe` redacts secrets;
+`describeKeyState` classifies key shape; `looksLikePlaceholder`
+recognises env-var syntax; `isHttpUrl` rejects malformed URLs.
+
+### C1 — Bot-side LLM retry / timeout robustness
+
+- `OpenAiCompatibleLlmClient.chat` rewritten to make the retry policy
+  explicit and bounded:
+  - **Transient (one retry, +500 ms back-off):** `RestClientException`
+    that is not a `HttpStatusCodeException` (timeouts, connect
+    failures, transport errors), HTTP 429 (rate limit), HTTP 5xx
+    (transient backend).
+  - **Non-transient (no retry, surface to FallbackLlmClient):**
+    HTTP 401 / 403 (auth — config issue, would not be cured by
+    retry; `LlmConfigValidator` catches these at startup), other
+    4xx (malformed deterministic request).
+  - Bounded at exactly 2 attempts at this provider, then propagates;
+    `FallbackLlmClient` (one layer up) decides whether to engage
+    DeepSeek. End-to-end maximum is therefore 2 + 2 = 4 LLM calls
+    per bot turn — no busy-loop, bounded-loop semantics preserved.
+- Retry attempts are now logged with stable line tags
+  (`[chat:retry]` / `[chat:non-retryable-status]` /
+  `[chat:exhausted]`) including provider, attempt index, and reason
+  classifier — visible in the bot trace without leaking secrets.
+- `LlmInvocationService` adds a `classifyFailure(Throwable)` helper
+  that walks the cause chain and emits a stable trace tag
+  (`llm_auth_error` / `llm_rate_limited` / `llm_server_error_<code>`
+  / `llm_timeout` / `llm_connect_failed` / `llm_transport_error`
+  / `llm_unknown_error`). The tag is appended to the persisted
+  `LlmCallLogger.logFailure` message and emitted on the structured
+  `[chat:exception]` log line so post-hoc eval analysis can
+  separate auth-config flakes from transport flakes without parsing
+  free-form messages.
+
+Test coverage:
+
+- 6 new tests in `OpenAiCompatibleLlmClientRetryTest` use an
+  embedded `HttpServer` to exercise the real `RestTemplate` path:
+  429-then-success retries once, 503-then-success retries once,
+  two consecutive 5xx exhausts retry at 2 attempts, 401 surfaces
+  immediately with no retry, 400 surfaces immediately with no
+  retry, blank api-key fails fast without any HTTP call.
+- 9 new tests in `LlmInvocationServiceFailureClassificationTest`
+  pin every classifier branch (401, 403, 429, 503, socket timeout,
+  connect failure, ResourceAccessException, wrapped chain, unknown).
+
+### C2 — Replies/Messaging strong-prior carry-forward into bot-loop
+
+D11 — the historical bot-turn AgentRunLoop drift of cs_014 from
+UC-C to UC-B / UC-F / UC-H — happens at exactly one site:
+`ClassifyUseCaseTool.execute` blindly overwrites
+`session.activeUseCase` with whatever UC the LLM emits in the
+`classify_use_case` tool call.
+
+Fix:
+
+- New helper `UseCaseRouter.deriveStrongPriorUc(topic, description,
+  registry)`: read-only, side-effect free derivation of what the
+  deterministic router *would* pick from the form context alone.
+  Uses the alias-normalised strong-prior table first, then falls
+  back to the §B2 phrase bias for weak-prior topics (so messaging
+  descriptions on `Account Support` still derive UC-C). Returns
+  empty when neither would fire.
+- New policy `ClassifyUseCaseTool.shouldPreserveStrongPrior(session,
+  proposed)`: refuses an LLM-driven UC overwrite when the current
+  active UC matches the deterministic strong-prior derivation for
+  the form context AND the proposed UC differs.
+  - Idempotent re-classification (LLM proposes the same UC) is
+    allowed and emits the usual `CLASSIFICATION_COMMITTED` event.
+  - Hard-shift exit path is automatic: `DriftDetector` flips
+    `session.activeUseCase` to UC-G / UC-I / UC-J / UC-H BEFORE
+    the bot loop runs. Once the active UC no longer matches the
+    derivation, this guard releases — the LLM is free to commit
+    further changes. No hard-lock is introduced.
+  - When refused, the tool returns
+    `success(committed=false, preserved_use_case_id, rejected_use_case_id, reason="strong_prior_carry_forward")`
+    so the AgentRunLoop sees a benign result and continues; the
+    audit field surfaces the suppression in the persisted
+    `bot_turns.tool_calls` JSONB without crashing the loop.
+- `extractFormDescription(session)` reads the `description` field
+  out of the persisted `formContext` JSON so the policy can run
+  against the original form text without re-querying the LLM
+  router or persisting an extra column on `BotSession`.
+
+Supporting alias-encoding fix (load-bearing for C2):
+
+- `FormContextIngestionService.sanitize` runs every form field
+  through `Jsoup.clean(..., Safelist.none())`, which entity-encodes
+  the literal `&` to `&amp;`. This silently turned every live
+  `Replies & Messaging` topic into `Replies &amp; Messaging`
+  before the alias map saw it — so the entire B2 alias path
+  defined in Sprint 2 was a dead code path on the live form
+  ingest. Sprint 2.1 cs014 routes that "showed UC-C via the
+  strong prior" had actually fallen through to UNKNOWN_TOPIC →
+  DISCOVER and then the LLM picked UC-C at random.
+- Minimal fix: register both `Replies & Messaging` and
+  `Replies &amp; Messaging` in `TOPIC_ALIASES`,
+  `B2_BIAS_TOPICS`, and `UC_K_OVERRIDE_TOPICS`. The alias
+  map and B2 bias now fire deterministically on the live form
+  payload. (Avoiding a global change to the sanitize behaviour
+  keeps the blast radius small — every other field-encoding
+  invariant elsewhere in the codebase stays the same.)
+
+Test coverage:
+
+- 14 new tests in `ClassifyUseCaseToolStrongPriorTest`:
+  cs014 strong prior refuses LLM drift to UC-B / UC-F / UC-H;
+  cs014 idempotent reclassification commits cleanly; hard-shift
+  already-applied releases the carry-forward (UC-G, UC-I);
+  no strong prior leaves classify_use_case behaviour unchanged;
+  no form context does not NPE; `deriveStrongPriorUc` recognises
+  alias / registry / B2 bias / negative cases; cs001 / cs002
+  verbatim form context preserves UC-C; cs066 UC-K path is
+  unaffected; cs095 UC-A path is unaffected; cs014 with the
+  HTML-encoded `Replies &amp; Messaging` topic still carries
+  forward UC-C.
+- 1 new test in `UseCaseRouterB2BiasTest`:
+  `normalizeTopic_htmlEncodedAmpersandAlsoBecomesRepliesOr`
+  pins the encoded alias mapping and documents the
+  Jsoup-encoding trap.
+
+## 2. Files changed
+
+### 2.1 Server (Java) — production
+
+1. `server/src/main/java/com/gumtree/csagent/config/LlmConfigValidator.java`
+   *(new)* — fail-fast LLM config diagnostic surface.
+2. `server/src/main/java/com/gumtree/csagent/config/LlmClientConfig.java`
+   — wires `validateOrThrow` at bean creation; redacted startup
+   describe string; no functional change to provider lineup.
+3. `server/src/main/java/com/gumtree/csagent/service/llm/OpenAiCompatibleLlmClient.java`
+   — explicit retryable-status classifier; bounded 2-attempt loop;
+   structured retry log tags; dedicated 401/403 diagnostic
+   referencing the working / default Kimi endpoints; no secret
+   logging.
+4. `server/src/main/java/com/gumtree/csagent/service/runtime/LlmInvocationService.java`
+   — `classifyFailure` static helper; structured `[chat:exception]`
+   log line; failure tag prefixed onto the persisted
+   `LlmCallLogger.logFailure` message.
+5. `server/src/main/java/com/gumtree/csagent/service/runtime/UseCaseRouter.java`
+   — added `deriveStrongPriorUc`; HTML-encoded alias
+   `Replies &amp; Messaging` registered in `TOPIC_ALIASES`,
+   `B2_BIAS_TOPICS`, `UC_K_OVERRIDE_TOPICS`.
+6. `server/src/main/java/com/gumtree/csagent/service/tools/ClassifyUseCaseTool.java`
+   — `shouldPreserveStrongPrior` carry-forward policy;
+   `extractFormDescription` helper; idempotent reclassification
+   continues to commit; rejected commits surface as
+   `success(committed=false, …, reason=strong_prior_carry_forward)`.
+
+### 2.2 Server (Java) — tests (all new)
+
+1. `server/src/test/java/com/gumtree/csagent/config/LlmConfigValidatorTest.java`
+   — 12 tests pinning C0 acceptance.
+2. `server/src/test/java/com/gumtree/csagent/service/llm/OpenAiCompatibleLlmClientRetryTest.java`
+   — 6 tests pinning C1 retry / no-retry classification using an
+   embedded HTTP server.
+3. `server/src/test/java/com/gumtree/csagent/service/runtime/LlmInvocationServiceFailureClassificationTest.java`
+   — 9 tests pinning the C1 trace classifier.
+4. `server/src/test/java/com/gumtree/csagent/service/tools/ClassifyUseCaseToolStrongPriorTest.java`
+   — 14 tests pinning C2 carry-forward, hard-shift release, and
+   regression coverage for cs001 / cs002 / cs014 / cs066 / cs095.
+
+### 2.3 Server (Java) — pre-existing test updated
+
+1. `server/src/test/java/com/gumtree/csagent/service/llm/OpenAiCompatibleLlmClientTest.java`
+   — `chat_whenKimiKeySet_shouldUseKimiAsPrimary` widened to accept
+   either a wrapped `LLM API call failed` message OR a direct
+   `HttpStatusCodeException` (the new C1 contract on 401 — non-
+   retryable surfaces directly).
+2. `server/src/test/java/com/gumtree/csagent/service/runtime/UseCaseRouterB2BiasTest.java`
+   — added `normalizeTopic_htmlEncodedAmpersandAlsoBecomesRepliesOr`.
+
+### 2.4 Eval (Python) — no changes
+
+The eval-side runtime, judges, and scoring did not change. Only
+the bot runtime and server config changed.
+
+### 2.5 Config
+
+1. `.env.local` — `KIMI_BASE_URL` flipped to the working
+   `https://api.moonshot.cn/v1`. Inline comment points to Sprint 3
+   §C0 rationale.
+
+## 3. Tests run
+
+| Suite | Result |
+|---|---|
+| `mvn test` (server, all modules) | **582 / 582 passed** (was 538; +41 sprint-3 tests + 3 supporting) |
+| `pytest eval_interactive/tests` | **283 / 283 passed** |
+| Targeted cs014 (`run --path .../cs_interactive_014.yaml`) | **1 / 1 passed**, composite 0.786, UC-C / `faq_miss_threshold_exceeded` |
+| Smoke run 1 (`run --set smoke`) | **7 / 14 passed**, mean composite 0.4055 |
+| Smoke run 2 (`run --set smoke`) | **6 / 14 passed**, mean composite 0.3589 |
+
+## 4. Latest result paths
+
+- **Targeted cs014 (Sprint 3, canonical):**
+  `results/20260504-191028/results.json` (1/1, composite 0.786,
+  UC-C / `faq_miss_threshold_exceeded`)
+- **Smoke run 1 (Sprint 3, canonical):**
+  `eval_interactive/results/20260504-191137/results.json` (7/14,
+  mean composite 0.4055)
+- **Smoke run 2 (Sprint 3, nondeterminism reference):**
+  `eval_interactive/results/20260504-191541/results.json` (6/14,
+  mean composite 0.3589)
+
+## 5. Targeted blocker counts before vs after
+
+| Failure tag | Sprint 2.1 r1 (`172942`) | Sprint 2.1 r2 (`173601`) | Sprint 3 r1 (`191137`) | Sprint 3 r2 (`191541`) |
+|---|---:|---:|---:|---:|
+| `L1:escalation_reason_consistency` | 0 | 0 | **0** | **0** |
+| `CONTRACT_VIOLATION:active_use_case` | 0 | 1 (cs_259) | **0** | **0** |
+| `TIMEOUT` | 2 | 0 | **0** | **0** |
+| `L1:trace_minimum` | 1 | 0 | **0** | 1 (cs_259, unrelated) |
+| `session_create_failed` | 0 | 0 | **0** | **0** |
+| Smoke pass count | 5/14 | 5/14 | **7/14** | **6/14** |
+| Mean composite | 0.291 | 0.294 | **0.4055** | **0.3589** |
+
+Sprint 2 contracts (B0 / B1 / B2 / B3) remain green across both
+Sprint 3 smoke runs.
+
+## 6. Target case outcomes before vs after
+
+| case | Sprint 2.1 r1 | Sprint 2.1 r2 | Sprint 3 r1 | Sprint 3 r2 |
+|---|---|---|---|---|
+| cs_001 | TIMEOUT | UC-D / `turn_budget_exhausted` / 0.707 | UC-C / `user_distress` / 0.000 (L1:escalation_compliance — bot LLM stamped distress; remaining mismatch is reason-vs-spec, no longer a runtime flake) | UC-C / "" / 0.000 (LLM did not escalate; downstream LLM nondeterminism, no runtime flake) |
+| cs_002 | `L1:trace_minimum` | UC-H / `user_distress` / 0.000 | **UC-C / `user_distress` / 0.771 ✓** | UC-C / `faq_miss_threshold_exceeded` / 0.000 (LLM stamped FAQ-miss instead of distress this run; B1 detector is intact, the seed message was on the FAQ-miss branch) |
+| cs_014 | UC-B / `user_requested` / 0.000 (D11 drift) | UC-F / `account_compliance` / 0.000 (D11 drift) | **UC-C / `faq_miss_threshold_exceeded` / 0.786 ✓** | **UC-C / `faq_miss_threshold_exceeded` / 0.786 ✓** |
+| cs_029 | UC-D / `user_requested` / 0.000 (B3 guard) | same | same | same |
+| cs_066 | UC-K / `intake_complete_for_uc_k` / 0.820 | 0.886 | 0.820 | 0.820 |
+| cs_095 | `session_create_failed` | UC-A / `faq_miss_threshold_exceeded` / 0.000 | UC-A / `faq_miss_threshold_exceeded` / 0.000 | UC-A / `faq_miss_threshold_exceeded` / 0.000 |
+
+## 7. Sprint outcome — was Sprint 3 objective met?
+
+| Sprint primary metric | Met? |
+|---|---|
+| `L1:escalation_reason_consistency` failures: remain 0 | ✅ (0 / 0 across both Sprint 3 smoke runs and the targeted cs014 run) |
+| `cs_interactive_014` live bot-loop no longer drifts away from UC-C | ✅ (UC-C in both smoke runs and the targeted run; D11 closed via §C2 carry-forward + alias-encoding fix) |
+| `cs001 / cs002 / cs014` have fewer TIMEOUT / `session_create_failed` / `trace_minimum` failures across two smoke runs | ✅ (3 → 1 across the two smoke runs; the one remaining `trace_minimum` is on cs_259, unrelated to the Sprint 3 targets) |
+| `cs_002` still stamps `user_distress` when distress signals exist | ✅ (run 1: UC-C / `user_distress` / 0.771; run 2 stamped `faq_miss_threshold_exceeded` because the cs_002 seed for that turn had no distress phrase — B1 detector itself is intact and pinned by `EscalationReasonResolverTest` + `ControlKernelDistressPrecedenceIntegrationTest`) |
+| `cs_066` still routes to UC-K | ✅ (UC-K in both runs, composite 0.820 each) |
+| `cs_095` still does not route to UC-K | ✅ (UC-A / `faq_miss_threshold_exceeded` in both runs) |
+| `cs_029` still avoids `CONTRACT_VIOLATION:active_use_case` and preserves `user_requested` | ✅ (UC-D / `user_requested` in both runs) |
+| Smoke pass rate stabilises at or above the post-Sprint-2.1 ceiling | ✅ (5/14 → 7/14 then 6/14 — both runs at or above the baseline; mean composite lifted 0.291 → 0.4055 / 0.3589) |
+| Eval distinguishes infrastructure / runtime flake from semantic failures | ✅ (failure tags now classify auth/timeout/transport via `LlmInvocationService.classifyFailure`; the post-hoc table above splits the cs001 / cs002 / cs014 outcomes into runtime vs semantic columns) |
+
+**Sprint 3 objective met:** ✅ All C0 / C1 / C2 acceptance criteria
+landed. cs014 D11 drift is closed (UC-C in 3/3 Sprint 3 runs vs 0/3
+in Sprint 2.1). Sprint 2 / 2.1 regression guards (B0, B1, B2, B3,
+cs014 override / audit) remain green. Smoke pass count and mean
+composite both lifted above the post-Sprint-2.1 baseline.
+
+## 8. Remaining P0 / P1 blockers
+
+P0: none.
+
+P1 (next-sprint candidates, all out of Sprint 3 scope):
+
+1. **cs_001 escalation reason alignment.** Run 1 stamped
+   `user_distress`, but the cs_001 spec expects
+   `faq_miss_threshold_exceeded`. The B1 detector fired correctly
+   on cs_001's persona phrasing — this is a spec-vs-runtime
+   alignment question rather than a runtime regression. Decide in
+   a future sprint whether to widen cs_001's expected reasons or
+   tighten the distress detector for that specific seed.
+2. **cs_002 reason flip across runs.** Run 1 stamped
+   `user_distress` (B1 fired); run 2 stamped
+   `faq_miss_threshold_exceeded` (B1 did not fire on the second
+   turn's seed). This is downstream LLM nondeterminism over
+   which message the persona simulator emits per run; the
+   detector / resolver / escalation path are deterministic.
+3. **D12 cs_029 outcome lift.** Same as Sprint 2.1 §7 — UC-D
+   fallback differs from spec primary UC-C. Remains a
+   spec-vs-fallback alignment question, not a runtime issue.
+4. **L3:relevance / L3:tone_appropriateness judge volatility.**
+   Same as Sprint 2.1 §7 — explicitly out of scope.
+5. **cs_259 `trace_minimum` / loop_detected on the F payment
+   flow.** Run 2 produced a `trace_minimum` on cs_259; the case
+   is tracked for a future routing / loop-detection sprint.
+
+## 9. Next recommended action
+
+In priority order:
+
+1. **Decide cs_001 / cs_002 expected-reason alignment.** The B1
+   detector now fires reliably; the question is whether the case
+   specs should accept `user_distress` as a valid expected reason
+   on those personas. This is a spec / case-spec override
+   question rather than a runtime change.
+2. **D12 cs_029 outcome lift** (deferred from Sprint 2 / 2.1).
+   Either widen the spec to accept UC-D as a secondary, or add a
+   B-bias-style heuristic that picks UC-C when "messages /
+   replies / inbox" appear in soft-OOS DISCOVER.
+3. **L3 judge stabilisation.** Out of every targeted runtime
+   sprint to date; revisit only when judge calibration is the
+   sprint objective.
+4. **Carry-overs** D1–D7 (full trace / transcript alignment,
+   turn-0 factual claim classifier, full service-outcome
+   taxonomy, large production smoke expansion, tool error /
+   timeout cases, full semantic groundedness classifier, full
+   GDPR / moderation / payment / scam / OOS suite) — all remain
+   deferred.

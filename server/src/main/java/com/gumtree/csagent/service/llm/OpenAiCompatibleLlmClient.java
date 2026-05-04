@@ -72,36 +72,87 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         );
     }
 
+    /**
+     * Sprint §C1: at most one bounded retry for transient bot-side LLM failures.
+     *
+     * <p>Transient (retried once): network / connect / read-timeout
+     * ({@link RestClientException} that is not a HttpStatusCodeException),
+     * HTTP {@code 429} (rate limit), HTTP {@code 5xx} (transient backend).
+     *
+     * <p>Non-transient (no retry, surfaced immediately to
+     * {@link FallbackLlmClient}): HTTP {@code 401/403} (auth / endpoint
+     * misconfiguration — handled by {@link com.gumtree.csagent.config.LlmConfigValidator}
+     * at startup; no point retrying the same wrong key), other 4xx (malformed
+     * request — would not be cured by retry).
+     *
+     * <p>Cross-provider fallback to DeepSeek is the next layer up
+     * ({@link FallbackLlmClient}) and treats 429 / 5xx / network the same way.
+     * The result is at most 2 attempts at this provider plus 2 attempts at the
+     * fallback — bounded, no busy-loop.
+     */
     @Override
     public LlmResponse chat(LlmRequest request) {
-        // Try up to 2 times (initial + 1 retry) for transient failures within the same provider.
-        // Cross-provider fallback is handled by FallbackLlmClient one layer up.
         Exception lastException = null;
-        for (int attempt = 0; attempt < 2; attempt++) {
+        for (int attempt = 1; attempt <= 2; attempt++) {
             try {
-                return doChat(request);
+                return doChat(request, attempt);
+            } catch (HttpStatusCodeException e) {
+                lastException = e;
+                int status = e.getStatusCode().value();
+                if (!isRetryableStatus(status)) {
+                    // Non-transient (auth / 4xx) — fail fast so FallbackLlmClient
+                    // can decide whether to engage fallback.
+                    if (attempt == 1) {
+                        log.warn("LLM [chat:non-retryable-status] provider={} status={} attempt={}; not retrying",
+                                providerLabel, status, attempt);
+                    }
+                    throw e;
+                }
+                if (attempt < 2) {
+                    log.warn("LLM [chat:retry] provider={} attempt={} status={} reason=retryable_status; "
+                            + "sleeping 500ms before retry", providerLabel, attempt, status);
+                    sleepQuietly(500);
+                }
             } catch (RestClientException e) {
                 lastException = e;
-                if (attempt == 0) {
-                    log.warn("LLM API call failed on attempt 1 (provider={}), retrying in 500ms: {}",
-                            providerLabel, e.getMessage());
-                    try { Thread.sleep(500); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+                if (attempt < 2) {
+                    log.warn("LLM [chat:retry] provider={} attempt={} reason=transport ({}); "
+                            + "sleeping 500ms before retry",
+                            providerLabel, attempt, e.getClass().getSimpleName());
+                    sleepQuietly(500);
                 }
             }
         }
-        log.error("LLM API call failed after 2 attempts (provider={})", providerLabel, lastException);
-        throw new RuntimeException("LLM API call failed after retry (provider=" + providerLabel + ")", lastException);
+        log.error("LLM [chat:exhausted] provider={} after 2 attempts", providerLabel, lastException);
+        throw new RuntimeException(
+                "LLM API call failed after retry (provider=" + providerLabel + ")", lastException);
     }
 
-    private LlmResponse doChat(LlmRequest request) {
+    private static boolean isRetryableStatus(int status) {
+        return status == 429 || (status >= 500 && status <= 599);
+    }
+
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private LlmResponse doChat(LlmRequest request, int attempt) {
         long startTime = System.currentTimeMillis();
         String url = baseUrl + "/chat/completions";
 
         if (apiKey == null || apiKey.isBlank()) {
+            // Sprint §C0: surface configuration failures at the call site too,
+            // not just at startup, so unit tests that build the client directly
+            // also get a clear diagnostic.
             throw new IllegalStateException("LLM provider " + providerLabel + " has no api-key configured");
         }
 
-        log.info("LLM request: provider={}, model={}, url={}", providerLabel, model, url);
+        log.info("LLM [chat:request] provider={} model={} url={} attempt={}",
+                providerLabel, model, url, attempt);
 
         try {
             ObjectNode body = buildRequestBody(request, model);
@@ -115,19 +166,38 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
 
             long latencyMs = System.currentTimeMillis() - startTime;
             LlmResponse llmResponse = parseResponse(response.getBody(), latencyMs);
-            log.info("LLM response: provider={}, model={}, latency={}ms, tokens={}/{}",
-                    providerLabel, model, latencyMs, llmResponse.getPromptTokens(), llmResponse.getCompletionTokens());
+            log.info("LLM [chat:response] provider={} model={} attempt={} latency={}ms tokens={}/{}",
+                    providerLabel, model, attempt, latencyMs,
+                    llmResponse.getPromptTokens(), llmResponse.getCompletionTokens());
             return llmResponse;
 
         } catch (HttpStatusCodeException e) {
             HttpStatusCode status = e.getStatusCode();
-            log.error("LLM HTTP error (provider={}, model={}): status={}, body={}",
-                    providerLabel, model, status.value(), e.getResponseBodyAsString());
+            // Sprint §C0: 401/403 means the configured endpoint / key pair is
+            // wrong; the most common failure mode in this repo is the .ai vs
+            // .cn Kimi endpoint flip. Make the log line unambiguous so the
+            // operator does not chase it as a generic "LLM flake". The body
+            // is logged because Moonshot returns a structured error message,
+            // never the secret. The api-key is never logged.
+            int code = status.value();
+            if (code == 401 || code == 403) {
+                log.error("LLM [chat:auth-error] provider={} model={} url={} status={} body={} — "
+                        + "endpoint/key pair rejected. If provider=kimi, the working endpoint for "
+                        + "this repo is '{}'. The default '{}' has historically returned 401 in some "
+                        + "shells. Configure KIMI_BASE_URL accordingly.",
+                        providerLabel, model, url, code, e.getResponseBodyAsString(),
+                        com.gumtree.csagent.config.LlmConfigValidator.KIMI_WORKING_ENDPOINT,
+                        com.gumtree.csagent.config.LlmConfigValidator.KIMI_DEFAULT_ENDPOINT);
+            } else {
+                log.error("LLM [chat:http-error] provider={} model={} attempt={} status={} body={}",
+                        providerLabel, model, attempt, code, e.getResponseBodyAsString());
+            }
             throw e; // Surface to caller; FallbackLlmClient inspects status for transient classification.
         } catch (RestClientException e) {
             throw e; // Let retry loop handle other RestClientException (timeouts, connect failures).
         } catch (Exception e) {
-            log.error("Error processing LLM request (provider={}): {}", providerLabel, e.getMessage(), e);
+            log.error("LLM [chat:processing-error] provider={} attempt={}: {}",
+                    providerLabel, attempt, e.getMessage(), e);
             throw new RuntimeException("Error processing LLM request (provider=" + providerLabel + ")", e);
         }
     }
