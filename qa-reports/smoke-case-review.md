@@ -12,17 +12,21 @@ Inputs reviewed for each smoke case:
 
 | review_status | count |
 | --- | ---: |
-| ok | 10 |
+| ok | 9 |
 | generator_bug | 0 |
 | policy_ambiguity | 0 |
-| needs_override | 4 |
+| needs_override | 5 |
 | needs_human_decision | 0 |
 
+Smoke set under review (14 cases): cs_interactive_001, cs_interactive_002, cs_interactive_011, cs_interactive_014, cs_interactive_015, cs_interactive_029, cs_interactive_036, cs_interactive_038, cs_interactive_040, cs_interactive_066, cs_interactive_095, cs_interactive_176, cs_interactive_192, cs_interactive_259.
+
 Notable follow-up:
-- No stale generator bug remains in the smoke review set. `cs_interactive_004` and `cs_interactive_095` now align with final generated YAML as resolve/no-escalation cases.
+- `cs_interactive_004` has been removed from the smoke fixture set; its review row is removed here. `cs_interactive_176` joins the smoke set as the new UC-E escalate / `user_requested` handover anchor and is reviewed below.
+- `cs_interactive_011` was flipped from `ok` to `needs_override` in the Sprint 4 §E1 supporting fix: the Sprint 4 §E1 runtime gate in `ControlKernel.applyEscalationReason` refuses to upgrade the canonical session reason to `user_distress` on the bot LLM's say-so unless the deterministic §B1 detector fired earlier in the session. cs_011's seed messages contain no DISTRESS_PATTERN match and no ALL-CAPS shout, so the truthful Phase 2 §2.4 reason is `faq_miss_threshold_exceeded` (the FAQ corpus has no useful article for the password-reset-loop the user reports). Override approved and applied in `case_spec_overrides.yaml` for `source_session_id 570Q5000008NWIjIAO`; supersedes the Codex 2026-05-03 round 3 §1.6 smoke YAML hand-edit (`user_distress`).
 - `cs_interactive_015` was flipped from `ok` to `needs_override` in the Wave A6 semantic re-review: the transcript matches UC-FP ("why was my ad deleted?" + edit-and-repost), and the historical late escalation is failure-path evidence rather than the desired golden behavior. Override approved and applied in `case_spec_overrides.yaml`.
 - `cs_interactive_014` was flipped from `ok` to `needs_override` in the Sprint 2.1 P1 follow-up: the transcript persona is frustrated, but the *replayed* cs_014 form context + seed_messages contain no Sprint-B1 DISTRESS_PATTERNS hit and no ALL-CAPS shout — so the deterministic resolver cannot stamp `user_distress`. The truthful escalation reason on this UC-C Replies/Messaging case is `faq_miss_threshold_exceeded` (no FAQ article covers the admin-mediated email-revert request). Override approved and applied in `case_spec_overrides.yaml` for `source_session_id 570Q5000008u9gjIAA`.
 - `cs_interactive_029` was flipped from `ok` to `needs_override` in the Sprint 4 §E2 follow-up: the transcript shows an account-locked business user demanding a phone callback to the account manager — Phase 2 §2.2 places "account locked / can't advertise / business account access" issues under UC-D (Account & Login), not UC-C (Messages & Replies). The runtime deterministic UC fallback in `ControlKernel.inferFallbackUseCase` already picks UC-D for these account-locked seeds, so the spec override flips primary to UC-D / secondary to [UC-C] and closes the L2 `correct_uc` gap (D12) without changing runtime behaviour. Semantic escalation reason stays `user_requested` via the explicit-callback path (priority 1). Override approved and applied in `case_spec_overrides.yaml` for `source_session_id 570Q5000008kDiPIAU`.
+- `cs_interactive_066` was flipped from `ok` to `needs_override` in the Sprint 4 §E3 formalization of Codex 2026-05-04 round 6 §P0: the form description ("Why am I not getting the option to add my phone number as a point of contact when listening an item any more") is an in-app technical regression, which Phase 2 §2.2:500 places under UC-K (Technical Support intake), not UC-E. `UseCaseRouter.matchUcKTechnicalRegression` deterministically routes this to UC-K, and the runtime escalates with the UC-K-specific `intake_complete_for_uc_k` reason once intake fields are collected. Override approved and applied in `case_spec_overrides.yaml` for `source_session_id 570Q5000008fBsXIAU`; the round 6 §P0 hand-edit was outside the override registry and is now superseded by this entry.
 
 ## Case Reviews
 
@@ -44,31 +48,13 @@ Notable follow-up:
 - Rationale: HR and YAML align. The transcript has explicit escalation and the user rejects the spam/marketing-preference workaround with visible frustration.
 - Confidence: high
 
-### cs_interactive_004
-
-- Source: `badcase`, session `570Q50000090OefIAE`
-- Status: `ok`
-- Recommended outcome: UC-D resolve, no escalation trigger
-- Supporting turns: 19, 20, 21, 22, 24
-- Rationale: HR, selected transcript, audit, and final YAML align on a contained account/login issue: the ad is live under another account/email and the user is given sign-in guidance. The final YAML resolves with no handover.
-- Confidence: high
-
 ### cs_interactive_011
 
 - Source: `badcase`, session `570Q5000008NWIjIAO`
-- Status: `ok`
-- Recommended outcome: UC-D escalate, `user_requested`
+- Status: `needs_override` (applied)
+- Recommended outcome: UC-D escalate, `faq_miss_threshold_exceeded`
 - Supporting turns: 3, 5, 6, 23, 24, 25, 27
-- Rationale: HR, transcript, YAML, and audit align. The user asks for phone support, has repeated unresolved login failures, and the agent routes them to the business team.
-- Confidence: high
-
-### cs_interactive_012
-
-- Source: `badcase`, session `570Q5000008hx9tIAA`
-- Status: `needs_override`
-- Recommended outcome: UC-FP resolve, no escalation trigger
-- Supporting turns: 5, 6, 8, 10, 12, 14
-- Rationale: The selected transcript is about an ad repeatedly being deleted. The late phone/human request happens after the user has not received a concrete deletion reason, so it is treated as a failure-path signal rather than the desired first outcome. The reviewed target is resolve-first: retrieve safe account/listing/moderation context, explain the deletion reason with policy-grounded next steps, and escalate only if the bot cannot produce or the user rejects that explanation.
+- Rationale: Sprint 4 §E1 supporting fix. cs_011's replayed seeds (long-form login-issue description in lower case + clarifying questions) contain no Sprint §B1 DISTRESS_PATTERN match and no ALL-CAPS shout, so `EscalationReasonResolver.detectDistressSignal` cannot deterministically stamp `user_distress`. The Sprint 4 §E1 runtime gate in `ControlKernel.applyEscalationReason` refuses to let the bot LLM upgrade the canonical session reason to a Tier-0 semantic claim (`user_distress`) without a prior B1 hit, downgrading the candidate to `faq_miss_threshold_exceeded`. The truthful Phase 2 §2.4 reason is FAQ-miss: the FAQ corpus has no useful article for the password-reset-loop, so the bot exhausts FAQ search and hands over. Override approved and applied in `case_spec_overrides.yaml`; supersedes the prior Codex 2026-05-03 round 3 §1.6 smoke YAML hand-edit (`user_distress`).
 - Confidence: high
 
 ### cs_interactive_014
@@ -128,10 +114,10 @@ Notable follow-up:
 ### cs_interactive_066
 
 - Source: `badcase`, session `570Q5000008fBsXIAU`
-- Status: `ok`
-- Recommended outcome: UC-E escalate, `clarification_budget_exhausted`
+- Status: `needs_override` (applied)
+- Recommended outcome: UC-K escalate, `intake_complete_for_uc_k`
 - Supporting turns: 2, 3, 5, 7, 9, 10
-- Rationale: HR and YAML align. The transcript involves a product/contact-option issue, missing intake context, and agent escalation to a specialist team.
+- Rationale: Codex 2026-05-04 round 6 §P0 reclassification, formalized through the Wave A6.6 v2 override path during Sprint 4 §E3. The form description ("Why am I not getting the option to add my phone number as a point of contact when listening an item any more") is an in-app technical regression — a contact option that used to be available has disappeared. Phase 2 §2.2:500 places this under UC-K (Technical Support intake), not UC-E (product/feature explanation FAQ). `UseCaseRouter.matchUcKTechnicalRegression` deterministically routes this to UC-K, and the runtime escalates with the UC-K-specific `intake_complete_for_uc_k` reason once intake fields are collected. Pinned by `Cs014RouteAndDistressRegressionTest` and `ClassifyUseCaseToolStrongPriorTest`. Override approved and applied in `case_spec_overrides.yaml`; the round 6 §P0 smoke-only hand-edit was outside the override registry and is now superseded by this entry.
 - Confidence: high
 
 ### cs_interactive_095
@@ -141,6 +127,15 @@ Notable follow-up:
 - Recommended outcome: UC-A resolve, no escalation trigger
 - Supporting turns: 6, 7, 9, 10, 12, 13, 16, 17
 - Rationale: The UC-B to UC-A reclassification is defensible for "wrong email, no adverts showing", and the selected transcript resolves the issue by identifying the correct account/email and advising sign-out/sign-in. The final YAML resolves with no handover.
+- Confidence: high
+
+### cs_interactive_176
+
+- Source: `handover`, session `570Q5000008NMRRIA4`
+- Status: `ok`
+- Recommended outcome: UC-E escalate, `user_requested`
+- Supporting turns: 2, 3, 5, 7, 10
+- Rationale: HR, selected transcript, YAML, and audit align on a paid-listing complaint that escalates because the user explicitly asks for phone support. The form description ("I pad to put my ad for my business and it's not at the top") is a paid-promotion complaint that fits UC-E (FAQ/explanation), and the seed messages ("Give me my £50 back or put my business to the top like I paid for", "What about giving a phone number to talk to someone") trigger the explicit-callback path that resolves to `user_requested`. The audit's `evidence signal counts.user_requested_human=True` corroborates the UC-E escalate / `user_requested` outcome the YAML pins. UC-K appears in `secondary_ucs` because the underlying complaint also has a paid-promotion-defect reading, but the runtime explicit-handover path takes precedence.
 - Confidence: high
 
 ### cs_interactive_192
