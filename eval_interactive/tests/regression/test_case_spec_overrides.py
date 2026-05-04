@@ -112,10 +112,18 @@ def _build_minimal_spec(session_id: str = "sid-x") -> CaseSpec:
 def test_v2_schema_loads_cleanly() -> None:
     registry = _load_case_spec_overrides(PROD_OVERRIDES)
     assert isinstance(registry, OverrideRegistry)
-    # 11 approved entries (9 legacy + 2 merged: cs_interactive_012 and
-    # cs_interactive_015).
-    assert len(registry.applied) == 11
+    # 12 approved entries: 9 legacy + 2 merged (cs_interactive_012,
+    # cs_interactive_015) + 1 Sprint 2.1 P1 follow-up (cs_interactive_014,
+    # source_session_id=570Q5000008u9gjIAA).
+    assert len(registry.applied) == 12
     assert registry.pending == []
+    cs14 = registry.applied["570Q5000008u9gjIAA"]
+    assert cs14.case_id_hint == "cs_interactive_014"
+    assert cs14.expected is not None
+    assert cs14.expected["escalation_trigger"] == "faq_miss_threshold_exceeded"
+    assert cs14.classification is None
+    assert cs14.migrated_from_legacy is False
+    assert cs14.supporting_turn_numbers == (6, 10, 12, 14, 16)
     cs12 = registry.applied["570Q5000008hx9tIAA"]
     assert cs12.classification == {
         "primary_uc": "UC-FP",

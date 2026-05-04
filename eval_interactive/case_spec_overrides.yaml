@@ -97,6 +97,52 @@ overrides:
         requests review/restoration/human support, or a human-only action is
         required.
 
+  # -----------------------------------------------------------------------
+  # cs_interactive_014 / 570Q5000008u9gjIAA
+  # Sprint 2.1 P1 follow-up override (2026-05-05): the deterministic
+  # generator records transcript_indicated_outcome=escalate +
+  # trigger=user_distress because the source transcript shows a frustrated
+  # user persona, but the bot's golden behavior under Sprint 2's narrow
+  # B1 distress contract (EscalationReasonResolver.detectDistressSignal +
+  # the cs_014 seed messages actually replayed in the eval) does NOT fire
+  # user_distress: the form description and both seed_messages are
+  # informational/cooperative ("How come ...?", "I'd be happy enough
+  # if ...") with no DISTRESS_PATTERNS hit and no ALL-CAPS shout. The
+  # truthful escalation reason for this UC-C Replies/Messaging case is
+  # faq_miss_threshold_exceeded: turns 6/10/12/14/16 show the human agent
+  # confirming the FAQ corpus has no admin-mediated email-revert path,
+  # so the bot exhausts FAQ search and hands over. Pinned by
+  # `Cs014RouteAndDistressRegressionTest` (helper) and
+  # `Cs014RouteAndLoopHandoverIntegrationTest` (case-level integration).
+  # cs_002 keeps user_distress because its seeds DO trigger the detector;
+  # this override is targeted to cs_014 only.
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008u9gjIAA
+    case_id_hint: cs_interactive_014
+    status: approved
+    source: Sprint 2.1 P1 Codex-review follow-up — reviewer correction of CaseSpec expected.escalation_trigger
+    reviewer: human semantic review (Sprint 2.1 P1)
+    date: 2026-05-05
+    confidence: high
+    supporting_turn_numbers: [6, 10, 12, 14, 16]
+    rationale: >-
+      The replayed cs_014 seeds (form description + two seed_messages)
+      contain no Sprint B1 DISTRESS_PATTERNS hit and no ALL-CAPS shout, so
+      the deterministic resolver cannot stamp user_distress. The selected
+      transcript turns (6, 10, 12, 14, 16) show the human agent confirming
+      Gumtree has disabled the admin-mediated contact-email-revert path —
+      no FAQ article covers this — so the truthful escalation reason is
+      faq_miss_threshold_exceeded. UC-C primary still holds via the
+      Replies-or-Messaging strong-prior + the B2 messaging bias.
+    expected:
+      escalation_trigger: faq_miss_threshold_exceeded
+      bot_handling_pattern: >-
+        Acknowledge the issue, run policy-mandated tools
+        (get_customer_context, search_knowledge, resolve_article,
+        request_handover, record_outcome), collect required intake fields
+        (none), and hand over with reason faq_miss_threshold_exceeded once
+        the FAQ corpus has no admin-mediated email-revert article.
+
   - source_session_id: 570Q5000008TMmvIAG
     status: approved
     migrated_from_legacy: true
