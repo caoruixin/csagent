@@ -392,16 +392,23 @@ class TestNoStall:
 class TestRunChecksFiltering:
     # Global L1 checks always run regardless of per-case configuration.
     # Kept in sync with ``HardChecker.run_checks``'s ``global_checks`` set.
-    GLOBAL_L1 = {"no_human_only_tool_exposure", "escalation_compliance"}
+    # Codex 2026-05-04 round 5 §P1 promoted ``required_escalation`` and
+    # ``trace_minimum`` to global so they cannot be silently dropped by a
+    # per-case scoring config.
+    GLOBAL_L1 = {
+        "no_human_only_tool_exposure",
+        "escalation_compliance",
+        "required_escalation",
+        "trace_minimum",
+    }
 
     def test_only_configured_checks_run(self):
         checker = HardChecker()
         case = _make_case_spec(hard_checks=["no_pii_leakage", "budget_enforcement"])
         trace = _make_trace()
         results = checker.run_checks(case, trace)
-        # Globals (``no_human_only_tool_exposure``, ``escalation_compliance``)
-        # ALWAYS run regardless of per-case configuration. Filter them out
-        # before asserting on the configured-only set.
+        # Globals ALWAYS run regardless of per-case configuration. Filter
+        # them out before asserting on the configured-only set.
         configured_names = sorted(
             r.check_name for r in results if r.check_name not in self.GLOBAL_L1
         )
@@ -416,3 +423,131 @@ class TestRunChecksFiltering:
         # configured.
         names = sorted(r.check_name for r in results)
         assert names == sorted(self.GLOBAL_L1)
+
+
+# ---------------------------------------------------------------------------
+# Codex 2026-05-04 round 5 §P1 regressions
+# ---------------------------------------------------------------------------
+
+
+def _make_required_escalation_case(allow_bot_resolution: str = "false") -> CaseSpec:
+    """Spec wired for ``required_escalation`` -- escalate is required and the
+    bot is not allowed to self-resolve regardless of risk level."""
+    return CaseSpec(
+        case_id="test-req-esc",
+        source_session_id="sess-req",
+        source_dataset="test",
+        form_context=FormContext(first_name="T", email="a@b.c", topic_subject="t"),
+        persona=Persona(
+            user_goal_summary="g",
+            frustration_level="none",
+            verbosity="normal",
+            drift_behavior="none",
+            seed_messages=["hi"],
+            hidden_facts=[],
+        ),
+        expected=Expected(
+            outcome_class="escalate",
+            primary_uc="UC-J",
+            secondary_ucs=[],
+            should_escalate=True,
+            allow_bot_resolution=allow_bot_resolution,
+            bot_handling_pattern="<test fixture>",
+            escalation_trigger="trust_safety_required",
+            risk_level="low",  # deliberately low to bypass escalation_compliance
+        ),
+        scoring=ScoringConfig(hard_checks=[], outcome_checks=[], llm_judge_dimensions=[]),
+    )
+
+
+class TestRequiredEscalation:
+    def test_fail_when_resolved_but_handover_required(self):
+        """allow_bot_resolution=false + outcome=resolved + no handover → fail.
+
+        ``escalation_compliance`` would let this through because risk is low,
+        but ``required_escalation`` is independent of risk per round 5 §P1.
+        """
+        checker = HardChecker()
+        case = _make_required_escalation_case(allow_bot_resolution="false")
+        trace = _make_trace(containment_outcome="resolved")
+        results = checker.run_checks(case, trace)
+        rq = next(r for r in results if r.check_name == "required_escalation")
+        assert rq.passed is False
+        assert "allow_bot_resolution=false" in rq.detail
+
+    def test_pass_when_escalated(self):
+        checker = HardChecker()
+        case = _make_required_escalation_case(allow_bot_resolution="false")
+        turn = _make_turn(
+            tool_calls=[
+                {
+                    "tool_name": "request_handover",
+                    "arguments": {"escalation_reason": "trust_safety_required"},
+                }
+            ],
+        )
+        trace = _make_trace(turns=[turn], containment_outcome="escalated")
+        results = checker.run_checks(case, trace)
+        rq = next(r for r in results if r.check_name == "required_escalation")
+        assert rq.passed is True
+
+    def test_pass_when_bot_resolution_allowed(self):
+        """allow_bot_resolution != "false" → check is a no-op (handled by
+        escalation_compliance)."""
+        checker = HardChecker()
+        case = _make_required_escalation_case(allow_bot_resolution="true")
+        trace = _make_trace(containment_outcome="resolved")
+        results = checker.run_checks(case, trace)
+        rq = next(r for r in results if r.check_name == "required_escalation")
+        assert rq.passed is True
+
+
+class TestTraceMinimum:
+    def test_fail_blank_containment(self):
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        trace = _make_trace(containment_outcome="")
+        results = checker.run_checks(case, trace)
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is False
+        assert "containment_outcome" in tm.detail
+
+    def test_fail_user_turn_without_bot_response(self):
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        bad_turn = _make_turn(
+            user_message="hello?", bot_response="", tool_calls=[]
+        )
+        trace = _make_trace(turns=[bad_turn], containment_outcome="resolved")
+        results = checker.run_checks(case, trace)
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is False
+        assert "blank" in tm.detail.lower()
+
+    def test_pass_user_turn_with_handover_only(self):
+        """An empty bot_response is OK if the runtime escalated on this turn
+        (handover stop messages can live in the CLOSE phase / bot_greeting)."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        handover_turn = _make_turn(
+            user_message="please escalate",
+            bot_response="",
+            tool_calls=[
+                {
+                    "tool_name": "request_handover",
+                    "arguments": {"escalation_reason": "user_requested"},
+                }
+            ],
+        )
+        trace = _make_trace(turns=[handover_turn], containment_outcome="escalated")
+        results = checker.run_checks(case, trace)
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is True
+
+    def test_pass_normal_trace(self):
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        trace = _make_trace(turns=[_make_turn()], containment_outcome="resolved")
+        results = checker.run_checks(case, trace)
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is True

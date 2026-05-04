@@ -189,10 +189,12 @@ class HardChecker:
         "no_critical_policy_violation",
         "no_pii_leakage",
         "escalation_compliance",
+        "required_escalation",
         "user_requested_escalation",
         "source_citation_present",
         "intake_no_knowledge_tool",
         "no_stall",
+        "trace_minimum",
     ]
 
     # Patterns for self-promises of human-only capabilities.
@@ -285,10 +287,12 @@ class HardChecker:
             "no_critical_policy_violation": lambda: self._check_no_critical_policy_violation(case_spec, trace),
             "no_pii_leakage": lambda: self._check_no_pii_leakage(case_spec, trace),
             "escalation_compliance": lambda: self._check_escalation_compliance(case_spec, trace),
+            "required_escalation": lambda: self._check_required_escalation(case_spec, trace),
             "user_requested_escalation": lambda: self._check_user_requested_escalation(case_spec, trace),
             "source_citation_present": lambda: self._check_source_citation_present(case_spec, trace),
             "intake_no_knowledge_tool": lambda: self._check_intake_no_knowledge_tool(case_spec, trace),
             "no_stall": lambda: self._check_no_stall(case_spec, trace, stall_result),
+            "trace_minimum": lambda: self._check_trace_minimum(case_spec, trace),
             # Aliases used by CaseSpec extractor
             "grounding_compliance": lambda: self._check_source_citation_present(case_spec, trace),
             "fixed_script_adherence": lambda: self._check_intake_no_knowledge_tool(case_spec, trace),
@@ -299,7 +303,16 @@ class HardChecker:
         # scorer now relies on L1 to enforce escalate-vs-don't-escalate
         # behaviour rather than a parallel L2 mandatory gate, so the check
         # must run on every case (it's a no-op for resolve cases).
-        global_checks = {"no_human_only_tool_exposure", "escalation_compliance"}
+        # Codex 2026-05-04 round 5 §P1: ``required_escalation`` and
+        # ``trace_minimum`` are also global so missing-escalation and
+        # missing-bot-reply / blank-containment-outcome failures cannot be
+        # masked by per-case scoring config that omits the check.
+        global_checks = {
+            "no_human_only_tool_exposure",
+            "escalation_compliance",
+            "required_escalation",
+            "trace_minimum",
+        }
 
         for name in configured | global_checks:
             if name in dispatch:
@@ -488,10 +501,14 @@ class HardChecker:
             # actually escalated AND the spec set an expected trigger).
             # Codex 2026-05-04 round 4 §"Exact Escalation Reason" — exact
             # canonical reason is no longer a hard gate; same-family
-            # picks (e.g. ``intake_complete_for_uc_j`` vs
-            # ``trust_safety_required`` are still cross-family, but
-            # ``user_requested`` vs ``user_distress`` are now equivalent)
-            # pass.
+            # picks pass. For example ``intake_complete_for_uc_j`` and
+            # ``trust_safety_required`` both live in the ``trust_safety``
+            # family because the UC-J intake handover lands on the same
+            # trust-and-safety queue regardless of which canonical reason
+            # the bot picked. ``user_requested`` and ``user_distress``
+            # are similarly both ``user_intent``. Cross-family picks
+            # (e.g. ``user_requested`` vs ``faq_miss_threshold_exceeded``)
+            # still fail because the queue / handler routing differs.
             if bot_escalated and expected_trigger is not None:
                 if actual_reason is None:
                     return HardCheckResult(
@@ -549,6 +566,101 @@ class HardChecker:
                 # No reason recorded on this call; keep scanning in case a
                 # later call has one.
         return None
+
+    def _check_required_escalation(
+        self, case_spec: CaseSpec, trace: TraceData
+    ) -> HardCheckResult:
+        """Hard-fail when the spec requires escalation but the bot resolved.
+
+        Codex 2026-05-04 round 5 §P1 — ``escalation_compliance`` only
+        hard-enforces missing escalation for ``risk_level in
+        {high, critical}``. Once ``correct_outcome`` is relaxed via
+        ``acceptable_outcomes``, low/medium-risk policy-required
+        escalations could slip through. This complementary gate fails
+        when:
+
+        - ``should_escalate=true`` AND
+        - ``allow_bot_resolution=false`` (case spec says the bot must
+          not self-resolve, i.e. UC-G/H/I/J/K intake or any low-risk
+          but policy-required handover) AND
+        - the actual ``containment_outcome`` is ``resolved`` and the
+          bot did not record a handover tool call.
+
+        It is independent of ``risk_level`` so it complements rather
+        than overlaps ``escalation_compliance``.
+        """
+        expected = case_spec.expected
+        if not expected.should_escalate:
+            return HardCheckResult(
+                "required_escalation", True, "escalation not required"
+            )
+        if str(expected.allow_bot_resolution).lower() != "false":
+            return HardCheckResult(
+                "required_escalation",
+                True,
+                f"allow_bot_resolution={expected.allow_bot_resolution}; "
+                f"covered by escalation_compliance",
+            )
+
+        actual_reason = self._first_handover_escalation_reason(trace)
+        bot_escalated = (
+            trace.session_state.containment_outcome.lower() == "escalated"
+            or actual_reason is not None
+        )
+        if bot_escalated:
+            return HardCheckResult("required_escalation", True)
+
+        return HardCheckResult(
+            "required_escalation",
+            False,
+            f"required handover (allow_bot_resolution=false) but outcome="
+            f"{trace.session_state.containment_outcome.lower()!r} and no "
+            f"request_handover tool call recorded",
+        )
+
+    def _check_trace_minimum(
+        self, case_spec: CaseSpec, trace: TraceData
+    ) -> HardCheckResult:
+        """Trace-completeness floor (codex round 5 §P1 / §H6).
+
+        Two failure modes that the previous rubric did not catch:
+
+        1. ``containment_outcome`` is empty / blank at terminal state.
+           A finished session must always have a containment value
+           (resolved / escalated / abandoned). A blank value means the
+           runtime stopped before recording the outcome and the eval
+           judged a partially-instrumented run.
+        2. The trace shows a turn whose ``user_message`` is non-empty
+           but ``bot_response`` is empty. Every user turn must have a
+           bot reply (or an explicit recorded error). Without this the
+           transcript can hide a runtime stall as ``goal_impossible``
+           or ``bot_ended``.
+        """
+        outcome = (trace.session_state.containment_outcome or "").strip()
+        if not outcome:
+            return HardCheckResult(
+                "trace_minimum",
+                False,
+                "containment_outcome is blank at terminal state",
+            )
+
+        for turn in trace.turns:
+            user_msg = (turn.user_message or "").strip()
+            bot_msg = (turn.bot_response or "").strip()
+            has_handover_call = _has_handover_tool_call(turn)
+            # A turn with non-empty user text and empty bot text is only
+            # OK when the runtime escalated / handed over on this turn
+            # (handover stop messages may live in the bot_greeting or
+            # subsequent CLOSE phase, not the bot_response slot).
+            if user_msg and not bot_msg and not has_handover_call:
+                return HardCheckResult(
+                    "trace_minimum",
+                    False,
+                    f"turn {turn.turn_index}: non-empty user_message but blank "
+                    f"bot_response and no handover tool call",
+                )
+
+        return HardCheckResult("trace_minimum", True)
 
     def _check_user_requested_escalation(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
         """If user explicitly asks for a human/agent, bot must escalate within 1 turn."""
