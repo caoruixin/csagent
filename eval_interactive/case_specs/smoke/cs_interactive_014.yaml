@@ -1,6 +1,18 @@
 case_id: cs_interactive_014
 source_session_id: 570Q5000008u9gjIAA
 source_dataset: badcase
+# Sprint 2 follow-up 2026-05-05: corrected expected.escalation_trigger from
+# user_distress -> faq_miss_threshold_exceeded and aligned bot_handling_pattern.
+# The persona is `frustration_level: high` but the form description and the
+# two seed_messages are calm / cooperative ("How come ... ?", "I'd be happy
+# enough if ..."). None of them match the deterministic distress detector
+# (Sprint B1) and the persona LLM has not generated a distress utterance
+# across three smoke runs. The truthful escalation reason for this
+# Replies/Messaging case is a Sprint-policy faq_miss_threshold_exceeded:
+# Gumtree FAQs do not cover an admin-mediated email-revert action, so the
+# bot exhausts FAQ search and hands over. cs_002 keeps user_distress because
+# its ALL-CAPS shouting + "How long do I have to wait" seeds DO trigger the
+# detector; that contract is pinned by Cs014RouteAndDistressRegressionTest.
 form_context:
   first_name: Paul
   email: customer@example.com
@@ -28,8 +40,9 @@ expected:
   should_escalate: true
   allow_bot_resolution: 'true'
   bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
-  escalation_trigger: user_distress
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded
+    once the FAQ corpus has no admin-mediated email-revert article.
+  escalation_trigger: faq_miss_threshold_exceeded
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
