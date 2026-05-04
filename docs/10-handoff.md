@@ -1382,8 +1382,8 @@ escalation_compliance pass.
 |---|---|
 | `mvn -pl server test` (server, all modules) | **592 / 592 passed** (was 586; +6 new `Cs001LlmDistressGateIntegrationTest` tests) |
 | `pytest eval_interactive/tests` | **285 / 285 passed** (was 283; +2 Sprint 4 tests in `test_case_spec_overrides.py`) |
-| Targeted cs001 / cs002 / cs029 evals | NOT RUN — DASHSCOPE_API_KEY for the persona simulator is missing in this environment |
-| Smoke eval | NOT RUN — same DASHSCOPE_API_KEY constraint |
+| Smoke eval r1 (`run --set smoke --label sprint4-r1 --parallel 1`) | **8 / 14 passed**, mean composite **0.4915** — improves Sprint 3 baseline (7/14, 0.4055). Results: `eval_interactive/results/20260504-221916/results.json` |
+| Smoke eval r2 (`run --set smoke --label sprint4-r2 --parallel 1`) | 6 / 14 passed, mean composite 0.3615 — at parity with Sprint 3 r2 (6/14, 0.3589). Results: `eval_interactive/results/20260504-223153/results.json` |
 
 The deterministic Sprint 4 acceptance signal is the Java + Python
 test surface (592 + 285 = 877 tests, all passing). The §E1 runtime
@@ -1403,31 +1403,30 @@ contract is pinned by `Cs001LlmDistressGateIntegrationTest`. The
 
 ## 5. Latest result paths
 
-- **Sprint 4 closure baseline (no new smoke run; previous Sprint 3
-  canonical is preserved as the reference):**
-  `eval_interactive/results/20260504-191137/results.json` (7/14, 0.4055)
+- **Sprint 4 canonical smoke baseline (post-closure):**
+  `eval_interactive/results/20260504-221916/results.json` (8/14, mean composite 0.4915)
+- **Sprint 4 nondeterminism reference:**
+  `eval_interactive/results/20260504-223153/results.json` (6/14, mean composite 0.3615)
 - Sprint 4 deterministic test acceptance:
   - mvn: 592 / 592 (this branch)
   - pytest: 285 / 285 (this branch)
 
-`docs/current_eval_baseline.md` is **not** updated this round
-because no clean new smoke result is available (DASHSCOPE_API_KEY
-missing). The Sprint 3 canonical
-(`eval_interactive/results/20260504-191137/results.json`) remains
-the accepted smoke reference until a clean Sprint 4 smoke run can
-be produced in an environment with all credentials configured.
+`docs/current_eval_baseline.md` has been refreshed in this round to
+freeze the new canonical Sprint 4 baseline (replaces the Sprint 3
+canonical `20260504-191137`). Sprint 4 r1 lifts pass count 7/14 ->
+8/14 and mean composite 0.4055 -> 0.4915 over the Sprint 3 baseline.
 
 ## 6. Target case outcomes — before vs after
 
-The "after" column reflects the deterministic spec / runtime contract
-post-Sprint-4 (no live smoke run was possible, so the values are the
-contracts pinned by the Java + Python test surfaces):
-
-| case | Sprint 3 r1 (`191137`) | Sprint 3 r2 (`191541`) | Sprint 4 contract (post-§E1 / §E2) |
-|---|---|---|---|
-| cs_001 | UC-C / `user_distress` / 0.000 (L1:escalation_compliance cross-family fail vs spec `clarification_budget_exhausted`) | UC-C / "" / 0.000 (LLM did not escalate) | UC-C / `faq_miss_threshold_exceeded` (LLM-supplied `user_distress` is now downgraded; same `bot_limit` family as spec — L1 escalation_compliance PASSES on §E1's runtime path) |
-| cs_002 | UC-C / `user_distress` / **0.771** ✓ | UC-C / `faq_miss_threshold_exceeded` / 0.000 (LLM picked non-distress seed) | UC-C / `user_distress` when B1 fires; spec accepts user_distress; Sprint 3.1 reconcile path also fires when distress arrives after early-return |
-| cs_029 | UC-D / `user_requested` / 0.000 (spec primary UC-C, L2:correct_uc fail) | UC-D / `user_requested` / 0.000 (same) | UC-D / `user_requested` (spec primary now UC-D via §E2 override; L2 `correct_uc` PASSES) |
+| case | Sprint 3 r1 (`191137`) | Sprint 3 r2 (`191541`) | Sprint 4 r1 (`221916`) | Sprint 4 r2 (`223153`) |
+|---|---|---|---|---|
+| cs_001 | UC-C / `user_distress` / 0.000 (L1 cross-family fail) | UC-C / "" / 0.000 (LLM did not escalate) | **UC-C / `faq_miss_threshold_exceeded` / 0.786 ✓** | **UC-C / `faq_miss_threshold_exceeded` / 0.786 ✓** |
+| cs_002 | UC-C / `user_distress` / 0.771 ✓ | UC-C / `faq_miss_threshold_exceeded` / 0.000 | UC-C / `user_distress` / **0.786 ✓** | ERROR `session_create_failed: ReadTimeout` (Kimi auto-search latency) |
+| cs_011 | UC-D / `user_distress` / 0.757 (LLM-supplied user_distress) | UC-D / `user_distress` / 0.743 | **UC-D / `faq_miss_threshold_exceeded` / 0.800 ✓** | **UC-D / `faq_miss_threshold_exceeded` / 0.800 ✓** |
+| cs_014 | UC-C / `faq_miss_threshold_exceeded` / 0.786 ✓ | UC-C / `faq_miss_threshold_exceeded` / 0.786 ✓ | ERROR `session_create_failed` | ERROR `session_create_failed` |
+| cs_029 | UC-D / `user_requested` / 0.000 (L2 correct_uc fail vs spec UC-C) | UC-D / `user_requested` / 0.000 | **UC-D / `user_requested` / 0.967 ✓** | **UC-D / `user_requested` / 0.967 ✓** |
+| cs_066 | UC-K / `intake_complete_for_uc_k` / 0.820 ✓ | UC-K / `intake_complete_for_uc_k` / 0.820 ✓ | UC-K / `intake_complete_for_uc_k` / **0.867 ✓** | UC-K / `turn_budget_exhausted` / 0.000 (cross-family — turn_budget variance) |
+| cs_095 | UC-A / `faq_miss_threshold_exceeded` / 0.000 (negative regression guard preserved) | same | UC-A / `faq_miss_threshold_exceeded` / 0.000 (negative guard preserved) | UC-A / `faq_miss_threshold_exceeded` / 0.000 (negative guard preserved) |
 
 ## 7. Regression-guard outcomes (Sprint 2 / 2.1 / 3 / 3.1)
 
@@ -1458,34 +1457,41 @@ P0: none.
 
 P1 (carried forward, all out of Sprint 4 scope):
 
-1. **Live smoke verification** is contingent on DASHSCOPE_API_KEY for
-   the persona simulator. Once credentials are available, a clean
-   Sprint 4 smoke run should freeze a new canonical baseline in
-   `docs/current_eval_baseline.md`.
-2. **cs_259 routing / stall stabilisation** (Sprint 3 §8 P1 #5,
+1. **Kimi `session_create_failed: ReadTimeout`** is the dominant
+   smoke-side failure mode in both Sprint 4 runs (2 cases r1, 3
+   cases r2). The auto-search path on session-create runs 4-6
+   chained Kimi LLM calls; individual calls take 8-15s, so total
+   auto-search can exceed the 60s eval-client timeout. Mitigations:
+   widen the eval-client timeout to 120s; pre-warm the first Kimi
+   call; async pre-fetch the FAQ snapshots before turn 1; or
+   accept-and-retry on ReadTimeout. Out of Sprint 4 scope.
+2. **cs_176 UC-E classification flake**: the new UC-E coverage case
+   (replaced cs066 after the §E3 reclassification) picks
+   `payment_dispute_detected` in `request_handover.escalation_reason`.
+   Cross-family L1:escalation_compliance fail. Carry-forward.
+3. **cs_259 routing / stall stabilisation** (Sprint 3 §8 P1 #5,
    carried forward; explicitly out of Sprint 4 scope).
-3. **L3 relevance / tone_appropriateness judge volatility**
+4. **L3 relevance / tone_appropriateness judge volatility**
    (deferred D15 from Sprint 2.1; explicitly out of Sprint 4 scope).
-4. **Pre-existing tracked-doc secret scrub** (Sprint 3 review §P2,
+5. **Pre-existing tracked-doc secret scrub** (Sprint 3 review §P2,
    carried forward; explicitly out of Sprint 4 scope).
-5. **D1–D7 deferrals** (full trace / transcript alignment, turn-0
-   factual claim classifier, full service-outcome taxonomy, large
-   production smoke expansion, tool error / timeout cases, full
-   semantic groundedness classifier, full GDPR / moderation /
-   payment / scam / OOS suite) — all remain deferred.
+6. **D1–D7 deferrals** — all remain deferred.
 
 ## 10. Next recommended action
 
 In priority order:
 
-1. **Run a clean Sprint 4 smoke verification** in an environment
-   with DASHSCOPE_API_KEY (persona simulator) and Kimi /
-   MOONSHOT credentials. Two full smoke runs to characterise
-   nondeterminism. Once green, freeze the canonical baseline in
-   `docs/current_eval_baseline.md`.
-2. **cs_259 routing / stall stabilisation** if the cs_259
-   `trace_minimum` / `loop_detected` failure mode is still
-   observed in the new smoke canonical.
-3. **L3 judge calibration sprint** (deferred D15) — currently
+1. **Sprint 5 §F1 — Kimi `session_create_failed: ReadTimeout`
+   stabilisation.** Widen the eval-client timeout, pre-warm the
+   first Kimi call, async pre-fetch FAQ snapshots, or
+   accept-and-retry on ReadTimeout. This single failure mode
+   accounts for 5 unique cases across the two Sprint 4 runs and
+   masks otherwise-passing behaviour.
+2. **Sprint 5 §F2 — cs_176 UC-E classification flake** (the bot
+   LLM picks payment_dispute_detected for a feature-explanation
+   form context).
+3. **Sprint 5 §F3 — cs_259 routing / stall stabilisation**
+   (carry forward from Sprint 3 / 4).
+4. **L3 judge calibration sprint** (deferred D15) — currently
    the largest source of flapping pass/fail across smoke runs.
-4. **Carry-overs** D1–D7 — all remain deferred.
+5. **Carry-overs** D1–D7 — all remain deferred.
