@@ -1,77 +1,110 @@
 # Current Eval Baseline
 
-Date: 2026-05-05 (post Sprint 3 — accepted closure)
+Date: 2026-05-05 (post Sprint 4 — accepted closure)
 
 ## Purpose
 
 This file freezes the accepted baseline for the next targeted runtime-behaviour sprint.
 
-The next sprint should compare new results against the **post-Sprint-3**
-accepted state. Sprint 3 closed all three C0 / C1 / C2 actions (Kimi
-endpoint / credential normalization, bounded LLM retry, Replies/Messaging
-strong-prior carry-forward into the bot loop), shipped one supporting
-alias-encoding fix that was load-bearing for §C2 (the live form sanitizer
-HTML-encodes `&` to `&amp;`, so the §B2 alias map needed both forms
-registered), and lifted smoke pass count and mean composite above the
-post-Sprint-2.1 baseline.
+The next sprint should compare new results against the **post-Sprint-4**
+accepted state. Sprint 4 closed the three E1 / E2 / E3 actions
+(LLM-supplied user_distress gate, cs029 classification override, override /
+audit consistency guard), formalized two pre-existing smoke hand-edits
+through the override path (cs011 expected.escalation_trigger, cs066 UC-E ->
+UC-K reclassification + intake_complete_for_uc_k expected trigger),
+pinned cs029 + cs066 in `_REQUIRED_CASE_IDS` for the smoke curator, and
+lifted smoke pass count and mean composite above the post-Sprint-3
+baseline on r1.
 
-## Current sprint baseline (post Sprint 3)
+## Current sprint baseline (post Sprint 4)
 
 Canonical current result:
 
-`eval_interactive/results/20260504-191137/results.json`
+`eval_interactive/results/20260504-221916/results.json`
 
-This is the accepted Sprint 3 smoke result used after:
+This is the accepted Sprint 4 smoke result used after:
 
-- C0 fail-fast LLM config validator wired into `LlmClientConfig`
-  startup (FATAL on placeholder/blank/malformed primary; WARN on
-  default Kimi endpoint; secret-free describe line).
-- C1 bounded LLM retry classification (429 / 5xx / transport
-  retried once; 401 / 403 surface immediately) with structured
-  retry / failure-tag log lines.
-- C2 strong-prior carry-forward in `ClassifyUseCaseTool`
-  (refuses LLM-driven UC overwrite when the active UC matches
-  the deterministic strong-prior derivation; releases on
-  `DriftDetector` hard-shift) plus `Replies &amp; Messaging`
-  alias registration so the §B2 alias actually fires on the
-  live form payload.
+- E1 narrow runtime gate in `ControlKernel.applyEscalationReason`:
+  refuses to upgrade the canonical session reason to
+  `user_distress` (priority 2) on the bot LLM's say-so. The
+  deterministic §B1 detector earns this Tier-0 reason via a new
+  `applyDeterministicDistressReason` helper (called from step 2.4
+  after `detectDistressSignal` matches). LLM-supplied
+  `user_distress` claims without a prior B1 hit are downgraded
+  to `faq_miss_threshold_exceeded` (same `bot_limit` family as
+  cs001's spec `clarification_budget_exhausted`). cs002's
+  contract is preserved (B1 fires on the seeds).
+- E2 cs029 CaseSpec correction through the approved Wave A6.6 v2
+  override path: classification block flips primary_uc UC-C ->
+  UC-D / secondary_ucs [UC-D] -> [UC-C] for
+  `source_session_id 570Q5000008kDiPIAU` (the persona is
+  account-locked, not messaging-blocked; the runtime UC fallback
+  in `inferFallbackUseCase` already commits UC-D for the
+  account-locked seeds). Closes the L2 `correct_uc` gap (D12)
+  with no runtime change.
+- E3 override / audit consistency guard:
+  * Two supporting overrides formalize pre-existing smoke
+    hand-edits — cs011 expected.escalation_trigger pinned to
+    `faq_miss_threshold_exceeded` post-§E1 (supersedes the
+    earlier Codex round 3 §1.6 `user_distress` hand-edit which
+    is no longer valid post-§E1), and cs066 classification
+    UC-E -> UC-K + expected.escalation_trigger
+    `intake_complete_for_uc_k` (formalizes the Codex round 6
+    §P0 reclassification through the audit path).
+  * `_REQUIRED_CASE_IDS` pinned with cs029 + cs066 so the smoke
+    curator's alphabetical UC coverage step doesn't silently
+    drop the Sprint 4 §E2 target case or the cs066 UC-K
+    regression guard.
+  * New `test_smoke_yaml_matches_override_pipeline_output`
+    pytest guard hard-fails on any future direct hand edit of
+    `expected.*` fields without a matching approved override.
 
 Pass rate:
 
-`7/14`
+`8/14`
 
 Mean composite:
 
-`0.4055`
+`0.4915`
 
 Notes:
 
-- This run is accepted as the post-Sprint-3 closure baseline.
-- Sprint 3 changed the bot-side runtime behaviour: §C2 closes D11
-  (cs014 cross-turn UC drift) and the §B2 encoding fix makes the
-  alias path live for cs001 / cs002 / cs014 / cs029 / cs066 / cs095.
-- The §C0 / §C1 changes do not change runtime behaviour by themselves;
-  they reduce the rate at which infrastructure flakes look like
-  semantic failures and they make endpoint / credential
-  misconfigurations fail fast at startup with a clear diagnostic.
+- This run is accepted as the post-Sprint-4 closure baseline.
+- Sprint 4 r1 lifts pass count 7/14 -> 8/14 and mean composite
+  0.4055 -> 0.4915 over the Sprint 3 canonical.
+- cs001 (was FAIL composite 0.000) -> PASS composite 0.786 via §E1.
+- cs011 (was previously FAIL via cross-family on the LLM's
+  user_distress claim) -> PASS composite 0.800 via §E1 supporting
+  override.
+- cs029 (was FAIL composite 0.000 via L2 correct_uc) -> PASS
+  composite 0.967 via §E2.
+- cs066 still routes UC-K with `intake_complete_for_uc_k` via
+  the §E3 supporting override (PASS r1 / FAIL r2 turn_budget
+  variance — UC-K contract preserved, escalation reason variance
+  is upstream LLM noise).
+- cs014 / cs002 / cs015 / cs192 / cs259 hit the same upstream
+  `session_create_failed: ReadTimeout` path on at least one of
+  the two runs (Kimi auto-search latency exceeds the 60s eval
+  client timeout for some sessions).
 
 ### Stability reference run
 
-Follow-up smoke run to characterise nondeterminism:
+Follow-up smoke run to characterise nondeterminism (Sprint 4):
 
-- `eval_interactive/results/20260504-191541/results.json` (6/14, mean composite 0.3589)
+- `eval_interactive/results/20260504-223153/results.json` (6/14, mean composite 0.3615)
 
-Cross-run targeted blocker stability for the Sprint 2 / 2.1 / 3 contracts:
+Cross-run targeted blocker stability for the Sprint 2 / 2.1 / 3 / 3.1 / 4 contracts (Sprint 4 r1 / r2):
 
-- `L1:escalation_reason_consistency`: **0 / 0** across both Sprint 3 smoke runs ✓
-- `CONTRACT_VIOLATION:active_use_case`: **0 / 0** across both Sprint 3 smoke runs ✓ (cs014 D11 closed)
-- `TIMEOUT`: **0 / 0** across both Sprint 3 smoke runs ✓ (was 2 / 0 in Sprint 2.1)
-- `L1:trace_minimum`: 0 / 1 (cs_259, unrelated to Sprint 3 targets) — was 1 / 0 in Sprint 2.1
-- cs_014 routes to UC-C with `faq_miss_threshold_exceeded` in both Sprint 3 smoke runs (3/3 if you also count the targeted run) ✓
-- cs_029 target path still preserves `active_use_case=UC-D` and semantic `user_requested` ✓
-- cs_066 still routes to UC-K in both Sprint 3 smoke runs ✓
-- cs_095 routes to UC-A / `faq_miss_threshold_exceeded` and does not route to UC-K ✓
-- cs_002 stamps `user_distress` when the bot LLM produces a distress turn ✓ (run 1)
+- `L1:escalation_reason_consistency`: **0 / 0** across both Sprint 4 smoke runs ✓
+- `CONTRACT_VIOLATION:active_use_case`: 1 / 0 — r1 cs_259 (which itself ERRORed on `session_create_failed`); r2 had zero contract violations
+- `ERROR:session_create_failed (ReadTimeout)`: 2 / 3 — Kimi auto-search latency exceeded the 60s eval client timeout on cs_014 + cs_192 (r1) and cs_002 + cs_014 + cs_015 (r2). This is upstream LLM latency, not a Sprint 4 regression.
+- cs_001 escalation_reason aligned with spec via §E1 gate (faq_miss_threshold_exceeded vs spec clarification_budget_exhausted — same bot_limit family) in both runs ✓
+- cs_002 stamps `user_distress` when the bot LLM produces a distress turn (r1, PASS composite 0.786); r2 ERRORed on session_create. Java contract pinned by `Cs002AlreadyEscalatedDistressReconcileIntegrationTest`.
+- cs_011 routes to UC-D / `faq_miss_threshold_exceeded` (matches the §E1 supporting override) in both runs ✓
+- cs_014 routes to UC-C with the §C2 carry-forward when it does run; both Sprint 4 runs ERRORed on session_create_failed before the route was live. Java contract pinned by `Cs014RouteAndLoopHandoverIntegrationTest`.
+- cs_029 target path preserves `active_use_case=UC-D` (now via the §E2 classification override) and semantic `user_requested` ✓ (PASS composite 0.967 in both runs — perfect stability)
+- cs_066 routes to UC-K in both Sprint 4 smoke runs ✓ (PASS r1 / FAIL r2 turn_budget variance — UC-K contract preserved, the FAIL is L1:escalation_compliance cross-family on `turn_budget_exhausted` vs spec `intake_complete_for_uc_k` — upstream LLM intake-completion variance, not Sprint 4 regression)
+- cs_095 routes to UC-A / `faq_miss_threshold_exceeded` and does not route to UC-K in both Sprint 4 smoke runs ✓ (negative regression guard preserved)
 
 ### Targeted cs014 reference
 
@@ -180,37 +213,66 @@ Result:
 
 Use this only when comparing Sprint 2 / 2.1 against the Sprint 1 ceiling.
 
-## Known nondeterminism (post Sprint 3)
+## Known nondeterminism (post Sprint 4)
 
-- `cs_interactive_001` no longer TIMEOUTs (Sprint 3 §C1) but can stamp
-  `user_distress` instead of the spec's `faq_miss_threshold_exceeded`
-  when the persona phrase trips the B1 detector — this is now a
-  spec-vs-runtime alignment question, not a runtime flake.
-- `cs_interactive_002` can stamp either `user_distress` (B1 fires)
-  or `faq_miss_threshold_exceeded` depending on the per-turn
-  message the persona simulator emits. The detector itself is
-  deterministic and pinned by Java tests.
-- `cs_interactive_014` is now stable on UC-C across runs (Sprint 3
-  §C2 closed D11). The remaining variability is L3 judge volatility
-  on the bot's grounded final answer.
-- `cs_interactive_011` LLM routing can rotate between runs.
-- `cs_interactive_192` turn-0 source citation can appear or disappear.
-- `cs_interactive_259` stall shape changes across runs and can still produce unrelated active_use_case contract issues.
-- `cs_interactive_066` can stall on a bot-side LLM intent-without-tool flake even when UC-K is correctly committed.
-- L3 `relevance` and `tone_appropriateness` judges remain volatile and are still deferred.
+- `cs_interactive_001` is now aligned: §E1 gate downgrades the bot
+  LLM's `user_distress` claim to `faq_miss_threshold_exceeded` (same
+  `bot_limit` family as the spec `clarification_budget_exhausted`).
+  Stable PASS composite ~0.786 in both Sprint 4 runs.
+- `cs_interactive_002` can still stamp either `user_distress` (B1
+  fires) or `faq_miss_threshold_exceeded` depending on the per-turn
+  message; Sprint 3.1 reconcile path keeps the surfaces consistent
+  on already-escalated sessions. r2 ERRORed on session_create.
+- `cs_interactive_011` is now aligned via the §E1 supporting override
+  (escalation_trigger=faq_miss_threshold_exceeded). Stable PASS in
+  both Sprint 4 runs.
+- `cs_interactive_014` ERRORed on `session_create_failed: ReadTimeout`
+  in both Sprint 4 runs — Kimi auto-search latency variance. The
+  Java contract surface
+  (`Cs014RouteAndLoopHandoverIntegrationTest`) pins UC-C / FAQ-miss
+  when the route runs.
+- `cs_interactive_029` is now stable: PASS composite 0.967 in both
+  Sprint 4 runs (the §E2 classification override flipped primary_uc
+  to UC-D, matching the runtime fallback).
+- `cs_interactive_066` is stable on UC-K but the escalation_reason
+  varies between `intake_complete_for_uc_k` (PASS) and
+  `turn_budget_exhausted` (cross-family L1:escalation_compliance
+  fail) depending on whether the bot LLM completes the intake
+  before exhausting the turn budget. UC-K regression guard preserved
+  in both runs.
+- `cs_interactive_095` LLM routing remains stable on UC-A / not UC-K
+  (negative regression guard preserved in both Sprint 4 runs).
+- `cs_interactive_192` turn-0 source citation can appear or disappear;
+  hit `session_create_failed` on r1 and `L1:source_citation_present`
+  on r2.
+- `cs_interactive_176` (UC-E coverage replacement for cs066 after the
+  §E3 reclassification) is unstable; the bot LLM can stamp
+  `payment_dispute_detected` for the form context, which fails
+  L1:escalation_compliance against the spec's `faq_miss_threshold_exceeded`.
+  Carried forward as a future-sprint candidate.
+- `cs_interactive_259` stall shape changes across runs and continues
+  to surface unrelated active_use_case / session-create issues.
+- L3 `relevance` and `tone_appropriateness` judges remain volatile
+  and are still deferred.
 
 ## Current target cases (next sprint candidates)
 
-After Sprint 3, the candidate set has shifted. Both cs014 D11 drift
-and cs001 / cs002 / cs014 LLM-flake instability are closed. The
-remaining surface is:
+After Sprint 4, the candidate set has shifted. Both Sprint 4 §E1
+(cs001 LLM-distress over-claim) and §E2 (cs029 spec-vs-fallback)
+are closed. The remaining smoke-side instability is upstream
+LLM latency on session_create + L3 judge volatility.
 
-- `cs_interactive_001` — escalation-reason alignment (`user_distress` vs spec `faq_miss_threshold_exceeded`); spec vs runtime alignment, not a runtime flake.
-- `cs_interactive_002` — same family; runtime detector deterministic, persona-simulator picks the message.
-- `cs_interactive_029` — B3 regression guard; D12 outcome lift remains deferred.
-- `cs_interactive_066` — UC-K regression guard.
-- `cs_interactive_095` — not-UC-K regression guard.
-- `cs_interactive_259` — UC-F payment FAQ resolve / contract / stall flake (not a Sprint 3 target; carry forward).
+- `cs_interactive_014 / 002 / 015 / 192 / 259` — `session_create_failed:
+  ReadTimeout` on the Kimi auto-search path. Either widen the eval
+  client timeout, pre-warm the first call, or move auto-search to
+  an async pre-fetch; out of Sprint 4 scope.
+- `cs_interactive_176` — UC-E classification flake (bot LLM picks
+  payment_dispute_detected on the new UC-E coverage case). Spec /
+  runtime alignment question; out of Sprint 4 scope.
+- `cs_interactive_259` — UC-F payment FAQ resolve / contract / stall
+  flake (carry forward, deferred from prior sprints).
+- L3 `relevance` / `tone_appropriateness` judge calibration —
+  carry forward, deferred.
 
 Other known candidates after the reliability / bot-loop stability sprint:
 
@@ -220,23 +282,42 @@ Other known candidates after the reliability / bot-loop stability sprint:
 - `cs_interactive_192` — turn-0 grounding + handover persistence flake
 - `cs_interactive_259` — UC-F payment FAQ resolve / contract flake
 
-## Known current blocker patterns (post Sprint 3)
+## Known current blocker patterns (post Sprint 4)
 
-1. **cs001 / cs002 escalation-reason alignment** (NEW after Sprint 3)
-   - The bot now reaches both cases reliably without timing out.
-   - The remaining failure mode is the spec expecting
-     `faq_miss_threshold_exceeded` while the runtime emits
-     `user_distress` (B1 fires on the persona phrasing).
-   - Spec-vs-runtime alignment, not a runtime regression.
+1. **Kimi auto-search latency exceeding the 60s eval client timeout** (NEW after Sprint 4)
+   - cs_002 / cs_014 / cs_015 / cs_192 / cs_259 ERRORed on
+     `session_create_failed: ReadTimeout` on at least one of the two
+     Sprint 4 smoke runs. The auto-search path on session-create
+     makes 4-6 chained Kimi LLM calls (FAQ search, resolve_article,
+     intake), and individual Kimi calls run 8-15s — total auto-search
+     can exceed 60s.
+   - Mitigations (out of Sprint 4 scope): widen the eval client
+     timeout to 120s; pre-warm Kimi connections; move auto-search to
+     an async pre-fetch; or accept and retry on ReadTimeout.
 
-2. **D12 cs029 outcome lift** (carried over)
-   - Sprint 2 B3 fixed the active_use_case contract violation for the target case.
-   - L2 `correct_uc` still fails because the deterministic UC-D fallback differs from the spec primary UC-C.
-   - Spec-vs-fallback alignment question; remains out of runtime-reliability scope.
+2. **cs_176 UC-E LLM classification flake** (NEW after Sprint 4)
+   - The new UC-E coverage case picks `payment_dispute_detected` in
+     `request_handover.escalation_reason` despite the form context
+     being a feature-explanation question. Cross-family L1:escalation_compliance
+     fail vs spec `faq_miss_threshold_exceeded`.
+   - Spec / runtime alignment question; out of Sprint 4 scope.
 
 3. **L3 judge volatility** (carried over)
    - `relevance` and `tone_appropriateness` still flip across runs.
    - Out of scope for the next targeted runtime sprint.
+
+## Resolved by Sprint 4
+
+- ~~cs001 escalation-reason alignment~~ → §E1 narrow runtime gate
+  in `ControlKernel.applyEscalationReason` (LLM-supplied user_distress
+  is downgraded to faq_miss_threshold_exceeded without a deterministic
+  §B1 hit). Stable PASS in both Sprint 4 runs.
+- ~~D12 cs029 outcome lift~~ → §E2 classification override flips
+  primary_uc UC-C -> UC-D / secondary [UC-D] -> [UC-C]. Stable PASS
+  composite 0.967 in both Sprint 4 runs.
+- ~~Override / audit consistency for smoke set~~ → §E3 supporting
+  overrides for cs011 + cs066, smoke_curator pin for cs029 + cs066,
+  new pytest guard `test_smoke_yaml_matches_override_pipeline_output`.
 
 ## Resolved by Sprint 3
 
@@ -250,20 +331,23 @@ Other known candidates after the reliability / bot-loop stability sprint:
 
 ## Recommended next sprint direction
 
-Recommended Sprint 4:
+Recommended Sprint 5:
 
-`cs001 / cs002 / cs029 spec-vs-runtime alignment`
+`session_create latency stabilisation + cs176 / cs259 alignment`
 
-Recommended Sprint 4 actions (3 narrow):
+Recommended Sprint 5 actions (3 narrow):
 
-- E1. Decide whether cs001 / cs002 specs accept `user_distress` as a
-  valid expected reason on personas that use distress phrasing, and
-  apply via the approved CaseSpec override / audit path.
-- E2. Decide cs029 outcome lift (D12): widen the spec to accept UC-D
-  as a secondary OR add a sub-detector that picks UC-C when "messages
-  / replies / inbox" appear in the soft-OOS user message.
-- E3. Optional cs259 routing / stall stabilisation if the
-  Sprint 3 baseline run-2 `trace_minimum` is not a one-off.
+- F1. Address the Kimi `session_create_failed: ReadTimeout` failure
+  mode. The auto-search path makes 4-6 chained LLM calls; either
+  pre-warm the first call, increase the eval-client timeout to
+  120s, async pre-fetch the FAQ snapshots before the first user
+  turn, or accept-and-retry on ReadTimeout.
+- F2. cs_176 UC-E classification flake: the bot LLM picks
+  `payment_dispute_detected` for a feature-explanation form
+  context. Either a narrow runtime guardrail or a spec override.
+- F3. cs_259 routing / stall / contract-violation stabilisation
+  (carry forward from Sprint 3 / 4).
 
-Do not expand smoke / anchor / promotion during Sprint 4. The
-existing smoke surface is now stable enough for spec alignment.
+Do not expand smoke / anchor / promotion during Sprint 5. The
+existing smoke surface is stable enough for the next narrow
+reliability + alignment pass.

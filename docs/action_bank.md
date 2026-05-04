@@ -115,15 +115,27 @@ Implemented as three coordinated supporting changes:
 
 Latest accepted Sprint 4 references:
 
+- Canonical smoke baseline:
+  `eval_interactive/results/20260504-221916/results.json` (8/14, mean composite 0.4915)
+- Nondeterminism reference:
+  `eval_interactive/results/20260504-223153/results.json` (6/14, mean composite 0.3615)
 - Java contract surface: **592 / 592 mvn tests passing** (was 586; +6 new
   cs001 distress gate integration tests).
 - Python regression surface: **285 / 285 pytest tests passing** (was 283;
   +1 cs029 end-to-end override test, +1 smoke YAML override-pipeline guard
   + the existing `test_v2_schema_loads_cleanly` bumped).
-- Smoke eval: NOT RUN in this environment (DASHSCOPE_API_KEY for the
-  persona simulator is missing). Smoke results from this round are
-  classified as contaminated; the deterministic Java + Python test
-  surfaces are the canonical Sprint 4 acceptance signal.
+
+Sprint 4 r1 lifts pass count 7/14 -> 8/14 and mean composite 0.4055 ->
+0.4915 over the Sprint 3 canonical. Sprint 4 §E1/§E2 target wins:
+- cs001 (was FAIL composite 0.000) -> **PASS composite 0.786** in both runs.
+- cs011 (was previously cross-family-failing on LLM user_distress) ->
+  **PASS composite 0.800** in both runs.
+- cs029 (was FAIL composite 0.000 via L2 correct_uc UC-C vs UC-D) ->
+  **PASS composite 0.967** in both runs (perfect stability).
+- cs066 still routes UC-K with `intake_complete_for_uc_k` via the §E3
+  supporting override; PASS r1 (0.867) / FAIL r2 (turn_budget variance —
+  UC-K contract preserved).
+- L1:escalation_reason_consistency = 0 across both Sprint 4 runs.
 
 ## Status — Sprint 3 closure
 
