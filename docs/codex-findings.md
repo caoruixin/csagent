@@ -1,85 +1,77 @@
-# Codex Findings - Targeted Runtime Behavior Sprint 1
+# Blocking Sprint Failures
 
-## Blocking Sprint Failures
-
-None found.
-
-The canonical sprint eval `eval_interactive/results/20260504-100538/results.json` shows the targeted blockers moved in the intended direction: `L1:escalation_reason_consistency` 1 -> 0, `L2:handover_completeness` 2 -> 0, `L2:correct_uc` 6 -> 2, and `cs_interactive_066` passes with `active_use_case=UC-K` and `escalation_reason=intake_complete_for_uc_k`. Targeted server tests for `EscalationReasonResolver`, `HandoverPayloadAssembler`, and `UseCaseRouterUcKRegressionTest` pass.
-
-## Non-Blocking Notes
-
-- severity: P2
-  target case or test: `cs_interactive_066`
-  blocks current sprint goal: no
-  finding: The UC-K routing objective is met for the canonical technical-regression case. The case now expects UC-K, routes to UC-K, escalates for `intake_complete_for_uc_k`, and passes. The remaining `L2:tool_sequence_match` detail is weak (`actual=['request_handover', 'create_case_controlled']`) but does not block the sprint objective because the requested scope was routing plus payload assembly, not full tool ordering.
-  exact minimal fix: No current-sprint fix. If UC-K tool order becomes a next-sprint gate, record runtime `create_case_controlled` before the persisted `request_handover` entry and either make `get_customer_context` mandatory for UC-K technical intake or remove it from the expected sequence.
-
-- severity: P2
-  target case or test: `cs_interactive_029`
-  blocks current sprint goal: no
-  finding: `turn_budget_exhausted` is no longer shown as the semantic escalation reason in the latest canonical result; the previous reason-consistency blocker is gone. The case now fails earlier with `CONTRACT_VIOLATION:active_use_case` because the UNKNOWN-topic soft-OOS path has no committed UC before escalation. That is the deferred soft-OOS interaction already tracked in `docs/action_bank.md`.
-  exact minimal fix: No current-sprint fix. For the deferred item, either commit a default UC before immediate user-requested escalation on UNKNOWN-topic sessions or defer forced escalation until after one DISCOVER turn.
-
-- severity: P2
-  target case or test: `eval_interactive/results/20260504-100538/results.json`
-  blocks current sprint goal: no
-  finding: The latest eval reduced the targeted blocker counts, but introduced or exposed non-target blockers: `L1:no_forbidden_tools` is now 2 and `CONTRACT_VIOLATION:active_use_case` is now 1. These do not invalidate A1/A2/A3, but the handoff should not imply the full smoke suite is stable.
-  exact minimal fix: Keep the baseline comparison anchored to targeted tags only; document the new non-target failures as next-sprint routing/soft-OOS work, not as A1/A2/A3 regressions.
-
-## Regression Risks
+## P1 - B1 target case `cs_interactive_014` still does not demonstrate distress stability
 
 - severity: P1
-  target case or test: AgentRunLoop `request_handover` reason consistency
-  blocks current sprint goal: no
-  finding: The resolver centralizes session reason writes, but `ControlKernel.recordRunResult` persists existing AgentRunLoop `request_handover` tool-call arguments as emitted by the LLM. If the LLM emits a non-canonical or lower-priority reason, the session and handover payload can be resolved/canonical while the persisted tool call remains raw, re-opening `escalation_reason_consistency` failures on that path.
-  exact minimal fix: In `recordRunResult`, before serializing `toolCallsList`, rewrite every `request_handover.arguments.escalation_reason` to the resolved `session.getEscalationReason()`. Add an integration test where the LLM emits `user_requested_escalation` and the trace, session state, and handover payload all persist `user_requested`.
+- target case or test: `cs_interactive_014` in `eval_interactive/results/20260504-151311/results.json`; focused coverage is missing for the actual cs014 transcript.
+- blocks current sprint goal: Yes. Sprint 2 B1 asked whether `cs_interactive_002` and `cs_interactive_014` now fail less because of distress detection. `cs_interactive_002` improved to `escalation_reason=user_distress`, but `cs_interactive_014` still fails `L1:escalation_compliance` with actual `turn_budget_exhausted` against expected `user_distress`; it also drifts to `active_use_case=UC-B`.
+- exact minimal fix: Add one focused regression using the actual cs014 form text and follow-up turns, then make the deterministic path satisfy it by preserving the Replies/Messaging route and stamping `user_distress` before budget close-out. If those cs014 utterances are not meant to be distress signals, update the smoke case expected trigger instead and rerun the targeted eval.
+
+# Non-Blocking Notes
+
+## P2 - B0 persisted handover reason normalization is implemented and covered
 
 - severity: P2
-  target case or test: `eval_interactive/tests/test_hard_checks.py`
-  blocks current sprint goal: no
-  finding: The new global `escalation_reason_consistency` hard check has no direct unit fixture. Server tests cover resolver precedence, but the eval gate itself is only exercised indirectly by smoke results.
-  exact minimal fix: Add hard-check tests for: all three surfaces matching, tool-call/session mismatch, handover/session mismatch, and escalated trace with no reason on any surface.
+- target case or test: `AgentRunLoopHandoverReasonNormalizationIntegrationTest`; latest eval runs `20260504-151311` and `20260504-151839`.
+- blocks current sprint goal: No.
+- exact minimal fix: No code fix. Keep the regression in the targeted suite; both latest eval runs have zero `L1:escalation_reason_consistency` failures.
+
+## P2 - B1 precedence works for explicit distress and explicit user request paths
 
 - severity: P2
-  target case or test: `handover_completeness`
-  blocks current sprint goal: no
-  finding: The server-side assembler adds `user_issue`, `unresolved_question`, `partial_answer_or_blocker`, `status_checks_performed`, and `knowledge_tools_invoked`, but the eval `handover_completeness` check still only requires `session_id`, `primary_use_case`, `summary`, `escalation_reason`, and `total_bot_turns`. A future regression could drop the Sprint A3 fields while still scoring 1.0.
-  exact minimal fix: Extend the handover completeness gate to require the new Sprint A3 fields, require the summary to mention content tokens from the issue, and assert source/status evidence fields are present as empty arrays or populated lists as applicable.
+- target case or test: `EscalationReasonResolverTest`, `ControlKernelDistressPrecedenceIntegrationTest`, and `cs_interactive_002`.
+- blocks current sprint goal: No, apart from the separate cs014 gap above.
+- exact minimal fix: No code fix for the covered paths. The focused tests show `user_distress` beats FAQ/budget reasons and `user_requested` still beats distress; canonical eval shows `cs_interactive_002` moved from `faq_miss_threshold_exceeded` to `user_distress`.
+
+## P2 - B2/B3 target routing behavior moved in the intended direction
 
 - severity: P2
-  target case or test: `cs_interactive_095`
-  blocks current sprint goal: no
-  finding: The deterministic UC-K helper does not match the cs_095 description, but the canonical eval still ends `cs_interactive_095` as `active_use_case=UC-K` through the broader LLM route. This does not block cs_066, but it is a routing regression risk around the same UC-K surface.
-  exact minimal fix: Add a full-router regression test, not just the helper test, proving the cs_095 form description does not end on UC-K. Stabilize with a deterministic email/app/account-sync rule to UC-A/UC-D before the LLM route.
+- target case or test: `UseCaseRouterB2BiasTest`, `ControlKernelB3FallbackUseCaseTest`, `cs_interactive_095`, `cs_interactive_066`, and `cs_interactive_029`.
+- blocks current sprint goal: No.
+- exact minimal fix: No code fix for the canonical Sprint 2 target checks. In `20260504-151311`, `cs_interactive_095` routes to UC-A instead of UC-K, `cs_interactive_066` still routes to UC-K with `intake_complete_for_uc_k`, and `cs_interactive_029` avoids `CONTRACT_VIOLATION:active_use_case` while preserving `user_requested`.
+
+## P2 - Latest canonical eval reduced the targeted blocker counts
 
 - severity: P2
-  target case or test: enum sync tests
-  blocks current sprint goal: no
-  finding: The new enum sync test compares YAML, eval schema, and `PhaseEvaluator`, but the sprint added another canonical enum in `EscalationReasonResolver` and there is also a duplicate set in `ToolDispatcher`. Future enum drift could leave the resolver or dispatcher out of sync while the Python test remains green.
-  exact minimal fix: Extend `test_escalation_enum_sync.py` to parse `EscalationReasonResolver.CANONICAL_REASONS` and `ToolDispatcher.CANONICAL_ESCALATION_REASONS`, or replace the duplicate runtime sets with one shared source.
+- target case or test: baseline `20260504-100538` to canonical Sprint 2 run `20260504-151311`.
+- blocks current sprint goal: No.
+- exact minimal fix: No code fix. The targeted blockers improved: `CONTRACT_VIOLATION:active_use_case` 1 -> 0, `L1:escalation_compliance` 2 -> 1, `L1:no_forbidden_tools` 2 -> 0, `L1:no_pii_leakage` 1 -> 0, and pass rate 6/14 -> 7/14.
 
-## Recommended Next Sprint Actions
+# Regression Risks
+
+## P2 - Stability run does not reproduce every canonical target win
+
+- severity: P2
+- target case or test: stability eval `20260504-151839`; target cases `cs_interactive_002`, `cs_interactive_066`, and `cs_interactive_095`.
+- blocks current sprint goal: No, because the canonical run proves the routing/reason fixes, but it weakens confidence in repeatability.
+- exact minimal fix: Add a targeted two-run stability gate after LLM/API timeout handling: require `cs_interactive_002` to reach `user_distress`, `cs_interactive_066` to avoid stalls while staying UC-K, and `cs_interactive_095` to avoid UC-K and avoid unnecessary escalation.
+
+## P2 - Current B2/B1 tests are mostly helper-level for cs014
+
+- severity: P2
+- target case or test: `UseCaseRouterB2BiasTest`, `ControlKernelDistressPrecedenceIntegrationTest`, and `cs_interactive_014`.
+- blocks current sprint goal: No as a separate risk; the blocking cs014 failure is listed above.
+- exact minimal fix: Add one route/loop regression that starts from the cs014 smoke form context and replays the observed follow-up turns, asserting the resolved UC and persisted handover reason together rather than testing only phrase helpers.
+
+# Recommended Next Sprint Actions
+
+## P1 - Close cs014 with a case-level deterministic regression
 
 - severity: P1
-  target case or test: `cs_interactive_002`, `cs_interactive_014`
-  blocks current sprint goal: no
-  finding: Distress cases still escalate with `faq_miss_threshold_exceeded` because the runtime does not set `user_distress`; the resolver will preserve it once set.
-  exact minimal fix: Add a pre-budget distress/frustration detector that stamps `user_distress` for repeated complaint, ALL-CAPS frustration, and explicit "you are not helping" patterns. Add regression tests proving `user_distress` beats FAQ and turn-budget reasons.
+- target case or test: `cs_interactive_014`.
+- blocks current sprint goal: Yes; it is the remaining Sprint 2 target miss.
+- exact minimal fix: Implement the smallest case-level fix that makes the existing cs014 smoke transcript land on the intended UC/reason pair, or explicitly revise the case expectation if the transcript should not be considered distress.
 
-- severity: P1
-  target case or test: `cs_interactive_095`, `cs_interactive_001`, `cs_interactive_002`, `cs_interactive_014`
-  blocks current sprint goal: no
-  finding: Messaging/account/email routing remains unstable and can still drift into UC-K or unrelated FAQ UCs.
-  exact minimal fix: Add deterministic pre-LLM routing bias for email/account-sync/message-notification phrases to UC-C or UC-D, with negative UC-K regression coverage for cs_095.
+## P2 - Stabilize targeted eval repeatability before expanding scope
 
 - severity: P2
-  target case or test: `cs_interactive_029`
-  blocks current sprint goal: no
-  finding: UNKNOWN-topic soft-OOS plus immediate user-requested escalation still produces a missing `active_use_case` contract violation.
-  exact minimal fix: Commit an active UC before handover for UNKNOWN-topic sessions when the user request clearly identifies the issue family, or allow one DISCOVER/classify turn before honoring the immediate escalation.
+- target case or test: `eval_interactive/results/20260504-151839/results.json`.
+- blocks current sprint goal: No.
+- exact minimal fix: Address the timeout/stall path first, then rerun only the Sprint 2 target set before starting broad routing or outcome work.
+
+## P2 - Preserve current B0/B2/B3 checks as sprint gates
 
 - severity: P2
-  target case or test: `handover_completeness`, `escalation_reason_consistency`
-  blocks current sprint goal: no
-  finding: The runtime-side fixes are stronger than the eval-side regression fixtures.
-  exact minimal fix: Add focused eval fixtures for the new reason-consistency gate and the expanded Sprint A3 handover payload contract before treating these as durable gates.
+- target case or test: `AgentRunLoopHandoverReasonNormalizationIntegrationTest`, `UseCaseRouterB2BiasTest`, `ControlKernelB3FallbackUseCaseTest`, `cs_interactive_029`, `cs_interactive_066`, and `cs_interactive_095`.
+- blocks current sprint goal: No.
+- exact minimal fix: Keep these tests in the required targeted suite and add a lightweight eval assertion that fails on any return of `L1:escalation_reason_consistency`, `CONTRACT_VIOLATION:active_use_case`, `cs095 active_use_case=UC-K`, or `cs066 active_use_case!=UC-K`.
