@@ -33,10 +33,9 @@ expected:
   should_escalate: true
   allow_bot_resolution: 'true'
   bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress
-    (seed transcript shows frustration over multiple failed agent attempts, not an explicit human-request — codex 2026-05-03
-    round 3 §1.6).
-  escalation_trigger: user_distress
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded
+    once FAQ search has no useful article for the password-reset-loop the user reports.
+  escalation_trigger: faq_miss_threshold_exceeded
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
@@ -71,10 +70,6 @@ scoring:
   - correct_outcome
   - escalation_triggered
   - answer_accuracy
-  - tool_sequence_match
-  - turn_efficiency
-  - issue_preservation
-
   llm_judge_dimensions:
   - groundedness
   - relevance

@@ -1,12 +1,6 @@
 case_id: cs_interactive_066
 source_session_id: 570Q5000008fBsXIAU
 source_dataset: badcase
-# Codex 2026-05-04 round 6 §P0: reclassified from UC-E (product/feature
-# explanation) to UC-K (technical regression intake). The customer reports
-# that the phone-number contact option that used to work is no longer
-# available when listing an item — that is an in-app regression, not a
-# feature explanation question. Penalising create_case_controlled here
-# would teach the agent not to escalate real technical regressions.
 form_context:
   first_name: Stephen
   email: customer@example.com
@@ -14,9 +8,8 @@ form_context:
   ad_id: ''
   description: Why am I not getting the option to add my phone number as a point of contact when listening an item any more
 persona:
-  user_goal_summary: 'User reports a technical regression: the phone-number contact option that used to be available
-    when listing an item has disappeared in the app. Bot should collect platform / repro details and hand over to
-    Technical Support. Drift: soft_shift.'
+  user_goal_summary: 'User reports Account Support: Why am I not getting the option to add my phone number as a point of contact
+    when listening an item any more. Drift: soft_shift.'
   frustration_level: high
   verbosity: terse
   drift_behavior: soft_shift
@@ -31,10 +24,9 @@ expected:
   secondary_ucs:
   - UC-E
   should_escalate: true
-  allow_bot_resolution: 'partial'
-  bot_handling_pattern: Acknowledge the technical regression, collect required intake fields (platform,
-    repro_steps_or_error_message), create a UC-K case via create_case_controlled, hand over to Technical
-    Support with reason intake_complete_for_uc_k.
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the technical regression, collect required intake fields (platform, repro_steps_or_error_message),
+    create a UC-K case via create_case_controlled, hand over to Technical Support with reason intake_complete_for_uc_k.
   escalation_trigger: intake_complete_for_uc_k
   risk_level: low
   expected_tool_sequence:
@@ -45,14 +37,15 @@ expected:
   forbidden_tools:
   - get_message_moderation_context
   - get_moderation_review_context
-  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
   grounding_mode: fixed_script_only
   answer_must_not_contain:
   - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
   - I'll resolve this for you
-  max_turns: 15
+  max_turns: 10
 scoring:
   hard_checks:
   - phase_transition_validity
@@ -68,10 +61,6 @@ scoring:
   - correct_outcome
   - escalation_triggered
   - intake_fields_collected
-  - tool_sequence_match
-  - turn_efficiency
-  - issue_preservation
-
   llm_judge_dimensions:
   - groundedness
   - relevance

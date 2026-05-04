@@ -49,10 +49,16 @@ logger = logging.getLogger(__name__)
 
 # Wave C1 regression tests pin against these specific case_ids; smoke
 # must always include them so the regression remains visible in the
-# fast-feedback fixture.
+# fast-feedback fixture. Sprint 4 §E3 added cs_interactive_066 (UC-K
+# regression guard from Sprint 1 §A2) — without this pin the smoke
+# curator picks the alphabetically-first UC-K case (cs_interactive_040)
+# and drops cs_066 from smoke after the Sprint 4 §E3 cs_066
+# UC-E -> UC-K classification override took effect.
 _REQUIRED_CASE_IDS: tuple[str, ...] = (
     "cs_interactive_015",
+    "cs_interactive_029",
     "cs_interactive_040",
+    "cs_interactive_066",
 )
 
 

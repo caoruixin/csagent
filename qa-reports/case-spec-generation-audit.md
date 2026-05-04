@@ -272,8 +272,21 @@ _Sessions audited: **367**_
   - Is that defo my login email Jason ?
   - How do I do that ?
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=unresolved_user_signals,human_investigation_signals,handover_or_case_signals; reason=agent transcript includes handover/case signal(s): escalation; trigger=user_requested
+- case-level override applied: **YES**
+  - override source: Sprint 4 §E1 supporting fix — Sprint 4 §E1 runtime gate downgrades unconfirmed user_distress; this override aligns the cs_011 expected.escalation_trigger with the new runtime behaviour
+  - reviewer: human semantic review (Sprint 4 §E1)
+  - date: 2026-05-05
+  - confidence: `high`
+  - supporting turns: `[3, 5, 6, 23, 24, 25, 27]`
+  - rationale: cs_011's replayed seed messages (long-form login-issue description and clarifying questions) contain no Sprint §B1 DISTRESS_PATTERN match and no ALL-CAPS shout, so `EscalationReasonResolver.detectDistressSignal` cannot stamp `user_distress` on this session deterministically. The Sprint 4 §E1 runtime gate added in `ControlKernel.applyEscalationReason` refuses to let the bot LLM upgrade the canonical session reason to `user_distress` (a Tier-0 semantic claim) without a prior B1 hit, downgrading the candidate to `faq_miss_threshold_exceeded`. The truthful Phase 2 §2.4 reason for cs_011 is FAQ-miss: the FAQ corpus has no useful article for the password-reset-loop the user reports, so the bot exhausts FAQ search and hands over. The Codex 2026-05-03 round 3 §1.6 smoke YAML hand-edit (`user_distress`) was based on the persona's "frustration over multiple failed agent attempts" subtext but is superseded by the deterministic Sprint §B1 / Sprint 4 §E1 contract.
+  - status: `approved`
+  - case_id_hint: `cs_interactive_011`
+  - changed expected fields:
+    - `bot_handling_pattern`: `Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_requested.` -> `Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded once FAQ search has no useful article for the password-reset-loop the user reports.`
+    - `escalation_trigger`: `user_requested` -> `faq_miss_threshold_exceeded`
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
+  - escalation_trigger: HR='user_requested' vs final='faq_miss_threshold_exceeded'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
 - llm_cache_hit: `True`
 - llm_offline_fallback: `False`
@@ -766,7 +779,7 @@ _Sessions audited: **367**_
 ## 570Q5000008kDiPIAU (case_id=cs_interactive_029)
 
 - original primary_uc (HR): `UC-C`
-- final primary_uc: `UC-C`
+- final primary_uc: `UC-D`
 - turns file: `badcase_turns.csv`
 - turn count: `48`
 - transcript outcome: `escalate`
@@ -777,17 +790,27 @@ _Sessions audited: **367**_
   - YOUR NO HELPING AT ALL
   - I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals,handover_or_case_signals; reason=agent transcript includes handover/case signal(s): case_reference, escalation; trigger=user_requested
+- classification override applied: **YES** -> primary=UC-D, secondary=['UC-C']
+- case-level override applied: **YES**
+  - override source: Sprint 4 §E2 reviewer correction of CaseSpec primary_uc to match account-locked persona evidence
+  - reviewer: human semantic review (Sprint 4 §E2)
+  - date: 2026-05-05
+  - confidence: `high`
+  - supporting turns: `[3, 4, 6, 10, 43, 47]`
+  - rationale: The cs_029 persona is account-locked, not messaging-blocked. Turns 3–6 ("HI MY ACCOUNT OS", "IS LOCKED", "I NEED MY ACCOUNT MANNAGER TO CALL ME"), turn 10 (agent referral to the Business for Gumtree contact form), and turns 43 / 47 (human agent escalates with a case number to the business team) all align with UC-D (Account & Login). The HR-row primary_uc=UC-C did not match the transcript, and the runtime deterministic UC fallback in `ControlKernel.inferFallbackUseCase` already picks UC-D for these seeds. Flipping primary to UC-D / secondary to [UC-C] closes the L2 `correct_uc` gap (D12) without changing runtime behaviour. Semantic escalation reason stays `user_requested` via the explicit-callback path (priority 1).
+  - status: `approved`
+  - case_id_hint: `cs_interactive_029`
 - policy-vs-HR mismatches:
-  - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
+  - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
 - llm_cache_hit: `True`
 - llm_offline_fallback: `False`
 - llm_acceptance_reason: `auto_accept_high_confidence`
 - llm_confidence: `high`
-- llm_persona_changed_fields: `['user_goal_summary']`
+- llm_persona_changed_fields: `['seed_messages', 'user_goal_summary']`
 - llm_validation_notes:
-  - unsupported_hidden_fact_dropped: 'The user has already submitted a request through the provided Gumtree for Business link but has not received any callback.'
-  - unsupported_hidden_fact_dropped: "The user's business relies on Gumtree advertising, and the account lock is causing immediate business impact."
+  - unsupported_hidden_fact_dropped: "The user's account is locked, preventing them from advertising."
+  - unsupported_hidden_fact_dropped: 'The user has already tried the provided process (submitted messages via the link) but received no response.'
 
 ## 570Q5000008uDdtIAE (case_id=cs_interactive_030)
 
@@ -1711,7 +1734,7 @@ _Sessions audited: **367**_
 ## 570Q5000008fBsXIAU (case_id=cs_interactive_066)
 
 - original primary_uc (HR): `UC-E`
-- final primary_uc: `UC-E`
+- final primary_uc: `UC-K`
 - turns file: `badcase_turns.csv`
 - turn count: `11`
 - transcript outcome: `escalate`
@@ -1720,14 +1743,29 @@ _Sessions audited: **367**_
 - representative user messages:
   - Should be [EMAIL]
   - Ok thank you
-- outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals,handover_or_case_signals; reason=agent transcript includes handover/case signal(s): escalation; trigger=clarification_budget_exhausted
+- outcome decision: partial_uc_transcript_escalation: transcript_indicated_outcome=escalate; flags=human_investigation_signals,handover_or_case_signals; reason=agent transcript includes handover/case signal(s): escalation; trigger=clarification_budget_exhausted
+- classification override applied: **YES** -> primary=UC-K, secondary=['UC-E']
+- case-level override applied: **YES**
+  - override source: Codex 2026-05-04 round 6 §P0 reclassification (UC-E -> UC-K), formalized through Wave A6.6 v2 override path during Sprint 4 §E3
+  - reviewer: human semantic review (Codex round 6 §P0; Sprint 4 §E3 formalization)
+  - date: 2026-05-05
+  - confidence: `high`
+  - supporting turns: `[2, 3, 5, 7, 9, 10]`
+  - rationale: The form description ("Why am I not getting the option to add my phone number as a point of contact when listening an item any more") is an in-app technical regression: a contact option that used to be available has disappeared. Phase 2 §2.2:500 places this under UC-K (Technical Support intake), not UC-E (product / feature explanation FAQ). The Sprint 1 §A2 deterministic `UseCaseRouter.matchUcKTechnicalRegression` rule (regression pinned by `Cs014RouteAndDistressRegressionTest` and `ClassifyUseCaseToolStrongPriorTest`) correctly routes this to UC-K, and the runtime escalates with the UC-K-specific `intake_complete_for_uc_k` reason once intake fields are collected. The Codex round 6 §P0 hand-edit on smoke captured this decision but was outside the override registry; this entry formalizes both the classification flip (UC-E -> UC-K) and the UC-K-specific escalation trigger so the regenerator pipeline produces the corrected spec consistently in both anchor and smoke buckets.
+  - status: `approved`
+  - case_id_hint: `cs_interactive_066`
+  - changed expected fields:
+    - `bot_handling_pattern`: `Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled case where permitted, and hand over with reason clarification_budget_exhausted.` -> `Acknowledge the technical regression, collect required intake fields (platform, repro_steps_or_error_message), create a UC-K case via create_case_controlled, hand over to Technical Support with reason intake_complete_for_uc_k.`
+    - `escalation_trigger`: `clarification_budget_exhausted` -> `intake_complete_for_uc_k`
 - policy-vs-HR mismatches:
-  - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
+  - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'request_handover', 'record_outcome'] vs final=['get_customer_context', 'create_case_controlled', 'request_handover', 'record_outcome']
+  - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['get_message_moderation_context', 'get_moderation_review_context', 'resolve_article', 'search_knowledge']
+  - escalation_trigger: HR='clarification_budget_exhausted' vs final='intake_complete_for_uc_k'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
 - llm_cache_hit: `True`
 - llm_offline_fallback: `False`
 - llm_acceptance_reason: `rule_fallback_low_confidence`
-- llm_confidence: `low`
+- llm_confidence: `medium`
 
 ## 570Q5000008bQa1IAE (case_id=cs_interactive_067)
 

@@ -1,6 +1,129 @@
 # Action Bank
 
-Date: 2026-05-05 (post Sprint 3)
+Date: 2026-05-05 (post Sprint 4)
+
+## Status — Sprint 4 closure
+
+### S4-E1. cs001 / cs002 escalation-reason expectation alignment — **DONE** (2026-05-05)
+
+Decision: cs001 spec stays at `clarification_budget_exhausted` (persona is
+calm/mild confusion; B1 detector does not fire on cs001 seeds). cs002 spec
+already correct (`user_distress`; B1 fires on "How long do I have to wait" /
+"since day 1" / ALL-CAPS shouts). Runtime detection is fine; the failure mode
+on cs001 is the bot LLM emitting `user_distress` in `request_handover` without
+a deterministic B1 hit — a Tier-0 semantic claim the LLM hasn't earned.
+
+Implemented in:
+
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+  — gate added in `applyEscalationReason(BotSession, String)`: when the
+  candidate is `user_distress` and `session.escalationReason` is not already
+  `user_distress`, the candidate is downgraded to
+  `faq_miss_threshold_exceeded` (same `bot_limit` family in the Phase 5
+  L1 escalation_compliance check as cs001's spec
+  `clarification_budget_exhausted`). New helper
+  `applyDeterministicDistressReason(BotSession)` is used by the §B1 step 2.4
+  path so the deterministic distress detector still earns `user_distress`
+  for cs002-shape seeds. SessionManager's already-escalated reconcile path
+  bypasses the gate by calling the resolver directly, so Sprint 3.1's
+  contract is preserved.
+
+Test coverage:
+
+- 6 new tests in `Cs001LlmDistressGateIntegrationTest`:
+  cs001-shape calm seed → LLM-supplied user_distress downgraded;
+  cs002-shape distress seed → B1 fires, user_distress persists;
+  cs029-shape callback → user_requested wins (priority 1);
+  cs014-shape calm seed → downgraded to faq_miss (matches override);
+  non-user_distress LLM picks (faq_miss, user_requested) pass through.
+- Existing `ControlKernelDistressPrecedenceIntegrationTest` preserved
+  (B1 path stamps user_distress via the deterministic helper).
+- Existing `Cs014RouteAndDistressRegressionTest` and
+  `Cs014RouteAndLoopHandoverIntegrationTest` preserved.
+- Existing `Cs002AlreadyEscalatedDistressReconcileIntegrationTest`
+  preserved (Sprint 3.1 contract held).
+
+### S4-E2. cs029 outcome lift / spec-vs-fallback alignment — **DONE** (2026-05-05)
+
+Decision: this is a CaseSpec correction, not a runtime change. The cs029
+persona is account-locked, not messaging-blocked. Phase 2 §2.2 places
+"account locked / can't advertise / business account access" issues under
+UC-D (Account & Login). The runtime deterministic UC fallback in
+`ControlKernel.inferFallbackUseCase` already picks UC-D for the
+account-locked seed messages, so flipping the spec primary to UC-D closes
+the L2 `correct_uc` gap (D12) without changing runtime behaviour. Semantic
+escalation reason stays `user_requested` via the explicit-callback path
+(priority 1).
+
+Implemented in:
+
+- `eval_interactive/case_spec_overrides.yaml` — new approved Wave A6.6 v2
+  classification block for `source_session_id: 570Q5000008kDiPIAU`:
+  `primary_uc=UC-D`, `secondary_ucs=[UC-C]`, supporting turns
+  `[3, 4, 6, 10, 43, 47]`, full rationale.
+- `qa-reports/case-spec-generation-audit.md` — regenerated; cs029 entry
+  shows `classification override applied: YES -> primary=UC-D, secondary=['UC-C']`.
+- `qa-reports/smoke-case-review.md` — cs029 row updated to
+  `needs_override (applied)`, recommended outcome `UC-D escalate, user_requested`,
+  supporting turns `[3, 4, 6, 10, 43, 47]`, summary table now `10 ok / 4 needs_override`.
+- `eval_interactive/case_specs/anchor/cs_interactive_029.yaml` and
+  `eval_interactive/case_specs/smoke/cs_interactive_029.yaml` — regenerated
+  through the override pipeline (`primary_uc=UC-D`, `secondary_ucs=[UC-C]`,
+  policy-derived `forbidden_tools` and `expected_tool_sequence` recomputed
+  for UC-D). No hand edits.
+
+### S4-E3. Override / audit consistency guard — **DONE** (2026-05-05)
+
+Implemented as three coordinated supporting changes:
+
+1. **Two supporting overrides** added to `eval_interactive/case_spec_overrides.yaml`:
+   - cs_interactive_011 (`570Q5000008NWIjIAO`): `expected.escalation_trigger`
+     pinned to `faq_miss_threshold_exceeded` to align cs011's spec with the
+     post-Sprint-4-§E1 runtime behaviour. Supersedes the earlier Codex
+     2026-05-03 round 3 §1.6 hand-edit (`user_distress`) that is no longer
+     valid because B1 does not fire on cs011's calm login-issue seeds and
+     §E1's gate refuses an LLM-supplied user_distress without a B1 hit.
+   - cs_interactive_066 (`570Q5000008fBsXIAU`): formalizes the Codex
+     2026-05-04 round 6 §P0 reclassification (UC-E -> UC-K) through the
+     Wave A6.6 v2 override path. Adds both `classification`
+     (`primary_uc=UC-K, secondary_ucs=[UC-E]`) and `expected`
+     (`escalation_trigger=intake_complete_for_uc_k`,
+     `bot_handling_pattern` aligned) blocks. Without this override the
+     regenerator would produce UC-E in both anchor and smoke, breaking
+     the cs066 UC-K regression guard.
+2. **Smoke curator pin** in `eval_interactive/eval_interactive/case_spec/smoke_curator.py`:
+   `_REQUIRED_CASE_IDS` now also includes `cs_interactive_029` (Sprint 4
+   §E2 target case) and `cs_interactive_066` (UC-K regression guard).
+   Without these pins the curator's alphabetical UC coverage step picks
+   `cs_interactive_004` for UC-D and `cs_interactive_040` for UC-K,
+   silently dropping cs029 and cs066 from the smoke fixture.
+3. **Regression check** added to
+   `eval_interactive/tests/regression/test_case_spec_overrides.py`:
+   - `test_cs_interactive_029_override_survives_fresh_extraction` —
+     end-to-end test that the cs029 classification override produces
+     UC-D primary in a fresh extraction.
+   - `test_smoke_yaml_matches_override_pipeline_output` — for every
+     committed smoke YAML, asserts `expected.*` equals what
+     `extract_case_specs` produces with the production override file.
+     Direct hand edits to `expected.*` fields without a matching
+     approved override entry now hard-fail this check.
+   - `test_v2_schema_loads_cleanly` count bumped 12 -> 15 with full
+     classification/expected assertions for the three new entries
+     (cs011, cs029, cs066).
+
+### Sprint 4 accepted state
+
+Latest accepted Sprint 4 references:
+
+- Java contract surface: **592 / 592 mvn tests passing** (was 586; +6 new
+  cs001 distress gate integration tests).
+- Python regression surface: **285 / 285 pytest tests passing** (was 283;
+  +1 cs029 end-to-end override test, +1 smoke YAML override-pipeline guard
+  + the existing `test_v2_schema_loads_cleanly` bumped).
+- Smoke eval: NOT RUN in this environment (DASHSCOPE_API_KEY for the
+  persona simulator is missing). Smoke results from this round are
+  classified as contaminated; the deterministic Java + Python test
+  surfaces are the canonical Sprint 4 acceptance signal.
 
 ## Status — Sprint 3 closure
 

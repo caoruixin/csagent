@@ -28,8 +28,9 @@ expected:
   should_escalate: true
   allow_bot_resolution: 'true'
   bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
-  escalation_trigger: user_distress
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded
+    once the FAQ corpus has no admin-mediated email-revert article.
+  escalation_trigger: faq_miss_threshold_exceeded
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
