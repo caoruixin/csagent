@@ -335,6 +335,25 @@ public class SessionManager {
         if ("ESCALATE".equals(session.getCurrentPhase())
                 || "QUEUE_TO_HUMAN".equals(session.getHandlingState())
                 || "HUMAN_HANDLING".equals(session.getHandlingState())) {
+            // Sprint 3.1 P1: when session-create's auto-search has already
+            // escalated the session with a lower-priority reason
+            // (faq_miss_threshold_exceeded / turn_budget_exhausted) and the
+            // user's NEXT message carries a higher-priority semantic signal
+            // (user_distress, user_requested), we still need to honour the
+            // sprint-3 cs_002 contract: the canonical session reason, the
+            // persisted request_handover tool-call argument, and the
+            // handover payload all become the higher-priority semantic
+            // reason. Without this rewrite, ControlKernel.processMessage
+            // step 2.4 never sees the incoming distress turn (we early-
+            // return below) and the cs_002 transcript reports the distress
+            // utterance while every persisted surface still says
+            // ``faq_miss_threshold_exceeded``.
+            //
+            // Contract preserved: the user-facing transfer message and
+            // shouldEndChat=true behaviour are unchanged. We do NOT create
+            // a second handover row — the existing MockHandoverLog is
+            // updated in-place via its log_id.
+            reconcileEscalationReasonOnAlreadyEscalatedSession(session, userMessage);
             return ChatSessionResponse.builder()
                     .sessionId(sessionId)
                     .replyText("This conversation has been transferred to a human agent. Please wait for them to respond.")
@@ -416,6 +435,105 @@ public class SessionManager {
     }
 
     // --- Outcome and handover recording ---
+
+    /**
+     * Sprint 3.1 P1 — reconcile {@code session.escalationReason} when an
+     * already-escalated session receives a user message containing a
+     * higher-priority semantic signal.
+     *
+     * <p>Specifically:
+     * <ul>
+     *   <li>{@code user_requested} (priority 1) wins over everything except
+     *       {@code imminent_harm}.</li>
+     *   <li>{@code user_distress} (priority 2) wins over budget reasons
+     *       ({@code faq_miss_threshold_exceeded} priority 41,
+     *       {@code turn_budget_exhausted} priority 42,
+     *       {@code clarification_budget_exhausted} priority 40).</li>
+     * </ul>
+     *
+     * <p>The rewrite is performed in-place across three surfaces so
+     * the L1 {@code escalation_reason_consistency} contract holds:
+     * <ol>
+     *   <li>{@code session.escalationReason} via the resolver.</li>
+     *   <li>Every existing {@code bot_turns.tool_calls}
+     *       {@code request_handover} entry's
+     *       {@code arguments.escalation_reason} via
+     *       {@link ControlKernel#normalizeHandoverArgsToSessionReason}.</li>
+     *   <li>The existing {@code mock_handover_log.handover_payload}
+     *       (re-assembled and saved through the same {@code log_id}; no
+     *       second handover row is created).</li>
+     * </ol>
+     *
+     * <p>Returns {@code true} when the canonical session reason was
+     * actually upgraded.
+     */
+    boolean reconcileEscalationReasonOnAlreadyEscalatedSession(
+            BotSession session, String userMessage) {
+        String candidate = null;
+        if (escalationResolver.detectExplicitUserEscalation(userMessage)) {
+            candidate = "user_requested";
+        } else if (escalationResolver.detectDistressSignal(userMessage)) {
+            candidate = "user_distress";
+        }
+        if (candidate == null) {
+            return false;
+        }
+        String existing = session.getEscalationReason();
+        String resolved = escalationResolver.resolve(existing, candidate);
+        if (resolved == null || resolved.equals(existing)) {
+            return false;
+        }
+        log.info("Session {}: reconciling escalation_reason on already-escalated session: {} -> {} (signal={})",
+                session.getSessionId(), existing, resolved, candidate);
+        session.setEscalationReason(resolved);
+        session.setUpdatedAt(OffsetDateTime.now());
+        sessionRepository.save(session);
+
+        // Surface 2: normalise every persisted ``request_handover`` tool
+        // call argument so the persisted trace agrees with the new
+        // canonical reason. Re-uses the §B0 helper on ControlKernel.
+        try {
+            List<BotTurn> turns = botTurnRepository.findBySessionIdOrderByTurnIndex(session.getSessionId());
+            for (BotTurn turn : turns) {
+                String json = turn.getToolCalls();
+                if (json == null || json.isBlank()) {
+                    continue;
+                }
+                try {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> toolCallsList = objectMapper.readValue(json, List.class);
+                    if (controlKernel.normalizeHandoverArgsToSessionReason(session, toolCallsList)) {
+                        turn.setToolCalls(objectMapper.writeValueAsString(toolCallsList));
+                        botTurnRepository.save(turn);
+                    }
+                } catch (Exception ex) {
+                    log.warn("Session {}: turn {} tool_calls JSON unparseable, skipping normalize: {}",
+                            session.getSessionId(), turn.getTurnIndex(), ex.getMessage());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Session {}: failed to normalize bot_turns tool_calls after reconciling reason: {}",
+                    session.getSessionId(), ex.getMessage());
+        }
+
+        // Surface 3: rewrite the existing handover payload in-place so the
+        // handover log carries the new canonical reason. We update via the
+        // existing log_id (no second handover row).
+        try {
+            List<MockHandoverLog> logs = handoverLogRepository.findBySessionId(session.getSessionId());
+            for (MockHandoverLog hLog : logs) {
+                Map<String, Object> payload = handoverPayloadAssembler.assemble(session);
+                payload.put("handling_duration_seconds", calculateDuration(session));
+                payload.put("topic_uc_mismatch", checkMismatch(session));
+                hLog.setHandoverPayload(objectMapper.writeValueAsString(payload));
+                handoverLogRepository.save(hLog);
+            }
+        } catch (Exception ex) {
+            log.warn("Session {}: failed to rewrite handover payload after reconciling reason: {}",
+                    session.getSessionId(), ex.getMessage());
+        }
+        return true;
+    }
 
     private void recordOutcome(BotSession session) {
         try {

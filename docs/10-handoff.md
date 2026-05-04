@@ -990,3 +990,253 @@ In priority order:
    timeout cases, full semantic groundedness classifier, full
    GDPR / moderation / payment / scam / OOS suite) — all remain
    deferred.
+
+---
+
+# Sprint 3.1 P1 fix round — cs_interactive_002 distress carry-forward on already-escalated sessions
+
+Date: 2026-05-05
+Branch: `design-v1-without-human-review`
+Source review: `docs/codex-findings.md` Sprint 3 review (1 P1 blocker).
+
+## 1. Exact P1 fixed
+
+**P1 — `cs_interactive_002` distress reason lost on already-escalated session.**
+
+The Sprint 3 second smoke run
+(`eval_interactive/results/20260504-191541/results.json`) recorded
+`active_use_case=UC-C`, `escalation_reason=faq_miss_threshold_exceeded`,
+and `failure_tags=["L1:escalation_compliance", ...]` for cs_002 even
+though the transcript carries the canonical distress seed
+`"How long do I have to wait to sort this out? Its been this way since
+day 1."`. The contract Sprint 3 set on cs_002 — *still stamps
+`user_distress` when distress signals exist* — was therefore not green
+across the two smoke runs.
+
+Codex correctly identified the path: when session-create's auto-search
+has already moved the session to `ESCALATE` / `QUEUE_TO_HUMAN` (here
+because the FAQ corpus had no usable answer for the notifications
+issue), `SessionManager.processMessage` returned the canned transfer
+message before `ControlKernel.processMessage` ran, so the §B1 distress
+detector at step 2.4 never inspected the incoming distress turn.
+
+### Fix
+
+`SessionManager.processMessage` now calls a new helper
+`reconcileEscalationReasonOnAlreadyEscalatedSession(session, userMessage)`
+**before** the already-escalated early return. The helper:
+
+1. Runs `EscalationReasonResolver.detectExplicitUserEscalation` and
+   `detectDistressSignal` against the incoming user message. The first
+   wins via the resolver's precedence: `user_requested` (priority 1)
+   beats `user_distress` (priority 2) beats budget reasons (40–42).
+2. If the resolver's merge upgrades the canonical session reason,
+   persists the upgrade on `session.escalationReason` and saves the
+   session immediately so the database reflects the new reason for
+   any concurrent eval collector read.
+3. Re-fetches every persisted `bot_turns` row for the session and
+   normalises each `request_handover.arguments.escalation_reason`
+   through `ControlKernel.normalizeHandoverArgsToSessionReason`
+   (the §B0 helper) — re-saving any turn whose tool_calls JSONB
+   actually changed.
+4. Re-fetches the existing `mock_handover_log` row for the session,
+   re-builds the handover payload via `HandoverPayloadAssembler`
+   (which canonicalises through the same resolver), and saves the
+   row through its existing `log_id`. **No second handover row is
+   created** — the spec's "do not create a second handover" rule is
+   honoured by an in-place upsert on the existing primary key.
+
+The user-facing reply text and `shouldEndChat=true` are preserved on
+the already-escalated path. `ControlKernel.processMessage` is still
+not re-invoked (the bot does not "re-engage" a queued-to-human
+session), so C0 / C1 / C2 are not touched. The L1
+`escalation_reason_consistency` contract continues to bind the
+session-state, persisted tool-call argument, and handover-payload
+surfaces to the same canonical value across this new path.
+
+## 2. Files changed
+
+### 2.1 Server (Java) — production
+
+1. `server/src/main/java/com/gumtree/csagent/service/runtime/SessionManager.java`
+   - `processMessage` now calls
+     `reconcileEscalationReasonOnAlreadyEscalatedSession` before the
+     already-escalated early return.
+   - New package-private helper
+     `reconcileEscalationReasonOnAlreadyEscalatedSession(BotSession,
+     String)` implementing the three-surface rewrite described above.
+     Re-uses `ControlKernel.normalizeHandoverArgsToSessionReason` and
+     `HandoverPayloadAssembler.assemble` so the canonicalisation logic
+     remains single-sourced.
+
+No other production runtime files changed. The fix is deliberately
+narrow and additive.
+
+### 2.2 Server (Java) — tests (new)
+
+1. `server/src/test/java/com/gumtree/csagent/integration/Cs002AlreadyEscalatedDistressReconcileIntegrationTest.java`
+   *(new)* — 4 case-level integration tests:
+   - `cs002_distressUtterance_onAlreadyEscalatedSession_promotesReason` —
+     reproduces the exact Codex shape: session is already
+     `ESCALATE` / `QUEUE_TO_HUMAN` with
+     `faq_miss_threshold_exceeded`; the cs_002 distress seed is sent;
+     asserts `session.escalationReason=user_distress`, persisted
+     `request_handover.arguments.escalation_reason=user_distress`,
+     handover payload `escalation_reason=user_distress`, pairwise
+     consistency across all three surfaces, the early-return reply
+     text is preserved, `shouldEndChat=true`, no second handover
+     row is created (only the existing `log_id` is re-saved), and
+     `ControlKernel.processMessage` / `BudgetChecker` /
+     `DriftDetector` / `PhaseEvaluator` are NOT invoked
+     (the early-return contract holds).
+   - `cs002_userRequestedUtterance_onAlreadyEscalatedSession_beatsFaqMiss` —
+     callback / human-request phrasing on an already-escalated
+     `faq_miss_threshold_exceeded` session promotes the reason to
+     `user_requested` across all three surfaces.
+   - `cs002_userRequestedUtterance_onAlreadyEscalatedSession_beatsUserDistress` —
+     cs_029-style precedence guard: `user_requested` (priority 1)
+     still beats `user_distress` (priority 2) on the already-escalated
+     path.
+   - `cs002_calmFollowUp_onAlreadyEscalatedSession_doesNotChangeReason` —
+     negative regression: a calm follow-up message must NOT promote
+     the reason and must NOT touch persisted `bot_turns` or the
+     handover log (short-circuit verified by `verify(...,
+     never())` on the repositories).
+
+### 2.3 Eval (Python) — no changes
+
+The eval-side runtime, judges, and scoring did not change.
+
+### 2.4 Config / docs — no changes
+
+`.env.local`, `application-local.yml`, `case_specs/`, and
+`case_spec_overrides.yaml` are untouched. `docs/current_eval_baseline.md`
+and `docs/action_bank.md` are not updated yet (per Sprint 3.1
+instructions).
+
+## 3. Tests run
+
+| Suite | Result |
+|---|---|
+| `mvn -pl server test` (server, all modules) | **586 / 586 passed** (was 582; +4 sprint-3.1 cs_002 integration tests) |
+| `pytest eval_interactive/tests` | **283 / 283 passed** |
+| Targeted cs_002 (`run --path .../cs_interactive_002.yaml`) | **1 / 1 passed**, composite 0.7429, UC-C / `user_distress`, L1 contracts green |
+| Smoke run 1 (`run --set smoke`) | 1 / 14 passed (LLM auth flake on 13 cases). cs_002 stamped `user_distress` ✓; L1 escalation_reason_consistency = 0; cs_014 routed UC-C; cs_066 routed UC-K; cs_095 not UC-K. |
+| Smoke run 2 (`run --set smoke --parallel 1`) | 1 / 14 passed (same upstream Kimi 401 noise). cs_002 stamped `user_distress` ✓; L1 escalation_reason_consistency = 0; cs_014 routed UC-C; cs_066 routed UC-K; cs_095 not UC-K. |
+
+The smoke runs both saw the same upstream Kimi 401 noise as the
+Sprint 3 §C0 P2 finding called out (`KIMI_BASE_URL` /
+`KIMI_API_KEY` pair returning Unauthorized in this shell window
+for non-cs_002 sessions). The contract this fix targets — *cs_002
+stamps `user_distress` when distress signals exist* — is green in
+all three runs (targeted + 2× smoke). Other smoke failures are
+the same upstream LLM auth flake noted in Sprint 3 §8 P1 #1 and
+Sprint 3 review §P2 #1; they are explicitly out of Sprint 3.1 P1
+scope per the spec ("Do not implement: …, hard-shift release
+regression, cs001 expected-reason alignment, …, full eval
+expansion, …").
+
+## 4. Latest result paths
+
+- **Targeted cs_002 (Sprint 3.1, canonical):**
+  `eval_interactive/results/20260504-201842/results.json` (1/1,
+  composite 0.7429, UC-C / `user_distress`)
+- **Smoke run 1 (Sprint 3.1):**
+  `eval_interactive/results/20260504-201933/results.json` (1/14)
+- **Smoke run 2 (Sprint 3.1, nondeterminism / parallel=1 reference):**
+  `eval_interactive/results/20260504-202424/results.json` (1/14)
+
+## 5. cs_002 before / after
+
+| Surface | Sprint 3 r2 (`191541`) | Sprint 3.1 targeted (`201842`) | Sprint 3.1 smoke r1 (`201933`) | Sprint 3.1 smoke r2 (`202424`) |
+|---|---|---|---|---|
+| `escalation_reason` (session) | `faq_miss_threshold_exceeded` | **`user_distress`** ✓ | **`user_distress`** ✓ | **`user_distress`** ✓ |
+| `request_handover.arguments.escalation_reason` (persisted) | `faq_miss_threshold_exceeded` | `user_distress` ✓ | `user_distress` ✓ | `user_distress` ✓ |
+| Handover payload `escalation_reason` | `faq_miss_threshold_exceeded` | `user_distress` ✓ | `user_distress` ✓ | `user_distress` ✓ |
+| `L1:escalation_compliance` | FAIL (cross-family mismatch) | PASS | PASS | PASS |
+| `L1:escalation_reason_consistency` | PASS (all surfaces agreed on the wrong value) | PASS | PASS | PASS |
+| `composite_score` | 0.000 | **0.7429** | **0.7429** | **0.7429** |
+| `case_passed` | false | **true** | **true** | **true** |
+
+Note: Sprint 3 r2 had `escalation_reason_consistency=PASS` because all
+three surfaces *agreed on the wrong value*; that is exactly the
+failure mode this fix closes — the surfaces still agree, but now
+they agree on the canonical semantic reason because the resolver
+gets to inspect the incoming distress turn.
+
+## 6. Sprint 3 guard outcomes
+
+End-to-end across the targeted cs_002 + 2× smoke runs:
+
+| Guard | Targeted (`201842`) | Smoke r1 (`201933`) | Smoke r2 (`202424`) | Status |
+|---|---|---|---|---|
+| `L1:escalation_reason_consistency` failures | **0** | **0** | **0** | ✅ B0 / Sprint 2.1 contract holds |
+| `cs_002` stamps `user_distress` | ✓ | ✓ | ✓ | ✅ Sprint 3 cs_002 P1 contract holds |
+| `cs_014` route UC-C | n/a | UC-C ✓ | UC-C ✓ | ✅ C2 carry-forward holds (LLM auth flake produced `service_degraded` reason but UC-C was preserved by the deterministic strong-prior path) |
+| `cs_066` route UC-K | n/a | UC-K ✓ | UC-K ✓ | ✅ both runs |
+| `cs_095` does NOT route UC-K | n/a | UC-A ✓ | UC-A ✓ | ✅ both runs |
+| `cs_029` semantic `user_requested` + no `CONTRACT_VIOLATION:active_use_case` | n/a | ⚠ contract violation (LLM 401 during routing produced empty UC; not the cs_029 B3 path failing — same Sprint 3 §C0 upstream issue) | ⚠ same | ⚠ upstream LLM auth flake; cs_029 deterministic resolve / B3 / forceEscalate path is unchanged and still pinned by `EscalationReasonResolverTest` + `ControlKernelB3FallbackUseCaseTest` (9 tests). |
+| Java contract surface (`mvn test`) | 586 / 586 ✓ | — | — | ✅ all sprint 2 / 2.1 / 3 / 3.1 contracts pinned |
+
+The cs_029 contract violation in the two smoke runs is upstream
+Kimi 401 noise (same Sprint 3 §8 P1 #1 / §C0 issue), not a
+regression in B3's `forceEscalate` fallback path. The B3
+deterministic path remains green in the Java test surface
+(`ControlKernelB3FallbackUseCaseTest`, 9 tests, all passing).
+
+## 7. Remaining P0 / P1 blockers
+
+P0: none.
+
+P1 (carried forward, all explicitly out of Sprint 3.1 scope per
+the spec):
+
+1. **Bot-side Kimi LLM credential / quota robustness** for
+   cs_001 / cs_011 / cs_014 / cs_036 / cs_038 / cs_066 / cs_095 /
+   cs_004 / cs_015 / cs_029 / cs_040 / cs_192 / cs_259 — same
+   Sprint 3 §8 P1 #1 / Sprint 3 review §P2 #1 issue. The
+   committed `.env.local` `KIMI_API_KEY` returned 401 across
+   most smoke turns in this shell window. Sprint 3 §C1 retry
+   policy correctly classified these as non-transient and did
+   NOT retry; the failure tag `llm_auth_error` shows up in
+   server logs as designed. Operator mitigation: rotate /
+   confirm the Moonshot API key. **Codex Sprint 3 review §P2
+   item — committed `.env.example` placeholder with explicit
+   working endpoint** is still recommended and remains the
+   right next-sprint follow-up.
+2. **Sprint 3 review §P2 — `invokeRouting` failure-tag parity**
+   (out of scope for Sprint 3.1, carried forward).
+3. **Sprint 3 review §P2 — pre-existing tracked-doc secret
+   scrub** (out of scope for Sprint 3.1, carried forward).
+4. **Sprint 3 review §P2 — hard-shift release regression**
+   (out of scope for Sprint 3.1, carried forward).
+5. **cs_001 expected-reason alignment** (Sprint 3 §8 P1 #1,
+   carried forward).
+6. **cs_029 outcome lift / D12** (Sprint 2.1 §7, carried forward).
+7. **L3:relevance / L3:tone_appropriateness judge volatility**
+   (out of every runtime sprint to date).
+
+## 8. Can Sprint 3 now be closed?
+
+**Yes.** The single P1 blocker Codex flagged for Sprint 3
+(`cs_interactive_002 still stamps user_distress when distress
+signals exist`) is now green in:
+
+- the targeted cs_002 eval (`20260504-201842`, composite 0.7429,
+  L1 escalation_compliance + escalation_reason_consistency both
+  pass);
+- both Sprint 3.1 smoke runs (`20260504-201933` and `202424`,
+  cs_002 stamped `user_distress`, L1 escalation_reason_consistency
+  zero failures across all 14 cases × 2 runs);
+- the Java contract surface (586 / 586 passing including the new
+  4 `Cs002AlreadyEscalatedDistressReconcileIntegrationTest`
+  tests).
+
+All other Sprint 3 contracts (B0 / B1 / B2 / B3 / C0 / C1 / C2)
+remain green in the Java test surface and were not touched. The
+remaining smoke noise is the upstream Kimi 401 issue Codex itself
+classified as P2 (`docs/codex-findings.md` §P2 #1) and is
+explicitly out of Sprint 3.1 P1 scope. Sprint 3 can be closed
+as soon as `docs/current_eval_baseline.md` and
+`docs/action_bank.md` are updated in a separate follow-up
+(deferred per the Sprint 3.1 instructions).
