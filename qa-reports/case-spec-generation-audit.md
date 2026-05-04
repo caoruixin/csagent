@@ -367,8 +367,21 @@ _Sessions audited: **367**_
   - I'd be happy enough if the contact email address was reverted to the original account address
   - Not that anyone will care of course 🤪😃
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=unresolved_user_signals,human_investigation_signals; reason=unresolved user signal(s) combined with agent investigation/follow-up language; trigger=user_distress
+- case-level override applied: **YES**
+  - override source: Sprint 2.1 P1 Codex-review follow-up — reviewer correction of CaseSpec expected.escalation_trigger
+  - reviewer: human semantic review (Sprint 2.1 P1)
+  - date: 2026-05-05
+  - confidence: `high`
+  - supporting turns: `[6, 10, 12, 14, 16]`
+  - rationale: The replayed cs_014 seeds (form description + two seed_messages) contain no Sprint B1 DISTRESS_PATTERNS hit and no ALL-CAPS shout, so the deterministic resolver cannot stamp user_distress. The selected transcript turns (6, 10, 12, 14, 16) show the human agent confirming Gumtree has disabled the admin-mediated contact-email-revert path — no FAQ article covers this — so the truthful escalation reason is faq_miss_threshold_exceeded. UC-C primary still holds via the Replies-or-Messaging strong-prior + the B2 messaging bias.
+  - status: `approved`
+  - case_id_hint: `cs_interactive_014`
+  - changed expected fields:
+    - `bot_handling_pattern`: `Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.` -> `Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded once the FAQ corpus has no admin-mediated email-revert article.`
+    - `escalation_trigger`: `user_distress` -> `faq_miss_threshold_exceeded`
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
+  - escalation_trigger: HR='user_distress' vs final='faq_miss_threshold_exceeded'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
 - llm_cache_hit: `True`
 - llm_offline_fallback: `False`

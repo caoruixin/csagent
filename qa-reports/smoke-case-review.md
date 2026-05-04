@@ -12,15 +12,16 @@ Inputs reviewed for each smoke case:
 
 | review_status | count |
 | --- | ---: |
-| ok | 12 |
+| ok | 11 |
 | generator_bug | 0 |
 | policy_ambiguity | 0 |
-| needs_override | 2 |
+| needs_override | 3 |
 | needs_human_decision | 0 |
 
 Notable follow-up:
 - No stale generator bug remains in the smoke review set. `cs_interactive_004` and `cs_interactive_095` now align with final generated YAML as resolve/no-escalation cases.
 - `cs_interactive_015` was flipped from `ok` to `needs_override` in the Wave A6 semantic re-review: the transcript matches UC-FP ("why was my ad deleted?" + edit-and-repost), and the historical late escalation is failure-path evidence rather than the desired golden behavior. Override approved and applied in `case_spec_overrides.yaml`.
+- `cs_interactive_014` was flipped from `ok` to `needs_override` in the Sprint 2.1 P1 follow-up: the transcript persona is frustrated, but the *replayed* cs_014 form context + seed_messages contain no Sprint-B1 DISTRESS_PATTERNS hit and no ALL-CAPS shout — so the deterministic resolver cannot stamp `user_distress`. The truthful escalation reason on this UC-C Replies/Messaging case is `faq_miss_threshold_exceeded` (no FAQ article covers the admin-mediated email-revert request). Override approved and applied in `case_spec_overrides.yaml` for `source_session_id 570Q5000008u9gjIAA`.
 
 ## Case Reviews
 
@@ -72,10 +73,10 @@ Notable follow-up:
 ### cs_interactive_014
 
 - Source: `badcase`, session `570Q5000008u9gjIAA`
-- Status: `ok`
-- Recommended outcome: UC-C escalate, `user_distress`
-- Supporting turns: 6, 7, 9, 11, 15, 17, 19
-- Rationale: HR, transcript, YAML, and audit align. The user reports messaging/contact-email issues, rejects the self-serve explanation, and expresses clear dissatisfaction.
+- Status: `needs_override` (applied)
+- Recommended outcome: UC-C escalate, `faq_miss_threshold_exceeded`
+- Supporting turns: 6, 10, 12, 14, 16
+- Rationale: Sprint 2.1 P1 follow-up override. The replayed cs_014 form description + both seed messages are calm/cooperative ("How come ...?", "I'd be happy enough if ..."); they contain no Sprint-B1 DISTRESS_PATTERNS hit and no ALL-CAPS shout, so the deterministic resolver cannot stamp `user_distress` on this case. The selected agent turns (6, 10, 12, 14, 16) confirm Gumtree has disabled the admin-mediated contact-email-revert path — no FAQ article covers it — so the truthful escalation reason is `faq_miss_threshold_exceeded`. UC-C primary still holds via the Replies-or-Messaging strong-prior + the B2 messaging bias. Pinned by `Cs014RouteAndDistressRegressionTest` (helper) and `Cs014RouteAndLoopHandoverIntegrationTest` (case-level integration). Override approved and applied in `case_spec_overrides.yaml`.
 - Confidence: high
 
 ### cs_interactive_015
