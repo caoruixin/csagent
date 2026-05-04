@@ -228,4 +228,111 @@ class EscalationReasonResolverTest {
         assertFalse(resolver.isTerminalCloseReason(null));
         assertFalse(resolver.isTerminalCloseReason(""));
     }
+
+    // ---------------- Sprint §B1: distress detector ----------------
+
+    @Test
+    void detectDistress_youAreNotHelping() {
+        assertTrue(resolver.detectDistressSignal("you are not helping at all"));
+    }
+
+    @Test
+    void detectDistress_yourNoHelping_typo() {
+        // cs_interactive_029 verbatim — "YOUR NO HELPING AT ALL".
+        assertTrue(resolver.detectDistressSignal("YOUR NO HELPING AT ALL"));
+    }
+
+    @Test
+    void detectDistress_noOneIsHelping() {
+        assertTrue(resolver.detectDistressSignal("no one is helping me with this"));
+        assertTrue(resolver.detectDistressSignal("nobody helps"));
+    }
+
+    @Test
+    void detectDistress_followedYourSoCalledProcess() {
+        // cs_interactive_029 verbatim signal.
+        assertTrue(resolver.detectDistressSignal(
+                "I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS"));
+        assertTrue(resolver.detectDistressSignal(
+                "i've followed the process and nothing happened"));
+    }
+
+    @Test
+    void detectDistress_thisIsRidiculous() {
+        assertTrue(resolver.detectDistressSignal("this is ridiculous"));
+        assertTrue(resolver.detectDistressSignal("this is absurd"));
+        assertTrue(resolver.detectDistressSignal("this is a joke"));
+    }
+
+    @Test
+    void detectDistress_howLongDoIHaveToWait() {
+        // cs_interactive_002 seed message.
+        assertTrue(resolver.detectDistressSignal(
+                "How long do I have to wait to sort this out?"));
+    }
+
+    @Test
+    void detectDistress_sinceDayOne() {
+        assertTrue(resolver.detectDistressSignal(
+                "Its been this way since day 1."));
+    }
+
+    @Test
+    void detectDistress_allCapsShout() {
+        // ≥ 8 letters and ≥ 70% uppercase.
+        assertTrue(resolver.detectDistressSignal("HI MY ACCOUNT IS LOCKED"));
+        assertTrue(resolver.detectDistressSignal("PLEASE FIX THIS NOW"));
+    }
+
+    @Test
+    void detectDistress_normalQuestion_returnsFalse() {
+        assertFalse(resolver.detectDistressSignal(
+                "How do I change my email address on the app?"));
+        assertFalse(resolver.detectDistressSignal("Thank you"));
+    }
+
+    @Test
+    void detectDistress_shortAcronymNotShout() {
+        // Three-letter all-caps tokens like FAQ / UK / NHS must NOT
+        // qualify — the threshold is 8 letters minimum.
+        assertFalse(resolver.detectDistressSignal("FAQ"));
+        assertFalse(resolver.detectDistressSignal("Hi"));
+        assertFalse(resolver.detectDistressSignal("OK"));
+    }
+
+    @Test
+    void detectDistress_blankInput_returnsFalse() {
+        assertFalse(resolver.detectDistressSignal(null));
+        assertFalse(resolver.detectDistressSignal(""));
+        assertFalse(resolver.detectDistressSignal("   "));
+    }
+
+    // ---------------- Sprint §B1: precedence integration ----------------
+
+    @Test
+    void userDistressBeatsFaqMissThresholdExceeded() {
+        // cs_interactive_002 / cs_014: distress detector stamps
+        // user_distress; the FAQ-miss budget close-out cannot overwrite it.
+        assertEquals("user_distress",
+                resolver.resolve("user_distress", "faq_miss_threshold_exceeded"));
+    }
+
+    @Test
+    void userDistressBeatsTurnBudget_andClarification() {
+        assertEquals("user_distress",
+                resolver.resolve("user_distress", "turn_budget_exhausted"));
+        assertEquals("user_distress",
+                resolver.resolve("user_distress", "clarification_budget_exhausted"));
+    }
+
+    @Test
+    void userRequestedStillBeatsUserDistress() {
+        // Tier 0 priority: an explicit "speak to a human" request
+        // outranks distress (cs_interactive_029 expects user_requested
+        // even though distress signals are also present).
+        assertEquals("user_requested",
+                resolver.resolve("user_distress", "user_requested"));
+        assertEquals("user_requested",
+                resolver.resolve("user_requested", "user_distress"));
+    }
 }

@@ -65,12 +65,27 @@ public class PhaseEvaluator {
     /**
      * Map a possibly-non-canonical escalation reason to a canonical value.
      * Returns {@code reason} when it is already canonical, otherwise
-     * {@code "service_degraded"} (the catch-all for infrastructure/agent
-     * fallbacks).
+     * maps the well-known legacy literals onto their canonical
+     * equivalents (kept in lockstep with
+     * {@link EscalationReasonResolver#canonicalize(String)} so the LLM
+     * path and the resolver path always pick the same value), and
+     * falls back to {@code "service_degraded"} for anything else.
      */
     private String canonicalize(String reason) {
         if (reason != null && CANONICAL_ESCALATION_REASONS.contains(reason)) {
             return reason;
+        }
+        if (reason != null) {
+            String lower = reason.trim().toLowerCase(Locale.ENGLISH);
+            // Sprint §B0: keep the legacy LLM literal -> canonical mapping
+            // identical to EscalationReasonResolver so tool-call, session,
+            // and handover payload converge on the same enum value.
+            if ("user_requested_escalation".equals(lower)
+                    || "user_request".equals(lower)
+                    || "human_requested".equals(lower)
+                    || "callback_requested".equals(lower)) {
+                return "user_requested";
+            }
         }
         return "service_degraded";
     }

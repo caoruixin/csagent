@@ -133,6 +133,93 @@ public class UseCaseRouter {
             "Replies & Messaging");
 
     /**
+     * Sprint §B2 topic-string aliases. Live customer forms emit
+     * "Replies & Messaging" while the registry uses "Replies or
+     * Messaging" (UC-C strong prior). Without normalisation the LLM
+     * router falls through {@link #UseCaseRegistryService#getCandidateUcsForTopic}
+     * with no candidates and lands the session in soft-OOS / DISCOVER,
+     * after which the LLM chooses UC-B / UC-C / UC-D / UC-F at random
+     * across runs (cs_interactive_001 / 002 / 014 instability).
+     * Normalising up-front lets the strong-prior path fire and B2's
+     * deterministic phrase bias take over from there.
+     */
+    private static final Map<String, String> TOPIC_ALIASES = Map.of(
+            "Replies & Messaging", "Replies or Messaging");
+
+    /**
+     * Sprint §B2 deterministic phrase bias for account / messaging /
+     * email-sync routing. Runs AFTER the UC-K technical-regression
+     * override (so cs_interactive_066 still wins UC-K) but BEFORE the
+     * LLM classifier. The patterns are intentionally narrow — each
+     * one targets a specific failure mode observed in the eval set.
+     *
+     * <p>Order matters (first match wins):
+     * <ol>
+     *   <li>{@link #ADS_VISIBILITY_BIAS_PATTERN} → UC-A. Phrases like
+     *       "no adverts", "no listings", "ads not showing" point to
+     *       Ad-Status & Visibility regardless of any messaging context
+     *       in the same description (cs_interactive_095).</li>
+     *   <li>{@link #ACCOUNT_LOGIN_BIAS_PATTERN} → UC-D. Account locked,
+     *       can't log in, password reset, "cannot access my account".</li>
+     *   <li>{@link #MESSAGING_BIAS_PATTERN} → UC-C. Notification not
+     *       arriving, messages not received, no response from sellers.
+     *       cs_interactive_001 / 002 / 014.</li>
+     * </ol>
+     */
+    private static final Pattern ADS_VISIBILITY_BIAS_PATTERN = Pattern.compile(
+            "\\b("
+                    + "no\\s+(?:adverts?|ads?|listings?)"
+                    + "|(?:adverts?|ads?|listings?)\\s+(?:(?:are|is)\\s+)?(?:not\\s+(?:showing|appearing|visible)|disappeared|missing)"
+                    + "|(?:can'?t|cannot|unable\\s+to)\\s+see\\s+my\\s+(?:adverts?|ads?|listings?)"
+                    + "|telling\\s+me\\s+i\\s+have\\s+no\\s+(?:adverts?|ads?|listings?)"
+                    + "|see\\s+(?:my\\s+)?live\\s+ads?"
+                    + ")\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern ACCOUNT_LOGIN_BIAS_PATTERN = Pattern.compile(
+            "\\b("
+                    + "account\\s+(?:(?:is|has\\s+been|was|are)\\s+)?(?:locked|suspended|blocked|banned|disabled)"
+                    + "|locked\\s+out\\s+of\\s+(?:my\\s+)?account"
+                    + "|(?:can'?t|cannot|unable\\s+to)\\s+(?:log|sign)\\s*in"
+                    + "|(?:can'?t|cannot|unable\\s+to)\\s+access\\s+(?:my\\s+)?account"
+                    + "|(?:reset|forgot|forgotten)\\s+(?:my\\s+)?password"
+                    + "|(?:login|log[-\\s]in|sign[-\\s]in)\\s+(?:issue|problem|error|failed|not\\s+working)"
+                    + ")\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern MESSAGING_BIAS_PATTERN = Pattern.compile(
+            "\\b("
+                    // notifications not arriving
+                    + "notifications?\\s+(?:not|aren'?t|are\\s+not)\\s+(?:arriving|coming|appearing|working|received)"
+                    + "|not\\s+(?:receiving|getting)\\s+notifications?"
+                    + "|(?:no|missing)\\s+notifications?"
+                    // messages not received / unable to receive
+                    + "|(?:not|unable\\s+to)\\s+receive\\s+(?:any\\s+)?messages?"
+                    + "|messages?\\s+(?:not|aren'?t|are\\s+not)\\s+(?:received|arriving|coming\\s+through|getting\\s+through)"
+                    + "|not\\s+(?:receiving|getting)\\s+(?:any\\s+)?(?:replies|messages|responses)"
+                    // no response from sellers / buyers / messages from contacts
+                    + "|no\\s+response\\s+from\\s+(?:sellers?|buyers?)"
+                    + "|sellers?\\s+(?:not|aren'?t|are\\s+not)\\s+(?:responding|replying|getting\\s+back)"
+                    // sending / receiving messages issue
+                    + "|(?:sending|receiving)\\s+(?:and|or)\\s+(?:receiving|sending)\\s+messages?"
+                    + "|inbox\\s+(?:is\\s+)?(?:empty|not\\s+working)"
+                    + ")\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Sprint §B2 topics that participate in the deterministic
+     * messaging / account / email-sync bias. The bias is opt-in by
+     * topic so unrelated flows (Delivery, Payments, Report a Safety
+     * Issue, Delete My Account, Technical Support) keep their
+     * existing routing.
+     */
+    private static final Set<String> B2_BIAS_TOPICS = Set.of(
+            "Account Support",
+            "Replies or Messaging",
+            "Replies & Messaging",
+            "Ad Support");
+
+    /**
      * Maps Topic Subject → ordered list of (pattern, target UC) overrides.
      * Pro Contract and Account Manager Support intentionally have no
      * overrides — phase2 §2.11.4 keeps them terminal hard-OOS because
@@ -168,6 +255,13 @@ public class UseCaseRouter {
      * @return the routing result
      */
     public RoutingResult route(BotSession session, String topicSubject, String description) {
+        // Sprint §B2: normalise alias topics ("Replies & Messaging" →
+        // "Replies or Messaging") so the strong-prior table fires
+        // instead of producing a soft-OOS UNKNOWN_TOPIC. Aliases live
+        // in {@link #TOPIC_ALIASES} and are exposed via
+        // {@link #normalizeTopicSubject} so unit tests can pin them.
+        topicSubject = normalizeTopicSubject(topicSubject);
+
         log.info("Session {}: routing, topicSubject='{}', description length={}",
                 session.getSessionId(), topicSubject,
                 description != null ? description.length() : 0);
@@ -234,6 +328,32 @@ public class UseCaseRouter {
             return RoutingResult.routed("UC-K", new BigDecimal("0.85"));
         }
 
+        // Stage 1.7 (Sprint §B2): deterministic phrase bias for
+        // account / messaging / email-sync flows. Stabilises
+        // cs_interactive_095 (UC-A, "no adverts") and prevents the LLM
+        // router from drifting "Account Support + email/app sync"
+        // descriptions onto UC-K. cs_interactive_001 / 002 / 014 reach
+        // this only via "Replies & Messaging" → "Replies or Messaging"
+        // alias when the strong-prior path didn't already route them
+        // (the alias normalisation at the top of route() guarantees
+        // they hit strong-prior first).
+        Optional<String> bias = matchAccountMessagingBias(topicSubject, description);
+        if (bias.isPresent()) {
+            String ucId = bias.get();
+            log.info("Session {}: B2 routing bias '{}' / '{}' -> {}",
+                    session.getSessionId(), topicSubject,
+                    description == null ? "" : description, ucId);
+            session.setActiveUseCase(ucId);
+            session.setIntentConfidence(new BigDecimal("0.75"));
+            List<String> biasCandidates = useCaseRegistry.getCandidateUcsForTopic(topicSubject);
+            if (biasCandidates != null && !biasCandidates.isEmpty()) {
+                session.setCandidateUseCases(biasCandidates.toArray(new String[0]));
+            } else {
+                session.setCandidateUseCases(new String[]{ucId});
+            }
+            return RoutingResult.routed(ucId, new BigDecimal("0.75"));
+        }
+
         // Stage 2: LLM classification for weak priors and "Account Support" (full candidate set)
         List<String> candidates = useCaseRegistry.getCandidateUcsForTopic(topicSubject);
         if (candidates.isEmpty()) {
@@ -244,6 +364,58 @@ public class UseCaseRouter {
         }
 
         return routeViaLlm(session, candidates, topicSubject, description);
+    }
+
+    /**
+     * Sprint §B2: normalise topic-string aliases. Production forms emit
+     * "Replies & Messaging"; the registry / strong-prior table use
+     * "Replies or Messaging". Without this rewrite the router falls
+     * to UNKNOWN_TOPIC and the session enters soft-OOS DISCOVER.
+     * Visible for unit testing.
+     */
+    static String normalizeTopicSubject(String topicSubject) {
+        if (topicSubject == null) {
+            return null;
+        }
+        return TOPIC_ALIASES.getOrDefault(topicSubject, topicSubject);
+    }
+
+    /**
+     * Sprint §B2 deterministic phrase bias. Returns:
+     * <ul>
+     *   <li>{@code UC-A} for ad / listing / "no adverts" descriptions
+     *       (cs_interactive_095).</li>
+     *   <li>{@code UC-D} for account-locked / login / can't-access
+     *       descriptions.</li>
+     *   <li>{@code UC-C} for notification / message / reply complaints
+     *       on weak-prior account-family topics.</li>
+     *   <li>{@link Optional#empty()} when the topic is not in
+     *       {@link #B2_BIAS_TOPICS} or no pattern matches.</li>
+     * </ul>
+     *
+     * <p>Order matters — UC-A wins over UC-C / UC-D when both trigger
+     * because the visible-ads complaint is the primary intent (the
+     * mention of "messages" in the same description is downstream
+     * symptomology). Visible for unit testing.
+     */
+    static Optional<String> matchAccountMessagingBias(String topicSubject, String description) {
+        if (topicSubject == null || description == null || description.isBlank()) {
+            return Optional.empty();
+        }
+        if (!B2_BIAS_TOPICS.contains(topicSubject)) {
+            return Optional.empty();
+        }
+        String desc = description.toLowerCase(Locale.ENGLISH);
+        if (ADS_VISIBILITY_BIAS_PATTERN.matcher(desc).find()) {
+            return Optional.of("UC-A");
+        }
+        if (ACCOUNT_LOGIN_BIAS_PATTERN.matcher(desc).find()) {
+            return Optional.of("UC-D");
+        }
+        if (MESSAGING_BIAS_PATTERN.matcher(desc).find()) {
+            return Optional.of("UC-C");
+        }
+        return Optional.empty();
     }
 
     /**

@@ -121,6 +121,75 @@ public class EscalationReasonResolver {
     );
 
     /**
+     * Sprint §B1 patterns that signal user <i>distress</i> / sustained
+     * frustration. Each match stamps {@code user_distress} on the session
+     * before the budget check fires, so the resolver's precedence table
+     * keeps the higher-priority semantic reason instead of letting
+     * {@code faq_miss_threshold_exceeded} or {@code turn_budget_exhausted}
+     * win on the same turn.
+     *
+     * <p>Pattern intent (cs_002 / cs_014 / cs_029-shape complaints):
+     * <ul>
+     *   <li>"you are not helping" / "your no helping" — direct frustration
+     *       at the bot's failure to resolve.</li>
+     *   <li>"no one is helping" / "nobody helps" — repeated unsuccessful
+     *       channels.</li>
+     *   <li>"i (have) (already) followed (your) process" / "i did
+     *       everything" — exhaustion after compliant troubleshooting.</li>
+     *   <li>"this is ridiculous" / "absurd" / "joke" / "useless" —
+     *       overt frustration markers.</li>
+     *   <li>"so called process / so-called <X>" — sarcastic complaint.</li>
+     *   <li>"How long do I have to wait" / "still not fixed" — chronic
+     *       pain after multiple turns.</li>
+     * </ul>
+     * The {@link #ALL_CAPS_FRUSTRATION_PATTERN} below catches
+     * shouting independently of the literal phrasing above.
+     */
+    private static final Pattern[] DISTRESS_PATTERNS = {
+            Pattern.compile("\\b(?:you|your|youre|you're|ur)\\s+(?:are|r)?\\s*not\\s+help(?:ing|ful)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(?:you|your|youre|you're|ur)\\s+no\\s+help(?:ing|ful)?\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(?:no\\s+(?:one|body)|nobody)\\s+(?:is\\s+)?help(?:ing|ed|s)?\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bi(?:'ve|\\s+have)?\\s+(?:already\\s+)?followed\\s+(?:your\\s+|the\\s+|this\\s+)?(?:so[-\\s]called\\s+)?process\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bso[-\\s]called\\s+(?:process|support|help)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bthis\\s+is\\s+(?:ridiculous|absurd|a\\s+joke|useless|unacceptable|insane)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(?:complete\\s+)?waste\\s+of\\s+(?:my\\s+)?time\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(?:fed\\s+up|sick\\s+of\\s+this|frustrating)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bhow\\s+long\\s+do\\s+i\\s+have\\s+to\\s+wait\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bsince\\s+day\\s+(?:1|one)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(?:still\\s+not\\s+(?:fixed|working|resolved)|been\\s+this\\s+way)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(?:prior|previous|earlier)\\s+request(?:s)?\\s+(?:were|was|are)\\s+ignored\\b",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bignored\\s+(?:my\\s+)?(?:prior|previous|earlier)?\\s*request",
+                    Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bdo\\s+i\\s+have\\s+to\\b.*\\?",
+                    Pattern.CASE_INSENSITIVE),
+            // Strong intensifier — "really frustrated", "extremely angry", etc.
+            Pattern.compile("\\b(?:really|so|extremely|incredibly|deeply)\\s+(?:frustrated|angry|upset|annoyed)\\b",
+                    Pattern.CASE_INSENSITIVE)
+    };
+
+    /**
+     * Sprint §B1: ALL-CAPS frustration shouting. Treated as distress when
+     * the message has at least 8 alpha characters and ≥ 70% of those are
+     * uppercase. The lower threshold (8 chars) catches short shouts like
+     * "HELP ME" while still ignoring product names ("UK", "FAQ") and
+     * single-word affirmations.
+     */
+    private static final int ALL_CAPS_MIN_LETTERS = 8;
+    private static final double ALL_CAPS_RATIO = 0.7;
+
+    /**
      * Patterns that signal an <i>explicit user-driven escalation</i>:
      * the user asked for a human or a callback. Mirrors the eval-side
      * {@code ESCALATION_REQUEST_PATTERNS} so the runtime cannot
@@ -234,6 +303,64 @@ public class EscalationReasonResolver {
             }
         }
         return false;
+    }
+
+    /**
+     * Sprint §B1: detect distress / sustained frustration in a user
+     * message. Returns true on any of:
+     * <ul>
+     *   <li>An ALL-CAPS shout (≥ {@value #ALL_CAPS_MIN_LETTERS} letters
+     *       and ≥ {@value #ALL_CAPS_RATIO} uppercase ratio).</li>
+     *   <li>A literal frustration phrase from
+     *       {@link #DISTRESS_PATTERNS} (e.g. "you are not helping",
+     *       "no one is helping", "this is ridiculous", "followed your
+     *       so called process").</li>
+     * </ul>
+     *
+     * <p>Used by {@link ControlKernel} to stamp {@code user_distress}
+     * via the resolver's precedence table BEFORE the budget close-out
+     * fires. With {@code user_distress} on the session, the resolver
+     * keeps it ahead of {@code faq_miss_threshold_exceeded} and
+     * {@code turn_budget_exhausted} (priorities 41 / 42), even if the
+     * budget bucket later trips on the same turn.
+     */
+    public boolean detectDistressSignal(String userMessage) {
+        if (userMessage == null || userMessage.isBlank()) {
+            return false;
+        }
+        if (isAllCapsShout(userMessage)) {
+            return true;
+        }
+        for (Pattern p : DISTRESS_PATTERNS) {
+            if (p.matcher(userMessage).find()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Visible for testing. {@code true} when the message is dominated
+     * by uppercase letters — a deterministic shouting signal that
+     * couples cleanly with {@link #detectDistressSignal}.
+     */
+    static boolean isAllCapsShout(String message) {
+        if (message == null) return false;
+        int letters = 0;
+        int uppers = 0;
+        for (int i = 0; i < message.length(); i++) {
+            char c = message.charAt(i);
+            if (Character.isLetter(c)) {
+                letters++;
+                if (Character.isUpperCase(c)) {
+                    uppers++;
+                }
+            }
+        }
+        if (letters < ALL_CAPS_MIN_LETTERS) {
+            return false;
+        }
+        return ((double) uppers / (double) letters) >= ALL_CAPS_RATIO;
     }
 
     /**
