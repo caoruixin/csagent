@@ -110,6 +110,32 @@ class SessionRunner:
         result.session_id = session_resp.get("session_id", "")
         result.bot_greeting = session_resp.get("reply_text", "")
 
+        # ---- Codex round 5 P0: include the create-session form turn in the
+        # transcript so L3 judge / results.json / report HTML all see what
+        # the customer originally asked. Without this, cases like
+        # cs_interactive_192 surface a transcript that begins on the
+        # follow-up message ("OK. What items are allowed?") even though the
+        # bot already answered the form description in `bot_greeting`. The
+        # form-text turn is recorded at turn_index=0 (distinct from
+        # turn_index=1 which is the simulator's first follow-up). Skip when
+        # the form has no description -- topic_subject alone is metadata,
+        # not a user-visible question.
+        form_user_text = (case_spec.form_context.description or "").strip()
+        if form_user_text:
+            result.transcript.append({
+                "role": "user",
+                "message": form_user_text,
+                "turn_index": 0,
+                "source": "form_context",
+            })
+        if result.bot_greeting:
+            result.transcript.append({
+                "role": "bot",
+                "message": result.bot_greeting,
+                "turn_index": 0,
+                "source": "session_create",
+            })
+
         # ---- Step 2: First user message ----
         first_msg = self._simulator.generate_first_message(case_spec)
         user_msg = first_msg["message"]

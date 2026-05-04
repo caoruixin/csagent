@@ -455,6 +455,7 @@ tools:
             - service_degraded
             - turn_budget_exhausted
             - tool_scope_blocked
+            - runtime_error_threshold  # added by phase0 §0.6 deviation 2026-05-01 (smoke remediation Fix 3); kept here so YAML enum stays in sync with eval_interactive/eval_interactive/case_spec/schema.py and runtime canonical 23-value set (codex 2026-05-04 round 5 §P1).
         case_id:
           type: string
         is_business_hours:

@@ -28,6 +28,7 @@ def _make_case_spec(
     should_escalate: bool = False,
     expected_tool_sequence: list[str] | None = None,
     max_turns: int = 10,
+    acceptable_outcomes: list[str] | None = None,
 ) -> CaseSpec:
     if outcome_checks is None:
         outcome_checks = OutcomeChecker.ALL_CHECKS
@@ -62,6 +63,7 @@ def _make_case_spec(
             escalation_trigger=escalation_trigger,
             expected_tool_sequence=expected_tool_sequence or [],
             max_turns=max_turns,
+            acceptable_outcomes=acceptable_outcomes or [],
         ),
         scoring=ScoringConfig(
             hard_checks=[],
@@ -177,6 +179,156 @@ class TestCorrectOutcome:
         results = checker.run_checks(case, trace)
         co = next(r for r in results if r.check_name == "correct_outcome")
         assert co.score == 0.0
+
+
+class TestCorrectOutcomeAcceptableOutcomes:
+    """Codex 2026-05-04 round 5 §P0 — ``acceptable_outcomes`` cross-class
+    fallback only earns full credit when the alternative path meets a
+    minimum service-quality bar."""
+
+    def test_cross_class_resolve_to_escalate_with_useful_handover_passes(self):
+        checker = OutcomeChecker()
+        case = _make_case_spec(
+            outcome_checks=["correct_outcome"],
+            outcome_class="resolve",
+            acceptable_outcomes=["resolve", "escalate"],
+        )
+        handover = HandoverData(
+            log_id="log",
+            session_id="s",
+            handover_payload={
+                "session_id": "s",
+                "primary_use_case": "UC-A",
+                "summary": "User asked about ad visibility; bot escalated for human review.",
+                "escalation_reason": "user_distress",
+                "total_bot_turns": 3,
+            },
+            customer_message="",
+            transcript=[],
+            transfer_result="",
+        )
+        trace = _make_trace(containment_outcome="escalated", handover=handover)
+        results = checker.run_checks(case, trace)
+        co = next(r for r in results if r.check_name == "correct_outcome")
+        assert co.score == 1.0
+
+    def test_cross_class_resolve_to_escalate_with_no_handover_partial_credit(self):
+        """Bot escalated on a resolve-expected case but the handover payload
+        is empty / missing essentials → 0.5 (degraded). The mandatory L2
+        gate (>= 1.0) still fails so the case will not pass."""
+        checker = OutcomeChecker()
+        case = _make_case_spec(
+            outcome_checks=["correct_outcome"],
+            outcome_class="resolve",
+            acceptable_outcomes=["resolve", "escalate"],
+        )
+        trace = _make_trace(containment_outcome="escalated", handover=None)
+        results = checker.run_checks(case, trace)
+        co = next(r for r in results if r.check_name == "correct_outcome")
+        assert co.score == 0.5
+        assert "degraded" in co.detail
+
+    def test_cross_class_resolve_to_escalate_with_short_summary_partial_credit(self):
+        checker = OutcomeChecker()
+        case = _make_case_spec(
+            outcome_checks=["correct_outcome"],
+            outcome_class="resolve",
+            acceptable_outcomes=["resolve", "escalate"],
+        )
+        handover = HandoverData(
+            log_id="log",
+            session_id="s",
+            handover_payload={
+                "session_id": "s",
+                "summary": "x",  # 1 char — does not clear the 10-char threshold
+                "escalation_reason": "user_distress",
+            },
+            customer_message="",
+            transcript=[],
+            transfer_result="",
+        )
+        trace = _make_trace(containment_outcome="escalated", handover=handover)
+        results = checker.run_checks(case, trace)
+        co = next(r for r in results if r.check_name == "correct_outcome")
+        assert co.score == 0.5
+
+    def test_cross_class_escalate_to_resolve_without_citation_partial_credit(self):
+        checker = OutcomeChecker()
+        case = _make_case_spec(
+            outcome_checks=["correct_outcome"],
+            outcome_class="escalate",
+            acceptable_outcomes=["resolve", "escalate"],
+        )
+        # Bot resolved but no source-cited turns → degraded.
+        from eval_interactive.trace.models import TurnTrace
+        bare_turn = TurnTrace(
+            turn_index=1,
+            user_message="hi",
+            bot_response="answer",
+            tool_calls=[],
+            source_ids=[],
+            phase_before="DISCOVER",
+            phase_after="CLOSE",
+            active_use_case="UC-A",
+            latency_ms=100,
+            projected_context={},
+        )
+        trace = _make_trace(turns=[bare_turn], containment_outcome="resolved")
+        results = checker.run_checks(case, trace)
+        co = next(r for r in results if r.check_name == "correct_outcome")
+        assert co.score == 0.5
+
+    def test_same_class_match_full_credit_regardless_of_quality(self):
+        """When actual outcome matches primary outcome_class the quality
+        guard does not fire — same-class match is always 1.0."""
+        checker = OutcomeChecker()
+        case = _make_case_spec(
+            outcome_checks=["correct_outcome"],
+            outcome_class="resolve",
+            acceptable_outcomes=["resolve", "escalate"],
+        )
+        trace = _make_trace(containment_outcome="resolved")
+        results = checker.run_checks(case, trace)
+        co = next(r for r in results if r.check_name == "correct_outcome")
+        assert co.score == 1.0
+
+
+class TestCorrectUcSecondaryDriftEvidence:
+    """Codex 2026-05-04 round 5 §"correct_uc gives full credit for any
+    secondary UC" — secondary-UC credit now requires the primary UC to
+    still be preserved in ``candidate_use_cases`` (real drift evidence)."""
+
+    def test_secondary_uc_with_primary_preserved_full_credit(self):
+        checker = OutcomeChecker()
+        case = _make_case_spec(
+            outcome_checks=["correct_uc"],
+            primary_uc="UC-A",
+            secondary_ucs=["UC-D"],
+        )
+        trace = _make_trace(
+            active_use_case="UC-D",
+            candidate_use_cases=["UC-A", "UC-D"],
+        )
+        results = checker.run_checks(case, trace)
+        cu = next(r for r in results if r.check_name == "correct_uc")
+        assert cu.score == 1.0
+
+    def test_secondary_uc_without_preservation_partial_credit(self):
+        checker = OutcomeChecker()
+        case = _make_case_spec(
+            outcome_checks=["correct_uc"],
+            primary_uc="UC-A",
+            secondary_ucs=["UC-D"],
+        )
+        # Primary UC-A is no longer in the candidate list → no drift evidence.
+        trace = _make_trace(
+            active_use_case="UC-D",
+            candidate_use_cases=["UC-D"],
+        )
+        results = checker.run_checks(case, trace)
+        cu = next(r for r in results if r.check_name == "correct_uc")
+        assert cu.score == 0.5
+        assert "dropped" in cu.detail
 
 
 class TestToolSequenceMatch:

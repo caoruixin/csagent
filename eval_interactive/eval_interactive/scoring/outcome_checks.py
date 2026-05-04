@@ -127,13 +127,23 @@ class OutcomeChecker:
     # ------------------------------------------------------------------
 
     def _check_correct_uc(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:
-        """Drift-aware match against the case's expected UC family.
+        """Drift-aware match with preservation evidence.
 
-        Codex 2026-05-04 round 4 §"Exact Primary UC" — exact-UC mismatch
-        is no longer a hard fail when the bot legitimately handled a
-        drifted issue. We award full credit for primary-UC match, full
-        credit for any UC declared as ``secondary_ucs``, and only fall
-        through to a 0.0 when the active UC matches neither.
+        Codex 2026-05-04 round 4 §"Exact Primary UC" demoted exact-UC
+        mismatch from a hard fail; codex 2026-05-04 round 5 §"correct_uc
+        gives full credit for any secondary UC" tightens the relaxation
+        so secondary-UC credit requires evidence of real user drift, not
+        just the case spec listing the UC as secondary. Concretely:
+
+        - primary UC match → 1.0.
+        - actual UC is in ``secondary_ucs`` AND the primary UC family is
+          also preserved in ``candidate_use_cases`` (drift evidence) →
+          1.0.
+        - actual UC is in ``secondary_ucs`` but the primary UC family
+          dropped from ``candidate_use_cases`` (lost the original issue)
+          → 0.5 (partial credit; not enough to clear the mandatory L2
+          gate, which requires >=1.0).
+        - otherwise → 0.0.
         """
         expected = self._normalize_uc(case_spec.expected.primary_uc)
         actual = self._normalize_uc(trace.session_state.active_use_case)
@@ -143,10 +153,21 @@ class OutcomeChecker:
 
         secondary = {self._normalize_uc(s) for s in case_spec.expected.secondary_ucs if s}
         if actual and actual in secondary:
+            candidate_families = {
+                self._normalize_uc(c)
+                for c in trace.session_state.candidate_use_cases
+                if c
+            }
+            if expected in candidate_families:
+                return OutcomeCheckResult(
+                    "correct_uc",
+                    1.0,
+                    f"matched secondary UC {actual} with primary {expected} preserved in candidates",
+                )
             return OutcomeCheckResult(
                 "correct_uc",
-                1.0,
-                f"matched secondary UC {actual} (expected primary {expected})",
+                0.5,
+                f"matched secondary UC {actual} but primary {expected} dropped from candidates {sorted(candidate_families)}",
             )
 
         return OutcomeCheckResult(
@@ -154,13 +175,29 @@ class OutcomeChecker:
         )
 
     def _check_correct_outcome(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:
-        """Honor ``Expected.acceptable_outcomes`` when the spec lists alternatives.
+        """Honor ``Expected.acceptable_outcomes`` with a quality guard.
 
         Codex 2026-05-04 round 4 §"Resolve vs Escalate" — outcome should
-        be reframed as acceptable outcome. When a spec lists
-        ``acceptable_outcomes: [resolve, escalate]`` either path passes.
-        Falls back to the strict ``outcome_class`` match when the field
-        is absent, preserving legacy behaviour.
+        be reframed as acceptable outcome. Codex 2026-05-04 round 5 §P0
+        adds a quality guard: when the actual outcome differs from the
+        primary ``outcome_class`` (i.e. the case fell back to a listed
+        alternative), the alternative path must still meet a minimum
+        service-quality bar. Otherwise a non-answer escalation could pass
+        a resolve-expected case just because the spec listed
+        ``[resolve, escalate]``.
+
+        Quality gate per cross-class fallback:
+        - primary=resolve, actual=escalate: handover payload must be
+          present with a non-trivial summary (>= 10 chars after strip)
+          and an ``escalation_reason``. Otherwise the fallback scores
+          0.5 (partial credit so the outcome still beats a true
+          mismatch but does not pass the L2 mandatory gate).
+        - primary=escalate, actual=resolve: bot must have produced a
+          source-cited answer turn (``trace.turns`` containing a
+          turn with non-empty ``source_ids``). Otherwise 0.5.
+
+        Falls back to the strict ``outcome_class`` match when
+        ``acceptable_outcomes`` is empty, preserving legacy behaviour.
         """
         expected = case_spec.expected.outcome_class.lower()
         raw_outcome = trace.session_state.containment_outcome.lower()
@@ -170,15 +207,61 @@ class OutcomeChecker:
         if not acceptable:
             acceptable = {expected}
 
-        if actual in acceptable:
+        if actual not in acceptable:
+            return OutcomeCheckResult(
+                "correct_outcome", 0.0,
+                f"actual={actual} not in acceptable={sorted(acceptable)}",
+            )
+
+        # Same-class match — full credit, no quality guard needed.
+        if actual == expected:
             return OutcomeCheckResult(
                 "correct_outcome",
                 1.0,
                 f"actual={actual} in acceptable={sorted(acceptable)}",
             )
+
+        # Cross-class fallback — apply the round-5 quality guard.
+        if actual == "escalate" and expected == "resolve":
+            payload = (
+                trace.handover.handover_payload
+                if trace.handover is not None
+                else {}
+            ) or {}
+            summary = (payload.get("summary") or "").strip()
+            reason = (payload.get("escalation_reason") or "").strip()
+            if len(summary) >= 10 and reason:
+                return OutcomeCheckResult(
+                    "correct_outcome",
+                    1.0,
+                    f"cross-class fallback OK: actual=escalate w/ useful handover (summary={len(summary)} chars, reason={reason})",
+                )
+            return OutcomeCheckResult(
+                "correct_outcome",
+                0.5,
+                f"cross-class fallback degraded: actual=escalate but handover summary={len(summary)} chars, reason={reason!r}",
+            )
+
+        if actual == "resolve" and expected == "escalate":
+            cited = any(getattr(t, "source_ids", None) for t in trace.turns)
+            if cited:
+                return OutcomeCheckResult(
+                    "correct_outcome",
+                    1.0,
+                    "cross-class fallback OK: actual=resolve w/ source-cited answer",
+                )
+            return OutcomeCheckResult(
+                "correct_outcome",
+                0.5,
+                "cross-class fallback degraded: actual=resolve but no source-cited answer turn",
+            )
+
+        # Other cross-class combos (abandoned etc.) keep simple full
+        # credit since no quality rubric is defined for them yet.
         return OutcomeCheckResult(
-            "correct_outcome", 0.0,
-            f"actual={actual} not in acceptable={sorted(acceptable)}",
+            "correct_outcome",
+            1.0,
+            f"actual={actual} in acceptable={sorted(acceptable)}",
         )
 
     def _check_tool_sequence_match(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:
