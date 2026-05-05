@@ -1,24 +1,92 @@
 # Current Eval Baseline
 
-Date: 2026-05-05 (post Sprint 4 — accepted closure)
+Date: 2026-05-05 (post Sprint 6 — accepted closure)
 
 ## Purpose
 
-This file freezes the accepted baseline for the next targeted runtime-behaviour sprint.
+This file freezes the accepted baseline for the next targeted
+runtime-behaviour sprint.
 
-The next sprint should compare new results against the **post-Sprint-4**
-accepted state. Sprint 4 closed the three E1 / E2 / E3 actions
-(LLM-supplied user_distress gate, cs029 classification override, override /
-audit consistency guard), formalized two pre-existing smoke hand-edits
-through the override path (cs011 expected.escalation_trigger, cs066 UC-E ->
-UC-K reclassification + intake_complete_for_uc_k expected trigger),
-pinned cs029 + cs066 in `_REQUIRED_CASE_IDS` for the smoke curator, and
-lifted smoke pass count and mean composite above the post-Sprint-3
-baseline on r1.
+The next sprint should compare new results against the **post-Sprint-6**
+accepted state. Sprint 6 implemented exactly G0 / G1 / G2 (Kimi
+ReadTimeout mitigation, corrected C1 prompt for cs_176 targeting
+`user_requested`, S1 FAQ-grounded-resolve PhasePlan / skill — see
+`docs/10-handoff.md` Sprint 6 section). The post-Sprint-4 baseline
+remains the historical reference for ReadTimeout-incidence comparison;
+the post-Sprint-6 r1 baseline is the current canonical reference for
+Sprint 7 regression checks.
 
-## Current sprint baseline (post Sprint 4)
+## Current sprint baseline (post Sprint 6)
 
 Canonical current result:
+
+`eval_interactive/results/20260505-112736/results.json`
+
+This is the accepted Sprint 6 r1 result (8/14, mean composite
+0.4826) used after:
+
+- G0 Kimi `session_create_failed: ReadTimeout` mitigation
+  (eval-side `AgentClient.create_session` 120s read timeout +
+  accept-and-retry on `httpx.ReadTimeout`, scoped to session-create
+  only; preserves Sprint 3 §C0 / §C1 bot-side semantics).
+- G1 corrected C1 system-prompt change targeting
+  `escalation_reason=user_requested` for `cs_interactive_176` —
+  one ACTIVE-UC TIEBREAKER paragraph + one GENUINE TIER-2 ESCAPE
+  HATCH paragraph in
+  `server/src/main/resources/prompts/system_prompt.txt`.
+- G2 S1 FAQ-grounded-resolve as a parametrized PhasePlan branch
+  inside `PhaseEvaluator.plan(...)` + a deterministic Java guard
+  (`AgentRunLoopImpl.shouldRejectFaqMissHandover`) that refuses
+  `request_handover(faq_miss_threshold_exceeded)` when
+  search_knowledge has viable evidence and resolve_article has not
+  yet been attempted.
+
+Pass rate:
+
+`8/14`
+
+Mean composite:
+
+`0.4826`
+
+Notes:
+
+- 0 ReadTimeout / `INFRA:ReadTimeout` / session_create_failed (was
+  2 / 3 across post-Sprint-4 r1 / r2). cs_interactive_014 PASS UC-C
+  for the first time on a smoke run since Sprint 4 (was ERROR
+  ReadTimeout in baseline r1 + r2).
+- 0 CONTRACT_VIOLATIONs (was 1 in baseline r1: cs_259).
+- `L1:escalation_reason_consistency` remains 0 across both Sprint 6
+  smoke runs ✓.
+- cs_192 sequence is now
+  `[search_knowledge, search_knowledge, resolve_article,
+  resolve_article, request_handover]` (vs spec
+  `[search_knowledge, resolve_article, record_outcome]`) — the
+  "uncited factual answer" failure mode is closed; remaining gap is
+  upstream `correct_outcome=resolve` (knowledge corpus) and is out of
+  Sprint 6 scope.
+- cs_259 contract violation is closed; UC drift to UC-B / UC-J / UC-E
+  vs spec UC-F is upstream classification (deferred to C5/DISCOVER
+  cue).
+- cs_176 r2 UC-I drift is **explicitly deferred** as residual risk
+  per Sprint 5.1 codex correction and the Sprint 6 acceptance
+  condition (Sprint 6 spec allows EITHER fixing UC-I drift OR
+  explicitly deferring it).
+
+### Stability reference run
+
+Follow-up smoke run to characterise nondeterminism (Sprint 6):
+
+- `eval_interactive/results/20260505-113845/results.json` (7/14, mean
+  composite 0.4108, 0 ReadTimeout / 0 CONTRACT_VIOLATION /
+  0 `L1:escalation_reason_consistency` fails; 1 TIMEOUT on
+  cs_interactive_002 — this is the 120s session-level
+  `BatchConfig.timeout_per_session_seconds`, NOT a ReadTimeout, and
+  not a Sprint 6 regression.)
+
+## Previous sprint baseline (post Sprint 4) — historical reference
+
+Canonical post-Sprint-4 result:
 
 `eval_interactive/results/20260504-221916/results.json`
 

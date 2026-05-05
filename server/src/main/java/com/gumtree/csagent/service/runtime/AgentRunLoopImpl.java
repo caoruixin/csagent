@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Default {@link AgentRunLoop} implementation. Per Phase 3 §3.3.3 and Phase 4
@@ -55,6 +56,32 @@ import java.util.Map;
 public class AgentRunLoopImpl implements AgentRunLoop {
 
     private static final String HANDOVER_TOOL = "request_handover";
+    private static final String SEARCH_TOOL = "search_knowledge";
+    private static final String RESOLVE_TOOL = "resolve_article";
+
+    /**
+     * Sprint 6 §G2 — S1 FAQ-grounded-resolve guard.
+     *
+     * <p>Refuses {@code request_handover(faq_miss_threshold_exceeded)} when
+     * {@code search_knowledge} already produced viable evidence
+     * ({@code faq_miss=false} with at least one hit) AND
+     * {@code resolve_article} has not yet been attempted in the current
+     * agent run. Anchors cs_192 (search-not-yet-run / uncited-answer
+     * shape, indirectly via the prompt nudge) and cs_259 (search-ran-
+     * but-resolve-did-not-complete shape, directly via this predicate).
+     *
+     * <p>The guard fires only on FAQ-path UCs in RESOLVE; intake,
+     * DISCOVER, CONFIRM, CLOSE, and ESCALATE are unaffected. If the
+     * search returned no viable hit (faq_miss=true) the
+     * {@code faq_miss_threshold_exceeded} handover is allowed through.
+     */
+    private static final Set<String> FAQ_PATH_UCS = Set.of(
+            "UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP"
+    );
+
+    private static final String FAQ_MISS_REASON = "faq_miss_threshold_exceeded";
+    static final String S1_GUARD_REJECT_REASON =
+            "s1_resolve_required_before_faq_miss_handover";
 
     private final LlmInvocationService llmInvocation;
     private final ToolDispatcher toolDispatcher;
@@ -185,6 +212,37 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     continue;
                 }
 
+                // 6a'. Sprint 6 §G2 — S1 FAQ-grounded-resolve guard.
+                // Refuse request_handover(faq_miss_threshold_exceeded) when
+                // search_knowledge already returned viable evidence and
+                // resolve_article has not yet been attempted. The LLM is
+                // nudged toward calling resolve_article on the next loop
+                // iteration. Other handover reasons (user_requested,
+                // user_distress, out_of_scope, real Tier-2 reasons) pass
+                // through unchanged.
+                if (HANDOVER_TOOL.equals(toolName)
+                        && shouldRejectFaqMissHandover(plan, call, accumulatedToolResults)) {
+                    log.warn(
+                            "AgentRunLoop S1 guard rejected request_handover(faq_miss_threshold_exceeded) "
+                                    + "for FAQ-path UC '{}' at step {}: search_knowledge has viable evidence "
+                                    + "but resolve_article has not been attempted yet.",
+                            plan.useCase(), step);
+                    ToolEvent rejected = ToolEvent.rejected(step, call, S1_GUARD_REJECT_REASON);
+                    toolEvents.add(new ToolEvent(
+                            sequence++, step, rejected.toolName(), rejected.arguments(),
+                            rejected.success(), rejected.resultData(), rejected.errorMessage(),
+                            rejected.latencyMs()));
+                    // Surface the rejection in accumulated_tool_results so the
+                    // next LLM iteration sees the gap and can call resolve_article.
+                    Map<String, Object> guardWrap = new LinkedHashMap<>();
+                    guardWrap.put("error", S1_GUARD_REJECT_REASON);
+                    guardWrap.put("hint",
+                            "Call resolve_article for the top search_knowledge hit before "
+                                    + "escalating with faq_miss_threshold_exceeded.");
+                    accumulatedToolResults.put(HANDOVER_TOOL, guardWrap);
+                    continue;
+                }
+
                 // 6b. Dispatch and record event
                 long tt = System.currentTimeMillis();
                 ToolResult result;
@@ -242,5 +300,70 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         if (call == null || call.getArguments() == null) return null;
         Object reason = call.getArguments().get("escalation_reason");
         return reason == null ? null : reason.toString();
+    }
+
+    /**
+     * Sprint 6 §G2 — S1 FAQ-grounded-resolve predicate.
+     *
+     * <p>Returns true iff:
+     * <ol>
+     *   <li>The plan is RESOLVE on a FAQ-path UC (UC-A / UC-B / UC-C /
+     *       UC-D / UC-E / UC-F / UC-FP).</li>
+     *   <li>The handover call's escalation_reason is
+     *       {@code faq_miss_threshold_exceeded}.</li>
+     *   <li>{@code accumulated_tool_results.search_knowledge} contains a
+     *       viable hit (faq_miss=false AND at least one hit).</li>
+     *   <li>{@code accumulated_tool_results.resolve_article} is empty.</li>
+     * </ol>
+     *
+     * <p>If any condition is unmet, the handover passes through. In
+     * particular, when search_knowledge returned no viable hit
+     * (faq_miss=true), the LLM is allowed to escalate with
+     * faq_miss_threshold_exceeded.
+     */
+    static boolean shouldRejectFaqMissHandover(
+            PhasePlan plan,
+            ToolCall call,
+            Map<String, Object> accumulatedToolResults) {
+        if (plan == null || !"RESOLVE".equals(plan.phase())) {
+            return false;
+        }
+        if (plan.useCase() == null || !FAQ_PATH_UCS.contains(plan.useCase())) {
+            return false;
+        }
+        if (call == null || call.getArguments() == null) {
+            return false;
+        }
+        Object reasonObj = call.getArguments().get("escalation_reason");
+        String reason = reasonObj == null ? null : reasonObj.toString();
+        if (!FAQ_MISS_REASON.equals(reason)) {
+            return false;
+        }
+        if (accumulatedToolResults == null) {
+            return false;
+        }
+        // Already resolved? Allow through.
+        Object resolveData = accumulatedToolResults.get(RESOLVE_TOOL);
+        if (resolveData != null && !(resolveData instanceof Map<?, ?> rm && rm.containsKey("error"))) {
+            return false;
+        }
+        // Search not yet run? Allow through (the cs_192 prompt nudge owns
+        // search-before-answer; this guard only catches the cs_259 shape).
+        Object searchData = accumulatedToolResults.get(SEARCH_TOOL);
+        if (!(searchData instanceof Map<?, ?> searchMap)) {
+            return false;
+        }
+        if (searchMap.containsKey("error")) {
+            return false;
+        }
+        Object faqMiss = searchMap.get("faq_miss");
+        if (Boolean.TRUE.equals(faqMiss)) {
+            return false;
+        }
+        Object hits = searchMap.get("hits");
+        if (!(hits instanceof List<?> hitList) || hitList.isEmpty()) {
+            return false;
+        }
+        return true;
     }
 }

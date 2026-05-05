@@ -208,6 +208,14 @@ class BatchExecutor:
                     f"returned an error during POST /v1/chat/sessions."
                 )
                 click.echo(f"  ERROR    {case_spec.case_id}: {msg}")
+                # Sprint 6 §G0: surface ReadTimeout vs semantic-failure
+                # distinction in the failure_tag so handoff / aggregation
+                # downstream can separate upstream latency from a real
+                # bot-side failure.
+                if "ReadTimeout" in (session_result.creation_error or ""):
+                    return self._error_result(
+                        case_spec, msg, failure_kind="ReadTimeout"
+                    )
                 return self._error_result(case_spec, msg)
 
             # 2. Collect trace
@@ -354,8 +362,22 @@ class BatchExecutor:
             "status": "TIMEOUT",
         }
 
-    def _error_result(self, case_spec: CaseSpec, error_msg: str) -> dict:
-        """Build a placeholder result for a case that raised an exception."""
+    def _error_result(
+        self,
+        case_spec: CaseSpec,
+        error_msg: str,
+        failure_kind: str | None = None,
+    ) -> dict:
+        """Build a placeholder result for a case that raised an exception.
+
+        Sprint 6 §G0: when ``failure_kind`` is set (e.g. ``ReadTimeout``),
+        emit an extra structured failure tag alongside the legacy
+        ``ERROR:...`` tag so the post-Sprint-6 handoff / aggregation can
+        separate upstream latency from a real bot-side failure.
+        """
+        failure_tags = [f"ERROR:{error_msg[:200]}"]
+        if failure_kind:
+            failure_tags.insert(0, f"INFRA:{failure_kind}")
         return {
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
@@ -368,7 +390,7 @@ class BatchExecutor:
             "composite_score": 0.0,
             "outcome_score": 0.0,
             "judge_score": 0.0,
-            "failure_tags": [f"ERROR:{error_msg[:200]}"],
+            "failure_tags": failure_tags,
             "stall_detected": False,
             "stall_failure_tag": "",
             "containment_outcome": "",

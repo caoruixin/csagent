@@ -50,6 +50,19 @@ COMPLIANCE / ACCOUNT:
 - Identity verification needed before any further action → `identity_verification_required`.
 - Payment dispute / chargeback / billing issue → `payment_dispute_detected`.
 
+ACTIVE-UC TIEBREAKER (Sprint 6 §G1):
+Before picking ANY Tier-2 policy reason (`payment_dispute_detected`, `appeal_requires_human`, `incorrect_deletion_appeal`, `account_compliance`, `trust_safety_required`, `gdpr_intake`, `identity_verification_required`, `service_degraded`), check whether the user has explicitly asked for human help in this session. Explicit human-help cues include: "talk to / speak to / connect me with a person/agent/human", "give me a phone number", "give me a number to call", "call me / callback", "I want a manager", "transfer me to a human". If any such cue is present, you MUST pick `escalation_reason=user_requested` regardless of payment-keyword phrasing, refund language, frustration phrasing, or the active use case. `user_requested` is priority 1 in the resolver and beats every Tier-2 policy reason. Do NOT substitute `faq_miss_threshold_exceeded`, `intake_complete_for_uc_k`, `service_degraded`, or `payment_dispute_detected` for `user_requested` when the user has explicitly requested a human — these are NOT family-match against `user_requested`.
+
+GENUINE TIER-2 ESCAPE HATCH (do NOT suppress these):
+Pick a Tier-2 policy reason ONLY when the user explicitly invokes that flow AND has NOT separately asked for a human:
+- chargeback / dispute via card-issuer / Section 75 / unauthorized transaction → `payment_dispute_detected`.
+- appeal a deletion / ban / suspension → `appeal_requires_human` or `incorrect_deletion_appeal`.
+- GDPR / data deletion / right-to-be-forgotten / data export → `gdpr_intake`.
+- identity verification / KYC required before further action → `identity_verification_required`.
+- formal account compliance / verification escalation → `account_compliance`.
+- imminent harm, scam, fraud, weapons, dangerous goods → `trust_safety_required` / `imminent_harm`.
+Do NOT pick `payment_dispute_detected` for advertising-fee / paid-feature / Top-Ad inquiries on UC-A / UC-B / UC-E — those are FAQ feature explanations or UC-K intake, not real chargebacks. But if the user IS invoking a real chargeback / GDPR / appeal / identity / safety flow, pick the matching Tier-2 reason as documented above; do not downgrade a genuine Tier-2 case to FAQ-family or to `user_requested`.
+
 INTAKE COMPLETION (UC-G/H/I/J/K only — pick the matching letter):
 - You have collected all required intake fields for an intake UC and the situation is ROUTINE (no overriding distress/safety/appeal signal) → `intake_complete_for_uc_g` / `intake_complete_for_uc_h` / `intake_complete_for_uc_i` / `intake_complete_for_uc_j` / `intake_complete_for_uc_k` (matching the active UC).
 - Required intake info incomplete after asking and the user cannot or will not provide it → `incomplete_intake`.

@@ -545,13 +545,22 @@ public class PhaseEvaluator {
             return null;
         }
 
+        // Sprint 6 §G2 — S1 FAQ-grounded-resolve PhasePlan branch.
+        // Enforces the terminal sequence search_knowledge -> resolve_article ->
+        // grounded customer-facing answer -> record_outcome, OR an explicit
+        // handover only after a valid resolve attempt cannot complete. The
+        // server-side handover-guard in AgentRunLoopImpl owns the deterministic
+        // predicate; this systemInstruction / groundingInstruction / escalationPolicy
+        // triple makes the contract visible to the LLM. record_outcome is added
+        // to allowedTools so the LLM can call it after a grounded answer
+        // without leaving RESOLVE.
         return PhasePlan.builder()
                 .phase("RESOLVE")
                 .useCase(activeUc)
                 .objective("Determine the customer's issue and provide a grounded, helpful answer for "
                         + ucDef.name())
                 .allowedTools(List.of("get_customer_context", "search_knowledge",
-                        "resolve_article", "request_handover"))
+                        "resolve_article", "record_outcome", "request_handover"))
                 .requiredContextKeys(Set.of("form_context", "customer_context",
                         "listing_context", "moderation_context"))
                 .maxToolSteps(4)
@@ -562,15 +571,36 @@ public class PhaseEvaluator {
                         TerminalOutcome.ESCALATE))
                 .systemInstruction(
                         "You are a helpful Gumtree customer support agent. "
-                                + "Resolve the user's issue using the provided tools.")
+                                + "Resolve the user's issue using the provided tools. "
+                                + "FAQ-path RESOLVE flow (S1): the intended terminal sequence is "
+                                + "search_knowledge -> resolve_article -> grounded customer-facing "
+                                + "answer (with a source_id citation) -> record_outcome. "
+                                + "Only escalate via request_handover after a valid resolve "
+                                + "attempt cannot complete (no viable hit, or resolve_article "
+                                + "could not produce a grounded answer).")
                 .groundingInstruction(
                         "If tool data contains specific information about the user's case "
                                 + "(account/ad/moderation), answer from that first. "
-                                + "For policy/process explanations, cite knowledge source IDs from "
-                                + "search_knowledge results.")
+                                + "For policy/process explanations, you MUST call search_knowledge "
+                                + "first if accumulated_tool_results.search_knowledge is empty; "
+                                + "do not produce a factual customer-facing answer without "
+                                + "grounded knowledge evidence. After search_knowledge returns a "
+                                + "viable hit, you MUST call resolve_article for the top hit "
+                                + "before answering the customer; cite the source_id in your "
+                                + "user_message. If search_knowledge returns no viable hit, "
+                                + "request_handover with escalation_reason="
+                                + "'faq_miss_threshold_exceeded' is allowed.")
                 .escalationPolicy(
-                        "Escalate via request_handover if you cannot resolve, if user explicitly "
-                                + "requests human, or if the issue is out of scope.")
+                        "Escalate via request_handover if (a) the user explicitly requests "
+                                + "a human (use escalation_reason='user_requested', priority 1), "
+                                + "or (b) search_knowledge returned no viable hit and you "
+                                + "cannot answer (use 'faq_miss_threshold_exceeded'), or "
+                                + "(c) the issue is genuinely out of scope (use 'out_of_scope'). "
+                                + "Do NOT short-circuit to request_handover("
+                                + "'faq_miss_threshold_exceeded') when search_knowledge "
+                                + "already returned a viable hit and resolve_article has not "
+                                + "yet been attempted — the runtime will refuse such a "
+                                + "handover and require a resolve_article attempt first.")
                 .build();
     }
 
