@@ -2,65 +2,60 @@
 
 decision: fix_required
 blocking_count: 3
-summary: Sprint 5 stayed diagnostic-only and the overall layer split is directionally sound, but the diagnostic cannot pass yet. One reviewed case lacks exactly one primary fix layer, and two next-sprint candidates are not aligned with the actual Sprint 4 result evidence / eval contract.
+summary: The main Sprint 5.1 case rows now correct the three original P1s, but the correction is not consistent across the required review set. Stale no-prior-search guard guidance remains in skill/design summaries, `current_eval_baseline.md` still names the wrong cs176 expected family, and the Sprint 6 recommendation still lists a fourth stretch action despite the requested 3-action maximum.
 
 ## Blocking Diagnostic Failures
 
 - severity: P1
-- target case or test: `docs/fix_layer_taxonomy.md` / `cs_interactive_015`
+- target case or test: `cs_interactive_259` in `docs/skill_orchestration_candidates.md` and `docs/java_guard_prompt_flexibility_design.md`
 - blocks current sprint goal: yes
-- exact minimal fix, if any: Pick exactly one primary layer for `cs_interactive_015`; keep the other as secondary. The row currently says primary is `prompt_context_projection / skill_orchestration (joint)`, which violates F0's "exactly one primary layer" contract and makes review question 1 fail.
+- exact minimal fix, if any: Remove or rewrite the remaining "F1 C5 + small runtime guard on request_handover(faq_miss) without prior search" guidance. The detailed S1/S3 sections correctly say Sprint 4 r2 already called `search_knowledge`, but the skill comparison / recommended-scope rows still present the old no-prior-search guard as viable. That reintroduces the prior P1 ambiguity.
 
 - severity: P1
-- target case or test: `cs_interactive_259` evidence in `docs/fix_layer_taxonomy.md`, `docs/prompt_context_projection_audit.md`, `docs/skill_orchestration_candidates.md`, `docs/10-handoff.md`
+- target case or test: `cs_interactive_176` in `docs/current_eval_baseline.md`
 - blocks current sprint goal: yes
-- exact minimal fix, if any: Correct the evidence and candidate action. Sprint 4 r2 did call `search_knowledge` before escalating: tool sequence was `['search_knowledge', 'classify_use_case', 'request_handover']` with `lcs=1/4`. The failure is missing `resolve_article` / grounded resolve / `record_outcome`, not simply "no prior search". A guard that refuses `faq_miss_threshold_exceeded` without prior search would not address the observed r2 failure.
+- exact minimal fix, if any: Update the baseline narrative to match the corrected eval contract. It still says cs176 fails against spec `faq_miss_threshold_exceeded`; the corrected CaseSpec/evidence expects `user_requested`, and Sprint 5.1 correctly says `faq_miss_threshold_exceeded` / `intake_complete_for_uc_k` are not acceptable substitutes.
 
 - severity: P1
-- target case or test: `cs_interactive_176` / F1 C1 recommended prompt change
+- target case or test: Sprint 6 recommendation in `docs/10-handoff.md` / `docs/action_bank.md`
 - blocks current sprint goal: yes
-- exact minimal fix, if any: Align C1's target outcome with the eval contract. The CaseSpec expects `escalation_trigger: user_requested`, and the result fails L1 because actual `payment_dispute_detected` / `service_degraded` is cross-family from `user_requested`. The audit currently says `faq_miss_threshold_exceeded` or `intake_complete_for_uc_k` would be acceptable "family-match against spec `user_requested`"; that is not supported by the result evidence. Either make C1 preserve/produce the `user_requested` family for this case or reclassify the issue.
+- exact minimal fix, if any: Keep the recommended implementation sprint to 3 narrow actions maximum. The corrected list still includes a fourth "(stretch) F1 C5" action and `action_bank.md` still labels the scope "3-4 actions". Since C5 is explicitly downgraded to DISCOVER-side support and not the cs259 primary fix, it should be deferred rather than carried as a Sprint 6 implementation action.
 
 ## Non-Blocking Notes
 
 - severity: P2
-- target case or test: Java fixes reserved for true invariants
+- target case or test: `cs_interactive_015`
 - blocks current sprint goal: no
-- exact minimal fix, if any: No broad implementation request. The F3 boundary is mostly clear, and no new top-level `java_guard` primary is recommended. Be careful with deferred guards in S1/S2/S3: only promote them when phrased as enforceable terminal predicates, not content-aware enum rewrites.
+- exact minimal fix, if any: No fix. It now has exactly one primary layer (`prompt_context_projection`), separate secondary (`skill_orchestration`), and the layer-count summary lists it under prompt/context.
 
 - severity: P2
-- target case or test: F1 C2 routing prompt tiebreaker
+- target case or test: `cs_interactive_259` detailed rows
 - blocks current sprint goal: no
-- exact minimal fix, if any: Keep deferred as written. The candidate depends on `customer_context.moderation_status`, but the audit also describes `routing_prompt.txt` as topic/description-only. Before this becomes an action, verify that the routing prompt can actually see the moderation status or move the cue to a projection/PhasePlan surface that can.
+- exact minimal fix, if any: No fix to the detailed case row. It now correctly states `search_knowledge` happened and identifies the missing tail as `resolve_article` / grounded answer / `record_outcome`.
 
 - severity: P2
-- target case or test: F2 skill candidates
+- target case or test: `cs_interactive_176` C1 detail
 - blocks current sprint goal: no
-- exact minimal fix, if any: S1 and S2 are concrete enough to become future actions: trigger conditions, tools, state, terminal outcomes, Java boundaries, prompt responsibilities, and eval cases are listed. S3 should stay deferred until the cs259 evidence is corrected.
+- exact minimal fix, if any: No fix to C1 detail. It now targets preserving / producing `user_requested` when the user explicitly asks for human help and records the residual `active_use_case=UC-I` drift risk.
 
 ## Regression Risks
 
-- severity: P1
-- target case or test: recommended Sprint 6 scope
-- blocks current sprint goal: yes
-- exact minimal fix, if any: Do not carry forward the C5/S3 "no prior search" guard as a cs259 fix until the evidence is corrected. It risks adding a Java guard that passes tests while leaving the observed failure unchanged.
+- severity: P2
+- target case or test: scope discipline
+- blocks current sprint goal: no
+- exact minimal fix, if any: The latest diff is docs-only: `docs/10-handoff.md`, `docs/action_bank.md`, `docs/codex-findings.md`, `docs/fix_layer_taxonomy.md`, `docs/prompt_context_projection_audit.md`, and `docs/skill_orchestration_candidates.md`. No Java, prompt template, eval YAML, override, or runtime config change is present.
 
 - severity: P2
-- target case or test: `cs_interactive_176`
+- target case or test: stale documentation consumers
 - blocks current sprint goal: no
-- exact minimal fix, if any: C1 may reduce `payment_dispute_detected` picks in r1, but it does not address the r2 `active_use_case=UC-I` drift. Treat the r2 UC drift as residual risk in the next sprint acceptance criteria.
-
-- severity: P2
-- target case or test: diagnostic-only scope
-- blocks current sprint goal: no
-- exact minimal fix, if any: Claude appears to have avoided broad implementation during Sprint 5. The handoff lists docs-only changes, and the current tracked worktree shows no Java, prompt, eval YAML, or runtime config diff from Sprint 5.
+- exact minimal fix, if any: Until the stale baseline/design summaries are corrected, a future sprint could still implement the wrong cs259 guard or accept the wrong cs176 family despite the detailed rows being fixed.
 
 ## Recommended Next Sprint Actions
 
-After the diagnostic corrections above, keep Sprint 6 to 3 narrow actions:
+After the diagnostic corrections above, keep Sprint 6 to exactly 3 actions:
 
 1. Kimi `session_create_failed: ReadTimeout` mitigation.
-2. Corrected C1 for `cs_interactive_176`, explicitly targeting the `user_requested` family or reclassifying the case before implementation.
-3. S1 FAQ-grounded-resolve skill, with cs259 framed as "search happened, resolve did not complete" and cs192 framed as "answer emitted without citation / resolve sequence incomplete."
+2. Corrected C1 for `cs_interactive_176`, targeting `user_requested`.
+3. S1 FAQ-grounded-resolve, with cs259 framed as "search happened, resolve did not complete."
 
-Defer C5/S3 until the cs259 evidence is rewritten. Defer C2 and S2 as already recommended unless the next sprint explicitly swaps them in.
+Defer C5/S3 no-prior-search guard language and any fourth stretch action until a later sprint.

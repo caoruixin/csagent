@@ -731,30 +731,45 @@ pick from a categorized menu.
   cs_002 / cs_014 / cs_015 / cs_192 / cs_259. Highest single lift;
   out of any prompt / skill / spec coupling.
 
-### Recommended Sprint 6 scope (3–4 actions)
+### Recommended Sprint 6 scope (exactly 3 actions)
 
 Drawn from `docs/10-handoff.md` Sprint 5 §4 / §F1-§F3 deliverables,
-amended by Sprint 5.1 codex corrections:
+amended by Sprint 5.1 codex corrections and constrained to exactly
+3 actions per the Sprint 5.1 codex review:
 
-1. F-INFRA Kimi timeout mitigation.
+1. F-INFRA Kimi `session_create_failed: ReadTimeout` mitigation.
 2. F1 §C1 `request_handover` UC-aware paragraph — **target outcome
    corrected**: must preserve / produce
    `escalation_reason=user_requested` for cs_176 (spec is
-   `user_requested`). Residual risk on r2 UC-I drift documented.
+   `user_requested`). `faq_miss_threshold_exceeded`,
+   `intake_complete_for_uc_k`, `service_degraded`, and
+   `payment_dispute_detected` are NOT family-match against
+   `user_requested` and are NOT acceptable substitutes. Residual
+   risk on r2 UC-I drift documented; Sprint 6 acceptance must
+   either include "no unjustified UC-I drift on cs_176 r2" or
+   explicitly defer that drift.
 3. F2 §S1 FAQ-grounded-resolve skill (subsumes F1 §C3) — owns both
-   cs_192 ("search-not-yet-run") AND cs_259
-   ("search-ran-but-resolve-did-not"). Terminal predicate enforces
-   `search_knowledge → resolve_article → grounded customer-facing
-   answer → record_outcome`, OR an explicit handover only after a
-   valid resolve attempt cannot complete.
-4. (stretch) F1 §C5 `candidate_use_cases` projection + DISCOVER cue.
-   **The previously-paired "no prior search" Java guard is
-   removed/deferred per Sprint 5.1** (cs_259 r2 already had a prior
-   `search_knowledge` call).
+   cs_192 ("answer emitted without citation / resolve sequence
+   incomplete") AND cs_259 ("search happened, resolve did not
+   complete"). Terminal predicate enforces `search_knowledge →
+   resolve_article → grounded customer-facing answer →
+   record_outcome`, OR an explicit handover only after a valid
+   resolve attempt cannot complete.
 
-Defer: F1 §C2 (validate moderation-status population first),
-F1 §C4 / F2 §S2, F2 §S5, L3 judge calibration (D15), cs_095
-product / FAQ-corpus question.
+Defer (NOT Sprint 6 implementation scope):
+
+- F1 §C5 `candidate_use_cases` projection + DISCOVER cue —
+  DISCOVER-side support only; cs_259 owned by S1.
+- S3 "no-prior-search" Java guard (refuse
+  `request_handover(faq_miss_threshold_exceeded)` without prior
+  `search_knowledge`) — does not address cs_259 r2 (search already
+  happened).
+- F1 §C2 cs_015 UC-FP / UC-A tiebreaker (validate moderation-status
+  population first).
+- F1 §C4 / F2 §S2 intake-state projection + UC-G/H/I/J/K skill.
+- F2 §S5 Tier-2 runtime guard.
+- L3 judge calibration (D15).
+- cs_095 product / FAQ-corpus question.
 
 ## Rule (carry-over)
 
