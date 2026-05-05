@@ -4,145 +4,160 @@ Date: 2026-05-05
 
 ## Sprint name
 
-Targeted Spec-vs-Runtime Alignment Sprint 4
+Prompt / Context Projection and Fix-Layer Diagnostic Sprint 5
 
 ## Goal
 
-Resolve the remaining high-impact smoke failures where the runtime behaviour is now deterministic enough, but the CaseSpec expectation may be misaligned with transcript evidence, policy, or the approved runtime contract.
+Stop defaulting every remaining eval failure to Java runtime fixes.
 
-Sprint 3 closed the main runtime-reliability blockers:
-- C0. Kimi endpoint / credential configuration normalization
-- C1. Bot-side LLM retry / timeout robustness
-- C2. Replies/Messaging strong-prior carry-forward into the bot-loop
-- Sprint 3.1. cs002 already-escalated distress reason reconciliation
+Classify the remaining smoke failures by the correct fix layer, identify prompt / context projection and skill orchestration candidates, and produce a small, evidence-backed implementation plan for the next sprint.
 
-Sprint 4 should not broaden eval scope. It should only align a small set of existing smoke expectations or minimal fallback logic where transcript / policy evidence supports the change.
+This sprint is diagnostic-first. It should not implement broad runtime changes.
 
 ## Baseline
 
-Use this as the current sprint baseline:
+Use the post-Sprint-4 canonical baseline:
 
-`eval_interactive/results/20260504-191137/results.json`
+`eval_interactive/results/20260504-221916/results.json`
 
 Use this as nondeterminism reference:
 
-`eval_interactive/results/20260504-191541/results.json`
-
-Use this as targeted cs014 reference:
-
-`results/20260504-191028/results.json`
-
-Use these Sprint 3.1 results only as contaminated references, NOT as closure baseline:
-
-- `eval_interactive/results/20260504-201933/results.json`
-- `eval_interactive/results/20260504-202424/results.json`
-
-Use this as targeted cs002 Sprint 3.1 proof:
-
-`eval_interactive/results/20260504-201842/results.json`
+`eval_interactive/results/20260504-223153/results.json`
 
 ## Implement only
 
-### E1. cs001 / cs002 escalation-reason expectation alignment
+### F0. Fix-layer taxonomy
 
-Decide whether the cs001 / cs002 CaseSpecs should accept `user_distress` when the simulator emits distress phrasing, or whether the runtime detector should be narrowed.
+Create or update:
 
-Required behaviour:
+`docs/fix_layer_taxonomy.md`
 
-- Inspect the actual CaseSpec persona, seed messages, hidden facts, and latest transcripts for cs001 and cs002.
-- Use transcript evidence and Phase 2 / Phase 5 policy to decide whether `user_distress` is semantically valid.
-- If `user_distress` is valid, update the CaseSpecs only through the approved v2 override / audit path.
-- Do not directly hand-edit generated YAML as the source of truth.
-- If the runtime detector is too broad, add the narrowest runtime fix and focused regression tests.
-- Preserve `user_requested` precedence over `user_distress`.
-- Preserve `user_distress` precedence over budget reasons.
-- Preserve `L1:escalation_reason_consistency = 0`.
+Classify each reviewed failure into exactly one primary layer and optional secondary layer:
 
-Target cases:
+- java_guard
+- prompt_context_projection
+- skill_orchestration
+- case_spec_eval
+- infra_runtime
+- judge_calibration
+- product_policy_gap
+- unknown_needs_human_review
 
-- `cs_interactive_001`
-- `cs_interactive_002`
+For each classification include:
 
-### E2. cs029 outcome lift / spec-vs-fallback alignment
+- case id
+- observed failure
+- evidence path
+- why this layer is primary
+- why other layers should not be fixed first
+- recommended minimal next action
+- confidence: high / medium / low
 
-Resolve D12: cs029 no longer fails the active_use_case contract, but L2 `correct_uc` still fails because runtime commits UC-D fallback while the spec primary is UC-C.
+### F1. Prompt / context projection audit
 
-Required behaviour:
+Inspect the prompt / AgentRunLoop / ContextProjection / PhasePlan surfaces.
 
-- Inspect the cs029 CaseSpec, source transcript evidence, form context, and runtime trace.
-- Decide whether UC-D fallback should be accepted as a secondary / expected fallback, or whether runtime should infer UC-C when the message contains messages / replies / inbox evidence.
-- If the CaseSpec is wrong or too narrow, update it through the approved v2 override / audit path.
-- If the runtime fallback is wrong, add the narrowest deterministic fallback refinement.
-- Semantic escalation reason must remain `user_requested`.
-- The original B3 target must still avoid `CONTRACT_VIOLATION:active_use_case`.
+Goal:
 
-Target case:
+- Identify where the LLM lacks useful state or constraints.
+- Identify cases where Java guard is already sufficient but prompt/context could improve answer quality, tool choice, or handover quality.
+- Propose minimal prompt/context changes, but do not implement them unless they are tiny and explicitly scoped.
 
-- `cs_interactive_029`
+Output:
 
-### E3. Override / audit consistency guard for Sprint 4 changes
+`docs/prompt_context_projection_audit.md`
 
-Any CaseSpec expectation change in this sprint must be reproducible.
+Include:
 
-Required behaviour:
+- current prompt/context surfaces
+- missing state / prior / phase goal / allowed-tool cues
+- candidate changes
+- risks
+- target cases
+- tests/evals needed before implementation
 
-- If E1 or E2 changes any generated CaseSpec expected field, the change must be represented in `eval_interactive/case_spec_overrides.yaml`.
-- `qa-reports/case-spec-generation-audit.md` must show the override applied.
-- `qa-reports/smoke-case-review.md` must agree with the final expected fields.
-- Add or update a lightweight regression check that prevents direct generated YAML edits without a matching approved override entry.
-- Do not rewrite unrelated smoke / anchor / exploration / promotion cases.
+### F2. Skill orchestration candidate scan
+
+Identify repeated multi-step flows that should become skills or plan templates.
+
+Examples:
+
+- FAQ search → grounded answer → unresolved check → handover
+- payment/refund issue triage
+- account/login recovery triage
+- technical-regression intake
+- moderation/trust-safety handover
+- soft-OOS classification + safe fallback
+
+Output:
+
+`docs/skill_orchestration_candidates.md`
+
+For each candidate:
+
+- trigger conditions
+- required tools
+- required state
+- terminal outcomes
+- Java guard boundaries
+- prompt responsibilities
+- eval cases that should test it
+
+### F3. Dual-layer design proposal
+
+Create:
+
+`docs/java_guard_prompt_flexibility_design.md`
+
+Define:
+
+- what Java must guarantee
+- what prompt should guide
+- what skill should orchestrate
+- what eval should verify
+- stop conditions for future implementation sprints
 
 ## Do not implement
 
-- cs259 routing / stall stabilisation
-- broad anchor / exploration / promotion expansion
-- full trace / transcript alignment
-- full claim classifier
-- full service-outcome taxonomy
-- broad rubric rewrite
-- production GDPR / moderation / payment / scam / OOS expansion
+- broad Java runtime redesign
+- new deterministic routing taxonomy
 - L3 judge stabilization
-- broad eval redesign
+- broad anchor / exploration / promotion expansion as hard gates
+- production GDPR / moderation / payment / scam suite expansion
+- full trace / transcript alignment
+- full service-outcome taxonomy
 - broad prompt rewrite
-- broad routing taxonomy rewrite
-- unrelated Kimi / DeepSeek config cleanup
-- pre-existing tracked-doc secret scrub
+- new skill runtime framework
 
-## Target cases
+## Target evidence
 
-- `cs_interactive_001`
-- `cs_interactive_002`
-- `cs_interactive_029`
+Review:
 
-Regression guards:
+- smoke failures from the post-Sprint-4 baseline
+- Sprint 4 nondeterminism reference
+- selected anchor / exploration examples only as advisory evidence
 
-- `cs_interactive_014` must remain UC-C with the approved cs014 override path intact.
-- `cs_interactive_066` must still route to UC-K.
-- `cs_interactive_095` must still not route to UC-K.
-- `L1:escalation_reason_consistency` must remain 0.
-- Sprint 3.1 cs002 already-escalated distress reconciliation must remain green.
+Primary smoke cases:
+
+- cs_interactive_176
+- cs_interactive_259
+- cs_interactive_192
+- cs_interactive_004 if still relevant historically
+- cs_interactive_011
+- cs_interactive_066 variance
+- session_create_failed / ReadTimeout cases
 
 ## Success metrics
 
-Primary metrics:
-
-- `cs_interactive_001` expected escalation reason is aligned with transcript / persona evidence and runtime behaviour.
-- `cs_interactive_002` expected escalation reason is aligned with transcript / persona evidence and runtime behaviour.
-- `cs_interactive_029` no longer fails because of UC-D fallback vs spec UC-C mismatch, unless the mismatch is explicitly documented as deferred.
-- All CaseSpec expected-field changes go through approved override / audit path.
-- `L1:escalation_reason_consistency` remains 0.
-- `cs_interactive_014` remains UC-C.
-- `cs_interactive_066` remains UC-K.
-- `cs_interactive_095` remains not UC-K.
-
-Secondary metrics:
-
-- Smoke pass rate should improve or remain stable.
-- Targeted blocker reduction matters more than raw pass count.
-- No new P0/P1 blocker should be introduced in Sprint 2 / 2.1 / 3 regression guards.
+- Every reviewed failure has a fix-layer classification.
+- At least 3 prompt/context candidates are identified.
+- At least 2 skill orchestration candidates are identified.
+- Java-only fixes are recommended only for true invariants.
+- Next implementation sprint can be scoped to 3–4 actions.
+- No broad implementation is performed in this sprint.
 
 ## Review rule
 
-The next Codex review must only check whether Sprint 4 objective was met.
+Codex should review the diagnostic quality only.
 
-Codex should not perform a broad review of missing production cases, future groundedness work, service-outcome taxonomy, judge stabilization, large eval expansion, or production policy expansion unless it directly blocks E1, E2, or E3.
+Codex should not ask for broad implementation during this sprint unless the audit reveals a P0 safety or contract violation.

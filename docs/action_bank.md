@@ -611,6 +611,118 @@ Do not include in Sprint 4 unless explicitly scoped:
 - L3 judge stabilization
 - production GDPR / moderation / payment / scam / OOS expansion
 
+## Sprint 5 diagnostic candidates (post-Sprint-4) — categorized, NOT yet implemented
+
+Sprint 5 was diagnostic-only (F0 / F1 / F2 / F3). The deliverables
+(`docs/fix_layer_taxonomy.md`, `docs/prompt_context_projection_audit.md`,
+`docs/skill_orchestration_candidates.md`,
+`docs/java_guard_prompt_flexibility_design.md`) classify the remaining
+post-Sprint-4 smoke failures by fix layer and propose narrow,
+evidence-backed candidate changes. None of these is implemented in
+Sprint 5; they are listed here so the next implementation sprint can
+pick from a categorized menu.
+
+### Prompt / context projection candidates (Sprint 5 §F1)
+
+- **C1. active_use_case-aware `request_handover` reason picking**
+  (`server/src/main/resources/prompts/system_prompt.txt`).
+  Anchor case: cs_interactive_176 (UC-E feature-explanation form
+  picking `payment_dispute_detected` instead of FAQ-family reason).
+  Edit shape: append one paragraph after line 51 of
+  `system_prompt.txt`; check `session.active_use_case` before
+  picking a Tier-2 policy reason. Risk: under-routing real
+  chargebacks to FAQ family — mitigated by the explicit
+  "user explicitly invokes chargeback / GDPR / appeal" escape
+  hatch.
+
+- **C2. Routing-prompt UC-FP / UC-A tiebreaker for short
+  ad-rejection forms**
+  (`server/src/main/resources/prompts/routing_prompt.txt`).
+  Anchor case: cs_interactive_015 (UC-A picked instead of UC-FP for
+  "Hi - can you tell me what happened to my ad?"). Edit shape: one
+  bullet appended after line 12; gated on
+  `customer_context.moderation_status` to avoid over-routing
+  cs_095 to UC-FP. Depends on reliable population of
+  `customer_context.moderation_status` — verify before shipping.
+
+- **C3. RESOLVE-FAQ "search before answering on turn 1"**
+  (`server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`,
+  RESOLVE FAQ branch `groundingInstruction`). Anchor case:
+  cs_interactive_192 r2 (bot answered without `search_knowledge`,
+  failed `L1:source_citation_present`). Edit shape: append one
+  sentence requiring `search_knowledge` before any factual
+  user_message. Bounded by existing `maxToolSteps=4`.
+
+- **C4. Surface `intake_state.fields_collected / fields_remaining`
+  for INTAKE phases**
+  (`ContextProjectionBuilder.buildProjection` + the per-UC
+  intake `systemInstruction`). Anchor case: cs_interactive_066 r2
+  (UC-K intake hit `turn_budget_exhausted`). Edit shape: read
+  `session.intakeFields` JSONB + UC registry's required field set,
+  emit `intake_state` slot in the projection, reference it in the
+  intake `systemInstruction`. Small Java change + prompt change.
+
+- **C5. Surface `candidate_use_cases` in projected JSON, update
+  DISCOVER instruction**
+  (`ContextProjectionBuilder.buildProjection` + DISCOVER
+  `systemInstruction`). Anchor case: cs_interactive_259 (UNKNOWN
+  topic + FAQ-shaped first turn → single-turn handover with
+  `faq_miss_threshold_exceeded`). Edit shape: project the
+  already-existing `session.candidateUseCases` slot, and add a
+  DISCOVER instruction cue: "if `candidate_use_cases` is empty AND
+  user message is FAQ-shaped, run `search_knowledge` before
+  classifying or escalating." Pair with a small Java guard that
+  refuses `request_handover(faq_miss_threshold_exceeded)` when no
+  prior `search_knowledge` is in `accumulated_tool_results`.
+
+### Skill orchestration candidates (Sprint 5 §F2)
+
+- **S1. `Resolve.FAQ.GroundedAnswer`** — must-have. Parametrized
+  RESOLVE-FAQ PhasePlan with deterministic terminal predicate
+  (search hit ≥ threshold AND citation in user_message). Anchors:
+  cs_192, cs_259, cs_001, cs_011. Subsumes F1 §C3.
+
+- **S2. `Resolve.Intake.CollectAndHandover`** — should-have.
+  Parametrized RESOLVE-INTAKE PhasePlan keyed on UC's
+  `requiredIntakeFields`. Anchors: cs_066, cs_036, cs_038, cs_040.
+  Includes a Java guard downgrading
+  `intake_complete_for_uc_X` to `incomplete_intake` when fields
+  remain. Higher mvn test cost (per-UC × per-field combinations).
+  Subsumes F1 §C4.
+
+- **S3. `Triage.SoftOOS.ClarifyOrEscalate`** — defer (mostly covered
+  by F1 §C5 + small Java guard).
+
+- **S4. `Triage.Account.LoginRecovery`** — defer (cs_011 currently
+  PASSes; defensive only).
+
+- **S5. `Triage.PolicySensitive.Tier2Reasoning`** — defer (ship F1
+  §C1 prompt fix first; only escalate to runtime guard if prompt
+  is insufficient across nondeterminism re-runs).
+
+### Infra candidate (carried forward from Sprint 4)
+
+- **F-INFRA. Kimi `session_create_failed: ReadTimeout` mitigation.**
+  Pick one of: widen eval-client timeout to 120s; pre-warm first
+  Kimi call; async pre-fetch FAQ snapshots; accept-and-retry on
+  ReadTimeout. Anchors 5 unique cases across Sprint 4 r1/r2:
+  cs_002 / cs_014 / cs_015 / cs_192 / cs_259. Highest single lift;
+  out of any prompt / skill / spec coupling.
+
+### Recommended Sprint 6 scope (3–4 actions)
+
+Drawn from `docs/10-handoff.md` Sprint 5 §4 / §F1-§F3 deliverables:
+
+1. F-INFRA Kimi timeout mitigation.
+2. F1 §C1 `request_handover` UC-aware paragraph.
+3. F2 §S1 FAQ-grounded-resolve skill (subsumes F1 §C3).
+4. (stretch) F1 §C5 `candidate_use_cases` projection + DISCOVER cue
+   + small Java guard.
+
+Defer: F1 §C2 (validate moderation-status population first),
+F1 §C4 / F2 §S2, F2 §S5, L3 judge calibration (D15), cs_095
+product / FAQ-corpus question.
+
 ## Rule (carry-over)
 
 If a finding is not directly related to an active sprint contract or one of the
