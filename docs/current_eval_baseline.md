@@ -26,9 +26,13 @@ This is the accepted Sprint 6 r1 result (8/14, mean composite
 0.4826) used after:
 
 - G0 Kimi `session_create_failed: ReadTimeout` mitigation
-  (eval-side `AgentClient.create_session` 120s read timeout +
-  accept-and-retry on `httpx.ReadTimeout`, scoped to session-create
-  only; preserves Sprint 3 §C0 / §C1 bot-side semantics).
+  (Sprint 6.1 closure-normalized): eval-side
+  `AgentClient.create_session` 120s read timeout widen as the
+  single chosen mitigation; no ReadTimeout retry. Escaped
+  `httpx.ReadTimeout` is classified/tagged as `INFRA:ReadTimeout`
+  by `SessionRunner` / `BatchExecutor`; 401 / 403 / 4xx / 5xx
+  remain non-retryable. Scoped to session-create only; preserves
+  Sprint 3 §C0 / §C1 bot-side semantics.
 - G1 corrected C1 system-prompt change targeting
   `escalation_reason=user_requested` for `cs_interactive_176` —
   one ACTIVE-UC TIEBREAKER paragraph + one GENUINE TIER-2 ESCAPE

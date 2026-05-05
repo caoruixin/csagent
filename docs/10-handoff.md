@@ -2815,10 +2815,10 @@ introduced; the implementation is a pure extension of the existing
   (composite 0.771) for the first time on a smoke run since the
   Kimi-latency regression appeared in Sprint 4.
 
-The G0 widen + retry change unblocks the 5 cases that were
-intermittently masked by the 60s budget (cs002 / cs014 / cs015 /
-cs192 / cs259). After Sprint 6 they expose their underlying semantic
-behaviour rather than infra-side timeouts.
+The G0 120s create-session timeout widen change unblocks the 5
+cases that were intermittently masked by the 60s budget (cs002 /
+cs014 / cs015 / cs192 / cs259). After Sprint 6 they expose their
+underlying semantic behaviour rather than infra-side timeouts.
 
 ## 7. Regression-guard outcomes
 
@@ -3121,3 +3121,31 @@ After H0 + H1 the Sprint 6 acceptance bar is met:
   UC-K, cs002 already-escalated distress reconciliation, cs029 UC-D
   + `user_requested`, `L1:escalation_reason_consistency=0`) remain
   intact (unchanged by H0/H1).
+
+### H0 §6 wording correction (2026-05-06)
+
+Codex Sprint 6.1 review flagged one residual P1 wording blocker:
+the §6 sentence still described G0 as "widen + retry change", which
+contradicted the closure-normalised single-mitigation language
+elsewhere in the same file. The §6 sentence is now corrected to
+"The G0 120s create-session timeout widen change unblocks the 5
+cases…" — naming the single chosen mitigation explicitly. The
+matching current accepted-state description in
+`docs/current_eval_baseline.md` was also tightened to the
+closure-normalised wording (single 120s widen mitigation; no
+ReadTimeout retry; escaped ReadTimeout classified as
+`INFRA:ReadTimeout`; 4xx / 5xx remain non-retryable).
+
+A narrow grep
+(`widen + retry`, `accept-and-retry`, `retry-once`,
+`retries exactly once`, `2 attempts max`, `bounded 2-attempt`)
+across `docs/10-handoff.md`, `docs/action_bank.md`,
+`docs/current_eval_baseline.md`, and `docs/sprints/` after the
+edit found **no current non-historical G0 retry claims**. All
+remaining matches are either Sprint 3 §C1 bot-side
+`OpenAiCompatibleLlmClient.chat` retry (a different feature),
+Sprint 5 / 5.1 candidate menus listing the original four mitigation
+options before one was picked, Sprint 6.1 closure narrative
+explicitly framed as "originally landed two / accept-and-retry
+removed", Sprint 4 scope-deferral notes, or archived per-sprint
+handoff snapshots under `docs/sprints/`.
