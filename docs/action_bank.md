@@ -712,8 +712,17 @@ pick from a categorized menu.
   remain. Higher mvn test cost (per-UC × per-field combinations).
   Subsumes F1 §C4.
 
-- **S3. `Triage.SoftOOS.ClarifyOrEscalate`** — defer (mostly covered
-  by F1 §C5 + small Java guard).
+- **S3. `Triage.SoftOOS.ClarifyOrEscalate`** — **defer**. Sprint 4
+  r2 already called `search_knowledge` for cs_259; cs_259 r2 failed
+  because `resolve_article` / grounded customer-facing answer /
+  `record_outcome` did not complete. cs_259's primary fix is S1
+  FAQ-grounded-resolve (search → `resolve_article` → grounded answer
+  → `record_outcome`, OR an explicit handover only after a valid
+  resolve attempt cannot complete). C5 `candidate_use_cases`
+  projection is DISCOVER-side support only. The S3 / no-prior-search
+  guard (refusing `request_handover(faq_miss_threshold_exceeded)`
+  without a prior `search_knowledge` call) is NOT the cs_259 fix and
+  is NOT viable Sprint 6 scope.
 
 - **S4. `Triage.Account.LoginRecovery`** — defer (cs_011 currently
   PASSes; defensive only).
@@ -778,5 +787,8 @@ explicitly named deferred items above, do not implement it without an updated
 sprint scope.
 
 Avoid returning to broad full-review → fix → full-review loops. Each sprint
-must name 3–4 accepted actions, define target cases, and close only when Codex
-reports no blocking sprint failures or only non-blocking P2 notes remain.
+should normally name 3 accepted actions, or explicitly justify any deviation
+before implementation; define target cases, and close only when Codex reports
+no blocking sprint failures or only non-blocking P2 notes remain. Sprint 6
+specifically is capped at exactly 3 actions per the Sprint 5.1 / 5.2 / 5.3
+codex corrections.
