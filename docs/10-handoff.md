@@ -3620,3 +3620,240 @@ canonical.
    if Sprint 7's I0 / I1 / I2 do NOT close the cs259 / cs015 /
    cs066 routing-and-intake gaps under clean credentials.
 5. L3 judge calibration is a separate sprint — defer.
+
+# Sprint 7.1 closure — Intake-State Persistence Closure Fix
+
+Date: 2026-05-06
+
+## 1. Blocker fixed
+
+Codex Sprint 7 review surfaced one P1 blocker:
+
+- target: I2 / cs_interactive_066 UC-K intake-state orchestration
+- evidence: `ContextProjectionBuilder` derived
+  `intake_state.fields_collected/remaining/intake_complete` from
+  `session.intakeFields`, but the only Sprint 7 write to
+  `session.intakeFields` was `AgentRunLoopImpl.persistInlineIntakeFields`
+  — and that hook only fired when the LLM emitted
+  `request_handover.arguments.intake_fields`. A normal intake
+  clarification turn with no tool call therefore left every
+  required field "remaining" in the next projection, so the bot
+  kept asking for fields the user had already supplied (cs066
+  stall shape).
+
+Sprint 7.1 closes this gap by persisting partial intake field
+values from the user's clarification reply (and from the form
+context's issue description) before the next `intake_state`
+projection is built. Anchored on UC-K canonical required fields
+`[platform, repro_steps_or_error_message]`. No new skill runtime
+framework is introduced; the merge stays inside the existing
+`PhaseEvaluator` / `AgentRunLoop` / `ContextProjectionBuilder`
+architecture.
+
+Behavioural contract for cs066 / UC-K:
+
+- Form description that already names a regression (e.g. cs066:
+  `Why am I not getting the option to add my phone number ... any
+  more`) seeds `repro_steps_or_error_message` on the first turn.
+- A user reply containing a platform token (`Chrome`, `Android`,
+  `iPhone`, `Windows`, `app`, `desktop`, ...) is captured as
+  `platform`.
+- Once both required UC-K fields land, `intake_state.intake_complete`
+  flips true and the existing
+  `AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover` guard
+  no longer downgrades the `intake_complete_for_uc_k` handover.
+- A premature `intake_complete_for_uc_k` handover is still
+  rejected when the extractor cannot infer a required field —
+  the I2 guard is preserved, not bypassed.
+- FAQ-path UCs (UC-A/B/C/D/E/F/FP) do NOT receive intake_state
+  projection or partial-intake persistence (cs014 / cs095 /
+  cs011 negative guards intact).
+- Other intake UCs (UC-G/H/I/J) still rely on the LLM-supplied
+  `request_handover.arguments.intake_fields` payload via the
+  pre-existing `AgentRunLoopImpl.persistInlineIntakeFields` hook;
+  the new extractor only adds UC-K heuristics. Adding UC-G/H/I/J
+  per-UC heuristics is a future option if a targeted blocker
+  shows the same partial-intake gap there.
+
+## 2. Files changed
+
+Production code (Sprint 7.1 surface only):
+
+- `server/src/main/java/com/gumtree/csagent/service/runtime/IntakeFieldExtractor.java`
+  (new) — narrow per-UC extractor. UC-K initial scope:
+  `platform` (regex match against platform tokens — `chrome`,
+  `firefox`, `safari`, `edge`, `opera`, `brave`, `android`, `ios`,
+  `iphone`, `ipad`, `windows`, `macos`, `mac`, `linux`, `desktop`,
+  `mobile`, `tablet`, `web`, `browser`, `app`) and
+  `repro_steps_or_error_message` (regression-marker regex —
+  `not / n't / won't / doesn't / isn't / can't / cannot /
+  missing / disappeared / removed / gone / lost / broken / error /
+  fail / no longer / any more / anymore / stopped working`).
+  Both extractors are tolerant on null / blank / unparseable
+  inputs and never overwrite an existing collected value.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+  — added `mergePartialIntakeFromContext(session, plan, userMessage)`
+  helper and a single call site at the top of `run()` so it
+  fires once per user turn before any projection. Skips
+  immediately for non-intake UCs and for intake UCs with no
+  per-UC extractor heuristics.
+
+Tests (Sprint 7.1 surface only):
+
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint71PartialIntakePersistenceTest.java`
+  (new, 14 tests) — covers:
+  - Extractor unit contract (platform capture from user reply,
+    repro_steps seed from cs066 form description, no-op for
+    filler replies, no-op for non-UC-K, no-overwrite of existing
+    fields).
+  - `mergePartialIntakeFromContext` writes back to
+    `session.intakeFields` for UC-K and is a no-op for FAQ-path
+    UCs.
+  - Multi-turn cs066 projection: turn 1 (form-seed only) shows
+    repro_steps collected and platform remaining; turn 2 (user
+    reply with platform) shows both collected and
+    `intake_complete=true`.
+  - Negative: `intake_complete_for_uc_k` handover still rejected
+    when extractor cannot infer required fields (I2 guard
+    preserved, not bypassed).
+  - Negative: FAQ-path UC (UC-A) does not receive intake_state
+    or partial-intake persistence.
+
+No CaseSpec, eval, smoke, prompt, or routing-taxonomy files
+were touched.
+
+## 3. Tests run
+
+Focused regression (matches Codex Sprint 7 review surface plus
+the new Sprint 7.1 test):
+
+```
+mvn -pl server -Dtest=Sprint7IntakeStateTest,
+  Sprint7CandidateUseCasesProjectionTest,
+  Sprint7RoutingTiebreakerTest,
+  Sprint71PartialIntakePersistenceTest,
+  AgentRunLoopIntakeIntegrationTest,
+  Cs176ExplicitHumanHelpHandoverIntegrationTest,
+  AgentRunLoopS1FaqGroundedResolveGuardTest,
+  Cs014RouteAndLoopHandoverIntegrationTest,
+  Cs002AlreadyEscalatedDistressReconcileIntegrationTest test
+```
+
+→ 68 tests, 0 failures, 0 errors, 0 skipped.
+
+Full server suite:
+
+```
+mvn -pl server test
+```
+
+→ 659 tests, 0 failures, 0 errors, 0 skipped (was 645 in
+Sprint 7; +14 from `Sprint71PartialIntakePersistenceTest`).
+
+`pytest eval_interactive/tests`: not run. Sprint 7.1 changes are
+pure Java (no Python or eval files modified); the closure scope
+was explicitly limited to the I2 blocker fix and its focused
+tests.
+
+## 4. Latest result paths
+
+No new smoke or targeted runs were promoted. The Sprint 6 r1
+canonical reference (`eval_interactive/results/20260505-112736/results.json`)
+remains the canonical baseline; Sprint 7's contaminated runs
+are not promoted, and Sprint 7.1 does not produce a new
+canonical baseline either (see §5).
+
+## 5. Why no new smoke baseline is promoted
+
+The Sprint 7 P1 blocker (Kimi 401 upstream credential
+contamination) is unchanged. The configured `KIMI_API_KEY` is
+still rejected at `https://api.moonshot.cn/v1/chat/completions`,
+so any post-Sprint-7.1 smoke or targeted run would surface the
+same `service_degraded` rows and `CONTRACT_VIOLATION:active_use_case`
+on cases that hit the 401 before a routing/classify turn. That
+is upstream auth contamination, not a Sprint 7.1 regression.
+
+Per the Sprint 7.1 closure rules:
+
+- Focused deterministic tests are sufficient closure evidence
+  for this P1 because the fix is pure projection/persistence
+  logic and is fully covered by the new
+  `Sprint71PartialIntakePersistenceTest` plus the preserved
+  Sprint 7 `Sprint7IntakeStateTest` + `AgentRunLoopIntakeIntegrationTest`
+  guards.
+- A clean smoke baseline can only be produced after upstream
+  credential rotation (Sprint 7 §8 P1 still applies).
+- `docs/current_eval_baseline.md` is therefore unchanged.
+
+## 6. Regression guards — outcomes (Sprint 7.1)
+
+All Sprint 7 regression guards remain green and are pinned by
+deterministic Java tests:
+
+- ✅ Sprint 7 §I2 intake_complete guard
+  (`Sprint7IntakeStateTest`, 16 tests) — including the
+  `shouldRejectIncompleteIntakeHandover` allow / reject matrix
+  and the `persistInlineIntakeFields` LLM-payload merge.
+- ✅ Sprint 7 §I0 candidate_use_cases projection
+  (`Sprint7CandidateUseCasesProjectionTest`, 7 tests).
+- ✅ Sprint 7 §I1 UC-FP vs UC-A routing tiebreaker
+  (`Sprint7RoutingTiebreakerTest`).
+- ✅ Sprint 6 §G2 S1 FAQ-grounded-resolve guard
+  (`AgentRunLoopS1FaqGroundedResolveGuardTest`, 12 tests).
+- ✅ Sprint 6 §G1 cs176 explicit-human-help → user_requested
+  (`Cs176ExplicitHumanHelpHandoverIntegrationTest`).
+- ✅ cs014 UC-C override / loop handover
+  (`Cs014RouteAndLoopHandoverIntegrationTest`).
+- ✅ cs002 already-escalated distress reconciliation
+  (`Cs002AlreadyEscalatedDistressReconcileIntegrationTest`).
+- ✅ UC-H end-to-end intake escalation
+  (`AgentRunLoopIntakeIntegrationTest`) — includes the Sprint 7
+  intake-complete guard and the `search_knowledge` whitelist
+  rejection paths; both still green after the Sprint 7.1
+  partial-persistence merge runs at the top of `run()`.
+
+## 7. Was the Sprint 7.1 objective met?
+
+**Yes — the I2 blocker is closed by deterministic Java tests.**
+
+- ✅ Single closure fix only: J0 partial intake-field persistence.
+  No I0 / I1 changes, no S3 / S5 / cs176 drift / broad prompt /
+  broad Java guard / broad routing taxonomy / CaseSpec / judge /
+  smoke promotion changes.
+- ✅ Sprint 7 §I2 intake-complete guard preserved (rejects
+  premature `intake_complete_for_uc_k` when extractor cannot
+  infer a missing required field).
+- ✅ FAQ-path UC negative guard preserved (intake_state and
+  partial-intake persistence skip UC-A/B/C/D/E/F/FP).
+- ✅ Sprint 7 focused tests + Sprint 6 G1 / G2 / cs014 / cs002
+  guards all green (full server suite 659/659).
+- ✅ No new smoke baseline promoted (upstream credential
+  contamination unresolved; Sprint 6 r1 remains canonical).
+
+## 8. Remaining P0 / P1 blockers (post-Sprint-7.1)
+
+### P0 — none.
+
+### P1
+1. **Upstream Kimi auth contamination** (carried from Sprint 7):
+   `KIMI_API_KEY` still rejected with 401 against
+   `https://api.moonshot.cn/v1/chat/completions`. Sprint 7 §I0 /
+   §I1 / §I2 and Sprint 7.1 §J0 effects cannot be measured in
+   smoke until the credential is rotated. Mitigation unchanged:
+   rotate the Kimi key, then rerun `python -m eval_interactive
+   run --set smoke` twice.
+
+### P2 — unchanged from Sprint 7 §8.
+
+## 9. Next recommended action
+
+After credential rotation, rerun targeted cs066 (and cs015 /
+cs259) and two clean smoke runs. Compare against the Sprint 6 r1
+canonical reference. Only then decide whether to promote the
+post-Sprint-7.1 baseline in `docs/current_eval_baseline.md`.
+
+If the post-Sprint-7.1 smoke shows a similar partial-intake gap
+on UC-G / UC-H / UC-I / UC-J anchors (cs038 / cs040 / etc.), the
+smallest follow-up is to extend `IntakeFieldExtractor` with
+per-UC heuristics for the canonical fields of those UCs (the
+extractor was deliberately scoped to UC-K for this closure).

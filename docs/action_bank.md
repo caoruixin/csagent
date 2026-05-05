@@ -1,12 +1,15 @@
 # Action Bank
 
-Date: 2026-05-06 (post Sprint 7 — accepted closure pending clean-credential smoke re-run)
+Date: 2026-05-06 (post Sprint 7.1 — I2 closure fix; clean-credential smoke re-run still pending)
 
-## Status — Sprint 7 closure (Targeted Routing Projection and Intake-State Orchestration)
+## Status — Sprint 7 + 7.1 closure (Targeted Routing Projection and Intake-State Orchestration)
 
 Sprint 7 implements exactly three actions (I0 / I1 / I2) on top of
-Sprint 6.1. Implementation verified by 33 new focused regression
-tests + the full 645-test mvn suite + 294-test pytest suite. Smoke
+Sprint 6.1. Codex Sprint 7 review accepted I0 / I1 and flagged one
+P1 blocker on I2 (partial intake fields not persisted across normal
+clarification turns); Sprint 7.1 closes the I2 blocker via a single
+narrow fix (J0). Implementation verified by 47 focused regression
+tests + the full 659-test mvn suite + 294-test pytest suite. Smoke
 under nominal credentials is deferred to post-credential-rotation;
 Sprint 6 r1 (`eval_interactive/results/20260505-112736/results.json`)
 remains the canonical reference.
@@ -52,7 +55,7 @@ Files:
 Tests:
 - `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint7RoutingTiebreakerTest.java` — 10 tests.
 
-### S7-I2. S2 / C4 intake-state projection + UC-G/H/I/J/K intake skill — **DONE** (2026-05-06)
+### S7-I2. S2 / C4 intake-state projection + UC-G/H/I/J/K intake skill — **DONE** (2026-05-06; Sprint 7.1 J0 closure 2026-05-06)
 
 Adds `intake_state` (required_fields, fields_collected,
 fields_remaining, intake_complete) to the projection for intake-path
@@ -83,14 +86,41 @@ Files:
 Tests:
 - `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint7IntakeStateTest.java` — 16 tests.
 
-### Sprint 7 closure tests run
+### S7.1-J0. Partial intake-field persistence across clarification turns — **DONE** (2026-05-06)
 
-- `mvn -pl server -Dtest='Sprint7CandidateUseCasesProjectionTest,Sprint7RoutingTiebreakerTest,Sprint7IntakeStateTest' test`
-  → **33 / 33 passed**.
-- `mvn -pl server test` → **645 / 645 passed**
-  (Sprint 6.1 baseline 612 + new Sprint 7 focused regression).
+Closure fix for the Codex Sprint 7 P1 blocker on I2. Before
+each loop iteration's projection, the run loop now merges
+extracted required-field values from the current user reply
++ form context into `session.intakeFields` so the next
+`intake_state` projection reflects what the user has already
+supplied. Anchored on cs066 / UC-K (`platform`,
+`repro_steps_or_error_message`); preserves the §I2
+incomplete-handover guard (premature
+`intake_complete_for_uc_k` is still rejected when the
+extractor cannot infer a missing required field) and the
+FAQ-path negative guard (UC-A/B/C/D/E/F/FP receive no
+`intake_state` and no partial-intake persistence). No new
+skill runtime framework.
+
+Files:
+- `server/src/main/java/com/gumtree/csagent/service/runtime/IntakeFieldExtractor.java`
+  (new — narrow per-UC extractor; UC-K initial scope).
+- `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+  (`mergePartialIntakeFromContext` helper invoked once per
+  user turn at the top of `run()`).
+
+Tests:
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint71PartialIntakePersistenceTest.java` — 14 tests.
+
+### Sprint 7 + 7.1 closure tests run
+
+- `mvn -pl server -Dtest='Sprint7CandidateUseCasesProjectionTest,Sprint7RoutingTiebreakerTest,Sprint7IntakeStateTest,Sprint71PartialIntakePersistenceTest' test`
+  → **47 / 47 passed**.
+- `mvn -pl server test` → **659 / 659 passed**
+  (Sprint 7 baseline 645 + Sprint 7.1 focused regression 14).
 - `python -m pytest -p no:capture eval_interactive/tests/`
-  → **294 / 294 passed**.
+  → **294 / 294 passed** (last clean Sprint 7 run; Sprint 7.1
+  changed only Java files, so no re-run was required).
 
 ### Sprint 7 closure: smoke contaminated, not promoted
 

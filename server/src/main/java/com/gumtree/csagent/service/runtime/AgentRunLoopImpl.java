@@ -131,6 +131,17 @@ public class AgentRunLoopImpl implements AgentRunLoop {
 
         int maxSteps = Math.max(1, plan.maxToolSteps());
 
+        // Sprint 7.1 §J0 — persist partial intake fields from the current
+        // user turn + form context BEFORE the first projection so the
+        // intake_state surface reflects what the user has already supplied.
+        // Without this merge, ContextProjectionBuilder would only see fields
+        // the LLM persisted via request_handover.arguments.intake_fields,
+        // and a normal clarification turn would leave the projection
+        // showing every required field as still-remaining (cs066 stall
+        // shape). Runs once per user turn since userMessage / formContext
+        // are stable across loop iterations.
+        mergePartialIntakeFromContext(session, plan, userMessage);
+
         for (int step = 0; step < maxSteps; step++) {
             // 1. Build plan-aware projection
             String projection;
@@ -344,6 +355,38 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         // Loop exhausted
         log.warn("AgentRunLoop hit max_tool_steps={} without terminal outcome", maxSteps);
         return AgentRunResult.maxSteps(llmEvents, toolEvents, lastProjection);
+    }
+
+    /**
+     * Sprint 7.1 §J0 — merge partial intake field values supplied by the
+     * current user turn (and seeded by the form context) into
+     * {@link BotSession#getIntakeFields()} so the next
+     * {@code intake_state} projection reflects them. No-op for non-intake
+     * UCs and for UCs the {@link IntakeFieldExtractor} has no heuristics
+     * for. Never overwrites a field already present in the session — the
+     * LLM-supplied {@code intake_fields} (via
+     * {@link #persistInlineIntakeFields}) always win.
+     */
+    void mergePartialIntakeFromContext(BotSession session, PhasePlan plan, String userMessage) {
+        if (session == null || plan == null) return;
+        String uc = plan.useCase();
+        if (!IntakeFieldsRegistry.isIntakeUseCase(uc)) return;
+        if (!IntakeFieldExtractor.handlesUc(uc)) return;
+
+        Map<String, String> existing = IntakeFieldsRegistry.parseCollectedFields(
+                objectMapper, session.getIntakeFields());
+        Map<String, String> merged = IntakeFieldExtractor.mergeForUc(
+                uc, existing, userMessage, session.getFormContext(), objectMapper);
+        if (merged == existing || merged.equals(existing)) {
+            return;
+        }
+        try {
+            session.setIntakeFields(objectMapper.writeValueAsString(merged));
+            log.debug("AgentRunLoop merged partial intake fields for UC {}: collected={}",
+                    uc, merged.keySet());
+        } catch (Exception ex) {
+            log.warn("AgentRunLoop failed to persist partial intake_fields: {}", ex.getMessage());
+        }
     }
 
     /**
