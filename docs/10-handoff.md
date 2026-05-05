@@ -1726,7 +1726,7 @@ two be picked into the next implementation sprint:
 |---|---|---|---|
 | S1 `Resolve.FAQ.GroundedAnswer` | DISCOVER → search → resolve_article → cite → CONFIRM | cs_192, cs_259, cs_001, cs_011 | **must-have** — biggest recurring shape |
 | S2 `Resolve.Intake.CollectAndHandover` | UC-G/H/I/J/K field-by-field intake | cs_066, cs_036, cs_038, cs_040 | **should-have** — anchors intake-completion gap |
-| S3 `Triage.SoftOOS.ClarifyOrEscalate` | UNKNOWN-topic + ambiguous turn 1 | cs_259, cs_029 | **defer** — F1 §C5 + small Java guard may suffice |
+| S3 `Triage.SoftOOS.ClarifyOrEscalate` | UNKNOWN-topic + ambiguous turn 1 | cs_029 (cs_259 NOT anchored on S3 — Sprint 4 r2 already called `search_knowledge`; cs_259 r2 failed because `resolve_article` / grounded answer / `record_outcome` did not complete, so cs_259's primary fix is S1 FAQ-grounded-resolve. C5 `candidate_use_cases` projection is DISCOVER-side support only.) | **defer** — S3 / no-prior-search guard is NOT the cs_259 fix and is NOT viable Sprint 6 scope |
 | S4 `Triage.Account.LoginRecovery` | UC-D login-recovery sub-skill of S1 | cs_011 | **defer** — currently PASSes; defensive only |
 | S5 `Triage.PolicySensitive.Tier2Reasoning` | Tier-2 `request_handover` reason × UC compatibility | cs_176 | **defer** — ship F1 §C1 prompt fix first |
 
@@ -1917,8 +1917,11 @@ land. Per `docs/sprint_objective.md` §"Success metrics":
 - ✅ Java-only fixes are recommended only for true invariants (F3
   §3.1 reaffirms Tier-0 invariants; F0 finds 0 new java_guard
   candidates).
-- ✅ Next implementation sprint can be scoped to 3–4 actions (§4
-  above).
+- ✅ Next implementation sprint can be scoped narrowly. Per the
+  Sprint 5.1 / 5.2 / 5.3 codex corrections, Sprint 6 specifically is
+  capped at **exactly 3 actions** (Kimi ReadTimeout mitigation;
+  corrected C1 for cs_176 targeting `user_requested`; S1
+  FAQ-grounded-resolve). No fourth stretch action is carried.
 - ✅ No broad implementation is performed in this sprint.
 
 Per `docs/sprint_objective.md` §"Review rule": Codex should review
@@ -2386,3 +2389,199 @@ Per `docs/codex-findings.md` Sprint 5.1 review:
 
 Sprint 5 may close on Sprint 5.2's consistency cleanup. Sprint 6
 (narrow implementation, exactly 3 actions) is the next step.
+
+# Sprint 5.3 — Residual diagnostic wording cleanup (codex-driven)
+
+Date: 2026-05-05
+Branch: `design-v1-without-human-review`
+Source review: `docs/codex-findings.md` (Sprint 5.2 review,
+`decision: fix_required`, `blocking_count: 2` — two P1 residual
+documentation consistency blockers, both docs-only)
+Sprint scope: narrow wording cleanup of two residual stale lines
+that Sprint 5.2's main rewrites did not pick up. Docs-only.
+
+## 1. Remaining P1 residual wording blockers fixed
+
+### P1 #1 — Stale cs_259 / S3 / C5 / "small Java guard" summary wording
+
+Two summary surfaces still presented the old framing despite the
+Sprint 5.1 / 5.2 detailed sections being correct:
+
+- `docs/10-handoff.md:1729` (Sprint 5 §F2 skill table) — S3 row
+  listed cs_259 as an anchor and said "**defer** — F1 §C5 + small
+  Java guard may suffice". Rewritten so the S3 anchor cell drops
+  cs_259 (cs_029 only) and explicitly states: Sprint 4 r2 already
+  called `search_knowledge`; cs_259 r2 failed because
+  `resolve_article` / grounded customer-facing answer /
+  `record_outcome` did not complete; cs_259's primary fix is S1
+  FAQ-grounded-resolve; C5 is DISCOVER-side support only; the S3 /
+  no-prior-search guard is NOT the cs_259 fix and NOT viable
+  Sprint 6 scope.
+- `docs/action_bank.md:715-716` — S3 bullet said "defer (mostly
+  covered by F1 §C5 + small Java guard)". Rewritten to the same
+  corrected framing: cs_259 is owned by S1; C5 is DISCOVER-side
+  support only; the S3 / no-prior-search guard refusing
+  `request_handover(faq_miss_threshold_exceeded)` without a prior
+  `search_knowledge` call is NOT the cs_259 fix and NOT viable
+  Sprint 6 scope.
+
+### P1 #2 — Residual "3–4 actions" wording
+
+Two surfaces still contained "3–4 actions":
+
+- `docs/10-handoff.md:1920` (Sprint 5 §6 closure success-metric
+  bullet) — said "Next implementation sprint can be scoped to 3–4
+  actions (§4 above)". Rewritten to: "Next implementation sprint
+  can be scoped narrowly. Per the Sprint 5.1 / 5.2 / 5.3 codex
+  corrections, Sprint 6 specifically is capped at **exactly 3
+  actions** (Kimi ReadTimeout mitigation; corrected C1 for cs_176
+  targeting `user_requested`; S1 FAQ-grounded-resolve). No fourth
+  stretch action is carried."
+- `docs/action_bank.md:781` (general carry-over rule) — said
+  "Each sprint must name 3–4 accepted actions, …". Rewritten per
+  the user's instruction to: "Each sprint should normally name 3
+  accepted actions, or explicitly justify any deviation before
+  implementation; … Sprint 6 specifically is capped at exactly 3
+  actions per the Sprint 5.1 / 5.2 / 5.3 codex corrections."
+
+## 2. Files changed (docs only)
+
+| File | Change |
+|---|---|
+| `docs/10-handoff.md` | Sprint 5 §F2 S3 row at line 1729 rewritten (cs_259 removed from S3 anchors; S3 stays deferred and explicitly NOT viable Sprint 6 scope); Sprint 5 §6 success-metric bullet at line 1920 rewritten ("3–4 actions" wording removed; Sprint 6 = exactly 3 actions); this Sprint 5.3 section appended |
+| `docs/action_bank.md` | S3 bullet (lines 715-716) rewritten with corrected cs_259 framing; general carry-over rule at line 781 rewritten ("3–4 accepted actions" → "normally name 3 accepted actions, or explicitly justify any deviation"; Sprint 6 specifically = exactly 3 actions) |
+| `docs/codex-findings.md` | unchanged in this commit (preserves the latest Sprint 5.2 review context) |
+
+## 3. Pre-edit / post-edit grep
+
+Pre-edit grep command (per Sprint 5.3 instructions):
+
+```
+rg -n -e 'F1 §C5' -e 'F1 C5' -e 'small Java guard' -e 'mostly covered' -e 'no-prior-search' -e 'no prior search' -e '3-4' -e '3–4' -e '3 \+ optional' -e 'stretch' -e 'cs_259' -e 'cs259' -e 'S3' docs/10-handoff.md docs/action_bank.md
+```
+
+The two stale lines (`docs/10-handoff.md:1729` S3 row,
+`docs/10-handoff.md:1920` "3–4 actions" success-metric bullet,
+`docs/action_bank.md:715-716` S3 "(mostly covered by F1 §C5 + small
+Java guard)" bullet, `docs/action_bank.md:781` "must name 3–4
+accepted actions") were rewritten.
+
+The post-edit grep continues to show many remaining matches, ALL
+either:
+
+- **Historical sprint records** (Sprint 2 / 2.1 / 2.1 follow-up /
+  3 / 3.1 / 4 / 4.1 / 5 / 5.1 / 5.2 / 5.3) describing prior failure
+  modes, prior eval evidence, or files-changed tables — these are
+  accurate historical records and must not be rewritten.
+- **The corrected Sprint 6 recommendation blocks** (Sprint 5 §4,
+  Sprint 5.1 §4, Sprint 5.2 §4, this Sprint 5.3 §4 below, and
+  `docs/action_bank.md` "Recommended Sprint 6 scope") which now
+  consistently say exactly 3 actions and explicitly defer C5 / S3.
+- **Sprint 5.1 / 5.2 / 5.3 narratives** that quote the old wording
+  inside the explanation of what was rewritten — leaving them in
+  place is the audit trail.
+
+No remaining match describes a current Sprint 6 stretch action, a
+viable S3 / no-prior-search guard for cs_259, or a "3–4 actions"
+Sprint 6 scope.
+
+## 4. Implementation scope confirmation
+
+No runtime / prompt / eval YAML implementation was performed in
+Sprint 5.3. Specifically, **none** of the following were changed:
+
+- Java code (`server/src/main/java/...`).
+- Prompt templates (`server/src/main/resources/prompts/...`).
+- `PhaseEvaluator` / `ContextProjectionBuilder`.
+- Eval YAML (`eval_interactive/case_specs/...` /
+  `case_spec_overrides.yaml`).
+- `qa-reports/*`.
+- `docs/current_eval_baseline.md`.
+- `docs/fix_layer_taxonomy.md`.
+- `docs/prompt_context_projection_audit.md`.
+- `docs/skill_orchestration_candidates.md`.
+- `docs/java_guard_prompt_flexibility_design.md`.
+- `docs/sprint_objective.md`.
+- `docs/sprints/*`.
+
+Sprint 5.3 is strictly docs-only (two docs touched: `10-handoff.md`,
+`action_bank.md`).
+
+## 5. Corrected Sprint 6 recommendation — exactly 3 actions
+
+Sprint 6 implementation scope (unchanged from Sprint 5.2; reaffirmed
+here because it is the canonical answer):
+
+1. **F-INFRA Kimi `session_create_failed: ReadTimeout` mitigation.**
+   Pick one of: widen eval-client timeout to 120s; pre-warm first
+   Kimi call; async pre-fetch FAQ snapshots; accept-and-retry on
+   ReadTimeout.
+
+2. **F1 §C1 corrected for cs_176, targeting `user_requested`.**
+   System-prompt paragraph that requires the LLM to preserve /
+   produce `escalation_reason=user_requested` when the user
+   explicitly asks for human help. `faq_miss_threshold_exceeded`,
+   `intake_complete_for_uc_k`, `service_degraded`, and
+   `payment_dispute_detected` are NOT family-match against
+   `user_requested`. Sprint 6 acceptance must either include
+   "no unjustified UC-I drift on cs_176 r2" or explicitly defer
+   the r2 UC-drift question.
+
+3. **F2 §S1 FAQ-grounded-resolve skill.** Parametrized PhasePlan
+   inside `PhaseEvaluator.plan` for FAQ-RESOLVE, anchoring cs_192
+   ("answer emitted without citation / resolve sequence
+   incomplete") AND cs_259 ("search happened, resolve did not
+   complete"). Terminal predicate: `search_knowledge →
+   resolve_article → grounded customer-facing answer →
+   record_outcome`, OR an explicit handover only after a valid
+   resolve attempt cannot complete.
+
+Explicitly deferred (NOT Sprint 6 implementation scope):
+
+- C5 `candidate_use_cases` projection + DISCOVER cue.
+- S3 "no-prior-search" guard.
+- cs_015 UC-FP / UC-A tiebreaker (C2).
+- S2 / C4 intake-state projection + UC-G/H/I/J/K intake skill.
+- S5 Tier-2 runtime guard.
+- L3 judge calibration (D15).
+
+## 6. Testing
+
+Sprint 5.3 changes only `docs/*.md` files. This is a docs-only
+correction round; no executable tests were run. The relevant
+existing regression guards
+(`test_smoke_yaml_matches_override_pipeline_output`,
+`test_smoke_review_report_tracks_smoke_set_and_overrides`,
+`test_v2_schema_loads_cleanly`,
+`test_cs_interactive_*_override_survives_fresh_extraction`) are
+untouched and remain green from Sprint 4 / 4.1 closure (286 / 286
+pytest, 592 / 592 mvn).
+
+## 7. Can Sprint 5 close after Sprint 5.3?
+
+**Yes.** Both Sprint 5.2 codex P1 residual wording blockers are
+corrected:
+
+- ✅ P1 #1 stale cs_259 / S3 / C5 / "small Java guard" summary
+  wording rewritten in `docs/10-handoff.md:1729` and
+  `docs/action_bank.md:715-716`. cs_259 owned by S1; C5 is
+  DISCOVER-side support only; S3 / no-prior-search guard is
+  deferred and not the cs_259 fix.
+- ✅ P1 #2 residual "3–4 actions" wording rewritten in
+  `docs/10-handoff.md:1920` (Sprint 5 success-metric bullet) and
+  `docs/action_bank.md:781` (general carry-over rule). Sprint 6
+  specifically = exactly 3 actions; the general rule now says
+  sprints "should normally name 3 accepted actions, or explicitly
+  justify any deviation".
+
+Per `docs/codex-findings.md` Sprint 5.2 review:
+
+> "Do not start broader implementation from this handoff until the
+> two residual doc inconsistencies above are corrected. After that,
+> Sprint 6 should remain exactly: 1. Kimi `session_create_failed:
+> ReadTimeout` mitigation. 2. Corrected C1 for `cs_interactive_176`,
+> targeting `user_requested`. 3. S1 FAQ-grounded-resolve, with
+> cs259 framed as 'search happened, resolve did not complete'."
+
+Sprint 5 may close on Sprint 5.3's residual wording cleanup. Sprint
+6 (narrow implementation, exactly 3 actions) is the next step.
