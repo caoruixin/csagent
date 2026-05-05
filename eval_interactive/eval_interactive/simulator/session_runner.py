@@ -100,10 +100,27 @@ class SessionRunner:
         try:
             session_resp = self._agent.create_session(form_dict)
         except Exception as exc:
-            logger.error("Failed to create bot session: %s", exc, exc_info=True)
+            # Sprint 6 §G0: tag ReadTimeout distinctly so the executor /
+            # handoff classifier can separate a session-create read
+            # timeout from a semantic 4xx / 5xx failure (auth, scope,
+            # backend bug). The agent_client now retries ReadTimeout
+            # once before re-raising; if we're here on a ReadTimeout
+            # the wider 120s budget + retry was insufficient.
+            import httpx as _httpx
+            if isinstance(exc, _httpx.ReadTimeout):
+                tagged = (
+                    f"ReadTimeout('{exc}'). "
+                    f"create_session exceeded the eval-client 120s read "
+                    f"budget after a single retry — upstream LLM/backend "
+                    f"latency, not a semantic failure."
+                )
+                logger.error("Failed to create bot session: %s", tagged)
+                result.creation_error = tagged
+            else:
+                logger.error("Failed to create bot session: %s", exc, exc_info=True)
+                result.creation_error = repr(exc)
             result.session_id = f"error-{uuid.uuid4().hex[:8]}"
             result.stop_reason = "session_create_failed"
-            result.creation_error = repr(exc)
             result.elapsed_ms = _elapsed_ms(start_ns)
             return result
 

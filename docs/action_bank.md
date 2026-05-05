@@ -1,6 +1,172 @@
 # Action Bank
 
-Date: 2026-05-05 (post Sprint 4)
+Date: 2026-05-05 (post Sprint 6)
+
+## Status — Sprint 6 closure
+
+### S6-G0. Kimi `session_create_failed: ReadTimeout` mitigation — **DONE** (2026-05-05)
+
+Picked the **widen + accept-and-retry** pair, scoped to the eval-side
+`AgentClient.create_session` only. C0 / C1 bot-side semantics preserved
+(401 / 403 non-retryable; 4xx / 5xx non-retryable; bounded 2-attempt
+loop on ReadTimeout; no secret logging).
+
+Implemented in:
+
+- `eval_interactive/eval_interactive/simulator/agent_client.py` — 120s
+  read timeout for `create_session` only (other endpoints stay at 60s);
+  `httpx.ReadTimeout` accept-and-retry with exactly 1 retry (2 attempts
+  max).
+- `eval_interactive/eval_interactive/simulator/session_runner.py` — tags
+  ReadTimeout-creation_error distinctly so handoff aggregation can
+  separate upstream latency from semantic failures.
+- `eval_interactive/eval_interactive/batch/executor.py` — emits an
+  `INFRA:ReadTimeout` failure tag alongside the legacy `ERROR:...` tag
+  when a session-create ReadTimeout escapes the budget.
+
+Test coverage:
+
+- 7 new tests in `eval_interactive/tests/test_agent_client_session_create_timeout.py`:
+  120s constant pinned; 60s default preserved; retry-once-on-ReadTimeout;
+  no retry on 4xx (401) or 5xx (503); per-request timeout passed
+  correctly; SessionRunner ReadTimeout tagging vs other-error legacy
+  repr (ConnectError).
+
+Evidence (Sprint 6 smoke r1 `20260505-112736`):
+
+- 0 / 14 ReadTimeout / `session_create_failed` failures (was 2 / 14
+  in post-Sprint-4 r1 and 3 / 14 in r2).
+- cs_interactive_014 PASS composite 0.771 on smoke r1 (was ERROR
+  ReadTimeout in both post-Sprint-4 runs).
+
+### S6-G1. Corrected C1 for `cs_interactive_176` targeting `user_requested` — **DONE** (2026-05-05)
+
+Narrow system-prompt change: one ACTIVE-UC TIEBREAKER paragraph + one
+GENUINE TIER-2 ESCAPE HATCH paragraph inserted in
+`server/src/main/resources/prompts/system_prompt.txt` after the
+`payment_dispute_detected` line.
+
+Spec-compliant content:
+
+- Explicit human-help cues (talk to / speak to a person/agent/human,
+  give me a phone number, callback, manager, transfer me) MUST produce
+  `escalation_reason=user_requested` regardless of payment-keyword
+  phrasing.
+- `faq_miss_threshold_exceeded`, `intake_complete_for_uc_k`,
+  `service_degraded`, and `payment_dispute_detected` are NOT acceptable
+  substitutes for `user_requested` and the prompt explicitly says so.
+- Genuine chargeback / GDPR / appeal / identity / safety flows are NOT
+  suppressed — the paragraph reserves Tier-2 reasons for explicit
+  invocation of those flows when the user has NOT separately asked
+  for a human.
+- UC-A / UC-B / UC-E specific clause: do NOT pick
+  `payment_dispute_detected` for advertising-fee / paid-feature /
+  Top-Ad inquiries that are not real chargebacks.
+
+Test coverage:
+
+- 6 golden prompt regression checks in
+  `server/src/test/java/com/gumtree/csagent/service/runtime/SystemPromptUserRequestedTiebreakerTest.java`:
+  ACTIVE-UC TIEBREAKER section present + Sprint 6 anchor; explicit
+  human-help cues enumerated; user_requested explicitly preferred over
+  payment phrasing; four forbidden substitutes named with explicit
+  forbid clause; genuine Tier-2 escape hatch preserved (chargeback /
+  appeal / GDPR / identity / safety); no blanket `payment_dispute_detected`
+  suppression.
+
+Residual risk: cs_176 r2 UC-I drift is **explicitly deferred** per the
+Sprint 5.1 codex correction and the Sprint 6 acceptance condition. The
+G1 prompt fix addresses `request_handover` reason picking; the upstream
+`classify_use_case` UC-E -> UC-I drift on r2 is upstream of this fix
+and is documented in `docs/10-handoff.md` Sprint 6 §8.
+
+### S6-G2. S1 FAQ-grounded-resolve PhasePlan / skill — **DONE** (2026-05-05)
+
+Implemented as a parametrized PhasePlan branch in the existing
+`PhaseEvaluator.plan(...)` + a deterministic Java guard in
+`AgentRunLoopImpl.run(...)`. **No new skill runtime framework**; the
+implementation extends the existing `PhasePlan` shape and the
+existing `AgentRunLoop` dispatch loop only.
+
+Implemented in:
+
+- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+  — FAQ-path RESOLVE PhasePlan now names the terminal sequence
+  `search_knowledge -> resolve_article -> grounded customer-facing
+  answer -> record_outcome` in `systemInstruction`, requires
+  `search_knowledge` before any factual user-facing answer in
+  `groundingInstruction`, and explicitly forbids short-circuit
+  `request_handover(faq_miss_threshold_exceeded)` on a viable hit in
+  `escalationPolicy`. `record_outcome` added to `allowedTools` so the
+  LLM can complete the sequence inside RESOLVE.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+  — `shouldRejectFaqMissHandover(plan, call, accumulatedToolResults)`
+  predicate fires when (a) RESOLVE on a FAQ-path UC, (b) handover
+  reason is `faq_miss_threshold_exceeded`, (c) `search_knowledge` has
+  viable evidence (faq_miss=false, hits non-empty), AND (d)
+  `resolve_article` not yet attempted. The handover call is recorded
+  as a rejected `ToolEvent` with reason
+  `s1_resolve_required_before_faq_miss_handover`, the rejection +
+  hint is surfaced in `accumulated_tool_results`, and the loop
+  continues so the LLM can call `resolve_article` next.
+- Other handover reasons (user_requested, user_distress, out_of_scope,
+  real Tier-2 reasons) pass through unchanged. Intake UCs
+  (UC-G/H/I/J/K) and non-RESOLVE phases are unaffected.
+  `maxToolSteps` and the `ToolDispatcher.validateAgainstPlan`
+  whitelist enforcement are preserved.
+
+Test coverage:
+
+- 12 new tests in
+  `server/src/test/java/com/gumtree/csagent/service/runtime/AgentRunLoopS1FaqGroundedResolveGuardTest.java`:
+  cs259-shape rejection; cs192-shape pass-through (search not yet
+  run, prompt nudge owns the search-before-answer); search-no-hits
+  pass-through (faq_miss=true allowed); user_requested /
+  user_distress pass-through (priority-1 / priority-2 reasons never
+  blocked); intake UC pass-through (S1 guard does not affect UC-K);
+  outside-RESOLVE pass-through (S1 guard does not affect DISCOVER);
+  predicate-already-resolved pass-through; full-loop integration
+  tests for cs259-shape rejection-then-resolve-and-final-answer and
+  cs192-shape pass-through.
+
+Evidence (Sprint 6 r1):
+
+- cs_192 sequence is now
+  `[search_knowledge, search_knowledge, resolve_article,
+  resolve_article, request_handover]` (lcs=2/3 vs spec 3-step) on
+  smoke r1; the "uncited factual answer" failure mode is closed.
+- cs_259 sequence on smoke r1 is `[classify_use_case,
+  search_knowledge, search_knowledge, request_handover]`; both
+  searches returned faq_miss=true so the guard correctly allowed the
+  handover. Contract violation cleared (was 1 / 14 in baseline r1).
+- Remaining cs_192 / cs_259 gaps are upstream `correct_outcome`
+  (knowledge corpus) and upstream UC routing (UC-B / UC-J vs spec
+  UC-F) respectively; both are explicitly deferred per Sprint 6
+  scope and are NOT Sprint 6 regressions.
+
+### Sprint 6 accepted state
+
+Latest accepted Sprint 6 references:
+
+- Canonical smoke baseline:
+  `eval_interactive/results/20260505-112736/results.json`
+  (8/14 passed, mean composite 0.4826, 0 ReadTimeout, 0 contract
+  violation).
+- Java contract surface: **610 / 610 mvn tests passing** (was 592;
+  +6 G1 SystemPromptUserRequestedTiebreakerTest, +12 G2
+  AgentRunLoopS1FaqGroundedResolveGuardTest).
+- Python regression surface: **293 / 293 pytest tests passing** (was
+  285; +7 G0 test_agent_client_session_create_timeout, +1 pre-existing).
+
+Sprint 6 r1 holds 8/14 passed at mean composite 0.4826 vs post-Sprint-4
+r1 8/14 at 0.4915. The mean composite ticks down marginally because
+the underlying semantic gaps that were previously masked by ReadTimeout
+errors (cs_015 UC-FP routing, cs_192 / cs_259 FAQ-resolve completion,
+cs_066 UC-K turn-budget variance) are now visible as FAILs instead of
+ERRORs. This is the expected and correct outcome for an infra-side
+mitigation: ReadTimeouts are gone, semantic gaps surface honestly.
+
+
 
 ## Status — Sprint 4 closure
 
