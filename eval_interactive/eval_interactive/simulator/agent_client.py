@@ -7,7 +7,6 @@ and retrieve traces/events/handover logs.
 from __future__ import annotations
 
 import logging
-import time
 
 import httpx
 
@@ -15,14 +14,17 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-# Sprint 6 §G0: widen the create-session read timeout to 120s. The Kimi
-# auto-search path during session-create chains 4-6 LLM calls (8-15s
-# each); under nominal latency the whole path fits inside the original
-# 60s budget, but a single slow Kimi call routinely pushes total
-# session-create above 60s. A 120s ceiling keeps the bounded-retry
-# semantics intact while letting nominal sessions through. The
-# `transient_error_max_retries=1` accept-and-retry below covers the
-# residual ReadTimeout cases without unbounded retry.
+# Sprint 6 §G0 (post-Sprint-6 closure normalization): the *single*
+# chosen ReadTimeout mitigation is widening the create-session read
+# timeout to 120s. The Kimi auto-search path during session-create
+# chains 4-6 LLM calls (8-15s each); under nominal latency the whole
+# path fits inside the original 60s budget, but a single slow Kimi
+# call routinely pushed total session-create above 60s. A 120s
+# ceiling lets nominal sessions through without introducing a second
+# retry mechanism. ReadTimeout is still classified/tagged downstream
+# (SessionRunner, BatchExecutor) so an escaped ReadTimeout stays
+# distinguishable from a semantic failure (4xx / 5xx). Auth (401/403)
+# and other HTTP failures remain non-retryable.
 SESSION_CREATE_READ_TIMEOUT_SECONDS = 120.0
 SESSION_CREATE_CONNECT_TIMEOUT_SECONDS = 10.0
 DEFAULT_READ_TIMEOUT_SECONDS = 60.0
@@ -50,12 +52,13 @@ class AgentClient:
 
         POST /v1/chat/sessions
 
-        Sprint 6 §G0: uses a wider 120s read timeout for session-create
-        and accepts-and-retries exactly once on httpx.ReadTimeout. All
-        other transport / HTTP failures (incl. 4xx / 5xx) propagate
-        immediately so semantic failures stay non-retryable. Auth
-        failures (401 / 403) are surfaced as raise_for_status without
-        any retry.
+        Sprint 6 §G0 (closure-normalized): uses a wider 120s read
+        timeout for session-create. There is **no** accept-and-retry
+        on ``httpx.ReadTimeout``; an escaped ReadTimeout propagates
+        unchanged so SessionRunner / BatchExecutor can tag it as
+        ``INFRA:ReadTimeout`` and keep it distinguishable from
+        semantic failures (4xx / 5xx). Auth failures (401 / 403) are
+        surfaced via ``raise_for_status`` without any retry.
 
         Args:
             form_context: Dict with keys like first_name, email,
@@ -69,41 +72,21 @@ class AgentClient:
             SESSION_CREATE_READ_TIMEOUT_SECONDS,
             connect=SESSION_CREATE_CONNECT_TIMEOUT_SECONDS,
         )
-        attempts = 0
-        max_attempts = 2  # 1 initial + 1 retry on ReadTimeout
-        last_read_timeout: httpx.ReadTimeout | None = None
-        while attempts < max_attempts:
-            attempts += 1
-            try:
-                response = self.client.post(
-                    url, json=form_context, timeout=per_request_timeout
-                )
-            except httpx.ReadTimeout as exc:
-                # Tag the ReadTimeout so SessionResult.creation_error /
-                # the executor's failure-tag plumbing can distinguish a
-                # session-create read timeout from a semantic failure
-                # (4xx / 5xx). The exception text already starts with
-                # "timed out"; we re-emit it as a ReadTimeout to keep
-                # repr() classifiable downstream.
-                logger.warning(
-                    "create_session ReadTimeout on attempt %d/%d (read=%.1fs)",
-                    attempts,
-                    max_attempts,
-                    SESSION_CREATE_READ_TIMEOUT_SECONDS,
-                )
-                last_read_timeout = exc
-                if attempts >= max_attempts:
-                    raise
-                # Brief pause before retry so a backend that just slow-pathed
-                # the auto-search has a moment to settle.
-                time.sleep(1.0)
-                continue
-            response.raise_for_status()
-            return response.json()
-        # Defensive — only reachable if the loop exhausts without raising.
-        if last_read_timeout is not None:
-            raise last_read_timeout
-        raise RuntimeError("create_session retry loop exited without a response")
+        try:
+            response = self.client.post(
+                url, json=form_context, timeout=per_request_timeout
+            )
+        except httpx.ReadTimeout:
+            # Log so the eval-side run still surfaces the latency event;
+            # the exception then propagates to SessionRunner where it is
+            # tagged as ReadTimeout in the creation_error string.
+            logger.warning(
+                "create_session ReadTimeout (read=%.1fs)",
+                SESSION_CREATE_READ_TIMEOUT_SECONDS,
+            )
+            raise
+        response.raise_for_status()
+        return response.json()
 
     def send_message(self, session_id: str, message: str) -> dict:
         """Send a user message to an existing session.

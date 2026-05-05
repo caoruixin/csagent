@@ -2597,29 +2597,32 @@ Previous handoff baseline: post-Sprint-4 canonical
 
 ## 1. Exact G0 / G1 / G2 actions implemented
 
-### G0. Kimi `session_create_failed: ReadTimeout` mitigation
+### G0. Kimi `session_create_failed: ReadTimeout` mitigation (Sprint 6.1 closure-normalized)
 
-Picked the **widen + accept-and-retry** pair (combined, narrow eval-side
-only):
+Sprint 6 originally landed two listed ReadTimeout mitigations
+(`widen` *and* `accept-and-retry`). Codex Sprint 6 review flagged the
+two-mitigation pair as a P1 because `docs/sprint_objective.md` says
+to pick **exactly one**. Sprint 6.1 closure normalises G0 to the
+single chosen mitigation: **widen the create-session read timeout to
+120s**. The accept-and-retry layer is removed; an escaped ReadTimeout
+now propagates immediately and is classified/tagged downstream.
 
-- `AgentClient.create_session` now uses a per-request 120s read timeout
-  (vs 60s before) and accepts-and-retries exactly once on
-  `httpx.ReadTimeout`. Other endpoints (`send_message`, `get_trace`,
-  `get_session`, `get_events`, `get_handover_logs`) continue to use the
-  default 60s read timeout — the wider budget is scoped to the
+- `AgentClient.create_session` uses a per-request 120s read timeout
+  (vs 60s before). Other endpoints (`send_message`, `get_trace`,
+  `get_session`, `get_events`, `get_handover_logs`) continue to use
+  the default 60s read timeout — the wider budget is scoped to the
   auto-search session-create path that historically chained 4-6 Kimi
-  calls.
+  calls. There is **no retry** on `httpx.ReadTimeout`; the exception
+  propagates to `SessionRunner` on the first occurrence.
 - 4xx / 5xx HTTP responses are NOT retried — `raise_for_status` runs
   immediately so 401 / 403 auth failures and any 5xx remain
-  non-retryable, preserving Sprint 3 §C0 / §C1 semantics. The bounded
-  loop is `1 initial + 1 retry == 2 attempts max`, mirroring the
-  bounded-retry contract of `OpenAiCompatibleLlmClient.chat`.
-- `SessionRunner.run_session` now tags ReadTimeout vs other failure
-  shapes in `SessionResult.creation_error` so the executor can classify
-  upstream latency separately from semantic failures. `BatchExecutor`
-  emits an `INFRA:ReadTimeout` failure tag alongside the legacy
-  `ERROR:...` tag when a session-create ReadTimeout escapes the
-  120s + 1-retry budget.
+  non-retryable, preserving Sprint 3 §C0 / §C1 semantics.
+- `SessionRunner.run_session` still tags ReadTimeout vs other failure
+  shapes in `SessionResult.creation_error` so the executor can
+  classify upstream latency separately from semantic failures.
+  `BatchExecutor` still emits an `INFRA:ReadTimeout` failure tag
+  alongside the legacy `ERROR:...` tag when a session-create
+  ReadTimeout escapes the 120s budget.
 - No secret logging; the eval-side change does not touch the
   `OpenAiCompatibleLlmClient` retry classifier or the
   `LlmInvocationService` failure-tag plumbing on the bot side.
@@ -2724,9 +2727,9 @@ introduced; the implementation is a pure extension of the existing
 ### 2.3 Eval client (Python)
 
 6. `eval_interactive/eval_interactive/simulator/agent_client.py` — G0
-   widened 120s read timeout for `create_session` only, accept-and-retry
-   on `httpx.ReadTimeout` (1 retry, total 2 attempts), no retry on
-   4xx / 5xx (semantic failures stay non-retryable).
+   widened 120s read timeout for `create_session` only (Sprint 6.1
+   closure: no accept-and-retry layer); 4xx / 5xx remain non-retryable
+   (semantic failures stay non-retryable).
 7. `eval_interactive/eval_interactive/simulator/session_runner.py` — G0
    tags ReadTimeout creation_error distinctly from other failure shapes.
 8. `eval_interactive/eval_interactive/batch/executor.py` — G0 emits
@@ -2737,19 +2740,30 @@ introduced; the implementation is a pure extension of the existing
 ### 2.4 Eval client (test)
 
 9. `eval_interactive/tests/test_agent_client_session_create_timeout.py`
-   — 7 new tests pinning the G0 contract (constants widened to 120s /
-   60s; retry-once-on-ReadTimeout; no retry on 4xx / 5xx; per-request
-   timeout passed correctly; SessionRunner ReadTimeout tagging vs
-   other-error legacy repr).
+   — 8 tests pinning the closure-normalized G0 contract (constants
+   widened to 120s; default 60s preserved for other endpoints; no
+   retry on ReadTimeout; no retry on 401 / 403 / 4xx / 5xx;
+   per-request timeout passed correctly; SessionRunner ReadTimeout
+   tagging vs other-error legacy repr; BatchExecutor `INFRA:ReadTimeout`
+   failure-tag classification).
 
 ## 3. Tests run
 
-- `mvn -pl server test` → **610 / 610 passed** (was 592 + 18 new
-  Sprint 6 tests). 0 failures, 0 errors.
-- `pytest eval_interactive/tests/` → **293 / 293 passed** (was 285 +
-  7 new Sprint 6 tests, +1 pre-existing). 0 failures.
+- `mvn -pl server test` → **612 / 612 passed** (Sprint 6 baseline 610
+  + 2 new Sprint 6.1 closure tests in
+  `Cs176ExplicitHumanHelpHandoverIntegrationTest`). 0 failures, 0
+  errors.
+- `pytest eval_interactive/tests/` → **294 / 294 passed** (Sprint 6
+  baseline 293, with the retry-once test removed and replaced by a
+  no-retry test, plus a new BatchExecutor `INFRA:ReadTimeout`
+  failure-tag test). 0 failures.
 - Targeted cs176 / cs192 / cs259 evals (pre-smoke, see §4).
 - Smoke r1 / r2 (see §4).
+- Sprint 6.1 closure focused regressions:
+  `mvn -pl server -Dtest='SystemPromptUserRequestedTiebreakerTest,Cs176ExplicitHumanHelpHandoverIntegrationTest,AgentRunLoopS1FaqGroundedResolveGuardTest' test`
+  → **20 / 20 passed**.
+  `python -m pytest -p no:capture eval_interactive/tests/test_agent_client_session_create_timeout.py`
+  → **8 / 8 passed**.
 
 ## 4. Latest result paths
 
@@ -2976,3 +2990,134 @@ session wallclock exceeded 120s due to a slow distress detector +
 judge call sequence. This is a separate optimization candidate, NOT
 a Sprint 6 regression. cs_002 r1 PASSes the same case in 38s with
 identical code, so the variance is upstream LLM latency.
+
+# Sprint 6.1 closure — Targeted Sprint 6 Closure Fix Round
+
+Date: 2026-05-05
+Branch: `design-v1-without-human-review`
+Source review: `docs/codex-findings.md` (Sprint 6 review — fix_required, blocking_count: 2)
+
+## Closure scope
+
+Sprint 6 review identified two blocking failures:
+
+1. **G0 normalization (P1).** Sprint 6 shipped two listed ReadTimeout
+   mitigations (widen + accept-and-retry) instead of exactly one. The
+   sprint objective requires picking one narrow mitigation.
+2. **G1 cs_interactive_176 evidence (P1).** The §G1 prompt-snapshot
+   coverage is correct, but no runtime/eval evidence shows that an
+   explicit human-help cue produces or preserves
+   `escalation_reason=user_requested`. The targeted cs176 r1/r2 runs
+   never reached the explicit "phone number / talk to someone" cue.
+
+Sprint 6.1 implements only the two narrow closure fixes (H0 / H1) and
+does not introduce a fourth Sprint 6 action.
+
+## H0. Normalize G0 to a single ReadTimeout mitigation
+
+Kept the **120s create-session read timeout** as the chosen
+mitigation. Removed the accept-and-retry layer from
+`AgentClient.create_session`. ReadTimeout classification/tagging is
+preserved at the `SessionRunner` and `BatchExecutor` aggregation
+layers so an escaped ReadTimeout still surfaces as
+`INFRA:ReadTimeout` distinct from a semantic 4xx / 5xx failure.
+
+Files touched:
+
+- `eval_interactive/eval_interactive/simulator/agent_client.py` —
+  removed the bounded retry loop and `time.sleep` import; the wider
+  120s read timeout for `create_session` remains in place. Other
+  endpoints continue to use the default 60s read timeout.
+- `eval_interactive/eval_interactive/simulator/session_runner.py` —
+  ReadTimeout-tagging comment and creation_error string updated to
+  reflect the no-retry contract.
+- `eval_interactive/tests/test_agent_client_session_create_timeout.py`
+  — removed the retry-once tests; added a no-retry test
+  (`test_create_session_does_not_retry_on_read_timeout`); kept 120s
+  constant + 60s default coverage; kept 401 / 403 / 4xx / 5xx
+  non-retry coverage; added explicit BatchExecutor
+  `INFRA:ReadTimeout` failure-tag coverage; kept SessionRunner
+  ReadTimeout vs ConnectError tagging coverage.
+
+Auth (401 / 403) and other HTTP failures remain non-retryable.
+`OpenAiCompatibleLlmClient` retry classifier on the bot side is
+unchanged.
+
+## H1. Add focused cs176 explicit-human-help runtime/eval proof for `user_requested`
+
+Added a focused integration regression that forces the cs176
+explicit human-help cue ("What about giving a phone number to talk
+to someone") into the transcript at the `ControlKernel.processMessage`
+surface — bypassing the live persona simulator's seed-progression
+flake — and asserts the deterministic Step 2.5
+`detectExplicitUserEscalation` + resolver path produces the
+priority-1 reason.
+
+File:
+`server/src/test/java/com/gumtree/csagent/integration/Cs176ExplicitHumanHelpHandoverIntegrationTest.java`
+
+Two pinned assertions:
+
+1. `cs176_explicitHumanHelpCue_yieldsUserRequestedHandover`:
+   - `session.escalationReason == "user_requested"`.
+   - First persisted `tool_calls.request_handover.arguments.escalation_reason == "user_requested"`.
+   - Reason is none of the four forbidden substitutes
+     (`service_degraded`, `intake_complete_for_uc_k`,
+     `payment_dispute_detected`, `faq_miss_threshold_exceeded`).
+   - Phase transitioned to `ESCALATE`; exactly one `BotTurn` persisted.
+2. `resolverPrecedence_userRequestedBeatsAllForbiddenSubstitutes`:
+   - For each of the four forbidden substitutes, the resolver returns
+     `user_requested` from both `resolve(forbidden, user_requested)`
+     and `resolve(user_requested, forbidden)` — defensive guard so a
+     future refactor can't silently regress the priority table.
+
+The deterministic Step 2.5 path already catches the cs176 seed
+phrasing through `EscalationReasonResolver.detectExplicitUserEscalation`
+(pattern `\\btalk\\s+to\\s+(an?\\s+)?(...|someone)\\b`). No prompt or
+runtime correction was required beyond the existing Sprint 6 §G1
+prompt content. cs176 UC-I drift remains an explicitly deferred
+residual risk per Sprint 6 acceptance.
+
+## Tests run (Sprint 6.1)
+
+- `mvn -pl server -Dtest='SystemPromptUserRequestedTiebreakerTest,Cs176ExplicitHumanHelpHandoverIntegrationTest,AgentRunLoopS1FaqGroundedResolveGuardTest' test`
+  → **20 / 20 passed** (6 prompt-snapshot + 2 cs176 closure + 12 S1
+  guard).
+- `mvn -pl server test` → **612 / 612 passed** (Sprint 6 baseline 610
+  + 2 new Sprint 6.1 closure tests). 0 failures.
+- `python -m pytest -p no:capture eval_interactive/tests/test_agent_client_session_create_timeout.py`
+  → **8 / 8 passed**.
+- `python -m pytest -p no:capture eval_interactive/tests/`
+  → **294 / 294 passed**.
+
+## Why focused evidence is sufficient (no new smoke run)
+
+H0 changes the ReadTimeout retry path only; under nominal latency
+(no ReadTimeout), behaviour is identical to Sprint 6's smoke r1
+(`20260505-112736`, 0 ReadTimeouts) and r2 (`20260505-113845`, 0
+ReadTimeouts). The closure-normalized behaviour differs only in the
+`exactly one initial attempt` count vs `2 attempts max` count, which
+is pinned by the Python tests above and never observed in either
+Sprint 6 smoke run.
+
+H1 is a pure additive regression — it does not change the system
+prompt, the resolver, or any runtime path. The deterministic Step
+2.5 path it pins was always present; the test simply forces the
+cs176 explicit human-help cue into the transcript so the
+"runtime/eval evidence" gap that Codex flagged is closed by a
+deterministic regression rather than a flaky persona-simulator run.
+
+## Sprint 6 closure status
+
+After H0 + H1 the Sprint 6 acceptance bar is met:
+
+- ✅ G0 ships exactly one ReadTimeout mitigation (widen 120s); no
+  accept-and-retry layer.
+- ✅ G1 cs176 has runtime/eval evidence that an explicit
+  human-help cue produces `user_requested` (focused integration
+  regression).
+- cs176 r2 UC-I drift remains explicitly deferred residual risk.
+- All Sprint 6 regression guards (cs014 UC-C, cs066 UC-K, cs095 not
+  UC-K, cs002 already-escalated distress reconciliation, cs029 UC-D
+  + `user_requested`, `L1:escalation_reason_consistency=0`) remain
+  intact (unchanged by H0/H1).

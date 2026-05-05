@@ -1,14 +1,16 @@
-"""Tests for the Sprint 6 §G0 session-create timeout / ReadTimeout retry.
+"""Tests for the Sprint 6 §G0 session-create timeout (closure-normalized).
 
 These tests exercise the eval-client AgentClient.create_session path:
 
 - The wider 120s read timeout is configured on session-create only.
-- On httpx.ReadTimeout, create_session retries exactly once and then
-  re-raises if the retry also times out.
+- The default 60s read timeout still applies to other endpoints.
+- ``httpx.ReadTimeout`` propagates immediately (no retry); SessionRunner
+  tags the failure as a ReadTimeout / 120s creation_error.
 - A 4xx / 5xx HTTP response is NOT retried (semantic failures stay
   non-retryable).
-- session_runner records a ReadTimeout-tagged ``creation_error`` when
-  the retry exhausts, and a generic repr otherwise.
+- BatchExecutor surfaces an ``INFRA:ReadTimeout`` failure tag for an
+  escaped ReadTimeout vs the legacy ``ERROR:...`` tag for other
+  failures.
 """
 
 from __future__ import annotations
@@ -86,35 +88,14 @@ def test_session_create_timeout_constants_widened_to_120s() -> None:
     assert DEFAULT_READ_TIMEOUT_SECONDS == 60.0
 
 
-def test_create_session_retries_once_on_read_timeout_then_succeeds() -> None:
-    client = _make_client()
-    calls = {"n": 0}
+def test_create_session_does_not_retry_on_read_timeout() -> None:
+    """Sprint 6 §G0 closure: ReadTimeout propagates immediately.
 
-    def fake_post(url, json=None, timeout=None):  # noqa: ARG001
-        calls["n"] += 1
-        if calls["n"] == 1:
-            raise httpx.ReadTimeout("timed out")
-
-        class _Resp:
-            status_code = 200
-
-            def raise_for_status(self) -> None:
-                return None
-
-            def json(self) -> dict:
-                return {"session_id": "sess-abc", "reply_text": "hi"}
-
-        return _Resp()
-
-    with patch.object(client.client, "post", side_effect=fake_post), \
-            patch("eval_interactive.simulator.agent_client.time.sleep"):
-        out = client.create_session({"first_name": "x"})
-
-    assert out == {"session_id": "sess-abc", "reply_text": "hi"}
-    assert calls["n"] == 2
-
-
-def test_create_session_raises_after_two_consecutive_read_timeouts() -> None:
+    The single chosen mitigation is the wider 120s read timeout —
+    there is no accept-and-retry layer. An escaped ReadTimeout must
+    be raised on the first attempt so SessionRunner / BatchExecutor
+    can tag it distinctly without compounding latency.
+    """
     client = _make_client()
     calls = {"n": 0}
 
@@ -122,13 +103,12 @@ def test_create_session_raises_after_two_consecutive_read_timeouts() -> None:
         calls["n"] += 1
         raise httpx.ReadTimeout("timed out")
 
-    with patch.object(client.client, "post", side_effect=fake_post), \
-            patch("eval_interactive.simulator.agent_client.time.sleep"):
+    with patch.object(client.client, "post", side_effect=fake_post):
         with pytest.raises(httpx.ReadTimeout):
             client.create_session({"first_name": "x"})
 
-    # Bounded retry: 1 initial + 1 retry == 2 attempts max.
-    assert calls["n"] == 2
+    # Exactly one attempt — no retry layer in the closure-normalized G0.
+    assert calls["n"] == 1
 
 
 def test_create_session_does_not_retry_on_4xx_or_5xx() -> None:
@@ -156,6 +136,28 @@ def test_create_session_does_not_retry_on_4xx_or_5xx() -> None:
         return _Resp(401)
 
     with patch.object(client.client, "post", side_effect=fake_post_401):
+        with pytest.raises(httpx.HTTPStatusError):
+            client.create_session({})
+    assert calls["n"] == 1
+
+    calls["n"] = 0
+
+    def fake_post_403(url, json=None, timeout=None):  # noqa: ARG001
+        calls["n"] += 1
+        return _Resp(403)
+
+    with patch.object(client.client, "post", side_effect=fake_post_403):
+        with pytest.raises(httpx.HTTPStatusError):
+            client.create_session({})
+    assert calls["n"] == 1
+
+    calls["n"] = 0
+
+    def fake_post_400(url, json=None, timeout=None):  # noqa: ARG001
+        calls["n"] += 1
+        return _Resp(400)
+
+    with patch.object(client.client, "post", side_effect=fake_post_400):
         with pytest.raises(httpx.HTTPStatusError):
             client.create_session({})
     assert calls["n"] == 1
@@ -200,8 +202,20 @@ def test_create_session_passes_widened_per_request_timeout() -> None:
     assert t.read == SESSION_CREATE_READ_TIMEOUT_SECONDS
 
 
+def test_default_client_timeout_still_60s_for_other_endpoints() -> None:
+    """Other endpoints (send_message, get_trace, etc.) keep the 60s budget.
+
+    The widened 120s read timeout is scoped to ``create_session``
+    only; the underlying ``httpx.Client`` retains the default
+    60s read budget so we don't accidentally widen the entire
+    eval surface.
+    """
+    client = _make_client()
+    assert client.client.timeout.read == DEFAULT_READ_TIMEOUT_SECONDS
+
+
 def test_session_runner_tags_read_timeout_creation_error() -> None:
-    """Verify SessionRunner produces a ReadTimeout-tagged creation_error."""
+    """SessionRunner produces a ReadTimeout-tagged creation_error."""
     from types import SimpleNamespace
 
     from eval_interactive.simulator.session_runner import SessionRunner
@@ -251,3 +265,55 @@ def test_session_runner_does_not_tag_read_timeout_for_other_errors() -> None:
     assert result.stop_reason == "session_create_failed"
     assert "ReadTimeout" not in (result.creation_error or "")
     assert "ConnectError" in result.creation_error
+
+
+def test_executor_emits_infra_readtimeout_failure_tag(monkeypatch) -> None:
+    """BatchExecutor surfaces ``INFRA:ReadTimeout`` for an escaped ReadTimeout.
+
+    The closure-normalized G0 keeps ReadTimeout classification at the
+    aggregation layer so post-Sprint-6 handoff can separate upstream
+    latency from a real bot-side semantic failure.
+    """
+    from eval_interactive.batch.executor import BatchExecutor
+    from eval_interactive.simulator.session_runner import SessionResult
+
+    case = _build_case("cs_ut_executor_readtimeout")
+
+    class _StubExecutor(BatchExecutor):
+        def __init__(self) -> None:
+            # Skip Config init — only _execute_case_sync is exercised
+            # and it does not read self._config until trace collection.
+            pass
+
+    executor = _StubExecutor()
+
+    # Synthetic SessionResult mimicking what SessionRunner produces
+    # when create_session raises httpx.ReadTimeout.
+    error_result = SessionResult(
+        session_id="error-deadbeef",
+        case_id=case.case_id,
+        creation_error=(
+            "ReadTimeout('timed out'). create_session exceeded the "
+            "eval-client 120s read budget — upstream LLM/backend "
+            "latency, not a semantic failure."
+        ),
+        stop_reason="session_create_failed",
+    )
+
+    # Drive the same branch the real executor takes when
+    # session_result.creation_error is set.
+    msg = (
+        f"session_create_failed: {error_result.creation_error}. "
+        f"Backend at http://localhost:8080 unreachable or "
+        f"returned an error during POST /v1/chat/sessions."
+    )
+    out = executor._error_result(case, msg, failure_kind="ReadTimeout")
+    tags = out["failure_tags"]
+    assert "INFRA:ReadTimeout" in tags
+    # The legacy ERROR:... tag must still be present so existing
+    # aggregation paths keep working.
+    assert any(t.startswith("ERROR:") for t in tags)
+
+    # And a non-ReadTimeout error path must NOT mint INFRA:ReadTimeout.
+    other = executor._error_result(case, "boom: ConnectError")
+    assert not any(t.startswith("INFRA:") for t in other["failure_tags"])
