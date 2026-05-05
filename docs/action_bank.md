@@ -626,14 +626,26 @@ pick from a categorized menu.
 
 - **C1. active_use_case-aware `request_handover` reason picking**
   (`server/src/main/resources/prompts/system_prompt.txt`).
-  Anchor case: cs_interactive_176 (UC-E feature-explanation form
-  picking `payment_dispute_detected` instead of FAQ-family reason).
-  Edit shape: append one paragraph after line 51 of
-  `system_prompt.txt`; check `session.active_use_case` before
-  picking a Tier-2 policy reason. Risk: under-routing real
-  chargebacks to FAQ family — mitigated by the explicit
+  Anchor case: cs_interactive_176. Spec: `escalation_trigger=user_requested`.
+  Sprint 4 r1 picks `payment_dispute_detected`; r2 worse — bot drifts
+  to UC-I with `escalation_reason=service_degraded`. Both are
+  cross-family vs `user_requested`. Edit shape: append one
+  paragraph after line 51 of `system_prompt.txt`; require the LLM
+  to (a) prefer `user_requested` (priority 1) over Tier-2 policy
+  reasons whenever the user has explicitly asked for human help
+  (callback, "talk to someone", "give me a phone number"), and (b)
+  not pick `payment_dispute_detected` for UC-A / UC-B / UC-E
+  advertising-fee inquiries that are not real chargebacks. Target
+  outcome: cs_176 r1+r2 produce `escalation_reason=user_requested`.
+  `faq_miss_threshold_exceeded` and `intake_complete_for_uc_k` are
+  NOT family-match against `user_requested` and are NOT acceptable
+  substitutes (Sprint 5.1 codex correction). Residual risk: C1 may
+  not fully address the r2 UC-I drift; Sprint 6 acceptance must
+  either include "no unjustified UC-I drift on cs_176 r2" or
+  explicitly defer that UC drift question. Risk: under-routing real
+  chargebacks to `user_requested` — mitigated by the explicit
   "user explicitly invokes chargeback / GDPR / appeal" escape
-  hatch.
+  hatch + UC-FP being the natural UC for a real chargeback.
 
 - **C2. Routing-prompt UC-FP / UC-A tiebreaker for short
   ad-rejection forms**
@@ -665,15 +677,25 @@ pick from a categorized menu.
 - **C5. Surface `candidate_use_cases` in projected JSON, update
   DISCOVER instruction**
   (`ContextProjectionBuilder.buildProjection` + DISCOVER
-  `systemInstruction`). Anchor case: cs_interactive_259 (UNKNOWN
-  topic + FAQ-shaped first turn → single-turn handover with
-  `faq_miss_threshold_exceeded`). Edit shape: project the
+  `systemInstruction`). DISCOVER-side support for cs_interactive_259
+  r1 contract violation only. Edit shape: project the
   already-existing `session.candidateUseCases` slot, and add a
   DISCOVER instruction cue: "if `candidate_use_cases` is empty AND
   user message is FAQ-shaped, run `search_knowledge` before
-  classifying or escalating." Pair with a small Java guard that
-  refuses `request_handover(faq_miss_threshold_exceeded)` when no
-  prior `search_knowledge` is in `accumulated_tool_results`.
+  classifying or escalating." Sprint 5.1 codex correction: cs_259
+  r2's actual tool sequence was
+  `['search_knowledge', 'classify_use_case', 'request_handover']`
+  (`lcs=1/4`) — `search_knowledge` already ran, the FAQ-resolve
+  flow simply did not complete. The previously-paired Java guard
+  "refuse `request_handover(faq_miss_threshold_exceeded)` when no
+  prior `search_knowledge` is in `accumulated_tool_results`" is
+  **removed/deferred** because it would not address cs_259 r2's
+  observed failure. cs_259's primary fix is therefore **F2 §S1**
+  (FAQ-grounded-resolve skill / `PhasePlan` predicate enforcing
+  search → `resolve_article` → grounded customer-facing answer →
+  `record_outcome`, OR an explicit handover only after a valid
+  resolve attempt cannot complete). Do not promote a new
+  `java_guard` primary for cs_259.
 
 ### Skill orchestration candidates (Sprint 5 §F2)
 
@@ -711,13 +733,24 @@ pick from a categorized menu.
 
 ### Recommended Sprint 6 scope (3–4 actions)
 
-Drawn from `docs/10-handoff.md` Sprint 5 §4 / §F1-§F3 deliverables:
+Drawn from `docs/10-handoff.md` Sprint 5 §4 / §F1-§F3 deliverables,
+amended by Sprint 5.1 codex corrections:
 
 1. F-INFRA Kimi timeout mitigation.
-2. F1 §C1 `request_handover` UC-aware paragraph.
-3. F2 §S1 FAQ-grounded-resolve skill (subsumes F1 §C3).
-4. (stretch) F1 §C5 `candidate_use_cases` projection + DISCOVER cue
-   + small Java guard.
+2. F1 §C1 `request_handover` UC-aware paragraph — **target outcome
+   corrected**: must preserve / produce
+   `escalation_reason=user_requested` for cs_176 (spec is
+   `user_requested`). Residual risk on r2 UC-I drift documented.
+3. F2 §S1 FAQ-grounded-resolve skill (subsumes F1 §C3) — owns both
+   cs_192 ("search-not-yet-run") AND cs_259
+   ("search-ran-but-resolve-did-not"). Terminal predicate enforces
+   `search_knowledge → resolve_article → grounded customer-facing
+   answer → record_outcome`, OR an explicit handover only after a
+   valid resolve attempt cannot complete.
+4. (stretch) F1 §C5 `candidate_use_cases` projection + DISCOVER cue.
+   **The previously-paired "no prior search" Java guard is
+   removed/deferred per Sprint 5.1** (cs_259 r2 already had a prior
+   `search_knowledge` call).
 
 Defer: F1 §C2 (validate moderation-status population first),
 F1 §C4 / F2 §S2, F2 §S5, L3 judge calibration (D15), cs_095

@@ -31,11 +31,18 @@ introducing a separate "skill engine".
 Per `docs/fix_layer_taxonomy.md`, two of the recurring failure modes are
 not best fixed by a one-line prompt cue:
 
-- **cs_259** UC-F payment FAQ — the bot escalates after one turn
-  without running the FAQ-grounded-resolve sequence. A prompt cue
-  helps, but the recurring shape is "DISCOVER ends with a low-confidence
-  FAQ-shaped intent → search_knowledge → resolve_article → grounded
-  answer". This is exactly what a `Resolve.FAQ` skill would package.
+- **cs_259** UC-F payment FAQ — r2 evidence shows
+  `search_knowledge` was called and UC-F was committed, but the bot
+  short-circuited to `request_handover(faq_miss_threshold_exceeded)`
+  without running `resolve_article` + grounded answer +
+  `record_outcome`. Actual r2 tool sequence:
+  `['search_knowledge', 'classify_use_case', 'request_handover']`
+  (`lcs=1/4`). The recurring shape is therefore "search happened,
+  resolve did not complete" — a multi-step `search_knowledge →
+  resolve_article → grounded customer-facing answer →
+  record_outcome` sequence (or, alternatively, an explicit handover
+  only after a valid resolve attempt cannot complete). This is
+  exactly what an S1 `Resolve.FAQ` skill would package.
 - **cs_066** UC-K intake — the bot keeps asking clarifying questions
   outside the required intake field set, hitting `turn_budget_exhausted`
   before completing intake. The recurring shape is "for UC-G/H/I/J/K,
@@ -56,8 +63,19 @@ responsibility, and a finite set of terminal outcomes.
 - `active_use_case ∈ {UC-A, UC-B, UC-C (FAQ side), UC-D (FAQ side),
   UC-E, UC-F (FAQ side), UC-FP (FAQ side)}` — i.e. any UC whose
   `path == FAQ` in `UseCaseRegistryService.UseCaseDefinition`.
-- `accumulated_tool_results.search_knowledge` is empty OR contains no
-  hit above the configured `RerankService` confidence threshold.
+- The skill triggers in either of two shapes — both observed in
+  Sprint 4 smoke evidence:
+  1. **search-not-yet-run shape (cs_192-style)**:
+     `accumulated_tool_results.search_knowledge` is empty AND a
+     factual user-facing answer is about to be emitted.
+  2. **search-ran-but-resolve-did-not shape (cs_259 r2-style)**:
+     `accumulated_tool_results.search_knowledge` is non-empty AND
+     `accumulated_tool_results.resolve_article` is empty AND the
+     bot is about to emit `request_handover(faq_miss_threshold_exceeded)`
+     or a customer-facing FAQ answer without a citation. The skill's
+     terminal predicate must enforce "search → resolve_article →
+     grounded answer → record_outcome", OR an explicit handover only
+     after a valid resolve attempt cannot complete.
 
 **Required tools** (in deterministic order):
 
@@ -251,11 +269,23 @@ unless the field set is complete) makes the contract enforceable.
 - DISCOVER `maxToolSteps=2` is preserved.
 - `ControlKernel.inferFallbackUseCase` (B3) still fires if the skill
   escalates without an `active_use_case` — already implemented.
-- The skill must NOT escalate `faq_miss_threshold_exceeded` without
-  a prior `search_knowledge` call (cs_259 r2 anti-pattern). Add a
-  runtime check in `RequestHandoverTool`: if candidate is
-  `faq_miss_threshold_exceeded` and `accumulated_tool_results.search_knowledge`
-  is empty, downgrade to `clarification_budget_exhausted`.
+- **Removed/deferred (Sprint 5.1 codex correction)**: an earlier
+  draft of S3 added a runtime check in `RequestHandoverTool` that
+  refused `faq_miss_threshold_exceeded` when no
+  `search_knowledge` was in `accumulated_tool_results`. cs_259 r2
+  evidence shows that `search_knowledge` already ran in the
+  observed failure (`['search_knowledge', 'classify_use_case',
+  'request_handover']`, `lcs=1/4`), so a "no prior search" guard
+  would not address the cs_259 failure. The guard is therefore
+  removed from the cs_259 fix and is NOT recommended as a primary
+  cs_259 mitigation. The cs_259 primary fix is S1 (FAQ-grounded-
+  resolve skill / `PhasePlan` predicate enforcing
+  `search_knowledge → resolve_article → grounded customer-facing
+  answer → record_outcome`, OR an explicit handover only after a
+  valid resolve attempt cannot complete). A "no prior search"
+  defensive invariant could still be considered in a future sprint
+  for cases that genuinely have no prior search, but it must not be
+  promoted as the cs_259 fix.
 
 **Prompt responsibilities**:
 
@@ -271,10 +301,13 @@ unless the field set is complete) makes the contract enforceable.
 
 **Why this is a skill candidate and not a prompt fix alone**:
 prompt-only fix (F1 §C5 — surface `candidate_use_cases` + DISCOVER
-instruction) helps the LLM understand the empty state, but a skill
-predicate (refuse `faq_miss_threshold_exceeded` without a prior
-`search_knowledge` call) prevents the cs_259 r2 single-turn-handover
-anti-pattern deterministically.
+instruction) helps the LLM understand the empty state. The
+previously-claimed deterministic predicate "refuse
+`faq_miss_threshold_exceeded` without a prior `search_knowledge`
+call" does NOT match the cs_259 r2 evidence (search did happen) and
+is removed from the cs_259 fix per Sprint 5.1 codex correction. The
+cs_259 r2 anti-pattern ("search ran, resolve did not complete") is
+owned by S1, not S3.
 
 ### Skill S4 — `Triage.Account.LoginRecovery` (UC-D login-issue intake)
 
@@ -383,7 +416,8 @@ prompt fix, add S5 as a follow-up. Do NOT ship both at once.
 | Citation present on FAQ resolve | partially — runtime can refuse `record_outcome(resolve)` without citation, OR rely on eval `L1:source_citation_present`; current state is the latter | yes — S1 predicate enforces it | nudge only |
 | Intake-completion-completeness (no `intake_complete_for_uc_X` until all fields collected) | not yet — gap! S2 proposes a runtime downgrade when fields missing | yes — S2 step 5 condition | nudge only via F1 §C4 |
 | Tier-2-reason × UC compatibility | not yet — gap; F2 §S5 vs F1 §C1 trade-off | optional (S5) | optional (F1 §C1) |
-| `search_knowledge` before `faq_miss_threshold_exceeded` | not yet — gap; F2 §S3 proposes a runtime downgrade when no prior search | yes — S3 predicate | nudge only via F1 §C5 |
+| `resolve_article` + grounded answer + `record_outcome` after `search_knowledge` (cs_259 r2 shape) | not yet — gap; primary cs_259 fix is S1 terminal predicate | yes — S1 predicate (search-ran-but-resolve-did-not branch) | nudge only via F1 §C3 / §C5 |
+| `search_knowledge` before `faq_miss_threshold_exceeded` (defensive only) | not yet — defensive only; previously paired with S3 but removed from cs_259 fix per Sprint 5.1 codex correction (cs_259 r2 already had a prior search) | optional defensive guard, not the cs_259 fix | n/a |
 | Customer-facing language / empathy / brevity | no | no | yes — `system_prompt.txt` |
 | Per-UC clarifying-question phrasing | no | partially — skill names the field | yes — system prompt + per-UC `systemInstruction` |
 
