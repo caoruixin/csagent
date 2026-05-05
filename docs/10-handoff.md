@@ -1626,3 +1626,276 @@ hold:
 `docs/current_eval_baseline.md` and `docs/action_bank.md` were
 intentionally NOT updated in this round (per Sprint 4.1 scope). Sprint
 4 archival is the next maintenance step.
+
+---
+
+# Sprint 5 — Prompt / Context Projection and Fix-Layer Diagnostic
+
+Date: 2026-05-05
+Branch: `design-v1-without-human-review`
+Source review: `docs/codex-findings.md` (Sprint 4.1 review, decision pass,
+blocking_count 0, three P2 docs-consistency notes only)
+Sprint scope: `docs/sprint_objective.md` (F0–F3 diagnostic deliverables only)
+
+This sprint is **diagnostic-first**. It does NOT implement any Java
+runtime change, prompt rewrite, skill runtime framework, judge
+stabilization, eval expansion, production policy suite expansion,
+trace/transcript alignment, or service-outcome taxonomy. Per
+`docs/sprint_objective.md` §"Do not implement".
+
+## 1. Diagnostic deliverables produced
+
+### F0 — Fix-layer taxonomy
+
+File: `docs/fix_layer_taxonomy.md`.
+
+Classifies each post-Sprint-4 smoke failure into one primary fix layer
+(plus secondary where useful) drawn from the eight-layer set:
+`java_guard`, `prompt_context_projection`, `skill_orchestration`,
+`case_spec_eval`, `infra_runtime`, `judge_calibration`,
+`product_policy_gap`, `unknown_needs_human_review`.
+
+Layer summary across the post-Sprint-4 canonical
+(`eval_interactive/results/20260504-221916/results.json`, 8/14, 0.4915)
+and the nondeterminism reference
+(`eval_interactive/results/20260504-223153/results.json`, 6/14, 0.3615):
+
+| Layer | Cases primarily here |
+|---|---|
+| `infra_runtime` (Kimi `session_create_failed: ReadTimeout`) | cs_002, cs_014, cs_015, cs_192, cs_259 (varying r1/r2 incidence) |
+| `skill_orchestration` | cs_259 (UC-F FAQ resolve flow shortcut), cs_066 r2 (UC-K intake completion variance) |
+| `prompt_context_projection` | cs_176 (`payment_dispute_detected` reason picked for UC-E feature-explanation), cs_015 (UC-A vs UC-FP routing tiebreaker) |
+| `product_policy_gap` | cs_095 (V1 FAQ corpus has no "change app account email" article) |
+| `judge_calibration` | most cases including currently-passing ones (L3:relevance / L3:tone_appropriateness flap) |
+| `java_guard` | 0 *new* — Sprint 4 §E1 / §E3 closed the recent ones; cs_011 / cs_001 are listed as historical anchors only |
+| `case_spec_eval` | 0 new (Sprint 4 §E3 override-pipeline guard pins the smoke YAMLs to the override pipeline output) |
+| `unknown_needs_human_review` | 0 |
+
+Each row contains: case id, observed failure, evidence path, primary
+layer + rationale, why other layers should NOT be fixed first,
+recommended minimal next action, confidence.
+
+### F1 — Prompt / context projection audit
+
+File: `docs/prompt_context_projection_audit.md`.
+
+Walks the three current LLM-instruction surfaces:
+
+1. `server/src/main/resources/prompts/system_prompt.txt` (66 lines).
+2. `server/src/main/resources/prompts/routing_prompt.txt` (17 lines).
+3. The per-turn projected context built by
+   `ContextProjectionBuilder.build` — `session`, `task_summary`,
+   `risk_flags`, `budget_state`, `tool_schemas`, `form_context`,
+   `customer_context`, `listing_context`, `conversation_history`,
+   `current_user_message`, `phase_plan`, `accumulated_tool_results`.
+
+Plus the per-phase `PhasePlan` slots (objective, allowed_tools,
+systemInstruction, groundingInstruction, escalationPolicy) emitted by
+`PhaseEvaluator.plan(...)` for DISCOVER / RESOLVE-FAQ /
+RESOLVE-INTAKE / CONFIRM / CLOSE / ESCALATE.
+
+Identifies five concrete gaps where the LLM lacks useful state /
+prior / phase goal / allowed-tool cue, and proposes five candidate
+prompt / projection changes (NOT implemented in Sprint 5):
+
+| Candidate | Target case(s) | Edit |
+|---|---|---|
+| C1 active_use_case-aware `request_handover` reason picking | cs_176 | one paragraph appended to `system_prompt.txt` |
+| C2 routing-prompt UC-FP / UC-A tiebreaker for short ad-rejection forms | cs_015 | one bullet appended to `routing_prompt.txt` |
+| C3 RESOLVE-FAQ "search before answering on turn 1" | cs_192 | one sentence appended to `PhaseEvaluator` FAQ-RESOLVE `groundingInstruction` |
+| C4 surface `intake_state.fields_collected / fields_remaining` for INTAKE phases | cs_066 | new projection slot in `ContextProjectionBuilder` + reference in intake `systemInstruction` |
+| C5 surface `candidate_use_cases` in projected JSON, update DISCOVER instruction | cs_259 | new projection slot in `ContextProjectionBuilder` (already in DB schema) + DISCOVER `systemInstruction` cue |
+
+Also documents two lower-priority gaps left unaddressed in Sprint 5
+(prompt-runtime drift on resolver precedence, opaque
+`accumulated_tool_results` keying) with rationale.
+
+Each candidate names risks, target cases, and the tests / evals
+needed before implementation (Java unit tests on projection shape,
+PhaseEvaluator instruction snapshot tests, smoke runs before / after,
+regression-guard list).
+
+### F2 — Skill orchestration candidate scan
+
+File: `docs/skill_orchestration_candidates.md`.
+
+Identifies five skill / plan-template candidates and recommends only
+two be picked into the next implementation sprint:
+
+| Skill | Recurring shape | Anchor cases | Recommendation |
+|---|---|---|---|
+| S1 `Resolve.FAQ.GroundedAnswer` | DISCOVER → search → resolve_article → cite → CONFIRM | cs_192, cs_259, cs_001, cs_011 | **must-have** — biggest recurring shape |
+| S2 `Resolve.Intake.CollectAndHandover` | UC-G/H/I/J/K field-by-field intake | cs_066, cs_036, cs_038, cs_040 | **should-have** — anchors intake-completion gap |
+| S3 `Triage.SoftOOS.ClarifyOrEscalate` | UNKNOWN-topic + ambiguous turn 1 | cs_259, cs_029 | **defer** — F1 §C5 + small Java guard may suffice |
+| S4 `Triage.Account.LoginRecovery` | UC-D login-recovery sub-skill of S1 | cs_011 | **defer** — currently PASSes; defensive only |
+| S5 `Triage.PolicySensitive.Tier2Reasoning` | Tier-2 `request_handover` reason × UC compatibility | cs_176 | **defer** — ship F1 §C1 prompt fix first |
+
+Each candidate names trigger conditions, required tools / state,
+terminal outcomes, Java guard boundaries, prompt responsibilities,
+and the eval cases that should test it. The Java-guard / skill /
+prompt boundary is summarized in a table at §5 of that file.
+
+The document explicitly does NOT propose a new skill runtime
+framework — skills are to be expressed as parametrized `PhasePlan`
+branches inside `PhaseEvaluator.plan(...)`.
+
+### F3 — Java guard / prompt flexibility / skill / eval responsibilities
+
+File: `docs/java_guard_prompt_flexibility_design.md`.
+
+Defines the responsibility split:
+
+- **Java MUST guarantee** (Tier-0 invariants — resolver precedence,
+  reason consistency, §B1 deterministic distress, §A2 UC-K override,
+  §C2 strong-prior carry-forward, §B3 fallback UC, tool whitelist,
+  per-UC tool policy, override / audit consistency, already-escalated
+  reconcile, auto-fill of `request_handover` on legacy paths).
+- **Prompt SHOULD guide** (preferences between legal options —
+  customer-facing language, UC-route tiebreakers, escalation-reason
+  tiebreakers when multiple are legal, "search before answering"
+  cues, "ask only the missing field" cues).
+- **Skill SHOULD orchestrate** (recurring multi-step flows with
+  deterministic terminal predicates — implemented as parametrized
+  `PhasePlan`, not a new framework).
+- **Eval SHOULD verify** (semantic outcome scoring, override pipeline
+  integrity, judge dimensions).
+
+Includes a layer-decision tree for picking the right layer the first
+time, plus stop conditions for future implementation sprints (a
+future sprint should NOT add a new java_guard / prompt section /
+skill / override unless the listed pre-conditions hold).
+
+Lists anti-patterns explicitly:
+
+- Java guard for every LLM enum pick.
+- Prompt re-encoding what the runtime knows.
+- Skill that requires the LLM to chain its own prior reasoning.
+- Eval override that masks behaviour.
+- Sprint scope creep by full-review → fix → full-review loops.
+
+## 2. Files changed (docs only)
+
+| File | Change |
+|---|---|
+| `docs/fix_layer_taxonomy.md` | **new** — F0 deliverable |
+| `docs/prompt_context_projection_audit.md` | **new** — F1 deliverable |
+| `docs/skill_orchestration_candidates.md` | **new** — F2 deliverable |
+| `docs/java_guard_prompt_flexibility_design.md` | **new** — F3 deliverable |
+| `docs/10-handoff.md` | this section |
+| `docs/action_bank.md` | new "Sprint 5 diagnostic candidates" subsection (categorized C1–C5 prompt candidates + S1–S2 skill candidates) — does NOT mark Sprint 5 actions implemented |
+
+`docs/current_eval_baseline.md` is intentionally NOT changed —
+Sprint 5 is diagnostic-only and the post-Sprint-4 canonical baseline
+remains authoritative.
+
+No Java code, prompt template, eval YAML, override registry, or
+runtime configuration was changed in this sprint.
+
+## 3. Tests run
+
+Per `docs/sprint_objective.md` §"Testing": "No full smoke eval
+required unless docs tooling requires it. Run lightweight tests
+only if docs/index/regression checks exist."
+
+This sprint changed only `docs/*.md`. The relevant existing
+regression guards (`test_smoke_yaml_matches_override_pipeline_output`,
+`test_smoke_review_report_tracks_smoke_set_and_overrides`,
+`test_v2_schema_loads_cleanly`,
+`test_cs_interactive_*_override_survives_fresh_extraction`)
+are untouched and remain green from Sprint 4 / 4.1 closure (286 / 286
+pytest, 592 / 592 mvn).
+
+No smoke eval re-run was performed: Sprint 5 does not change any
+Java / prompt / spec / override surface that would alter smoke
+results, and the post-Sprint-4 baseline
+(`eval_interactive/results/20260504-221916/results.json`, 8/14, mean
+composite 0.4915) plus the nondeterminism reference
+(`eval_interactive/results/20260504-223153/results.json`, 6/14, mean
+composite 0.3615) remain authoritative for the diagnostic.
+
+## 4. Recommended next sprint actions (Sprint 6 scope)
+
+Pick **3–4 narrow** actions, anchored to the diagnostic above. Order
+by lift and confidence:
+
+1. **F1-infra timeout / pre-warm** — widen eval-client timeout to
+   120s, OR pre-warm the first Kimi call, OR async pre-fetch FAQ
+   snapshots, OR accept-and-retry on ReadTimeout. Single highest-lift
+   change — unblocks 5 unique cases (cs_002 / cs_014 / cs_015 /
+   cs_192 / cs_259 in their ReadTimeout incidence). Out of any
+   prompt / skill / spec coupling.
+
+2. **F1 §C1 active_use_case-aware `request_handover` paragraph**
+   (system_prompt.txt) — anchors cs_176. Lowest implementation cost
+   among prompt candidates; ships as a one-paragraph addition with
+   a golden-snapshot test on the prompt string and a smoke r1/r2
+   re-run.
+
+3. **F2 §S1 FAQ-grounded-resolve skill** (parametrized PhasePlan
+   inside `PhaseEvaluator.plan` for FAQ-RESOLVE) — anchors cs_192 +
+   cs_259 + the long tail of FAQ failures. Implements the
+   "search-before-answer" predicate as a deterministic terminal
+   predicate so the resolve cannot complete without a citation.
+   Includes the F1 §C3 grounding-instruction change. Higher
+   implementation cost; budget mvn integration tests for the new
+   predicate.
+
+4. **(stretch) F1 §C5 surface `candidate_use_cases` + DISCOVER
+   instruction cue** — anchors cs_259. Small Java change in
+   `ContextProjectionBuilder` (the field is already in the session DB
+   schema) + one-sentence DISCOVER instruction update + small Java
+   guard refusing `request_handover(faq_miss_threshold_exceeded)`
+   without a prior `search_knowledge` call. Low-cost; partially
+   subsumes F2 §S3 so S3 stays deferred.
+
+Defer to a later sprint:
+
+- F1 §C2 routing-prompt UC-FP tiebreaker (cs_015) — depends on
+  `customer_context.moderation_status` being populated reliably;
+  validate that dependency first.
+- F1 §C4 / F2 §S2 intake-state projection + UC-G/H/I/J/K skill
+  (cs_066) — higher test cost; prioritize after #1–#3 land.
+- F2 §S5 Tier-2-reason runtime guard — wait to see if F1 §C1 prompt
+  fix is sufficient.
+- L3 judge calibration (D15) — out of scope for Sprint 6.
+- cs_095 product / FAQ-corpus question — Phase 2 product question,
+  not a Sprint 6 candidate.
+
+## 5. Remaining P0 / P1 blockers
+
+P0: none.
+
+P1 (carried forward, all out of Sprint 5 scope):
+
+1. Kimi `session_create_failed: ReadTimeout` smoke-side latency
+   (Sprint 6 §F1-infra candidate above).
+2. cs_176 UC-E classification flake (Sprint 6 §F1-C1 candidate).
+3. cs_259 routing / stall stabilisation (Sprint 6 §F2-S1 +
+   §F1-C5 candidates).
+4. L3 relevance / tone_appropriateness judge volatility (D15).
+5. Pre-existing tracked-doc secret scrub.
+6. D1–D7 deferrals.
+
+None of these is reopened or affected by Sprint 5.
+
+## 6. Can Sprint 5 close?
+
+**Yes.** The four diagnostic deliverables (F0 / F1 / F2 / F3) all
+land. Per `docs/sprint_objective.md` §"Success metrics":
+
+- ✅ Every reviewed failure has a fix-layer classification (F0).
+- ✅ At least 3 prompt/context candidates are identified (C1–C5 = 5
+  candidates).
+- ✅ At least 2 skill orchestration candidates are identified (S1 +
+  S2 must / should-have, plus S3 / S4 / S5 deferred).
+- ✅ Java-only fixes are recommended only for true invariants (F3
+  §3.1 reaffirms Tier-0 invariants; F0 finds 0 new java_guard
+  candidates).
+- ✅ Next implementation sprint can be scoped to 3–4 actions (§4
+  above).
+- ✅ No broad implementation is performed in this sprint.
+
+Per `docs/sprint_objective.md` §"Review rule": Codex should review
+diagnostic quality only, and should NOT ask for broad implementation
+during this sprint unless the audit reveals a P0 safety / contract
+violation. None observed in Sprint 5.
