@@ -1,6 +1,112 @@
 # Action Bank
 
-Date: 2026-05-05 (post Sprint 6.1 closure)
+Date: 2026-05-06 (post Sprint 7 — accepted closure pending clean-credential smoke re-run)
+
+## Status — Sprint 7 closure (Targeted Routing Projection and Intake-State Orchestration)
+
+Sprint 7 implements exactly three actions (I0 / I1 / I2) on top of
+Sprint 6.1. Implementation verified by 33 new focused regression
+tests + the full 645-test mvn suite + 294-test pytest suite. Smoke
+under nominal credentials is deferred to post-credential-rotation;
+Sprint 6 r1 (`eval_interactive/results/20260505-112736/results.json`)
+remains the canonical reference.
+
+### S7-I0. C5 candidate_use_cases projection + DISCOVER cue — **DONE** (2026-05-06)
+
+Surfaces `candidate_use_cases` in the projected JSON (sourced from
+`session.candidateUseCases`; emitted as an empty array when no
+candidates have been pre-selected). DISCOVER systemInstruction adds
+a narrow weak-candidate cue: empty `candidate_use_cases` + UNKNOWN /
+empty form + FAQ-shaped or payment-sale-proceeds-shaped user message
+must not trigger a one-turn `request_handover(faq_miss_threshold_exceeded)`;
+the bot must call `search_knowledge` then `classify_use_case` first.
+Anchored on cs_interactive_259 (UC-F payment / sale-proceeds shape).
+
+Files:
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+
+Tests:
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint7CandidateUseCasesProjectionTest.java` — 7 tests.
+
+### S7-I1. C2 UC-FP vs UC-A routing tiebreaker — **DONE** (2026-05-06)
+
+Surfaces a moderation routing-context cue (sourced from
+`session.moderationContext.decision`,
+`session.listingContext.status`,
+`session.customerContext.account_status`) into a new
+`{routing_context}` placeholder in `routing_prompt.txt`. New §I1
+paragraph routes short ad-rejection forms with a moderation hit to
+UC-FP; same shape without a moderation hit goes to UC-K intake (not
+generic UC-A). Preserves cs014 / cs066 / cs095 negative guards.
+Anchored on cs_interactive_015.
+
+Files:
+- `server/src/main/java/com/gumtree/csagent/service/runtime/UseCaseRouter.java`
+  (`buildModerationRoutingContext` helper).
+- `server/src/main/java/com/gumtree/csagent/service/runtime/LlmInvocationService.java`
+  (5-arg `invokeRouting` overload; legacy 4-arg signature preserved).
+- `server/src/main/resources/prompts/routing_prompt.txt`
+  (`{routing_context}` placeholder + §I1 rule).
+
+Tests:
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint7RoutingTiebreakerTest.java` — 10 tests.
+
+### S7-I2. S2 / C4 intake-state projection + UC-G/H/I/J/K intake skill — **DONE** (2026-05-06)
+
+Adds `intake_state` (required_fields, fields_collected,
+fields_remaining, intake_complete) to the projection for intake-path
+UCs only. Intake systemInstruction now references the projection.
+New `IntakeFieldsRegistry` pins canonical required fields per UC
+(UC-K mirrors `customer_service_tool_spec_v0_2.yaml` §6
+`per_uc_required_fields`: `[platform, repro_steps_or_error_message]`).
+New `AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover` runtime
+guard refuses `request_handover(intake_complete_for_uc_X)` for
+intake UCs when any required field is still missing; new
+`persistInlineIntakeFields` persists LLM-supplied
+`arguments.intake_fields` (alias-normalised) into
+`session.intakeFields`. Other handover reasons
+(`user_requested`, `incomplete_intake`, real Tier-2) pass through.
+No new skill runtime framework. Anchored on cs_interactive_066.
+
+Files:
+- `server/src/main/java/com/gumtree/csagent/service/runtime/IntakeFieldsRegistry.java`
+  (new static utility).
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+  (constructor takes ObjectMapper; new guard + persistence helpers).
+- Pre-existing AgentRunLoop integration tests updated for the
+  new constructor signature; UC-H integration test now supplies
+  `arguments.intake_fields` so the §I2 guard accepts the handover.
+
+Tests:
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint7IntakeStateTest.java` — 16 tests.
+
+### Sprint 7 closure tests run
+
+- `mvn -pl server -Dtest='Sprint7CandidateUseCasesProjectionTest,Sprint7RoutingTiebreakerTest,Sprint7IntakeStateTest' test`
+  → **33 / 33 passed**.
+- `mvn -pl server test` → **645 / 645 passed**
+  (Sprint 6.1 baseline 612 + new Sprint 7 focused regression).
+- `python -m pytest -p no:capture eval_interactive/tests/`
+  → **294 / 294 passed**.
+
+### Sprint 7 closure: smoke contaminated, not promoted
+
+- Targeted: `results/20260505-205946/results.json` (cs259),
+  `results/20260505-210136/results.json` (cs015),
+  `results/20260505-210218/results.json` (cs066).
+- Smoke r1: `eval_interactive/results/20260505-210359/results.json`
+  (1/14 — fully credential-contaminated; `KIMI_API_KEY` rejected
+  with `401 Unauthorized` against `https://api.moonshot.cn/v1`).
+
+Per the Sprint 7 rule, contaminated smoke is NOT promoted as
+canonical. `docs/current_eval_baseline.md` continues to point to
+Sprint 6 r1 as canonical. Smoke must be re-run after the upstream
+Kimi credential is rotated.
+
+
 
 ## Status — Sprint 6.1 closure (post Sprint 6 fix_required review)
 

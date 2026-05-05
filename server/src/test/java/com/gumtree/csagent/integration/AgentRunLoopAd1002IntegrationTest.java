@@ -98,7 +98,7 @@ class AgentRunLoopAd1002IntegrationTest {
 
         // Real AgentRunLoop
         agentRunLoop = new AgentRunLoopImpl(
-                llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser);
+                llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser, objectMapper);
 
         // Feature flag: enable RESOLVE_FAQ
         AgentRunLoopProperties props = new AgentRunLoopProperties();

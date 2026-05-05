@@ -313,6 +313,56 @@ public class ContextProjectionBuilder {
             }
             projection.set("risk_flags", riskFlagsNode);
 
+            // Sprint 7 §I2 — intake_state projection. Surfaces required /
+            // collected / remaining fields and intake_complete for INTAKE-path
+            // UCs (UC-G/H/I/J/K) so the LLM can ask only for missing fields
+            // and avoid stamping intake_complete_for_uc_X prematurely. Other
+            // UCs (FAQ-path, DISCOVER, etc.) skip this slot entirely.
+            if (IntakeFieldsRegistry.isIntakeUseCase(activeUc)) {
+                ObjectNode intakeStateNode = objectMapper.createObjectNode();
+                List<String> required = IntakeFieldsRegistry.requiredFieldsFor(activeUc);
+                Map<String, String> collected = IntakeFieldsRegistry.parseCollectedFields(
+                        objectMapper, session.getIntakeFields());
+                List<String> remaining = IntakeFieldsRegistry.fieldsRemaining(activeUc, collected);
+
+                ArrayNode requiredNode = objectMapper.createArrayNode();
+                for (String f : required) requiredNode.add(f);
+                intakeStateNode.set("required_fields", requiredNode);
+
+                ObjectNode collectedNode = objectMapper.createObjectNode();
+                for (Map.Entry<String, String> entry : collected.entrySet()) {
+                    if (required.contains(entry.getKey())) {
+                        collectedNode.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                intakeStateNode.set("fields_collected", collectedNode);
+
+                ArrayNode remainingNode = objectMapper.createArrayNode();
+                for (String f : remaining) remainingNode.add(f);
+                intakeStateNode.set("fields_remaining", remainingNode);
+
+                intakeStateNode.put("intake_complete",
+                        IntakeFieldsRegistry.intakeComplete(activeUc, collected));
+
+                projection.set("intake_state", intakeStateNode);
+            }
+
+            // Sprint 7 §I0 — C5 candidate_use_cases projection. Surfaces the
+            // routing-derived candidate UC list so the DISCOVER cue can act
+            // on it deterministically. Empty array signals "no candidates yet"
+            // (UNKNOWN topic + empty description), which the DISCOVER
+            // systemInstruction reads as the trigger to gather evidence
+            // before escalating with faq_miss_threshold_exceeded.
+            ArrayNode candidateUcsNode = objectMapper.createArrayNode();
+            if (session.getCandidateUseCases() != null) {
+                for (String uc : session.getCandidateUseCases()) {
+                    if (uc != null && !uc.isBlank()) {
+                        candidateUcsNode.add(uc);
+                    }
+                }
+            }
+            projection.set("candidate_use_cases", candidateUcsNode);
+
             // Budget state
             ObjectNode budgetNode = objectMapper.createObjectNode();
             budgetNode.put("total_bot_turns", session.getTotalBotTurns());

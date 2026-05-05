@@ -103,7 +103,7 @@ class AgentRunLoopIntakeIntegrationTest {
 
         // Real AgentRunLoop
         agentRunLoop = new AgentRunLoopImpl(
-                llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser);
+                llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser, objectMapper);
 
         // Feature flag: enable RESOLVE_INTAKE
         AgentRunLoopProperties props = new AgentRunLoopProperties();
@@ -158,7 +158,10 @@ class AgentRunLoopIntakeIntegrationTest {
                         + "\"reasoning\":\"need details\",\"tool_calls\":[]}")
                 .promptTokens(100).completionTokens(20).build();
 
-        // Turn 2: tool_calls = [create_case_controlled, request_handover]
+        // Turn 2: tool_calls = [create_case_controlled, request_handover].
+        // Sprint 7 §I2 — request_handover(intake_complete_for_uc_X) must
+        // carry the collected intake_fields so the runtime intake-complete
+        // guard accepts it (otherwise the guard downgrades the call).
         LlmResponse turn2Resp = LlmResponse.builder()
                 .content("{\"user_message\":\"Thanks. I'm passing this to the Ad Support team.\","
                         + "\"reasoning\":\"intake complete; escalate with case\","
@@ -166,7 +169,10 @@ class AgentRunLoopIntakeIntegrationTest {
                         + "{\"name\":\"create_case_controlled\","
                         + "\"arguments\":{\"subject\":\"Ad Support - Appeal\",\"description\":\"ad AD-9 removed\"}},"
                         + "{\"name\":\"request_handover\","
-                        + "\"arguments\":{\"escalation_reason\":\"intake_complete_for_uc_h\"}}"
+                        + "\"arguments\":{\"escalation_reason\":\"intake_complete_for_uc_h\","
+                        + "\"intake_fields\":{\"ad_id_or_listing_url\":\"AD-9\","
+                        + "\"registered_email\":\"alice@example.com\","
+                        + "\"stated_reason_or_context\":\"ad AD-9 removed; reason: spam flag\"}}}"
                         + "]}")
                 .promptTokens(180).completionTokens(40).build();
 
@@ -189,7 +195,13 @@ class AgentRunLoopIntakeIntegrationTest {
                                 .build(),
                         ToolCall.builder()
                                 .name("request_handover")
-                                .arguments(Map.of("escalation_reason", "intake_complete_for_uc_h"))
+                                .arguments(Map.of(
+                                        "escalation_reason", "intake_complete_for_uc_h",
+                                        "intake_fields", Map.of(
+                                                "ad_id_or_listing_url", "AD-9",
+                                                "registered_email", "alice@example.com",
+                                                "stated_reason_or_context",
+                                                "ad AD-9 removed; reason: spam flag")))
                                 .build()))
                 .userMessage("Thanks. I'm passing this to the Ad Support team.")
                 .reasoning("intake complete; escalate with case")
@@ -274,12 +286,18 @@ class AgentRunLoopIntakeIntegrationTest {
 
         // Turn 1: LLM attempts search_knowledge (which is NOT in INTAKE plan.allowedTools)
         // followed by request_handover. The first should be rejected; the second proceeds.
+        // Sprint 7 §I2: include intake_fields so the intake-complete guard
+        // accepts the handover; this test exercises the tool-whitelist
+        // rejection, not the intake-complete guard.
         LlmResponse turn1Resp = LlmResponse.builder()
                 .content("{\"user_message\":\"Let me check.\","
                         + "\"tool_calls\":["
                         + "{\"name\":\"search_knowledge\",\"arguments\":{\"query\":\"appeal\"}},"
                         + "{\"name\":\"request_handover\","
-                        + "\"arguments\":{\"escalation_reason\":\"intake_complete_for_uc_h\"}}"
+                        + "\"arguments\":{\"escalation_reason\":\"intake_complete_for_uc_h\","
+                        + "\"intake_fields\":{\"ad_id_or_listing_url\":\"AD-9\","
+                        + "\"registered_email\":\"alice@example.com\","
+                        + "\"stated_reason_or_context\":\"appeal\"}}}"
                         + "]}")
                 .promptTokens(100).completionTokens(20).build();
 
@@ -294,7 +312,12 @@ class AgentRunLoopIntakeIntegrationTest {
                                 .build(),
                         ToolCall.builder()
                                 .name("request_handover")
-                                .arguments(Map.of("escalation_reason", "intake_complete_for_uc_h"))
+                                .arguments(Map.of(
+                                        "escalation_reason", "intake_complete_for_uc_h",
+                                        "intake_fields", Map.of(
+                                                "ad_id_or_listing_url", "AD-9",
+                                                "registered_email", "alice@example.com",
+                                                "stated_reason_or_context", "appeal")))
                                 .build()))
                 .userMessage("Let me check.")
                 .build());

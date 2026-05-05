@@ -196,6 +196,13 @@ public class PhaseEvaluator {
      * {@code resolveIntake} prompt pattern: acknowledge with empathy, collect
      * any missing required details, hand over to the named team, and (for
      * UC-H/J/K) create a tracking case before handover.
+     *
+     * <p>Sprint 7 §I2 — references the {@code intake_state} projection slot
+     * so the LLM can see which required fields have already been collected
+     * and which are still missing, ask only for the next missing field, and
+     * provide the collected values back to the runtime via
+     * {@code request_handover.arguments.intake_fields} when intake is
+     * complete.
      */
     private String buildIntakeSystemInstruction(String uc,
                                                 UseCaseRegistryService.UseCaseDefinition ucDef) {
@@ -213,6 +220,29 @@ public class PhaseEvaluator {
         // the LLM to order it. The runtime creates the tracking case
         // deterministically before handover for UC-H/J/K.
         sb.append(" Do not attempt to resolve the issue yourself — you are an intake agent only.");
+
+        // Sprint 7 §I2 — intake_state cue. Reference the projected
+        // intake_state slot so the LLM stops re-deriving the missing-field
+        // set every turn (cs_066 r2 turn-budget variance shape).
+        List<String> required = IntakeFieldsRegistry.requiredFieldsFor(uc);
+        if (!required.isEmpty()) {
+            sb.append(" Read the projected `intake_state.fields_remaining` array")
+                    .append(" — that is the canonical list of required fields not yet")
+                    .append(" collected for ").append(uc).append(" (canonical required set: ")
+                    .append(required).append("). Ask ONLY for the next field in")
+                    .append(" `intake_state.fields_remaining`; do NOT repeat questions about")
+                    .append(" fields already in `intake_state.fields_collected`. When")
+                    .append(" `intake_state.fields_remaining` is empty AND")
+                    .append(" `intake_state.intake_complete` is true, call")
+                    .append(" `request_handover` with escalation_reason='")
+                    .append(intakeCompleteTrigger(uc))
+                    .append("' AND include the collected values under")
+                    .append(" `arguments.intake_fields` (e.g.")
+                    .append(" {\"intake_fields\": {\"field_a\": \"value_a\", ...}}). The")
+                    .append(" runtime refuses an `intake_complete_for_*` handover when any")
+                    .append(" required field is missing — it will downgrade the call and")
+                    .append(" hint which fields are still needed.");
+        }
         return sb.toString();
     }
 
@@ -384,7 +414,21 @@ public class PhaseEvaluator {
                                     + "and conversation history. When the user's intent is clear (or you can "
                                     + "infer it with a supporting detail), call classify_use_case with the "
                                     + "matching use_case_id and a confidence in [0,1]. Otherwise ask one clear "
-                                    + "clarifying question, or escalate if the user's request is out of scope.")
+                                    + "clarifying question, or escalate if the user's request is out of scope. "
+                                    + "Sprint 7 §I0 weak-candidate cue: when "
+                                    + "`candidate_use_cases` is empty or weak AND the form context is empty / "
+                                    + "UNKNOWN topic AND the current user message is clearly FAQ-shaped "
+                                    + "(\"how do I X\", \"can I Y\", \"what items are allowed\") OR is "
+                                    + "payment / sale-proceeds-shaped (\"how do I receive payment\", "
+                                    + "\"how do I get paid when I sell\", \"how does payout work\"), do NOT "
+                                    + "request_handover with `faq_miss_threshold_exceeded` after a single user "
+                                    + "turn. Instead, gather enough evidence to classify toward the right "
+                                    + "FAQ-path UC: call `search_knowledge` with the user's question as the "
+                                    + "query, then call `classify_use_case` with the most plausible UC "
+                                    + "(payment / sale-proceeds questions point to UC-F; how-to-post and "
+                                    + "general advertising questions to UC-B; messaging to UC-C; account / "
+                                    + "login to UC-D). Once classified, RESOLVE will run the grounded resolve "
+                                    + "sequence.")
                     .groundingInstruction(
                             "Do not commit to detailed answers in DISCOVER. Your job is to determine the "
                                     + "use case category (call classify_use_case), then RESOLVE will produce the "

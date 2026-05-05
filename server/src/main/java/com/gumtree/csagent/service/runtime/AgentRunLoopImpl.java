@@ -1,5 +1,6 @@
 package com.gumtree.csagent.service.runtime;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gumtree.csagent.model.AgentRunResult;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.BotTurn;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,19 +85,31 @@ public class AgentRunLoopImpl implements AgentRunLoop {
     static final String S1_GUARD_REJECT_REASON =
             "s1_resolve_required_before_faq_miss_handover";
 
+    /**
+     * Sprint 7 §I2 — intake-complete guard reject reason. Surfaced in
+     * {@code accumulated_tool_results.request_handover.error} when the LLM
+     * calls {@code request_handover(intake_complete_for_uc_X)} for an
+     * intake UC before all required fields have actually been collected.
+     */
+    static final String INTAKE_COMPLETE_GUARD_REJECT_REASON =
+            "intake_required_fields_missing_for_intake_complete";
+
     private final LlmInvocationService llmInvocation;
     private final ToolDispatcher toolDispatcher;
     private final ContextProjectionBuilder contextProjectionBuilder;
     private final ActionParser actionParser;
+    private final ObjectMapper objectMapper;
 
     public AgentRunLoopImpl(LlmInvocationService llmInvocation,
                             ToolDispatcher toolDispatcher,
                             ContextProjectionBuilder contextProjectionBuilder,
-                            ActionParser actionParser) {
+                            ActionParser actionParser,
+                            ObjectMapper objectMapper) {
         this.llmInvocation = llmInvocation;
         this.toolDispatcher = toolDispatcher;
         this.contextProjectionBuilder = contextProjectionBuilder;
         this.actionParser = actionParser;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -212,6 +226,42 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     continue;
                 }
 
+                // 6a''. Sprint 7 §I2 — intake-complete guard. Refuse
+                // request_handover(intake_complete_for_uc_X) when the
+                // session's intake_fields are not yet complete for the
+                // active UC. The LLM may also supply fields under
+                // arguments.intake_fields; merge those into
+                // session.intakeFields BEFORE evaluating the guard so a
+                // single complete handover call is allowed through.
+                if (HANDOVER_TOOL.equals(toolName)
+                        && IntakeFieldsRegistry.isIntakeUseCase(plan.useCase())) {
+                    persistInlineIntakeFields(session, call);
+                    if (shouldRejectIncompleteIntakeHandover(plan, call, session)) {
+                        Map<String, String> collected = IntakeFieldsRegistry.parseCollectedFields(
+                                objectMapper, session.getIntakeFields());
+                        List<String> missing = IntakeFieldsRegistry.fieldsRemaining(
+                                plan.useCase(), collected);
+                        log.warn(
+                                "AgentRunLoop intake-complete guard rejected request_handover for "
+                                        + "intake UC '{}' at step {}: required fields missing={}",
+                                plan.useCase(), step, missing);
+                        ToolEvent rejected = ToolEvent.rejected(step, call,
+                                INTAKE_COMPLETE_GUARD_REJECT_REASON);
+                        toolEvents.add(new ToolEvent(
+                                sequence++, step, rejected.toolName(), rejected.arguments(),
+                                rejected.success(), rejected.resultData(), rejected.errorMessage(),
+                                rejected.latencyMs()));
+                        Map<String, Object> guardWrap = new LinkedHashMap<>();
+                        guardWrap.put("error", INTAKE_COMPLETE_GUARD_REJECT_REASON);
+                        guardWrap.put("missing_fields", missing);
+                        guardWrap.put("hint",
+                                "Ask the user for the missing intake fields above, then call "
+                                        + "request_handover with arguments.intake_fields populated.");
+                        accumulatedToolResults.put(HANDOVER_TOOL, guardWrap);
+                        continue;
+                    }
+                }
+
                 // 6a'. Sprint 6 §G2 — S1 FAQ-grounded-resolve guard.
                 // Refuse request_handover(faq_miss_threshold_exceeded) when
                 // search_knowledge already returned viable evidence and
@@ -294,6 +344,92 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         // Loop exhausted
         log.warn("AgentRunLoop hit max_tool_steps={} without terminal outcome", maxSteps);
         return AgentRunResult.maxSteps(llmEvents, toolEvents, lastProjection);
+    }
+
+    /**
+     * Sprint 7 §I2 — persist the LLM-supplied {@code intake_fields} payload
+     * (when present on a {@code request_handover} call) back to
+     * {@link BotSession#getIntakeFields()} so subsequent turns and the
+     * {@link IntakeFieldsRegistry#intakeComplete} predicate can see the
+     * collected values. Field names are normalised to canonical form via
+     * {@link IntakeFieldsRegistry#canonicalFieldName}; only non-blank
+     * values are merged. Tolerant — never throws on malformed input.
+     */
+    void persistInlineIntakeFields(BotSession session, ToolCall call) {
+        if (session == null || call == null || call.getArguments() == null) {
+            return;
+        }
+        Object raw = call.getArguments().get("intake_fields");
+        if (!(raw instanceof Map<?, ?> rawMap) || rawMap.isEmpty()) {
+            return;
+        }
+        Map<String, String> existing = IntakeFieldsRegistry.parseCollectedFields(
+                objectMapper, session.getIntakeFields());
+        @SuppressWarnings("unchecked")
+        Map<String, ?> incoming = (Map<String, ?>) rawMap;
+        Map<String, String> merged = IntakeFieldsRegistry.mergeFields(existing, incoming);
+        if (merged.equals(existing)) {
+            return;
+        }
+        try {
+            session.setIntakeFields(objectMapper.writeValueAsString(merged));
+        } catch (Exception ex) {
+            log.warn("AgentRunLoop failed to persist inline intake_fields: {}", ex.getMessage());
+        }
+    }
+
+    /**
+     * Sprint 7 §I2 — intake-complete guard predicate.
+     *
+     * <p>Returns true iff:
+     * <ol>
+     *   <li>The plan is RESOLVE on an intake-path UC (UC-G/H/I/J/K).</li>
+     *   <li>The handover call's escalation_reason is the canonical
+     *       {@code intake_complete_for_uc_<g|h|i|j|k>} for the active UC.</li>
+     *   <li>{@link IntakeFieldsRegistry#intakeComplete(String, Map)} is
+     *       false against the merged session.intakeFields (i.e. at least
+     *       one canonical required field is still missing or blank).</li>
+     * </ol>
+     *
+     * <p>Other handover reasons (user_requested, user_distress,
+     * incomplete_intake, out_of_scope, real Tier-2 reasons) pass through
+     * unchanged.
+     */
+    static boolean shouldRejectIncompleteIntakeHandover(PhasePlan plan,
+                                                        ToolCall call,
+                                                        BotSession session) {
+        if (plan == null || !"RESOLVE".equals(plan.phase())) {
+            return false;
+        }
+        String activeUc = plan.useCase();
+        if (!IntakeFieldsRegistry.isIntakeUseCase(activeUc)) {
+            return false;
+        }
+        if (call == null || call.getArguments() == null) {
+            return false;
+        }
+        Object reasonObj = call.getArguments().get("escalation_reason");
+        String reason = reasonObj == null ? null : reasonObj.toString();
+        if (reason == null) return false;
+        String expected = "intake_complete_for_uc_" + activeUc.substring(activeUc.length() - 1)
+                .toLowerCase(java.util.Locale.ENGLISH);
+        if (!expected.equals(reason)) {
+            return false;
+        }
+        Map<String, String> collected = sessionCollected(session);
+        return !IntakeFieldsRegistry.intakeComplete(activeUc, collected);
+    }
+
+    private static Map<String, String> sessionCollected(BotSession session) {
+        if (session == null) return Collections.emptyMap();
+        // Static helper duplicates the parse logic; the test path constructs
+        // its own ObjectMapper, so the predicate must remain static.
+        try {
+            ObjectMapper m = new ObjectMapper();
+            return IntakeFieldsRegistry.parseCollectedFields(m, session.getIntakeFields());
+        } catch (Exception ex) {
+            return Collections.emptyMap();
+        }
     }
 
     private String extractHandoverReason(ToolCall call) {

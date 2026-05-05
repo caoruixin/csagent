@@ -499,9 +499,14 @@ public class UseCaseRouter {
                 })
                 .collect(Collectors.joining("\n"));
 
+        // Sprint 7 §I1 — build a narrow routing-context cue describing the
+        // ad's moderation/rejection signal so the UC-FP vs UC-A tiebreaker
+        // can fire deterministically for short ad-rejection forms (cs_015).
+        String routingContext = buildModerationRoutingContext(session);
+
         try {
             LlmResponse response = llmInvocation.invokeRouting(ucCandidatesText, topicSubject, description,
-                    session.getSessionId());
+                    routingContext, session.getSessionId());
 
             if ("error_fallback".equals(response.getFinishReason())) {
                 // LLM failed — if we have a single candidate, use it; otherwise escalate
@@ -550,6 +555,82 @@ public class UseCaseRouter {
                 return RoutingResult.routed(ucId, new BigDecimal("0.30"));
             }
             return RoutingResult.ambiguous(candidates);
+        }
+    }
+
+    /**
+     * Sprint 7 §I1 — build a narrow routing-context cue summarising any
+     * moderation/rejection signal already attached to the session so the
+     * routing prompt can apply the UC-FP vs UC-A tiebreaker for short
+     * ad-rejection forms (cs_015).
+     *
+     * <p>Reads (in order, first non-empty wins):
+     * <ol>
+     *   <li>{@code session.moderationContext.decision} (REMOVED, REJECTED,
+     *       APPROVED, UNDER_REVIEW, etc.) — populated by
+     *       {@code FormContextIngestionService} when the auto-triggered
+     *       {@code get_customer_context} call returns a moderation review
+     *       for the listing.</li>
+     *   <li>{@code session.listingContext.status} (rejected, removed,
+     *       on_hold, under_review, live, moderated) — set by the same
+     *       auto-trigger path when an {@code ad_id} resolves to a listing.</li>
+     *   <li>{@code session.customerContext.account_status} (BLACKLISTED,
+     *       SUSPENDED, ACTIVE) — coarsest signal but lets the prompt avoid
+     *       routing to UC-FP when the account itself is the problem.</li>
+     * </ol>
+     *
+     * <p>When no signal is available the method returns {@code null} so
+     * {@code LlmInvocationService.invokeRouting} substitutes a stable
+     * "unknown" placeholder; in that case the routing prompt's tiebreaker
+     * defers to UC-K intake rather than over-routing to UC-FP. Visible for
+     * unit testing.
+     */
+    String buildModerationRoutingContext(BotSession session) {
+        if (session == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        boolean hasSignal = false;
+
+        String moderationDecision = readJsonField(session.getModerationContext(), "decision");
+        if (moderationDecision != null && !moderationDecision.isBlank()) {
+            sb.append("moderation_review_decision: ")
+                    .append(moderationDecision.toLowerCase(Locale.ENGLISH));
+            hasSignal = true;
+        }
+
+        String listingStatus = readJsonField(session.getListingContext(), "status");
+        if (listingStatus != null && !listingStatus.isBlank()) {
+            if (sb.length() > 0) sb.append("; ");
+            sb.append("listing_status: ").append(listingStatus.toLowerCase(Locale.ENGLISH));
+            hasSignal = true;
+        }
+
+        String accountStatus = readJsonField(session.getCustomerContext(), "account_status");
+        if (accountStatus != null && !accountStatus.isBlank()) {
+            if (sb.length() > 0) sb.append("; ");
+            sb.append("account_status: ").append(accountStatus.toLowerCase(Locale.ENGLISH));
+            hasSignal = true;
+        }
+
+        if (!hasSignal) {
+            return null;
+        }
+        return sb.toString();
+    }
+
+    private String readJsonField(String json, String fieldName) {
+        if (json == null || json.isBlank() || fieldName == null) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            JsonNode field = node.get(fieldName);
+            return field == null || field.isNull() ? null : field.asText(null);
+        } catch (Exception ex) {
+            log.debug("Failed to read field '{}' from JSON ({}): {}",
+                    fieldName, json.length(), ex.getMessage());
+            return null;
         }
     }
 

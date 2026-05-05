@@ -153,13 +153,32 @@ public class LlmInvocationService {
      */
     public LlmResponse invokeRouting(String ucCandidates, String topicSubject,
                                       String description, String sessionId) {
+        return invokeRouting(ucCandidates, topicSubject, description, null, sessionId);
+    }
+
+    /**
+     * Sprint 7 §I1 — overload that carries a routing-context cue (e.g.
+     * `customer_context.moderation_status`) so the UC-FP vs UC-A tiebreaker
+     * for short ad-rejection forms can fire deterministically. The cue is
+     * substituted into the {@code {routing_context}} placeholder in
+     * {@code routing_prompt.txt}; when {@code routingContext} is null/blank
+     * the placeholder is replaced with a stable "unknown" string so the
+     * routing prompt remains well-formed.
+     */
+    public LlmResponse invokeRouting(String ucCandidates, String topicSubject,
+                                      String description, String routingContext,
+                                      String sessionId) {
         long start = System.currentTimeMillis();
         String requestSummary = truncate("topic=" + topicSubject + " desc=" + description, 200);
         try {
+            String routingContextValue = (routingContext == null || routingContext.isBlank())
+                    ? "moderation_status: unknown (no per-account moderation signal available at routing time)"
+                    : routingContext;
             String prompt = routingPromptTemplate
                     .replace("{uc_candidates}", ucCandidates)
                     .replace("{topic_subject}", topicSubject != null ? topicSubject : "")
-                    .replace("{description}", description != null ? description : "");
+                    .replace("{description}", description != null ? description : "")
+                    .replace("{routing_context}", routingContextValue);
 
             LlmRequest request = LlmRequest.builder()
                     .systemPrompt("You are a customer inquiry classifier. Respond only in JSON format.")
