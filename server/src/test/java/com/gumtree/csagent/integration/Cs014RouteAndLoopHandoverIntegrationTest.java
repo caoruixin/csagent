@@ -135,7 +135,7 @@ class Cs014RouteAndLoopHandoverIntegrationTest {
                 objectMapper, createCaseTool, eventEmitter, toolDispatcher);
 
         AgentRunLoop agentRunLoop = new AgentRunLoopImpl(
-                llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser);
+                llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser, objectMapper);
 
         AgentRunLoopProperties props = new AgentRunLoopProperties();
         // RESOLVE_FAQ is the route key for cs_014 (UC-C in RESOLVE phase).

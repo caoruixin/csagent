@@ -4,6 +4,9 @@ Classify this customer inquiry into one of these use cases:
 Customer's form topic: {topic_subject}
 Customer's description: {description}
 
+Routing context (Sprint 7 §I1):
+{routing_context}
+
 Disambiguation guidance (use only when listed UC candidates allow):
 - Words like "flaw", "bug", "broken", "doesn't work", "not working", "error" describing app/site/backend behavior → prefer UC-K (technical issue intake + handover) over generic FAQ UCs.
 - "Can't log in", "password reset", "locked out", "wrong email on account" → UC-D (Account & Login).
@@ -12,6 +15,13 @@ Disambiguation guidance (use only when listed UC candidates allow):
 - "Why was my ad deleted", "ad on hold", "policy violation reason", "appeal a removal" → UC-FP (ad-removal/policy).
 - "What happened to my ad", "where is my ad", with no further detail → UC-K (intake — needs moderation/account state lookup, then handover).
 - General how-to questions with no per-account state needed → UC-B (FAQ).
+
+Sprint 7 §I1 UC-FP vs UC-A tiebreaker:
+- For short, low-detail descriptions like "what happened to my ad?", "why was my ad removed/rejected?", "ad rejected", "ad disapproved", "ad on hold" with topic "Ad Support", check the routing context's moderation_status / has_rejected_ad / listing_status / moderation_review_decision signal:
+  - If the signal indicates rejected / removed / disapproved / on_hold / under_review / moderated / appeal-eligible → prefer UC-FP (Posting Policies / removal reason explanation), regardless of the candidate ordering.
+  - If the signal is unknown OR the ad is reported live (no moderation hit) → prefer UC-K (intake — needs moderation lookup, then handover) over generic UC-A.
+- UC-A is correct only when the ad is live and the question is specifically about visibility / search ranking ("ad not showing despite live status", "why isn't my ad ranking", "no adverts are showing on my account").
+- Do NOT route generic "is my ad visible" / "I can't see any ads on my profile" / email-sync visibility questions to UC-FP — those remain UC-A.
 
 Respond in JSON:
 {"use_case": "UC-X", "confidence": 0.0-1.0, "reasoning": "..."}

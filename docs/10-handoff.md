@@ -3149,3 +3149,474 @@ options before one was picked, Sprint 6.1 closure narrative
 explicitly framed as "originally landed two / accept-and-retry
 removed", Sprint 4 scope-deferral notes, or archived per-sprint
 handoff snapshots under `docs/sprints/`.
+
+# Sprint 7 — Targeted Routing Projection and Intake-State Orchestration
+
+Date: 2026-05-06
+Branch: `design-v1-without-human-review`
+Source review: Sprint 6.1 closure (Codex pass, blocking_count=0)
+Sprint scope: `docs/sprint_objective.md` Sprint 7 — exactly three
+actions (I0 / I1 / I2), no fourth action.
+Previous handoff baseline: Sprint 6 r1 canonical
+`eval_interactive/results/20260505-112736/results.json` (8/14
+passed, mean composite 0.4826) and Sprint 6 r2 nondeterminism
+reference `eval_interactive/results/20260505-113845/results.json`
+(7/14, mean composite 0.4108).
+
+## 1. Actions implemented (exactly three)
+
+### I0. C5 `candidate_use_cases` projection + DISCOVER cue (cs_interactive_259)
+
+- `ContextProjectionBuilder.buildProjection` now emits
+  `candidate_use_cases` (an array of UC ids) sourced from
+  `session.candidateUseCases`. Empty array is emitted explicitly
+  when the routing surface has not yet committed any candidate
+  (UNKNOWN topic + empty description shape — the cs259 trigger).
+- `PhaseEvaluator.plan(...)` DISCOVER branch now appends a narrow
+  Sprint 7 §I0 weak-candidate cue to the systemInstruction:
+  - Reads the projected `candidate_use_cases` array.
+  - Fires when `candidate_use_cases` is empty / weak AND the form
+    is empty / UNKNOWN AND the user's first message is FAQ-shaped
+    or payment-sale-proceeds-shaped.
+  - Forbids `request_handover(faq_miss_threshold_exceeded)` after
+    a single user turn in this state; instead steers the bot
+    toward `search_knowledge` then `classify_use_case` with the
+    most plausible UC, naming UC-F as the destination for
+    payment / sale-proceeds shape (cs259 anchor).
+- Sprint 6 §G2 S1 FAQ-grounded-resolve PhasePlan / Java guard for
+  cs259 r2 ("search ran but resolve did not complete") remains
+  intact — this Sprint 7 cue is the DISCOVER-side complement.
+
+### I1. C2 UC-FP vs UC-A routing tiebreaker (cs_interactive_015)
+
+- Verified that the routing surface (`routing_prompt.txt` invoked
+  by `LlmInvocationService.invokeRouting`) had **no** moderation /
+  rejection signal projected into it before Sprint 7. Both
+  `customer_context.moderation_status` and `listing_context.status`
+  exist in `BotSession` (set by
+  `FormContextIngestionService.autoTriggerCustomerContext` when
+  the auto-triggered `get_customer_context` call returns) but
+  were not passed to the routing LLM call.
+- New overload
+  `LlmInvocationService.invokeRouting(uc_candidates, topic_subject,
+  description, routing_context, session_id)` substitutes the cue
+  into a new `{routing_context}` placeholder in
+  `routing_prompt.txt`. The legacy 4-arg signature delegates to the
+  new overload with `routing_context=null`, which the new code
+  replaces with a stable "moderation_status: unknown" stub so the
+  prompt remains well-formed.
+- `UseCaseRouter.buildModerationRoutingContext(session)` derives
+  the cue from session state, in priority order:
+  - `session.moderationContext.decision` (REMOVED / REJECTED /
+    APPROVED / UNDER_REVIEW / etc.)
+  - `session.listingContext.status` (rejected / removed / on_hold /
+    under_review / live / moderated)
+  - `session.customerContext.account_status` (BLACKLISTED /
+    SUSPENDED / ACTIVE)
+  All non-null signals are concatenated lower-cased; when no
+  signal is available the helper returns `null` and the
+  invokeRouting overload falls back to the unknown stub.
+- New §I1 paragraph in `routing_prompt.txt` adds the UC-FP
+  tiebreaker:
+  - Short "what happened to my ad?" / "ad rejected" / "why was my
+    ad removed/disapproved" / "ad on hold" forms with `Ad Support`
+    topic AND a routing-context signal indicating
+    rejected / removed / disapproved / on_hold / under_review /
+    moderated / appeal-eligible → prefer **UC-FP**.
+  - Same shape WITHOUT a moderation hit → prefer **UC-K** intake
+    over generic UC-A.
+  - UC-A remains correct only for live-ad visibility / search
+    ranking questions ("ad not showing despite live status",
+    "no adverts are showing"). cs095 negative guard is preserved.
+  - Generic ad-visibility / email-sync visibility questions are
+    explicitly excluded from UC-FP routing — cs095 stays UC-A.
+
+### I2. S2 / C4 intake-state projection + UC-G/H/I/J/K intake skill (cs_interactive_066)
+
+- New `IntakeFieldsRegistry` (static utility) pins canonical
+  required intake fields per UC. Mirrors
+  `docs/customer_service_tool_spec_v0_2.yaml` §6
+  `per_uc_required_fields` for UC-H / UC-J / UC-K and adopts narrow
+  documented defaults for UC-G / UC-I:
+  - UC-G: `[registered_email, data_request_type]`
+  - UC-H: `[ad_id_or_listing_url, registered_email,
+    stated_reason_or_context]`
+  - UC-I: `[transaction_reference, dispute_reason]`
+  - UC-J: `[report_target, report_type, description]`
+  - UC-K: `[platform, repro_steps_or_error_message]`
+  Synonym aliases (e.g. `os` → `platform`, `repro_steps` →
+  `repro_steps_or_error_message`, `email` → `registered_email`)
+  normalise inbound field names so the LLM can persist a value
+  under a slightly different label without losing coverage.
+- `ContextProjectionBuilder.buildProjection` projects an
+  `intake_state` slot for intake-path UCs only:
+  ```json
+  {
+    "intake_state": {
+      "required_fields": ["platform", "repro_steps_or_error_message"],
+      "fields_collected": {"platform": "Chrome on Windows 11"},
+      "fields_remaining": ["repro_steps_or_error_message"],
+      "intake_complete": false
+    }
+  }
+  ```
+  FAQ-path UCs continue to receive no `intake_state` slot. The
+  `fields_collected` source is `session.intakeFields` JSONB.
+- `PhaseEvaluator.buildIntakeSystemInstruction` now references
+  `intake_state.fields_remaining` / `fields_collected` /
+  `intake_complete` and tells the LLM:
+  - Ask only for the next field in
+    `intake_state.fields_remaining`; do not repeat questions about
+    fields already in `intake_state.fields_collected`.
+  - When `intake_state.intake_complete` is true, call
+    `request_handover` with `escalation_reason='intake_complete_for_uc_X'`
+    AND include the collected values under
+    `arguments.intake_fields`.
+  - The runtime refuses an `intake_complete_for_*` handover when
+    any required field is missing — it will downgrade and hint
+    which fields are still needed.
+- `AgentRunLoopImpl` adds two narrow runtime helpers:
+  - `persistInlineIntakeFields(session, call)` — when a
+    `request_handover` arrives carrying `arguments.intake_fields`,
+    merges those values (alias-normalised) into
+    `session.intakeFields` BEFORE the guard predicate runs, so a
+    single complete handover call can be accepted.
+  - `shouldRejectIncompleteIntakeHandover(plan, call, session)`
+    — fires only when (a) RESOLVE on UC-G/H/I/J/K, (b) handover
+    reason is the canonical `intake_complete_for_uc_<g|h|i|j|k>`
+    matching the active UC, (c) the merged `session.intakeFields`
+    is missing any required field. The guard surfaces a
+    `intake_required_fields_missing_for_intake_complete` rejection
+    in `accumulated_tool_results.request_handover` along with a
+    `missing_fields` list and a hint, so the next LLM iteration
+    can ask for the missing fields. Other handover reasons
+    (`user_requested`, `incomplete_intake`, `user_distress`,
+    real Tier-2 reasons) pass through unchanged.
+  - **No new skill runtime framework**. The implementation extends
+    the existing `PhasePlan` shape and the existing
+    `AgentRunLoopImpl` dispatch loop only — same pattern as
+    Sprint 6 §G2 S1.
+- `ToolDispatcher.validateAgainstPlan` whitelist enforcement and
+  the bounded `PhasePlan.maxToolSteps` (3 for INTAKE,
+  4 for FAQ RESOLVE) are preserved.
+
+## 2. Files changed (Sprint 7)
+
+### Implementation
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
+  — `candidate_use_cases` array projection; `intake_state` slot for
+  intake UCs.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+  — DISCOVER systemInstruction Sprint 7 §I0 cue;
+  intake `buildIntakeSystemInstruction` now references
+  `intake_state`.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/IntakeFieldsRegistry.java`
+  — new static utility (required-fields per UC, alias normalisation,
+  parse / merge / completeness helpers).
+- `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+  — intake-complete guard + inline `intake_fields` persistence.
+  Constructor now also takes `ObjectMapper` for the new helpers.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/UseCaseRouter.java`
+  — `buildModerationRoutingContext(session)` helper; `routeViaLlm`
+  now passes the cue to the routing prompt.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/LlmInvocationService.java`
+  — new 5-arg `invokeRouting` overload; legacy 4-arg signature
+  delegates with `null` routing_context.
+- `server/src/main/resources/prompts/routing_prompt.txt`
+  — `{routing_context}` placeholder + Sprint 7 §I1 UC-FP / UC-K
+  tiebreaker rule. Existing UC-A / UC-B / UC-C / UC-D / UC-K rules
+  preserved.
+
+### Tests (new — focused regression for I0/I1/I2)
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint7CandidateUseCasesProjectionTest.java`
+  — 7 tests pinning candidate_use_cases projection (populated,
+  empty, plan-aware) + DISCOVER systemInstruction Sprint 7 §I0
+  cue + Sprint 6 G2 S1 regression guard.
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint7RoutingTiebreakerTest.java`
+  — 10 tests pinning routing_prompt.txt content (Sprint 7 §I1
+  rule + cs095/cs014/cs066 negative guards), the four
+  `buildModerationRoutingContext` extraction paths, and
+  `LlmInvocationService.invokeRouting` placeholder substitution
+  (legacy + new signature).
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint7IntakeStateTest.java`
+  — 16 tests pinning IntakeFieldsRegistry contract (canonical
+  fields, aliases, intake_complete predicate), intake_state
+  projection (empty / partial / complete / FAQ-skip), intake
+  systemInstruction `intake_state` reference,
+  `shouldRejectIncompleteIntakeHandover` cs066 cycle (rejects
+  when fields missing, allows when all collected, allows
+  user_requested / incomplete_intake passthrough, no-op for
+  FAQ-path), and inline-intake-fields persistence with alias
+  normalisation.
+
+### Tests (updated — pre-existing tests refreshed for new constructor / contract)
+- `server/src/test/java/com/gumtree/csagent/service/runtime/AgentRunLoopImplTest.java`
+  — pass `ObjectMapper` to the new 5-arg constructor.
+- `server/src/test/java/com/gumtree/csagent/service/runtime/AgentRunLoopS1FaqGroundedResolveGuardTest.java`
+  — same constructor update.
+- `server/src/test/java/com/gumtree/csagent/integration/AgentRunLoopAd1002IntegrationTest.java`,
+  `AgentRunLoopConfirmCloseIntegrationTest.java`,
+  `AgentRunLoopHandoverReasonNormalizationIntegrationTest.java`,
+  `AgentRunLoopIntakeIntegrationTest.java`,
+  `Cs014RouteAndLoopHandoverIntegrationTest.java` — same
+  constructor update.
+- `AgentRunLoopIntakeIntegrationTest.java` UC-H tests now include
+  `arguments.intake_fields` in the LLM-emitted
+  `request_handover(intake_complete_for_uc_h)` call so the new
+  Sprint 7 §I2 guard accepts the handover. Required-fields are
+  the canonical UC-H trio.
+
+## 3. Tests run (Sprint 7)
+
+- `mvn -pl server -Dtest='Sprint7CandidateUseCasesProjectionTest,Sprint7RoutingTiebreakerTest,Sprint7IntakeStateTest' test`
+  → **33 / 33 passed** (7 + 10 + 16 focused regression).
+- `mvn -pl server test` → **645 / 645 passed**
+  (Sprint 6.1 baseline 612 + 33 new Sprint 7 focused regression
+  + a few intermediate adds; 0 failures, 0 errors).
+- `python -m pytest -p no:capture eval_interactive/tests/`
+  → **294 / 294 passed**.
+
+## 4. Targeted evals + smoke + result paths
+
+- Targeted cs259: `results/20260505-205946/results.json`
+  (CONTRACT_VIOLATION:active_use_case — see §6 contamination
+  classification).
+- Targeted cs015: `results/20260505-210136/results.json`
+  (CONTRACT_VIOLATION:active_use_case — same contamination).
+- Targeted cs066: `results/20260505-210218/results.json`
+  (UC-K committed — pre-LLM phrase bias path; turn 2 LLM call
+  hit the upstream auth error and produced the safe-escalation
+  fallback `service_degraded`).
+- Smoke r1: `eval_interactive/results/20260505-210359/results.json`
+  (1/14 passed, mean composite 0.0531 — fully credential
+  contaminated; see §6).
+
+Smoke was NOT run a second time. The first smoke run is fully
+contaminated by upstream LLM auth failure (every cs that needs an
+LLM call past the deterministic routing path stamps
+`service_degraded`); a second run on the same credentials would
+not produce a clean canonical baseline. Per the Sprint 7 rule
+("If credentials or upstream LLM latency are contaminated, do not
+use contaminated smoke as canonical; report targeted results and
+classify contamination"), Sprint 6 r1
+(`eval_interactive/results/20260505-112736/results.json`) remains
+the canonical reference and `docs/current_eval_baseline.md` is
+NOT updated.
+
+## 5. Target outcomes — before vs after
+
+### cs_interactive_259 — UC-F payment / sale-proceeds FAQ
+
+Before (Sprint 6 r1): `active_use_case=UC-F` was committed and
+`search_knowledge` ran, but the bot short-circuited to
+`request_handover(faq_miss_threshold_exceeded)` without running
+`resolve_article` (cs259 r2 shape — owned by Sprint 6 G2 S1).
+Sprint 6 r1 also showed CONTRACT_VIOLATION when classify did not
+fire (carry-forward from earlier sprints).
+
+After (Sprint 7 implementation, projection + cue verified by
+33-test focused suite):
+- `candidate_use_cases` is now visible to the LLM (empty array
+  for the cs259 UNKNOWN-topic shape, telling the LLM exactly that
+  no candidates have been pre-selected).
+- DISCOVER systemInstruction now explicitly forbids premature
+  `request_handover(faq_miss_threshold_exceeded)` on the cs259
+  shape and steers the bot to `search_knowledge` →
+  `classify_use_case(UC-F)`.
+- Sprint 6 G2 S1 FAQ-grounded-resolve guard remains intact, so
+  the search → resolve → grounded answer → record_outcome
+  contract still applies once UC-F is committed.
+
+After (Sprint 7 r1 targeted run): contract violation persists
+because the upstream LLM 401 auth error prevents the DISCOVER
+turn from producing any `classify_use_case` call at all. This
+is **upstream contamination, not a Sprint 7 routing regression**;
+Sprint 7 §I0's effect can only be measured under nominal LLM
+credentials.
+
+### cs_interactive_015 — UC-FP rejected-ad routing
+
+Before (Sprint 6 r1): cs015 routed UC-A on the form-context-only
+seed, missing the UC-FP (Posting Policies) target. Routing
+surface had no moderation cue.
+
+After (Sprint 7 implementation):
+- `routing_prompt.txt` carries a moderation routing-context cue
+  derived from `session.moderationContext.decision` /
+  `session.listingContext.status` /
+  `session.customerContext.account_status`.
+- New §I1 paragraph instructs the routing LLM to prefer UC-FP on
+  short ad-rejection forms when a moderation hit is present and
+  to prefer UC-K intake (not UC-A) when no moderation hit is
+  present — gated narrowly enough that cs095 stays UC-A.
+- 10 focused regression tests pin both the routing prompt content
+  and the moderation-cue extraction path.
+
+After (Sprint 7 r1 targeted run): contract violation due to the
+same upstream LLM 401. The Sprint 7 §I1 effect on cs015 routing
+cannot be measured here; the focused regression tests confirm
+the prompt + projection contract is in place.
+
+### cs_interactive_066 — UC-K intake required-field flow
+
+Before (Sprint 6): UC-K classification was stable (
+`UseCaseRouter.matchUcKTechnicalRegression` deterministic
+override), but the bot exhibited turn-budget variance — across
+runs, the LLM either completed intake (PASS,
+`intake_complete_for_uc_k`) or ran the turn budget out (FAIL,
+`turn_budget_exhausted`).
+
+After (Sprint 7 implementation):
+- `intake_state` is now projected for UC-K with required fields
+  `[platform, repro_steps_or_error_message]`. The LLM no longer
+  needs to re-derive the missing-field set from the conversation
+  history every turn.
+- The intake systemInstruction explicitly tells the LLM to ask
+  only for the next missing field and to include
+  `arguments.intake_fields` when calling
+  `request_handover(intake_complete_for_uc_k)`.
+- The `shouldRejectIncompleteIntakeHandover` runtime guard
+  refuses an `intake_complete_for_uc_k` handover when any
+  required field is still missing, downgrading the call so the
+  next LLM turn can ask for the missing fields.
+
+After (Sprint 7 r1 targeted run): UC-K classification preserved
+(deterministic regex bias). Turn 2 hit the upstream LLM 401 and
+produced `service_degraded` from the safe-escalation fallback,
+not the intake-complete guard. The Sprint 7 §I2 effect on
+cs066's intake completion latency cannot be measured under the
+contaminated credentials; the 16-test focused suite confirms the
+projection / instruction / guard / persistence contract is in
+place.
+
+## 6. Regression guards — outcomes (Sprint 7)
+
+All regression guards are pinned by deterministic Java integration
+tests, not by smoke. The contaminated smoke confirms the
+deterministic surfaces still fire:
+
+- ✅ `L1:escalation_reason_consistency`: 0 across the smoke r1
+  trace contracts that did run (cs014, cs011, cs066, cs095 — all
+  produced canonical reasons; the `service_degraded` rows on
+  L1:escalation_compliance are the upstream-401 surface, not an
+  L1:escalation_reason_consistency violation).
+- ✅ `CONTRACT_VIOLATION:active_use_case`: only fires on cases
+  whose first turn hit the upstream 401 BEFORE any
+  classify_use_case call — cs015 / cs029 / cs040 / cs176 /
+  cs192 / cs259. cs014 / cs066 / cs095 / cs011 / cs002 still
+  classify via the deterministic pre-LLM bias path.
+- ✅ cs014 remains UC-C (smoke r1 row).
+- ✅ cs066 remains UC-K (smoke r1 row).
+- ✅ cs095 remains UC-A (not UC-K, not UC-FP) — smoke r1 row.
+- ✅ cs011 remains UC-D — smoke r1 row.
+- ✅ cs002 remains UC-C — smoke r1 row.
+- ✅ Sprint 6 G0 ReadTimeout closure intact: 0 ReadTimeout / 0
+  `INFRA:ReadTimeout` / 0 `session_create_failed` in smoke r1
+  (the contamination is auth, not transport).
+- ✅ Sprint 6 G2 S1 FAQ-grounded-resolve guard remains intact —
+  `AgentRunLoopS1FaqGroundedResolveGuardTest` (12 tests) green
+  in the Sprint 7 mvn run.
+- ✅ Sprint 6 G1 cs176 explicit-human-help → `user_requested`
+  focused integration regression
+  (`Cs176ExplicitHumanHelpHandoverIntegrationTest`) green.
+
+cs029, cs176, cs192 negative guards could not be observed in the
+contaminated smoke (those cases hit 401 on turn 1) but their Java
+contracts (`Cs014RouteAndLoopHandoverIntegrationTest`,
+`Cs176ExplicitHumanHelpHandoverIntegrationTest`,
+`Cs002AlreadyEscalatedDistressReconcileIntegrationTest`) are all
+green in the 645-test mvn suite.
+
+## 7. Was Sprint 7 objective met?
+
+**Yes — implementation is complete and verified by deterministic
+tests; runtime evidence under nominal credentials is deferred.**
+
+- ✅ Exactly three actions implemented (I0 / I1 / I2). No fourth
+  Sprint 7 action.
+- ✅ I0 candidate_use_cases projection + DISCOVER cue: cs259-shape
+  trigger pinned by 7 focused tests; Sprint 6 G2 S1 regression
+  guard intact.
+- ✅ I1 UC-FP vs UC-A routing tiebreaker: routing-context cue
+  surfaced from session state; routing prompt extended with the
+  §I1 rule; cs015 anchor + cs095 / cs014 / cs066 negative guards
+  pinned by 10 focused tests.
+- ✅ I2 intake_state projection + UC-G/H/I/J/K intake-complete
+  guard: cs066 anchor pinned by 16 focused tests; allowed-tool
+  enforcement and bounded `maxToolSteps` preserved; FAQ-path UCs
+  unaffected; Sprint 6 G1 / G2 contracts not regressed.
+- ✅ All Sprint 7 regression guards intact (deterministic-test
+  evidence; smoke contamination is upstream auth, not Sprint 7).
+- ✅ No deferred work was implemented (no S3 no-prior-search
+  guard, no S5 Tier-2 runtime guard, no cs176 UC-I drift fix,
+  no broad prompt rewrite, no broad routing taxonomy rewrite, no
+  L3 judge calibration, no broad eval expansion, no CaseSpec
+  override changes).
+
+The Sprint 7 implementation surface is well-pinned by 33 new
+focused regression tests + 645 mvn + 294 pytest tests. Targeted /
+smoke evidence under nominal LLM credentials is deferred to the
+next clean credentials window and is NOT being promoted as the
+new canonical baseline; Sprint 6 r1
+(`eval_interactive/results/20260505-112736/results.json`) remains
+canonical.
+
+## 8. Remaining P0 / P1 blockers
+
+### P0 — none.
+
+### P1
+1. **Upstream Kimi auth contamination**: the configured
+   `KIMI_API_KEY` is rejected with `401 Unauthorized` against
+   `https://api.moonshot.cn/v1/chat/completions`, and the
+   DeepSeek fallback does not engage on non-transient (401)
+   failure. This is a credential / endpoint configuration issue,
+   NOT a Sprint 7 regression. Until the credential is
+   refreshed or rotated, Sprint 7 §I0 / §I1 routing/projection
+   effects cannot be observed in smoke. Mitigation: rotate the
+   Kimi key (or switch to a tier with valid credit), then re-run
+   `python -m eval_interactive run --set smoke` twice.
+
+### P2 (carried, deferred)
+- L3 `relevance` / `tone_appropriateness` judge volatility — out
+  of scope for the next narrow runtime sprint.
+- cs_176 r2 UC-I drift — explicitly deferred per Sprint 6
+  acceptance condition.
+- S3 no-prior-search defensive guard — explicitly deferred per
+  Sprint 5.1 codex correction.
+- S5 Tier-2-reason runtime guard — Sprint 6 G1 prompt fix is
+  the chosen path; runtime guard is a future option only if the
+  prompt is insufficient.
+- cs_095 product-policy gap (`outcome_class=resolve` vs FAQ
+  surface that cannot ground an email-sync answer) — Phase 2
+  product question.
+
+## 9. Next recommended action
+
+**Sprint 8 candidate (after credential rotation):**
+
+1. Rotate the upstream Kimi credential and re-run smoke
+   `--set smoke --parallel 1` twice. Compare the resulting
+   r1 / r2 against Sprint 6 r1
+   (`eval_interactive/results/20260505-112736/results.json`)
+   to obtain measured Sprint 7 §I0 / §I1 / §I2 routing /
+   projection effects.
+2. **Only after the smoke is clean**, decide whether to promote
+   the post-Sprint-7 canonical baseline in
+   `docs/current_eval_baseline.md`. Until then, the Sprint 6 r1
+   canonical reference stays.
+3. If the post-Sprint-7 smoke shows cs015 still routes UC-A
+   despite a moderation hit, the next sprint should investigate
+   whether `FormContextIngestionService.autoTriggerCustomerContext`
+   is firing on the cs015 form (ad_id is empty, so the auto-trigger
+   only fetches account context — no listing or moderation
+   review). The smallest follow-up would be to surface a
+   description-keyword cue (e.g. `mention_of_ad_rejection_in_text`)
+   when the customer's email-tied account has any rejected ad in
+   the mock data, so the routing surface has a signal even when
+   the form has no `ad_id`.
+4. cs176 UC-I drift fix and/or S3 no-prior-search defensive
+   guard remain candidates for a future narrow sprint, but only
+   if Sprint 7's I0 / I1 / I2 do NOT close the cs259 / cs015 /
+   cs066 routing-and-intake gaps under clean credentials.
+5. L3 judge calibration is a separate sprint — defer.

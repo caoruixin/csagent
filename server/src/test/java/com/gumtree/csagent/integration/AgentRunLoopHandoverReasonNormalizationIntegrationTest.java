@@ -95,7 +95,7 @@ class AgentRunLoopHandoverReasonNormalizationIntegrationTest {
                 objectMapper, createCaseTool, eventEmitter, toolDispatcher);
 
         AgentRunLoop agentRunLoop = new AgentRunLoopImpl(
-                llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser);
+                llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser, objectMapper);
 
         AgentRunLoopProperties props = new AgentRunLoopProperties();
         props.setEnabledPhases(List.of("RESOLVE_FAQ", "RESOLVE_INTAKE"));

@@ -41,7 +41,7 @@ class AgentRunLoopImplTest {
     @BeforeEach
     void setUp() {
         loop = new AgentRunLoopImpl(llmInvocation, toolDispatcher,
-                contextProjectionBuilder, actionParser);
+                contextProjectionBuilder, actionParser, new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     private PhasePlan plan() {
