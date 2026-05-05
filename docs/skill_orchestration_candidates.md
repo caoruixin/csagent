@@ -401,7 +401,7 @@ prompt fix, add S5 as a follow-up. Do NOT ship both at once.
 |---|---|---|---|---|---|
 | S1 FAQ-grounded-resolve | DISCOVER → search → resolve_article → cite → CONFIRM | cs_192, cs_259, cs_001, cs_011 | partially (F1 §C3) | no (citation predicate is content-aware) | skill |
 | S2 Intake-collect-and-handover | UC-G/H/I/J/K field-by-field intake | cs_066, cs_036, cs_038, cs_040 | partially (F1 §C4) | partially (intake_complete_for_uc_X downgrade is content-aware) | skill |
-| S3 Soft-OOS clarify-or-escalate | UNKNOWN topic + ambiguous turn 1 | cs_259, cs_029 | partially (F1 §C5) | yes (refuse faq_miss without search_knowledge) | skill, but F1 §C5 + small Java guard may be enough |
+| S3 Soft-OOS clarify-or-escalate | UNKNOWN topic + ambiguous turn 1 | cs_029 (cs_259 r2 NOT owned by S3 — see §3 S3 correction; cs_259 r2 is owned by S1) | n/a for cs_259 (search already happened in cs_259 r2) | no — the previously-claimed "refuse `faq_miss_threshold_exceeded` without prior `search_knowledge`" guard is removed from the cs_259 fix per Sprint 5.1 codex correction; it is NOT sufficient for cs_259 and is not viable Sprint 6 scope | defer — not Sprint 6 scope |
 | S4 Account login-recovery | UC-D + reset-loop pattern | cs_011 | yes (existing behaviour PASSes) | n/a | defer; defensive only |
 | S5 Tier-2-reason UC-compat | request_handover Tier-2 reason × UC compatibility | cs_176 | yes (F1 §C1) | yes (mirror of §E1 pattern) | prompt first; runtime guard if prompt fails |
 
@@ -423,26 +423,36 @@ prompt fix, add S5 as a follow-up. Do NOT ship both at once.
 
 ## 6. Recommended Sprint 6 scope (skill side)
 
-Pick AT MOST 2 skills:
+Per `docs/codex-findings.md` Sprint 5.1 review, Sprint 6 is capped at
+**exactly 3 actions** (one infra + one prompt + one skill). On the
+skill side that is exactly **one** skill:
 
-- **must-have**: S1 (FAQ-grounded-resolve) — biggest single recurring
-  shape, anchors cs_192 + cs_259 + the long tail of FAQ failures.
-- **should-have**: S2 (UC-G/H/I/J/K intake) — anchors cs_066 r2 and
-  the structural intake-completion gap. Higher test cost.
-- defer: S3 (already partially covered by F1 §C5 + a small runtime
-  guard on `request_handover(faq_miss_threshold_exceeded)` without
-  prior search).
-- defer: S4 (cs_011 currently PASSes; defensive only).
-- defer: S5 (ship F1 §C1 prompt fix first; only escalate to runtime
-  guard if prompt is insufficient).
+- **ship in Sprint 6**: S1 (FAQ-grounded-resolve) — biggest single
+  recurring shape, anchors cs_192 + cs_259 + the long tail of FAQ
+  failures. Implement as a parametrized `PhasePlan` branch inside
+  `PhaseEvaluator.plan(...)` off the existing FAQ RESOLVE plan, with
+  a small extension to `ContextProjectionBuilder` to surface the
+  necessary state slots (`accumulated_tool_results.search_knowledge`,
+  `accumulated_tool_results.resolve_article`).
 
-Do NOT introduce a new skill runtime framework. Implement S1 and / or
-S2 as parametrized PhasePlans inside `PhaseEvaluator.plan(...)` —
-specifically as branches off the existing FAQ RESOLVE plan and the
-existing INTAKE RESOLVE plan, with a small extension to
-`ContextProjectionBuilder` to surface the necessary state slots
-(`accumulated_tool_results.search_knowledge`,
-`session.intakeFields`, `intake_state.fields_remaining`).
+- **defer (NOT Sprint 6 scope)**: S2 (UC-G/H/I/J/K intake) — anchors
+  cs_066 r2 and the structural intake-completion gap. Higher test
+  cost. Pick up in a later sprint.
+- **defer (NOT Sprint 6 scope)**: S3. The previously-suggested cs_259
+  framing "F1 §C5 + small runtime guard refusing
+  `request_handover(faq_miss_threshold_exceeded)` without prior
+  `search_knowledge`" is removed per Sprint 5.1 codex correction —
+  cs_259 r2 already had a prior `search_knowledge` call, so that
+  guard would not address cs_259's observed failure. The "no-prior-
+  search" guard is NOT viable Sprint 6 scope and is NOT the cs_259
+  fix; cs_259 is owned by S1.
+- **defer (NOT Sprint 6 scope)**: S4 (cs_011 currently PASSes;
+  defensive only).
+- **defer (NOT Sprint 6 scope)**: S5 (ship F1 §C1 prompt fix first;
+  only escalate to runtime guard if prompt is insufficient).
+
+Do NOT introduce a new skill runtime framework. Implement S1 as a
+parametrized PhasePlan inside `PhaseEvaluator.plan(...)`.
 
 ## 7. Stop conditions
 

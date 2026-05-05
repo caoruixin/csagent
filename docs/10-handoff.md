@@ -1815,56 +1815,64 @@ composite 0.3615) remain authoritative for the diagnostic.
 
 ## 4. Recommended next sprint actions (Sprint 6 scope)
 
-Pick **3–4 narrow** actions, anchored to the diagnostic above. Order
-by lift and confidence:
+Pick **exactly 3 narrow actions**, anchored to the diagnostic above.
+Per `docs/codex-findings.md` Sprint 5.1 review, Sprint 6 is capped at
+3 actions; no fourth "stretch" action is carried.
 
-1. **F1-infra timeout / pre-warm** — widen eval-client timeout to
-   120s, OR pre-warm the first Kimi call, OR async pre-fetch FAQ
-   snapshots, OR accept-and-retry on ReadTimeout. Single highest-lift
-   change — unblocks 5 unique cases (cs_002 / cs_014 / cs_015 /
-   cs_192 / cs_259 in their ReadTimeout incidence). Out of any
-   prompt / skill / spec coupling.
+1. **F1-infra Kimi `session_create_failed: ReadTimeout` mitigation** —
+   widen eval-client timeout to 120s, OR pre-warm the first Kimi call,
+   OR async pre-fetch FAQ snapshots, OR accept-and-retry on
+   ReadTimeout. Single highest-lift change — unblocks 5 unique cases
+   (cs_002 / cs_014 / cs_015 / cs_192 / cs_259 in their ReadTimeout
+   incidence). Out of any prompt / skill / spec coupling.
 
 2. **F1 §C1 active_use_case-aware `request_handover` paragraph**
-   (system_prompt.txt) — anchors cs_176. Target outcome corrected per
-   Sprint 5.1: must preserve / produce `escalation_reason=user_requested`
-   when the user explicitly asks for human help (cs_176's spec is
-   `escalation_trigger=user_requested`). `faq_miss_threshold_exceeded`
-   and `intake_complete_for_uc_k` are NOT family-match against
-   `user_requested` and must NOT be accepted as substitutes. Residual
-   risk: C1 may reduce r1 `payment_dispute_detected` picks but does
-   not fully address the r2 `active_use_case=UC-I` /
-   `service_degraded` drift; Sprint 6 acceptance criteria must either
-   include "no unjustified UC-I drift on cs_176 r2" or explicitly
-   defer the r2 UC-drift question. Lowest implementation cost among
-   prompt candidates; ships as a one-paragraph addition with a
-   golden-snapshot test on the prompt string and a smoke r1/r2
-   re-run.
+   (system_prompt.txt) — anchors cs_176. Target outcome (Sprint 5.1
+   correction): must preserve / produce
+   `escalation_reason=user_requested` when the user explicitly asks
+   for human help (cs_176 spec is `escalation_trigger=user_requested`).
+   `faq_miss_threshold_exceeded`, `intake_complete_for_uc_k`,
+   `service_degraded`, and `payment_dispute_detected` are NOT
+   family-match against `user_requested` and are NOT acceptable
+   substitutes. Residual risk: C1 may reduce r1
+   `payment_dispute_detected` picks but does not fully address the
+   r2 `active_use_case=UC-I` / `service_degraded` drift; Sprint 6
+   acceptance must either include "no unjustified UC-I drift on
+   cs_176 r2" or explicitly defer the r2 UC-drift question.
 
 3. **F2 §S1 FAQ-grounded-resolve skill** (parametrized PhasePlan
-   inside `PhaseEvaluator.plan` for FAQ-RESOLVE) — anchors cs_192 +
-   cs_259 + the long tail of FAQ failures. Implements two terminal
-   predicates: (a) "search-before-answer" so a factual customer-facing
-   answer cannot be emitted without a `search_knowledge` call
-   (cs_192-style); (b) "search → resolve_article → grounded answer →
-   record_outcome, OR an explicit handover only after a valid resolve
-   attempt cannot complete" (cs_259 r2-style — search happened,
-   resolve did not). Includes the F1 §C3 grounding-instruction change.
-   Higher implementation cost; budget mvn integration tests for both
-   predicate branches.
+   inside `PhaseEvaluator.plan` for FAQ-RESOLVE) — anchors cs_192
+   ("answer emitted without citation / resolve sequence
+   incomplete") AND cs_259 ("search happened, resolve did not
+   complete"). Implements two terminal predicates: (a) factual
+   customer-facing answer cannot be emitted without a
+   `search_knowledge` call (cs_192-style); (b) `search_knowledge →
+   resolve_article → grounded customer-facing answer →
+   record_outcome`, OR an explicit handover only after a valid
+   resolve attempt cannot complete (cs_259 r2-style). Includes the
+   F1 §C3 grounding-instruction change. Higher implementation cost;
+   budget mvn integration tests for both predicate branches.
 
-4. **(stretch) F1 §C5 surface `candidate_use_cases` + DISCOVER
-   instruction cue** — DISCOVER-side support for cs_259's r1 contract
-   violation shape only. Small Java change in
-   `ContextProjectionBuilder` (the field is already in the session DB
-   schema) + one-sentence DISCOVER instruction update. Sprint 5.1
-   correction: the previously-paired Java guard "refuse
-   `request_handover(faq_miss_threshold_exceeded)` without a prior
-   `search_knowledge` call" is removed/deferred — cs_259 r2 actually
-   had a prior `search_knowledge` call (`['search_knowledge',
-   'classify_use_case', 'request_handover']`, `lcs=1/4`), so that
-   guard would not address cs_259's observed failure. cs_259's
-   primary fix is therefore the S1 skill (action #3), not C5.
+### Deferred — explicitly NOT Sprint 6 implementation scope
+
+- F1 §C5 `candidate_use_cases` projection + DISCOVER cue — DISCOVER-
+  side support only; cs_259 is owned by S1 (#3). The previously-
+  paired "no prior search" Java guard is removed (cs_259 r2 already
+  had a prior `search_knowledge` call) and is NOT viable Sprint 6
+  scope.
+- S3 "no-prior-search" Java guard refusing
+  `request_handover(faq_miss_threshold_exceeded)` without prior
+  `search_knowledge` — removed from the cs_259 fix per Sprint 5.1
+  codex correction. Not Sprint 6 scope.
+- F1 §C2 routing-prompt UC-FP / UC-A tiebreaker (cs_015) — depends
+  on `customer_context.moderation_status` being visible to the
+  routing surface; verify before shipping.
+- F1 §C4 / F2 §S2 intake-state projection + UC-G/H/I/J/K skill
+  (cs_066) — higher test cost.
+- F2 §S5 Tier-2-reason runtime guard — wait to see if F1 §C1 prompt
+  fix is sufficient.
+- L3 `relevance` / `tone_appropriateness` judge calibration (D15).
+- cs_095 product / FAQ-corpus question — Phase 2 product question.
 
 Defer to a later sprint:
 
@@ -2091,8 +2099,8 @@ sprint) remains the right place to ship runtime / prompt changes.
 
 ## 4. Corrected Sprint 6 recommendation
 
-After Sprint 5.1's diagnostic corrections, Sprint 6 should remain
-narrow (3 + optional stretch):
+After Sprint 5.1's diagnostic corrections, Sprint 6 ships **exactly
+3 narrow actions**:
 
 1. **F-INFRA Kimi `session_create_failed: ReadTimeout` mitigation.**
    Pick one of: widen eval-client timeout to 120s; pre-warm first
@@ -2112,22 +2120,22 @@ narrow (3 + optional stretch):
 
 3. **F2 §S1 FAQ-grounded-resolve skill** (parametrized `PhasePlan`
    inside `PhaseEvaluator.plan` for FAQ-RESOLVE) — anchors cs_192
-   ("search-not-yet-run") AND cs_259 ("search-ran-but-resolve-did-
-   not"). Terminal predicates: (a) factual customer-facing answer
-   cannot be emitted without `search_knowledge`; (b)
+   ("answer emitted without citation / resolve sequence
+   incomplete") AND cs_259 ("search happened, resolve did not
+   complete"). Terminal predicates: (a) factual customer-facing
+   answer cannot be emitted without `search_knowledge`; (b)
    `search_knowledge → resolve_article → grounded customer-facing
    answer → record_outcome`, OR an explicit handover only after a
    valid resolve attempt cannot complete. Subsumes F1 §C3.
 
-4. **(stretch) F1 §C5 surface `candidate_use_cases` + DISCOVER
-   instruction cue** — DISCOVER-side support for cs_259 r1 contract
-   violation only. **The previously-paired "no prior search" Java
-   guard is removed/deferred per Sprint 5.1** — cs_259 r2 already
-   had a prior `search_knowledge` call, so that guard would not
-   address cs_259's observed failure.
+Defer (NOT Sprint 6 implementation scope):
 
-Defer (unchanged from Sprint 5):
-
+- F1 §C5 `candidate_use_cases` projection + DISCOVER cue —
+  DISCOVER-side support only; cs_259 owned by S1.
+- S3 "no-prior-search" Java guard refusing
+  `request_handover(faq_miss_threshold_exceeded)` without prior
+  `search_knowledge` — does not address cs_259 r2 (search already
+  happened).
 - F1 §C2 routing-prompt UC-FP / UC-A tiebreaker (cs_015) — depends
   on `customer_context.moderation_status` being visible to the
   routing surface; verify before shipping.
@@ -2180,3 +2188,201 @@ Per `docs/codex-findings.md` (Sprint 5 review):
 
 Sprint 5 may close on Sprint 5.1's diagnostic corrections. Sprint 6
 (narrow implementation) is the next step.
+
+# Sprint 5.2 — Diagnostic consistency cleanup (codex-driven)
+
+Date: 2026-05-05
+Branch: `design-v1-without-human-review`
+Source review: `docs/codex-findings.md` (Sprint 5.1 review,
+`decision: fix_required`, `blocking_count: 3` — three P1 diagnostic
+consistency blockers, all docs-only)
+Sprint scope: narrow consistency cleanup of Sprint 5.1's diagnostic
+corrections. Sprint 5.1 fixed the main case rows; Sprint 5.2 fixes
+the summary tables, baseline narrative, and Sprint 6 recommendation
+that did not pick up the 5.1 corrections. Docs-only.
+
+## 1. Remaining P1 diagnostic consistency blockers fixed
+
+### P1 #1 — Stale cs_259 "no prior search" guard guidance
+
+The Sprint 5.1 detailed S1 / S3 sections correctly state that Sprint 4
+r2 already called `search_knowledge`, but two summary surfaces still
+presented the old "F1 §C5 + small runtime guard refusing
+`request_handover(faq_miss_threshold_exceeded)` without prior
+`search_knowledge`" framing as viable. Corrected:
+
+- `docs/skill_orchestration_candidates.md` §4 skill comparison table
+  S3 row rewritten — "Java-guard sufficient?" no longer says
+  "yes (refuse faq_miss without search_knowledge)"; cs_259 removed
+  from S3's anchor cases (it is owned by S1); right-fit column says
+  "defer — not Sprint 6 scope".
+- `docs/skill_orchestration_candidates.md` §6 "Recommended Sprint 6
+  scope (skill side)" rewritten to ship exactly **one** skill (S1)
+  in Sprint 6; S3 explicitly listed as deferred with the
+  "no-prior-search" guard called out as **not viable Sprint 6
+  scope** and **not the cs_259 fix**.
+- `docs/java_guard_prompt_flexibility_design.md` §3.3 defer block
+  rewritten — the line "S3 (covered by F1 §C5 + small runtime guard
+  on `request_handover(faq_miss)` without prior search)" is removed.
+  S3 is now listed as deferred with the explicit Sprint 5.1
+  correction note.
+
+### P1 #2 — cs_176 expected family in `docs/current_eval_baseline.md`
+
+The post-Sprint-4 known-nondeterminism narrative still claimed cs_176
+fails L1 against spec `faq_miss_threshold_exceeded`, contradicting
+the Sprint 5.1-corrected eval contract (spec is
+`escalation_trigger=user_requested`). Corrected three sections:
+
+- "Known nondeterminism" cs_176 bullet — rewritten to state spec is
+  `user_requested`; r1 `payment_dispute_detected` and r2
+  `service_degraded` are both cross-family vs `user_requested`;
+  none of `faq_miss_threshold_exceeded`, `intake_complete_for_uc_k`,
+  `service_degraded`, `payment_dispute_detected` is family-match
+  against `user_requested`.
+- "Current target cases" cs_176 bullet — rewritten to reference
+  Sprint 6 §C1 corrected target (`user_requested`) and the residual
+  UC-I drift risk.
+- "Known current blocker patterns" #2 — rewritten to remove the
+  `faq_miss_threshold_exceeded` claim and to state the corrected
+  target plus the residual UC-I drift acceptance-criteria
+  requirement.
+
+### P1 #3 — Sprint 6 recommendation kept to exactly 3 actions
+
+Sprint 5.1's §4 "Corrected Sprint 6 recommendation" still listed a
+fourth "(stretch) F1 §C5" action, and `action_bank.md` still labelled
+the scope "3–4 actions". Corrected:
+
+- `docs/10-handoff.md` Sprint 5 §4 "Recommended next sprint actions
+  (Sprint 6 scope)" rewritten to **exactly 3 actions** (no fourth
+  stretch), with a separate "Deferred — explicitly NOT Sprint 6
+  implementation scope" list.
+- `docs/10-handoff.md` Sprint 5.1 §4 "Corrected Sprint 6
+  recommendation" rewritten the same way (drops "3 + optional
+  stretch" wording and the (stretch) F1 §C5 entry).
+- `docs/action_bank.md` "Recommended Sprint 6 scope" header changed
+  from "(3–4 actions)" to "(exactly 3 actions)"; stretch C5 entry
+  removed; explicit deferred list expanded.
+
+The Sprint 6 recommendation now reads in all three docs:
+
+1. Kimi `session_create_failed: ReadTimeout` mitigation.
+2. Corrected C1 for cs_176, targeting `user_requested`.
+3. S1 FAQ-grounded-resolve, with cs_259 framed as "search happened,
+   resolve did not complete" and cs_192 framed as "answer emitted
+   without citation / resolve sequence incomplete".
+
+Explicitly deferred (NOT Sprint 6 scope):
+
+- C5 `candidate_use_cases` projection.
+- S3 "no-prior-search" guard.
+- cs_015 UC-FP tiebreaker (C2).
+- S2 intake-state / intake skill (and F1 §C4 projection).
+- S5 Tier-2 runtime guard.
+- L3 judge calibration.
+
+## 2. Files changed (docs only)
+
+| File | Change |
+|---|---|
+| `docs/skill_orchestration_candidates.md` | §4 S3 row rewritten (no "Java-guard sufficient" claim; cs_259 removed from S3 anchors); §6 Sprint 6 skill scope rewritten to one skill (S1) + explicit defers |
+| `docs/java_guard_prompt_flexibility_design.md` | §3.3 defer block rewritten — "F1 §C5 + small runtime guard … without prior search" framing removed; S3 deferred with Sprint 5.1 correction note |
+| `docs/current_eval_baseline.md` | cs_176 bullet (Known nondeterminism); cs_176 bullet (Current target cases); blocker pattern #2 (Known current blocker patterns) — all rewritten to align with `escalation_trigger=user_requested` and to state non-family-match for substitutes |
+| `docs/10-handoff.md` | Sprint 5 §4 "Recommended next sprint actions" rewritten to exactly 3 actions; Sprint 5.1 §4 "Corrected Sprint 6 recommendation" rewritten the same way; this Sprint 5.2 section appended |
+| `docs/action_bank.md` | "Recommended Sprint 6 scope" header / list rewritten to exactly 3 actions with explicit deferred list |
+
+## 3. Implementation scope confirmation
+
+No runtime / prompt / eval YAML implementation was performed in
+Sprint 5.2. Specifically, **none** of the following were changed:
+
+- Java code (`server/src/main/java/...`).
+- Prompt templates (`server/src/main/resources/prompts/...`).
+- `PhaseEvaluator` / `ContextProjectionBuilder`.
+- Eval YAML (`eval_interactive/case_specs/...` /
+  `case_spec_overrides.yaml`).
+- `qa-reports/*`.
+- `docs/sprint_objective.md`.
+- `docs/sprints/*`.
+
+Sprint 5.2 is strictly docs-only.
+
+## 4. Corrected Sprint 6 recommendation — exactly 3 actions
+
+Sprint 6 implementation scope, after Sprint 5.2's consistency cleanup:
+
+1. **F-INFRA Kimi `session_create_failed: ReadTimeout` mitigation.**
+   Pick one of: widen eval-client timeout to 120s; pre-warm first
+   Kimi call; async pre-fetch FAQ snapshots; accept-and-retry on
+   ReadTimeout. Highest single lift; out of any prompt / skill /
+   spec coupling.
+
+2. **F1 §C1 corrected for cs_176, targeting `user_requested`.**
+   System-prompt paragraph that requires the LLM to preserve /
+   produce `escalation_reason=user_requested` when the user
+   explicitly asks for human help. `faq_miss_threshold_exceeded`,
+   `intake_complete_for_uc_k`, `service_degraded`, and
+   `payment_dispute_detected` are NOT family-match against
+   `user_requested` and are NOT acceptable substitutes. Sprint 6
+   acceptance must either include "no unjustified UC-I drift on
+   cs_176 r2" or explicitly defer the r2 UC-drift question.
+
+3. **F2 §S1 FAQ-grounded-resolve skill.** Parametrized PhasePlan
+   inside `PhaseEvaluator.plan` for FAQ-RESOLVE, anchoring cs_192
+   ("answer emitted without citation / resolve sequence
+   incomplete") AND cs_259 ("search happened, resolve did not
+   complete"). Terminal predicate: `search_knowledge →
+   resolve_article → grounded customer-facing answer →
+   record_outcome`, OR an explicit handover only after a valid
+   resolve attempt cannot complete.
+
+Explicitly deferred (NOT Sprint 6 implementation scope):
+
+- C5 `candidate_use_cases` projection + DISCOVER cue.
+- S3 "no-prior-search" guard.
+- cs_015 UC-FP / UC-A tiebreaker (C2).
+- S2 / C4 intake-state projection + UC-G/H/I/J/K intake skill.
+- S5 Tier-2 runtime guard.
+- L3 judge calibration (D15).
+
+## 5. Testing
+
+Sprint 5.2 changes only `docs/*.md` files. This is a docs-only
+correction round; no executable tests were run. The relevant
+existing regression guards
+(`test_smoke_yaml_matches_override_pipeline_output`,
+`test_smoke_review_report_tracks_smoke_set_and_overrides`,
+`test_v2_schema_loads_cleanly`,
+`test_cs_interactive_*_override_survives_fresh_extraction`) are
+untouched and remain green from Sprint 4 / 4.1 closure (286 / 286
+pytest, 592 / 592 mvn).
+
+## 6. Can Sprint 5 close after Sprint 5.2?
+
+**Yes.** All three Sprint 5.1 codex P1 consistency blockers are
+corrected:
+
+- ✅ P1 #1 stale cs_259 "no-prior-search guard" guidance removed
+  from `skill_orchestration_candidates.md` skill comparison + Sprint
+  6 scope and from `java_guard_prompt_flexibility_design.md` §3.3
+  defer block.
+- ✅ P1 #2 `current_eval_baseline.md` cs_176 narrative now agrees
+  with the corrected eval contract (`escalation_trigger=user_requested`);
+  no claim that FAQ-miss / intake-complete / service_degraded /
+  payment_dispute_detected are acceptable substitutes.
+- ✅ P1 #3 Sprint 6 recommendation in `docs/10-handoff.md` and
+  `docs/action_bank.md` is exactly 3 actions; "3–4 actions" /
+  "3 + optional stretch" / "(stretch) F1 §C5" wordings removed;
+  explicit deferred list in place.
+
+Per `docs/codex-findings.md` Sprint 5.1 review:
+
+> "After the diagnostic corrections above, keep Sprint 6 to exactly
+> 3 actions: 1. Kimi `session_create_failed: ReadTimeout`
+> mitigation. 2. Corrected C1 for `cs_interactive_176`, targeting
+> `user_requested`. 3. S1 FAQ-grounded-resolve, with cs259 framed
+> as 'search happened, resolve did not complete'."
+
+Sprint 5 may close on Sprint 5.2's consistency cleanup. Sprint 6
+(narrow implementation, exactly 3 actions) is the next step.

@@ -177,22 +177,30 @@ Skills should be introduced when:
 - Prompt-only fixes have been tried and the failure mode persists
   across nondeterminism re-runs.
 
-Per `docs/skill_orchestration_candidates.md` §6, the must-have skill is:
+Per `docs/skill_orchestration_candidates.md` §6 and `docs/codex-findings.md`
+Sprint 5.1 review, Sprint 6 ships exactly one skill:
 
 - **S1 FAQ-grounded-resolve**: DISCOVER → search → resolve_article →
-  cite → CONFIRM. Anchors cs_192 / cs_259 / cs_001 / cs_011.
+  grounded customer-facing answer → record_outcome (or explicit
+  handover only after a valid resolve attempt cannot complete).
+  Anchors cs_192 ("answer emitted without citation / resolve
+  sequence incomplete") and cs_259 ("search happened, resolve did
+  not complete"); regression-guards cs_001 / cs_011.
 
-Should-have:
+Defer (NOT Sprint 6 implementation scope):
 
-- **S2 Intake-collect-and-handover**: parametrized by UC's required
+- **S2** Intake-collect-and-handover: parametrized by UC's required
   intake fields. Anchors cs_066. Higher test cost than S1.
-
-Defer:
-
-- S3 (covered by F1 §C5 + small runtime guard on
-  `request_handover(faq_miss)` without prior search).
-- S4 (cs_011 currently PASSes — defensive only).
-- S5 (ship F1 §C1 prompt fix first).
+- **S3** Soft-OOS clarify-or-escalate. The previously-suggested
+  "F1 §C5 + small runtime guard on `request_handover(faq_miss)`
+  without prior search" is removed per Sprint 5.1 codex correction —
+  cs_259 r2 already had a prior `search_knowledge` call, so the
+  no-prior-search guard would not address cs_259's observed failure
+  and is NOT the cs_259 fix. cs_259 is owned by S1.
+- **S4** Account login-recovery (cs_011 currently PASSes — defensive
+  only).
+- **S5** Tier-2-reason × UC compatibility (ship F1 §C1 prompt fix
+  first).
 
 ### 3.4 What eval SHOULD verify (case_spec_eval)
 

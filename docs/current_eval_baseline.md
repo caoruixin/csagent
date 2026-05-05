@@ -246,10 +246,17 @@ Use this only when comparing Sprint 2 / 2.1 against the Sprint 1 ceiling.
   hit `session_create_failed` on r1 and `L1:source_citation_present`
   on r2.
 - `cs_interactive_176` (UC-E coverage replacement for cs066 after the
-  §E3 reclassification) is unstable; the bot LLM can stamp
-  `payment_dispute_detected` for the form context, which fails
-  L1:escalation_compliance against the spec's `faq_miss_threshold_exceeded`.
-  Carried forward as a future-sprint candidate.
+  §E3 reclassification) is unstable. The CaseSpec
+  (`eval_interactive/case_specs/smoke/cs_interactive_176.yaml`)
+  expects `escalation_trigger=user_requested` (the persona explicitly
+  asks "What about giving a phone number to talk to someone").
+  Sprint 4 r1 stamps `payment_dispute_detected` (cross-family vs
+  `user_requested`) and r2 drifts to `active_use_case=UC-I` /
+  `escalation_reason=service_degraded` (also cross-family). Neither
+  `faq_miss_threshold_exceeded`, `intake_complete_for_uc_k`,
+  `service_degraded`, nor `payment_dispute_detected` is a family-match
+  against `user_requested` (Sprint 5.1 codex correction); none is an
+  acceptable substitute. Carried forward as a future-sprint candidate.
 - `cs_interactive_259` stall shape changes across runs and continues
   to surface unrelated active_use_case / session-create issues.
 - L3 `relevance` and `tone_appropriateness` judges remain volatile
@@ -266,9 +273,16 @@ LLM latency on session_create + L3 judge volatility.
   ReadTimeout` on the Kimi auto-search path. Either widen the eval
   client timeout, pre-warm the first call, or move auto-search to
   an async pre-fetch; out of Sprint 4 scope.
-- `cs_interactive_176` — UC-E classification flake (bot LLM picks
-  payment_dispute_detected on the new UC-E coverage case). Spec /
-  runtime alignment question; out of Sprint 4 scope.
+- `cs_interactive_176` — UC-E case where spec is
+  `escalation_trigger=user_requested` (user explicitly asks for human
+  help). Bot picks `payment_dispute_detected` (r1) or drifts to
+  UC-I / `service_degraded` (r2); both are cross-family vs
+  `user_requested`. The corrected Sprint 6 fix (F1 §C1) must
+  preserve / produce `user_requested` when the user explicitly asks
+  for human help — not substitute a FAQ-family or intake-family
+  reason. Sprint 6 acceptance must either include "no unjustified
+  active_use_case=UC-I drift on cs_176" or explicitly defer that UC
+  drift question (residual risk).
 - `cs_interactive_259` — UC-F payment FAQ resolve / contract / stall
   flake (carry forward, deferred from prior sprints).
 - L3 `relevance` / `tone_appropriateness` judge calibration —
@@ -295,12 +309,22 @@ Other known candidates after the reliability / bot-loop stability sprint:
      timeout to 120s; pre-warm Kimi connections; move auto-search to
      an async pre-fetch; or accept and retry on ReadTimeout.
 
-2. **cs_176 UC-E LLM classification flake** (NEW after Sprint 4)
-   - The new UC-E coverage case picks `payment_dispute_detected` in
-     `request_handover.escalation_reason` despite the form context
-     being a feature-explanation question. Cross-family L1:escalation_compliance
-     fail vs spec `faq_miss_threshold_exceeded`.
-   - Spec / runtime alignment question; out of Sprint 4 scope.
+2. **cs_176 UC-E LLM escalation-reason cross-family flake** (NEW after Sprint 4)
+   - Spec is `escalation_trigger=user_requested` (the persona
+     explicitly asks "What about giving a phone number to talk to
+     someone"). Sprint 4 r1 stamps `payment_dispute_detected`
+     (cross-family vs `user_requested`); r2 drifts to UC-I with
+     `escalation_reason=service_degraded` (also cross-family). Both
+     fail L1:escalation_compliance.
+   - Sprint 5.1 codex correction: `faq_miss_threshold_exceeded`,
+     `intake_complete_for_uc_k`, `service_degraded`, and
+     `payment_dispute_detected` are NOT family-match against
+     `user_requested` and are NOT acceptable substitutes.
+   - Sprint 6 §F1 §C1 must preserve / produce `user_requested` when
+     the user explicitly asks for human help. Residual UC-I drift
+     risk on r2 must either be addressed in Sprint 6 acceptance
+     ("no unjustified UC-I drift on cs_176 r2") or explicitly
+     deferred.
 
 3. **L3 judge volatility** (carried over)
    - `relevance` and `tone_appropriateness` still flip across runs.
