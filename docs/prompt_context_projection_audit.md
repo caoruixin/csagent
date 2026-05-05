@@ -106,14 +106,21 @@ interpreted "£50 back" as a payment-related signal, but the
 **Current text** (lines 51 of `system_prompt.txt`): "Payment dispute /
 chargeback / billing issue → `payment_dispute_detected`."
 
-**What's missing**: when `session.active_use_case` is UC-E (Generic FAQ
-about ads / advertising features) or UC-A (Ad Status & Visibility) or
-UC-B (How-to FAQ), the natural escalation reason for an "I paid for X
-and it didn't work" flow is `faq_miss_threshold_exceeded` (FAQ family,
-matches the spec for cs_176) or `intake_complete_for_uc_k` (technical
-regression intake), not the Tier-2 policy reason
-`payment_dispute_detected` which is reserved for *real* chargebacks /
-billing disputes routed to the Trust & Safety / Payments team.
+**What's missing**: the cs_176 spec is unambiguous —
+`escalation_trigger=user_requested`. The persona asks "What about
+giving a phone number to talk to someone", which is an explicit
+human-help request. The bot must preserve / produce `user_requested`
+(priority 1 in `EscalationReasonResolver.PRIORITY_TABLE`) regardless of
+the literal "£50 back" phrasing in the same persona's earlier turn.
+`payment_dispute_detected` (r1) and `service_degraded` (r2 — bot
+drifted to UC-I) are both cross-family against `user_requested` and
+therefore L1:escalation_compliance fails. `faq_miss_threshold_exceeded`
+(bot_limit family) and `intake_complete_for_uc_k` (intake-complete
+family) are NOT family-match against `user_requested` and are NOT
+acceptable substitutes — earlier draft language to that effect was
+incorrect and is corrected here. The active-UC tiebreaker must steer
+the LLM toward `user_requested` when the user's turn-2 message
+contains an explicit human-help cue, not toward FAQ-family reasons.
 
 **Why this is a prompt fix and not a runtime fix**: a runtime guard for
 "if active_use_case ∈ {UC-A, UC-B, UC-E} downgrade
@@ -225,8 +232,16 @@ JSONB + the UC registry's required fields).
 
 **Symptom**: cs_259 r2 — the form is UNKNOWN topic + empty description
 + user turn 1 "How do I receive the payment when I sell an item". The
-bot DISCOVER turn called nothing, emitted "I'm having difficulty
-resolving this" + handover with `faq_miss_threshold_exceeded`.
+bot DID call `search_knowledge` and DID commit UC-F via
+`classify_use_case`, but then short-circuited to
+`request_handover(faq_miss_threshold_exceeded)` after a single user
+turn instead of running `resolve_article` + grounded answer +
+`record_outcome`. Actual r2 tool sequence:
+`['search_knowledge', 'classify_use_case', 'request_handover']` with
+`lcs=1/4` against the spec sequence
+`[get_customer_context, search_knowledge, resolve_article,
+record_outcome]`. **The failure is "search happened, resolve did not
+complete", NOT "no prior search".**
 
 **Current text** (`PhaseEvaluator.java:381` — DISCOVER `systemInstruction`):
 
@@ -257,6 +272,21 @@ empty AND the user's message contains a clear FAQ-shaped question
 ('how do I X', 'can I Y', 'what items are allowed'), call
 `search_knowledge` with the user's question as the query before
 deciding whether to classify_use_case or escalate."
+
+**Correction (Sprint 5.1 codex-driven)**: cs_259 r2 evidence shows
+that `search_knowledge` already ran and UC-F was already classified.
+The recurring failure is the missing `resolve_article` → grounded
+answer → `record_outcome` tail, not the absence of a prior search.
+The **primary** cs_259 fix is therefore F2 §S1 (FAQ-grounded-resolve
+skill / `PhasePlan` predicate that enforces
+`search_knowledge → resolve_article → grounded customer-facing
+answer → record_outcome`, OR an explicit handover only after a valid
+resolve attempt cannot complete). C5 surfacing
+`candidate_use_cases` is still useful for the DISCOVER turn but is
+NOT the cs_259 primary fix and the previously-considered "java guard
+refusing `faq_miss_threshold_exceeded` without a prior
+`search_knowledge`" is removed/deferred — it would not address
+cs_259 r2 because the search did happen.
 
 ### Gap 2.6 — `request_handover` decision tree silently mixes Tier-0 and Tier-2 buckets
 
@@ -307,28 +337,51 @@ Insert after line 51 (`Payment dispute / chargeback / billing issue →
 > (`payment_dispute_detected`, `appeal_requires_human`,
 > `incorrect_deletion_appeal`, `account_compliance`,
 > `trust_safety_required`, `gdpr_intake`,
-> `identity_verification_required`), check `session.active_use_case`.
-> If it is UC-A (Ad Status & Visibility), UC-B (How-to FAQ), or UC-E
-> (Generic FAQ), prefer the FAQ-family reason
-> (`faq_miss_threshold_exceeded`) unless the user explicitly invokes
-> a chargeback, GDPR, identity verification, or appeal flow. If the
-> user is asking for a refund of a paid feature (Top Ad / Featured
-> Ad / Bump Up), this is a UC-K technical-or-billing intake — call
-> `request_handover` with `intake_complete_for_uc_k` only after you
-> have collected the platform, error/repro signal, and any payment
-> reference; otherwise ask for the missing intake field first."
+> `identity_verification_required`), check `session.active_use_case`
+> AND check whether the user has explicitly asked for human help
+> (e.g. 'talk to someone', 'give me a phone number', 'speak to a
+> person'). If the user has explicitly requested human help, pick
+> `user_requested` regardless of whether the same conversation
+> contains payment-keyword phrasing — `user_requested` is priority 1
+> in the resolver and beats every Tier-2 policy reason. Only pick a
+> Tier-2 reason if the user explicitly invokes a chargeback, GDPR,
+> identity verification, or formal appeal flow AND has NOT separately
+> asked for a human. If active_use_case is UC-A (Ad Status &
+> Visibility), UC-B (How-to FAQ), or UC-E (Generic FAQ — advertising
+> feature explanation), do NOT pick `payment_dispute_detected` for
+> advertising-fee inquiries; those are UC-E feature explanations or
+> UC-K intake, not UC-FP chargebacks."
 
 Target case: cs_interactive_176.
-Target Sprint 6 acceptance: cs_176 r1+r2 stop picking
-`payment_dispute_detected`; reason becomes
-`faq_miss_threshold_exceeded` or `intake_complete_for_uc_k`
-(family-match against spec `user_requested`).
+Target Sprint 6 acceptance — corrected to align with the eval
+contract: cs_176 r1+r2 must produce `escalation_reason=user_requested`
+(or its resolver-canonical family — same priority 1 family). The spec
+is `escalation_trigger=user_requested`; `faq_miss_threshold_exceeded`
+and `intake_complete_for_uc_k` are NOT family-match against
+`user_requested` and are NOT acceptable substitutes (earlier draft
+language to that effect was incorrect and is corrected here).
+Specifically, C1 must stop the bot from picking
+`payment_dispute_detected` (r1 failure mode) for advertising-fee /
+UC-E feature-explanation contexts when the user has explicitly asked
+for human help — and must steer the bot toward `user_requested`
+(priority 1) instead.
+
+Residual risk: C1 may reduce r1 `payment_dispute_detected` picks but
+does NOT fully address the r2 `active_use_case=UC-I` /
+`service_degraded` drift — that drift is upstream, in
+`classify_use_case` rather than `request_handover`, and remains
+out-of-scope for a single-paragraph prompt change. Sprint 6 acceptance
+criteria must therefore EITHER include "no unjustified
+active_use_case=UC-I drift on cs_176 r2" OR explicitly defer the
+r2 UC-drift question to a later sprint. Do not silently widen the
+acceptance to accept service_degraded / faq_miss_threshold_exceeded /
+intake_complete_for_uc_k as substitutes for `user_requested`.
 
 Risks: the LLM may now under-route real payment disputes (UC-FP
-chargeback) to FAQ family. Mitigated by retaining the explicit "user
-explicitly invokes a chargeback / GDPR / identity / appeal flow"
-escape hatch + by anchoring this in active_use_case (UC-FP would be
-the natural UC for a real chargeback).
+chargeback) to FAQ family or to `user_requested`. Mitigated by
+retaining the explicit "user explicitly invokes a chargeback / GDPR /
+identity / appeal flow" escape hatch + by anchoring this in
+active_use_case (UC-FP would be the natural UC for a real chargeback).
 
 ### Candidate C2 — Routing-prompt UC-FP / UC-A tiebreaker for short ad-rejection forms
 
@@ -423,11 +476,28 @@ to add:
 > `faq_miss_threshold_exceeded` after a single turn. After search
 > returns, classify_use_case with the most plausible UC."
 
-Target case: cs_interactive_259.
-Target Sprint 6 acceptance: cs_259 r1 (contract violation, no UC
-committed) and r2 (escalate-without-search) both produce a UC-F
-classification + a search_knowledge call before any escalation
-decision.
+Target case: contributes to cs_interactive_259 (DISCOVER-side
+support). NOTE: cs_259 r2's actual failure mode is "search happened,
+resolve did not complete" — see Gap 2.5 correction. The cs_259
+**primary** fix is F2 §S1 FAQ-grounded-resolve skill (search →
+`resolve_article` → grounded answer → `record_outcome`, OR explicit
+handover only after a valid resolve attempt cannot complete). C5 is
+therefore a DISCOVER-side support change, not a sufficient fix for
+cs_259 on its own.
+
+Target Sprint 6 acceptance (revised): cs_259 r1 contract violation
+shape stops firing (UC-F gets committed before any handover). The r2
+"search happened, resolve did not complete" shape is owned by the S1
+skill, not by C5.
+
+Removed/deferred: an earlier draft of C5 paired this candidate with a
+small Java guard that "refuses `request_handover(faq_miss_threshold_exceeded)`
+when no prior `search_knowledge` is in `accumulated_tool_results`".
+That guard is removed/deferred per Sprint 5.1 codex correction — cs_259
+r2 evidence shows `search_knowledge` already ran, so the "no prior
+search" guard would not change the observed cs_259 failure. The
+guard could still be considered as a *defensive* invariant in a future
+sprint, but it is NOT the cs_259 fix and must not be promoted as such.
 
 Risks: small — `candidateUseCases` is already in the session DB schema;
 projection just needs to expose it.
@@ -440,7 +510,7 @@ projection just needs to expose it.
 | C2 (UC-FP / UC-A tiebreaker) | cs_interactive_015 | r1: `eval_interactive/results/20260504-221916/results.json` cs_015 row, tags `L2_GATE:correct_uc`, `L2:correct_uc`, `L2:tool_sequence_match`. |
 | C3 (search before answer) | cs_interactive_192 | r2: `eval_interactive/results/20260504-223153/results.json` cs_192 row, tags `L1:source_citation_present`, `L2:tool_sequence_match`. |
 | C4 (intake_state projection) | cs_interactive_066 | r2: `eval_interactive/results/20260504-223153/results.json` cs_066 row, tags `L1:escalation_compliance`, total_turns=5, escalation_reason=turn_budget_exhausted. |
-| C5 (candidate_use_cases projection) | cs_interactive_259 | r1+r2: both result files cs_259 rows. r1 contract violation, r2 single-turn handover with `faq_miss_threshold_exceeded`. |
+| C5 (candidate_use_cases projection) | cs_interactive_259 (DISCOVER-side support only — primary cs_259 fix is F2 §S1) | r1+r2: both result files cs_259 rows. r1 contract violation, r2 actual tool sequence `['search_knowledge', 'classify_use_case', 'request_handover']` (`lcs=1/4`) — search happened, resolve did not complete. |
 
 ## 5. Risks (cross-cutting)
 
