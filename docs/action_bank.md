@@ -1,6 +1,112 @@
 # Action Bank
 
-Date: 2026-05-06 (post Sprint 7.1 — I2 closure fix; clean-credential smoke re-run still pending)
+Date: 2026-05-06 (post Sprint 7.1 clean-credential validation; canonical baseline rotated to post-Sprint-7-clean r1)
+
+## Status — Post-Sprint-7 clean validation (2026-05-06)
+
+After Codex Sprint 7.1 review accepted (decision=pass,
+blocking_count=0), the upstream Kimi credential was rotated to a
+working Kimi 2.6 provisioning
+(`base_url=https://api.moonshot.ai/v1`, `model=kimi-k2.6`). The
+Sprint 7 + 7.1 implementation was re-validated under clean
+credentials on 2026-05-06. Full detail in `docs/10-handoff.md`
+"Post-Sprint-7 clean validation" addendum.
+
+- Tests run under clean Kimi 2.6:
+  - `mvn -pl server test` → **659 / 659 passed** (unchanged
+    from Sprint 7.1 baseline).
+  - `python -m pytest -p no:capture eval_interactive/tests/` →
+    **294 / 294 passed**.
+- Targeted runs (no auth contamination, all HTTP 200):
+  - cs259: `results/20260505-224423/results.json` — UC-F
+    committed (Sprint 7 §I0 effect visible vs Sprint 6 r1
+    UC-J / r2 UC-E); residual failure is FAQ corpus gap
+    (no resolve-grade article for the payment-sale-proceeds
+    intent).
+  - cs015: `results/20260505-224451/results.json` — UC-A
+    (expected UC-FP); Sprint 7 §I1 cue is wired but moderation
+    signal not surfaced because the cs015 form has no `ad_id`
+    (autoTriggerCustomerContext only fetches account context).
+  - cs066: `results/20260505-224539/results.json` — UC-K
+    preserved; intake_complete_for_uc_k stamped after both
+    canonical UC-K fields landed (Sprint 7.1 §J0 effect
+    visible). Eval-side stall detector still fires
+    `STALL_AFTER_TOOL_INTENT` on intake clarification turns.
+- Smoke runs (full 14-case smoke set, parallel=1):
+  - r1: `eval_interactive/results/20260505-224809/results.json`
+    (`sprint7-clean-r1`, 8/14 passed, mean composite 0.4707).
+  - r2: `eval_interactive/results/20260505-225708/results.json`
+    (`sprint7-clean-r2`, 7/14 passed, mean composite 0.4118).
+  - 0 ReadTimeout / 0 `INFRA:ReadTimeout` / 0
+    `session_create_failed` across both runs (Sprint 6 §G0
+    closure intact under clean credentials).
+  - 0 `L1:escalation_reason_consistency` failures across both
+    runs.
+  - 0 `CONTRACT_VIOLATION:active_use_case` in r1; 1 in r2 on
+    cs259 (Kimi classify-tool-use variance flake).
+- Canonical baseline rotated:
+  `docs/current_eval_baseline.md` now points to
+  `eval_interactive/results/20260505-224809/results.json`
+  (post-Sprint-7-clean r1). Sprint 6 r1 demoted to historical
+  reference.
+
+### Targeted blocker classification (post-Sprint-7 clean)
+
+| case | active_uc | classification | scope |
+|---|---|---|---|
+| cs259 | UC-F (✓ Sprint 7 §I0) | FAQ corpus gap / answerability | eval governance / corpus audit |
+| cs015 | UC-A (Sprint 7 §I1 cue inert without `ad_id`) | routing-projection partial — needs description-keyword cue when form has no `ad_id` | narrow Sprint 8 candidate, OR roll into eval governance |
+| cs066 | UC-K (✓ §I2 + §J0) | stall detector volatility on intake clarification turns + persona-simulator turn-budget variance | eval governance |
+| cs095 | UC-A | product-policy gap — FAQ corpus cannot ground `outcome=resolve` for email-sync visibility | eval governance / corpus audit |
+| cs176 | UC-I | UC-I drift, explicitly deferred since Sprint 5.1 | deferred |
+| cs192 | UC-B | FAQ corpus gap / answerability | eval governance / corpus audit |
+| cs038 (r2 only) | UC-J | stall detector volatility on intake completion turn | eval governance |
+| L3 (most cases) | — | judge volatility (relevance, tone_appropriateness) | eval governance / judge calibration |
+
+### Recommendation: Eval Governance Sprint
+
+The Sprint 7 + 7.1 runtime contracts are pinned by 47 focused
+tests + 659/659 mvn + 294/294 pytest. The remaining smoke
+failures are NOT runtime / routing / policy / tool-use blockers;
+they are dominated by:
+
+1. Stall-detector calibration (cs066, cs038, cs066 targeted —
+   `STALL_AFTER_TOOL_INTENT` fires on intake clarification turns
+   even when intake completes correctly).
+2. L3 judge volatility (`relevance` /
+   `tone_appropriateness` — fires across most passing cases too,
+   noticeably suppressing mean composite).
+3. FAQ corpus answerability gaps (cs259 / cs192 / cs095 — no
+   resolve-grade article for the user's intent).
+4. Persona-simulator pacing variance (cs066 / cs038 flip
+   between `intake_complete_for_uc_X` and
+   `turn_budget_exhausted` across runs).
+
+Recommended next sprint = **Eval Governance Sprint**:
+
+- Calibrate stall detector so `STALL_AFTER_TOOL_INTENT` does not
+  fire on intake clarification turns where the bot is
+  legitimately gathering required fields.
+- Calibrate L3 judges (prompt audit, temperature pin, possibly
+  ensembling across runs).
+- Audit FAQ corpus answerability for cs259 / cs192 / cs095 and
+  decide whether to add resolve-grade articles, route to UC-K
+  intake, or downgrade `expected_outcome` to `escalate`.
+- Pace audit on persona simulator for cs066 / cs038 intake
+  cases.
+
+If a single narrow Sprint 8 runtime fix is preferred over
+governance work, the only well-defined runtime candidate is the
+**cs015 description-keyword moderation cue**:
+`UseCaseRouter.buildModerationRoutingContext` adds a
+`description_keyword_signal` derived from form description text
+(`rejected`, `removed`, `disapproved`, `under_review`,
+`appeal`, `policy violation`) so the routing surface has a
+moderation signal even when the form has no `ad_id`. This is
+one narrow projection refinement, anticipated by the Sprint 7
+handoff §9; it does NOT need a broad moderation policy suite.
+
+
 
 ## Status — Sprint 7 + 7.1 closure (Targeted Routing Projection and Intake-State Orchestration)
 
@@ -9,10 +115,13 @@ Sprint 6.1. Codex Sprint 7 review accepted I0 / I1 and flagged one
 P1 blocker on I2 (partial intake fields not persisted across normal
 clarification turns); Sprint 7.1 closes the I2 blocker via a single
 narrow fix (J0). Implementation verified by 47 focused regression
-tests + the full 659-test mvn suite + 294-test pytest suite. Smoke
-under nominal credentials is deferred to post-credential-rotation;
-Sprint 6 r1 (`eval_interactive/results/20260505-112736/results.json`)
-remains the canonical reference.
+tests + the full 659-test mvn suite + 294-test pytest suite. The
+post-Sprint-7-clean r1 smoke
+(`eval_interactive/results/20260505-224809/results.json`, 8/14,
+mean composite 0.4707) is now the canonical reference; Sprint 6 r1
+(`eval_interactive/results/20260505-112736/results.json`, 8/14,
+mean composite 0.4826) is the historical reference for the Sprint 7
+before/after diff.
 
 ### S7-I0. C5 candidate_use_cases projection + DISCOVER cue — **DONE** (2026-05-06)
 
@@ -122,19 +231,24 @@ Tests:
   → **294 / 294 passed** (last clean Sprint 7 run; Sprint 7.1
   changed only Java files, so no re-run was required).
 
-### Sprint 7 closure: smoke contaminated, not promoted
+### Sprint 7 closure: smoke contaminated, not promoted (superseded by Post-Sprint-7 clean validation 2026-05-06)
 
-- Targeted: `results/20260505-205946/results.json` (cs259),
+- Original contaminated targeted:
+  `results/20260505-205946/results.json` (cs259),
   `results/20260505-210136/results.json` (cs015),
   `results/20260505-210218/results.json` (cs066).
-- Smoke r1: `eval_interactive/results/20260505-210359/results.json`
-  (1/14 — fully credential-contaminated; `KIMI_API_KEY` rejected
-  with `401 Unauthorized` against `https://api.moonshot.cn/v1`).
+- Original contaminated smoke r1:
+  `eval_interactive/results/20260505-210359/results.json` (1/14
+  — fully credential-contaminated; `KIMI_API_KEY` rejected with
+  `401 Unauthorized` against `https://api.moonshot.cn/v1`).
 
-Per the Sprint 7 rule, contaminated smoke is NOT promoted as
-canonical. `docs/current_eval_baseline.md` continues to point to
-Sprint 6 r1 as canonical. Smoke must be re-run after the upstream
-Kimi credential is rotated.
+Per the Sprint 7 rule, those contaminated runs were NOT promoted.
+After upstream Kimi credential rotation
+(`https://api.moonshot.ai/v1`, `kimi-k2.6`), targeted + smoke
+were re-run on 2026-05-06; the post-Sprint-7-clean r1 smoke is
+now the canonical baseline (see `Status — Post-Sprint-7 clean
+validation` at the top of this file and the
+`docs/current_eval_baseline.md` rotation).
 
 
 

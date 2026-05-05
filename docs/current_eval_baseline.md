@@ -1,28 +1,123 @@
 # Current Eval Baseline
 
-Date: 2026-05-05 (post Sprint 6 — accepted closure)
+Date: 2026-05-06 (post Sprint 7.1 — clean-credential validation)
 
 ## Purpose
 
 This file freezes the accepted baseline for the next targeted
-runtime-behaviour sprint.
+runtime-behaviour or eval-governance sprint.
 
-The next sprint should compare new results against the **post-Sprint-6**
-accepted state. Sprint 6 implemented exactly G0 / G1 / G2 (Kimi
-ReadTimeout mitigation, corrected C1 prompt for cs_176 targeting
-`user_requested`, S1 FAQ-grounded-resolve PhasePlan / skill — see
-`docs/10-handoff.md` Sprint 6 section). The post-Sprint-4 baseline
-remains the historical reference for ReadTimeout-incidence comparison;
-the post-Sprint-6 r1 baseline is the current canonical reference for
-Sprint 7 regression checks.
+The next sprint should compare new results against the
+**post-Sprint-7-clean** accepted state. Sprint 7 implemented exactly
+I0 / I1 / I2 (`candidate_use_cases` projection + DISCOVER cue,
+moderation routing tiebreaker, `intake_state` projection + intake
+guard); Sprint 7.1 closed the I2 partial-intake-persistence blocker
+(J0). Both were validated under clean Kimi 2.6 credentials on
+2026-05-06 — see `docs/10-handoff.md` "Post-Sprint-7 clean
+validation" addendum. The post-Sprint-6 r1 baseline remains the
+historical reference for the Sprint 7 before/after comparison; the
+post-Sprint-7-clean r1 baseline is the current canonical reference
+for the next sprint.
 
-## Current sprint baseline (post Sprint 6)
+## Current sprint baseline (post Sprint 7 clean)
 
 Canonical current result:
 
+`eval_interactive/results/20260505-224809/results.json`
+
+This is the accepted post-Sprint-7-clean r1 result (8/14, mean
+composite 0.4707, `sprint7-clean-r1`) used after:
+
+- Sprint 7 §I0 `candidate_use_cases` projection + DISCOVER cue
+  (cs259 anchor; UC-F now committed instead of drifting to
+  UC-J / UC-E / UC-B on the empty-form payment-sale-proceeds
+  shape).
+- Sprint 7 §I1 UC-FP vs UC-A routing tiebreaker (moderation
+  routing-context cue surfaced from session state into
+  `routing_prompt.txt`; cs015 anchor; cs014 / cs066 / cs095
+  negative guards preserved by 10 focused tests).
+- Sprint 7 §I2 `intake_state` projection + UC-G/H/I/J/K
+  intake-complete guard (`IntakeFieldsRegistry`,
+  `shouldRejectIncompleteIntakeHandover`,
+  `persistInlineIntakeFields`; cs066 anchor; FAQ-path UCs
+  unaffected).
+- Sprint 7.1 §J0 partial intake-field persistence
+  (`IntakeFieldExtractor` +
+  `AgentRunLoopImpl.mergePartialIntakeFromContext`; UC-K canonical
+  fields seeded from form description and captured from user
+  reply across clarification turns).
+- Upstream Kimi credential rotated to working Kimi 2.6
+  provisioning (`https://api.moonshot.ai/v1`, `kimi-k2.6`); 0
+  ReadTimeout / 0 `INFRA:ReadTimeout` / 0
+  `session_create_failed` / 0 `401`-tagged auth contamination
+  across both clean smoke runs.
+
+Pass rate:
+
+`8/14`
+
+Mean composite:
+
+`0.4707`
+
+Notes:
+
+- Sprint 7 §I0 effect visible: cs259 commits UC-F (was UC-J in
+  Sprint 6 r1, UC-E in Sprint 6 r2). Remaining cs259 failure is
+  FAQ corpus gap / answerability — no resolve-grade article for
+  the payment-sale-proceeds intent. Not a routing or runtime
+  blocker.
+- Sprint 7 §I1 effect partial: cs015 routing-context cue is
+  wired but the cs015 form has no `ad_id`, so
+  `FormContextIngestionService.autoTriggerCustomerContext` does
+  not populate moderation / listing decision; the routing LLM
+  receives the `moderation_status: unknown` stub and falls back
+  to UC-A. Single narrow next-sprint candidate is a
+  description-keyword moderation cue derived from form text
+  (anticipated by Sprint 7 handoff §9).
+- Sprint 7 §I2 + §J0 effect visible: cs066 r2 + targeted both
+  collected `repro_steps_or_error_message` (form seed) and
+  `platform=Website` (user reply) and stamped
+  `intake_complete_for_uc_k` correctly without re-asking for
+  fields. The eval-side stall detector
+  (`STALL_AFTER_TOOL_INTENT`) still fires on the intake
+  clarification turns; this is an eval governance issue, not a
+  Sprint 7 runtime regression. UC-K + intake_complete guard
+  contracts preserved.
+- 0 ReadTimeout / 0 `INFRA:ReadTimeout` / 0
+  `session_create_failed` across r1 + r2 (Sprint 6 §G0 closure
+  intact under clean credentials).
+- 0 `L1:escalation_reason_consistency` failures across r1 + r2.
+- 0 `CONTRACT_VIOLATION:active_use_case` in r1; 1 in r2 on
+  cs259 (Kimi tool-use variance — same flake pattern that was
+  carried before Sprint 7).
+- cs176 r2 UC-I drift remains explicitly deferred per Sprint 5.1
+  codex correction and the Sprint 6 acceptance condition.
+
+### Stability reference run
+
+Follow-up smoke run to characterise post-Sprint-7-clean
+nondeterminism:
+
+- `eval_interactive/results/20260505-225708/results.json` (7/14,
+  mean composite 0.4118, `sprint7-clean-r2`; 0 ReadTimeout / 0
+  `INFRA:ReadTimeout` / 1 `CONTRACT_VIOLATION:active_use_case`
+  on cs259 — Kimi classify variance — and 0
+  `L1:escalation_reason_consistency` fails). The case-level
+  diff vs r1 is within the previously-documented
+  persona-simulator + stall-detector nondeterminism band:
+  cs038 r2 hits `STALL_AFTER_TOOL_INTENT` /
+  `turn_budget_exhausted` (was PASS in r1); cs066 r2 stamps
+  `intake_complete_for_uc_k` correctly (was
+  `turn_budget_exhausted` in r1).
+
+## Previous sprint baseline (post Sprint 6) — historical reference
+
+Canonical post-Sprint-6 result (now superseded as canonical):
+
 `eval_interactive/results/20260505-112736/results.json`
 
-This is the accepted Sprint 6 r1 result (8/14, mean composite
+This was the accepted Sprint 6 r1 result (8/14, mean composite
 0.4826) used after:
 
 - G0 Kimi `session_create_failed: ReadTimeout` mitigation
