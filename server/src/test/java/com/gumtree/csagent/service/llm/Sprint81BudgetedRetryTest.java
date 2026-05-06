@@ -20,14 +20,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Sprint 8.1 §M1 — budget-aware fast retry contracts.
+ * Sprint 8.1 §M1 — budget-aware fast retry contracts at the inner-client level.
  *
- * <p>Pins:
+ * <p>Sprint 8.1 §M1 follow-up (2026-05-06): when a user-facing deadline is
+ * in effect, the inner {@link OpenAiCompatibleLlmClient} runs at exactly
+ * one attempt — the cross-provider retry has been hoisted up to
+ * {@link FallbackLlmClient}. Production-chain assertions live in
+ * {@link Sprint81GlobalAttemptBudgetTest}; this suite focuses on the
+ * inner-client behaviour:
  * <ul>
- *   <li>One transient failure inside an ample budget triggers exactly one retry.</li>
- *   <li>Budget exhausted before the second attempt aborts with
+ *   <li>Without a budget, a transient 5xx triggers exactly one retry
+ *       (legacy semantics for batch / eval paths).</li>
+ *   <li>With a budget, only one attempt is made — retries are the
+ *       fallback layer's job.</li>
+ *   <li>Budget exhausted before the next attempt aborts with
  *       {@link LlmDeadlineExceededException} rather than a third attempt.</li>
- *   <li>Two full read-timeout waits cannot occur inside a 10 s budget — the
+ *   <li>Two full read-timeout waits cannot occur inside a 25 s budget — the
  *       deadline check skips the retry once the remaining budget cannot
  *       fit one full attempt.</li>
  *   <li>HTTP {@code 401} / deterministic {@code 4xx} are never retried.</li>
@@ -81,9 +89,11 @@ class Sprint81BudgetedRetryTest {
     }
 
     @Test
-    void retry_under_ampleBudget_succeedsOnSecondAttempt() {
-        // Sprint 8.1 §M1: transient 5xx + ample 30 s budget → one retry.
-        LlmCallContext.setDeadline(System.currentTimeMillis() + 30_000L);
+    void retry_under_noBudget_succeedsOnSecondAttempt() {
+        // Sprint 8.1 §M1 follow-up: inner-client retry survives ONLY when
+        // no global budget is set (legacy / batch / eval paths). The
+        // user-facing path always sets a deadline → retry hoisted to
+        // FallbackLlmClient (covered by Sprint81GlobalAttemptBudgetTest).
         AtomicInteger calls = new AtomicInteger();
         server.createContext("/chat/completions", exchange -> {
             int n = calls.incrementAndGet();
@@ -93,16 +103,19 @@ class Sprint81BudgetedRetryTest {
 
         LlmResponse response = newClient().chat(sampleRequest());
 
-        assertEquals(2, calls.get(), "exactly one retry on transient 5xx within budget");
+        assertEquals(2, calls.get(),
+                "Without a global budget, inner client must retry once on transient 5xx");
         assertEquals("ok", response.getContent());
     }
 
     @Test
-    void retry_exhaustsBudget_throwsDeadlineExceeded_notThirdAttempt() {
-        // Sprint 8.1 §M1: budget runs out after the first attempt; the
-        // client must skip the retry and surface DeadlineExceeded rather
-        // than burning a third call.
-        LlmCallContext.setDeadline(System.currentTimeMillis() + 100L); // ~exhausted by the time attempt 2 starts
+    void retry_under_ampleBudget_innerClientDoesExactlyOneAttempt() {
+        // Sprint 8.1 §M1 follow-up: with a deadline (and therefore the
+        // shared HTTP-attempt budget) in effect, the inner client MUST do
+        // exactly one attempt — the second slot is reserved for the
+        // cross-provider fallback. Without a fallback wrapper this
+        // surfaces the 5xx after a single call.
+        LlmCallContext.setDeadline(System.currentTimeMillis() + 30_000L);
         AtomicInteger calls = new AtomicInteger();
         server.createContext("/chat/completions", exchange -> {
             calls.incrementAndGet();
@@ -110,11 +123,32 @@ class Sprint81BudgetedRetryTest {
         });
 
         OpenAiCompatibleLlmClient client = newClient();
+        assertThrows(Exception.class, () -> client.chat(sampleRequest()));
+
+        assertEquals(1, calls.get(),
+                "Inner client must NOT retry while a global attempt budget is active; "
+                        + "cross-provider fallback owns the second slot. Got " + calls.get());
+    }
+
+    @Test
+    void deadlineAlreadyExpired_abortsBeforeAttempt() {
+        // Sprint 8.1 §M1: even with a budget that allows attempts, a
+        // deadline already in the past must abort with
+        // {@link LlmDeadlineExceededException} rather than burning an HTTP
+        // call. Pins the deadline check at the top of {@link #chat}.
+        LlmCallContext.setDeadline(System.currentTimeMillis() - 1L);
+        AtomicInteger calls = new AtomicInteger();
+        server.createContext("/chat/completions", exchange -> {
+            calls.incrementAndGet();
+            respond(exchange, 200, successBody());
+        });
+
+        OpenAiCompatibleLlmClient client = newClient();
         assertThrows(LlmDeadlineExceededException.class,
                 () -> client.chat(sampleRequest()));
 
-        assertTrue(calls.get() <= 1,
-                "M1 must not start a retry when remaining budget < min-attempt budget. "
+        assertEquals(0, calls.get(),
+                "Already-expired deadline must abort before any HTTP call. "
                         + "Got " + calls.get() + " calls.");
     }
 

@@ -62,6 +62,17 @@ public class AgentRunLoopImpl implements AgentRunLoop {
     private static final String HANDOVER_TOOL = "request_handover";
     private static final String SEARCH_TOOL = "search_knowledge";
     private static final String RESOLVE_TOOL = "resolve_article";
+    /**
+     * Sprint 8.1 §M3 — DISCOVER classification phase boundary. When the
+     * LLM successfully calls this tool inside a DISCOVER plan and
+     * {@link com.gumtree.csagent.service.tools.ClassifyUseCaseTool}
+     * commits a non-blank {@code activeUseCase} on the session, the loop
+     * returns {@link com.gumtree.csagent.model.TerminalOutcome#USE_CASE_IDENTIFIED}
+     * immediately rather than continuing to {@code maxToolSteps} (which
+     * the legacy mapper would mis-map to ESCALATE).
+     */
+    private static final String CLASSIFY_USE_CASE_TOOL = "classify_use_case";
+    private static final String DISCOVER_PHASE = "DISCOVER";
 
     /**
      * Sprint 6 §G2 — S1 FAQ-grounded-resolve guard.
@@ -374,6 +385,33 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 if (HANDOVER_TOOL.equals(toolName)) {
                     handoverRequested = true;
                     handoverReason = extractHandoverReason(call);
+                }
+
+                // 6e. Sprint 8.1 §M3 — DISCOVER deterministic phase
+                // boundary. When classify_use_case successfully commits a
+                // non-blank active_use_case on a DISCOVER plan, return
+                // USE_CASE_IDENTIFIED immediately. ControlKernel performs
+                // a single bounded same-turn replan into RESOLVE for the
+                // newly committed UC instead of letting the loop run out
+                // its remaining DISCOVER steps (which the legacy mapper
+                // mis-maps to ESCALATE / faq_miss_threshold_exceeded even
+                // when search_knowledge returned hits and classify
+                // succeeded).
+                if (CLASSIFY_USE_CASE_TOOL.equals(toolName)
+                        && DISCOVER_PHASE.equalsIgnoreCase(plan.phase())
+                        && result != null && result.isSuccess()
+                        && session != null
+                        && session.getActiveUseCase() != null
+                        && !session.getActiveUseCase().isBlank()) {
+                    log.info(
+                            "AgentRunLoop §M3: classify_use_case committed active_use_case={} "
+                                    + "on DISCOVER plan; returning USE_CASE_IDENTIFIED for same-turn "
+                                    + "replan into RESOLVE",
+                            session.getActiveUseCase());
+                    return AgentRunResult.useCaseIdentified(
+                            session.getActiveUseCase(),
+                            llmEvents, toolEvents,
+                            lastProjection, lastLlmRawResponse);
                 }
             }
 

@@ -194,4 +194,32 @@ public record AgentRunResult(
                 null
         );
     }
+
+    /**
+     * Sprint 8.1 §M3 — terminal outcome for a successful DISCOVER
+     * classification. The LLM called {@code classify_use_case} with a
+     * confident UC and the tool persisted it on the session. Carries the
+     * committed UC string in {@code finalUserMessage} purely as a marker
+     * (it is NOT customer-facing — the same-turn RESOLVE replan owns the
+     * actual user reply). Returned by {@code AgentRunLoopImpl} immediately
+     * after the successful tool dispatch instead of continuing the DISCOVER
+     * plan to {@code maxToolSteps}, which would otherwise mis-map to
+     * ESCALATE / {@code faq_miss_threshold_exceeded}.
+     */
+    public static AgentRunResult useCaseIdentified(String committedUc,
+                                                    List<LlmCallEvent> llmEvents,
+                                                    List<ToolEvent> toolEvents,
+                                                    String lastProjection,
+                                                    String lastLlmRawResponse) {
+        return new AgentRunResult(
+                List.of(),
+                toolEvents,
+                llmEvents,
+                TerminalOutcome.USE_CASE_IDENTIFIED,
+                committedUc,
+                Optional.empty(),
+                lastProjection,
+                lastLlmRawResponse
+        );
+    }
 }
