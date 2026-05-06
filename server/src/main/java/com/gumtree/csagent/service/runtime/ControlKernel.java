@@ -292,20 +292,26 @@ public class ControlKernel {
                         effectivePhaseBefore = "RESOLVE";
                     }
                     // Budget gate: a RESOLVE attempt typically needs ~3 s
-                    // connect + 12 s read + tiny buffer. If the remaining
-                    // wall-clock cannot fit one full attempt OR the shared
-                    // HTTP-attempt budget is already exhausted, skip the
-                    // replan and let the user retry next turn.
+                    // connect + 12 s read + tiny buffer. Sprint 8.1 closure
+                    // follow-up (2026-05-07): only the wall-clock budget
+                    // bounds whether the same-turn replan can fit. The
+                    // per-invocation HTTP-attempt budget is re-armed at
+                    // {@link FallbackLlmClient#chat} entry, so two
+                    // successful DISCOVER calls (search_knowledge +
+                    // classify_use_case) no longer poison the RESOLVE
+                    // replan's first attempt; they only consume wall-clock.
+                    // If the remaining wall-clock cannot fit one full
+                    // attempt, skip the replan and let the user retry next
+                    // turn.
                     Long remaining = LlmCallContext.remainingMillis();
                     boolean budgetOk = (remaining == null
-                            || remaining >= MIN_RESOLVE_REPLAN_BUDGET_MS)
-                            && LlmCallContext.canAttempt();
+                            || remaining >= MIN_RESOLVE_REPLAN_BUDGET_MS);
                     if (!budgetOk) {
-                        log.info("Session {}: §M3 insufficient budget for same-turn RESOLVE replan "
-                                        + "(remaining_ms={}, remaining_attempts={}); staying in RESOLVE "
-                                        + "and returning transitional response",
+                        log.info("Session {}: §M3 insufficient wall-clock budget for same-turn "
+                                        + "RESOLVE replan (remaining_ms={}, min_required_ms={}); "
+                                        + "staying in RESOLVE and returning transitional response",
                                 session.getSessionId(), remaining,
-                                LlmCallContext.remainingAttempts());
+                                MIN_RESOLVE_REPLAN_BUDGET_MS);
                     } else {
                         PhasePlan resolvePlan = phaseEvaluator.plan(session, userMessage, history);
                         if (resolvePlan != null) {
