@@ -58,7 +58,11 @@ public class LlmInvocationService {
                                  LlmProperties llmProperties) {
         this.llmClient = llmClient;
         this.llmCallLogger = llmCallLogger;
-        this.modelName = llmProperties.getKimi().getModel();
+        // Sprint 8.1 follow-up #2 (2026-05-06): primary is now deepseek (see
+        // LlmClientConfig). Telemetry tag for the modelName surface points at
+        // the primary's model so trace metadata reflects the model that ran
+        // most often. Fallback model leaks into per-call client logs already.
+        this.modelName = llmProperties.getDeepseek().getModel();
     }
 
     @PostConstruct

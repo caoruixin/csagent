@@ -14,10 +14,16 @@ import type {
   DemoCase,
 } from '../types';
 
+// Sprint 8.1 follow-up #2 (2026-05-06): widened from 30 s to 60 s to match
+// the new server-side wall-clock budget (30 s) plus comfortable headroom.
+// During the verification phase we'd rather see the slow tail than auto-
+// cancel a request that the server is still working on; the server itself
+// renders an honest "Sorry, I'm a bit slow right now" message inside the
+// 30 s budget, so axios timing out at 60 s is a true network give-up.
 const api = axios.create({
   baseURL: '/v1',
   headers: { 'Content-Type': 'application/json' },
-  timeout: 30_000,
+  timeout: 60_000,
 });
 
 // ── Chat API ──

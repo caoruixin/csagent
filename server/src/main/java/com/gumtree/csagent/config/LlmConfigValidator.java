@@ -67,7 +67,14 @@ public final class LlmConfigValidator {
         public boolean isWarn() { return severity == Severity.WARN; }
     }
 
-    /** Run the full validation across known providers. */
+    /**
+     * Run the full validation across known providers.
+     *
+     * <p>Sprint 8.1 follow-up #2 (2026-05-06): primary/fallback flipped —
+     * DeepSeek is the chat-completion primary now (see
+     * {@link LlmClientConfig}). Missing DeepSeek key is FATAL; missing
+     * Kimi key is WARN (fallback degradation).
+     */
     public static List<Diagnostic> validate(LlmProperties props) {
         List<Diagnostic> out = new ArrayList<>();
         if (props == null) {
@@ -75,10 +82,10 @@ public final class LlmConfigValidator {
                     "LlmProperties bean is null"));
             return out;
         }
-        validateProvider(out, "kimi", true,
-                props.getKimi().getApiKey(), props.getKimi().getBaseUrl(), props.getKimi().getModel());
-        validateProvider(out, "deepseek", false,
+        validateProvider(out, "deepseek", true,
                 props.getDeepseek().getApiKey(), props.getDeepseek().getBaseUrl(), props.getDeepseek().getModel());
+        validateProvider(out, "kimi", false,
+                props.getKimi().getApiKey(), props.getKimi().getBaseUrl(), props.getKimi().getModel());
         return out;
     }
 
@@ -186,14 +193,16 @@ public final class LlmConfigValidator {
      */
     public static String describe(LlmProperties props) {
         if (props == null) return "(null)";
+        // Sprint 8.1 follow-up #2 (2026-05-06): primary/fallback order
+        // flipped — deepseek is primary now, kimi is fallback.
         return String.format(
-                "primary=kimi[model=%s, base=%s, key=%s], fallback=deepseek[model=%s, base=%s, key=%s]",
-                nullToDash(props.getKimi().getModel()),
-                nullToDash(props.getKimi().getBaseUrl()),
-                describeKeyState(props.getKimi().getApiKey()),
+                "primary=deepseek[model=%s, base=%s, key=%s], fallback=kimi[model=%s, base=%s, key=%s]",
                 nullToDash(props.getDeepseek().getModel()),
                 nullToDash(props.getDeepseek().getBaseUrl()),
-                describeKeyState(props.getDeepseek().getApiKey()));
+                describeKeyState(props.getDeepseek().getApiKey()),
+                nullToDash(props.getKimi().getModel()),
+                nullToDash(props.getKimi().getBaseUrl()),
+                describeKeyState(props.getKimi().getApiKey()));
     }
 
     private static String nullToDash(String s) { return s == null ? "-" : s; }
