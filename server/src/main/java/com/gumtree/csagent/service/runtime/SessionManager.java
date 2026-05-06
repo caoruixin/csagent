@@ -24,9 +24,6 @@ import java.util.*;
 @Service
 public class SessionManager {
 
-    /** INTAKE use cases that use fixed scripts -- auto-search must NOT be triggered for these. */
-    private static final Set<String> INTAKE_UCS = Set.of("UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
-
     private final BotSessionRepository sessionRepository;
     private final BotEventRepository eventRepository;
     private final SessionOutcomeRepository outcomeRepository;
@@ -120,10 +117,17 @@ public class SessionManager {
         // Step 1: Ingest form context
         formIngestion.ingest(session, firstName, email, topicSubject, adId, description);
 
-        // Step 2: Route to use case (with graceful fallback)
+        // Step 2: Route to use case via deterministic rules only.
+        // Sprint 8.1 §M0: the create-session path must never block on an LLM
+        // call. {@link UseCaseRouter#routeNonBlocking} runs the deterministic
+        // stages (handover-only / strong-prior / UC-K regression / B2 bias)
+        // and falls back to AMBIGUOUS for weak-prior topics that would
+        // otherwise need LLM disambiguation. The user lands in DISCOVER and
+        // the next message exercises classify_use_case inside the per-turn
+        // deadline budget.
         RoutingResult routingResult;
         try {
-            routingResult = useCaseRouter.route(session, topicSubject, description);
+            routingResult = useCaseRouter.routeNonBlocking(session, topicSubject, description);
         } catch (Exception e) {
             log.error("Session {}: routing failed, defaulting to DISCOVER with clarifying question: {}",
                     sessionId, e.getMessage(), e);
@@ -136,43 +140,20 @@ public class SessionManager {
 
         switch (routingResult.outcome()) {
             case ROUTED -> {
-                // Transition INIT -> DISCOVER
+                // Sprint 8 §D1: session creation must NEVER block on an LLM call.
+                // The previous "auto-search at create-time" branch ran a full
+                // ControlKernel.processMessage chain (routing → knowledge search
+                // → rerank fan-out → answer) synchronously, which routinely
+                // exceeded the user-facing wait budget. The user now lands in
+                // the chat box immediately with a static greeting; their first
+                // message exercises the normal processMessage path.
                 session.setCurrentPhase("DISCOVER");
-                // Since we have a UC, immediately transition to RESOLVE
-                // (DISCOVER phase checks if UC is identified and moves to RESOLVE)
                 if (session.getActiveUseCase() != null) {
+                    // UC already identified → skip DISCOVER and start in RESOLVE
+                    // for the user's first message.
                     session.setCurrentPhase("RESOLVE");
                 }
-
-                // Auto-search: for FAQ UCs with a substantive description,
-                // run the ControlKernel to produce a grounded answer immediately
-                boolean isFaqUc = session.getActiveUseCase() != null
-                        && !INTAKE_UCS.contains(session.getActiveUseCase());
-                boolean hasSubstantiveDescription = description != null && description.length() > 10;
-
-                if (isFaqUc && hasSubstantiveDescription) {
-                    try {
-                        // ControlKernel records turns to DB, so session must be persisted first
-                        session.setUpdatedAt(OffsetDateTime.now());
-                        sessionRepository.save(session);
-
-                        ControlKernel.KernelResult kernelResult =
-                                controlKernel.processMessage(session, description);
-
-                        String name = (firstName != null && !firstName.isBlank()) ? firstName : "there";
-                        greeting = "Hi " + name + "! " + kernelResult.responseText();
-
-                        if (kernelResult.shouldEndChat()) {
-                            shouldEndChat = true;
-                        }
-                    } catch (Exception e) {
-                        log.warn("Session {}: auto-search failed, falling back to static greeting: {}",
-                                session.getSessionId(), e.getMessage(), e);
-                        greeting = buildGreeting(firstName, topicSubject, session.getActiveUseCase());
-                    }
-                } else {
-                    greeting = buildGreeting(firstName, topicSubject, session.getActiveUseCase());
-                }
+                greeting = buildGreeting(firstName, topicSubject, session.getActiveUseCase());
             }
             case OUT_OF_SCOPE -> {
                 // Step 3a: differentiate soft OOS (UNKNOWN_TOPIC — no UC candidates
@@ -286,21 +267,11 @@ public class SessionManager {
             recordHandover(session);
         }
 
-        // Sprint §A3: when the auto-search path itself terminated the
-        // session in ESCALATE (cs_interactive_192-style: bot exhausted FAQ
-        // search and handed over before any subsequent processMessage
-        // call), the session never sees another turn — so the handover
-        // payload would otherwise never be persisted. Funnel it through
-        // the assembler now so the eval trace carries the same payload
-        // regardless of which path produced the escalation.
-        boolean autoSearchEscalated = !isHardOos
-                && shouldEndChat
-                && ("ESCALATE".equals(session.getCurrentPhase())
-                        || "QUEUE_TO_HUMAN".equals(session.getHandlingState()));
-        if (autoSearchEscalated) {
-            recordOutcome(session);
-            recordHandover(session);
-        }
+        // Sprint 8 §D1: the previous "auto-search escalated mid-create" branch
+        // is removed along with auto-search itself. Session creation no longer
+        // produces an ESCALATE outcome on the ROUTED path — only the hard-OOS
+        // branch above can escalate at create-time, and that branch already
+        // records its own outcome / handover.
 
         log.info("Session {} created: phase={}, uc={}, routing={}",
                 sessionId, session.getCurrentPhase(), session.getActiveUseCase(), routingResult.outcome());

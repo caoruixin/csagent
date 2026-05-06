@@ -10,6 +10,8 @@ import com.gumtree.csagent.model.ParsedAction;
 import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.model.ToolCall;
 import com.gumtree.csagent.model.ToolEvent;
+import com.gumtree.csagent.service.llm.LlmDeadlineExceededException;
+import com.gumtree.csagent.service.llm.LlmUnavailableException;
 import com.gumtree.csagent.service.tools.ToolDispatcher;
 import com.gumtree.csagent.service.tools.ToolResult;
 import lombok.extern.slf4j.Slf4j;
@@ -155,13 +157,30 @@ public class AgentRunLoopImpl implements AgentRunLoop {
             }
             lastProjection = projection;
 
-            // 2. Invoke LLM (LlmInvocationService catches exceptions internally
-            //    and returns a safe-escalation response; we still wrap defensively).
+            // 2. Invoke LLM. Sprint 8.1 §M2: deadline / infra failures now
+            //    surface as typed exceptions (LlmInvocationService no longer
+            //    converts them into a synthetic SAFE_ESCALATION_RESPONSE).
+            //    Catch each one and return a TerminalOutcome that the K0
+            //    fallback gate can recognise as "no real LLM work happened" —
+            //    accumulated llmEvents / toolEvents are preserved so the
+            //    trace still reflects what ran before the failure.
             long t0 = System.currentTimeMillis();
             LlmResponse response;
             try {
                 response = llmInvocation.invokeChat(projection, userMessage,
                         session.getSessionId(), session.getTotalBotTurns());
+            } catch (LlmDeadlineExceededException ex) {
+                log.warn("AgentRunLoop llm deadline exceeded at step {}: {}", step, ex.getMessage());
+                return AgentRunResult.deadlineExceeded(
+                        "llm_deadline_exceeded: " + ex.getMessage(),
+                        llmEvents, toolEvents, lastProjection);
+            } catch (LlmUnavailableException ex) {
+                log.error("AgentRunLoop llm unavailable at step {} (failure_class={}): {}",
+                        step, ex.getFailureClass(), ex.getMessage());
+                return AgentRunResult.llmUnavailable(
+                        "llm_unavailable: failure_class=" + ex.getFailureClass()
+                                + " " + ex.getMessage(),
+                        llmEvents, toolEvents, lastProjection);
             } catch (Exception ex) {
                 log.error("AgentRunLoop llm invocation failed at step {}: {}",
                         step, ex.getMessage(), ex);

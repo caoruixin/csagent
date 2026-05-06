@@ -124,4 +124,48 @@ public record AgentRunResult(
                 null
         );
     }
+
+    /**
+     * Sprint 8.1 §M2 — terminal outcome for an LLM call that could not
+     * complete inside the per-turn wall-clock budget. Preserves the
+     * accumulated {@code llmEvents} / {@code toolEvents} so the trace
+     * still records what happened before the deadline fired.
+     */
+    public static AgentRunResult deadlineExceeded(String message,
+                                                   List<LlmCallEvent> llmEvents,
+                                                   List<ToolEvent> toolEvents,
+                                                   String lastProjection) {
+        return new AgentRunResult(
+                List.of(),
+                toolEvents,
+                llmEvents,
+                TerminalOutcome.DEADLINE_EXCEEDED,
+                null,
+                Optional.ofNullable(message),
+                lastProjection,
+                null
+        );
+    }
+
+    /**
+     * Sprint 8.1 §M2 — terminal outcome for an LLM call that failed for an
+     * infrastructure reason (transport / 5xx / 429 / 401 / 403 after retry
+     * exhaustion). Same shape as {@link #deadlineExceeded}; preserved so
+     * downstream gating can distinguish the two surfaces.
+     */
+    public static AgentRunResult llmUnavailable(String message,
+                                                 List<LlmCallEvent> llmEvents,
+                                                 List<ToolEvent> toolEvents,
+                                                 String lastProjection) {
+        return new AgentRunResult(
+                List.of(),
+                toolEvents,
+                llmEvents,
+                TerminalOutcome.LLM_UNAVAILABLE,
+                null,
+                Optional.ofNullable(message),
+                lastProjection,
+                null
+        );
+    }
 }

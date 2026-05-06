@@ -63,37 +63,52 @@ class LlmInvocationServiceTest {
     }
 
     @Test
-    void invokeChat_whenLlmThrowsRuntimeException_shouldReturnSafeEscalation() {
+    void invokeChat_whenLlmThrowsTransportRuntimeException_throwsLlmUnavailable() {
+        // Sprint 8.1 §M2: transport-class failures (the message itself
+        // mentions "connection") classify as llm_connect_failed and now
+        // propagate as LlmUnavailableException instead of returning a
+        // synthetic SAFE_ESCALATION_RESPONSE — that prevents K0 from
+        // mistaking the synthetic shape for real LLM evidence.
         when(llmClient.chat(any(LlmRequest.class)))
-                .thenThrow(new RuntimeException("Connection refused"));
+                .thenThrow(new RuntimeException("connection refused"));
 
-        LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
-
-        assertNotNull(result, "Should return safe escalation, not null");
-        assertEquals("error_fallback", result.getFinishReason());
-        assertTrue(result.getContent().contains("request_handover"),
-                "Safe escalation should call the request_handover tool");
-        assertTrue(result.getContent().contains("system_failure"),
-                "Safe escalation should carry escalation_reason=system_failure");
-        assertTrue(result.getContent().contains("technical issue"),
-                "Safe escalation should mention technical issue");
+        com.gumtree.csagent.service.llm.LlmUnavailableException ex =
+                assertThrows(com.gumtree.csagent.service.llm.LlmUnavailableException.class,
+                        () -> service.invokeChat("{}", "hello", "sess-1", 1));
+        assertNotNull(ex.getFailureClass(), "failure_class telemetry tag must be populated");
     }
 
     @Test
-    void invokeChat_whenLlmThrowsConnectException_shouldReturnSafeEscalation() {
+    void invokeChat_whenLlmThrowsConnectException_throwsLlmUnavailable() {
+        // Sprint 8.1 §M2: a wrapped ConnectException is an infra failure
+        // and must propagate as LlmUnavailableException.
         when(llmClient.chat(any(LlmRequest.class)))
                 .thenThrow(new RuntimeException("LLM API call failed",
                         new java.net.ConnectException("Connection refused")));
 
-        LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
-
-        assertNotNull(result);
-        assertEquals("error_fallback", result.getFinishReason());
-        assertTrue(result.getContent().contains("request_handover"));
+        assertThrows(com.gumtree.csagent.service.llm.LlmUnavailableException.class,
+                () -> service.invokeChat("{}", "hello", "sess-1", 1));
     }
 
     @Test
-    void invokeChat_whenLlmThrowsNPE_shouldReturnSafeEscalation() {
+    void invokeChat_whenLlmThrowsDeadlineExceededException_propagates() {
+        // Sprint 8.1 §M2: deadline exhaustion MUST surface honestly —
+        // never converted to a synthetic SAFE_ESCALATION_RESPONSE.
+        when(llmClient.chat(any(LlmRequest.class)))
+                .thenThrow(new com.gumtree.csagent.service.llm.LlmDeadlineExceededException(
+                        "deadline exceeded"));
+
+        assertThrows(com.gumtree.csagent.service.llm.LlmDeadlineExceededException.class,
+                () -> service.invokeChat("{}", "hello", "sess-1", 1));
+    }
+
+    @Test
+    void invokeChat_whenLlmThrowsNPE_returnsSafeEscalation() {
+        // Sprint 8.1 §M2: non-infra exceptions (e.g. NPE from a real LLM
+        // response with malformed shape) keep the legacy SAFE_ESCALATION
+        // fallback so the loop has something to parse — but the synthetic
+        // marker is detected by the K0 evidence gate so it never counts
+        // as real reasoning.
         when(llmClient.chat(any(LlmRequest.class)))
                 .thenThrow(new NullPointerException("unexpected null"));
 
@@ -101,6 +116,8 @@ class LlmInvocationServiceTest {
 
         assertNotNull(result);
         assertEquals("error_fallback", result.getFinishReason());
+        assertEquals(LlmInvocationService.SYNTHETIC_SAFE_ESCALATION_FINISH_REASON,
+                result.getFinishReason());
     }
 
     @Test
@@ -147,12 +164,14 @@ class LlmInvocationServiceTest {
 
     @Test
     void invokeChat_safeEscalationResponse_shouldBeValidJson() {
+        // Sprint 8.1 §M2: parse-class failures still return SAFE_ESCALATION
+        // (NPE simulates a malformed real LLM response). The content must
+        // remain valid JSON so the loop's parser does not crash.
         when(llmClient.chat(any(LlmRequest.class)))
-                .thenThrow(new RuntimeException("timeout"));
+                .thenThrow(new NullPointerException("unexpected null"));
 
         LlmResponse result = service.invokeChat("{}", "hello", "sess-1", 1);
 
-        // Verify the safe escalation content is valid JSON
         assertDoesNotThrow(() -> {
             new com.fasterxml.jackson.databind.ObjectMapper().readTree(result.getContent());
         }, "Safe escalation content must be valid JSON");

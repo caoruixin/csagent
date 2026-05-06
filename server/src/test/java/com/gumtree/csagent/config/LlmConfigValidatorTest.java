@@ -12,9 +12,11 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>Missing primary key → FATAL.</li>
  *   <li>Unresolved env-var placeholder for primary key → FATAL.</li>
  *   <li>Malformed primary base URL → FATAL.</li>
- *   <li>Default Kimi base URL ({@code https://api.moonshot.ai/v1}) → WARN
- *       (historically returned 401 in this repo; flag but don't fail).</li>
- *   <li>Working Kimi base URL ({@code https://api.moonshot.cn/v1}) → no warn.</li>
+ *   <li>Working Kimi base URL ({@code https://api.moonshot.ai/v1}, post
+ *       Sprint 7.1 credential rotation) → no warn.</li>
+ *   <li>Legacy Kimi base URL ({@code https://api.moonshot.cn/v1}) → WARN
+ *       (current K2.6 provisioning targets the .ai host; flag but don't
+ *       fail since older keys may still work on .cn).</li>
  *   <li>Fallback (DeepSeek) issues → WARN, not FATAL.</li>
  *   <li>{@link LlmConfigValidator#describe} never returns the raw key.</li>
  * </ul>
@@ -24,7 +26,7 @@ class LlmConfigValidatorTest {
     private LlmProperties propsWithDefaults() {
         LlmProperties props = new LlmProperties();
         props.getKimi().setApiKey("sk-test-kimi");
-        props.getKimi().setBaseUrl("https://api.moonshot.cn/v1");
+        props.getKimi().setBaseUrl("https://api.moonshot.ai/v1");
         props.getKimi().setModel("kimi-k2.6");
         props.getDeepseek().setApiKey("sk-test-deepseek");
         props.getDeepseek().setBaseUrl("https://api.deepseek.com/v1");
@@ -78,15 +80,15 @@ class LlmConfigValidatorTest {
     }
 
     @Test
-    void validate_kimiDefaultEndpoint_isWarnNotFatal() {
+    void validate_kimiLegacyEndpoint_isWarnNotFatal() {
         LlmProperties props = propsWithDefaults();
-        props.getKimi().setBaseUrl(LlmConfigValidator.KIMI_DEFAULT_ENDPOINT);
+        props.getKimi().setBaseUrl(LlmConfigValidator.KIMI_LEGACY_ENDPOINT);
         List<LlmConfigValidator.Diagnostic> diagnostics = LlmConfigValidator.validate(props);
         assertTrue(diagnostics.stream().noneMatch(LlmConfigValidator.Diagnostic::isFatal));
         assertTrue(diagnostics.stream()
                 .anyMatch(d -> d.isWarn() && "kimi".equals(d.provider())
-                        && "base_url_default_warning".equals(d.code())),
-                "Default Kimi endpoint must produce a warn diagnostic that mentions the working endpoint.");
+                        && "base_url_legacy_warning".equals(d.code())),
+                "Legacy Kimi .cn endpoint must produce a warn diagnostic that mentions the current working endpoint.");
     }
 
     @Test
@@ -95,7 +97,7 @@ class LlmConfigValidatorTest {
         props.getKimi().setBaseUrl(LlmConfigValidator.KIMI_WORKING_ENDPOINT);
         List<LlmConfigValidator.Diagnostic> diagnostics = LlmConfigValidator.validate(props);
         assertTrue(diagnostics.stream()
-                .noneMatch(d -> "base_url_default_warning".equals(d.code())));
+                .noneMatch(d -> "base_url_legacy_warning".equals(d.code())));
     }
 
     @Test

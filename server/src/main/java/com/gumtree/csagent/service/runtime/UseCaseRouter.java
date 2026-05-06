@@ -264,12 +264,38 @@ public class UseCaseRouter {
     }
 
     /**
-     * Route the session to the appropriate use case.
-     * Modifies session in place: activeUseCase, candidateUseCases, intentConfidence.
+     * Route the session to the appropriate use case. Allowed to invoke the
+     * LLM classifier when deterministic rules cannot pick a UC.
+     *
+     * <p>Modifies session in place: activeUseCase, candidateUseCases,
+     * intentConfidence.
      *
      * @return the routing result
      */
     public RoutingResult route(BotSession session, String topicSubject, String description) {
+        return route(session, topicSubject, description, true);
+    }
+
+    /**
+     * Sprint 8.1 §M0 — non-blocking variant used by the chat-session
+     * create path. Runs the deterministic stages (handover-only,
+     * strong-prior, UC-K regression, B2 bias) but never engages the LLM
+     * router. When weak-prior topics would otherwise need LLM
+     * disambiguation, returns {@link RoutingResult#ambiguous} so the
+     * user lands in DISCOVER with the full candidate list — the next
+     * user message exercises the normal AgentRunLoop where the LLM can
+     * call {@code classify_use_case} inside the per-turn deadline budget.
+     *
+     * <p>This guarantees pre-filled form submit returns quickly: zero
+     * LLM calls inside {@code SessionManager.createSession}, regardless
+     * of provider latency or LLM outage.
+     */
+    public RoutingResult routeNonBlocking(BotSession session, String topicSubject, String description) {
+        return route(session, topicSubject, description, false);
+    }
+
+    private RoutingResult route(BotSession session, String topicSubject, String description,
+                                boolean allowLlm) {
         // Sprint §B2: normalise alias topics ("Replies & Messaging" →
         // "Replies or Messaging") so the strong-prior table fires
         // instead of producing a soft-OOS UNKNOWN_TOPIC. Aliases live
@@ -376,6 +402,18 @@ public class UseCaseRouter {
             log.warn("Session {}: no candidate UCs for topic '{}', escalating",
                     session.getSessionId(), topicSubject);
             return RoutingResult.outOfScope("UNKNOWN_TOPIC");
+        }
+
+        if (!allowLlm) {
+            // Sprint 8.1 §M0 — non-blocking create-session path: surface the
+            // candidate list as AMBIGUOUS so SessionManager lands the user in
+            // DISCOVER without making any LLM call. The next user turn runs
+            // through the AgentRunLoop where classify_use_case is allowed.
+            log.info("Session {}: deferring LLM classification for topic '{}' "
+                            + "(non-blocking create path); candidates={}",
+                    session.getSessionId(), topicSubject, candidates);
+            session.setCandidateUseCases(candidates.toArray(new String[0]));
+            return RoutingResult.ambiguous(candidates);
         }
 
         return routeViaLlm(session, candidates, topicSubject, description);

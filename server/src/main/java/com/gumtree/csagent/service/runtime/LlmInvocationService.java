@@ -5,6 +5,8 @@ import com.gumtree.csagent.model.ChatMessage;
 import com.gumtree.csagent.model.LlmRequest;
 import com.gumtree.csagent.model.LlmResponse;
 import com.gumtree.csagent.service.llm.LlmClient;
+import com.gumtree.csagent.service.llm.LlmDeadlineExceededException;
+import com.gumtree.csagent.service.llm.LlmUnavailableException;
 import com.gumtree.csagent.service.observability.LlmCallLogger;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -26,13 +28,22 @@ public class LlmInvocationService {
     private static final String SYSTEM_PROMPT_PATH = "prompts/system_prompt.txt";
     private static final String ROUTING_PROMPT_PATH = "prompts/routing_prompt.txt";
 
+    /**
+     * Sprint 8.1 §M2 — synthetic safe-escalation marker visible in
+     * {@link LlmResponse#getFinishReason()}. The K0 missing-UC fallback
+     * gate detects this so that a SAFE_ESCALATION_RESPONSE is never
+     * counted as real LLM reasoning evidence (see
+     * {@code ControlKernel.agentRunResultHasEvidence}).
+     */
+    public static final String SYNTHETIC_SAFE_ESCALATION_FINISH_REASON = "error_fallback";
+
     private static final LlmResponse SAFE_ESCALATION_RESPONSE = LlmResponse.builder()
             .content("{\"user_message\":\"I apologize, but I'm experiencing a technical issue. " +
                      "Let me connect you with a human agent who can assist you.\"," +
                      "\"reasoning\":\"LLM invocation failure\"," +
                      "\"tool_calls\":[{\"name\":\"request_handover\"," +
                      "\"arguments\":{\"escalation_reason\":\"system_failure\"}}]}")
-            .finishReason("error_fallback")
+            .finishReason(SYNTHETIC_SAFE_ESCALATION_FINISH_REASON)
             .latencyMs(0)
             .build();
 
@@ -102,6 +113,19 @@ public class LlmInvocationService {
 
             return response;
 
+        } catch (LlmDeadlineExceededException e) {
+            // Sprint 8.1 §M2: deadline exhaustion MUST surface honestly.
+            // Previously this was caught and converted to a synthetic
+            // SAFE_ESCALATION_RESPONSE, which let K0 stamp a fake UC on
+            // no-real-LLM-work timeout paths. Now we propagate so
+            // AgentRunLoop returns TerminalOutcome.DEADLINE_EXCEEDED.
+            int elapsed = (int) (System.currentTimeMillis() - start);
+            log.warn("LLM [chat:deadline-exceeded] session={} turn={} elapsed_ms={} — propagating, "
+                            + "no synthetic safe-escalation",
+                    sessionId, turnIndex, elapsed);
+            llmCallLogger.logFailure(sessionId, turnIndex, "chat", modelName,
+                    elapsed, requestSummary, "[llm_deadline_exceeded] " + e.getMessage());
+            throw e;
         } catch (Exception e) {
             int elapsed = (int) (System.currentTimeMillis() - start);
             // Sprint §C1: classify the failure tag for traceability so eval
@@ -113,14 +137,51 @@ public class LlmInvocationService {
                     sessionId, turnIndex, failureTag, e.getClass().getSimpleName(), e.getMessage(), e);
             llmCallLogger.logFailure(sessionId, turnIndex, "chat", modelName,
                     elapsed, requestSummary, "[" + failureTag + "] " + e.getMessage());
+            // Sprint 8.1 §M2: infrastructure-class failures (transport / 5xx /
+            // 429 / 401 / 403) are propagated as LlmUnavailableException so
+            // AgentRunLoop returns TerminalOutcome.LLM_UNAVAILABLE rather
+            // than synthesising a safe escalation that the K0 gate would
+            // mistake for real LLM evidence. Parse / processing errors keep
+            // returning the SAFE_ESCALATION_RESPONSE — those are real LLM
+            // calls that returned a malformed payload, not infra outages —
+            // and the synthetic marker (finish_reason=error_fallback) is
+            // detected by the K0 evidence gate.
+            if (isInfraFailure(failureTag)) {
+                throw new LlmUnavailableException(
+                        "LLM provider chain failed (failure_class=" + failureTag + ")",
+                        failureTag, e);
+            }
             return SAFE_ESCALATION_RESPONSE;
         }
     }
 
     /**
-     * Sprint §C1: classify an exception thrown out of the underlying LLM stack
-     * into a small set of trace-friendly tags. Keeps trace metadata stable
-     * across providers (Kimi vs DeepSeek wrap exceptions slightly differently).
+     * Sprint 8.1 §M2 — classification of failure tags that indicate an
+     * infrastructure-class failure (worth surfacing as
+     * {@link LlmUnavailableException}). Parse / unknown errors return
+     * {@code false} so the legacy synthetic-safe-escalation path is kept
+     * for malformed-but-real LLM responses.
+     */
+    static boolean isInfraFailure(String failureTag) {
+        if (failureTag == null) return false;
+        return failureTag.equals("llm_timeout")
+                || failureTag.equals("llm_connect_failed")
+                || failureTag.equals("llm_transport_error")
+                || failureTag.equals("llm_rate_limited")
+                || failureTag.equals("llm_server_error")
+                || failureTag.equals("llm_auth_error")
+                || failureTag.startsWith("llm_http_error_");
+    }
+
+    /**
+     * Sprint §C1 / Sprint 8.1 §M2: classify an exception thrown out of the
+     * underlying LLM stack into a small set of trace-friendly tags. Keeps
+     * trace metadata stable across providers (Kimi vs DeepSeek wrap
+     * exceptions slightly differently). M2 broadens the message-based
+     * fallbacks so generic {@code RuntimeException}s carrying transport
+     * shape ({@code "connection refused"}, {@code "connection reset"},
+     * {@code "i/o error"}) classify as infra failures rather than the
+     * catch-all {@code llm_unknown_error}.
      */
     static String classifyFailure(Throwable t) {
         Throwable cur = t;
@@ -138,6 +199,10 @@ public class LlmInvocationService {
             String msg = cur.getMessage() == null ? "" : cur.getMessage().toLowerCase();
             if (msg.contains("timeout") || msg.contains("timed out")) return "llm_timeout";
             if (msg.contains("rate limit") || msg.contains("429")) return "llm_rate_limited";
+            if (msg.contains("connection refused") || msg.contains("connection reset")
+                    || msg.contains("connect failed")) return "llm_connect_failed";
+            if (msg.contains("i/o error") || msg.contains("ioexception")
+                    || msg.contains("broken pipe")) return "llm_transport_error";
         }
         return "llm_unknown_error";
     }
