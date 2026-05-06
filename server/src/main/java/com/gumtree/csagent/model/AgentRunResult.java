@@ -71,12 +71,29 @@ public record AgentRunResult(
 
     public static AgentRunResult maxSteps(List<LlmCallEvent> llmEvents,
                                            List<ToolEvent> toolEvents) {
-        return maxSteps(llmEvents, toolEvents, null);
+        return maxSteps(llmEvents, toolEvents, null, null);
     }
 
     public static AgentRunResult maxSteps(List<LlmCallEvent> llmEvents,
                                            List<ToolEvent> toolEvents,
                                            String lastProjection) {
+        return maxSteps(llmEvents, toolEvents, lastProjection, null);
+    }
+
+    /**
+     * Sprint 8.2 §M0b — observability honesty overload. Preserves
+     * {@code lastLlmRawResponse} on a {@link TerminalOutcome#MAX_STEPS}
+     * result so that {@code bot_turns.llm_raw_response} captures the verbatim
+     * content of the last successful LLM call. Without this, the trace UI
+     * misleadingly renders MAX_STEPS turns as having had no LLM call at all
+     * even when several real LLM calls occurred before the loop exhausted
+     * its tool-step budget. Terminal outcome and PhaseEvaluator MAX_STEPS
+     * mapping are unchanged.
+     */
+    public static AgentRunResult maxSteps(List<LlmCallEvent> llmEvents,
+                                           List<ToolEvent> toolEvents,
+                                           String lastProjection,
+                                           String lastLlmRawResponse) {
         return new AgentRunResult(
                 List.of(),
                 toolEvents,
@@ -85,7 +102,7 @@ public record AgentRunResult(
                 null,
                 Optional.empty(),
                 lastProjection,
-                null
+                lastLlmRawResponse
         );
     }
 

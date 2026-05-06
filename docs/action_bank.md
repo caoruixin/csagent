@@ -1,24 +1,26 @@
 # Action Bank
 
-Date: 2026-05-06
+Date: 2026-05-07
 Mode: current action ledger
 
 ## 1. Current phase
 
 Current phase:
-Sprint 9 — Eval Governance and Release Gate Definition.
+Sprint 8.2 — ResolveArticle Contract and MAX_STEPS Trace Honesty
+Closure (in flight; awaiting Codex review).
 
 Latest closed sprint:
 Sprint 8 — Targeted cs259 Active-Use-Case Contract Hardening.
 
-Latest Codex decision:
+Latest Codex decision (pre-Sprint-8.2):
 - decision: pass
 - blocking_count: 0
 
 Current recommendation:
-Start Sprint 9 Eval Governance. Do not start another runtime
-sprint unless Sprint 9 triage finds a new P0/P1 runtime
-blocker.
+Hold Sprint 9 Eval Governance until Sprint 8.2 closes. After
+closure, resume Sprint 9 Eval Governance docs-only work. Do not
+start another runtime sprint unless Sprint 9 triage finds a new
+P0/P1 runtime blocker.
 
 ## 2. Current accepted state
 
@@ -43,6 +45,21 @@ blocker.
     clean runs.
   - remaining cs259 failure is FAQ corpus / answerability,
     not runtime contract.
+
+- Sprint 8.2 in flight:
+  - M0a `resolve_article` schema/tool alignment on canonical
+    `source_id` (legacy `article_id` alias accepted; missing
+    error names `source_id`).
+  - M0b `AgentRunResult.maxSteps` overload preserves
+    `lastLlmRawResponse`; `AgentRunLoopImpl` passes it through
+    on the loop-exhausted return.
+  - Trace `6f24c6ab` `Parameter 'article_id' is required`
+    failure shape closed at the runtime contract layer.
+  - `bot_turns.llm_raw_response` no longer null on MAX_STEPS
+    after successful LLM calls.
+  - `mvn -pl server test`: 726 / 0 / 0 / 0.
+  - No FAQ corpus / CaseSpec / judge / routing / threshold
+    scope opened.
 
 ## 3. Active / next actions
 
@@ -95,6 +112,7 @@ Do not include runtime implementation actions in Sprint 9.
 | Sprint 7 | I0 / I1 / I2                                    | closed | `docs/sprints/sprint-007-*`   |
 | Sprint 7.1 | J0 partial intake persistence                 | closed | `docs/sprints/sprint-007-*`   |
 | Sprint 8 | K0 cs259 active-use-case contract               | closed | `docs/sprints/sprint-008-*`   |
+| Sprint 8.2 | M0a resolve_article source_id + M0b max-steps raw response | in flight (awaiting Codex review) | will be archived under `docs/sprints/sprint-008.2-*` on closure |
 
 ## 7. Carry-over rule
 
