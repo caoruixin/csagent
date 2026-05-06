@@ -5323,3 +5323,259 @@ FAQ corpus / CaseSpec / judge / overrides / routing
 broadening changes, no cs015 / cs066 / cs176 work, no
 smoke pass-rate optimisation, no Eval Governance docs
 reopen.
+
+# Trace 99141e8e reproduction note
+
+Date: 2026-05-07
+Branch: `design-v1-without-human-review`
+Scope: Trace Reproduction & Boundary Verification Spike — no
+production code, prompt, eval YAML, or CaseSpec changes; only
+this docs entry.
+
+## 1. Trace under investigation
+
+- `session_id=99141e8e-c064-4455-8ed4-f8653858c75d`
+  (`bot_sessions.created_at=2026-05-07 02:08:37 +08`).
+- Form context: `ad_id=ad-1001`, `email=ee@e.com`,
+  `first_name=eee`, `description="what's the status"`,
+  `topic_subject="Ad Support"`.
+- User message (turn 1): `"why I can't see my ad"`.
+- Observed turn 1 row (`bot_turns`):
+  `phase_before=DISCOVER`, `phase_after=ESCALATE`,
+  `active_use_case=UC-A`, `latency_ms=20960`,
+  `length(llm_raw_response)=0`, `length(bot_response)=0`,
+  `tool_calls` contained an interleaved
+  `classify_use_case` (success, UC-A, conf 0.80) →
+  `request_handover(faq_miss_threshold_exceeded)` →
+  `search_knowledge` (success, 4700 ms).
+- `projected_context.phase_plan.allowed_tools` =
+  `[search_knowledge, classify_use_case]` (correct for
+  DISCOVER); `projected_context.tool_schemas` listed all six
+  tools (`search_knowledge, resolve_article,
+  get_customer_context, request_handover, record_outcome,
+  classify_use_case`) — i.e. the projection enriched, not
+  replaced.
+
+## 2. Reproduction result
+
+**Reproduction was deferred**, because the running JVM does
+not match current HEAD (see §3). A fresh DISCOVER turn
+against the running server would only re-confirm pre-fix
+behaviour. Reproduction against current HEAD requires a
+rebuild + restart, which is a deploy action outside this
+no-code spike's authorisation. The recommended next action
+(§7) is to perform that rebuild + restart and then
+re-attempt the same fresh-session probe.
+
+## 3. Runtime version evidence
+
+- HEAD: `16ca3c7` ("fix: close sprint 8.1 retry and replan
+  budget blockers", committed 2026-05-07T01:43:10+08:00).
+- Running server PID 15196 cmdline:
+  `java -jar server/target/csagent-server-0.1.0-SNAPSHOT.jar
+  --spring.profiles.active=local`
+  (`ps -o lstart`: `Wed 6 May 21:44:46 2026`,
+  elapsed ~5 h 46 m at probe time).
+- The running JVM therefore predates these closure
+  commits, all of which were authored AFTER its start
+  timestamp:
+  - `f2d4cb2` 2026-05-06T21:48:55+08:00 — primary LLM
+    flip to `deepseek-v4-flash`,
+    `USER_FACING_LLM_DEADLINE_MS` 10 s → 30 s,
+    `MIN_BUDGET_MS_FOR_NEXT_ATTEMPT` 8.2 s → 15.2 s,
+    OpenAi-compat read-timeout 6 s → 12 s.
+  - `fe88e87` 2026-05-07T01:08:13+08:00 — Sprint 8.1
+    §M2 honest deadline propagation (no synthetic
+    `SAFE_ESCALATION_RESPONSE`), §M3 DISCOVER →
+    USE_CASE_IDENTIFIED phase boundary +
+    same-turn RESOLVE replan, projection
+    `tool_schemas` filter switched from ENRICH to
+    REPLACE.
+  - `16ca3c7` 2026-05-07T01:43:10+08:00 — Sprint 8.1
+    closure: `FallbackLlmClient` 15.2 s wall-clock
+    floor, retry budget split per logical invocation,
+    same-turn replan no longer consumes retry slots.
+- Compiled classes under `server/target/classes/.../runtime`
+  carry mtime ~`7 May 00:54..01:36` (post-`fe88e87`,
+  pre-`16ca3c7`) — i.e. a recompile happened on disk but
+  the running JVM is still loading the older jar bytes
+  from before its start.
+- The disputed trace session was created at
+  `2026-05-07 02:08:37 +08` — i.e. against this
+  pre-fix JVM, not against HEAD-built bytes.
+
+## 4. Source-code boundary check on current HEAD
+
+- **`tool_schemas` projection.** `git diff
+  3ec6d5c..fe88e87 --
+  ContextProjectionBuilder.java` shows the projection logic
+  was changed from "enrich the existing per-UC array with
+  any plan-allowed schemas not already present" to
+  "**replace** the array with exactly the schemas for
+  `plan.allowedTools`". HEAD (`server/src/main/java/...
+  /ContextProjectionBuilder.java:520-555`) carries the
+  REPLACE shape. The trace's full-six-tool projection
+  cannot be produced on HEAD.
+- **DISCOVER → ESCALATE after committed
+  `classify_use_case`.** HEAD `AgentRunLoopImpl.java:390-415`
+  short-circuits the agent loop with a new
+  `TerminalOutcome.USE_CASE_IDENTIFIED` immediately when
+  `classify_use_case` succeeds in DISCOVER and the session
+  has a non-blank `active_use_case`; it skips the
+  subsequent LLM step that would otherwise emit a
+  `request_handover`. `PhaseEvaluator.java:772-784` maps
+  that terminal outcome to phase=`RESOLVE`,
+  transition_tag=`uc_identified`, with no escalation
+  reason. `ControlKernel.java:263-330` then performs the
+  bounded same-turn RESOLVE replan (gated by
+  `MIN_RESOLVE_REPLAN_BUDGET_MS=8_000L`).
+- **Same-turn replan budget.** HEAD
+  `FallbackLlmClient` floors the fallback engagement on a
+  remaining wall-clock of 15.2 s and re-arms the retry
+  counter at each `FallbackLlmClient.chat()` entry via
+  `LlmCallContext.beginInvocation()`, so DISCOVER's
+  `search_knowledge` + `classify_use_case` + same-turn
+  RESOLVE replan each get their own primary + fallback
+  slot.
+- **"No LLM call for this turn".** `TraceViewer.tsx:99-134`
+  shows the UI string fires whenever
+  `step.llm_raw_response` is null or empty. The trace's
+  `length(llm_raw_response)=0` matches the pre-`fe88e87`
+  §M2 SAFE_ESCALATION_RESPONSE synthetic path —
+  `LlmInvocationService` swallowed the deadline-exceeded
+  outcome and emitted a synthetic escalation without
+  persisting an LLM event. HEAD §M2 propagates
+  `LlmDeadlineExceededException` /
+  `LlmUnavailableException` instead; under HEAD the same
+  failure would surface either as a real persisted LLM
+  event or as a `DEADLINE_EXCEEDED` /
+  `LLM_UNAVAILABLE` outcome with a transitional
+  user-facing message ("Sorry, I'm a bit slow right now…")
+  — not as a blank-response DISCOVER → ESCALATE.
+
+## 5. Specific contradictions — answers
+
+- **Q1: Does current projection still include full
+  `tool_schemas` even when `allowed_tools` is
+  `[search_knowledge, classify_use_case]`?**
+  *No.* HEAD replaces the array with exactly the
+  plan-allowed schemas. The trace shape is structurally
+  unreachable on HEAD.
+- **Q2: Does DISCOVER's PhasePlan include
+  `TerminalOutcome.USE_CASE_IDENTIFIED`?**
+  Not as a `validTerminalOutcomes` entry — `PhaseEvaluator
+  ::DISCOVER plan` still lists `{CLARIFICATION_NEEDED,
+  FINAL_ANSWER, ESCALATE}` (PhaseEvaluator.java:407-411).
+  The new outcome lives one level up in the AgentRunLoop
+  → PhaseEvaluator pipeline: AgentRunLoopImpl returns
+  `USE_CASE_IDENTIFIED` directly, and
+  `PhaseEvaluator.interpretRunResult` routes it to a
+  `RESOLVE/uc_identified` decision before the per-phase
+  validity check applies. So DISCOVER's plan validity
+  set is unchanged on purpose.
+- **Q3: Does a successful `classify_use_case` in DISCOVER
+  return USE_CASE_IDENTIFIED and transition to RESOLVE?**
+  *Yes* on HEAD (AgentRunLoopImpl.java:400-415 +
+  PhaseEvaluator.java:772-784 +
+  ControlKernel.java:263-330). On the running JVM (pre-
+  `fe88e87`) the loop continued past the successful
+  classify, the LLM was free to emit
+  `request_handover(faq_miss_threshold_exceeded)`, and
+  the terminal outcome mapper sent the turn to ESCALATE.
+- **Q4: Can DISCOVER continue after
+  `accumulated_tool_results.classify_use_case.committed=true`?**
+  *No* on HEAD — the `USE_CASE_IDENTIFIED` short-circuit
+  fires synchronously inside the same loop iteration that
+  committed the UC. *Yes* on the running JVM.
+- **Q5: Does the UI "No LLM call for this turn" mean
+  (a) no attempt was made, or (b) attempt failed before
+  `llm_raw_response` was persisted?**
+  Strictly: it means
+  `step.llm_raw_response == null || step.llm_raw_response
+  === ''`. On the captured trace it is **(b)** — the
+  20.96 s `latency_ms` and the three persisted tool
+  events (one `classify_use_case` at 3 ms; one
+  `search_knowledge` at 4700 ms; one synthetic
+  `request_handover` at `step_index=-1` / `latency_ms=0`)
+  prove the runtime did spend time on LLM-driven work
+  that turn. The empty `llm_raw_response` is the
+  pre-`fe88e87` §M2 synthetic-escalation symptom, not
+  a "no attempt" state.
+
+## 6. Classification
+
+**A. stale_trace.**
+
+The trace shape is reproducible only on the running JVM,
+which predates the Sprint 8.1 closure commits
+(`fe88e87` and `16ca3c7`) by ~3.5 h. Source-code
+inspection on HEAD shows three independent guards that
+each prevent some axis of this trace shape:
+
+- HEAD's `tool_schemas` REPLACE filter prevents the
+  six-tool projection.
+- HEAD's `USE_CASE_IDENTIFIED` short-circuit prevents
+  DISCOVER from continuing past a committed
+  `classify_use_case`.
+- HEAD's §M2 honest-failure propagation prevents the
+  blank-`llm_raw_response` DISCOVER → ESCALATE outcome.
+
+The trace is therefore stale evidence captured against an
+old jar. None of B / C / D fit:
+
+- B (`current_observability_gap_only`) does not fit because
+  the underlying behaviour itself (DISCOVER → ESCALATE
+  after a committed classify) is the bug — it is not
+  semantically correct on the old jar; it is structurally
+  prevented on HEAD.
+- C (`current_runtime_bug`) does not fit because the
+  AgentRunLoop / PhaseEvaluator / ContextProjectionBuilder
+  / FallbackLlmClient guards on HEAD make the observed
+  shape unreachable.
+- D (`current_timeout_or_tool_latency_gap`) does not fit
+  because the 20.96 s latency on the old jar was driven by
+  a 10 s deadline + synthesised escalation, not by a real
+  timeout; HEAD's 30 s deadline + 12 s read timeout +
+  honest propagation handle the same scenario without the
+  blank-response shape.
+
+## 7. Recommended next action
+
+1. Rebuild + restart the server against current HEAD
+   (`16ca3c7`) so the running JVM matches source. Concrete
+   steps the user (or whoever owns the local deploy) should
+   run:
+   - `mvn -pl server -am -DskipTests package`
+   - kill the existing PID 15196
+   - re-launch the same `java -jar
+     server/target/csagent-server-0.1.0-SNAPSHOT.jar
+     --spring.profiles.active=local` command
+   - confirm the new start timestamp via `ps -o lstart -p
+     <new-pid>` is after `2026-05-07T01:43:10+08:00`.
+2. Re-run the same fresh-session probe (form ad-1001 / "Ad
+   Support" / `description="what's the status"` + user
+   message `"why I can't see my ad"`) against the
+   restarted server. Capture the new `bot_turns` row.
+   Expected on HEAD:
+   - turn 1: `phase_after=RESOLVE` (or CLARIFICATION_NEEDED
+     under intake), `active_use_case=UC-A`,
+     `tool_calls` ends with `classify_use_case` then a
+     RESOLVE-phase tool sequence (no in-DISCOVER
+     `request_handover`),
+     `projected_context.tool_schemas` size = 2 on the
+     DISCOVER projection (only `search_knowledge` +
+     `classify_use_case`).
+3. If the post-restart probe still produces DISCOVER →
+   ESCALATE on a committed `classify_use_case`, escalate
+   to a current_runtime_bug investigation (re-classify
+   from A to C). This is not expected based on §4–§5.
+4. Do **not** open PhaseEvaluator / AgentRunLoop / projection
+   work on the strength of this trace alone — the
+   reproduction surface needs to be on HEAD bytes first.
+
+## 8. Out of scope
+
+No Java / Python / prompt / eval YAML / CaseSpec edits.
+No new tests. No build/restart was performed by this
+spike — that is left to the user as the recommended
+next action.
