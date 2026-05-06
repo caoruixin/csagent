@@ -21,12 +21,24 @@ import java.util.Map;
 public class ChatController {
 
     /**
-     * Sprint 8 §C: user-facing wall-clock budget for any single HTTP request
-     * that may invoke an LLM. The frontend axios timeout is 30s; we keep the
-     * server budget well under that so the user always gets a graceful
-     * "we gave up" response rather than the raw axios timeout error string.
+     * User-facing wall-clock budget for any single HTTP request that may
+     * invoke an LLM. The frontend axios timeout sits above this so we always
+     * get a graceful "we gave up" response rather than the raw axios timeout
+     * error string.
+     *
+     * <p>Sprint 8 §C: original 10 s budget tuned for a healthy
+     * kimi-k2.6 (~1-2 s) primary.
+     *
+     * <p>Sprint 8.1 follow-up #2 (2026-05-06): widened to 30 s for the
+     * verification phase. Two reasons: (a) the agent's full system+projection
+     * payload now runs ~3-5 s per LLM call on deepseek-v4-flash and a single
+     * RESOLVE turn can do 2-3 calls (search → resolve_article → answer); (b)
+     * we'd rather see the slow tail honestly than auto-cancel and retry.
+     * Frontend axios is bumped in lockstep to 60 s so the user-facing
+     * "Sorry, I'm a bit slow right now" rendering stays a graceful give-up,
+     * not a network error.
      */
-    private static final long USER_FACING_LLM_DEADLINE_MS = 10_000L;
+    private static final long USER_FACING_LLM_DEADLINE_MS = 30_000L;
 
     private final SessionManager sessionManager;
 

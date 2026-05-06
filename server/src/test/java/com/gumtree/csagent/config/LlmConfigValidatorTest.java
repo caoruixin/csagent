@@ -44,18 +44,19 @@ class LlmConfigValidatorTest {
 
     @Test
     void validate_missingPrimaryKey_isFatal() {
+        // Sprint 8.1 follow-up #2: deepseek is the primary now.
         LlmProperties props = propsWithDefaults();
-        props.getKimi().setApiKey("");
+        props.getDeepseek().setApiKey("");
         List<LlmConfigValidator.Diagnostic> diagnostics = LlmConfigValidator.validate(props);
         assertTrue(diagnostics.stream()
-                .anyMatch(d -> d.isFatal() && "kimi".equals(d.provider())
+                .anyMatch(d -> d.isFatal() && "deepseek".equals(d.provider())
                         && "api_key_blank".equals(d.code())));
     }
 
     @Test
     void validate_placeholderPrimaryKey_isFatal() {
         LlmProperties props = propsWithDefaults();
-        props.getKimi().setApiKey("${KIMI_API_KEY}");
+        props.getDeepseek().setApiKey("${DEEPSEEK_API_KEY}");
         List<LlmConfigValidator.Diagnostic> diagnostics = LlmConfigValidator.validate(props);
         assertTrue(diagnostics.stream()
                 .anyMatch(d -> d.isFatal() && "api_key_placeholder".equals(d.code())));
@@ -64,7 +65,7 @@ class LlmConfigValidatorTest {
     @Test
     void validate_malformedPrimaryUrl_isFatal() {
         LlmProperties props = propsWithDefaults();
-        props.getKimi().setBaseUrl("not-a-url");
+        props.getDeepseek().setBaseUrl("not-a-url");
         List<LlmConfigValidator.Diagnostic> diagnostics = LlmConfigValidator.validate(props);
         assertTrue(diagnostics.stream()
                 .anyMatch(d -> d.isFatal() && "base_url_malformed".equals(d.code())));
@@ -73,7 +74,7 @@ class LlmConfigValidatorTest {
     @Test
     void validate_blankPrimaryUrl_isFatal() {
         LlmProperties props = propsWithDefaults();
-        props.getKimi().setBaseUrl("");
+        props.getDeepseek().setBaseUrl("");
         List<LlmConfigValidator.Diagnostic> diagnostics = LlmConfigValidator.validate(props);
         assertTrue(diagnostics.stream()
                 .anyMatch(d -> d.isFatal() && "base_url_blank".equals(d.code())));
@@ -102,12 +103,13 @@ class LlmConfigValidatorTest {
 
     @Test
     void validate_missingFallbackKey_isWarnNotFatal() {
+        // Sprint 8.1 follow-up #2: kimi is the fallback now.
         LlmProperties props = propsWithDefaults();
-        props.getDeepseek().setApiKey("");
+        props.getKimi().setApiKey("");
         List<LlmConfigValidator.Diagnostic> diagnostics = LlmConfigValidator.validate(props);
         assertTrue(diagnostics.stream().noneMatch(LlmConfigValidator.Diagnostic::isFatal));
         assertTrue(diagnostics.stream()
-                .anyMatch(d -> d.isWarn() && "deepseek".equals(d.provider())));
+                .anyMatch(d -> d.isWarn() && "kimi".equals(d.provider())));
     }
 
     @Test
@@ -117,11 +119,12 @@ class LlmConfigValidatorTest {
 
     @Test
     void validateOrThrow_brokenPrimary_throws() {
+        // Sprint 8.1 follow-up #2: deepseek is the primary now.
         LlmProperties props = propsWithDefaults();
-        props.getKimi().setApiKey("");
+        props.getDeepseek().setApiKey("");
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> LlmConfigValidator.validateOrThrow(props));
-        assertTrue(ex.getMessage().contains("kimi"),
+        assertTrue(ex.getMessage().contains("deepseek"),
                 "Diagnostic must mention the failing provider: " + ex.getMessage());
         assertTrue(ex.getMessage().contains("api_key_blank"),
                 "Diagnostic must mention the failure code: " + ex.getMessage());

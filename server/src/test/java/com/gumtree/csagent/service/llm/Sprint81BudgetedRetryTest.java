@@ -119,17 +119,18 @@ class Sprint81BudgetedRetryTest {
     }
 
     @Test
-    void retry_underTenSecondBudget_doesNotEatTwoSixSecondReads() {
-        // Sprint 8.1 §M1: with a 10 s deadline and a server that hangs
-        // beyond the 6 s read timeout on EVERY call, the second attempt
-        // must be skipped on budget grounds — total wait must NOT exceed
-        // ~12 s (two reads). We pin <= ~10 s + buffer.
-        LlmCallContext.setDeadline(System.currentTimeMillis() + 10_000L);
+    void retry_underTwentyFiveSecondBudget_doesNotEatTwoTwelveSecondReads() {
+        // Sprint 8.1 §M1 + follow-up #2: with a 25 s deadline and a server
+        // that hangs beyond the 12 s read timeout on EVERY call, the second
+        // attempt must be skipped on budget grounds — total wait must NOT
+        // exceed ~24 s (two reads). We pin <= ~26 s + buffer (read timeout
+        // 12 s + tiny overhead, plus the deadline-skip path on attempt 2).
+        LlmCallContext.setDeadline(System.currentTimeMillis() + 25_000L);
         AtomicInteger calls = new AtomicInteger();
         server.createContext("/chat/completions", exchange -> {
             calls.incrementAndGet();
             try {
-                Thread.sleep(15_000L); // hang past the 6 s read timeout
+                Thread.sleep(20_000L); // hang past the 12 s read timeout
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
@@ -141,9 +142,9 @@ class Sprint81BudgetedRetryTest {
         assertThrows(Exception.class, () -> client.chat(sampleRequest()));
         long elapsed = System.currentTimeMillis() - t0;
 
-        assertTrue(elapsed < 11_000L,
-                "M1 budget gating: must not blow past the 10 s deadline "
-                        + "with two 6 s reads. Got " + elapsed + " ms.");
+        assertTrue(elapsed < 26_000L,
+                "Budget gating: must not blow past the 25 s deadline with "
+                        + "two 12 s reads. Got " + elapsed + " ms.");
         assertTrue(calls.get() <= 2,
                 "Bounded retry must not exceed 2 attempts. Got " + calls.get());
     }

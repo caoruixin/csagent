@@ -44,18 +44,20 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
         this.model = model;
-        // Sprint 8 §A: fail fast. The user-facing budget is ~10s end-to-end
-        // (axios cuts at 30s, but UX should never wait longer than ~10s on a
-        // single LLM provider attempt — see feedback_llm_fail_fast). Healthy
-        // chat-completion latency on this repo's primary (Kimi K2.6) is ~1–2s
-        // empirically; the read timeout is set to kill the slow tail well below
-        // the user's 10s budget, leaving headroom for a cross-provider fallback
-        // attempt within the same request. The deadline-aware retry loop in
+        // Sprint 8 §A: fail fast — kill the slow tail well below the
+        // user-facing budget so a fallback attempt fits in the same request.
+        //
+        // Sprint 8.1 follow-up #2 (2026-05-06): widened to match the new 30 s
+        // user-facing deadline. Healthy chat-completion latency on the new
+        // primary (deepseek-v4-flash) is ~1-1.5 s on small payloads but
+        // ~3-5 s with the agent's full ~3 k-token system + projection
+        // payload. A 12 s read timeout absorbs that comfortably while still
+        // killing the genuinely slow tail. The deadline-aware retry loop in
         // {@link #chat} skips the second attempt when the remaining budget
         // cannot fit one full attempt.
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(2000);   // 2s — TCP/TLS handshake budget
-        factory.setReadTimeout(6000);      // 6s — single LLM completion budget
+        factory.setConnectTimeout(3000);   // 3s — TCP/TLS handshake budget
+        factory.setReadTimeout(12000);     // 12s — single LLM completion budget
         this.restTemplate = new RestTemplate(factory);
         this.objectMapper = objectMapper;
     }
@@ -104,8 +106,13 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
      * (one full connect + read timeout, plus a small buffer). Used by the
      * deadline-aware retry decision: if the budget falls below this, the
      * retry is skipped in favour of a fast give-up.
+     *
+     * <p>Sprint 8.1 follow-up #2 (2026-05-06): widened in lockstep with the
+     * new connect/read timeouts (3 s + 12 s). Within the 30 s
+     * user-facing budget that yields up to two primary attempts (≈ 30 s) OR
+     * one primary attempt plus one fallback attempt (≈ 30 s) — bounded.
      */
-    private static final long MIN_BUDGET_MS_FOR_NEXT_ATTEMPT = 2000L + 6000L + 200L;
+    private static final long MIN_BUDGET_MS_FOR_NEXT_ATTEMPT = 3000L + 12000L + 200L;
 
     @Override
     public LlmResponse chat(LlmRequest request) {

@@ -10,22 +10,37 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 /**
- * Wires the chat-completion LLM bean graph: primary Kimi 2.6 + fallback DeepSeek v4 pro.
- * Per phase3 §3.8.5 / §3.9.1, fallback engages only on transient primary failures
- * (5xx / 429 / network errors); non-transient errors (auth, 4xx, parse) propagate.
+ * Wires the chat-completion LLM bean graph.
+ *
+ * <p>Sprint 8.1 follow-up #2 (2026-05-06): primary / fallback ORDER SWAPPED.
+ * DeepSeek v4 flash is now the primary chat-completion provider (per user
+ * direction: kimi-k2.6 hits intermittent {@code engine_overloaded_error} and
+ * downgrading to a smaller moonshot-v1-* tier surfaced new instruction-
+ * following gaps). Kimi (kimi-k2.6) stays as the fallback so we still have a
+ * "smarter" backup on rare primary 5xx / 429 / network blips.
+ *
+ * <p>Per phase3 §3.8.5 / §3.9.1, fallback engages only on transient primary
+ * failures (5xx / 429 / network errors); non-transient errors (auth, 4xx,
+ * parse) propagate.
  */
 @Slf4j
 @Configuration
 public class LlmClientConfig {
 
-    /** Kimi 2.6 — primary chat-completion provider. */
+    /**
+     * Kimi (model from {@code KIMI_MODEL}, default kimi-k2.6) — FALLBACK
+     * chat-completion provider after Sprint 8.1 follow-up #2.
+     */
     @Bean(name = "kimiLlmClient")
     public OpenAiCompatibleLlmClient kimiLlmClient(LlmProperties props, ObjectMapper objectMapper) {
         LlmProperties.KimiProperties k = props.getKimi();
         return new OpenAiCompatibleLlmClient("kimi", k.getApiKey(), k.getBaseUrl(), k.getModel(), objectMapper);
     }
 
-    /** DeepSeek v4 pro — fallback chat-completion provider. */
+    /**
+     * DeepSeek (model from {@code DEEPSEEK_MODEL}, default deepseek-v4-flash) —
+     * PRIMARY chat-completion provider after Sprint 8.1 follow-up #2.
+     */
     @Bean(name = "deepseekLlmClient")
     public OpenAiCompatibleLlmClient deepseekLlmClient(LlmProperties props, ObjectMapper objectMapper) {
         LlmProperties.DeepSeekProperties d = props.getDeepseek();
@@ -50,6 +65,7 @@ public class LlmClientConfig {
                                LlmProperties props) {
         LlmConfigValidator.validateOrThrow(props);
         log.info("LLM provider lineup: {}", LlmConfigValidator.describe(props));
-        return new FallbackLlmClient(kimiLlmClient, deepseekLlmClient, "kimi", "deepseek");
+        // Sprint 8.1 follow-up #2: deepseek is primary, kimi is fallback.
+        return new FallbackLlmClient(deepseekLlmClient, kimiLlmClient, "deepseek", "kimi");
     }
 }
