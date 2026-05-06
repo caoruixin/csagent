@@ -391,27 +391,74 @@ function StepCard({ step, expanded, onToggle }: { step: TraceStep; expanded: boo
           {step.tool_calls && step.tool_calls.length > 0 && (
             <div>
               <strong style={{ color: 'var(--color-text-secondary)' }}>Tool Calls:</strong>
-              {step.tool_calls.map((tc, i) => (
-                <div
-                  key={i}
-                  style={{
-                    margin: '6px 0',
-                    padding: 10,
-                    background: '#EFF6FF',
-                    borderRadius: 'var(--radius)',
-                    border: '1px solid #BFDBFE',
-                  }}
-                >
-                  <div style={{ fontWeight: 500, marginBottom: 4, color: '#1E40AF' }}>{tc.tool}</div>
-                  <pre style={{ margin: 0, fontSize: '0.8rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {JSON.stringify(tc.args, null, 2)}
-                  </pre>
-                  <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Result:</div>
-                  <pre style={{ margin: 0, fontSize: '0.8rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {JSON.stringify(tc.result, null, 2)}
-                  </pre>
-                </div>
-              ))}
+              {step.tool_calls.map((tc, i) => {
+                // Sprint 9 §O2 — tolerate legacy rows that ship only
+                // {tool, args, result} as well as the new backend
+                // shape {tool_name, arguments, success, latency_ms,
+                // error_message, result_data, result_summary}.
+                const toolName = tc.tool_name ?? tc.tool ?? '(unknown tool)';
+                const args = tc.arguments ?? tc.args ?? {};
+                const success = tc.success;
+                const errorMessage = tc.error_message;
+                const resultData = tc.result_data ?? tc.result;
+                const resultSummary = tc.result_summary;
+                const latencyMs = tc.latency_ms;
+                const hasResultPayload =
+                  errorMessage != null ||
+                  (resultSummary != null && resultSummary !== '') ||
+                  (resultData != null && !(typeof resultData === 'object' && Object.keys(resultData as Record<string, unknown>).length === 0));
+                return (
+                  <div
+                    key={i}
+                    data-testid="tool-call-row"
+                    style={{
+                      margin: '6px 0',
+                      padding: 10,
+                      background: success === false ? '#FEF2F2' : '#EFF6FF',
+                      borderRadius: 'var(--radius)',
+                      border: success === false ? '1px solid #FECACA' : '1px solid #BFDBFE',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 500, color: success === false ? '#991B1B' : '#1E40AF' }}>{toolName}</span>
+                      {success === true && (
+                        <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: 999, background: '#DCFCE7', color: '#166534' }}>ok</span>
+                      )}
+                      {success === false && (
+                        <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: 999, background: '#FEE2E2', color: '#991B1B' }}>error</span>
+                      )}
+                      {latencyMs != null && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{latencyMs}ms</span>
+                      )}
+                      {tc.source != null && tc.source !== '' && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>[{tc.source}]</span>
+                      )}
+                    </div>
+                    <pre style={{ margin: 0, fontSize: '0.8rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {JSON.stringify(args, null, 2)}
+                    </pre>
+                    <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Result:</div>
+                    {errorMessage != null && (
+                      <div data-testid="tool-call-error" style={{ fontSize: '0.8rem', color: '#991B1B', marginTop: 2 }}>
+                        {errorMessage}
+                      </div>
+                    )}
+                    {resultSummary != null && resultSummary !== '' && (
+                      <div data-testid="tool-call-summary" style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                        {resultSummary}
+                      </div>
+                    )}
+                    {resultData != null && (
+                      <pre style={{ margin: 0, fontSize: '0.8rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {JSON.stringify(resultData, null, 2)}
+                      </pre>
+                    )}
+                    {!hasResultPayload && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>—</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

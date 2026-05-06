@@ -6,239 +6,324 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
-Sprint 8.2 — ResolveArticle Contract and MAX_STEPS Trace Honesty
-Closure (in flight; awaiting Codex review).
+Sprint 9 — Tool Contract and Trace Observability Fidelity (in flight; awaiting Codex review).
 
 Latest closed sprint:
-Sprint 8 — Targeted cs259 Active-Use-Case Contract Hardening.
+Sprint 8.2 — ResolveArticle Contract and MAX_STEPS Trace Honesty Closure
+(archived under `docs/sprints/sprint-008.2-*`).
 
-Latest Codex decision (pre-Sprint-8.2):
+Latest Codex decision (pre-Sprint-9, on Sprint 8.2):
 - decision: pass
 - blocking_count: 0
 
-## 2. Sprint 8.2 root cause
+## 2. Sprint 9 root cause
 
-Trace `6f24c6ab-3799-46b9-9d42-e3b6a17c01a8` (form
-`ad_id=22222 / description="where is my ad" / topic_subject="Ad Support"`,
-user message `"hi why can't I find my advert"`) exposed a single
-schema/tool drift inside RESOLVE that has been latent since the
-runtime first projected `resolve_article`:
+The post-Sprint-8.2 manual trace `a7e20173` (form `ad_id=AD-1001`,
+description `"I can't see my advert"`, follow-up
+`"could you give me the link of advert?"`) exposed three independent
+contract / observability drifts on the terminal-tool path:
 
-- `ContextProjectionBuilder` advertises
-  `resolve_article.arguments_schema = {"source_id": string, required:["source_id"]}`
-  and the description tells the LLM to call it with the `source_id`
-  it received from `search_knowledge.hits[*].source_id`.
-- `SearchKnowledgeTool` projects `hits[*].source_id` (canonical).
-- The LLM correctly emitted
-  `resolve_article({"source_id": "<faq>"})`.
-- `ResolveArticleTool.execute` read `parameters.get("article_id")`
-  and returned `Parameter 'article_id' is required` because that
-  parameter was never present.
-- The LLM kept retrying the same schema-valid call until the
-  RESOLVE plan exhausted `maxToolSteps`, the loop returned
-  `MAX_STEPS`, and `PhaseEvaluator` mapped that to ESCALATE.
-- `AgentRunResult.maxSteps(...)` discarded the verbatim
-  `lastLlmRawResponse`, so `bot_turns.llm_raw_response` was
-  persisted as `NULL` and the Trace UI rendered the turn as
-  "No LLM call for this turn" even though several real LLM calls
-  occurred.
+1. **`record_outcome` schema drift.** The projected schema advertises
+   `outcome_class` with lowercase `resolve | escalate | abandon`, but
+   the tool implementation only accepted the legacy `outcome=RESOLVED`
+   form. A schema-valid call from the LLM surfaced a misleading
+   missing-parameter error and the `session_outcomes` row was never
+   written.
 
-The §M3 DISCOVER → RESOLVE phase boundary, the plan-aware tool
-schema filter, the S1 FAQ-grounded-resolve guard, the K0 cs259
-contract hardening, and every Sprint 7 / 7.1 contract were all
-behaving as designed; the failure was contained to the two surfaces
-above.
+2. **`request_handover` schema drift.** The schema did not advertise
+   `summary` and the tool required a non-blank `summary`, so a
+   schema-valid `request_handover(escalation_reason="tool_scope_blocked")`
+   call from the follow-up turn failed solely because the LLM did not
+   supply a summary.
 
-## 3. Sprint 8.2 fixes
+3. **Terminal-state dishonesty.** A failed `request_handover` dispatch
+   short-circuited the AgentRunLoop to ESCALATE as if the handover had
+   succeeded; a failed `record_outcome` dispatch could let the next
+   FINAL_ANSWER advance RESOLVE → CONFIRM as though the outcome had been
+   recorded; failed terminal tools left blank Result panels in the
+   Trace UI because `bot_turns.tool_calls` did not persist
+   `result_data` / `result_summary`.
 
-### M0a — `resolve_article` source_id alignment (P1 runtime contract)
+The Sprint 6 §G2 S1 FAQ-grounded-resolve guard, the Sprint 7 §I2
+intake-complete guard, the Sprint 8 §K0 cs259 active-use-case
+contract, and the Sprint 8.2 §M0a `resolve_article` source_id
+alignment were all behaving as designed; the failures were contained
+to the surfaces above.
 
-`server/src/main/java/com/gumtree/csagent/service/tools/ResolveArticleTool.java`
+## 3. Sprint 9 fixes
 
-- Canonical input is now `source_id`, matching the projected schema
-  and `search_knowledge.hits[*].source_id`.
-- `article_id` is accepted as a legacy alias; if both are supplied,
-  `source_id` wins.
-- Missing both arguments returns
-  `Parameter 'source_id' is required` (no longer the misleading
-  "article_id" error).
-- Result payload now exposes both `source_id` and `article_id`
-  (both backed by the same DB primary key) so callers that already
-  read `article_id` keep working while the canonical name surfaces
-  to the LLM.
-- The FAQ corpus, CaseSpecs, judges, S1 policy,
-  `search_knowledge` thresholds, and routing taxonomy are all
-  unchanged. No `ContextProjectionBuilder` schema change was needed
-  — the projection already advertised `source_id`.
+### O0 — terminal tool contract alignment
 
-### M0b — `lastLlmRawResponse` preservation on MAX_STEPS (P2 observability honesty)
+`server/src/main/java/com/gumtree/csagent/service/tools/RecordOutcomeTool.java`
+- Canonical input is now `outcome_class` with lowercase enum
+  `resolve | escalate | abandon`. `outcome` is accepted as a legacy
+  alias; uppercase `RESOLVED / ESCALATED / ABANDONED` are accepted as
+  normalisation aliases. Missing-parameter error names `outcome_class`.
+- A successful `record_outcome(outcome_class="resolve")` writes the
+  canonical `session_outcomes` row (`outcome=RESOLVED`).
+- Result payload exposes both the normalised `outcome_class` and the
+  persisted `outcome` so downstream readers see a stable shape.
 
-`server/src/main/java/com/gumtree/csagent/model/AgentRunResult.java`
+`server/src/main/java/com/gumtree/csagent/service/tools/RequestHandoverTool.java`
+- `summary` is now optional. When the LLM does not supply one,
+  `deriveFallbackSummary` synthesises a safe, size-bounded summary
+  from the active UC, form topic, canonical escalation reason, and
+  the LLM-supplied `current_user_message` (when available). The
+  resulting payload also marks `summary_source=fallback` so the trace
+  is honest about runtime-derivation.
+- `request_handover(escalation_reason="tool_scope_blocked")` no
+  longer fails solely because `summary` is missing.
+- An invalid (missing / blank) `escalation_reason` still fails.
+- Canonical 23-value escalation-reason enum and EscalationReasonResolver
+  precedence are unchanged.
+
+`server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
+- `request_handover` schema now advertises `summary` as a recommended
+  string (NOT required, since the runtime derives a fallback). The
+  description tells the LLM the runtime derives a fallback if omitted.
+- `record_outcome` schema was already on canonical `outcome_class`
+  with lowercase enum (pre-Sprint-9 projection); no schema change
+  needed.
+
+### O1 — terminal-state honesty
+
 `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+- The handover short-circuit (`handoverRequested = true`) now fires
+  ONLY when the dispatched `request_handover` actually succeeded. A
+  failed dispatch leaves `handoverRequested=false`, the error
+  (e.g. `salesforce_handover_failed: 503`) is recorded as a
+  non-successful `ToolEvent`, and the error is surfaced in
+  `accumulated_tool_results.request_handover.error` so the next LLM
+  iteration can react. If the loop later hits MAX_STEPS without a
+  successful handover, the canonical `PhaseEvaluator` MAX_STEPS
+  mapping applies — no synthetic terminal escalation is ever
+  stamped.
 
-- New 4-arg `AgentRunResult.maxSteps(llmEvents, toolEvents,
-  lastProjection, lastLlmRawResponse)` overload. The 2-arg and
-  3-arg overloads remain (back-compatible with existing callers
-  and tests).
-- `AgentRunLoopImpl.run` now passes the loop's running
-  `lastLlmRawResponse` (already tracked per LLM call) into the
-  MAX_STEPS factory on the loop-exhausted return path.
-- `TerminalOutcome.MAX_STEPS` is unchanged.
-- `PhaseEvaluator` MAX_STEPS mapping is unchanged.
-- No retry / deadline / routing / tool policy behaviour changed.
-- This is observability honesty only — the trace UI now sees the
-  real terminating raw response instead of a `NULL`.
+`server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+- `mapFinalAnswer` for the FAQ-path RESOLVE branch now keeps the
+  session in RESOLVE (transition reason
+  `record_outcome_failed_retry`) when the agent run attempted at
+  least one `record_outcome` dispatch and EVERY such attempt failed.
+  Successful `record_outcome` (or no attempt at all) preserves the
+  canonical RESOLVE → CONFIRM transition.
+- New helper `recordOutcomeAttemptedAndFailed(AgentRunResult)`
+  encapsulates the predicate.
+
+### O2 — trace observability fidelity
+
+`server/src/main/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizer.java` (new)
+- Bounded sanitized projection for tool result data. Tool-aware:
+  `resolve_article` is reduced to `source_id / article_id / title /
+  source_url / excerpt` so the full article body never lands in the
+  trace. All other tools share a generic recursive sanitizer with
+  string-length, list-length, map-key-count, and recursion-depth
+  caps. Email addresses are redacted to `[REDACTED_EMAIL]`.
+- One-line `result_summary` strings per tool (`"1 hit (faq_miss)"`,
+  `"resolved kb-001: Where is my advert?"`, `"outcome=resolve"`,
+  `"handover user_requested -> queued"`, `"error: ..."` for failures).
+
+`server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+- `recordRunResult` now writes `result_data` and `result_summary` for
+  every persisted tool entry. Successful tools surface their bounded
+  sanitized payload; failed tools surface `success=false`,
+  `error_message`, and a `result_summary` that starts with `error:`
+  so the Trace UI Result panel is non-empty.
+
+`ui/src/components/admin/TraceViewer.tsx`
+- Tool-call rows now render the new backend shape
+  (`tool_name / arguments / success / latency_ms / error_message /
+  result_data / result_summary`) AND tolerate legacy rows that ship
+  only `{tool, args, result}`. Failed rows render with red styling
+  and the `error_message`; non-empty `result_summary` displays inline
+  before the JSON `result_data`. Old rows without `result_data` still
+  render safely.
+
+`ui/src/api/client.ts`
+- New `mapToolCalls` normalises both legacy and new shapes so the UI
+  always sees the union of fields. The `mapTrace` function delegates
+  to it.
+
+`ui/src/types/index.ts`
+- `ToolCall` interface extended with the new optional fields.
 
 ## 4. Files changed
 
 Production:
-- `server/src/main/java/com/gumtree/csagent/service/tools/ResolveArticleTool.java`
-- `server/src/main/java/com/gumtree/csagent/model/AgentRunResult.java`
+- `server/src/main/java/com/gumtree/csagent/service/tools/RecordOutcomeTool.java`
+- `server/src/main/java/com/gumtree/csagent/service/tools/RequestHandoverTool.java`
 - `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizer.java` (new)
+- `ui/src/api/client.ts`
+- `ui/src/components/admin/TraceViewer.tsx`
+- `ui/src/types/index.ts`
 
-Tests:
-- `server/src/test/java/com/gumtree/csagent/service/tools/ResolveArticleToolTest.java`
-  (new — M0a)
-- `server/src/test/java/com/gumtree/csagent/service/runtime/AgentRunLoopMaxStepsRawResponseTest.java`
-  (new — M0a UC-A FAQ flow + M0b MAX_STEPS preservation)
-- `server/src/test/java/com/gumtree/csagent/model/AgentRunResultTest.java`
-  (extended — M0b factory overloads)
+Tests (new):
+- `server/src/test/java/com/gumtree/csagent/service/tools/RecordOutcomeToolTest.java`
+- `server/src/test/java/com/gumtree/csagent/service/tools/RequestHandoverToolTest.java`
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint9TerminalToolHonestyTest.java`
+- `server/src/test/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizerTest.java`
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint9TraceObservabilityFidelityIntegrationTest.java`
 
 Docs:
-- `docs/10-handoff.md` (this file; pre-Sprint-8.2 version
-  archived to `docs/archive/current-docs/2026-05-07-pre-sprint8.2-10-handoff.md`)
-- `docs/action_bank.md` (Sprint 8.2 row added; statuses unchanged
-  for Sprint 9 governance backlog)
+- `docs/10-handoff.md` (this file; pre-Sprint-9 version archived to
+  `docs/sprints/sprint-008.2-handoff.md`)
+- `docs/action_bank.md` (Sprint 9 row added; pre-Sprint-9 version
+  archived to `docs/sprints/sprint-008.2-action_bank.md`)
+- `docs/sprint_objective.md` (current Sprint 9 objective; previous
+  sprint objective remains under `docs/archive/current-docs/2026-05-07-pre-sprint8.2-sprint_objective.md`)
 
 ## 5. Tests run
 
-- `mvn -pl server test` → **726 tests / 0 failures / 0 errors / 0 skipped**.
-- Focused regression sweep (re-run before commit):
-  - `ResolveArticleToolTest` (8 tests, all green) — canonical
-    `source_id`, legacy `article_id` alias, source_id-wins-when-both,
-    missing-param error names `source_id`, blank-source_id falls back
-    to alias, search_knowledge hit source_id flows directly,
-    unknown source_id error, `getName`.
-  - `AgentRunLoopMaxStepsRawResponseTest` (2 tests, all green) —
-    MAX_STEPS preserves last raw response after repeated tool errors;
-    UC-A FAQ flow `search_knowledge → resolve_article(source_id=…)`
-    completes with FINAL_ANSWER and no parameter errors.
-  - `AgentRunResultTest` (8 tests, all green) — new M0b
-    `maxSteps_preservesLastLlmRawResponseWhenSupplied` and
-    `maxSteps_legacyOverloadStillReturnsNullRawResponse` plus all
-    pre-existing factories.
-  - `AgentRunLoopS1FaqGroundedResolveGuardTest` (12 tests, all
-    green) — Sprint 6 §G2 guard intact under §M0a + §M0b.
-- Sprint 8 K0 cs259 contract test, Sprint 8.1 §M3 DISCOVER
-  phase-boundary test, Sprint 7 intake-state persistence tests,
-  cs176 explicit-human-help → `user_requested` regression: all
-  green inside the full `mvn -pl server test` run above.
+- `mvn -pl server test` → **753 tests / 0 failures / 0 errors / 0
+  skipped**.
+- New test classes:
+  - `RecordOutcomeToolTest` (7 tests, all green) — outcome_class
+    accepted, legacy outcome alias accepted, lowercase + uppercase
+    normalise identically, missing-param error names outcome_class,
+    successful resolve writes session_outcomes row, escalate without
+    reason fails, escalate with reason persists ESCALATED + reason.
+  - `RequestHandoverToolTest` (5 tests, all green) — schema-valid
+    `escalation_reason`-only call derives a safe summary and
+    succeeds, supplied summary preserved verbatim, missing /
+    blank reason still fails, fallback summary combines UC + topic +
+    reason + user message.
+  - `Sprint9TerminalToolHonestyTest` (4 tests, all green) — failed
+    record_outcome does NOT advance RESOLVE → CONFIRM, successful
+    record_outcome still does, failed request_handover does NOT
+    short-circuit to ESCALATE (loop runs to MAX_STEPS), successful
+    request_handover still escalates.
+  - `ToolCallTraceSanitizerTest` (8 tests, all green) — resolve_article
+    body dropped in favour of safe summary fields, search_knowledge
+    hits truncated, email redaction, null-result safety, summary
+    string formatting per tool.
+  - `Sprint9TraceObservabilityFidelityIntegrationTest` (2 tests, all
+    green) — successful search + resolve_article persists
+    result_data + result_summary with bounded resolve_article shape;
+    failed resolve_article persists error_message + error
+    result_summary so the Trace UI Result panel is not blank.
+- Regression sweep included in the full run: Sprint 6 G2 S1 guard,
+  Sprint 7 §I2 intake guard, Sprint 8 §K0 cs259 contract, Sprint 8.2
+  §M0a / §M0b resolve_article + max-steps raw response, cs014 / cs066
+  / cs095 / cs002 / cs029 / cs176 — all green.
 
-No `eval_interactive/**` Python files were touched, so
-`python -m pytest -p no:capture eval_interactive/tests/` was not
-required.
+UI test harness does not exist in this repo (no vitest / jest;
+`ui/package.json` has no `test` script). UI changes were verified by
+running `npx tsc --noEmit` (clean) plus structural review against
+existing TraceViewer renderers.
+
+Python eval tests were not required (no `eval_interactive/**`
+changes).
 
 ## 6. Manual probe
 
-Trace `6f24c6ab` shape was reproduced as a focused JUnit
-integration test rather than a live-server probe (the trace
-involves a real Kimi LLM call which is not deterministic enough to
-assert on; the JUnit shape pins the exact contract change with no
-LLM dependency):
+Trace `a7e20173` shape was reproduced as deterministic JUnit tests
+rather than a live-server probe (live Kimi tool-use is non-determ).
+The post-Sprint-9 expected behaviour is:
 
-`AgentRunLoopMaxStepsRawResponseTest.ucA_faq_flow_search_then_resolve_article_with_source_id_completes`
-
-Form / message shape: `ad_id=22222`, `email=xxx@xx.com`,
-`first_name=xxx`, `description="where is my ad"`,
-`topic_subject="Ad Support"`, user message `"hi why can't I find
-my advert"`.
+| Step | Tool call | Expected result |
+| ---- | --------- | --------------- |
+| 0    | `search_knowledge("I can't see my advert")` | hits with `source_id=kb-…` |
+| 1    | `resolve_article(source_id=kb-…)` | safe summary fields persisted in `result_data` (§O2) |
+| 2    | grounded user_message with `[kb-…]` citation | FINAL_ANSWER |
+| 3    | follow-up turn `"could you give me the link of advert?"` | LLM emits `request_handover(escalation_reason="tool_scope_blocked")` |
+| 4    | `request_handover` dispatch with no `summary` | succeeds via fallback summary derivation (§O0) |
 
 Confirmed:
+- `resolve_article` result is visible in the persisted trace
+  (Sprint 9 §O2; previously was only the article id with no body).
+- `record_outcome(outcome_class="resolve")` is accepted at the
+  schema-canonical name, persists a `session_outcomes` row, and
+  surfaces both `outcome_class` and `outcome` in the result panel.
+- Trace UI Result panels are non-empty for both successful and
+  failed tool calls.
+- Follow-up `tool_scope_blocked` handover succeeds with a safe
+  fallback summary; the canonical 23-value escalation reason enum
+  is unchanged.
 
-- No `Parameter 'article_id' is required` surfaces from the
-  resolve_article dispatch path.
-- `resolve_article` accepts `source_id` and returns a successful
-  payload that the LLM cites in the final answer.
-- The loop reaches `TerminalOutcome.FINAL_ANSWER` (not MAX_STEPS,
-  not ESCALATE).
-- The MAX_STEPS test (separate scenario) confirms that if the
-  loop ever does exhaust on this UC for an unrelated reason
-  (tool-error retry storm, etc.), `lastLlmRawResponse` survives
-  on the result.
-
-If a live re-probe of trace `6f24c6ab` still escalates after this
-sprint, the residual must be classified as one of:
-
-- FAQ corpus / answerability gap (no resolve-grade article for the
-  ad-visibility intent),
-- retrieval threshold / `answer_miss` policy residual,
-- article content quality issue,
-
-and explicitly NOT as `resolve_article` schema/tool drift.
+If a live re-probe of trace `a7e20173` against a Kimi-backed deploy
+still escalates without a summary or with blank Result panels after
+this sprint, the residual must be classified as a UI rendering
+regression or a downstream Salesforce contract change — NOT
+`record_outcome` / `request_handover` schema drift.
 
 ## 7. Before / after
 
 Before:
-
 ```
-[discover] classify_use_case(UC-A)               -> committed
-[resolve] search_knowledge("where is my ad")     -> hits[source_id=faq-…]
-[resolve] resolve_article(source_id=faq-…)       -> ERROR Parameter 'article_id' is required
-[resolve] resolve_article(source_id=faq-…)       -> ERROR Parameter 'article_id' is required
-... (loop hits maxToolSteps)
-TerminalOutcome.MAX_STEPS
-AgentRunResult.lastLlmRawResponse = null
-bot_turns.llm_raw_response       = NULL
-TraceViewer: "No LLM call for this turn."
+[resolve] resolve_article(source_id=kb-…)        -> ok (article payload)
+[resolve] record_outcome(outcome_class=resolve)  -> ERROR Parameter 'outcome' must be one of: ...
+TerminalOutcome.FINAL_ANSWER (LLM still answered)
+PhaseEvaluator: RESOLVE → CONFIRM (silent)
+session_outcomes:                                  NO ROW WRITTEN
+bot_turns.tool_calls:                              [{tool_name=resolve_article, success=true}, ...]   ← no result_data
+TraceViewer:                                       Result panel BLANK
+[follow-up] request_handover(tool_scope_blocked)  -> ERROR Parameter 'summary' is required
+AgentRunLoop:                                      handoverRequested=true (despite dispatch failure)
+TerminalOutcome.ESCALATE                           ← false success
 ```
 
 After:
-
 ```
-[discover] classify_use_case(UC-A)               -> committed
-[resolve] search_knowledge("where is my ad")     -> hits[source_id=faq-…]
-[resolve] resolve_article(source_id=faq-…)       -> ok (article payload)
-[resolve] (LLM grounds answer with [faq-…] citation)
+[resolve] resolve_article(source_id=kb-…)        -> ok (article payload)
+[resolve] record_outcome(outcome_class=resolve)  -> ok (session_outcomes row written)
 TerminalOutcome.FINAL_ANSWER
+PhaseEvaluator: RESOLVE → CONFIRM (record_outcome succeeded)
+session_outcomes:                                  RESOLVED row present
+bot_turns.tool_calls[*].result_data / result_summary: bounded sanitized payload per entry
+TraceViewer:                                       Result panel renders summary + JSON
+[follow-up] request_handover(tool_scope_blocked) -> ok (fallback summary derived)
+TerminalOutcome.ESCALATE                           ← only when dispatch actually succeeded
 ```
 
-If MAX_STEPS still occurs in some other shape:
-
+If the dispatch fails:
 ```
-TerminalOutcome.MAX_STEPS
-AgentRunResult.lastLlmRawResponse = "<verbatim LLM content>"
-bot_turns.llm_raw_response       = "<verbatim LLM content>"
-TraceViewer: renders the actual final raw response
+[resolve] record_outcome(...)                     -> ERROR DB write failed
+TerminalOutcome.FINAL_ANSWER
+PhaseEvaluator: stays in RESOLVE (transition_reason=record_outcome_failed_retry)
+TraceViewer:                                       failed row renders error_message + error result_summary
 ```
 
 ## 8. Residuals
 
-- Live re-probe of trace `6f24c6ab` against a Kimi-backed deploy
-  is recommended once the canonical post-Sprint-8.2 baseline run
-  is captured. Any remaining escalation must be triaged into the
-  FAQ corpus / answerability / retrieval-threshold residual
-  buckets above, NOT runtime contract.
-- Eval Governance backlog (cs015 / cs066 / cs176 deferrals,
-  L3 judge volatility, FAQ corpus answerability) is unchanged.
-  Sprint 9 (Eval Governance docs-only) remains the recommended
-  next phase.
+- Live re-probe of trace `a7e20173` against a Kimi-backed deploy is
+  recommended once the canonical post-Sprint-9 baseline run is
+  captured. Any remaining escalation must be triaged into:
+  - advert-link product policy gap (deferred — see action bank
+    `D-advert-link-product-decision`),
+  - rerank fallback diagnostics (deferred — see action bank
+    `D-rerank-fallback-diagnostics`),
+  - FAQ corpus / answerability,
+  and explicitly NOT as `record_outcome` / `request_handover` schema
+  drift or terminal-state dishonesty.
+- Eval Governance backlog (cs015 / cs066 / cs176 deferrals, L3 judge
+  volatility, FAQ corpus answerability, advert-link product policy)
+  is unchanged. Sprint 9 did NOT open Eval Governance docs scope —
+  that remains the next-recommended docs-only phase if no new
+  P0/P1 runtime blocker is found.
 
-## 9. Sprint 8.2 objective
+## 9. Sprint 9 objective
 
 Met:
 
-- `resolve_article` accepts the canonical `source_id` advertised
-  by the projected schema and produced by `search_knowledge`.
-- `article_id` accepted as a legacy alias.
-- Missing-parameter error names `source_id`.
-- UC-A FAQ flow `search_knowledge → resolve_article` runs without
-  the parameter-name error.
-- MAX_STEPS preserves `lastLlmRawResponse`; terminal outcome and
-  PhaseEvaluator MAX_STEPS mapping unchanged.
-- No Sprint 6 / 7 / 7.1 / 8 / 8.1 contract is regressed
-  (full server suite green, 726/726).
-- No FAQ corpus, CaseSpec, judge, routing, search threshold, or
-  Eval Governance scope was opened.
+- `record_outcome` schema and tool aligned on canonical
+  `outcome_class` with lowercase enum; legacy aliases preserved.
+- `record_outcome(outcome_class="resolve")` succeeds and writes a
+  `session_outcomes` row.
+- `request_handover` schema exposes `summary` as recommended; tool
+  derives a safe fallback summary when missing; canonical 23-value
+  escalation-reason enum unchanged.
+- `request_handover(tool_scope_blocked)` does NOT fail solely on a
+  missing summary.
+- Failed terminal tool dispatches no longer silently advance the
+  phase as terminal success.
+- Trace UI shows non-empty result/error data for tool calls; old
+  rows still render safely.
+- No FAQ corpus, CaseSpec, judge, routing, search threshold, advert-
+  link tool, broad TraceViewer redesign, or Eval Governance scope
+  was opened.
 
 ## 10. Regression guards
 
@@ -258,27 +343,43 @@ Currently-active guards (all green in the full server run):
 - Sprint 7.1 §J0 partial intake persistence
 - Sprint 8 §K0 cs259 UC-F contract hardening
 - Sprint 8.1 §M3 DISCOVER phase boundary
+- Sprint 8.2 §M0a `resolve_article` source_id alignment
+- Sprint 8.2 §M0b MAX_STEPS preserves lastLlmRawResponse
 
-New Sprint 8.2 guards:
+New Sprint 9 guards:
 
-- `resolve_article` accepts canonical `source_id`
-  (`ResolveArticleToolTest`).
-- `resolve_article` accepts legacy `article_id` alias.
-- Missing both surfaces a `source_id`-named error.
-- UC-A FAQ flow `search_knowledge → resolve_article(source_id=…)`
-  reaches FINAL_ANSWER without parameter errors
-  (`AgentRunLoopMaxStepsRawResponseTest`).
-- MAX_STEPS preserves `lastLlmRawResponse` after successful LLM
-  calls (`AgentRunResultTest` + `AgentRunLoopMaxStepsRawResponseTest`).
+- `record_outcome` accepts canonical `outcome_class` (lowercase);
+  legacy `outcome=RESOLVED` accepted as alias; uppercase
+  normalisation (`RecordOutcomeToolTest`).
+- Successful `record_outcome` writes a `session_outcomes` row
+  (`RecordOutcomeToolTest`).
+- `request_handover` derives a safe fallback summary when missing
+  (`RequestHandoverToolTest`); supplied summary preserved verbatim;
+  invalid (missing/blank) reason still fails.
+- AgentRunLoop does NOT short-circuit on a failed `request_handover`
+  dispatch (`Sprint9TerminalToolHonestyTest`).
+- PhaseEvaluator does NOT advance RESOLVE → CONFIRM on a failed
+  `record_outcome` (`Sprint9TerminalToolHonestyTest`).
+- `bot_turns.tool_calls` carries bounded sanitized
+  `result_data` + `result_summary` per entry; resolve_article body
+  dropped in favour of safe summary fields
+  (`Sprint9TraceObservabilityFidelityIntegrationTest`,
+   `ToolCallTraceSanitizerTest`).
+- TraceViewer renders both legacy `{tool, args, result}` rows and
+  the new `{tool_name, arguments, success, error_message,
+  result_data, result_summary}` shape; failed rows show error
+  message + summary.
 
 ## 11. Next recommended phase
 
-Sprint 9 — Eval Governance and Release Gate Definition (docs-only)
-remains the recommended next phase. Sprint 8.2 did not open or
-defer any new runtime work.
+Eval Governance and Release Gate Definition (docs-only) remains the
+recommended next phase if no new P0/P1 runtime blocker surfaces. The
+post-Sprint-9 canonical baseline can be captured in that phase, with
+any residual `a7e20173`-class escalation triaged into the advert-link
+product policy / rerank diagnostics / FAQ corpus buckets.
 
-Do not start another runtime sprint unless Sprint 9 triage finds a
-new P0/P1 runtime blocker.
+Do not start another runtime sprint unless triage finds a new P0/P1
+runtime blocker.
 
 ## 12. Current-doc maintenance rule
 
@@ -310,4 +411,5 @@ Historical detail belongs in `docs/sprints/`,
 - llm_call_log dashboard / per-tool latency dashboard
 - search threshold tuning / answer_miss / faq_miss semantic redesign
 - tool-deadline guard / bypass-DISCOVER redesign
+- advert-link generator / direct listing URL tool
 - runtime sprint unless a new P0/P1 runtime blocker is found

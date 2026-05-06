@@ -74,6 +74,18 @@ export interface ToolCall {
   tool: string;
   args: Record<string, unknown>;
   result: Record<string, unknown>;
+  // Sprint 9 §O2 — backend tool_calls shape: tool_name + arguments +
+  // success / latency_ms / error_message / result_data / result_summary.
+  // Older legacy rows ship only {tool, args, result}; both are rendered
+  // safely by TraceViewer.
+  tool_name?: string;
+  arguments?: Record<string, unknown>;
+  success?: boolean;
+  latency_ms?: number;
+  error_message?: string;
+  result_data?: unknown;
+  result_summary?: string;
+  source?: string;
 }
 
 export interface TraceResponse {

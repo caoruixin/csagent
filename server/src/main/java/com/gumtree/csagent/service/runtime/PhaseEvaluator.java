@@ -789,6 +789,31 @@ public class PhaseEvaluator {
     }
 
     /**
+     * Sprint 9 §O1 — terminal-state honesty: true when the agent run
+     * attempted at least one {@code record_outcome} dispatch and EVERY
+     * such attempt failed (no successful one). Used by
+     * {@link #mapFinalAnswer} to keep the session in RESOLVE so the LLM
+     * can retry on the next user turn. Returns false when no
+     * {@code record_outcome} attempt was made (the LLM may have answered
+     * directly without persisting an outcome — that path is unchanged).
+     */
+    static boolean recordOutcomeAttemptedAndFailed(AgentRunResult result) {
+        if (result == null || result.toolEvents() == null) return false;
+        boolean attempted = false;
+        boolean anySuccess = false;
+        for (ToolEvent te : result.toolEvents()) {
+            if ("record_outcome".equals(te.toolName())) {
+                attempted = true;
+                if (te.success()) {
+                    anySuccess = true;
+                    break;
+                }
+            }
+        }
+        return attempted && !anySuccess;
+    }
+
+    /**
      * Phase-aware mapping for {@link TerminalOutcome#FINAL_ANSWER}. RESOLVE/FAQ
      * → CONFIRM, RESOLVE/INTAKE → stay in RESOLVE (clarification), DISCOVER →
      * RESOLVE if a UC has been committed (otherwise stay in DISCOVER), CONFIRM
@@ -825,6 +850,19 @@ public class PhaseEvaluator {
                     return new PhaseTransitionDecision("RESOLVE",
                             result.finalUserMessage(),
                             null, "clarification_asked");
+                }
+                // Sprint 9 §O1 — terminal-state honesty. Do not advance
+                // RESOLVE → CONFIRM when the only record_outcome
+                // dispatch attempted in this run failed. CONFIRM signals
+                // "the user accepted the answer and the outcome was
+                // recorded"; staying in RESOLVE lets the LLM retry the
+                // record_outcome call within the next user turn rather
+                // than silently marking the session as resolved while
+                // the session_outcomes row was never written.
+                if (recordOutcomeAttemptedAndFailed(result)) {
+                    return new PhaseTransitionDecision("RESOLVE",
+                            result.finalUserMessage(),
+                            null, "record_outcome_failed_retry");
                 }
                 return new PhaseTransitionDecision("CONFIRM",
                         result.finalUserMessage(),
