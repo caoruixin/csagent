@@ -15,6 +15,16 @@ import org.springframework.web.client.HttpStatusCodeException;
 @Slf4j
 public class FallbackLlmClient implements LlmClient {
 
+    /**
+     * Sprint 8.1 closure follow-up (2026-05-07) — minimum remaining
+     * wall-clock budget required to engage the fallback. Mirrors the
+     * inner-client floor (3 s connect + 12 s read + small buffer) so a
+     * fast-failing primary that leaves less than one full attempt's worth
+     * of wall-clock cannot drag the chain into a 12 s read-timeout we no
+     * longer have time to wait on.
+     */
+    private static final long MIN_FALLBACK_BUDGET_MS = 3_000L + 12_000L + 200L;
+
     private final LlmClient primary;
     private final LlmClient fallback;
     private final String primaryLabel;
@@ -30,6 +40,13 @@ public class FallbackLlmClient implements LlmClient {
 
     @Override
     public LlmResponse chat(LlmRequest request) {
+        // Sprint 8.1 closure follow-up (2026-05-07): re-arm the per-invocation
+        // attempt budget so multiple successful logical LLM invocations within
+        // the same user turn (e.g. DISCOVER's search_knowledge +
+        // classify_use_case followed by a same-turn RESOLVE replan) each get
+        // a fresh primary + fallback slot. Wall-clock deadline still bounds
+        // the whole turn — only the retry counter is per-invocation.
+        LlmCallContext.beginInvocation();
         try {
             return primary.chat(request);
         } catch (Exception e) {
@@ -38,29 +55,37 @@ public class FallbackLlmClient implements LlmClient {
             // to wait for a second provider's full attempt. Surface the
             // deadline-exceeded signal so the caller can render a graceful UX.
             if (e instanceof LlmDeadlineExceededException || LlmCallContext.isExceeded()) {
-                log.warn("LLM [chat:deadline-exceeded-skipping-fallback] primary={} fallback={} skipped",
-                        primaryLabel, fallbackLabel);
+                Long remaining = LlmCallContext.remainingMillis();
+                log.warn("LLM [chat:fallback-skipped-deadline-exceeded] primary={} fallback={} "
+                                + "remaining_budget_ms={} retry_decision=fallback_skipped_deadline_exceeded "
+                                + "failure_class={}",
+                        primaryLabel, fallbackLabel, remaining,
+                        e.getClass().getSimpleName());
                 throw e instanceof LlmDeadlineExceededException ? (LlmDeadlineExceededException) e
                         : new LlmDeadlineExceededException(
                                 "LLM deadline exceeded after primary=" + primaryLabel
                                         + " failure; not engaging fallback=" + fallbackLabel);
             }
             if (isTransient(e)) {
-                // Sprint 8.1 §M1 follow-up (2026-05-06): respect the shared
+                // Sprint 8.1 §M1 follow-up — respect the per-invocation
                 // HTTP-attempt budget. When the primary has already consumed
-                // every slot the chain is allowed (e.g. one retry inside
-                // OpenAiCompatibleLlmClient with a 30 s wall-clock deadline),
-                // we MUST NOT engage the fallback — that would push total
-                // HTTP calls past 2 and let two 12 s read timeouts blow
-                // through the user-facing budget. Surface as
+                // every slot the chain is allowed (e.g. the inner client's
+                // own retry already fired under the 30 s deadline), we MUST
+                // NOT engage the fallback — that would push total HTTP calls
+                // past 2 and let two 12 s read timeouts blow through the
+                // user-facing budget. Surface as
                 // {@link LlmDeadlineExceededException} so the caller renders
                 // the graceful give-up UX instead of waiting for the fallback.
                 if (!LlmCallContext.canAttempt()) {
                     log.warn("LLM [chat:fallback-skipped-budget] primary={} fallback={} "
-                                    + "remaining_attempts={}; not engaging fallback after primary "
+                                    + "remaining_budget_ms={} remaining_attempts={} "
+                                    + "retry_decision=fallback_skipped_attempt_budget_exhausted "
+                                    + "failure_class={}; not engaging fallback after primary "
                                     + "transient failure ({}: {})",
                             primaryLabel, fallbackLabel,
+                            LlmCallContext.remainingMillis(),
                             LlmCallContext.remainingAttempts(),
+                            classifyFailureForTelemetry(e),
                             e.getClass().getSimpleName(), e.getMessage());
                     LlmDeadlineExceededException budgetExhausted = new LlmDeadlineExceededException(
                             "LLM provider chain attempt budget exhausted after primary="
@@ -69,8 +94,44 @@ public class FallbackLlmClient implements LlmClient {
                     budgetExhausted.initCause(e);
                     throw budgetExhausted;
                 }
-                log.warn("LLM [chat:fallback-engaged] primary={} failed transiently ({}: {}); retrying with fallback={}",
-                        primaryLabel, e.getClass().getSimpleName(), e.getMessage(), fallbackLabel);
+                // Sprint 8.1 closure follow-up (2026-05-07) — wall-clock
+                // remaining-budget guard at the fallback boundary. The inner
+                // client already gates same-provider retries on
+                // MIN_BUDGET_MS_FOR_NEXT_ATTEMPT; mirror that here so a fast
+                // transient primary failure that left less than one full
+                // attempt's worth of wall-clock cannot still engage a
+                // fallback that would block on a 12 s read timeout we no
+                // longer have time to wait for.
+                Long remainingForFallback = LlmCallContext.remainingMillis();
+                if (remainingForFallback != null
+                        && remainingForFallback < MIN_FALLBACK_BUDGET_MS) {
+                    log.warn("LLM [chat:fallback-skipped-insufficient-budget] primary={} fallback={} "
+                                    + "remaining_budget_ms={} min_required_ms={} "
+                                    + "remaining_attempts={} "
+                                    + "retry_decision=fallback_skipped_insufficient_budget "
+                                    + "failure_class={}; not engaging fallback after primary "
+                                    + "transient failure ({}: {})",
+                            primaryLabel, fallbackLabel,
+                            remainingForFallback, MIN_FALLBACK_BUDGET_MS,
+                            LlmCallContext.remainingAttempts(),
+                            classifyFailureForTelemetry(e),
+                            e.getClass().getSimpleName(), e.getMessage());
+                    LlmDeadlineExceededException insufficient = new LlmDeadlineExceededException(
+                            "LLM remaining wall-clock budget (" + remainingForFallback
+                                    + " ms) below full-attempt floor (" + MIN_FALLBACK_BUDGET_MS
+                                    + " ms) after primary=" + primaryLabel + " transient failure; "
+                                    + "fallback=" + fallbackLabel + " not engaged");
+                    insufficient.initCause(e);
+                    throw insufficient;
+                }
+                log.warn("LLM [chat:fallback-engaged] primary={} failed transiently ({}: {}); "
+                                + "remaining_budget_ms={} remaining_attempts={} "
+                                + "retry_decision=fallback_engaged failure_class={}; "
+                                + "retrying with fallback={}",
+                        primaryLabel, e.getClass().getSimpleName(), e.getMessage(),
+                        LlmCallContext.remainingMillis(),
+                        LlmCallContext.remainingAttempts(),
+                        classifyFailureForTelemetry(e), fallbackLabel);
                 try {
                     LlmResponse resp = fallback.chat(request);
                     log.info("LLM [chat:fallback-success] fallback={} succeeded after primary failure", fallbackLabel);
@@ -117,5 +178,29 @@ public class FallbackLlmClient implements LlmClient {
             if (cur instanceof java.io.IOException && cur.getCause() == null) return true;
         }
         return false;
+    }
+
+    /**
+     * Sprint 8.1 closure follow-up — coarse failure-class telemetry tag for
+     * fallback-skipped log lines. Walks the cause chain in the same shape as
+     * {@link #isTransient} so the surfaced tag matches the retry decision.
+     */
+    private static String classifyFailureForTelemetry(Throwable e) {
+        Throwable cur = e;
+        for (int depth = 0; cur != null && depth < 8; depth++, cur = cur.getCause()) {
+            if (cur instanceof HttpStatusCodeException hse) {
+                int status = hse.getStatusCode().value();
+                if (status == 429) return "rate_limited";
+                if (status >= 500 && status <= 599) return "server_error_" + status;
+                return "http_" + status;
+            }
+            if (cur instanceof java.net.SocketTimeoutException) return "read_timeout";
+            if (cur instanceof java.net.ConnectException) return "connect_timeout";
+            String msg = cur.getMessage() == null ? "" : cur.getMessage().toLowerCase();
+            if (msg.contains("read timed out")) return "read_timeout";
+            if (msg.contains("connect timed out")) return "connect_timeout";
+            if (msg.contains("timeout") || msg.contains("timed out")) return "transport_timeout";
+        }
+        return "unknown";
     }
 }

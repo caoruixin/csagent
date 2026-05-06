@@ -5150,28 +5150,10 @@ shape leaves UC null).
 
 ## 8. Eval Governance — can it resume next?
 
-**Yes.** This round preserves every Sprint 6 / 7 / 8 / 8.1
-contract:
-
-- ✅ cs259 K0 contract preserved
-  (`Sprint8Cs259EscalateBranchIntegrationTest`).
-- ✅ cs259 hardening preserved
-  (`Sprint8Cs259ActiveUseCaseHardeningTest`).
-- ✅ §M0 routeNonBlocking preserved
-  (`SessionManagerCreateSessionTest`).
-- ✅ §M2 honest-failure preserved
-  (`Sprint81HonestFailureIntegrationTest`).
-- ✅ Sprint 6 §G2 S1 / Sprint 7 §I0 / I1 / I2 / J0 contracts
-  intact.
-- ✅ cs014 / cs066 / cs095 / cs002 / cs029 / cs176 negative
-  guards intact.
-- ✅ DISCOVER classification no longer escalates on
-  max-steps-after-classify; the agent path can converge in a
-  single user turn for FAQ-shaped intents.
-
-`current_eval_baseline.md` still pins the Sprint 8 r2 smoke and
-is NOT updated in this round — the next clean smoke run after
-this hotfix lands on `main` will refresh that file.
+Eval Governance cannot resume yet. Codex Sprint 8.1 review returned fix_required with blocking_count=2. The two closure blockers are:
+1. fallback can still start without enough remaining wall-clock budget;
+2. retry budget is conflated with total successful LLM calls, preventing production-deadline same-turn DISCOVER -> RESOLVE replan.
+Eval Governance may resume only after these blockers pass targeted Codex review.
 
 ## 9. Out of scope (this round)
 
@@ -5183,3 +5165,161 @@ detector calibration. No cs176 UC-I drift fix. No
 prompt-only or `maxToolSteps`-only fix for the DISCOVER
 phase-boundary bug — both were explicitly ruled out in the
 sprint objective.
+
+# Sprint 8.1 closure follow-up — Fallback budget guard + retry / per-turn LLM call split
+
+Date: 2026-05-07
+Branch: `design-v1-without-human-review`
+Codex previous result: `fix_required`, blocking_count = 2.
+Sprint scope: close the two P1 blockers Codex flagged on the
+prior Sprint 8.1 follow-up. Same out-of-scope boundary as the
+original sprint — no async polling / SSE / background queue,
+no FAQ corpus / CaseSpec / judge changes, no routing
+broadening, no cs015 / cs066 / cs176 follow-ups, no smoke /
+eval governance work.
+
+## 1. Codex blockers being closed
+
+| # | Blocker | Behaviour before fix | Behaviour after fix |
+|---|---------|----------------------|---------------------|
+| P1-1 | `FallbackLlmClient` missing low-remaining-budget guard | A fast transient primary failure left less than one full attempt's worth of wall-clock remaining, but the fallback still engaged and could block on its own 12 s read timeout — pushing the chain past the user-facing 30 s deadline (e.g. trace shape from the prior Codex review). Only `LlmCallContext.isExceeded()` and `LlmCallContext.canAttempt()` were checked. | Before the fallback boundary, `FallbackLlmClient` now also enforces a 15.2 s remaining-wall-clock floor (3 s connect + 12 s read + 200 ms buffer). Insufficient remaining budget skips the fallback and surfaces `LlmDeadlineExceededException` with `retry_decision=fallback_skipped_insufficient_budget`, `remaining_budget_ms`, and `failure_class` telemetry. 401 / 403 / non-retryable behaviour and the max-one-retry/fallback contract are preserved. |
+| P1-2 | Retry budget conflated with total successful LLM calls | `LlmCallContext.GLOBAL_ATTEMPT_BUDGET=2` was decremented on every HTTP call, including successful first-attempt ones. Two successful DISCOVER LLM calls (search_knowledge + classify_use_case) drained the budget to 0; the same-turn RESOLVE replan (gated on `LlmCallContext.canAttempt()` in `ControlKernel`) refused to fire even when the wall-clock had ample headroom — the user got the transitional "looking into this" placeholder instead of the FAQ answer. | The shared counter is now per-invocation, not per-turn. `LlmCallContext.beginInvocation()` re-arms the 2-attempt budget at the start of each `FallbackLlmClient.chat()` call (the unit of "one logical LLM invocation"). Only the wall-clock deadline bounds the whole turn — multiple successful invocations each get their own primary + fallback retry/fallback slot. `ControlKernel`'s same-turn DISCOVER → RESOLVE replan no longer checks `canAttempt()`; only `MIN_RESOLVE_REPLAN_BUDGET_MS` (8 s) wall-clock. The "max one retry per failing invocation" semantic is preserved exactly — same-provider retry still consumes a slot inside `OpenAiCompatibleLlmClient`, and fallback engagement still consumes a slot at the `FallbackLlmClient` boundary. |
+
+## 2. Files changed
+
+Production:
+- `server/src/main/java/com/gumtree/csagent/service/llm/LlmCallContext.java`
+  - Renamed `GLOBAL_ATTEMPT_BUDGET` → `INVOCATION_ATTEMPT_BUDGET`
+    (kept a deprecated `DEFAULT_GLOBAL_ATTEMPT_BUDGET` alias
+    for source compatibility).
+  - Added `beginInvocation()` API that re-arms the
+    per-invocation budget at the start of each logical LLM
+    invocation. No-op when no deadline is set.
+  - Updated Javadoc to capture the new "per-invocation, not
+    per-turn-global" semantic.
+- `server/src/main/java/com/gumtree/csagent/service/llm/FallbackLlmClient.java`
+  - Calls `LlmCallContext.beginInvocation()` at chat() entry.
+  - Adds `MIN_FALLBACK_BUDGET_MS = 15_200L` and a
+    remaining-wall-clock guard before the fallback boundary
+    (mirrors the inner-client floor).
+  - Emits structured telemetry on fallback skip with the
+    `retry_decision=fallback_skipped_*` /
+    `remaining_budget_ms` / `failure_class` tags Codex asked
+    for. No secrets are logged.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+  - Same-turn DISCOVER → RESOLVE replan no longer requires
+    `LlmCallContext.canAttempt()`. Only the wall-clock floor
+    (`MIN_RESOLVE_REPLAN_BUDGET_MS = 8 s`) gates the replan.
+
+Tests:
+- `server/src/test/java/com/gumtree/csagent/service/llm/Sprint81FallbackBudgetGuardTest.java` (new)
+  - `primaryFailsFastTransient_remainingBudgetBelowFloor_skipsFallback`:
+    deadline 5 s, primary 503 fast, fallback NOT called,
+    final classification has `LlmDeadlineExceededException`
+    in the cause chain.
+  - `primaryFailsTransient_ampleRemainingBudget_engagesFallback`:
+    sanity counter-test that legitimate fallback engagement
+    still works under a 30 s deadline.
+- `server/src/test/java/com/gumtree/csagent/service/llm/Sprint81GlobalAttemptBudgetTest.java`
+  - Added `deadline_multipleSequentialInvocations_eachGetsFreshAttemptBudget`:
+    three sequential `FallbackLlmClient.chat()` calls under
+    the same 30 s deadline all reach the primary;
+    per-invocation reset means the prior calls' consumed
+    slots do not block later ones.
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint81DiscoverPhaseBoundaryReplanIntegrationTest.java`
+  - Added `discoverClassifySuccess_deadlineActive_attemptBudgetDrained_stillReplans`:
+    deadline 30 s active, mocked AgentRunLoop simulates
+    consuming 2 attempts inside DISCOVER (representing
+    search_knowledge + classify_use_case successful LLM
+    calls), and the same-turn RESOLVE replan still runs and
+    delivers the FAQ answer — not ESCALATE / MAX_STEPS.
+  - Existing negative test
+    `discoverClassifySuccess_insufficientBudget_skipsReplan_staysInResolve`
+    still passes (1.5 s deadline → wall-clock below
+    `MIN_RESOLVE_REPLAN_BUDGET_MS` → replan skipped, stays
+    in RESOLVE, no escalation, transitional response).
+
+## 3. Tests run
+
+- `mvn -pl server -Dtest='Sprint81GlobalAttemptBudgetTest,Sprint81DiscoverPhaseBoundaryReplanIntegrationTest,Sprint81DiscoverPhaseBoundaryTest,AgentRunLoopDeadlineExceededBotResponseIntegrationTest,Sprint81HonestFailureIntegrationTest,Sprint81FallbackBudgetGuardTest,Sprint81BudgetedRetryTest' test`
+  → 23/23 passed.
+- `mvn -pl server test`
+  → 714/714 passed (full server test suite).
+- `python -m pytest -p no:capture eval_interactive/tests/`
+  → not required; no eval / Python files were changed in
+  this closure round.
+
+Sprint 7 / Sprint 6 focused tests were carried green by the
+full-server run above; the Sprint 8.1 / 8 / 7 / 6 specific
+suites all pass alongside the 714-test full run.
+
+## 4. Behaviour confirmation (regressions checked)
+
+- `Sprint81GlobalAttemptBudgetTest.productionChain_primary503AndFallback503_capsAtTwoTotalAttempts`
+  still passes: within ONE invocation the chain is still
+  capped at 2 total HTTP calls.
+- `Sprint81GlobalAttemptBudgetTest.productionChain_primary401_neverEngagesFallback`
+  still passes: 401 still surfaces non-transient and
+  fallback never engages.
+- `Sprint81GlobalAttemptBudgetTest.noDeadline_primaryAndFallbackEachKeepTheirOwnRetryBudget`
+  still passes: with no deadline set, the per-client retry
+  loops keep their legacy 2 + 2 behaviour.
+- `Sprint81BudgetedRetryTest.retry_under_ampleBudget_innerClientDoesExactlyOneAttempt`
+  still passes: under a deadline the inner client makes
+  exactly one HTTP call per invocation (cross-provider
+  retry is the FallbackLlmClient layer's job).
+- `Sprint81BudgetedRetryTest.deadlineAlreadyExpired_abortsBeforeAttempt`
+  still passes: an already-expired deadline still aborts
+  with `LlmDeadlineExceededException` before any HTTP call.
+- `AgentRunLoopDeadlineExceededBotResponseIntegrationTest`
+  still passes: graceful give-up persists `bot_response`.
+- `Sprint81HonestFailureIntegrationTest` still passes:
+  timeout shape never stamps a synthetic UC.
+- `Sprint8Cs259EscalateBranchIntegrationTest` and
+  `Sprint8Cs259ActiveUseCaseHardeningTest` still pass: cs259
+  K0 fallback path is unaffected.
+
+## 5. Telemetry contract
+
+`FallbackLlmClient` now emits these retry decisions
+(structured in the WARN log line, no secrets):
+- `retry_decision=fallback_engaged` — primary transient,
+  fallback called.
+- `retry_decision=fallback_skipped_attempt_budget_exhausted`
+  — per-invocation budget already at 0 (e.g. inner client
+  retry already fired); fallback skipped, surface
+  `LlmDeadlineExceededException`.
+- `retry_decision=fallback_skipped_insufficient_budget` —
+  wall-clock below 15.2 s floor; fallback skipped, surface
+  `LlmDeadlineExceededException`.
+- `retry_decision=fallback_skipped_deadline_exceeded` —
+  `LlmCallContext.isExceeded()`; fallback skipped, surface
+  deadline exceeded.
+
+Each line carries `remaining_budget_ms` and `failure_class`
+fields. Inner-client telemetry tags
+(`retry_decision=retry|abort|exhausted|no_retry_non_transient`,
+`failure_class`, `remaining_budget_ms`,
+`remaining_attempts`) are unchanged.
+
+## 6. Eval Governance — can it resume after this fix?
+
+Eval Governance cannot resume yet. The two P1 blockers Codex
+flagged in the prior Sprint 8.1 review are now implemented
+and covered by targeted tests, but Codex must re-review this
+closure round before Eval Governance can advance. Once Codex
+returns `pass` on these two blockers (or `fix_required` with
+no blockers that touch the deadline / replan / budget
+contracts), Eval Governance is the recommended next step.
+
+## 7. Out of scope (this closure round)
+
+Per the closure brief: no M0 follow-up "hi" projection
+capture test, no broader retry-telemetry exactness
+reshuffling, no merged ToolEvent renumbering, no legacy
+`UseCaseRouter.route` / `invokeRouting` masking-risk audit,
+no async polling / SSE / websocket / background queue, no
+FAQ corpus / CaseSpec / judge / overrides / routing
+broadening changes, no cs015 / cs066 / cs176 work, no
+smoke pass-rate optimisation, no Eval Governance docs
+reopen.

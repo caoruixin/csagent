@@ -242,6 +242,107 @@ class Sprint81DiscoverPhaseBoundaryReplanIntegrationTest {
     }
 
     @Test
+    void discoverClassifySuccess_deadlineActive_attemptBudgetDrained_stillReplans() {
+        // Sprint 8.1 closure follow-up (2026-05-07) — P1-2 production
+        // shape. With a 30 s user-facing deadline in effect, two successful
+        // DISCOVER LLM calls (search_knowledge + classify_use_case) used to
+        // drain the shared HTTP-attempt budget to 0 — leaving
+        // canAttempt()==false. The kernel then refused to run the same-turn
+        // RESOLVE replan even though wall-clock budget remained, and the
+        // user got a transitional "looking into it" placeholder instead of
+        // the real FAQ answer. Fix: per-invocation reset at
+        // {@link FallbackLlmClient#chat} entry + drop the kernel's
+        // canAttempt() precondition. Now the wall-clock alone gates the
+        // same-turn replan.
+        LlmCallContext.setDeadline(System.currentTimeMillis() + 30_000L);
+
+        BotSession session = adSupportSession();
+        when(budgetChecker.checkBudgets(any())).thenReturn(Optional.empty());
+        when(driftDetector.detect(any(), anyString())).thenReturn(
+                DriftResult.builder().type(DriftResult.DriftType.NONE).build());
+        when(turnRepository.findBySessionIdOrderByTurnIndex(anyString()))
+                .thenReturn(List.of());
+
+        PhasePlan discover = discoverPlan();
+        PhasePlan resolve = resolvePlan("UC-A");
+        when(phaseEvaluator.plan(any(), anyString(), any()))
+                .thenReturn(discover)
+                .thenReturn(resolve);
+        when(controlPolicy.isValidTransition(eq("DISCOVER"), eq("RESOLVE"))).thenReturn(true);
+        when(controlPolicy.isValidTransition(eq("RESOLVE"), eq("CONFIRM"))).thenReturn(true);
+
+        AgentRunResult discoverResult = AgentRunResult.useCaseIdentified(
+                "UC-A",
+                List.of(
+                        // Two successful DISCOVER LLM calls: search_knowledge + classify_use_case.
+                        new LlmCallEvent(0, 0, "deepseek", 100, 50, 1500L,
+                                "{\"finish_reason\":\"stop\"}"),
+                        new LlmCallEvent(1, 1, "deepseek", 100, 50, 1500L,
+                                "{\"finish_reason\":\"stop\"}")),
+                List.of(
+                        new ToolEvent(1, 0, "search_knowledge", null, true,
+                                java.util.Map.of("hits", List.of()), null, 100L),
+                        new ToolEvent(2, 1, "classify_use_case", null, true,
+                                java.util.Map.of("committed", true, "use_case_id", "UC-A"),
+                                null, 50L)),
+                "{\"phase\":\"DISCOVER\"}",
+                "{}");
+        AgentRunResult resolveResult = AgentRunResult.finalAnswer(
+                "Here is how ads become visible…",
+                List.of(new LlmCallEvent(0, 0, "deepseek", 200, 80, 1700L,
+                        "{\"finish_reason\":\"stop\"}")),
+                List.of(new ToolEvent(1, 0, "resolve_article", null, true,
+                        java.util.Map.of("source_id", "kb-1"), null, 80L)),
+                "{\"phase\":\"RESOLVE\"}",
+                "{\"user_message\":\"Here is how…\"}");
+
+        when(agentRunLoop.run(eq(discover), any(), anyString(), any()))
+                .thenAnswer(inv -> {
+                    // Simulate the production behaviour: each successful LLM
+                    // call inside the AgentRunLoop drains one slot from the
+                    // shared per-invocation HTTP-attempt budget. The §M3
+                    // replan must still proceed because (a) wall-clock has
+                    // ample time left and (b) FallbackLlmClient.chat() on
+                    // the next invocation re-arms the per-invocation budget.
+                    LlmCallContext.consumeAttempt();
+                    LlmCallContext.consumeAttempt();
+                    BotSession sess = inv.getArgument(1);
+                    sess.setActiveUseCase("UC-A");
+                    sess.setIntentConfidence(new java.math.BigDecimal("0.92"));
+                    return discoverResult;
+                });
+        when(agentRunLoop.run(eq(resolve), any(), anyString(), any()))
+                .thenReturn(resolveResult);
+
+        PhaseTransitionDecision finalDecision = new PhaseTransitionDecision(
+                "CONFIRM", "Here is how ads become visible…", null, "answer_provided");
+        when(phaseEvaluator.interpretRunResult(eq(resolve), any(AgentRunResult.class), any()))
+                .thenReturn(finalDecision);
+
+        // ── Act ──────────────────────────────────────────────────
+        ControlKernel.KernelResult kernel =
+                controlKernel.processMessage(session, "where is my advert? I can't see it");
+
+        // ── Assert ───────────────────────────────────────────────
+        assertEquals("UC-A", session.getActiveUseCase(),
+                "DISCOVER classify_use_case must commit UC-A on the session");
+        assertNull(session.getEscalationReason(),
+                "Per-invocation budget reset must not push the run into ESCALATE");
+        assertEquals("Here is how ads become visible…", kernel.responseText(),
+                "Same-turn RESOLVE replan must run and produce the FAQ answer "
+                        + "even when two prior successful DISCOVER LLM calls drained the "
+                        + "per-invocation HTTP-attempt counter — only wall-clock budget "
+                        + "should gate the replan");
+        assertFalse(kernel.shouldEndChat(),
+                "After RESOLVE FINAL_ANSWER → CONFIRM, the chat should stay open until CLOSE");
+        verify(phaseEvaluator, times(2)).plan(any(), anyString(), any());
+        verify(agentRunLoop, times(1)).run(eq(discover), any(), anyString(), any());
+        verify(agentRunLoop, times(1)).run(eq(resolve), any(), anyString(), any());
+        verify(eventEmitter, never())
+                .emitEscalationRequested(anyString(), org.mockito.ArgumentMatchers.anyInt(), anyString());
+    }
+
+    @Test
     void discoverClassifySuccess_insufficientBudget_skipsReplan_staysInResolve() {
         // ── Arrange: a deadline that cannot fit a second RESOLVE
         // attempt. The kernel must skip the replan, leave the session

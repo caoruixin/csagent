@@ -188,6 +188,52 @@ class Sprint81GlobalAttemptBudgetTest {
     }
 
     @Test
+    void deadline_multipleSequentialInvocations_eachGetsFreshAttemptBudget() {
+        // Sprint 8.1 closure follow-up (2026-05-07) — P1-2 pin. With a
+        // shared user-facing deadline in effect, multiple successful
+        // {@link FallbackLlmClient#chat} invocations within the same turn
+        // (e.g. DISCOVER's search_knowledge + classify_use_case + a
+        // same-turn RESOLVE replan) must each get a fresh primary +
+        // fallback attempt budget. The per-invocation reset at chat()
+        // entry means total successful first-attempt LLM calls per turn
+        // is bounded only by the wall-clock — not by the 2-attempt retry
+        // budget. Both primary calls succeed, fallback is never engaged.
+        LlmCallContext.setDeadline(System.currentTimeMillis() + 30_000L);
+        AtomicInteger primaryCalls = new AtomicInteger();
+        AtomicInteger fallbackCalls = new AtomicInteger();
+        primaryServer.createContext("/chat/completions", exchange -> {
+            primaryCalls.incrementAndGet();
+            respond(exchange, 200, successBody());
+        });
+        fallbackServer.createContext("/chat/completions", exchange -> {
+            fallbackCalls.incrementAndGet();
+            respond(exchange, 200, successBody());
+        });
+
+        FallbackLlmClient chain = newChain();
+        // Three sequential invocations under the same deadline — represents
+        // search_knowledge + classify_use_case + same-turn RESOLVE replan.
+        for (int i = 0; i < 3; i++) {
+            LlmResponse response = chain.chat(sampleRequest());
+            assertEquals("ok", response.getContent(),
+                    "Each invocation must succeed; the per-invocation reset "
+                            + "guarantees a fresh attempt budget for invocation #" + (i + 1));
+        }
+
+        assertEquals(3, primaryCalls.get(),
+                "All three invocations must reach the primary; per-invocation "
+                        + "reset means consumed attempts from prior calls do NOT block "
+                        + "subsequent invocations. Got " + primaryCalls.get());
+        assertEquals(0, fallbackCalls.get(),
+                "Fallback must never engage when the primary always succeeds");
+        // After three successful invocations, remainingAttempts is back at
+        // the per-invocation default minus the most-recent consumption.
+        assertTrue(LlmCallContext.remainingAttempts() >= 1,
+                "Per-invocation budget should be re-armed at the latest chat() entry; "
+                        + "got remainingAttempts=" + LlmCallContext.remainingAttempts());
+    }
+
+    @Test
     void noDeadline_primaryAndFallbackEachKeepTheirOwnRetryBudget() {
         // Legacy / batch / eval path: no deadline set →
         // {@link LlmCallContext#remainingAttempts()} returns
