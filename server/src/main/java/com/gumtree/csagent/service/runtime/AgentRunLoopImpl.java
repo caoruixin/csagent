@@ -381,8 +381,18 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     accumulatedToolResults.put(toolName, errorWrap);
                 }
 
-                // 6d. Handover short-circuits the loop
-                if (HANDOVER_TOOL.equals(toolName)) {
+                // 6d. Handover short-circuits the loop only when the
+                // dispatch actually SUCCEEDED. Sprint 9 §O1 — terminal-state
+                // honesty: a failed request_handover (e.g. malformed payload,
+                // SalesforceService failure) must not be treated as a
+                // successful terminal escalation; the error is surfaced in
+                // accumulated_tool_results above so the LLM can retry within
+                // the remaining maxToolSteps. If the loop later hits MAX_STEPS
+                // without a successful handover, PhaseEvaluator maps that to
+                // ESCALATE/turn_budget_exhausted via the canonical mapping —
+                // no synthetic success is ever stamped here.
+                if (HANDOVER_TOOL.equals(toolName)
+                        && result != null && result.isSuccess()) {
                     handoverRequested = true;
                     handoverReason = extractHandoverReason(call);
                 }

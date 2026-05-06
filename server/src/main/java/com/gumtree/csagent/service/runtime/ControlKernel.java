@@ -1303,6 +1303,24 @@ public class ControlKernel {
                     // tool calls as CONTRACT_VIOLATION:arguments.
                     entry.put("arguments",
                             te.arguments() != null ? te.arguments() : Map.of());
+
+                    // Sprint 9 §O2 — trace observability fidelity. Persist a
+                    // bounded sanitized {@code result_data} (and a compact
+                    // {@code result_summary} string) for every tool event so
+                    // the Trace UI Result panels are not blank. For failed
+                    // events the {@code result_summary} carries the error
+                    // surface; the existing {@code error_message} field is
+                    // kept for back-compat with tooling that already reads it.
+                    Object sanitizedResult = ToolCallTraceSanitizer.sanitizeResultData(
+                            te.toolName(), te.resultData());
+                    if (sanitizedResult != null) {
+                        entry.put("result_data", sanitizedResult);
+                    }
+                    String resultSummary = ToolCallTraceSanitizer.summarize(
+                            te.toolName(), te.success(), te.resultData(), te.errorMessage());
+                    if (resultSummary != null && !resultSummary.isBlank()) {
+                        entry.put("result_summary", resultSummary);
+                    }
                     toolCallsList.add(entry);
 
                     // Aggregate observability info from search_knowledge results

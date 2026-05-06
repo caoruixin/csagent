@@ -12,12 +12,22 @@ import java.util.Map;
  * Builds the handover payload and delegates to SalesforceService.requestHandover().
  * AGENT_VISIBLE — allowed for ALL use cases.
  * Handover payload follows Phase 3 section 3.6.2 schema.
+ *
+ * <p>Sprint 9 §O0 — terminal tool contract alignment. The projected schema
+ * now exposes {@code summary} as a recommended field, but a missing
+ * {@code summary} no longer fails the tool: {@link #deriveFallbackSummary}
+ * synthesises a safe summary from the session, the LLM-supplied
+ * {@code current_user_message}, and the canonical {@code escalation_reason}
+ * so cases like {@code request_handover(tool_scope_blocked)} can complete.
+ * The 23-value canonical {@code escalation_reason} enum and the
+ * {@code EscalationReasonResolver} precedence remain unchanged.
  */
 @Slf4j
 @Component
 public class RequestHandoverTool implements Tool {
 
     private static final String HANDOVER_SCHEMA_VERSION = "1.0";
+    private static final int FALLBACK_SUMMARY_MAX_CHARS = 280;
 
     private final SalesforceService salesforceService;
 
@@ -32,14 +42,16 @@ public class RequestHandoverTool implements Tool {
 
     @Override
     public ToolResult execute(BotSession session, Map<String, Object> parameters) {
-        String escalationReason = (String) parameters.get("escalation_reason");
-        if (escalationReason == null || escalationReason.isBlank()) {
+        String escalationReason = readStringParam(parameters, "escalation_reason");
+        if (escalationReason == null) {
             return ToolResult.error("Parameter 'escalation_reason' is required");
         }
 
-        String summary = (String) parameters.get("summary");
-        if (summary == null || summary.isBlank()) {
-            return ToolResult.error("Parameter 'summary' is required for handover");
+        String summary = readStringParam(parameters, "summary");
+        boolean summaryDerived = false;
+        if (summary == null) {
+            summary = deriveFallbackSummary(session, parameters, escalationReason);
+            summaryDerived = true;
         }
 
         // Build the handover payload per Phase 3 section 3.6.2
@@ -50,6 +62,9 @@ public class RequestHandoverTool implements Tool {
         payload.put("candidate_use_cases", session.getCandidateUseCases());
         payload.put("current_status", session.getHandlingState());
         payload.put("summary", summary);
+        if (summaryDerived) {
+            payload.put("summary_source", "fallback");
+        }
         payload.put("intent_confidence", session.getIntentConfidence());
         payload.put("clarification_count", session.getClarificationCount());
         payload.put("faq_miss_count", session.getFaqMissCount());
@@ -60,7 +75,7 @@ public class RequestHandoverTool implements Tool {
         payload.put("intake_fields", session.getIntakeFields());
         payload.put("total_bot_turns", session.getTotalBotTurns());
         payload.put("form_topic_subject", session.getFormTopicSubject());
-        payload.put("topic_uc_mismatch", parameters.get("topic_uc_mismatch"));
+        payload.put("topic_uc_mismatch", parameters == null ? null : parameters.get("topic_uc_mismatch"));
         payload.put("prompt_version", session.getPromptVersion());
         payload.put("model_version", session.getModelVersion());
 
@@ -70,9 +85,14 @@ public class RequestHandoverTool implements Tool {
         data.put("transfer_result", transferResult);
         data.put("session_id", session.getSessionId());
         data.put("escalation_reason", escalationReason);
+        data.put("summary", summary);
+        if (summaryDerived) {
+            data.put("summary_source", "fallback");
+        }
 
-        log.info("Handover requested: session='{}', reason='{}', result='{}'",
-                session.getSessionId(), escalationReason, transferResult);
+        log.info("Handover requested: session='{}', reason='{}', result='{}', summary_source='{}'",
+                session.getSessionId(), escalationReason, transferResult,
+                summaryDerived ? "fallback" : "provided");
 
         return ToolResult.ok(data);
     }
@@ -89,5 +109,56 @@ public class RequestHandoverTool implements Tool {
             identifiers.put("has_moderation_context", true);
         }
         return identifiers;
+    }
+
+    /**
+     * Sprint 9 §O0 — derive a safe handover summary when the LLM did not
+     * supply one. Combines (in priority order) the most informative
+     * non-blank source available — the LLM's {@code current_user_message},
+     * the form description, the session's topic + UC, and the canonical
+     * escalation reason. The result is bounded so it cannot smuggle large
+     * PII payloads into the trace.
+     */
+    static String deriveFallbackSummary(BotSession session,
+                                        Map<String, Object> parameters,
+                                        String escalationReason) {
+        String userMessage = parameters == null
+                ? null
+                : readStringParam(parameters, "current_user_message");
+
+        String topic = session == null ? null : session.getFormTopicSubject();
+        String uc = session == null ? null : session.getActiveUseCase();
+
+        StringBuilder sb = new StringBuilder();
+        if (uc != null && !uc.isBlank()) {
+            sb.append("UC=").append(uc);
+        }
+        if (topic != null && !topic.isBlank()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append("topic=").append(topic);
+        }
+        if (escalationReason != null && !escalationReason.isBlank()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append("reason=").append(escalationReason);
+        }
+        if (userMessage != null && !userMessage.isBlank()) {
+            if (sb.length() > 0) sb.append(" — ");
+            sb.append(userMessage.trim());
+        }
+        if (sb.length() == 0) {
+            sb.append("Handover requested with no summary supplied.");
+        }
+        String summary = sb.toString();
+        if (summary.length() > FALLBACK_SUMMARY_MAX_CHARS) {
+            summary = summary.substring(0, FALLBACK_SUMMARY_MAX_CHARS - 1) + "…";
+        }
+        return summary;
+    }
+
+    private static String readStringParam(Map<String, Object> parameters, String name) {
+        if (parameters == null) return null;
+        Object raw = parameters.get(name);
+        if (!(raw instanceof String s)) return null;
+        return s.isBlank() ? null : s;
     }
 }

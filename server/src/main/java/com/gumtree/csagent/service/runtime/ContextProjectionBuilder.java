@@ -163,6 +163,20 @@ public class ContextProjectionBuilder {
         ObjectNode reasonProp = objectMapper.createObjectNode();
         reasonProp.put("type", "string");
         ArrayNode enumValues = objectMapper.createArrayNode();
+        // Sprint 9 §O0: expose `summary` as a recommended field on the
+        // handover schema so the LLM is nudged to provide a one-line
+        // synopsis. Tool implementation derives a safe fallback when
+        // missing, so this field is NOT marked required (the runtime
+        // already has enough session state to synthesise a usable
+        // summary on its own — required-but-fallback would have meant
+        // tool_scope_blocked handovers fail solely on a missing field).
+        ObjectNode summaryProp = objectMapper.createObjectNode();
+        summaryProp.put("type", "string");
+        summaryProp.put("description",
+                "Optional one-line summary of the issue for the human "
+                        + "agent. If omitted, the runtime derives a safe "
+                        + "fallback summary from session state.");
+        props.set("summary", summaryProp);
         // Canonical 23-value escalation_reason enum. Mirrors
         // eval_interactive/eval_interactive/case_spec/schema.py:43-66
         // (EscalationTrigger Literal). Keep these two lists in lockstep.

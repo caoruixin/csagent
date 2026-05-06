@@ -132,6 +132,42 @@ function mapFunnel(m: any): FunnelMetrics {
   };
 }
 
+// Sprint 9 §O2: normalise backend tool_calls so the trace viewer always
+// has both legacy ({tool, args, result}) and new ({tool_name, arguments,
+// success, error_message, result_data, result_summary}) shapes available.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapToolCalls(raw: unknown): any[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return raw.map((tc: any) => {
+    if (tc == null || typeof tc !== 'object') return tc;
+    const toolName = tc.tool_name ?? tc.tool ?? '';
+    const args = tc.arguments ?? tc.args ?? {};
+    // Legacy rows used `result` for the full payload; the new contract
+    // uses `result_data` / `result_summary`. Provide both so old rows
+    // and new rows render through the same code path.
+    const resultLegacy =
+      tc.result ??
+      tc.result_data ??
+      (tc.result_summary != null ? { summary: tc.result_summary } : undefined) ??
+      (tc.error_message != null ? { error: tc.error_message } : undefined);
+    return {
+      ...tc,
+      tool: toolName,
+      tool_name: toolName,
+      args,
+      arguments: args,
+      result: resultLegacy ?? {},
+      result_data: tc.result_data ?? tc.result,
+      result_summary: tc.result_summary,
+      success: tc.success,
+      latency_ms: tc.latency_ms,
+      error_message: tc.error_message,
+      source: tc.source,
+    };
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapTrace(sessionId: string, turns: any[]): TraceResponse {
   return {
@@ -141,7 +177,9 @@ function mapTrace(sessionId: string, turns: any[]): TraceResponse {
       action: t.actionSelected ?? t.action ?? '',
       input: t.userMessage ?? t.input ?? '',
       output: t.botResponse ?? t.output ?? '',
-      tool_calls: t.toolCalls ? (typeof t.toolCalls === 'string' ? tryParse(t.toolCalls) : t.toolCalls) : undefined,
+      tool_calls: t.toolCalls
+        ? mapToolCalls(typeof t.toolCalls === 'string' ? tryParse(t.toolCalls) : t.toolCalls)
+        : undefined,
       timestamp: t.createdAt ?? t.timestamp ?? '',
       projected_context: t.projectedContext
         ? (typeof t.projectedContext === 'string' ? tryParse(t.projectedContext) : t.projectedContext)
