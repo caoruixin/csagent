@@ -1,31 +1,112 @@
 # Current Eval Baseline
 
-Date: 2026-05-06 (post Sprint 7.1 — clean-credential validation)
+Date: 2026-05-06 (post Sprint 8 — cs259 active-use-case contract hardening)
 
 ## Purpose
 
 This file freezes the accepted baseline for the next targeted
-runtime-behaviour or eval-governance sprint.
+sprint (recommended: Eval Governance Sprint).
 
 The next sprint should compare new results against the
-**post-Sprint-7-clean** accepted state. Sprint 7 implemented exactly
-I0 / I1 / I2 (`candidate_use_cases` projection + DISCOVER cue,
-moderation routing tiebreaker, `intake_state` projection + intake
-guard); Sprint 7.1 closed the I2 partial-intake-persistence blocker
-(J0). Both were validated under clean Kimi 2.6 credentials on
-2026-05-06 — see `docs/10-handoff.md` "Post-Sprint-7 clean
-validation" addendum. The post-Sprint-6 r1 baseline remains the
-historical reference for the Sprint 7 before/after comparison; the
-post-Sprint-7-clean r1 baseline is the current canonical reference
-for the next sprint.
+**post-Sprint-8** accepted state. Sprint 8 implemented exactly one
+action (K0): cs259 active-use-case contract hardening — a narrow
+deterministic UC-F fallback at the AgentRunLoop ESCALATE branch in
+`ControlKernel.processMessage` so the cs259 r2 shape (LLM emits
+`request_handover(faq_miss_threshold_exceeded)` after two
+`search_knowledge` calls without ever calling `classify_use_case`)
+no longer trips `CONTRACT_VIOLATION:active_use_case` — see
+`docs/10-handoff.md` "Sprint 8 — Targeted cs259 Active-Use-Case
+Contract Hardening" section. Sprint 7 + Sprint 7.1 contracts (I0
+candidate_use_cases / DISCOVER cue, I1 moderation routing
+tiebreaker, I2 intake_state projection + guard, J0 partial-intake
+persistence) remain pinned by the Sprint 7 focused regression
+suite; their before/after evidence remains in the
+`docs/current_eval_baseline.md` historical-reference section
+below. The post-Sprint-7-clean r1 baseline remains the historical
+reference for the Sprint 8 before/after comparison; the
+post-Sprint-8 r1 baseline is the current canonical reference for
+the next sprint.
 
-## Current sprint baseline (post Sprint 7 clean)
+## Current sprint baseline (post Sprint 8)
 
 Canonical current result:
 
+`eval_interactive/results/20260505-234448/results.json`
+
+This is the accepted post-Sprint-8 r1 result (8/14, mean composite
+0.4784, `sprint8-r1`) used after:
+
+- Sprint 8 §K0 cs259 active-use-case contract hardening
+  (extracted `ControlKernel.applyMissingUseCaseFallback` helper;
+  called from BOTH `forceEscalate` and the AgentRunLoop ESCALATE
+  branch in `processMessage` so any escalation surface that
+  reaches here without a committed UC gets the deterministic
+  fallback; UC-F regex extended with sale-proceeds vocabulary
+  `payout|payouts|proceeds|sale|sold|selling|money` so cs259
+  family intents resolve to UC-F even when the persona avoids
+  the literal "payment" token).
+- All Sprint 7 + Sprint 7.1 contracts unchanged
+  (Sprint7CandidateUseCasesProjectionTest,
+  Sprint7RoutingTiebreakerTest, Sprint7IntakeStateTest,
+  Sprint71PartialIntakePersistenceTest all green).
+- All Sprint 6 contracts unchanged (G0 ReadTimeout closure, G1
+  cs176 user_requested integration regression, G2 S1
+  FAQ-grounded-resolve guard).
+- Upstream Kimi credential continues to be the rotated working
+  Kimi 2.6 provisioning
+  (`https://api.moonshot.ai/v1`, `kimi-k2.6`); 0 ReadTimeout / 0
+  `INFRA:ReadTimeout` / 0 `session_create_failed` / 0 `401`-tagged
+  auth contamination across both clean smoke runs.
+
+Pass rate:
+
+`8/14`
+
+Mean composite:
+
+`0.4784`
+
+Notes:
+
+- **K0 effect visible across BOTH smoke runs.** cs259 commits
+  UC-F in r1 AND r2 (was UC-F in Sprint 7 r1 only; Sprint 7 r2
+  produced empty UC + `CONTRACT_VIOLATION:active_use_case`
+  because the LLM did not call `classify_use_case` before
+  handover). 0 contract violations across both Sprint 8 runs.
+- cs066 now PASSES in BOTH r1 and r2 (was FAIL in Sprint 7 r1
+  via `STALL_AFTER_TOOL_INTENT` /
+  `turn_budget_exhausted`). UC-K + intake_complete_for_uc_k +
+  Sprint 7.1 §J0 partial-intake persistence stable across runs.
+- cs176 now routes to UC-E (expected) in BOTH runs with
+  `faq_miss_threshold_exceeded`. The long-deferred UC-I drift
+  no longer reproduces under clean Kimi 2.6.
+- 0 ReadTimeout / 0 `INFRA:ReadTimeout` / 0
+  `session_create_failed` across r1 + r2.
+- 0 `L1:escalation_reason_consistency` failures across r1 + r2.
+- 0 `CONTRACT_VIOLATION:active_use_case` across r1 + r2 (was 1
+  on Sprint 7 r2).
+
+### Stability reference run
+
+Follow-up smoke run to characterise post-Sprint-8 nondeterminism:
+
+- `eval_interactive/results/20260505-235231/results.json` (9/14,
+  mean composite 0.5255, `sprint8-r2`; **higher pass count and
+  higher composite than r1** — UC-J cs038 PASSES in r2 plus all
+  three intake UCs (UC-I cs036, UC-J cs038, UC-K cs040, cs066)
+  PASS). 0 ReadTimeout / 0 `INFRA:ReadTimeout` / 0
+  `CONTRACT_VIOLATION` / 0 `L1:escalation_reason_consistency`.
+  cs095 r2 hits `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP` (eval-side
+  stall detector, not a runtime regression — Eval Governance
+  scope).
+
+## Previous sprint baseline (post Sprint 7 clean) — historical reference
+
+Canonical post-Sprint-7-clean result (now superseded as canonical):
+
 `eval_interactive/results/20260505-224809/results.json`
 
-This is the accepted post-Sprint-7-clean r1 result (8/14, mean
+This was the accepted post-Sprint-7-clean r1 result (8/14, mean
 composite 0.4707, `sprint7-clean-r1`) used after:
 
 - Sprint 7 §I0 `candidate_use_cases` projection + DISCOVER cue

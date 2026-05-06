@@ -1,6 +1,100 @@
 # Action Bank
 
-Date: 2026-05-06 (post Sprint 7.1 clean-credential validation; canonical baseline rotated to post-Sprint-7-clean r1)
+Date: 2026-05-06 (post Sprint 8 — cs259 active-use-case contract hardening; canonical baseline rotated to post-Sprint-8 r1)
+
+## Status — Sprint 8 closure (cs259 active-use-case contract hardening)
+
+Sprint 8 implements exactly one action (K0) on top of Sprint 7.1.
+The post-Sprint-7 clean validation surfaced one residual blocker —
+`CONTRACT_VIOLATION:active_use_case` on cs_interactive_259 r2 —
+that prevented entry to the planned Eval Governance Sprint. K0
+closes that blocker via a narrow deterministic UC-F fallback at
+the AgentRunLoop ESCALATE branch in
+`ControlKernel.processMessage`, reusing the existing
+`inferFallbackUseCase` regex (extended with sale-proceeds
+vocabulary). Implementation verified by 23 focused regression
+tests + the full 682-test mvn suite + 294-test pytest suite, plus
+two clean smoke runs and a clean targeted cs259 run.
+
+### S8-K0. cs259 active-use-case contract hardening — **DONE** (2026-05-06)
+
+Extracts the existing `ControlKernel.forceEscalate` Sprint §B3
+fallback-UC commit logic into a single package-private helper
+`applyMissingUseCaseFallback(BotSession session, String userMessage)`
+and calls it from BOTH the legacy `forceEscalate` path AND the
+AgentRunLoop ESCALATE branch in `processMessage`. The helper is a
+no-op when `session.activeUseCase` is already non-blank, so the
+fallback never overrides an LLM-classified or
+`UseCaseRouter`-assigned UC. UC-F regex extended from
+`(refund|payment|payments|charged|paid|invoice|receipt)` to
+`(refund|refunds|payment|payments|charged|paid|invoice|receipt|payout|payouts|proceeds|sale|sold|selling|money)`
+so cs259-family intents (which the persona may phrase as "sale
+proceeds" or "receive money for an item I sold" without the
+literal "payment" token) resolve to UC-F. The semantic
+escalation reason is unaffected (the resolver has already settled
+it before the fallback runs). No new skill runtime framework, no
+broad routing taxonomy rewrite, no FAQ corpus changes, no
+CaseSpec changes, no expected-outcome change for cs259, no judge
+calibration. Anchored on cs_interactive_259.
+
+Files:
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+  - new `applyMissingUseCaseFallback(BotSession, String)` helper.
+  - `forceEscalate` refactored to call the helper (no behaviour
+    change for cs029).
+  - `processMessage` AgentRunLoop ESCALATE branch now calls the
+    helper before `createCaseIfNeeded`.
+  - `inferFallbackUseCase` UC-F regex extended with sale-proceeds
+    vocabulary.
+
+Tests:
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint8Cs259ActiveUseCaseHardeningTest.java`
+  — 21 tests (positive UC-F regex variants, helper-contract
+  tests, negative guards for cs014 / cs066 / cs095 / cs011 /
+  cs002 / cs029 / cs176, inference-order tests).
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint8Cs259EscalateBranchIntegrationTest.java`
+  — 2 tests (cs259 r2 shape end-to-end through `processMessage`
+  AgentRunLoop ESCALATE branch; already-committed UC is not
+  overwritten).
+
+### Sprint 8 closure tests run
+
+- `mvn -pl server -Dtest='Sprint8Cs259ActiveUseCaseHardeningTest,Sprint8Cs259EscalateBranchIntegrationTest' test`
+  → **23 / 23 passed**.
+- `mvn -pl server test` → **682 / 682 passed** (Sprint 7.1
+  baseline 659 + 23 new Sprint 8 tests).
+- `python -m pytest -p no:capture eval_interactive/tests/`
+  → **294 / 294 passed**.
+
+### Sprint 8 closure: clean smoke promoted as canonical
+
+- Targeted: `results/20260505-234352/results.json` (cs259 — UC-F
+  committed, 0 contract violations; remaining failure is FAQ
+  corpus answerability gap, not runtime).
+- Smoke r1: `eval_interactive/results/20260505-234448/results.json`
+  (`sprint8-r1`, **8/14 passed**, mean composite **0.4784**,
+  0 ReadTimeout / 0 contract violations / 0
+  `L1:escalation_reason_consistency` fails).
+- Smoke r2: `eval_interactive/results/20260505-235231/results.json`
+  (`sprint8-r2`, **9/14 passed**, mean composite **0.5255**,
+  0 ReadTimeout / 0 contract violations).
+- Canonical baseline rotated:
+  `docs/current_eval_baseline.md` now points to
+  `eval_interactive/results/20260505-234448/results.json` (Sprint
+  8 r1). Post-Sprint-7-clean r1 demoted to historical reference.
+
+### Recommendation: Eval Governance Sprint can now start
+
+The K0 fix removes the last cross-run contract-stability blocker.
+Both smoke runs complete with 0 `CONTRACT_VIOLATION:active_use_case`
+and 0 `L1:escalation_reason_consistency` failures. The remaining
+failure surface is dominated by stall detector volatility, judge
+volatility, FAQ corpus answerability gaps, and persona-simulator
+pacing — all of which are eval-side governance scope, not runtime
+blockers. See `docs/10-handoff.md` Sprint 8 §9 for the recommended
+Eval Governance Sprint scope.
+
+
 
 ## Status — Post-Sprint-7 clean validation (2026-05-06)
 
