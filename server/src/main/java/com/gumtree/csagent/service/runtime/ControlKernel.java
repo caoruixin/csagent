@@ -646,13 +646,17 @@ public class ControlKernel {
         }
         boolean hasRealTool = hasSuccessfulToolEvent(result);
         boolean hasRealLlm = hasNonSyntheticLlmEvent(result);
-        // MAX_STEPS without any successful tool event is the "synthetic
-        // SAFE_ESCALATION rejected on every step" shape — no real work
-        // happened, so no fallback.
-        if (outcome == com.gumtree.csagent.model.TerminalOutcome.MAX_STEPS && !hasRealTool) {
-            return false;
-        }
-        return hasRealTool || hasRealLlm;
+        // Sprint 8.1 §M2: per the explicit "K0 must NOT fire when …"
+        // list — no real LLM output AND no real tool events both
+        // forbid K0. Require BOTH to count as evidence so a path
+        // with only one of them (e.g. one real LLM event but every
+        // tool call rejected by the plan whitelist, or one
+        // successful tool event followed by a deadline-exhausted LLM
+        // call that recorded zero LLM events) does not silently
+        // stamp a UC. The cs259 reasoned-but-missing-UC path
+        // satisfies both because it makes real search_knowledge
+        // tool calls AND records real LLM events for each of them.
+        return hasRealTool && hasRealLlm;
     }
 
     /**
