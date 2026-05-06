@@ -225,4 +225,186 @@ class Sprint8Cs259EscalateBranchIntegrationTest {
                 "intentConfidence must not be downgraded by the K0 fallback "
                         + "when the UC was already committed.");
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // §K0 narrowing — gate fallback on AgentRunResult evidence so
+    // service_degraded paths don't get masked with a regex UC.
+    // Anchored on the live trace 6cd5320f-1758-4f3a-affe-51adf9b7ba36
+    // observed on 2026-05-06: no LLM call recorded, 0 tool calls,
+    // 12 320 ms elapsed, AgentRunLoop returned ERROR with empty
+    // events; pre-narrowing K0 stamped UC-A from the regex match
+    // on "ad" in the user message + form description, hiding the
+    // upstream Kimi-call failure. The narrowing must leave
+    // activeUseCase null in that path so service_degraded surfaces
+    // are visible to operators and to the eval contract validator.
+    // ─────────────────────────────────────────────────────────────
+
+    private void mockCommonStubsWithRunResult(AgentRunResult runResult,
+                                               PhaseTransitionDecision decision) {
+        when(budgetChecker.checkBudgets(any())).thenReturn(Optional.empty());
+        when(driftDetector.detect(any(), anyString())).thenReturn(
+                DriftResult.builder().type(DriftResult.DriftType.NONE).build());
+        when(turnRepository.findBySessionIdOrderByTurnIndex(anyString()))
+                .thenReturn(List.of());
+        PhasePlan plan = PhasePlan.builder()
+                .phase("DISCOVER").useCase(null)
+                .objective("Identify the user's use case")
+                .allowedTools(List.of("search_knowledge", "classify_use_case"))
+                .maxToolSteps(2).systemInstruction("Cs259 K0-narrowing stub")
+                .validTerminalOutcomes(Set.of(
+                        com.gumtree.csagent.model.TerminalOutcome.ESCALATE,
+                        com.gumtree.csagent.model.TerminalOutcome.FINAL_ANSWER,
+                        com.gumtree.csagent.model.TerminalOutcome.CLARIFICATION_NEEDED,
+                        com.gumtree.csagent.model.TerminalOutcome.ERROR))
+                .build();
+        when(phaseEvaluator.plan(any(), anyString(), any())).thenReturn(plan);
+        when(agentRunLoop.run(any(), any(), anyString(), any())).thenReturn(runResult);
+        when(phaseEvaluator.interpretRunResult(any(), eq(runResult), any()))
+                .thenReturn(decision);
+        when(controlPolicy.isValidTransition("DISCOVER", "ESCALATE")).thenReturn(true);
+    }
+
+    private static PhaseTransitionDecision serviceDegradedDecision() {
+        return new PhaseTransitionDecision(
+                "ESCALATE",
+                "I'm experiencing a technical issue. Let me connect you with a specialist.",
+                "service_degraded",
+                "agent_error");
+    }
+
+    private static PhaseTransitionDecision faqMissDecision() {
+        return new PhaseTransitionDecision(
+                "ESCALATE",
+                "Let me connect you with a specialist.",
+                "faq_miss_threshold_exceeded",
+                "agent_escalated");
+    }
+
+    @Test
+    void llmCallFailed_emptyEvents_errorOutcome_skipsFallback_leavesUcNull() {
+        // ── Arrange: live-trace shape — Kimi chat call threw a
+        // timeout; AgentRunLoopImpl line 165–168 returned
+        // AgentRunResult.error("llm_invocation_failed: …") with empty
+        // toolEvents and empty llmEvents. The user message is the
+        // same "where is my ad" form-prefilled cs15-shape that the
+        // regex would otherwise match to UC-A.
+        AgentRunResult errorResult = AgentRunResult.error(
+                "llm_invocation_failed: read timed out after 12000ms");
+        BotSession session = cs259ShapeSession();
+        // Replace the cs259 form context with the live-trace form
+        // context (Ad Support topic, "where is my ad" description),
+        // so the regex would resolve to UC-A if the fallback fired.
+        session.setFormTopicSubject("Ad Support");
+        session.setFormContext("{\"first_name\":\"joh\",\"email\":\"joh@e.com\","
+                + "\"topic_subject\":\"Ad Support\",\"ad_id\":\"123\","
+                + "\"description\":\"where is my ad?\"}");
+        mockCommonStubsWithRunResult(errorResult, serviceDegradedDecision());
+
+        // ── Act ──────────────────────────────────────────────────
+        controlKernel.processMessage(session, "hi, why I can't see my ad");
+
+        // ── Assert: K0 narrowing leaves UC null ──────────────────
+        assertNull(session.getActiveUseCase(),
+                "When the LLM call failed and produced no tool/llm events, "
+                        + "K0 must NOT silently stamp UC-A from the regex. "
+                        + "Leaving activeUseCase null is intentional so the "
+                        + "trace contract validator and operators see the "
+                        + "service_degraded surface.");
+        assertEquals("service_degraded", session.getEscalationReason(),
+                "Escalation reason must surface as service_degraded.");
+        assertEquals("ESCALATE", session.getCurrentPhase());
+        assertEquals("escalated", session.getContainmentOutcome());
+    }
+
+    @Test
+    void llmRanReturnedEscalateWithNoEvents_treatedAsEvidence_appliesFallback() {
+        // ── Arrange: edge case — terminalOutcome=ESCALATE but no
+        // toolEvents / no llmEvents. This mirrors a future code path
+        // where AgentRunLoop short-circuits to escalate without
+        // recording events. The narrowing's evidence predicate
+        // includes outcome != ERROR as one sufficient condition, so
+        // ESCALATE-with-empty-events still triggers the fallback.
+        // This preserves the original cs259-shape contract for
+        // pre-existing callers.
+        AgentRunResult escalateNoEvents = AgentRunResult.escalate(
+                "faq_miss_threshold_exceeded",
+                List.of(),
+                List.of(),
+                "{\"phase\":\"DISCOVER\"}",
+                null);
+        BotSession session = cs259ShapeSession();
+        mockCommonStubsWithRunResult(escalateNoEvents, faqMissDecision());
+
+        controlKernel.processMessage(session,
+                "How do I receive the payment when I sell an item");
+
+        assertEquals("UC-F", session.getActiveUseCase(),
+                "outcome=ESCALATE is positive evidence (the bot decided "
+                        + "to hand over rather than crashing); the fallback "
+                        + "must still fire to satisfy the cs259 r2 contract.");
+        assertEquals("faq_miss_threshold_exceeded", session.getEscalationReason());
+    }
+
+    @Test
+    void llmRanWithToolEventsButNoLlmEvents_appliesFallback() {
+        // ── Arrange: AgentRunLoop ran search_knowledge (tool event
+        // recorded) then the LLM call wrapping the next step threw,
+        // returning ERROR with toolEvents=[search_knowledge] and
+        // llmEvents=[]. The bot DID reason about the user's request
+        // (it ran a search), so K0 should still apply.
+        com.gumtree.csagent.model.ToolEvent searchEvent =
+                new com.gumtree.csagent.model.ToolEvent(
+                        0, 0, "search_knowledge",
+                        java.util.Map.of("query", "payment"),
+                        true, null, null, 450L);
+        AgentRunResult errorWithToolEvent = new AgentRunResult(
+                List.of(),
+                List.of(searchEvent),
+                List.of(),
+                com.gumtree.csagent.model.TerminalOutcome.ERROR,
+                null,
+                Optional.of("llm_invocation_failed: timeout"),
+                "{\"phase\":\"DISCOVER\"}",
+                null);
+        BotSession session = cs259ShapeSession();
+        mockCommonStubsWithRunResult(errorWithToolEvent, serviceDegradedDecision());
+
+        controlKernel.processMessage(session,
+                "How do I receive the payment when I sell an item");
+
+        assertEquals("UC-F", session.getActiveUseCase(),
+                "Even on terminal ERROR, recorded tool events count as "
+                        + "evidence the bot actually ran — the fallback must "
+                        + "fire so the cs259 r2 partial-progress shape still "
+                        + "lands on a valid UC.");
+    }
+
+    @Test
+    void llmRanWithLlmEventsButNoToolEvents_appliesFallback() {
+        // ── Arrange: the LLM responded once (llmEvent recorded) but
+        // no tool was called and the parser failed, returning ERROR.
+        // Same evidence-positive reasoning as the previous test.
+        com.gumtree.csagent.model.LlmCallEvent llmEvent =
+                new com.gumtree.csagent.model.LlmCallEvent(
+                        0, 0, "kimi-k2.6", 120, 40, 2400L, "raw response");
+        AgentRunResult errorWithLlmEvent = new AgentRunResult(
+                List.of(),
+                List.of(),
+                List.of(llmEvent),
+                com.gumtree.csagent.model.TerminalOutcome.ERROR,
+                null,
+                Optional.of("parser_failed"),
+                "{\"phase\":\"DISCOVER\"}",
+                "raw response that couldn't be parsed");
+        BotSession session = cs259ShapeSession();
+        mockCommonStubsWithRunResult(errorWithLlmEvent, serviceDegradedDecision());
+
+        controlKernel.processMessage(session,
+                "How do I receive the payment when I sell an item");
+
+        assertEquals("UC-F", session.getActiveUseCase(),
+                "An LLM event without tool events still counts as "
+                        + "evidence; the fallback must fire.");
+    }
+
 }
