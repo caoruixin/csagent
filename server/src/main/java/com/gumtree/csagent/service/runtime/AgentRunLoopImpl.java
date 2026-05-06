@@ -425,9 +425,13 @@ public class AgentRunLoopImpl implements AgentRunLoop {
             }
         }
 
-        // Loop exhausted
+        // Loop exhausted. Sprint 8.2 §M0b — preserve the last LLM raw
+        // response on MAX_STEPS so the trace UI does not falsely render
+        // "no LLM call for this turn" when multiple successful LLM calls
+        // happened before the loop hit maxToolSteps. Terminal outcome and
+        // PhaseEvaluator MAX_STEPS mapping are unchanged.
         log.warn("AgentRunLoop hit max_tool_steps={} without terminal outcome", maxSteps);
-        return AgentRunResult.maxSteps(llmEvents, toolEvents, lastProjection);
+        return AgentRunResult.maxSteps(llmEvents, toolEvents, lastProjection, lastLlmRawResponse);
     }
 
     /**
