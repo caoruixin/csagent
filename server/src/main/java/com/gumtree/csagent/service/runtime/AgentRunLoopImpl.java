@@ -223,11 +223,27 @@ public class AgentRunLoopImpl implements AgentRunLoop {
             List<ToolCall> calls = action.getToolCalls();
             String userMsg = action.getUserMessage();
 
-            // 5. No tool calls -> final user message (or clarification)
+            // 5. No tool calls -> final user message (or clarification).
+            // Sprint 8.1 follow-up (2026-05-06): distinguish clarifying
+            // questions from real final answers so the phase mapper does
+            // not eagerly transition RESOLVE → CONFIRM → CLOSE while the
+            // bot is still asking the user for required details. The LLM
+            // routinely emits no-tool-call clarifications like "Can you
+            // confirm the ad ID?" which previously surfaced as
+            // FINAL_ANSWER and chained RESOLVE → CONFIRM (turn N) →
+            // CLOSE (turn N+1) — ending the chat mid-conversation. The
+            // existing PhaseEvaluator.isClarificationTurn helper detects
+            // the shape ("?"-suffix or clarifying phrase + no tool
+            // calls); we use the same predicate here so the AgentRunLoop
+            // and PhaseEvaluator agree on what counts as a clarification.
             if (calls == null || calls.isEmpty()) {
                 String finalText = (userMsg == null || userMsg.isBlank())
                         ? "I'm looking into this for you."
                         : userMsg;
+                if (isClarificationMessage(finalText)) {
+                    return AgentRunResult.clarification(finalText, llmEvents, toolEvents,
+                            lastProjection, lastLlmRawResponse);
+                }
                 return AgentRunResult.finalAnswer(finalText, llmEvents, toolEvents,
                         lastProjection, lastLlmRawResponse);
             }
@@ -563,5 +579,32 @@ public class AgentRunLoopImpl implements AgentRunLoop {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Sprint 8.1 follow-up — heuristic clarification detection on a
+     * no-tool-calls user_message. Mirrors the existing
+     * {@link PhaseEvaluator#isClarificationTurn(com.gumtree.csagent.model.ParsedAction)}
+     * predicate (kept duplicated here so the AgentRunLoop does not
+     * depend on PhaseEvaluator). True when the message ends with
+     * {@code '?'} or contains a recognised clarifying phrase
+     * ("could you", "can you tell", "what is", "which", "do you have").
+     *
+     * <p>When this returns {@code true}, the loop emits
+     * {@link com.gumtree.csagent.model.TerminalOutcome#CLARIFICATION_NEEDED}
+     * so {@link PhaseEvaluator#interpretRunResult} keeps the session in
+     * the current phase rather than chaining RESOLVE → CONFIRM → CLOSE
+     * mid-conversation.
+     */
+    static boolean isClarificationMessage(String userMessage) {
+        if (userMessage == null || userMessage.isBlank()) return false;
+        String trimmed = userMessage.trim();
+        if (trimmed.endsWith("?")) return true;
+        String lower = trimmed.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("could you")
+                || lower.contains("can you tell")
+                || lower.contains("what is")
+                || lower.contains("which")
+                || lower.contains("do you have");
     }
 }

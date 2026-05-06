@@ -112,6 +112,32 @@ public record AgentRunResult(
         );
     }
 
+    /**
+     * Sprint 8.1 follow-up (2026-05-06) — clarification factory. Used by
+     * the AgentRunLoop when the LLM emits no tool calls AND the
+     * {@code user_message} looks like a clarifying question (ends with
+     * {@code '?'} or carries a clarifying phrase). Surfaces as
+     * {@link TerminalOutcome#CLARIFICATION_NEEDED} so
+     * {@code PhaseEvaluator.interpretRunResult} keeps the session in the
+     * current phase rather than chaining to CONFIRM / CLOSE.
+     */
+    public static AgentRunResult clarification(String userMessage,
+                                                List<LlmCallEvent> llmEvents,
+                                                List<ToolEvent> toolEvents,
+                                                String lastProjection,
+                                                String lastLlmRawResponse) {
+        return new AgentRunResult(
+                List.of(AgentMessage.finalMessage(userMessage)),
+                toolEvents,
+                llmEvents,
+                TerminalOutcome.CLARIFICATION_NEEDED,
+                userMessage,
+                Optional.empty(),
+                lastProjection,
+                lastLlmRawResponse
+        );
+    }
+
     public static AgentRunResult error(String message) {
         return new AgentRunResult(
                 List.of(),
