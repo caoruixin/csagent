@@ -7,14 +7,18 @@ overwrite-current-state files:
 - `docs/10-handoff.md`
 - `docs/codex-findings.md`
 - `docs/sprint_objective.md`
+- `docs/action_bank.md`
 
-Those three files must not become append-only historical logs.
-They each represent the *latest* current handoff, latest Codex
-review decision, and latest sprint objective respectively. When
-one of them is about to be replaced for a new sprint, a closure
-review, or any post-sprint validation pass, the previous
-version is archived first so the historical content is not
-lost.
+These files must not become append-only historical logs. They
+each represent the *latest* current handoff, latest Codex
+review decision, latest sprint objective, and current action
+ledger respectively. `docs/action_bank.md` is a *current
+ledger* (active / next actions, open deferred backlog, compact
+closed-action index) — not a full sprint-by-sprint history.
+When one of these files is about to be replaced for a new
+sprint, a closure review, a post-sprint validation pass, or
+any major rewrite, the previous version is archived first so
+the historical content is not lost.
 
 ## What belongs here
 
@@ -25,6 +29,8 @@ lost.
 - Pre-overwrite copies of `docs/codex-findings.md` or
   `docs/sprint_objective.md` taken when they were not
   already saved as part of a sprint closure.
+- Pre-rewrite copies of `docs/action_bank.md` taken before
+  major compaction or restructuring.
 - Any snapshot that is preserved purely for historical
   reference and is not the canonical record of a sprint
   closure.
@@ -49,13 +55,19 @@ this snapshot was taken from.
 
 ## Working files are latest-only
 
-`docs/10-handoff.md`, `docs/codex-findings.md`, and
-`docs/sprint_objective.md` are latest-only working files.
-Before they are overwritten:
+`docs/10-handoff.md`, `docs/codex-findings.md`,
+`docs/sprint_objective.md`, and `docs/action_bank.md` are
+latest-only working files. `docs/action_bank.md` in
+particular is a current ledger, not a full history — it
+carries active / next actions, the open deferred backlog,
+and a compact closed-action index, with sprint-by-sprint
+implementation detail living under `docs/sprints/`. Before
+any of these files are overwritten or undergo a major
+rewrite:
 
 1. archive the previous version under `docs/sprints/` if it
    belongs to a sprint closure, or here if it is an ad hoc
-   transition;
+   transition / major rewrite;
 2. then overwrite the working file with the latest current
    version;
 3. keep only actionable current state in the working file.
