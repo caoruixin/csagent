@@ -6,6 +6,7 @@ import com.gumtree.csagent.model.*;
 import com.gumtree.csagent.model.DriftResult.DriftType;
 import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotTurnRepository;
+import com.gumtree.csagent.service.llm.LlmCallContext;
 import com.gumtree.csagent.service.observability.EventEmitter;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolResult;
@@ -32,6 +33,17 @@ public class ControlKernel {
     /** INTAKE UCs that route through the {@code RESOLVE_INTAKE} phase plan. */
     private static final Set<String> INTAKE_UCS = Set.of(
             "UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
+
+    /**
+     * Sprint 8.1 §M3 — minimum remaining wall-clock budget required to
+     * start a same-turn RESOLVE replan. Sized so a RESOLVE plan with one
+     * search_knowledge + one resolve_article LLM round-trip fits inside
+     * the user-facing deadline. Below this floor the kernel skips the
+     * replan, leaves the session in RESOLVE, and returns a non-terminal
+     * "looking into it" response so the next user turn re-runs RESOLVE
+     * fresh.
+     */
+    private static final long MIN_RESOLVE_REPLAN_BUDGET_MS = 8_000L;
 
     private final BotTurnRepository turnRepository;
     private final BotEventRepository eventRepository;
@@ -246,10 +258,79 @@ public class ControlKernel {
                 log.info("Session {}: routing turn through AgentRunLoop (route={}, uc={})",
                         session.getSessionId(), routeKey, session.getActiveUseCase());
                 AgentRunResult runResult = agentRunLoop.run(plan, session, userMessage, history);
+
+                // Sprint 8.1 §M3: deterministic DISCOVER → RESOLVE phase
+                // boundary. When the AgentRunLoop returns USE_CASE_IDENTIFIED
+                // (classify_use_case successfully committed activeUseCase on
+                // a DISCOVER plan), perform exactly one bounded same-turn
+                // replan into RESOLVE. Both runs share the SAME thread-local
+                // {@link LlmCallContext} budget, so the combined wall-clock
+                // and HTTP-attempt budget is preserved. If the remaining
+                // budget cannot fit a RESOLVE attempt, leave the session in
+                // RESOLVE and return a non-terminal "looking into it"
+                // response — the next user turn will run RESOLVE fresh.
+                AgentRunResult discoverDiscovery = null;
+                String effectivePhaseBefore = phaseBefore;
+                if (runResult.terminalOutcome() == TerminalOutcome.USE_CASE_IDENTIFIED
+                        && plan.phase() != null
+                        && "DISCOVER".equalsIgnoreCase(plan.phase())) {
+                    discoverDiscovery = runResult;
+                    String committedUc = session.getActiveUseCase();
+                    log.info("Session {}: §M3 same-turn DISCOVER->RESOLVE replan candidate "
+                                    + "(committedUc={})",
+                            session.getSessionId(), committedUc);
+                    // Apply the deterministic DISCOVER -> RESOLVE transition
+                    // BEFORE the second plan() call so the new plan reflects
+                    // the new phase. {@link #applyTransition} would also
+                    // refuse to step over RESOLVE (DISCOVER -> CONFIRM is
+                    // not a legal direct transition); promoting
+                    // {@code effectivePhaseBefore} to RESOLVE keeps the
+                    // post-replan transition (e.g. RESOLVE -> CONFIRM on a
+                    // FAQ FINAL_ANSWER) inside the policy.
+                    if (controlPolicy.isValidTransition(phaseBefore, "RESOLVE")) {
+                        session.setCurrentPhase("RESOLVE");
+                        effectivePhaseBefore = "RESOLVE";
+                    }
+                    // Budget gate: a RESOLVE attempt typically needs ~3 s
+                    // connect + 12 s read + tiny buffer. If the remaining
+                    // wall-clock cannot fit one full attempt OR the shared
+                    // HTTP-attempt budget is already exhausted, skip the
+                    // replan and let the user retry next turn.
+                    Long remaining = LlmCallContext.remainingMillis();
+                    boolean budgetOk = (remaining == null
+                            || remaining >= MIN_RESOLVE_REPLAN_BUDGET_MS)
+                            && LlmCallContext.canAttempt();
+                    if (!budgetOk) {
+                        log.info("Session {}: §M3 insufficient budget for same-turn RESOLVE replan "
+                                        + "(remaining_ms={}, remaining_attempts={}); staying in RESOLVE "
+                                        + "and returning transitional response",
+                                session.getSessionId(), remaining,
+                                LlmCallContext.remainingAttempts());
+                    } else {
+                        PhasePlan resolvePlan = phaseEvaluator.plan(session, userMessage, history);
+                        if (resolvePlan != null) {
+                            log.info("Session {}: §M3 running same-turn RESOLVE replan with plan.useCase={}",
+                                    session.getSessionId(), resolvePlan.useCase());
+                            AgentRunResult resolveRunResult =
+                                    agentRunLoop.run(resolvePlan, session, userMessage, history);
+                            // Combine tool / llm events from BOTH runs so the
+                            // persisted bot turn captures the DISCOVER tool
+                            // chain (search_knowledge, classify_use_case)
+                            // alongside the RESOLVE tool chain.
+                            runResult = mergeAgentRunResults(discoverDiscovery, resolveRunResult);
+                            plan = resolvePlan;
+                        } else {
+                            log.warn("Session {}: §M3 RESOLVE plan was null; falling back to "
+                                            + "USE_CASE_IDENTIFIED transitional response",
+                                    session.getSessionId());
+                        }
+                    }
+                }
+
                 PhaseTransitionDecision decision =
                         phaseEvaluator.interpretRunResult(plan, runResult, session);
 
-                String phaseAfter = applyTransition(session, phaseBefore, decision);
+                String phaseAfter = applyTransition(session, effectivePhaseBefore, decision);
                 String responseText = decision.responseText();
                 if (responseText == null) {
                     responseText = "I'm looking into this for you. One moment please.";
@@ -338,8 +419,23 @@ public class ControlKernel {
                 }
 
                 long latencyMs = System.currentTimeMillis() - startTime;
+                // Sprint 8.1 §M2 follow-up (2026-05-06): persist the
+                // user-facing reply text (the same string returned via
+                // KernelResult.responseText). The legacy code passed only
+                // {@link AgentRunResult#finalUserMessage}, which is null for
+                // every non-FINAL_ANSWER terminal outcome (MAX_STEPS,
+                // ESCALATE, DEADLINE_EXCEEDED, LLM_UNAVAILABLE, ERROR), so
+                // {@code bot_turns.bot_response} silently became NULL
+                // whenever the loop hit the slow / unavailable / max-steps /
+                // escalate paths. The trace UI showed a blank Output for
+                // those turns and the next turn's
+                // {@code conversation_history} projection fed the LLM a
+                // record claiming the bot had said nothing — both
+                // problems disappear once the persisted column reflects what
+                // the user actually saw.
                 recordRunResult(session, userMessage, plan, runResult,
-                        phaseBefore, phaseAfter, latencyMs, runtimeCaseResult);
+                        phaseBefore, phaseAfter, latencyMs, runtimeCaseResult,
+                        responseText);
 
                 // D16.D: mirror the legacy evaluateClose state-setting when the
                 // agent loop terminates in CLOSE. SessionManager reads
@@ -1173,7 +1269,8 @@ public class ControlKernel {
     private void recordRunResult(BotSession session, String userMessage,
                                   PhasePlan plan, AgentRunResult result,
                                   String phaseBefore, String phaseAfter, long latencyMs,
-                                  ToolResult runtimeCaseResult) {
+                                  ToolResult runtimeCaseResult,
+                                  String displayedResponseText) {
         try {
             // Build tool_calls JSONB from the loop's ToolEvents
             String toolCallsJson = null;
@@ -1299,6 +1396,17 @@ public class ControlKernel {
                 }
             }
 
+            // Sprint 8.1 §M2 follow-up: prefer the displayed user-facing
+            // reply text. {@code result.finalUserMessage()} is null for
+            // MAX_STEPS / ESCALATE / DEADLINE_EXCEEDED / LLM_UNAVAILABLE /
+            // ERROR outcomes; the displayed text (from
+            // PhaseTransitionDecision.responseText, or the kernel's "I'm
+            // looking into this for you" fallback) is what the user
+            // actually saw on those turns and what the next projection
+            // needs in conversation_history.
+            String persistedBotResponse = (displayedResponseText != null && !displayedResponseText.isBlank())
+                    ? displayedResponseText
+                    : result.finalUserMessage();
             BotTurn turn = BotTurn.builder()
                     .turnId(UUID.randomUUID().toString())
                     .sessionId(session.getSessionId())
@@ -1306,7 +1414,7 @@ public class ControlKernel {
                     .userMessage(userMessage)
                     .projectedContext(result.lastProjection())
                     .llmRawResponse(result.lastLlmRawResponse())
-                    .botResponse(result.finalUserMessage())
+                    .botResponse(persistedBotResponse)
                     .toolCalls(toolCallsJson)
                     .sourceIds(sourceIds)
                     .phaseBefore(phaseBefore)
@@ -1403,6 +1511,40 @@ public class ControlKernel {
         log.warn("Session {}: invalid agent-loop transition {} -> {}, staying in {}",
                 session.getSessionId(), phaseBefore, target, phaseBefore);
         return phaseBefore;
+    }
+
+    /**
+     * Sprint 8.1 §M3 — combine the DISCOVER {@link AgentRunResult} (which
+     * terminated with {@link TerminalOutcome#USE_CASE_IDENTIFIED} after a
+     * successful classify_use_case) with the subsequent RESOLVE
+     * {@link AgentRunResult} so the persisted bot turn carries the full
+     * cross-phase tool / LLM trace. The terminal outcome, escalation
+     * reason, projection, raw response, and customer-facing message all
+     * come from the RESOLVE run; only the events list is concatenated.
+     *
+     * <p>The DISCOVER events are placed BEFORE the RESOLVE events to
+     * preserve chronological order in the trace (search_knowledge,
+     * classify_use_case, then any RESOLVE tools).
+     */
+    static AgentRunResult mergeAgentRunResults(AgentRunResult discover,
+                                                AgentRunResult resolve) {
+        if (discover == null) return resolve;
+        if (resolve == null) return discover;
+        java.util.List<LlmCallEvent> mergedLlm = new java.util.ArrayList<>();
+        if (discover.llmEvents() != null) mergedLlm.addAll(discover.llmEvents());
+        if (resolve.llmEvents() != null) mergedLlm.addAll(resolve.llmEvents());
+        java.util.List<ToolEvent> mergedTool = new java.util.ArrayList<>();
+        if (discover.toolEvents() != null) mergedTool.addAll(discover.toolEvents());
+        if (resolve.toolEvents() != null) mergedTool.addAll(resolve.toolEvents());
+        return new AgentRunResult(
+                resolve.messages(),
+                mergedTool,
+                mergedLlm,
+                resolve.terminalOutcome(),
+                resolve.finalUserMessage(),
+                resolve.escalationReason(),
+                resolve.lastProjection(),
+                resolve.lastLlmRawResponse());
     }
 
     private void emitEvent(BotSession session, String eventType, int turnIndex, String payload) {

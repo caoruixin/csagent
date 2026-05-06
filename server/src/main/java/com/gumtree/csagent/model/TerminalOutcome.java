@@ -23,6 +23,14 @@ package com.gumtree.csagent.model;
  *       401 / 403 after retry exhaustion). Same downstream treatment as
  *       {@link #DEADLINE_EXCEEDED}: K0 fallback does NOT fire so the
  *       failure is not masked as a normal business escalation.</li>
+ *   <li>{@link #USE_CASE_IDENTIFIED} — Sprint 8.1 §M3: DISCOVER plan
+ *       deterministic phase boundary. The LLM successfully called
+ *       {@code classify_use_case} and the tool committed
+ *       {@code session.activeUseCase}. Returned immediately by the loop so
+ *       {@code ControlKernel} can perform a bounded same-turn replan into
+ *       RESOLVE for the newly committed UC instead of continuing the
+ *       DISCOVER plan to {@code maxToolSteps} (which would otherwise be
+ *       mis-mapped to ESCALATE / {@code faq_miss_threshold_exceeded}).</li>
  * </ul>
  */
 public enum TerminalOutcome {
@@ -32,5 +40,6 @@ public enum TerminalOutcome {
     MAX_STEPS,
     ERROR,
     DEADLINE_EXCEEDED,
-    LLM_UNAVAILABLE
+    LLM_UNAVAILABLE,
+    USE_CASE_IDENTIFIED
 }

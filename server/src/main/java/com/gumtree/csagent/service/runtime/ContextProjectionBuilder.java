@@ -520,30 +520,45 @@ public class ContextProjectionBuilder {
                 }
                 planNode.set("allowed_tools", allowedToolsNode);
 
-                // 2026-05-02 — Fix 3c: when the PhasePlan whitelists tools that
-                // are not in the per-UC tool_schemas projection (e.g. DISCOVER
-                // exposes `classify_use_case` while activeUseCase is still
-                // null), enrich the top-level `tool_schemas` array with their
-                // schemas so the LLM has a callable contract for them. Without
-                // this, the LLM sees the tool name in `phase_plan.allowed_tools`
-                // but no arguments_schema, and tends not to call it.
+                // Sprint 8.1 §M3 (2026-05-07): when a PhasePlan is present
+                // the projected `tool_schemas` array MUST be filtered to
+                // {@code plan.allowedTools}. Previously the per-UC
+                // tool-policy enforcer dictated which schemas were
+                // projected, and the plan only ENRICHED that list — so a
+                // DISCOVER plan whose allowedTools is
+                // {{search_knowledge, classify_use_case}} would still have
+                // every UC-specific policy tool (resolve_article,
+                // record_outcome, request_handover, get_customer_context)
+                // projected to the LLM. The {@link
+                // com.gumtree.csagent.service.tools.ToolDispatcher#validateAgainstPlan}
+                // whitelist would later reject those calls, so the LLM
+                // could legitimately produce a plan-rejected handover even
+                // though the projection invited it. Replacing the array
+                // with the plan-allowed schemas keeps DISCOVER focused on
+                // the two tools it can actually dispatch.
+                //
+                // Schemas for tools in `allowed_tools` that don't have a
+                // registered static schema are skipped silently (logged at
+                // WARN); the LLM still sees the tool name in
+                // `phase_plan.allowed_tools`.
                 if (plan.allowedTools() != null) {
-                    ArrayNode toolSchemasNode = projection.has("tool_schemas")
-                            ? (ArrayNode) projection.get("tool_schemas")
-                            : objectMapper.createArrayNode();
-                    java.util.Set<String> alreadyPresent = new java.util.HashSet<>();
-                    for (com.fasterxml.jackson.databind.JsonNode existing : toolSchemasNode) {
-                        if (existing.has("name")) alreadyPresent.add(existing.get("name").asText());
-                    }
+                    ArrayNode filteredToolSchemas = objectMapper.createArrayNode();
+                    java.util.Set<String> seen = new java.util.HashSet<>();
                     for (String toolName : plan.allowedTools()) {
-                        if (alreadyPresent.contains(toolName)) continue;
+                        if (toolName == null || toolName.isBlank() || !seen.add(toolName)) {
+                            continue;
+                        }
                         ObjectNode schema = toolSchemas.get(toolName);
                         if (schema != null) {
-                            toolSchemasNode.add(schema.deepCopy());
-                            alreadyPresent.add(toolName);
+                            filteredToolSchemas.add(schema.deepCopy());
+                        } else {
+                            log.warn(
+                                    "Sprint 8.1 §M3: no static schema registered for "
+                                            + "phase_plan.allowed_tools entry '{}' (phase={}, uc={})",
+                                    toolName, plan.phase(), plan.useCase());
                         }
                     }
-                    projection.set("tool_schemas", toolSchemasNode);
+                    projection.set("tool_schemas", filteredToolSchemas);
                 }
 
                 if (plan.groundingInstruction() != null) {

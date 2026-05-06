@@ -423,4 +423,108 @@ class ContextProjectionBuilderTest {
                 .repeatedActionCount(0)
                 .build();
     }
+
+    // --- Sprint 8.1 §M3: tool_schemas must be filtered to phase_plan.allowedTools ---
+
+    @Test
+    void planAwareBuild_filtersToolSchemasToAllowedTools_onDiscover() throws Exception {
+        // The DISCOVER plan exposes only {search_knowledge, classify_use_case}
+        // even when activeUseCase=UC-A would normally project the full FAQ
+        // tool set. Without the §M3 filter the LLM saw resolve_article /
+        // request_handover / get_customer_context / record_outcome in
+        // tool_schemas, would call them, and ToolDispatcher.validateAgainstPlan
+        // would reject the call — wasting a step and inviting plan-rejected
+        // handovers.
+        BotSession session = buildSession("UC-A", "DISCOVER");
+
+        UseCaseRegistryService.UseCaseDefinition ucDef = new UseCaseRegistryService.UseCaseDefinition(
+                "UC-A", "Ad Status & Visibility", List.of("Ad Support"), "LOW", true, "FAQ");
+        when(useCaseRegistry.getUseCase("UC-A")).thenReturn(ucDef);
+        when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
+        when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
+        when(controlPolicy.getMaxFaqMiss()).thenReturn(2);
+        // UC-A's full agent-visible toolset.
+        when(toolPolicyEnforcer.getVisibleToolsForUc("UC-A")).thenReturn(List.of(
+                "search_knowledge", "resolve_article", "get_customer_context",
+                "request_handover", "record_outcome"));
+
+        com.gumtree.csagent.model.PhasePlan discover = com.gumtree.csagent.model.PhasePlan.builder()
+                .phase("DISCOVER")
+                .useCase("UC-A")
+                .objective("identify use case")
+                .allowedTools(List.of("search_knowledge", "classify_use_case"))
+                .maxToolSteps(2)
+                .systemInstruction("DISCOVER")
+                .validTerminalOutcomes(Set.of(
+                        com.gumtree.csagent.model.TerminalOutcome.USE_CASE_IDENTIFIED,
+                        com.gumtree.csagent.model.TerminalOutcome.FINAL_ANSWER,
+                        com.gumtree.csagent.model.TerminalOutcome.ESCALATE))
+                .build();
+
+        String projection = builder.build(session, List.of(), discover, "where is my advert?", null);
+        JsonNode root = objectMapper.readTree(projection);
+
+        JsonNode tools = root.get("tool_schemas");
+        assertNotNull(tools, "tool_schemas must be present");
+        assertTrue(tools.isArray());
+        Set<String> names = new HashSet<>();
+        for (JsonNode tool : tools) {
+            names.add(tool.get("name").asText());
+        }
+        assertEquals(Set.of("search_knowledge", "classify_use_case"), names,
+                "Sprint 8.1 §M3: tool_schemas MUST be filtered to phase_plan.allowedTools "
+                        + "even when the UC's agent-visible set is larger. "
+                        + "Got: " + names);
+        // Defensive: explicit absence checks for the rejection-prone tools.
+        assertFalse(names.contains("resolve_article"),
+                "DISCOVER plan must NOT project resolve_article schema — it would invite "
+                        + "a plan-rejected tool call");
+        assertFalse(names.contains("request_handover"),
+                "DISCOVER plan must NOT project request_handover schema");
+        assertFalse(names.contains("get_customer_context"),
+                "DISCOVER plan must NOT project get_customer_context schema");
+        assertFalse(names.contains("record_outcome"),
+                "DISCOVER plan must NOT project record_outcome schema");
+    }
+
+    @Test
+    void planAwareBuild_filtersToolSchemasToAllowedTools_onResolve() throws Exception {
+        // RESOLVE for UC-A allows the FAQ tool chain but not classify_use_case.
+        BotSession session = buildSession("UC-A", "RESOLVE");
+        UseCaseRegistryService.UseCaseDefinition ucDef = new UseCaseRegistryService.UseCaseDefinition(
+                "UC-A", "Ad Status & Visibility", List.of("Ad Support"), "LOW", true, "FAQ");
+        when(useCaseRegistry.getUseCase("UC-A")).thenReturn(ucDef);
+        when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
+        when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
+        when(controlPolicy.getMaxFaqMiss()).thenReturn(2);
+        when(toolPolicyEnforcer.getVisibleToolsForUc("UC-A")).thenReturn(List.of(
+                "search_knowledge", "resolve_article", "get_customer_context",
+                "request_handover", "record_outcome", "classify_use_case"));
+
+        com.gumtree.csagent.model.PhasePlan resolve = com.gumtree.csagent.model.PhasePlan.builder()
+                .phase("RESOLVE")
+                .useCase("UC-A")
+                .objective("answer")
+                .allowedTools(List.of("search_knowledge", "resolve_article", "request_handover"))
+                .maxToolSteps(3)
+                .systemInstruction("RESOLVE")
+                .validTerminalOutcomes(Set.of(
+                        com.gumtree.csagent.model.TerminalOutcome.FINAL_ANSWER,
+                        com.gumtree.csagent.model.TerminalOutcome.ESCALATE))
+                .build();
+
+        String projection = builder.build(session, List.of(), resolve, "tell me how", null);
+        JsonNode root = objectMapper.readTree(projection);
+
+        Set<String> names = new HashSet<>();
+        for (JsonNode tool : root.get("tool_schemas")) {
+            names.add(tool.get("name").asText());
+        }
+        assertEquals(Set.of("search_knowledge", "resolve_article", "request_handover"), names,
+                "RESOLVE plan must filter tool_schemas to its allowed_tools; got " + names);
+        assertFalse(names.contains("classify_use_case"),
+                "RESOLVE plan must NOT expose classify_use_case — it belongs to DISCOVER");
+        assertFalse(names.contains("record_outcome"),
+                "RESOLVE plan does not whitelist record_outcome");
+    }
 }

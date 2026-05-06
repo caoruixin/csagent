@@ -46,6 +46,29 @@ public class FallbackLlmClient implements LlmClient {
                                         + " failure; not engaging fallback=" + fallbackLabel);
             }
             if (isTransient(e)) {
+                // Sprint 8.1 §M1 follow-up (2026-05-06): respect the shared
+                // HTTP-attempt budget. When the primary has already consumed
+                // every slot the chain is allowed (e.g. one retry inside
+                // OpenAiCompatibleLlmClient with a 30 s wall-clock deadline),
+                // we MUST NOT engage the fallback — that would push total
+                // HTTP calls past 2 and let two 12 s read timeouts blow
+                // through the user-facing budget. Surface as
+                // {@link LlmDeadlineExceededException} so the caller renders
+                // the graceful give-up UX instead of waiting for the fallback.
+                if (!LlmCallContext.canAttempt()) {
+                    log.warn("LLM [chat:fallback-skipped-budget] primary={} fallback={} "
+                                    + "remaining_attempts={}; not engaging fallback after primary "
+                                    + "transient failure ({}: {})",
+                            primaryLabel, fallbackLabel,
+                            LlmCallContext.remainingAttempts(),
+                            e.getClass().getSimpleName(), e.getMessage());
+                    LlmDeadlineExceededException budgetExhausted = new LlmDeadlineExceededException(
+                            "LLM provider chain attempt budget exhausted after primary="
+                                    + primaryLabel + " transient failure; "
+                                    + "fallback=" + fallbackLabel + " not engaged");
+                    budgetExhausted.initCause(e);
+                    throw budgetExhausted;
+                }
                 log.warn("LLM [chat:fallback-engaged] primary={} failed transiently ({}: {}); retrying with fallback={}",
                         primaryLabel, e.getClass().getSimpleName(), e.getMessage(), fallbackLabel);
                 try {

@@ -4814,3 +4814,372 @@ detector calibration. No cs176 UC-I drift fix. No S3 / S5 / anchor
 hard-gate expansion. No update to `current_eval_baseline.md` —
 that pin will only refresh after a clean Kimi smoke is rerun and
 accepted under the new honest-failure surfaces.
+
+# Sprint 8.1 follow-up — DISCOVER Phase Boundary, Global LLM Attempt Cap, and Bot-Response Persistence
+
+Date: 2026-05-07
+Branch: `design-v1-without-human-review`
+Sprint scope: Sprint 8.1 §M3 (DISCOVER successful classification
+phase boundary), plus codex-driven follow-ups on §M1 (global
+HTTP-attempt budget across primary + fallback) and §M2 (persisted
+`bot_response` on graceful give-up turns). Same out-of-scope
+boundary as the original Sprint 8.1 — no async polling, SSE,
+background queue, FAQ corpus, CaseSpec, judge calibration,
+broad routing rewrite, or deferred cs015/cs066/cs176 work.
+
+## 1. Problems captured
+
+### 1.1 Original 30 s pre-filled form submit problem (closed in 8.1)
+
+Already fixed by the original §M0 (`UseCaseRouter.routeNonBlocking`
+in `SessionManager.createSession`). Pinned by
+`SessionManagerCreateSessionTest`. No regression in this round.
+
+### 1.2 12 s `max_steps` / fake UC-A K0 fallback masking problem (closed in 8.1)
+
+Already fixed by the original §M2 (`agentRunResultHasEvidence`
+requires `hasRealTool && hasRealLlm` AND non-infra escalation
+reason). Pinned by `Sprint81HonestFailureIntegrationTest`. No
+regression in this round.
+
+### 1.3 DISCOVER `search + classify` → `MAX_STEPS / faq_miss_threshold_exceeded` phase-boundary bug
+
+A second local trace showed the LLM and tools actually worked,
+but the runtime still escalated:
+
+- DISCOVER plan allowed tools = `{search_knowledge, classify_use_case}`,
+  `maxToolSteps = 2`.
+- LLM step 0: `search_knowledge` returned hits.
+- LLM step 1: `classify_use_case(use_case_id="UC-A", confidence=0.92)`
+  successfully committed `session.activeUseCase = UC-A`.
+- AgentRunLoop kept running the original DISCOVER plan after
+  the UC mutation.
+- It did NOT replan into RESOLVE.
+- Loop fell through to the for-loop's exhaustion path.
+- `AgentRunResult.maxSteps(...)` was returned.
+- `PhaseEvaluator.interpretRunResult` mapped `MAX_STEPS` to
+  ESCALATE; `resolveMaxStepsReason` stamped
+  `faq_miss_threshold_exceeded` even though the search returned
+  hits and classify succeeded.
+- ControlKernel synthesized `request_handover` with
+  `escalation_reason=faq_miss_threshold_exceeded`.
+- The user saw the chat end even though DISCOVER actually
+  succeeded.
+
+This is a runtime phase-boundary bug, not a prompt-tuning issue
+or a max-tool-steps sizing issue. Raising `maxToolSteps` or
+adding "Now stop" prompt nudges would not solve it: the loop
+must surface the deterministic phase boundary up to the
+ControlKernel so the kernel can replan into RESOLVE for the
+newly committed UC.
+
+### 1.4 Global HTTP-attempt cap regression (codex P1 #1)
+
+Codex review of the original §M1 surfaced that
+`LlmClientConfig.llmClient` wires the production chain as
+`new FallbackLlmClient(primary, fallback, …)` and BOTH layers
+had their own `attempt <= 2` retry loop. With a 12 s read timeout
+and a 30 s wall-clock budget, two primary timeouts plus a
+fallback timeout could blow the user-facing deadline (one local
+trace measured ≈ 41 s on session `f1555995-ff1...` turn 3).
+The original `Sprint81BudgetedRetryTest` only exercised the
+inner client in isolation, so the global four-attempt regression
+was not caught.
+
+### 1.5 Persisted `bot_response = NULL` on graceful give-up turns (codex P1 follow-up / §M2)
+
+Trace UI showed an empty Output for graceful slow / unavailable /
+max-steps / escalate turns. Root cause:
+`ControlKernel.recordRunResult` wrote
+`AgentRunResult.finalUserMessage()` to `bot_turns.bot_response`,
+but that field is `null` for every non-FINAL_ANSWER outcome.
+The user-facing reply text — produced by
+`PhaseTransitionDecision.responseText` and surfaced via
+`KernelResult.responseText` — was never persisted, so the next
+turn's `conversation_history` projection fed the LLM a record
+claiming the bot had said nothing.
+
+## 2. Implementation
+
+### M3 — DISCOVER successful classification phase-boundary replan
+
+**Goal.** Treat a successful `classify_use_case` in DISCOVER as
+a deterministic phase boundary. Surface a non-escalating terminal
+outcome to the kernel; have the kernel run exactly one bounded
+same-turn replan into RESOLVE for the newly committed UC, sharing
+the original turn's deadline / attempt budget.
+
+**Change.**
+
+- **Model.** New `TerminalOutcome.USE_CASE_IDENTIFIED`. New
+  `AgentRunResult.useCaseIdentified(committedUc, llmEvents,
+  toolEvents, lastProjection, lastLlmRawResponse)` factory —
+  preserves the accumulated trace events and stores the
+  committed UC in `finalUserMessage` purely as a marker (it is
+  never customer-facing).
+- **AgentRunLoopImpl.** After step 6d (handover detection), step 6e
+  detects:
+  - `tool == classify_use_case`,
+  - `plan.phase().equalsIgnoreCase("DISCOVER")`,
+  - `result.isSuccess()`,
+  - `session.activeUseCase != null && !blank`.
+  When all four hold, the loop returns
+  `AgentRunResult.useCaseIdentified(...)` immediately rather than
+  continuing to `maxToolSteps`. No prompt-tightening, no
+  `maxToolSteps` raise.
+- **PhaseEvaluator.interpretRunResult.** New
+  `case USE_CASE_IDENTIFIED` returns
+  `PhaseTransitionDecision("RESOLVE", "I'm looking into this for
+  you.", null, "uc_identified")`. No escalation reason. No
+  synthetic `request_handover`.
+- **ControlKernel.processMessage** (agent-loop branch):
+  - When the first run returns `USE_CASE_IDENTIFIED` on a
+    DISCOVER plan, apply the deterministic
+    `DISCOVER → RESOLVE` transition (via
+    `controlPolicy.isValidTransition`) and promote the local
+    `effectivePhaseBefore` from DISCOVER to RESOLVE so the
+    post-replan transition (e.g. `RESOLVE → CONFIRM` after a
+    FAQ FINAL_ANSWER) lands inside the policy.
+  - Budget gate: `MIN_RESOLVE_REPLAN_BUDGET_MS = 8 s` (sized to
+    fit a RESOLVE search + resolve round-trip inside the user
+    deadline). Skipped when the wall-clock falls below the
+    floor OR `LlmCallContext.canAttempt()` is false (HTTP-attempt
+    budget already consumed by the DISCOVER classify trip).
+  - When the budget allows: build a fresh RESOLVE PhasePlan via
+    `phaseEvaluator.plan(session, userMessage, history)` (now
+    that `currentPhase = RESOLVE` and `activeUseCase = UC-X`),
+    run AgentRunLoop a second time with the SAME thread-local
+    `LlmCallContext` (so wall-clock + HTTP-attempt budgets are
+    shared, never doubled), and merge tool / LLM events from
+    BOTH runs via `ControlKernel.mergeAgentRunResults` so the
+    persisted bot turn carries the cross-phase trace
+    (`search_knowledge`, `classify_use_case`, plus any RESOLVE
+    tools).
+  - When the budget is too small: skip the replan, leave the
+    session in RESOLVE, return the
+    `"I'm looking into this for you."` transitional response,
+    do NOT escalate. The next user turn re-runs RESOLVE fresh.
+  - Same-turn replan happens at most once per turn.
+- **ContextProjectionBuilder.build** (plan-aware path): the
+  projected `tool_schemas` array is now FILTERED to
+  `phase_plan.allowedTools` rather than enriched on top of the
+  per-UC visible toolset. Without this, a DISCOVER plan whose
+  allowed tools are `{search_knowledge, classify_use_case}`
+  would still project the full UC-A FAQ tool set
+  (`resolve_article`, `request_handover`, `get_customer_context`,
+  `record_outcome`) — which the LLM could legitimately call,
+  but `validateAgainstPlan` would then reject. Filtering keeps
+  DISCOVER focused on the two tools it can actually dispatch.
+
+### M1 follow-up — Global HTTP-attempt cap across the provider chain
+
+**Change.**
+
+- New shared budget on `LlmCallContext`:
+  `GLOBAL_ATTEMPT_BUDGET` (initialised to
+  `DEFAULT_GLOBAL_ATTEMPT_BUDGET = 2` whenever a wall-clock
+  deadline is set). New `remainingAttempts()`,
+  `canAttempt()`, `consumeAttempt()` accessors.
+- `OpenAiCompatibleLlmClient.chat`: when a deadline is in
+  effect, the inner client's `maxAttempts` collapses from 2 to
+  1 — the cross-provider hedge is the better retry. Each
+  attempt calls `LlmCallContext.consumeAttempt()` BEFORE
+  issuing the HTTP call; a `< 0` return aborts the attempt
+  with `LlmDeadlineExceededException`. Without a deadline
+  (legacy / batch / eval / unit-test paths), `remainingAttempts`
+  returns `Integer.MAX_VALUE` and the legacy 2-attempt loop
+  stands.
+- `FallbackLlmClient.chat`: before engaging the fallback after
+  a transient primary failure, checks
+  `LlmCallContext.canAttempt()`. If the budget is already
+  consumed, the fallback is NOT engaged — surfaces as
+  `LlmDeadlineExceededException` so the caller renders the
+  graceful give-up UX instead of waiting for a fourth HTTP
+  call. Net effect: total provider-chain HTTP calls under a
+  user-facing deadline are hard-capped at 2.
+- Telemetry: retry log lines now include `remaining_attempts=`
+  alongside `remaining_budget_ms=` for both retry-engaged and
+  retry-skipped branches.
+
+### M2 follow-up — `bot_response` persistence on graceful give-up
+
+**Change.**
+
+- `ControlKernel.recordRunResult` takes a new
+  `displayedResponseText` argument. When non-blank, it is
+  persisted to `bot_turns.bot_response`; otherwise the legacy
+  `result.finalUserMessage()` is kept (still null for
+  MAX_STEPS / ESCALATE / DEADLINE_EXCEEDED / LLM_UNAVAILABLE /
+  ERROR, but those callers now always pass the displayed text).
+- `processMessage` passes `responseText` (the same string
+  returned via `KernelResult.responseText`) into the call.
+  Fixes the blank-Output trace UI surface and ensures the next
+  turn's `conversation_history` projection sees what the user
+  actually saw.
+
+## 3. Files changed
+
+- `server/src/main/java/com/gumtree/csagent/model/TerminalOutcome.java`
+  — new `USE_CASE_IDENTIFIED` enum value + javadoc.
+- `server/src/main/java/com/gumtree/csagent/model/AgentRunResult.java`
+  — new `useCaseIdentified(...)` factory.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+  — DISCOVER classify_use_case bail-out (step 6e).
+- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+  — new `case USE_CASE_IDENTIFIED` mapping.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+  — same-turn DISCOVER → RESOLVE replan, `mergeAgentRunResults`
+  helper, `MIN_RESOLVE_REPLAN_BUDGET_MS` constant,
+  `effectivePhaseBefore` plumbing, `displayedResponseText` in
+  `recordRunResult`.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
+  — `tool_schemas` filtered to `phase_plan.allowedTools` when a
+  PhasePlan is present.
+- `server/src/main/java/com/gumtree/csagent/service/llm/LlmCallContext.java`
+  — `GLOBAL_ATTEMPT_BUDGET`, `remainingAttempts`, `canAttempt`,
+  `consumeAttempt`.
+- `server/src/main/java/com/gumtree/csagent/service/llm/OpenAiCompatibleLlmClient.java`
+  — `maxAttempts` collapses to 1 under a deadline; per-attempt
+  `consumeAttempt`; telemetry includes `remaining_attempts`.
+- `server/src/main/java/com/gumtree/csagent/service/llm/FallbackLlmClient.java`
+  — skip fallback when global budget is exhausted.
+
+## 4. Tests
+
+### New focused tests
+
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint81DiscoverPhaseBoundaryTest.java`
+  — 3 unit tests on `AgentRunLoopImpl`:
+  - `classifyUseCaseSuccess_returnsUseCaseIdentified_notMaxSteps`
+  - `classifyUseCaseFailure_doesNotReturnUseCaseIdentified`
+  - `classifyUseCaseInResolve_isNotPhaseBoundary`
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint81PhaseEvaluatorUseCaseIdentifiedTest.java`
+  — 2 unit tests on `PhaseEvaluator.interpretRunResult`:
+  - `useCaseIdentified_mapsToResolveWithUcIdentifiedReason`
+  - `useCaseIdentified_doesNotResetRuntimeErrorCount_below_threshold`
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint81DiscoverPhaseBoundaryReplanIntegrationTest.java`
+  — 2 integration tests on `ControlKernel`:
+  - `discoverClassifySuccess_triggersSameTurnReplan_intoResolve` —
+    full DISCOVER + RESOLVE happy path; verifies merged tool
+    events, no escalation, RESOLVE → CONFIRM transition.
+  - `discoverClassifySuccess_insufficientBudget_skipsReplan_staysInResolve` —
+    1.5 s deadline → replan skipped, session in RESOLVE,
+    transitional response, no escalation.
+- `server/src/test/java/com/gumtree/csagent/service/llm/Sprint81GlobalAttemptBudgetTest.java`
+  — 4 production-chain tests:
+  - `productionChain_primary503AndFallback503_capsAtTwoTotalAttempts`
+  - `productionChain_primary503ThenFallbackSuccess_consumesExactlyTwoAttempts`
+  - `productionChain_primary401_neverEngagesFallback`
+  - `noDeadline_primaryAndFallbackEachKeepTheirOwnRetryBudget`
+- `server/src/test/java/com/gumtree/csagent/integration/AgentRunLoopDeadlineExceededBotResponseIntegrationTest.java`
+  — 2 integration tests pinning that
+  `bot_turns.bot_response` is the user-facing reply text on
+  DEADLINE_EXCEEDED and LLM_UNAVAILABLE turns.
+
+### Updated regression tests
+
+- `server/src/test/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilderTest.java`
+  — 2 new tests pin §M3 tool_schemas filter:
+  - `planAwareBuild_filtersToolSchemasToAllowedTools_onDiscover`
+  - `planAwareBuild_filtersToolSchemasToAllowedTools_onResolve`
+- `server/src/test/java/com/gumtree/csagent/service/llm/Sprint81BudgetedRetryTest.java`
+  — pre-existing focused suite renamed and rewritten to reflect
+  the global-budget contract: under a deadline the inner client
+  does exactly one attempt; without a deadline the legacy
+  2-attempt retry stands.
+
+### Test results
+
+| Suite | Result |
+|---|---|
+| `mvn -pl server -Dtest='Sprint81DiscoverPhaseBoundaryTest,Sprint81PhaseEvaluatorUseCaseIdentifiedTest,Sprint81DiscoverPhaseBoundaryReplanIntegrationTest,ContextProjectionBuilderTest,Sprint81GlobalAttemptBudgetTest,AgentRunLoopDeadlineExceededBotResponseIntegrationTest' test` | **42 / 42 passed**. |
+| `mvn -pl server test` | **710 / 710 passed** (Sprint 8.1 baseline 689 + 21 new follow-up tests; 0 failures, 0 errors, 0 skipped). |
+| `python -m pytest -p no:capture eval_interactive/tests/` | **not required** — no eval / Python files changed. |
+
+## 5. Before / after local UX
+
+| Surface | Before this round | After this round |
+|---|---|---|
+| DISCOVER `search + classify success` happy path | 12 s wait → DISCOVER → ESCALATE → `faq_miss_threshold_exceeded` → user sees chat end with handover | classify commits UC, AgentRunLoop returns USE_CASE_IDENTIFIED, kernel transitions to RESOLVE, runs RESOLVE same-turn within remaining budget, user sees the FAQ answer; trace records both phases' tool events |
+| DISCOVER `classify success` with insufficient remaining budget | same as above (escalation) | session lands in RESOLVE, returns "I'm looking into this for you.", next turn runs RESOLVE fresh |
+| Two transient primary failures + slow fallback under a 30 s deadline | up to 4 HTTP calls, ~41 s wall clock observed, user-facing budget blown | hard-capped at 2 HTTP calls (primary + fallback OR primary one retry), no fallback engagement once budget consumed |
+| Trace UI on graceful slow/unavailable turn | blank Output column | persisted `bot_response` matches the user-facing reply |
+
+## 6. How DISCOVER classification now transitions to RESOLVE
+
+1. AgentRunLoop dispatches `classify_use_case` in DISCOVER.
+2. `ClassifyUseCaseTool` mutates `session.activeUseCase` and
+   returns `ToolResult.ok(committed=true, use_case_id=…)`.
+3. AgentRunLoop's step 6e short-circuit returns
+   `AgentRunResult.useCaseIdentified(...)` immediately
+   (steps remaining are not consumed).
+4. ControlKernel sees `TerminalOutcome.USE_CASE_IDENTIFIED` on a
+   DISCOVER plan; promotes session.currentPhase to RESOLVE
+   (validated via `ControlPolicyService.isValidTransition`).
+5. Budget gate: only proceed when remaining wall-clock ≥ 8 s
+   AND `LlmCallContext.canAttempt()`.
+6. Build a fresh RESOLVE plan via `phaseEvaluator.plan(...)`.
+7. Run AgentRunLoop a second time on the same thread (so the
+   shared deadline / attempt budget applies).
+8. `mergeAgentRunResults` concatenates DISCOVER and RESOLVE
+   events into the persisted record.
+9. `phaseEvaluator.interpretRunResult` runs against the merged
+   result; the decision now reflects the RESOLVE outcome
+   (FINAL_ANSWER, ESCALATE, CLARIFICATION_NEEDED, or one of the
+   honest-failure outcomes — never the original
+   USE_CASE_IDENTIFIED).
+10. `applyTransition` runs with `effectivePhaseBefore = "RESOLVE"`
+    so RESOLVE → CONFIRM (FAQ answer) or RESOLVE stays valid.
+
+## 7. How K0 remains valid for cs259 but no longer masks no-real-work failures
+
+Unchanged from the original §M2: K0
+(`applyMissingUseCaseFallback` gated by
+`agentRunResultHasEvidence`) still requires both at least one
+non-synthetic LLM event AND at least one successful tool event,
+and is suppressed for ERROR / DEADLINE_EXCEEDED /
+LLM_UNAVAILABLE outcomes and for ESCALATE with infra-class
+reasons. M3 does NOT route through this gate at all — successful
+DISCOVER classification is a non-escalating outcome, so the
+fallback predicate is never even consulted.
+
+`Sprint8Cs259EscalateBranchIntegrationTest` still passes
+unchanged (cs259 reasoned-but-missing-UC path stamps UC-F).
+`Sprint81HonestFailureIntegrationTest` still passes (timeout
+shape leaves UC null).
+
+## 8. Eval Governance — can it resume next?
+
+**Yes.** This round preserves every Sprint 6 / 7 / 8 / 8.1
+contract:
+
+- ✅ cs259 K0 contract preserved
+  (`Sprint8Cs259EscalateBranchIntegrationTest`).
+- ✅ cs259 hardening preserved
+  (`Sprint8Cs259ActiveUseCaseHardeningTest`).
+- ✅ §M0 routeNonBlocking preserved
+  (`SessionManagerCreateSessionTest`).
+- ✅ §M2 honest-failure preserved
+  (`Sprint81HonestFailureIntegrationTest`).
+- ✅ Sprint 6 §G2 S1 / Sprint 7 §I0 / I1 / I2 / J0 contracts
+  intact.
+- ✅ cs014 / cs066 / cs095 / cs002 / cs029 / cs176 negative
+  guards intact.
+- ✅ DISCOVER classification no longer escalates on
+  max-steps-after-classify; the agent path can converge in a
+  single user turn for FAQ-shaped intents.
+
+`current_eval_baseline.md` still pins the Sprint 8 r2 smoke and
+is NOT updated in this round — the next clean smoke run after
+this hotfix lands on `main` will refresh that file.
+
+## 9. Out of scope (this round)
+
+No async polling / SSE / websocket / background job queue. No
+broad frontend rewrite. No FAQ corpus changes. No CaseSpec
+changes / overrides. No judge calibration. No broad routing
+taxonomy rewrite. No cs015 follow-up. No cs066 / cs038 stall
+detector calibration. No cs176 UC-I drift fix. No
+prompt-only or `maxToolSteps`-only fix for the DISCOVER
+phase-boundary bug — both were explicitly ruled out in the
+sprint objective.

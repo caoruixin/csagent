@@ -117,7 +117,17 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
     @Override
     public LlmResponse chat(LlmRequest request) {
         Exception lastException = null;
-        for (int attempt = 1; attempt <= 2; attempt++) {
+        // Sprint 8.1 §M1 follow-up (2026-05-06): when a user-facing
+        // wall-clock deadline is in effect, the chain runs under a shared
+        // 2-attempt budget on {@link LlmCallContext}. The cross-provider
+        // hedge is the better retry — same-provider retries usually fail
+        // the same way (rate limit / overloaded) — so each inner client
+        // gets exactly one attempt and {@link FallbackLlmClient} engages
+        // the second provider for the second slot. When no budget is set
+        // (internal / batch / eval / unit-test paths) the legacy
+        // {@code attempt <= 2} retry stands.
+        int maxAttempts = LlmCallContext.remainingAttempts() == Integer.MAX_VALUE ? 2 : 1;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             // Sprint 8 §C / Sprint 8.1 §M1: check the wall-clock deadline
             // before each attempt. If the user's request budget has already
             // been spent, abort with a non-transient
@@ -130,6 +140,23 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
                         providerLabel, attempt, remainingBefore);
                 throw new LlmDeadlineExceededException(
                         "LLM deadline exceeded before attempt " + attempt
+                                + " (provider=" + providerLabel + ")");
+            }
+            // Sprint 8.1 §M1 follow-up (2026-05-06): consume one slot from
+            // the shared HTTP-attempt budget BEFORE issuing the call.
+            // Returns Integer.MAX_VALUE when no budget is set (legacy /
+            // unit-test paths) — the chain remains effectively unbounded
+            // there. When the budget is set and already at 0, abort with a
+            // deadline-exceeded signal: this fires when the fallback layer
+            // has already consumed its slot and the caller is asking for an
+            // attempt the chain can no longer honour.
+            int remainingAttempts = LlmCallContext.consumeAttempt();
+            if (remainingAttempts < 0) {
+                log.warn("LLM [chat:global-budget-exhausted] provider={} attempt={} "
+                                + "remaining_attempts_after={} retry_decision=abort",
+                        providerLabel, attempt, remainingAttempts);
+                throw new LlmDeadlineExceededException(
+                        "LLM global attempt budget exhausted before attempt " + attempt
                                 + " (provider=" + providerLabel + ")");
             }
             long attemptStart = System.currentTimeMillis();
@@ -150,35 +177,45 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
                             classifyHttpStatus(status));
                     throw e;
                 }
-                if (attempt < 2 && hasBudgetForRetry()) {
+                if (attempt < maxAttempts && hasBudgetForRetry() && LlmCallContext.canAttempt()) {
                     Long remaining = LlmCallContext.remainingMillis();
                     log.warn("LLM [chat:retry] provider={} attempt={} status={} elapsed_ms={} "
-                                    + "failure_class={} remaining_budget_ms={} retry_decision=retry "
+                                    + "failure_class={} remaining_budget_ms={} "
+                                    + "remaining_attempts={} retry_decision=retry "
                                     + "sleeping 200ms before retry",
                             providerLabel, attempt, status, elapsed,
-                            classifyHttpStatus(status), remaining);
+                            classifyHttpStatus(status), remaining,
+                            LlmCallContext.remainingAttempts());
                     sleepQuietly(200);
-                } else if (attempt < 2) {
-                    abortRetryDueToDeadline(attempt, "retryable_status=" + status, e);
+                } else if (attempt < maxAttempts) {
+                    String reason = LlmCallContext.canAttempt()
+                            ? ("retryable_status=" + status)
+                            : ("global_budget_exhausted_after_status=" + status);
+                    abortRetryDueToDeadline(attempt, reason, e);
                 }
             } catch (RestClientException e) {
                 lastException = e;
                 long elapsed = System.currentTimeMillis() - attemptStart;
                 String failureClass = classifyTransport(e);
-                if (attempt < 2 && hasBudgetForRetry()) {
+                if (attempt < maxAttempts && hasBudgetForRetry() && LlmCallContext.canAttempt()) {
                     Long remaining = LlmCallContext.remainingMillis();
                     log.warn("LLM [chat:retry] provider={} attempt={} elapsed_ms={} "
-                                    + "failure_class={} remaining_budget_ms={} retry_decision=retry "
+                                    + "failure_class={} remaining_budget_ms={} "
+                                    + "remaining_attempts={} retry_decision=retry "
                                     + "sleeping 200ms before retry",
-                            providerLabel, attempt, elapsed, failureClass, remaining);
+                            providerLabel, attempt, elapsed, failureClass, remaining,
+                            LlmCallContext.remainingAttempts());
                     sleepQuietly(200);
-                } else if (attempt < 2) {
-                    abortRetryDueToDeadline(attempt, "transport=" + failureClass, e);
+                } else if (attempt < maxAttempts) {
+                    String reason = LlmCallContext.canAttempt()
+                            ? ("transport=" + failureClass)
+                            : ("global_budget_exhausted_after_transport=" + failureClass);
+                    abortRetryDueToDeadline(attempt, reason, e);
                 }
             }
         }
-        log.error("LLM [chat:exhausted] provider={} after 2 attempts attempt_count=2 retry_decision=exhausted",
-                providerLabel, lastException);
+        log.error("LLM [chat:exhausted] provider={} after {} attempts attempt_count={} retry_decision=exhausted",
+                providerLabel, maxAttempts, maxAttempts, lastException);
         throw new RuntimeException(
                 "LLM API call failed after retry (provider=" + providerLabel + ")", lastException);
     }

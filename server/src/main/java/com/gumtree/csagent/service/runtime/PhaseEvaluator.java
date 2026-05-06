@@ -769,6 +769,20 @@ public class PhaseEvaluator {
                         ? "agent_deadline_exceeded" : "agent_llm_unavailable";
                 return new PhaseTransitionDecision(slowStayPhase, userMsg, null, transitionTag);
             }
+            case USE_CASE_IDENTIFIED: {
+                // Sprint 8.1 §M3: deterministic DISCOVER → RESOLVE phase
+                // boundary. The AgentRunLoop returned this outcome
+                // immediately after a successful classify_use_case call
+                // committed session.activeUseCase. There is no escalation
+                // reason and no synthetic request_handover; the same-turn
+                // RESOLVE replan in {@link ControlKernel} owns the actual
+                // user-facing reply. We surface a transitional placeholder
+                // here purely as a defensive default — ControlKernel
+                // discards this text once the RESOLVE replan runs.
+                return new PhaseTransitionDecision("RESOLVE",
+                        "I'm looking into this for you.",
+                        null, "uc_identified");
+            }
             default:
                 throw new IllegalStateException("Unknown terminal outcome: " + outcome);
         }
