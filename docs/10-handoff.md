@@ -5579,3 +5579,154 @@ No Java / Python / prompt / eval YAML / CaseSpec edits.
 No new tests. No build/restart was performed by this
 spike — that is left to the user as the recommended
 next action.
+
+# Trace 99141e8e — Post-restart verification
+
+Date: 2026-05-07
+Branch: `design-v1-without-human-review`
+Scope: continues the §A4377CE no-code spike — rebuild + restart
+the local server against current HEAD and re-run the same
+fresh-session probe. No Java / Python / prompt / eval YAML /
+CaseSpec edits.
+
+## 1. Rebuild / restart evidence
+
+- `mvn -pl server package -DskipTests` — BUILD SUCCESS
+  (`server/target/csagent-server-0.1.0-SNAPSHOT.jar`,
+  ~58 MB, jar mtime `2026-05-07 03:55:0?`).
+- `kill 15196` confirmed; `lsof -nP -iTCP:8080 -sTCP:LISTEN`
+  empty between kill and relaunch.
+- New JVM PID `12390`, `ps -o lstart -p 12390`:
+  `Thu 7 May 03:55:16 2026` — i.e.
+  `2026-05-07T03:55:16+08:00`, AFTER the latest closure
+  commit `16ca3c7` (`2026-05-07T01:43:10+08:00`).
+- Startup log line confirms HEAD-aligned LLM lineup:
+  `LLM provider lineup: primary=deepseek[model=deepseek-v4-flash,
+  base=https://api.deepseek.com/v1, key=present],
+  fallback=kimi[model=kimi-k2.6, base=https://api.moonshot.ai/v1,
+  key=present]` (Sprint 8.1 follow-up #2 — `f2d4cb2`).
+- `Started CsAgentApplication in 2.859 seconds`,
+  `actuator/health` returns `{"status":"UP"}` with both
+  PostgreSQL and Redis components UP.
+
+## 2. Fresh-session probe
+
+- Form context exactly as required: `ad_id=ad-1001`,
+  `email=ee@e.com`, `first_name=eee`,
+  `description="what's the status"`,
+  `topic_subject="Ad Support"`.
+- New `session_id=3049571e-48aa-49ab-8587-aaf88518b7f8`,
+  `bot_sessions.created_at=2026-05-07 03:55:54.348 +08`.
+- `POST /v1/chat/sessions/{id}/messages` user_message=
+  `"why I can't see my ad"`.
+
+## 3. Captured turn (HEAD bytes)
+
+`bot_turns` row for the user message (turn_index=1):
+
+| field | value |
+|---|---|
+| `phase_before` | `DISCOVER` |
+| `phase_after` | `ESCALATE` |
+| `active_use_case` | `UC-A` |
+| `latency_ms` | 32_405 |
+| `length(llm_raw_response)` | 0 |
+| `length(bot_response)` | 75 (`"I'm having difficulty resolving this. Let me connect you with a specialist."`) |
+| `source_ids` | `{ka4P200000004ZtIAI, ka4P2000000060bIAA, ka41r000000LIEJAA4}` |
+| `bot_sessions.escalation_reason` | `faq_miss_threshold_exceeded` |
+
+`projected_context.phase_plan` (final projection captured on
+the persisted turn):
+- `phase=RESOLVE`, `use_case=UC-A`.
+- `allowed_tools=[get_customer_context, search_knowledge,
+  resolve_article, record_outcome, request_handover]` (5).
+- `tool_schemas` names = the same 5 — the projection
+  array is now an EXACT match for `allowed_tools`, not the
+  pre-fix six-tool ENRICH.
+
+`tool_calls` sequence on the persisted turn (DISCOVER pass +
+RESOLVE replan pass merged):
+1. `search_knowledge` (success=false, 3 ms) — DISCOVER.
+2. `classify_use_case` (success=true, UC-A, conf 0.80,
+   6 ms) — DISCOVER.
+3. `search_knowledge` (success=true, 3922 ms) — RESOLVE
+   replan.
+4. `resolve_article` (success=false, 0 ms, source_id
+   `ka4P200000004ZtIAI`) ×3 — RESOLVE replan retries.
+5. `request_handover(faq_miss_threshold_exceeded)`
+   (synthetic step_index=-1) — RESOLVE replan terminal.
+
+`llm_call_log` rows: **14 successful chat/rerank calls**
+on this single user turn (5 × deepseek-v4-flash chat,
+9 × kimi rerank, all `success=true`, no
+`error_message`). The retry budget split per logical
+invocation (`16ca3c7` P1-2) is visible — each chat
+invocation got its own primary attempt under the 30 s
+deadline.
+
+Server log markers from PID 12390 confirm the §M3 path
+fired:
+- `Session 3049571e…: §M3 same-turn DISCOVER->RESOLVE
+  replan candidate (committedUc=UC-A)` at 03:56:12.158.
+- `Session 3049571e…: §M3 running same-turn RESOLVE
+  replan with plan.useCase=UC-A` at 03:56:12.158.
+- `Session 3049571e…: phase transition RESOLVE -> ESCALATE
+  (reason: max_steps_exceeded)` at 03:56:35.167.
+
+## 4. Outcome vs the original trace
+
+| axis | trace 99141e8e (pre-fix JVM) | new probe (HEAD) |
+|---|---|---|
+| `tool_schemas` size on DISCOVER projection | 6 (full registry) | **filtered to allowed_tools** (DISCOVER plan exposed only `search_knowledge` + `classify_use_case`; persisted turn snapshots the final RESOLVE projection — 5 tools, exact match to `allowed_tools`) |
+| DISCOVER continued after committed `classify_use_case` | yes (LLM emitted `request_handover` from DISCOVER) | **no** — AgentRunLoop returned `USE_CASE_IDENTIFIED`, ControlKernel ran the §M3 same-turn RESOLVE replan |
+| `bot_response` | empty | `"I'm having difficulty resolving this. Let me connect you with a specialist."` |
+| `llm_raw_response` length | 0 (synthetic SAFE_ESCALATION_RESPONSE) | 0 on the persisted turn row, but **`llm_call_log` proves 14 real LLM calls fired**; the persisted `llm_raw_response` slot tracks the last single AgentRunLoop response, which on the §M3 replan path is the final RESOLVE-phase response that ControlKernel discarded in favour of the structured handover reply |
+| Failure mode | structural: pre-fix runtime mis-mapped DISCOVER terminal to `faq_miss_threshold_exceeded` while LLM had already classified | downstream: DISCOVER→RESOLVE worked, but `resolve_article` failed three times on `ka4P200000004ZtIAI` and the LLM legitimately fell back to `request_handover(faq_miss_threshold_exceeded)` |
+
+## 5. Stale-trace classification — confirmed
+
+**A. stale_trace** is confirmed.
+
+The exact failure shape of trace 99141e8e — DISCOVER →
+ESCALATE on a committed `classify_use_case` with the
+six-tool projection and a blank `llm_raw_response` —
+**did not reproduce on HEAD**:
+
+- §M3 phase-boundary fix is observed live in logs and in
+  the persisted turn (DISCOVER → RESOLVE replan, not
+  DISCOVER → ESCALATE).
+- `tool_schemas` REPLACE filter is observed live (5 tools,
+  exact match to `allowed_tools`, no spurious entries).
+- §M2 honest-failure path is observed live
+  (`llm_call_log` carries 14 real successful calls; no
+  synthetic-escalation symptom).
+- `bot_response` is non-empty and matches the structured
+  RESOLVE-handover template, not a blank string.
+
+The residual ESCALATE on this probe is a **different
+failure surface** (RESOLVE-side `resolve_article` fails on
+`ka4P200000004ZtIAI`, then the LLM emits a legitimate
+`request_handover(faq_miss_threshold_exceeded)`), not the
+trace 99141e8e bug. That is out of this no-code spike's
+scope and is not a regression of any Sprint 7 / 8 / 8.1
+contract — it is the FAQ-corpus answerability gap on
+UC-A's "why can't I see my ad even though it's LIVE"
+intent, already enumerated in the post-Sprint-8 §8
+"Remaining failures classified" table (cs095 / cs192 /
+cs259 family).
+
+## 6. Recommended next action
+
+- Eval Governance Sprint can resume — there is no
+  current_runtime_bug on the trace 99141e8e shape under
+  HEAD bytes.
+- The `resolve_article ka4P200000004ZtIAI` failure
+  observed in the §3 RESOLVE replan is the FAQ corpus
+  answerability gap and belongs to Eval Governance / FAQ
+  corpus audit, not a runtime sprint.
+- No further trace-99141e8e investigation needed.
+
+## 7. Out of scope
+
+No Java / Python / prompt / eval YAML / CaseSpec edits.
+No tests added or rerun.
