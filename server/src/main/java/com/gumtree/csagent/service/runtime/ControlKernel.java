@@ -297,7 +297,40 @@ public class ControlKernel {
                     // satisfied. The semantic escalation reason has already
                     // been settled above; this only fills in the missing UC
                     // slot. No-op when an UC is already committed.
-                    applyMissingUseCaseFallback(session, userMessage);
+                    //
+                    // §K0 narrowing (2026-05-06): gate the fallback on
+                    // evidence that the LLM actually reasoned about the user's
+                    // problem this turn. When the loop returned ERROR (LLM
+                    // call threw / timed out / parser failure) OR produced
+                    // ZERO {@code llmEvents} AND ZERO {@code toolEvents}, the
+                    // bot did not think about the user's request — applying a
+                    // deterministic UC stamp here would silently mask an
+                    // upstream regression (Kimi timeout, network blip,
+                    // mis-configured chat budget) and let the eval trace
+                    // contract pass with a UC the agent never reasoned about.
+                    // In that case we DELIBERATELY leave {@code activeUseCase}
+                    // null so the next user turn or the trace contract
+                    // validator surfaces {@code service_degraded} /
+                    // {@code CONTRACT_VIOLATION:active_use_case} loudly. The
+                    // legacy {@link #forceEscalate} path is unaffected — it
+                    // still always applies the §B3 fallback, since
+                    // {@code forceEscalate} fires for budget / drift /
+                    // explicit-OOS escalations where there is no
+                    // {@code AgentRunResult} to inspect and a missing UC is
+                    // never the result of a runtime LLM failure.
+                    if (agentRunResultHasEvidence(runResult)) {
+                        applyMissingUseCaseFallback(session, userMessage);
+                    } else {
+                        log.warn("Session {}: AgentRunLoop ESCALATE branch with no LLM/tool "
+                                        + "evidence (terminalOutcome={}, llmEvents={}, "
+                                        + "toolEvents={}); skipping K0 fallback so "
+                                        + "service_degraded surface remains visible "
+                                        + "instead of being masked with a regex UC.",
+                                session.getSessionId(),
+                                runResult == null ? "null" : runResult.terminalOutcome(),
+                                runResult == null ? 0 : runResult.llmEvents().size(),
+                                runResult == null ? 0 : runResult.toolEvents().size());
+                    }
                     String escalationReason = session.getEscalationReason();
                     eventEmitter.emitEscalationRequested(session.getSessionId(),
                             session.getTotalBotTurns(), escalationReason);
@@ -552,6 +585,47 @@ public class ControlKernel {
                 || session.getCandidateUseCases().length == 0) {
             session.setCandidateUseCases(new String[]{fallbackUc});
         }
+    }
+
+    /**
+     * Sprint 8 §K0 narrowing (2026-05-06): true when the
+     * {@link AgentRunResult} carries any positive evidence that the bot
+     * actually reasoned about the user's turn. Used by the AgentRunLoop
+     * ESCALATE branch in {@link #processMessage} to gate the
+     * {@link #applyMissingUseCaseFallback} call so that
+     * {@code service_degraded} / {@code agent_error} escalations
+     * (LLM call threw, timed out, or parser failure — no LLM thinking
+     * happened this turn) are NOT silently masked with a regex-derived
+     * UC. When the loop produced no LLM events and no tool events and
+     * the terminal outcome was ERROR, leaving {@code activeUseCase}
+     * null is the correct behaviour — the eval trace contract validator
+     * (and a human reading the trace) then sees the upstream regression
+     * loudly instead of a deterministic UC stamp papering over it.
+     *
+     * <p>"Evidence" is intentionally inclusive: any one of (a) terminal
+     * outcome was something other than ERROR, (b) at least one LLM
+     * event was recorded, or (c) at least one tool event was recorded
+     * is enough to trigger the fallback. The cs259 r2 shape this
+     * sprint targets satisfies (b) + (c) (two {@code search_knowledge}
+     * calls + the {@code request_handover} LLM event); a service
+     * outage path satisfies none of (a)/(b)/(c) and is correctly
+     * skipped.
+     */
+    private static boolean agentRunResultHasEvidence(AgentRunResult result) {
+        if (result == null) {
+            return false;
+        }
+        if (result.terminalOutcome() != null
+                && result.terminalOutcome() != com.gumtree.csagent.model.TerminalOutcome.ERROR) {
+            return true;
+        }
+        if (result.llmEvents() != null && !result.llmEvents().isEmpty()) {
+            return true;
+        }
+        if (result.toolEvents() != null && !result.toolEvents().isEmpty()) {
+            return true;
+        }
+        return false;
     }
 
     /**
