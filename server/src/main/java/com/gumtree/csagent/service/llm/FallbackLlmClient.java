@@ -33,6 +33,18 @@ public class FallbackLlmClient implements LlmClient {
         try {
             return primary.chat(request);
         } catch (Exception e) {
+            // Sprint 8 §C: if the wall-clock deadline is already exceeded, do
+            // NOT engage the fallback — by definition we no longer have time
+            // to wait for a second provider's full attempt. Surface the
+            // deadline-exceeded signal so the caller can render a graceful UX.
+            if (e instanceof LlmDeadlineExceededException || LlmCallContext.isExceeded()) {
+                log.warn("LLM [chat:deadline-exceeded-skipping-fallback] primary={} fallback={} skipped",
+                        primaryLabel, fallbackLabel);
+                throw e instanceof LlmDeadlineExceededException ? (LlmDeadlineExceededException) e
+                        : new LlmDeadlineExceededException(
+                                "LLM deadline exceeded after primary=" + primaryLabel
+                                        + " failure; not engaging fallback=" + fallbackLabel);
+            }
             if (isTransient(e)) {
                 log.warn("LLM [chat:fallback-engaged] primary={} failed transiently ({}: {}); retrying with fallback={}",
                         primaryLabel, e.getClass().getSimpleName(), e.getMessage(), fallbackLabel);

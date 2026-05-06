@@ -13,6 +13,16 @@ package com.gumtree.csagent.model;
  *   <li>{@link #ESCALATE} — LLM (or runtime) chose to hand over to a human agent.</li>
  *   <li>{@link #MAX_STEPS} — Loop hit {@code plan.maxToolSteps} without terminating; treated as escalate-on-budget.</li>
  *   <li>{@link #ERROR} — Unrecoverable failure inside the loop (parser, dispatcher, etc.).</li>
+ *   <li>{@link #DEADLINE_EXCEEDED} — Sprint 8.1 §M2: per-turn LLM wall-clock
+ *       budget was exhausted before any attempt could complete. The loop
+ *       returns this so upstream layers can render an honest slow/give-up
+ *       response without stamping a synthetic UC fallback.</li>
+ *   <li>{@link #LLM_UNAVAILABLE} — Sprint 8.1 §M2: the LLM provider chain
+ *       (primary + fallback) failed for an infrastructure reason that would
+ *       not be cured by the remaining budget (transport / 5xx / 429 /
+ *       401 / 403 after retry exhaustion). Same downstream treatment as
+ *       {@link #DEADLINE_EXCEEDED}: K0 fallback does NOT fire so the
+ *       failure is not masked as a normal business escalation.</li>
  * </ul>
  */
 public enum TerminalOutcome {
@@ -20,5 +30,7 @@ public enum TerminalOutcome {
     CLARIFICATION_NEEDED,
     ESCALATE,
     MAX_STEPS,
-    ERROR
+    ERROR,
+    DEADLINE_EXCEEDED,
+    LLM_UNAVAILABLE
 }

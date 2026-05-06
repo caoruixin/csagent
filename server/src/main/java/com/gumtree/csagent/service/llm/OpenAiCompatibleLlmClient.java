@@ -44,9 +44,18 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
         this.model = model;
+        // Sprint 8 §A: fail fast. The user-facing budget is ~10s end-to-end
+        // (axios cuts at 30s, but UX should never wait longer than ~10s on a
+        // single LLM provider attempt — see feedback_llm_fail_fast). Healthy
+        // chat-completion latency on this repo's primary (Kimi K2.6) is ~1–2s
+        // empirically; the read timeout is set to kill the slow tail well below
+        // the user's 10s budget, leaving headroom for a cross-provider fallback
+        // attempt within the same request. The deadline-aware retry loop in
+        // {@link #chat} skips the second attempt when the remaining budget
+        // cannot fit one full attempt.
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);   // 5 seconds connect timeout
-        factory.setReadTimeout(30000);      // 30 seconds read timeout (LLM can be slow)
+        factory.setConnectTimeout(2000);   // 2s — TCP/TLS handshake budget
+        factory.setReadTimeout(6000);      // 6s — single LLM completion budget
         this.restTemplate = new RestTemplate(factory);
         this.objectMapper = objectMapper;
     }
@@ -90,42 +99,131 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
      * The result is at most 2 attempts at this provider plus 2 attempts at the
      * fallback — bounded, no busy-loop.
      */
+    /**
+     * Minimum remaining wall-clock budget required to start another attempt
+     * (one full connect + read timeout, plus a small buffer). Used by the
+     * deadline-aware retry decision: if the budget falls below this, the
+     * retry is skipped in favour of a fast give-up.
+     */
+    private static final long MIN_BUDGET_MS_FOR_NEXT_ATTEMPT = 2000L + 6000L + 200L;
+
     @Override
     public LlmResponse chat(LlmRequest request) {
         Exception lastException = null;
         for (int attempt = 1; attempt <= 2; attempt++) {
+            // Sprint 8 §C / Sprint 8.1 §M1: check the wall-clock deadline
+            // before each attempt. If the user's request budget has already
+            // been spent, abort with a non-transient
+            // {@link LlmDeadlineExceededException} so the caller can render
+            // a graceful "we gave up" UX rather than continuing to burn into
+            // the retry / fallback chain.
+            Long remainingBefore = LlmCallContext.remainingMillis();
+            if (remainingBefore != null && remainingBefore <= 0) {
+                log.warn("LLM [chat:deadline-exceeded] provider={} attempt={} remaining_budget_ms={} retry_decision=abort",
+                        providerLabel, attempt, remainingBefore);
+                throw new LlmDeadlineExceededException(
+                        "LLM deadline exceeded before attempt " + attempt
+                                + " (provider=" + providerLabel + ")");
+            }
+            long attemptStart = System.currentTimeMillis();
             try {
                 return doChat(request, attempt);
             } catch (HttpStatusCodeException e) {
                 lastException = e;
                 int status = e.getStatusCode().value();
+                long elapsed = System.currentTimeMillis() - attemptStart;
                 if (!isRetryableStatus(status)) {
                     // Non-transient (auth / 4xx) — fail fast so FallbackLlmClient
-                    // can decide whether to engage fallback.
-                    if (attempt == 1) {
-                        log.warn("LLM [chat:non-retryable-status] provider={} status={} attempt={}; not retrying",
-                                providerLabel, status, attempt);
-                    }
+                    // can decide whether to engage fallback. Sprint 8.1 §M1:
+                    // 401 / 403 / other 4xx are NEVER retried — an unmodified
+                    // request will keep failing the same way.
+                    log.warn("LLM [chat:non-retryable-status] provider={} attempt={} status={} "
+                                    + "elapsed_ms={} failure_class={} retry_decision=no_retry_non_transient",
+                            providerLabel, attempt, status, elapsed,
+                            classifyHttpStatus(status));
                     throw e;
                 }
-                if (attempt < 2) {
-                    log.warn("LLM [chat:retry] provider={} attempt={} status={} reason=retryable_status; "
-                            + "sleeping 500ms before retry", providerLabel, attempt, status);
-                    sleepQuietly(500);
+                if (attempt < 2 && hasBudgetForRetry()) {
+                    Long remaining = LlmCallContext.remainingMillis();
+                    log.warn("LLM [chat:retry] provider={} attempt={} status={} elapsed_ms={} "
+                                    + "failure_class={} remaining_budget_ms={} retry_decision=retry "
+                                    + "sleeping 200ms before retry",
+                            providerLabel, attempt, status, elapsed,
+                            classifyHttpStatus(status), remaining);
+                    sleepQuietly(200);
+                } else if (attempt < 2) {
+                    abortRetryDueToDeadline(attempt, "retryable_status=" + status, e);
                 }
             } catch (RestClientException e) {
                 lastException = e;
-                if (attempt < 2) {
-                    log.warn("LLM [chat:retry] provider={} attempt={} reason=transport ({}); "
-                            + "sleeping 500ms before retry",
-                            providerLabel, attempt, e.getClass().getSimpleName());
-                    sleepQuietly(500);
+                long elapsed = System.currentTimeMillis() - attemptStart;
+                String failureClass = classifyTransport(e);
+                if (attempt < 2 && hasBudgetForRetry()) {
+                    Long remaining = LlmCallContext.remainingMillis();
+                    log.warn("LLM [chat:retry] provider={} attempt={} elapsed_ms={} "
+                                    + "failure_class={} remaining_budget_ms={} retry_decision=retry "
+                                    + "sleeping 200ms before retry",
+                            providerLabel, attempt, elapsed, failureClass, remaining);
+                    sleepQuietly(200);
+                } else if (attempt < 2) {
+                    abortRetryDueToDeadline(attempt, "transport=" + failureClass, e);
                 }
             }
         }
-        log.error("LLM [chat:exhausted] provider={} after 2 attempts", providerLabel, lastException);
+        log.error("LLM [chat:exhausted] provider={} after 2 attempts attempt_count=2 retry_decision=exhausted",
+                providerLabel, lastException);
         throw new RuntimeException(
                 "LLM API call failed after retry (provider=" + providerLabel + ")", lastException);
+    }
+
+    /** Sprint 8.1 §M1 telemetry tag for retryable HTTP statuses. */
+    private static String classifyHttpStatus(int status) {
+        if (status == 429) return "rate_limited";
+        if (status >= 500 && status <= 599) return "server_error_" + status;
+        if (status == 401 || status == 403) return "auth_error_" + status;
+        return "http_" + status;
+    }
+
+    /** Sprint 8.1 §M1 telemetry tag for transport-class failures. */
+    private static String classifyTransport(RestClientException e) {
+        Throwable cur = e;
+        for (int depth = 0; cur != null && depth < 6; depth++, cur = cur.getCause()) {
+            if (cur instanceof java.net.SocketTimeoutException) return "read_timeout";
+            if (cur instanceof java.net.ConnectException) return "connect_timeout";
+            String msg = cur.getMessage() == null ? "" : cur.getMessage().toLowerCase();
+            if (msg.contains("read timed out")) return "read_timeout";
+            if (msg.contains("connect timed out")) return "connect_timeout";
+            if (msg.contains("timeout") || msg.contains("timed out")) return "transport_timeout";
+        }
+        return "transport_" + e.getClass().getSimpleName();
+    }
+
+    /**
+     * Sprint 8 §C: a retry is only worth attempting when the remaining
+     * deadline can fit one full attempt (connect + read + sleep buffer).
+     * Without this check, two back-to-back read timeouts can blow ~16s out
+     * of a 10s user budget before the deadline check at the top of the
+     * next iteration fires.
+     *
+     * @return {@code true} when no deadline is set (unbounded path) OR the
+     *         remaining budget is at least {@link #MIN_BUDGET_MS_FOR_NEXT_ATTEMPT}.
+     */
+    private static boolean hasBudgetForRetry() {
+        Long remaining = LlmCallContext.remainingMillis();
+        if (remaining == null) return true;
+        return remaining >= MIN_BUDGET_MS_FOR_NEXT_ATTEMPT;
+    }
+
+    private void abortRetryDueToDeadline(int attempt, String reason, Exception cause) {
+        Long remaining = LlmCallContext.remainingMillis();
+        log.warn("LLM [chat:deadline-skip-retry] provider={} attempt={} remaining={}ms reason={}; "
+                + "not retrying, surfacing as deadline-exceeded",
+                providerLabel, attempt, remaining, reason);
+        LlmDeadlineExceededException ex = new LlmDeadlineExceededException(
+                "LLM deadline insufficient for retry after attempt " + attempt
+                        + " (provider=" + providerLabel + ", remaining=" + remaining + "ms)");
+        ex.initCause(cause);
+        throw ex;
     }
 
     private static boolean isRetryableStatus(int status) {
@@ -173,21 +271,22 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
 
         } catch (HttpStatusCodeException e) {
             HttpStatusCode status = e.getStatusCode();
-            // Sprint §C0: 401/403 means the configured endpoint / key pair is
-            // wrong; the most common failure mode in this repo is the .ai vs
-            // .cn Kimi endpoint flip. Make the log line unambiguous so the
-            // operator does not chase it as a generic "LLM flake". The body
-            // is logged because Moonshot returns a structured error message,
+            // Sprint §C0 (post Sprint 7.1 credential rotation): 401/403
+            // means the configured endpoint / key pair is wrong; the most
+            // common failure mode in this repo is the .ai vs .cn Kimi
+            // endpoint flip. Make the log line unambiguous so the operator
+            // does not chase it as a generic "LLM flake". The body is
+            // logged because Moonshot returns a structured error message,
             // never the secret. The api-key is never logged.
             int code = status.value();
             if (code == 401 || code == 403) {
                 log.error("LLM [chat:auth-error] provider={} model={} url={} status={} body={} — "
-                        + "endpoint/key pair rejected. If provider=kimi, the working endpoint for "
-                        + "this repo is '{}'. The default '{}' has historically returned 401 in some "
-                        + "shells. Configure KIMI_BASE_URL accordingly.",
+                        + "endpoint/key pair rejected. If provider=kimi, the current working "
+                        + "endpoint for this repo's K2.6 provisioning is '{}'. The legacy '{}' "
+                        + "endpoint may still hold older keys. Configure KIMI_BASE_URL accordingly.",
                         providerLabel, model, url, code, e.getResponseBodyAsString(),
                         com.gumtree.csagent.config.LlmConfigValidator.KIMI_WORKING_ENDPOINT,
-                        com.gumtree.csagent.config.LlmConfigValidator.KIMI_DEFAULT_ENDPOINT);
+                        com.gumtree.csagent.config.LlmConfigValidator.KIMI_LEGACY_ENDPOINT);
             } else {
                 log.error("LLM [chat:http-error] provider={} model={} attempt={} status={} body={}",
                         providerLabel, model, attempt, code, e.getResponseBodyAsString());

@@ -30,9 +30,10 @@ import java.util.List;
  *       (no key, placeholder key, malformed URL). The validator returns the
  *       diagnostic so callers can throw or log+continue depending on context.</li>
  *   <li>{@link Severity#WARN} — fallback provider has the same issues, or the
- *       primary base URL is the historically-flaky default
- *       ({@code https://api.moonshot.ai/v1}) where the working endpoint in this
- *       repo has been {@code https://api.moonshot.cn/v1}.</li>
+ *       primary base URL is the legacy {@code https://api.moonshot.cn/v1}
+ *       endpoint, which historically returned 401 in some shells once the
+ *       Sprint 7.1 credential rotation moved primary traffic to
+ *       {@code https://api.moonshot.ai/v1}.</li>
  * </ul>
  *
  * <p>Secrets are never logged. The validator only logs whether a key is
@@ -41,11 +42,20 @@ import java.util.List;
 @Slf4j
 public final class LlmConfigValidator {
 
-    /** The historically-working endpoint for this repo's Kimi provisioning. */
-    public static final String KIMI_WORKING_ENDPOINT = "https://api.moonshot.cn/v1";
+    /**
+     * Working endpoint for this repo's Kimi K2.6 provisioning (post Sprint
+     * 7.1 credential rotation; matches {@code .env.local} and
+     * {@code application-local.yml} defaults).
+     */
+    public static final String KIMI_WORKING_ENDPOINT = "https://api.moonshot.ai/v1";
 
-    /** Default endpoint that has produced 401 in some shells in this environment. */
-    public static final String KIMI_DEFAULT_ENDPOINT = "https://api.moonshot.ai/v1";
+    /**
+     * Legacy endpoint that historically held the previous Kimi provisioning.
+     * Kept as a constant so the auth-error hint in
+     * {@code OpenAiCompatibleLlmClient} can still suggest it as a fallback if
+     * the working endpoint starts returning 401 in a given shell.
+     */
+    public static final String KIMI_LEGACY_ENDPOINT = "https://api.moonshot.cn/v1";
 
     private LlmConfigValidator() {}
 
@@ -122,14 +132,16 @@ public final class LlmConfigValidator {
         } else if (!isHttpUrl(baseUrl)) {
             out.add(new Diagnostic(missingSeverity, provider, "base_url_malformed",
                     "base-url is not a valid http(s) URL: " + baseUrl));
-        } else if ("kimi".equals(provider) && KIMI_DEFAULT_ENDPOINT.equals(baseUrl.trim())) {
-            // Sprint §C0: the historical default has produced 401 in some shells
-            // in this repo. Flag it so the operator knows to switch to the .cn
-            // endpoint if the primary provider starts returning auth errors.
-            out.add(new Diagnostic(Severity.WARN, provider, "base_url_default_warning",
-                    "kimi base-url is the default '" + KIMI_DEFAULT_ENDPOINT + "'. "
-                    + "If chat calls return 401 in your environment, try '"
-                    + KIMI_WORKING_ENDPOINT + "' (working endpoint documented for this repo)."));
+        } else if ("kimi".equals(provider) && KIMI_LEGACY_ENDPOINT.equals(baseUrl.trim())) {
+            // Sprint §C0 (post Sprint 7.1 credential rotation): the legacy
+            // .cn endpoint still works for some keys but the working
+            // endpoint for this repo's current Kimi K2.6 provisioning is
+            // the .ai host. Flag it so the operator knows to switch if 401s
+            // appear.
+            out.add(new Diagnostic(Severity.WARN, provider, "base_url_legacy_warning",
+                    "kimi base-url is the legacy '" + KIMI_LEGACY_ENDPOINT + "'. "
+                    + "Current Kimi K2.6 provisioning targets '"
+                    + KIMI_WORKING_ENDPOINT + "'; switch if chat calls return 401."));
         }
 
         // Model presence

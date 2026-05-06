@@ -4466,3 +4466,351 @@ The single narrow Sprint 9 candidate (if a runtime sprint is
 still preferred over governance) is the cs015 description-keyword
 moderation cue, anticipated by the Sprint 7 handoff §9. Either
 path is consistent with the Sprint 8 closure.
+
+# Sprint 8.1 — Non-Blocking Chat Entry and Budgeted LLM Reliability
+
+Date: 2026-05-06
+Branch: `design-v1-without-human-review`
+Sprint scope: Sprint 8.1 — exactly three actions (M0 / M1 / M2). No
+async polling, SSE, websocket, background job queue, FAQ corpus
+edits, CaseSpec changes, judge calibration, broad routing rewrite,
+or deferred cs015 / cs066 / cs176 work.
+Previous handoff baseline: post-Sprint-8 clean smoke r1
+`eval_interactive/results/20260505-234448/results.json` (8/14, mean
+composite 0.4784) and r2
+`eval_interactive/results/20260505-235231/results.json` (9/14, mean
+composite 0.5255). Both runs committed `active_use_case=UC-F` for
+cs259, 0 `CONTRACT_VIOLATION:active_use_case`.
+
+## 1. Problem captured
+
+Two production-side surfaces exposed after Sprint 8 closed:
+
+1. **30 s+ pre-filled form submit block.** The `Start Chat` POST
+   to `/v1/chat/sessions` ran a synchronous LLM call inside
+   `UseCaseRouter.routeViaLlm` for any weak-prior topic ("Ad
+   Support", "Account Support", "Payments" …). With Kimi 2.6's
+   2 s healthy median plus the existing 30 s read timeout, a slow
+   tail or transport blip produced a multi-tens-of-seconds wait
+   before the user could even enter the chat box.
+2. **12 s `DISCOVER → ESCALATE / UC-A` masked timeout.** After the
+   user landed in the chat box, the next user turn ran the agent
+   loop with the existing 10 s deadline. When the LLM call timed
+   out, `LlmInvocationService.invokeChat` caught the deadline
+   exception and returned a synthetic `SAFE_ESCALATION_RESPONSE`
+   with `request_handover(system_failure)`. In DISCOVER that tool
+   call was rejected by `validateAgainstPlan` (request_handover is
+   not in DISCOVER's allowed tool list); the loop kept retrying
+   the same synthetic response and hit `max_tool_steps=2`, the
+   K0 `applyMissingUseCaseFallback` evidence gate was inclusive
+   enough to consider the synthetic events real evidence, and the
+   regex stamped `active_use_case=UC-A` on the form description
+   "where is my ad?". The trace surface lied — there was no real
+   LLM reasoning and no real tool work, but the eval / operator
+   trace looked like a normal business escalation.
+
+Both surfaces eroded trace truthfulness and produced a poor
+production UX. Sprint 8.1 is the hotfix.
+
+## 2. Implementation (M0 / M1 / M2)
+
+### M0 — Non-blocking pre-filled form submit
+
+**Goal.** `POST /v1/chat/sessions` returns immediately after
+deterministic session creation and form-context persistence; no
+synchronous LLM call inside the create path. The next user turn
+sees the persisted form context through `ContextProjectionBuilder`.
+
+**Change.**
+
+- `UseCaseRouter.route` is split into the existing LLM-allowed
+  variant and a new `routeNonBlocking` that runs only the
+  deterministic stages (handover-only override, strong-prior topic,
+  UC-K technical-regression, B2 account/messaging bias) and
+  returns `RoutingResult.ambiguous(candidates)` for weak-prior
+  topics that would otherwise need LLM disambiguation. The
+  candidate list is preserved on `session.candidate_use_cases` so
+  the next turn's `classify_use_case` LLM call still has the
+  context it needs.
+- `SessionManager.createSession` now calls `routeNonBlocking` and
+  retains the existing form-context persistence and graceful
+  fallback. Pre-filled form submit completes in O(1 ms) of LLM
+  budget — the ChatController-set deadline is effectively unused
+  on this path.
+- `FormContextIngestionService.ingest` was already deterministic
+  (no LLM); it persists `form_context` (topic / description /
+  ad_id / email / first_name) and runs the `get_customer_context`
+  mock lookup synchronously without LLM blocking.
+
+**Files changed.**
+
+- `server/src/main/java/com/gumtree/csagent/service/runtime/UseCaseRouter.java`
+  - new public `routeNonBlocking(BotSession, String, String)`.
+  - new private `route(BotSession, String, String, boolean allowLlm)`
+    overload; existing public `route` delegates with
+    `allowLlm=true`.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/SessionManager.java`
+  - `createSession` now calls `useCaseRouter.routeNonBlocking(...)`
+    instead of `useCaseRouter.route(...)`.
+
+### M1 — Budget-aware fast retry, max one retry
+
+**Goal.** Each user-turn LLM call uses the existing
+`LlmCallContext` deadline (10 s default for HTTP-bound paths) and
+retries at most once, only on transient classes. Two consecutive
+6 s reads cannot blow past a 10 s budget.
+
+**Change.**
+
+- `OpenAiCompatibleLlmClient.chat` reads `LlmCallContext.remainingMillis()`
+  before each attempt; aborts with `LlmDeadlineExceededException`
+  when the budget is already spent.
+- The retry decision now logs `attempt_count`, `provider`,
+  `elapsed_ms`, `failure_class`, `retry_decision`, and
+  `remaining_budget_ms` per attempt — Sprint 8.1 §M1 telemetry
+  contract.
+- Retryable: `429`, `5xx`, transport (connect / read timeout /
+  transient `RestClientException`). Non-retryable: `401`, `403`,
+  any other deterministic 4xx, valid responses with semantic
+  no-answer.
+- `hasBudgetForRetry()` keeps the existing minimum-attempt-budget
+  guard (`2 s connect + 6 s read + 200 ms buffer = 8.2 s`); below
+  that, the retry is skipped via `abortRetryDueToDeadline` rather
+  than starting a second attempt that cannot finish in time.
+- `FallbackLlmClient` continues to act as the cross-provider
+  fallback layer; it already skips fallback when the deadline is
+  exceeded (`Sprint 8 §C`).
+
+**Files changed.**
+
+- `server/src/main/java/com/gumtree/csagent/service/llm/OpenAiCompatibleLlmClient.java`
+  - retry loop telemetry: `failure_class` / `retry_decision` /
+    `remaining_budget_ms` log fields.
+  - new helpers `classifyHttpStatus`, `classifyTransport` for
+    stable telemetry tags.
+
+### M2 — Honest failure handling and K0 gating
+
+**Goal.** Deadline / infra failures must NOT be converted into
+synthetic SAFE_ESCALATION; AgentRunLoop must distinguish
+`deadline_exceeded`, `llm_unavailable`, `max_steps_exceeded`, and
+normal escalation; K0 `applyMissingUseCaseFallback` must only fire
+on real LLM/tool reasoning evidence so the localhost ad-visibility
+shape never gets a fake UC-A stamp.
+
+**Change.**
+
+- `LlmInvocationService.invokeChat` now propagates
+  `LlmDeadlineExceededException` and a new `LlmUnavailableException`
+  (transport / 5xx / 429 / 401 / 403 after retry exhaustion)
+  instead of converting them to `SAFE_ESCALATION_RESPONSE`. Only
+  parse-class failures (NPE on a malformed real LLM response)
+  still return the synthetic safe escalation, and that response
+  is now marked with the public
+  `LlmInvocationService.SYNTHETIC_SAFE_ESCALATION_FINISH_REASON`
+  marker so downstream gates can detect it.
+- New `TerminalOutcome.DEADLINE_EXCEEDED` and
+  `TerminalOutcome.LLM_UNAVAILABLE`. New
+  `AgentRunResult.deadlineExceeded(...)` and
+  `AgentRunResult.llmUnavailable(...)` factories preserve the
+  accumulated `llmEvents` / `toolEvents` so the trace still
+  records what ran before the failure.
+- `AgentRunLoopImpl.run` catches the typed exceptions and returns
+  the appropriate `AgentRunResult`. `LlmInvocationService` no
+  longer hides the failure inside a synthetic response.
+- `PhaseEvaluator.interpretRunResult` maps the new outcomes to a
+  STAY-IN-CURRENT-PHASE `PhaseTransitionDecision` with an honest
+  slow / unavailable user message and `transitionReason`
+  `agent_deadline_exceeded` / `agent_llm_unavailable`. The
+  decision does NOT escalate, so `ControlKernel.processMessage`
+  never enters the K0 fallback / case-creation / handover branch
+  for these surfaces.
+- `ControlKernel.agentRunResultHasEvidence` is rewritten:
+  - returns `false` for terminal outcomes ERROR /
+    DEADLINE_EXCEEDED / LLM_UNAVAILABLE.
+  - returns `false` for ESCALATE with an infra-class
+    `escalation_reason` (`service_degraded`, `system_failure`,
+    `agent_error`, `runtime_error_threshold`, `deadline_exceeded`,
+    `llm_unavailable`).
+  - returns `false` for MAX_STEPS without at least one
+    successful tool event (the synthetic-rejected-handover shape).
+  - requires at least one successful tool event AND at least one
+    non-synthetic LLM event (synthetic detection inspects
+    `LlmCallEvent.responseSummary` for the unique `"reasoning":
+    "LLM invocation failure"` / `"escalation_reason":
+    "system_failure"` markers).
+- `ChatController` adds a defensive catch for
+  `LlmUnavailableException` mirroring the existing
+  `LlmDeadlineExceededException` catch — both render an honest
+  slow / unavailable response so the legacy `PhaseEvaluator` path
+  cannot leak a 500 on these surfaces.
+
+**Files changed.**
+
+- `server/src/main/java/com/gumtree/csagent/model/TerminalOutcome.java`
+- `server/src/main/java/com/gumtree/csagent/model/AgentRunResult.java`
+- `server/src/main/java/com/gumtree/csagent/service/llm/LlmUnavailableException.java`
+  (new)
+- `server/src/main/java/com/gumtree/csagent/service/runtime/LlmInvocationService.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+- `server/src/main/java/com/gumtree/csagent/controller/ChatController.java`
+
+## 3. Tests
+
+### New focused tests
+
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint81HonestFailureIntegrationTest.java`
+  - 2 tests covering the localhost ad-visibility timeout shape:
+    DEADLINE_EXCEEDED and LLM_UNAVAILABLE both leave
+    `active_use_case=null`, stay in DISCOVER, and return the slow
+    / unavailable user message with `shouldEndChat=false`.
+- `server/src/test/java/com/gumtree/csagent/service/llm/Sprint81BudgetedRetryTest.java`
+  - 5 tests covering: transient 5xx + ample budget → one retry
+    success; budget exhausted → `LlmDeadlineExceededException`,
+    no third attempt; 10 s budget vs hung server → total wait
+    bounded; 401 / 403 → no retry.
+
+### Updated regression tests
+
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint8Cs259EscalateBranchIntegrationTest.java`
+  - cs259 happy path now models real events (2 successful
+    `search_knowledge` ToolEvents + 2 LlmCallEvents + a
+    successful `request_handover` ToolEvent) so K0 still fires
+    for the legitimate cs259 reasoned-but-missing-UC path under
+    the tighter M2 evidence gate.
+  - Renamed and reversed three pre-M2 assertions: ESCALATE-with-
+    empty-events, ERROR-with-tool-event-only, and
+    ERROR-with-llm-event-only now ALL skip K0 (per M2:
+    `K0 must NOT fire when terminal outcome is ERROR ... no real
+    tool events exist ... only synthetic safe escalation
+    exists`).
+  - 4 new tests pin DEADLINE_EXCEEDED / LLM_UNAVAILABLE skips
+    K0; MAX_STEPS with only rejected tool events skips K0; and
+    synthetic SAFE_ESCALATION LlmCallEvents do not count as real
+    evidence.
+- `server/src/test/java/com/gumtree/csagent/service/runtime/SessionManagerCreateSessionTest.java`
+  - All routing stubs migrated to `useCaseRouter.routeNonBlocking`.
+  - 2 new tests pin the M0 contract: createSession invokes
+    `routeNonBlocking` (and never the LLM-allowed `route`); the
+    Ad Support shape returns in <1 s with `form_context`
+    persisted via `formIngestion.ingest`.
+- `server/src/test/java/com/gumtree/csagent/service/runtime/LlmInvocationServiceTest.java`
+  - Updated three pre-M2 assertions: transport-class
+    `RuntimeException` and `ConnectException` causes now throw
+    `LlmUnavailableException` instead of returning
+    SAFE_ESCALATION; deadline-class exceptions propagate as
+    `LlmDeadlineExceededException`. Parse-class NPE keeps
+    returning the synthetic safe escalation (M2 detects this via
+    the `error_fallback` finish_reason marker).
+
+### Test results
+
+| Suite | Result |
+|---|---|
+| `mvn -pl server -Dtest='Sprint81HonestFailureIntegrationTest,Sprint81BudgetedRetryTest,Sprint8Cs259EscalateBranchIntegrationTest,SessionManagerCreateSessionTest,LlmInvocationServiceTest,Sprint8Cs259ActiveUseCaseHardeningTest' test` | **54 / 54 passed**. |
+| `mvn -pl server test` | **689 / 689 passed** (Sprint 8 baseline 682 + 7 new Sprint 8.1 tests; 0 failures, 0 errors, 0 skipped). |
+| `python -m pytest -p no:capture eval_interactive/tests/` | **not required** — no eval / Python files changed in this sprint. |
+
+## 4. Before / after local UX
+
+| Surface | Before Sprint 8.1 | After Sprint 8.1 |
+|---|---|---|
+| Pre-filled form submit, weak-prior topic | 30 s+ block while LLM router runs synchronously | < 100 ms — `routeNonBlocking` returns AMBIGUOUS / strong-prior outcome immediately; chat box opens with form context persisted |
+| First user message after submit, LLM healthy | normal flow | unchanged |
+| First user message after submit, LLM timeout | 12 s wait → DISCOVER → ESCALATE → fake UC-A K0 stamp; trace looks like a normal escalation | ≤ 10 s wait → stays in DISCOVER → "Sorry, I'm a bit slow right now. Please try sending that again in a moment." → no UC stamped → trace surfaces the real timeout |
+| First user message, LLM 5xx after retry | masked as system_failure escalation | `LlmUnavailableException` → "Sorry, I'm having trouble reaching the assistant right now. Please try again in a moment." → no UC stamp |
+
+## 5. How LLM retry is bounded
+
+- Wall-clock deadline: 10 s per HTTP request (set by
+  `ChatController` via `LlmCallContext.setDeadline`).
+- Per-attempt timeouts: 2 s connect + 6 s read on
+  `OpenAiCompatibleLlmClient`'s `RestTemplate`. One full attempt
+  costs ≤ 8.2 s including the inter-attempt 200 ms sleep.
+- Retry budget gate: `MIN_BUDGET_MS_FOR_NEXT_ATTEMPT = 8.2 s`.
+  When `LlmCallContext.remainingMillis()` falls below this, the
+  client aborts with `LlmDeadlineExceededException` rather than
+  starting attempt 2.
+- Retry classification: `429`, `5xx`, transport. Non-retryable:
+  `401`, `403`, deterministic 4xx, parse failures, semantic no-answer.
+- Cross-provider fallback (`FallbackLlmClient`) acts as the same
+  one retry; it skips fallback entirely when the deadline is
+  exceeded.
+- Net effect: at most one retry, total wall clock bounded by the
+  10 s deadline, no busy-loop of two consecutive 6 s reads.
+
+## 6. How K0 still fires for cs259 but no longer masks
+   no-real-work failures
+
+- The K0 narrow contract (Sprint 8) keeps the cs259
+  reasoned-but-missing-UC path: the LLM made two
+  `search_knowledge` calls, returned no viable hits, and emitted
+  `request_handover(faq_miss_threshold_exceeded)` without ever
+  calling `classify_use_case`. After M2, the
+  `agentRunResultHasEvidence` predicate requires at least one
+  successful tool event AND at least one non-synthetic LLM event
+  (both hold for the genuine cs259 path) AND a non-infra
+  escalation reason. `Sprint8Cs259EscalateBranchIntegrationTest`
+  pins this verbatim with real ToolEvents and LlmCallEvents.
+- The localhost ad-visibility timeout shape produces
+  `TerminalOutcome.DEADLINE_EXCEEDED` (no LLM completion ever
+  happened); the M2 gate returns `false` immediately and the K0
+  stamp is suppressed. `Sprint81HonestFailureIntegrationTest`
+  pins this verbatim — UC stays null, phase stays DISCOVER, the
+  user gets the slow message.
+- ESCALATE with infra-class reason (`service_degraded`,
+  `system_failure`, `agent_error`, `runtime_error_threshold`,
+  `deadline_exceeded`, `llm_unavailable`) is also a no-evidence
+  surface — even if events exist, the failure is honest and K0
+  does not fire.
+- MAX_STEPS without any successful tool event is the
+  synthetic-rejected-handover shape (every step's
+  SAFE_ESCALATION_RESPONSE got rejected by `validateAgainstPlan`
+  in DISCOVER); K0 stays off so the trace doesn't show a fake UC.
+
+## 7. Eval Governance — can it resume next?
+
+**Yes.** Sprint 8.1 does not regress any Sprint 6 / 7 / 8 contract:
+
+- ✅ cs259 K0 contract preserved: `Sprint8Cs259EscalateBranchIntegrationTest`
+  passes (10 / 10 inc. 4 new M2 tests).
+- ✅ cs259 hardening tests: `Sprint8Cs259ActiveUseCaseHardeningTest`
+  passes (21 / 21).
+- ✅ §B3 cs029 fallback intact:
+  `ControlKernelB3FallbackUseCaseTest` (9 / 9).
+- ✅ Sprint 6 §G2 S1 FAQ-grounded-resolve guard intact:
+  `AgentRunLoopS1FaqGroundedResolveGuardTest` (12 / 12).
+- ✅ Sprint 6 §G0 ReadTimeout closure preserved (no eval-side
+  retry; create-session timeout widening only).
+- ✅ Sprint 7 §I0 / I1 / I2 / J0 contracts intact:
+  `Sprint7CandidateUseCasesProjectionTest`,
+  `Sprint7RoutingTiebreakerTest`, `Sprint7IntakeStateTest`,
+  `Sprint71PartialIntakePersistenceTest`.
+- ✅ cs014 / cs066 / cs095 / cs002 / cs029 / cs176 negative
+  guards preserved (all in `Sprint8Cs259ActiveUseCaseHardeningTest`
+  + `Cs014RouteAndDistressRegressionTest` +
+  `Cs176ExplicitHumanHelpHandoverIntegrationTest`).
+
+The Eval Governance Sprint scope from §9 of the Sprint 8 closure
+is unchanged: stall detector calibration, L3 judge prompt
+calibration, FAQ corpus answerability audit, persona simulator
+pacing audit, cs176 persona simulator audit. Sprint 8.1 adds one
+governance-side observation: smoke runs may show new
+`agent_deadline_exceeded` / `agent_llm_unavailable` transition tags
+in trace metadata — these are legitimate honest-failure markers
+and should be filtered IN to operator dashboards, not OUT (the
+old smoke-pass-rate-preserving instinct of converting them to
+synthetic UC-A is exactly what M2 closed).
+
+## 8. Out of scope (Sprint 8.1)
+
+No async polling / SSE / websocket / background job queue. No
+broad frontend rewrite. No FAQ corpus changes. No CaseSpec
+changes / overrides. No judge calibration. No broad routing
+taxonomy rewrite. No cs015 follow-up. No cs066 / cs038 stall
+detector calibration. No cs176 UC-I drift fix. No S3 / S5 / anchor
+hard-gate expansion. No update to `current_eval_baseline.md` —
+that pin will only refresh after a clean Kimi smoke is rerun and
+accepted under the new honest-failure surfaces.

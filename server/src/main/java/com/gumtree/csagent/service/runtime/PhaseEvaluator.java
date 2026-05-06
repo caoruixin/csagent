@@ -751,6 +751,24 @@ public class PhaseEvaluator {
                         "runtime_error_threshold",
                         "agent_error");
             }
+            case DEADLINE_EXCEEDED:
+            case LLM_UNAVAILABLE: {
+                // Sprint 8.1 §M2: an honest slow / unavailable response.
+                // We do NOT escalate — escalation here would be a fake
+                // business handover that hides the real infra failure.
+                // The session stays in the current phase with shouldEndChat=
+                // false so the user can retry on their next message. The
+                // K0 fallback gate detects these terminal outcomes too and
+                // refuses to stamp a synthetic UC.
+                String slowStayPhase = fromPhase != null ? fromPhase : "DISCOVER";
+                String userMsg = (outcome == TerminalOutcome.DEADLINE_EXCEEDED)
+                        ? "Sorry, I'm a bit slow right now. Please try sending that again in a moment."
+                        : "Sorry, I'm having trouble reaching the assistant right now. "
+                                + "Please try again in a moment.";
+                String transitionTag = (outcome == TerminalOutcome.DEADLINE_EXCEEDED)
+                        ? "agent_deadline_exceeded" : "agent_llm_unavailable";
+                return new PhaseTransitionDecision(slowStayPhase, userMsg, null, transitionTag);
+            }
             default:
                 throw new IllegalStateException("Unknown terminal outcome: " + outcome);
         }

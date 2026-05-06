@@ -132,12 +132,39 @@ class Sprint8Cs259EscalateBranchIntegrationTest {
 
         // The LLM ran two search_knowledge calls (cs259 r2 lastAction)
         // and emitted request_handover(faq_miss_threshold_exceeded)
-        // WITHOUT classify_use_case. Use the AgentRunResult.escalate
-        // record-static constructor to model that terminal outcome.
+        // WITHOUT classify_use_case. Sprint 8.1 §M2 narrows the K0
+        // evidence check to require real (non-synthetic) LLM events
+        // AND at least one successful tool event — both hold for the
+        // genuine cs259 path, which we model here verbatim.
+        com.gumtree.csagent.model.LlmCallEvent llmEvent1 =
+                new com.gumtree.csagent.model.LlmCallEvent(
+                        0, 0, "kimi-k2.6", 220, 80, 1100L,
+                        "{\"tool_calls\":[{\"name\":\"search_knowledge\"}]}");
+        com.gumtree.csagent.model.LlmCallEvent llmEvent2 =
+                new com.gumtree.csagent.model.LlmCallEvent(
+                        2, 1, "kimi-k2.6", 250, 80, 1300L,
+                        "{\"tool_calls\":[{\"name\":\"search_knowledge\"}]}");
+        com.gumtree.csagent.model.ToolEvent searchEvent1 =
+                new com.gumtree.csagent.model.ToolEvent(
+                        1, 0, "search_knowledge",
+                        java.util.Map.of("query", "payment after selling"),
+                        true, java.util.Map.of("hits", java.util.List.of()),
+                        null, 320L);
+        com.gumtree.csagent.model.ToolEvent searchEvent2 =
+                new com.gumtree.csagent.model.ToolEvent(
+                        3, 1, "search_knowledge",
+                        java.util.Map.of("query", "receive payment item sold"),
+                        true, java.util.Map.of("hits", java.util.List.of()),
+                        null, 410L);
+        com.gumtree.csagent.model.ToolEvent handoverEvent =
+                new com.gumtree.csagent.model.ToolEvent(
+                        4, 1, "request_handover",
+                        java.util.Map.of("escalation_reason", "faq_miss_threshold_exceeded"),
+                        true, null, null, 12L);
         AgentRunResult runResult = AgentRunResult.escalate(
                 "faq_miss_threshold_exceeded",
-                List.of(),
-                List.of(),
+                List.of(llmEvent1, llmEvent2),
+                List.of(searchEvent1, searchEvent2, handoverEvent),
                 "{\"phase\":\"DISCOVER\"}",
                 "{\"tool_calls\":[]}");
         when(agentRunLoop.run(any(), any(), anyString(), any())).thenReturn(runResult);
@@ -261,7 +288,12 @@ class Sprint8Cs259EscalateBranchIntegrationTest {
         when(agentRunLoop.run(any(), any(), anyString(), any())).thenReturn(runResult);
         when(phaseEvaluator.interpretRunResult(any(), eq(runResult), any()))
                 .thenReturn(decision);
-        when(controlPolicy.isValidTransition("DISCOVER", "ESCALATE")).thenReturn(true);
+        // Sprint 8.1 §M2: only register the DISCOVER → ESCALATE transition
+        // mock when the decision actually requires it. DEADLINE_EXCEEDED /
+        // LLM_UNAVAILABLE decisions stay in DISCOVER and never call this.
+        if ("ESCALATE".equals(decision.nextPhase())) {
+            when(controlPolicy.isValidTransition("DISCOVER", "ESCALATE")).thenReturn(true);
+        }
     }
 
     private static PhaseTransitionDecision serviceDegradedDecision() {
@@ -317,15 +349,12 @@ class Sprint8Cs259EscalateBranchIntegrationTest {
     }
 
     @Test
-    void llmRanReturnedEscalateWithNoEvents_treatedAsEvidence_appliesFallback() {
-        // ── Arrange: edge case — terminalOutcome=ESCALATE but no
-        // toolEvents / no llmEvents. This mirrors a future code path
-        // where AgentRunLoop short-circuits to escalate without
-        // recording events. The narrowing's evidence predicate
-        // includes outcome != ERROR as one sufficient condition, so
-        // ESCALATE-with-empty-events still triggers the fallback.
-        // This preserves the original cs259-shape contract for
-        // pre-existing callers.
+    void llmRanReturnedEscalateWithNoEvents_skipsFallback_leavesUcNull() {
+        // Sprint 8.1 §M2: an ESCALATE with empty events is no longer
+        // treated as evidence — without real tool events AND a real
+        // (non-synthetic) LLM event, the escalation cannot be a
+        // legitimate cs259-style reasoned handover. Leaving UC null
+        // preserves the upstream-failure surface in the trace.
         AgentRunResult escalateNoEvents = AgentRunResult.escalate(
                 "faq_miss_threshold_exceeded",
                 List.of(),
@@ -338,20 +367,19 @@ class Sprint8Cs259EscalateBranchIntegrationTest {
         controlKernel.processMessage(session,
                 "How do I receive the payment when I sell an item");
 
-        assertEquals("UC-F", session.getActiveUseCase(),
-                "outcome=ESCALATE is positive evidence (the bot decided "
-                        + "to hand over rather than crashing); the fallback "
-                        + "must still fire to satisfy the cs259 r2 contract.");
+        assertNull(session.getActiveUseCase(),
+                "Sprint 8.1 §M2: ESCALATE with no llm/tool events is not "
+                        + "real evidence; the K0 fallback must NOT mask the "
+                        + "failure with a regex-derived UC.");
         assertEquals("faq_miss_threshold_exceeded", session.getEscalationReason());
     }
 
     @Test
-    void llmRanWithToolEventsButNoLlmEvents_appliesFallback() {
-        // ── Arrange: AgentRunLoop ran search_knowledge (tool event
-        // recorded) then the LLM call wrapping the next step threw,
-        // returning ERROR with toolEvents=[search_knowledge] and
-        // llmEvents=[]. The bot DID reason about the user's request
-        // (it ran a search), so K0 should still apply.
+    void llmRanWithToolEventsButNoLlmEvents_errorOutcome_skipsFallback() {
+        // Sprint 8.1 §M2: ERROR terminal outcome is an honest-failure
+        // signal — K0 must NOT fire even when a tool event was
+        // recorded earlier in the loop. The trace still shows the
+        // partial work; only the synthetic UC stamp is suppressed.
         com.gumtree.csagent.model.ToolEvent searchEvent =
                 new com.gumtree.csagent.model.ToolEvent(
                         0, 0, "search_knowledge",
@@ -372,18 +400,18 @@ class Sprint8Cs259EscalateBranchIntegrationTest {
         controlKernel.processMessage(session,
                 "How do I receive the payment when I sell an item");
 
-        assertEquals("UC-F", session.getActiveUseCase(),
-                "Even on terminal ERROR, recorded tool events count as "
-                        + "evidence the bot actually ran — the fallback must "
-                        + "fire so the cs259 r2 partial-progress shape still "
-                        + "lands on a valid UC.");
+        assertNull(session.getActiveUseCase(),
+                "Sprint 8.1 §M2: ERROR outcome must skip K0 even when a "
+                        + "tool event was recorded; the upstream LLM failure "
+                        + "must remain visible in the trace.");
+        assertEquals("service_degraded", session.getEscalationReason());
     }
 
     @Test
-    void llmRanWithLlmEventsButNoToolEvents_appliesFallback() {
-        // ── Arrange: the LLM responded once (llmEvent recorded) but
-        // no tool was called and the parser failed, returning ERROR.
-        // Same evidence-positive reasoning as the previous test.
+    void llmRanWithLlmEventsButNoToolEvents_errorOutcome_skipsFallback() {
+        // Sprint 8.1 §M2: same as above for the LLM-event-without-tool
+        // shape — ERROR + no successful tool event = no real evidence,
+        // so the K0 stamp is suppressed.
         com.gumtree.csagent.model.LlmCallEvent llmEvent =
                 new com.gumtree.csagent.model.LlmCallEvent(
                         0, 0, "kimi-k2.6", 120, 40, 2400L, "raw response");
@@ -402,9 +430,161 @@ class Sprint8Cs259EscalateBranchIntegrationTest {
         controlKernel.processMessage(session,
                 "How do I receive the payment when I sell an item");
 
-        assertEquals("UC-F", session.getActiveUseCase(),
-                "An LLM event without tool events still counts as "
-                        + "evidence; the fallback must fire.");
+        assertNull(session.getActiveUseCase(),
+                "Sprint 8.1 §M2: ERROR outcome with only an LLM event "
+                        + "is still an honest-failure signal; K0 stays off.");
+    }
+
+    @Test
+    void deadlineExceededOutcome_skipsFallback_evenWithEvents() {
+        // Sprint 8.1 §M2: even if events were recorded earlier, a
+        // DEADLINE_EXCEEDED terminal outcome must never produce a K0
+        // stamp — by definition the LLM never finished its work.
+        com.gumtree.csagent.model.LlmCallEvent llmEvent =
+                new com.gumtree.csagent.model.LlmCallEvent(
+                        0, 0, "kimi-k2.6", 200, 0, 6500L,
+                        "{\"tool_calls\":[{\"name\":\"search_knowledge\"}]}");
+        com.gumtree.csagent.model.ToolEvent searchEvent =
+                new com.gumtree.csagent.model.ToolEvent(
+                        1, 0, "search_knowledge",
+                        java.util.Map.of("query", "ad"),
+                        true, null, null, 300L);
+        AgentRunResult deadlineResult = AgentRunResult.deadlineExceeded(
+                "llm_deadline_exceeded: budget exhausted before retry",
+                List.of(llmEvent),
+                List.of(searchEvent),
+                "{\"phase\":\"DISCOVER\"}");
+        // Localhost ad-visibility shape — would otherwise resolve UC-A.
+        BotSession session = cs259ShapeSession();
+        session.setFormTopicSubject("Ad Support");
+        session.setFormContext("{\"first_name\":\"joh\",\"email\":\"joh@e.com\","
+                + "\"topic_subject\":\"Ad Support\",\"ad_id\":\"123\","
+                + "\"description\":\"where is my ad?\"}");
+        // PhaseEvaluator maps DEADLINE_EXCEEDED to a non-escalate
+        // transition (stay in current phase). The mock decision below
+        // mirrors that contract.
+        PhaseTransitionDecision deadlineDecision = new PhaseTransitionDecision(
+                "DISCOVER",
+                "Sorry, I'm a bit slow right now. Please try sending that again in a moment.",
+                null, "agent_deadline_exceeded");
+        mockCommonStubsWithRunResult(deadlineResult, deadlineDecision);
+
+        controlKernel.processMessage(session, "hi, why I can't see my ad");
+
+        assertNull(session.getActiveUseCase(),
+                "Sprint 8.1 §M2: DEADLINE_EXCEEDED outcome must never "
+                        + "stamp a synthetic UC; the trace must surface "
+                        + "the real timeout failure, not a fake UC-A.");
+    }
+
+    @Test
+    void llmUnavailableOutcome_skipsFallback_evenWithEvents() {
+        // Sprint 8.1 §M2: LLM_UNAVAILABLE (transport/5xx/auth after
+        // retry exhaustion) is treated identically to DEADLINE_EXCEEDED.
+        com.gumtree.csagent.model.LlmCallEvent llmEvent =
+                new com.gumtree.csagent.model.LlmCallEvent(
+                        0, 0, "kimi-k2.6", 200, 0, 6500L, "{}");
+        AgentRunResult unavailableResult = AgentRunResult.llmUnavailable(
+                "llm_unavailable: failure_class=llm_server_error",
+                List.of(llmEvent),
+                List.of(),
+                "{\"phase\":\"DISCOVER\"}");
+        BotSession session = cs259ShapeSession();
+        session.setFormTopicSubject("Ad Support");
+        session.setFormContext("{\"first_name\":\"joh\",\"email\":\"joh@e.com\","
+                + "\"topic_subject\":\"Ad Support\",\"ad_id\":\"123\","
+                + "\"description\":\"where is my ad?\"}");
+        PhaseTransitionDecision unavailableDecision = new PhaseTransitionDecision(
+                "DISCOVER",
+                "Sorry, I'm having trouble reaching the assistant right now. "
+                        + "Please try again in a moment.",
+                null, "agent_llm_unavailable");
+        mockCommonStubsWithRunResult(unavailableResult, unavailableDecision);
+
+        controlKernel.processMessage(session, "hi, why I can't see my ad");
+
+        assertNull(session.getActiveUseCase(),
+                "Sprint 8.1 §M2: LLM_UNAVAILABLE outcome must skip K0; "
+                        + "the trace must show service degraded, not a "
+                        + "synthetic UC-A.");
+    }
+
+    @Test
+    void maxStepsWithOnlyRejectedToolEvents_skipsFallback() {
+        // Sprint 8.1 §M2: when the loop hits maxSteps because every
+        // synthetic SAFE_ESCALATION_RESPONSE was rejected by
+        // validateAgainstPlan in DISCOVER, there are tool events but
+        // none are successful. The K0 gate must treat that as no real
+        // evidence (the bot did not actually complete a tool call).
+        com.gumtree.csagent.model.ToolEvent rejected1 =
+                com.gumtree.csagent.model.ToolEvent.rejected(0, null,
+                        "tool_not_in_plan");
+        com.gumtree.csagent.model.ToolEvent rejected2 =
+                com.gumtree.csagent.model.ToolEvent.rejected(1, null,
+                        "tool_not_in_plan");
+        AgentRunResult maxStepsRejected = AgentRunResult.maxSteps(
+                List.of(),
+                List.of(rejected1, rejected2),
+                "{\"phase\":\"DISCOVER\"}");
+        BotSession session = cs259ShapeSession();
+        session.setFormTopicSubject("Ad Support");
+        session.setFormContext("{\"first_name\":\"joh\",\"email\":\"joh@e.com\","
+                + "\"topic_subject\":\"Ad Support\",\"ad_id\":\"123\","
+                + "\"description\":\"where is my ad?\"}");
+        // PhaseEvaluator typically maps MAX_STEPS to ESCALATE with
+        // clarification_budget_exhausted in DISCOVER. The K0 gate
+        // suppression keeps UC null even when shouldEscalate=true.
+        PhaseTransitionDecision maxStepsDecision = new PhaseTransitionDecision(
+                "ESCALATE",
+                "I'm having difficulty resolving this. Let me connect you with a specialist.",
+                "clarification_budget_exhausted",
+                "max_steps_exceeded");
+        mockCommonStubsWithRunResult(maxStepsRejected, maxStepsDecision);
+
+        controlKernel.processMessage(session, "hi, why I can't see my ad");
+
+        assertNull(session.getActiveUseCase(),
+                "Sprint 8.1 §M2: MAX_STEPS with only rejected tool "
+                        + "events is the synthetic-safe-escalation shape; "
+                        + "K0 must NOT stamp UC-A from the regex.");
+    }
+
+    @Test
+    void escalateWithOnlySyntheticSafeEscalationLlmEvents_skipsFallback() {
+        // Sprint 8.1 §M2: detect synthetic SAFE_ESCALATION_RESPONSE in
+        // LlmCallEvent.responseSummary by the unique "LLM invocation
+        // failure" reasoning marker. With no real LLM event, K0 must
+        // not fire even on ESCALATE.
+        String syntheticSummary = "{\"user_message\":\"...\","
+                + "\"reasoning\":\"LLM invocation failure\","
+                + "\"tool_calls\":[{\"name\":\"request_handover\","
+                + "\"arguments\":{\"escalation_reason\":\"system_failure\"}}]}";
+        com.gumtree.csagent.model.LlmCallEvent syntheticEvent =
+                new com.gumtree.csagent.model.LlmCallEvent(
+                        0, 0, "kimi-k2.6", 0, 0, 0L, syntheticSummary);
+        com.gumtree.csagent.model.ToolEvent rejected =
+                com.gumtree.csagent.model.ToolEvent.rejected(1, null,
+                        "tool_not_in_plan");
+        AgentRunResult escalateSynthetic = AgentRunResult.escalate(
+                "system_failure",
+                List.of(syntheticEvent),
+                List.of(rejected),
+                "{\"phase\":\"DISCOVER\"}",
+                syntheticSummary);
+        BotSession session = cs259ShapeSession();
+        session.setFormTopicSubject("Ad Support");
+        session.setFormContext("{\"first_name\":\"joh\",\"email\":\"joh@e.com\","
+                + "\"topic_subject\":\"Ad Support\",\"ad_id\":\"123\","
+                + "\"description\":\"where is my ad?\"}");
+        PhaseTransitionDecision serviceDegraded = serviceDegradedDecision();
+        mockCommonStubsWithRunResult(escalateSynthetic, serviceDegraded);
+
+        controlKernel.processMessage(session, "hi, why I can't see my ad");
+
+        assertNull(session.getActiveUseCase(),
+                "Sprint 8.1 §M2: synthetic SAFE_ESCALATION_RESPONSE LLM "
+                        + "events must NOT count as real evidence — K0 "
+                        + "stays off so the upstream failure surfaces.");
     }
 
 }

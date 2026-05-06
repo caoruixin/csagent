@@ -588,44 +588,139 @@ public class ControlKernel {
     }
 
     /**
-     * Sprint 8 §K0 narrowing (2026-05-06): true when the
-     * {@link AgentRunResult} carries any positive evidence that the bot
-     * actually reasoned about the user's turn. Used by the AgentRunLoop
-     * ESCALATE branch in {@link #processMessage} to gate the
-     * {@link #applyMissingUseCaseFallback} call so that
-     * {@code service_degraded} / {@code agent_error} escalations
-     * (LLM call threw, timed out, or parser failure — no LLM thinking
-     * happened this turn) are NOT silently masked with a regex-derived
-     * UC. When the loop produced no LLM events and no tool events and
-     * the terminal outcome was ERROR, leaving {@code activeUseCase}
-     * null is the correct behaviour — the eval trace contract validator
-     * (and a human reading the trace) then sees the upstream regression
-     * loudly instead of a deterministic UC stamp papering over it.
+     * Sprint 8 §K0 narrowing (2026-05-06) / Sprint 8.1 §M2 (2026-05-06):
+     * true when the {@link AgentRunResult} carries POSITIVE evidence
+     * that the bot actually reasoned about the user's turn. Used by the
+     * AgentRunLoop ESCALATE branch in {@link #processMessage} to gate
+     * the {@link #applyMissingUseCaseFallback} call so the deterministic
+     * UC stamp never papers over an upstream LLM / tool failure.
      *
-     * <p>"Evidence" is intentionally inclusive: any one of (a) terminal
-     * outcome was something other than ERROR, (b) at least one LLM
-     * event was recorded, or (c) at least one tool event was recorded
-     * is enough to trigger the fallback. The cs259 r2 shape this
-     * sprint targets satisfies (b) + (c) (two {@code search_knowledge}
-     * calls + the {@code request_handover} LLM event); a service
-     * outage path satisfies none of (a)/(b)/(c) and is correctly
-     * skipped.
+     * <p>The fallback fires only when ALL of these hold:
+     * <ul>
+     *   <li>terminal outcome is NOT one of {@code ERROR},
+     *       {@code DEADLINE_EXCEEDED}, {@code LLM_UNAVAILABLE} —
+     *       these are infra failures, never normal escalations.</li>
+     *   <li>if terminal outcome is {@code MAX_STEPS}, there is at
+     *       least one successful, allowed tool event (synthetic
+     *       safe-escalation handover requests are rejected by
+     *       {@code validateAgainstPlan} on DISCOVER and so do not
+     *       count). A MAX_STEPS run with only rejected / failed tool
+     *       events means the LLM produced nothing usable.</li>
+     *   <li>if terminal outcome is {@code ESCALATE} with an
+     *       infra-class escalation reason ({@code service_degraded},
+     *       {@code system_failure}, {@code runtime_error_threshold},
+     *       {@code agent_error}, deadline/llm-unavailable), it is
+     *       treated as a no-evidence path even if events exist.</li>
+     *   <li>at least one of (a) a non-synthetic LLM event (real
+     *       finish_reason, not the {@link
+     *       com.gumtree.csagent.service.runtime.LlmInvocationService#SYNTHETIC_SAFE_ESCALATION_FINISH_REASON}
+     *       marker), or (b) a successful tool event has been recorded.</li>
+     * </ul>
+     *
+     * <p>The cs259 r2 shape (two {@code search_knowledge} successes +
+     * a {@code request_handover} LLM event) satisfies the above and
+     * still gets the K0 stamp. The localhost ad-visibility timeout
+     * shape (deadline exhausted, no real LLM completion) does NOT, and
+     * the trace surface remains diagnostically honest.
      */
-    private static boolean agentRunResultHasEvidence(AgentRunResult result) {
+    static boolean agentRunResultHasEvidence(AgentRunResult result) {
         if (result == null) {
             return false;
         }
-        if (result.terminalOutcome() != null
-                && result.terminalOutcome() != com.gumtree.csagent.model.TerminalOutcome.ERROR) {
-            return true;
+        com.gumtree.csagent.model.TerminalOutcome outcome = result.terminalOutcome();
+        if (outcome == null) {
+            return false;
         }
-        if (result.llmEvents() != null && !result.llmEvents().isEmpty()) {
-            return true;
+        // Honest-failure outcomes never carry K0 evidence.
+        if (outcome == com.gumtree.csagent.model.TerminalOutcome.ERROR
+                || outcome == com.gumtree.csagent.model.TerminalOutcome.DEADLINE_EXCEEDED
+                || outcome == com.gumtree.csagent.model.TerminalOutcome.LLM_UNAVAILABLE) {
+            return false;
         }
-        if (result.toolEvents() != null && !result.toolEvents().isEmpty()) {
-            return true;
+        // ESCALATE with an infra-class reason is also no-evidence.
+        if (outcome == com.gumtree.csagent.model.TerminalOutcome.ESCALATE) {
+            String reason = result.escalationReason().orElse(null);
+            if (isInfraEscalationReason(reason)) {
+                return false;
+            }
+        }
+        boolean hasRealTool = hasSuccessfulToolEvent(result);
+        boolean hasRealLlm = hasNonSyntheticLlmEvent(result);
+        // MAX_STEPS without any successful tool event is the "synthetic
+        // SAFE_ESCALATION rejected on every step" shape — no real work
+        // happened, so no fallback.
+        if (outcome == com.gumtree.csagent.model.TerminalOutcome.MAX_STEPS && !hasRealTool) {
+            return false;
+        }
+        return hasRealTool || hasRealLlm;
+    }
+
+    /**
+     * Sprint 8.1 §M2 — escalation reasons that indicate an
+     * infrastructure failure rather than a legitimate business
+     * escalation. K0 is suppressed for these to keep the trace honest.
+     */
+    private static boolean isInfraEscalationReason(String reason) {
+        if (reason == null) return false;
+        switch (reason) {
+            case "service_degraded":
+            case "system_failure":
+            case "agent_error":
+            case "runtime_error_threshold":
+            case "deadline_exceeded":
+            case "llm_unavailable":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Sprint 8.1 §M2 — true when at least one tool event is both
+     * successful AND not a rejected/synthetic guard event. Rejected
+     * tool calls (e.g. SAFE_ESCALATION_RESPONSE's {@code request_handover}
+     * blocked by {@code validateAgainstPlan} in DISCOVER) come back as
+     * {@code success=false} so this naturally excludes them.
+     */
+    private static boolean hasSuccessfulToolEvent(AgentRunResult result) {
+        if (result.toolEvents() == null) return false;
+        for (com.gumtree.csagent.model.ToolEvent te : result.toolEvents()) {
+            if (te != null && te.success()) {
+                return true;
+            }
         }
         return false;
+    }
+
+    /**
+     * Sprint 8.1 §M2 — true when at least one LLM event in the run is
+     * NOT the synthetic SAFE_ESCALATION_RESPONSE marker. Detects the
+     * marker via the response summary which carries the verbatim
+     * {@code finish_reason=error_fallback} JSON-shaped content; we look
+     * for the unique {@code "reasoning":"LLM invocation failure"}
+     * substring to avoid false positives on real LLM completions that
+     * happen to mention "error".
+     */
+    private static boolean hasNonSyntheticLlmEvent(AgentRunResult result) {
+        if (result.llmEvents() == null) return false;
+        for (com.gumtree.csagent.model.LlmCallEvent ev : result.llmEvents()) {
+            if (ev == null) continue;
+            String summary = ev.responseSummary();
+            if (summary == null || !isSyntheticSafeEscalationSummary(summary)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isSyntheticSafeEscalationSummary(String summary) {
+        // Matches the SAFE_ESCALATION_RESPONSE content emitted by
+        // LlmInvocationService when an LLM call returns malformed JSON.
+        // The unique markers are the static "LLM invocation failure"
+        // reasoning string and the system_failure escalation_reason.
+        return summary.contains("\"reasoning\":\"LLM invocation failure\"")
+                || (summary.contains("\"escalation_reason\":\"system_failure\"")
+                    && summary.contains("request_handover"));
     }
 
     /**
