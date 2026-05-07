@@ -6,15 +6,20 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
-Sprint 9 — Tool Contract and Trace Observability Fidelity (in flight; awaiting Codex review).
+Sprint 9 — Tool Contract and Trace Observability Fidelity (in flight;
+Sprint 9.1 sanitization closure fix applied — awaiting Codex re-review).
 
 Latest closed sprint:
 Sprint 8.2 — ResolveArticle Contract and MAX_STEPS Trace Honesty Closure
 (archived under `docs/sprints/sprint-008.2-*`).
 
-Latest Codex decision (pre-Sprint-9, on Sprint 8.2):
-- decision: pass
-- blocking_count: 0
+Latest Codex decision (Sprint 9 first review):
+- decision: fix_required
+- blocking_count: 1
+- blocker: O2 sanitization for failed-tool error surfaces and generic
+  result maps insufficient.
+
+Sprint 9.1 status: blocker fixed — see §3.1 below.
 
 ## 2. Sprint 9 root cause
 
@@ -146,6 +151,110 @@ to the surfaces above.
 `ui/src/types/index.ts`
 - `ToolCall` interface extended with the new optional fields.
 
+## 3.1 Sprint 9.1 closure — trace sanitization fix
+
+The Sprint 9 first-pass Codex review (decision: fix_required,
+blocking_count: 1) flagged a single P1 blocker on O2:
+`ControlKernel.recordRunResult` persisted `te.errorMessage()`
+verbatim into `bot_turns.tool_calls.error_message`,
+`ToolCallTraceSanitizer.summarize` built failed-tool
+`result_summary` from the raw error string, and the generic
+`sanitizeAny` only redacted email-shaped values. A failed tool
+that interpolated a phone number, postcode, bearer token, API
+key, password, authorization header, or other sensitive surface
+into its error string could still be written verbatim to the
+trace.
+
+### Blocker fixed
+
+`ToolCallTraceSanitizer.java`
+- New `sanitizeErrorMessage(String)` helper applies the full
+  redaction pattern set + length cap. Used by both
+  `ControlKernel.recordRunResult` and `summarize(...)` so
+  `error_message` and `result_summary` carry the SAME sanitized
+  surface.
+- Generic map sanitization now redacts the value under any
+  key whose normalised form (lowercase, `-`/space → `_`) is in
+  the sensitive-key set: `password`, `passwd`, `token`,
+  `access_token`, `refresh_token`, `id_token`, `secret`,
+  `client_secret`, `api_key`, `apikey`, `x_api_key`,
+  `authorization`, `auth_header`, `bearer`, `credential`,
+  `credentials`. Value becomes `[REDACTED_SECRET]` regardless
+  of contents — so even a benign-looking string under a
+  sensitive key is scrubbed.
+- New value-shape patterns (in addition to the existing
+  email rule): `BEARER` (`Bearer xxx` headers →
+  `[REDACTED_BEARER]`), `API_KEY_PREFIX`
+  (`sk_/pk_/api_/key_/tok_/rk_…` → `[REDACTED_API_KEY]`),
+  `LONG_TOKEN` (32+ word characters → `[REDACTED_TOKEN]`),
+  `PHONE_LIKE` (10+ digits with separators → `[REDACTED_PHONE]`),
+  `UK_POSTCODE` (`SW1A 1AA`-shape → `[REDACTED_POSTCODE]`).
+- Pattern application order is `EMAIL → BEARER → API_KEY_PREFIX
+  → LONG_TOKEN → PHONE_LIKE → UK_POSTCODE` so prefix-specific
+  markers win over the generic long-token sweep, and a 64-char
+  hex digest is marked once as `[REDACTED_TOKEN]` instead of
+  being shredded into phone-shaped digit blocks.
+- Implementation kept local to `ToolCallTraceSanitizer`; no
+  broad PII framework introduced.
+
+`ControlKernel.recordRunResult`
+- Persists `ToolCallTraceSanitizer.sanitizeErrorMessage(
+  te.errorMessage())` rather than the raw error string. The
+  synthesized `create_case_controlled` runtime entry uses the
+  same helper for its `error_message` field on failure.
+
+### Files changed (Sprint 9.1)
+
+Production:
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizer.java`
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+
+Tests:
+- `server/src/test/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizerTest.java`
+  (extended — 6 new tests covering error-message redaction,
+  failed-tool summary redaction, generic `error` field
+  redaction, sensitive-key value redaction including
+  `password / token / secret / api_key / authorization`,
+  benign-key sensitive-value redaction, and a regression
+  guard that the `resolve_article` safe-summary shape
+  (`source_id / article_id / title / source_url / excerpt`)
+  is unchanged).
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint9TraceObservabilityFidelityIntegrationTest.java`
+  (extended — 1 new test
+  `failedToolDispatch_sanitizesEmailAndTokenInPersistedErrorMessage`
+  that drives a failed `request_handover` whose error string
+  embeds an email + phone + bearer token, and asserts the
+  persisted `error_message` and `result_summary` redact those
+  before persistence).
+
+### Tests run (Sprint 9.1)
+
+- `mvn -pl server test` → **760 / 0 / 0 / 0** (was 753
+  pre-Sprint-9.1; +7 new tests).
+- Focused sweep
+  (`ToolCallTraceSanitizerTest, Sprint9TraceObservabilityFidelityIntegrationTest,
+  RecordOutcomeToolTest, RequestHandoverToolTest,
+  Sprint9TerminalToolHonestyTest`) → **34 / 0 / 0 / 0**.
+- `python -m pytest -p no:capture eval_interactive/tests/test_agent_client_session_create_timeout.py -v`
+  → **8 / 0** (Sprint 6 §G0 ReadTimeout regression intact).
+- `ui/./node_modules/.bin/tsc --noEmit` → clean.
+
+### Why Sprint 9 can be re-reviewed
+
+- The single P1 blocker (O2 sanitization for failed-tool error
+  surfaces and generic result maps) is closed: failed-tool
+  `error_message` and `result_summary` go through the same
+  bounded redaction path as `result_data`, the generic
+  sanitizer redacts both sensitive keys and sensitive-shaped
+  values, and the resolve_article safe-summary shape is
+  unchanged.
+- Sprint 9 §O0 (record_outcome / request_handover contract
+  alignment) and §O1 (terminal-state honesty for failed
+  terminal tools) are untouched and remain green.
+- TraceViewer continues to render `result_summary` /
+  `result_data` (legacy + new shapes) without redesign.
+- All Sprint 6 / 7 / 8 / 8.2 regression guards remain green.
+
 ## 4. Files changed
 
 Production:
@@ -177,8 +286,8 @@ Docs:
 
 ## 5. Tests run
 
-- `mvn -pl server test` → **753 tests / 0 failures / 0 errors / 0
-  skipped**.
+- `mvn -pl server test` → **760 tests / 0 failures / 0 errors / 0
+  skipped** (Sprint 9 first pass was 753; Sprint 9.1 adds 7).
 - New test classes:
   - `RecordOutcomeToolTest` (7 tests, all green) — outcome_class
     accepted, legacy outcome alias accepted, lowercase + uppercase
@@ -211,11 +320,14 @@ Docs:
 
 UI test harness does not exist in this repo (no vitest / jest;
 `ui/package.json` has no `test` script). UI changes were verified by
-running `npx tsc --noEmit` (clean) plus structural review against
-existing TraceViewer renderers.
+running `ui/./node_modules/.bin/tsc --noEmit` (clean) plus structural
+review against existing TraceViewer renderers.
 
-Python eval tests were not required (no `eval_interactive/**`
-changes).
+Python eval tests:
+- `python -m pytest -p no:capture
+  eval_interactive/tests/test_agent_client_session_create_timeout.py -v`
+  → 8 passed (Sprint 6 §G0 regression). No other
+  `eval_interactive/**` files were touched in Sprint 9 / 9.1.
 
 ## 6. Manual probe
 
@@ -369,6 +481,26 @@ New Sprint 9 guards:
   the new `{tool_name, arguments, success, error_message,
   result_data, result_summary}` shape; failed rows show error
   message + summary.
+
+New Sprint 9.1 guards:
+
+- `bot_turns.tool_calls.error_message` is sanitized before
+  persistence: email / phone / UK postcode / bearer token /
+  api-key / 32+ char credential surfaces are replaced with
+  category markers
+  (`Sprint9TraceObservabilityFidelityIntegrationTest`).
+- Failed-tool `result_summary` shares the same redaction path as
+  `error_message` (`ToolCallTraceSanitizerTest`).
+- Generic result maps redact values under sensitive keys
+  (`password`, `token`, `secret`, `api_key`, `authorization`,
+  and the canonical 9.1 set) regardless of contents
+  (`ToolCallTraceSanitizerTest`).
+- Generic result maps redact sensitive-shaped values under
+  benign keys.
+- `resolve_article` safe-summary shape (`source_id / article_id
+  / title / source_url / excerpt`) is preserved by the hardening
+  (regression test).
+- Existing email-redaction tests still pass.
 
 ## 11. Next recommended phase
 

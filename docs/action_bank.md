@@ -6,14 +6,17 @@ Mode: current action ledger
 ## 1. Current phase
 
 Current phase:
-Sprint 9 — Tool Contract and Trace Observability Fidelity (in flight; awaiting Codex review).
+Sprint 9 — Tool Contract and Trace Observability Fidelity (in flight;
+Sprint 9.1 sanitization closure fix applied — awaiting Codex re-review).
 
 Latest closed sprint:
 Sprint 8.2 — ResolveArticle Contract and MAX_STEPS Trace Honesty Closure.
 
-Latest Codex decision (pre-Sprint-9, on Sprint 8.2):
-- decision: pass
-- blocking_count: 0
+Latest Codex decision (Sprint 9 first review):
+- decision: fix_required
+- blocking_count: 1
+- blocker: O2 sanitization for failed-tool error surfaces and generic
+  result maps. Closed in Sprint 9.1 (see `docs/10-handoff.md` §3.1).
 
 Current recommendation:
 After Sprint 9 closes, resume Eval Governance docs-only work. Do not
@@ -71,7 +74,16 @@ blocker.
     `resolve_article` body dropped in favour of safe summary
     fields; email PII redacted; size cap enforced; TraceViewer
     renders both legacy and new shapes.
-  - `mvn -pl server test`: 753 / 0 / 0 / 0.
+  - O2 hardening (Sprint 9.1): failed-tool `error_message` and
+    `result_summary` now share the same redaction path as
+    `result_data`; generic sanitizer redacts values under
+    sensitive keys (`password / token / secret / api_key /
+    authorization / bearer / credential / credentials / …`)
+    and sensitive-shaped values (email, phone, UK postcode,
+    bearer header, api-key prefix, 32+ char credential) under
+    benign keys.
+  - `mvn -pl server test`: 760 / 0 / 0 / 0 (Sprint 9.1 adds
+    7 tests; first-pass Sprint 9 was 753).
   - No FAQ corpus, CaseSpec, judge, routing, search threshold,
     advert-link tool, broad TraceViewer redesign, or Eval
     Governance scope opened.
@@ -82,9 +94,9 @@ Sprint 9 deliverables (in flight):
 
 | id  | deliverable                                                | status |
 |-----|------------------------------------------------------------|--------|
-| O0  | Align `record_outcome` and `request_handover` contracts    | done — awaiting Codex review |
-| O1  | Terminal-state honesty for failed terminal tools           | done — awaiting Codex review |
-| O2  | Bounded sanitized tool result_data / result_summary        | done — awaiting Codex review |
+| O0  | Align `record_outcome` and `request_handover` contracts    | done — awaiting Codex re-review |
+| O1  | Terminal-state honesty for failed terminal tools           | done — awaiting Codex re-review |
+| O2  | Bounded sanitized tool result_data / result_summary        | done (closure fix applied in Sprint 9.1) — awaiting Codex re-review |
 
 After Sprint 9 closes (assuming Codex pass + 0 blocking), the
 recommended next phase is Eval Governance docs-only work — but ONLY
