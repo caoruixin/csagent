@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -126,4 +127,34 @@ public class BotSession {
 
     @Column(name = "closed_at")
     private OffsetDateTime closedAt;
+
+    /**
+     * Sprint 10 §L2 — minimal projected issue-state (transient).
+     *
+     * <p>Populated by {@code ControlKernel.processMessage} from the
+     * latest {@link RerouteDecision} so the next
+     * {@code ContextProjectionBuilder.buildProjection(...)} call can
+     * surface {@code previous_active_use_case}, {@code drift_type},
+     * {@code current_task_type}, {@code primary_entity}, and
+     * {@code issue_status_summary}. Not persisted: only meaningful
+     * for the current turn.
+     */
+    @Transient
+    private String previousActiveUseCase;
+
+    @Transient
+    private String driftType;
+
+    @Transient
+    private String currentTaskType;
+
+    @Transient
+    private String primaryEntityType;
+
+    @Transient
+    private String primaryEntityValue;
+
+    @Transient
+    @Builder.Default
+    private String issueStatusSummary = "open";
 }

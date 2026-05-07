@@ -377,6 +377,58 @@ public class ContextProjectionBuilder {
             }
             projection.set("candidate_use_cases", candidateUcsNode);
 
+            // Sprint 10 §L2 — minimal projected issue-state. Surfaces the
+            // runtime reroute outcome (previous_active_use_case, drift_type,
+            // current_task_type, primary_entity, issue_status_summary) so
+            // the LLM, trace UI, and eval contract validators can see the
+            // runtime's reroute reasoning. Populated by
+            // {@code ControlKernel.applyRerouteDecision} via transient
+            // {@link BotSession} slots; absent / null values are emitted
+            // as JSON {@code null} to keep the projection shape stable.
+            String previousUc = session.getPreviousActiveUseCase();
+            if (previousUc != null && !previousUc.isBlank()) {
+                projection.put("previous_active_use_case", previousUc);
+            } else {
+                projection.putNull("previous_active_use_case");
+            }
+            String driftType = session.getDriftType();
+            if (driftType != null && !driftType.isBlank()) {
+                projection.put("drift_type", driftType);
+            } else {
+                projection.putNull("drift_type");
+            }
+            String taskType = session.getCurrentTaskType();
+            if (taskType != null && !taskType.isBlank()) {
+                projection.put("current_task_type", taskType);
+            } else {
+                projection.putNull("current_task_type");
+            }
+            String entityType = session.getPrimaryEntityType();
+            String entityValue = session.getPrimaryEntityValue();
+            if ((entityType != null && !entityType.isBlank())
+                    || (entityValue != null && !entityValue.isBlank())) {
+                ObjectNode primaryEntityNode = objectMapper.createObjectNode();
+                primaryEntityNode.put("entity_type", entityType);
+                if ("listing".equals(entityType) && entityValue != null && !entityValue.isBlank()) {
+                    primaryEntityNode.put("ad_id", entityValue);
+                } else if (entityValue != null && !entityValue.isBlank()) {
+                    primaryEntityNode.put("entity_value", entityValue);
+                }
+                projection.set("primary_entity", primaryEntityNode);
+            } else {
+                projection.putNull("primary_entity");
+            }
+            String issueStatus = session.getIssueStatusSummary();
+            if (issueStatus != null && !issueStatus.isBlank()) {
+                projection.put("issue_status_summary", issueStatus);
+            } else {
+                // Default to "open" so downstream readers see a stable
+                // string rather than absent / null. Closed sessions
+                // would be in CLOSE phase and not invoke this builder
+                // for further turns.
+                projection.put("issue_status_summary", "open");
+            }
+
             // Budget state
             ObjectNode budgetNode = objectMapper.createObjectNode();
             budgetNode.put("total_bot_turns", session.getTotalBotTurns());

@@ -1,26 +1,27 @@
 # Action Bank
 
-Date: 2026-05-08
+Date: 2026-05-07
 Mode: current action ledger
 
 ## 1. Current phase
 
 Current phase:
-Sprint 10 — Runtime Re-route MVP (in flight; awaiting Codex review).
+Sprint 9 — Tool Contract and Trace Observability Fidelity (in flight;
+Sprint 9.1 sanitization closure fix applied — awaiting Codex re-review).
 
 Latest closed sprint:
-Sprint 9 / 9.1 — Tool Contract and Trace Observability Fidelity.
+Sprint 8.2 — ResolveArticle Contract and MAX_STEPS Trace Honesty Closure.
 
-Latest Codex decision (Sprint 9 re-review):
-- decision: pass
-- blocking_count: 0
-- summary: Sprint 9.1 closed the previous O2 sanitizer blocker.
+Latest Codex decision (Sprint 9 first review):
+- decision: fix_required
+- blocking_count: 1
+- blocker: O2 sanitization for failed-tool error surfaces and generic
+  result maps. Closed in Sprint 9.1 (see `docs/10-handoff.md` §3.1).
 
 Current recommendation:
-After Sprint 10 closes (assuming Codex pass + 0 blocking), the next
-recommended phase is **Sprint 11 — Progressive Resolve MVP** (or a
-closure fix if review surfaces one). Eval Governance docs-only work
-remains a parallel option if no new runtime blocker is found.
+After Sprint 9 closes, resume Eval Governance docs-only work. Do not
+start another runtime sprint unless triage finds a new P0/P1 runtime
+blocker.
 
 ## 2. Current accepted state
 
@@ -35,75 +36,72 @@ remains a parallel option if no new runtime blocker is found.
   - `candidate_use_cases` projection + DISCOVER cue.
   - UC-FP vs UC-A routing tiebreaker wiring.
   - `intake_state` projection.
-  - partial intake-field persistence across clarification turns.
+  - partial intake-field persistence across clarification
+    turns.
 
 - Sprint 8 closed:
   - cs259 `active_use_case` contract hardened.
   - targeted cs259 and clean smoke runs commit UC-F.
-  - `CONTRACT_VIOLATION:active_use_case = 0` in accepted clean runs.
+  - `CONTRACT_VIOLATION:active_use_case = 0` in accepted
+    clean runs.
 
 - Sprint 8.2 closed:
   - M0a `resolve_article` schema/tool alignment on canonical
-    `source_id` (legacy `article_id` alias accepted).
+    `source_id` (legacy `article_id` alias accepted; missing
+    error names `source_id`).
   - M0b `AgentRunResult.maxSteps` overload preserves
-    `lastLlmRawResponse`.
+    `lastLlmRawResponse`; `AgentRunLoopImpl` passes it through
+    on the loop-exhausted return.
 
-- Sprint 9 + 9.1 closed:
+- Sprint 9 in flight:
   - O0 `record_outcome` aligned on canonical `outcome_class`
-    (lowercase `resolve | escalate | abandon`); legacy aliases
-    preserved.
-  - O0 `request_handover` schema exposes optional `summary` with
-    safe runtime fallback derivation.
+    (lowercase `resolve | escalate | abandon`); legacy
+    `outcome=RESOLVED` and uppercase aliases preserved;
+    successful `outcome_class=resolve` writes a `session_outcomes`
+    row; result payload carries normalised `outcome_class` +
+    persisted `outcome`.
+  - O0 `request_handover` schema now exposes optional `summary`;
+    tool derives a safe size-bounded fallback summary from session
+    + topic + reason + LLM `current_user_message`;
+    canonical 23-value escalation-reason enum unchanged.
   - O1 `AgentRunLoopImpl` short-circuits to ESCALATE only on a
-    SUCCESSFUL `request_handover` dispatch; failed `record_outcome`
-    keeps RESOLVE.
-  - O2 `bot_turns.tool_calls` carries bounded sanitized
-    `result_data` + `result_summary` per entry.
-  - O2 hardening: failed-tool error_message + result_summary share
-    the redaction path; sensitive keys + sensitive-shaped values
-    redacted.
-  - `mvn -pl server test`: 760 / 0 / 0 / 0 at Sprint 9 close.
-
-- Sprint 10 in flight:
-  - L0 internal `RuntimeIntentClassifier` (NOT an agent-visible
-    tool) + `IntentClassification` / `RerouteDecision` records
-    covering the six Sprint-10 MVP shapes (UC-A → UC-C soft shift,
-    UC-A same issue, UC-A same UC follow-up, UC-A → UC-J risk
-    shift, explicit human request, payment-ambiguity negative
-    guard).
-  - L1 `ControlKernel.applyRerouteDecision` inserted between
-    `DriftDetector` (legacy HARD_SHIFT immediate-escalate branch
-    removed) and `PhaseEvaluator.plan(...)`. Existing distress /
-    explicit-human / budget guards preserved.
-  - L2 minimal projected issue-state slots
-    (`previous_active_use_case`, `drift_type`,
-    `current_task_type`, `primary_entity`,
-    `issue_status_summary`) emitted after `candidate_use_cases`.
-    `REROUTE_DECISION` event surfaces the decision payload.
-  - `mvn -pl server test`: 782 / 0 / 0 / 0 (was 760 pre-Sprint-10;
-    +22 Sprint-10 tests).
-  - `python -m pytest -p no:capture eval_interactive/tests/`:
-    294 / 0.
-  - No FAQ corpus, CaseSpec, judge, broad routing taxonomy,
-    handover payload rewrite, Issue Ledger, all-UC task taxonomy,
-    or Eval Governance scope opened.
+    SUCCESSFUL `request_handover` dispatch; `PhaseEvaluator`
+    keeps RESOLVE on a failed-only `record_outcome`; failed
+    terminal tools surface in `accumulated_tool_results` for LLM
+    retry.
+  - O2 `bot_turns.tool_calls` persists bounded sanitized
+    `result_data` + one-line `result_summary` per entry;
+    `resolve_article` body dropped in favour of safe summary
+    fields; email PII redacted; size cap enforced; TraceViewer
+    renders both legacy and new shapes.
+  - O2 hardening (Sprint 9.1): failed-tool `error_message` and
+    `result_summary` now share the same redaction path as
+    `result_data`; generic sanitizer redacts values under
+    sensitive keys (`password / token / secret / api_key /
+    authorization / bearer / credential / credentials / …`)
+    and sensitive-shaped values (email, phone, UK postcode,
+    bearer header, api-key prefix, 32+ char credential) under
+    benign keys.
+  - `mvn -pl server test`: 760 / 0 / 0 / 0 (Sprint 9.1 adds
+    7 tests; first-pass Sprint 9 was 753).
+  - No FAQ corpus, CaseSpec, judge, routing, search threshold,
+    advert-link tool, broad TraceViewer redesign, or Eval
+    Governance scope opened.
 
 ## 3. Active / next actions
 
-Sprint 10 deliverables (in flight):
+Sprint 9 deliverables (in flight):
 
 | id  | deliverable                                                | status |
 |-----|------------------------------------------------------------|--------|
-| L0  | Internal `RuntimeIntentClassifier` + `RerouteDecision` model | done — awaiting Codex review |
-| L1  | Cross-UC soft / risk shift before `PhaseEvaluator.plan(...)` | done — awaiting Codex review |
-| L2  | Minimal issue-state projection + drift observability       | done — awaiting Codex review |
+| O0  | Align `record_outcome` and `request_handover` contracts    | done — awaiting Codex re-review |
+| O1  | Terminal-state honesty for failed terminal tools           | done — awaiting Codex re-review |
+| O2  | Bounded sanitized tool result_data / result_summary        | done (closure fix applied in Sprint 9.1) — awaiting Codex re-review |
 
-After Sprint 10 closes (assuming Codex pass + 0 blocking), the
-recommended next phase is **Sprint 11 — Progressive Resolve MVP**
-(extends the Sprint-10 reroute layer with same-UC
-progressive-resolve disposition handling). Eval Governance docs-only
-work remains a viable alternative if no new runtime blocker is
-found.
+After Sprint 9 closes (assuming Codex pass + 0 blocking), the
+recommended next phase is Eval Governance docs-only work — but ONLY
+if no new P0/P1 runtime blocker surfaces in the post-Sprint-9
+manual probe.
 
 ## 4. Deferred runtime candidates
 
@@ -116,7 +114,6 @@ found.
 | D-broad-routing-taxonomy | broad routing taxonomy rewrite | deferred / avoid | none | do not reopen without explicit new phase |
 | D-advert-link-product-decision | whether the bot may provide a direct advert URL for the `tool_scope_blocked` follow-up shape (manual probe `a7e20173`) | deferred — product decision | product / policy | runtime currently routes the follow-up to handover with `tool_scope_blocked`; on-design until product policy says otherwise; do not implement an advert-link tool without policy sign-off |
 | D-rerank-fallback-diagnostics | distinguish `rerank_llm` score from `rerank_fallback` score in observability | deferred — diagnostics-only | runtime/observability | needed for honest rerank attribution; no semantic redesign or threshold tuning is in scope; revisit only when a corpus-level rerank investigation is opened |
-| D-progressive-resolve-mvp | same-UC progressive-resolve disposition handling on top of the Sprint-10 reroute layer | candidate Sprint 11 | runtime | covers the same-issue / same-UC follow-up loop with a `ResolveDisposition` enum + minimal `issue_status` lifecycle. Sprint 10 explicitly carved this out. |
 
 ## 5. Eval governance / non-runtime backlog
 
@@ -144,9 +141,7 @@ found.
 | Sprint 7.1 | J0 partial intake persistence                 | closed | `docs/sprints/sprint-007-*`   |
 | Sprint 8 | K0 cs259 active-use-case contract               | closed | `docs/sprints/sprint-008-*`   |
 | Sprint 8.2 | M0a resolve_article source_id + M0b max-steps raw response | closed | `docs/sprints/sprint-008.2-*` |
-| Sprint 9 | O0 record_outcome + request_handover contracts; O1 terminal-state honesty; O2 bounded sanitized tool result_data | closed | `docs/sprints/sprint-009-*`   |
-| Sprint 9.1 | trace sanitization closure (failed-tool error_message + sensitive-key value redaction) | closed | `docs/sprints/sprint-009-*` |
-| Sprint 10 | L0 RuntimeIntentClassifier + RerouteDecision; L1 cross-UC soft/risk shift before PhaseEvaluator.plan; L2 minimal issue-state projection | in flight (awaiting Codex review) | will archive under `docs/sprints/sprint-010-*` on closure |
+| Sprint 9 | O0 record_outcome + request_handover contracts; O1 terminal-state honesty; O2 bounded sanitized tool result_data | in flight (awaiting Codex review) | will archive under `docs/sprints/sprint-009-*` on closure |
 
 ## 7. Carry-over rule
 
@@ -157,7 +152,8 @@ not implement it without updating
 Avoid broad full-review → fix → full-review loops.
 
 Runtime sprints should normally name a small exact scope.
-Docs-only governance sprints may name docs deliverables instead.
+Docs-only governance sprints may name docs deliverables
+instead.
 
 `docs/action_bank.md` must stay a current action ledger,
 not an append-only history. Before major rewrites, archive

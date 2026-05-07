@@ -11,6 +11,7 @@ import com.gumtree.csagent.service.observability.EventEmitter;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolResult;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -58,7 +59,10 @@ public class ControlKernel {
     private final AgentRunLoopProperties agentRunLoopProperties;
     private final AgentRunLoop agentRunLoop;
     private final EscalationReasonResolver escalationResolver;
+    private final RuntimeIntentClassifier runtimeIntentClassifier;
+    private final RerouteDecider rerouteDecider;
 
+    @Autowired
     public ControlKernel(BotTurnRepository turnRepository,
                          BotEventRepository eventRepository,
                          BudgetChecker budgetChecker,
@@ -71,7 +75,9 @@ public class ControlKernel {
                          ContextProjectionBuilder contextProjectionBuilder,
                          AgentRunLoopProperties agentRunLoopProperties,
                          AgentRunLoop agentRunLoop,
-                         EscalationReasonResolver escalationResolver) {
+                         EscalationReasonResolver escalationResolver,
+                         RuntimeIntentClassifier runtimeIntentClassifier,
+                         RerouteDecider rerouteDecider) {
         this.turnRepository = turnRepository;
         this.eventRepository = eventRepository;
         this.budgetChecker = budgetChecker;
@@ -85,6 +91,38 @@ public class ControlKernel {
         this.agentRunLoopProperties = agentRunLoopProperties;
         this.agentRunLoop = agentRunLoop;
         this.escalationResolver = escalationResolver;
+        this.runtimeIntentClassifier = runtimeIntentClassifier;
+        this.rerouteDecider = rerouteDecider;
+    }
+
+    /**
+     * Sprint 10 §L1 — backwards-compat constructor for tests built before
+     * the {@link RuntimeIntentClassifier} / {@link RerouteDecider}
+     * dependencies were introduced. Auto-wires fresh instances so the
+     * runtime reroute pipeline stays exercised under the existing test
+     * fixtures (Sprint 6 / 7 / 8 / 8.1 / 8.2 / 9 regressions). Production
+     * Spring wiring continues to use the all-args constructor above so
+     * the singleton beans are reused.
+     */
+    public ControlKernel(BotTurnRepository turnRepository,
+                         BotEventRepository eventRepository,
+                         BudgetChecker budgetChecker,
+                         DriftDetector driftDetector,
+                         PhaseEvaluator phaseEvaluator,
+                         ControlPolicyService controlPolicy,
+                         ObjectMapper objectMapper,
+                         CreateCaseControlledTool createCaseTool,
+                         EventEmitter eventEmitter,
+                         ContextProjectionBuilder contextProjectionBuilder,
+                         AgentRunLoopProperties agentRunLoopProperties,
+                         AgentRunLoop agentRunLoop,
+                         EscalationReasonResolver escalationResolver) {
+        this(turnRepository, eventRepository, budgetChecker, driftDetector,
+                phaseEvaluator, controlPolicy, objectMapper, createCaseTool,
+                eventEmitter, contextProjectionBuilder, agentRunLoopProperties,
+                agentRunLoop, escalationResolver,
+                new RuntimeIntentClassifier(escalationResolver, objectMapper),
+                new RerouteDecider());
     }
 
     /**
@@ -217,7 +255,14 @@ public class ControlKernel {
                     "Let me connect you with a human agent who can help further.");
         }
 
-        // Step 4: Check drift — may update activeUseCase or force ESCALATE
+        // Step 4: Check drift — may flag user escalation request. The legacy
+        // HARD_SHIFT branch (immediate forceEscalate on every hard shift) was
+        // removed in Sprint 10 §L1: per the runtime-reroute MVP, not every
+        // hard shift is an immediate handover. Hard-shift signals are now
+        // surfaced to the {@link RuntimeIntentClassifier} below as a
+        // {@link DriftResult#getNewUseCase()} hint, and the {@link RerouteDecider}
+        // decides whether to soft-shift (FAQ-class UC), enter intake
+        // (UC-G/H/I/J/K), or continue current.
         DriftResult drift = driftDetector.detect(session, userMessage);
         if (drift.getType() == DriftType.USER_ESCALATION_REQUEST || drift.isEscalationRequested()) {
             // User explicitly asked for a human agent — distinct from topic drift.
@@ -229,19 +274,27 @@ public class ControlKernel {
             return forceEscalate(session, phaseBefore, userMessage, startTime,
                     "No problem, let me connect you with a human agent right away.");
         }
-        if (drift.getType() == DriftType.HARD_SHIFT) {
-            if (drift.getNewUseCase() != null) {
-                log.info("Session {}: hard drift shift to {}", session.getSessionId(), drift.getNewUseCase());
-                session.setActiveUseCase(drift.getNewUseCase());
-            }
-            // Canonicalize at the write site (Phase 2 #16, sibling of #17/#19):
-            // hard drift maps to the closest canonical infrastructure fallback.
-            // Routed through the resolver so a previously set semantic reason
-            // (e.g. user_requested from an earlier turn) survives.
-            applyEscalationReason(session, "service_degraded");
-            return forceEscalate(session, phaseBefore, userMessage, startTime,
-                    "I can see your concern has changed. Let me connect you with a specialist who can best assist you.");
-        }
+
+        // Step 4.5 (Sprint 10 §L0/§L1): runtime-internal intent classifier +
+        // reroute decision. Runs AFTER hard guards / explicit-human / distress /
+        // critical-risk checks and BEFORE PhaseEvaluator.plan(...). Mutates
+        // (phase, active_use_case, minimal projected issue state) per the
+        // Sprint 10 MVP shapes (UC-A → UC-C soft shift, UC-A same-issue rebound,
+        // UC-A same-UC follow-up, UC-A → UC-J risk-shift, payment-ambiguity
+        // negative guard). Unrecognised messages produce
+        // {@link com.gumtree.csagent.model.IntentClassification.IntentRelation#UNKNOWN}
+        // and the kernel leaves the session untouched.
+        applyRerouteDecision(session, userMessage, drift, phaseBefore);
+
+        // After the reroute, the session's current phase is what {@code
+        // PhaseEvaluator.plan(...)} and {@code AgentRunLoop} will see.
+        // Update the local {@code phaseBefore} so the rest of the
+        // {@code processMessage} pipeline (transition validation, persisted
+        // {@code bot_turns.phase_before}, drift / repetition tracking) uses
+        // the post-reroute phase. The pre-reroute phase is preserved on the
+        // session via {@link BotSession#getPreviousActiveUseCase()} +
+        // logged in the {@code REROUTE_DECISION} event for trace fidelity.
+        phaseBefore = session.getCurrentPhase();
 
         // Step 5-6: Evaluate current phase (includes LLM invocation when needed)
         List<BotTurn> history = turnRepository.findBySessionIdOrderByTurnIndex(session.getSessionId());
@@ -564,6 +617,176 @@ public class ControlKernel {
             default:
                 return "turn_budget_exhausted";
         }
+    }
+
+    /**
+     * Sprint 10 §L1 — runtime reroute application. Invokes the
+     * {@link RuntimeIntentClassifier} and {@link RerouteDecider} and
+     * mutates session state (active_use_case, current_phase, transient
+     * projection slots) so {@link PhaseEvaluator#plan(BotSession, String, java.util.List)}
+     * sees the post-reroute view.
+     *
+     * <p>An already-committed UC is preserved unless the
+     * {@link com.gumtree.csagent.model.RerouteDecision.RerouteAction}
+     * explicitly requires a switch
+     * ({@link com.gumtree.csagent.model.RerouteDecision.RerouteAction#SOFT_SHIFT_TO_DISCOVER},
+     * {@link com.gumtree.csagent.model.RerouteDecision.RerouteAction#RISK_SHIFT_TO_INTAKE},
+     * {@link com.gumtree.csagent.model.RerouteDecision.RerouteAction#REBOUND_TO_RESOLVE}).
+     *
+     * <p>Phase transitions are validated through {@link ControlPolicyService}
+     * — a target the policy table forbids leaves the session in
+     * {@code phaseBefore}, and the trace observability records
+     * {@code applied=false} for the failed transition.
+     */
+    void applyRerouteDecision(BotSession session, String userMessage,
+                              DriftResult drift, String phaseBefore) {
+        if (runtimeIntentClassifier == null || rerouteDecider == null) {
+            // Defensive: if the bean wiring was somehow stripped (e.g. partial
+            // test setup with a hand-built ControlKernel), fall back to the
+            // pre-Sprint-10 behaviour of doing nothing here.
+            return;
+        }
+        com.gumtree.csagent.model.IntentClassification classification =
+                runtimeIntentClassifier.classify(session, userMessage, drift);
+        com.gumtree.csagent.model.RerouteDecision decision =
+                rerouteDecider.decide(session, classification);
+        if (decision == null) {
+            return;
+        }
+
+        String previousUc = session.getActiveUseCase();
+        String previousPhase = session.getCurrentPhase();
+        boolean ucMutated = false;
+        boolean phaseMutated = false;
+
+        com.gumtree.csagent.model.RerouteDecision.RerouteAction action = decision.action();
+        switch (action) {
+            case SOFT_SHIFT_TO_DISCOVER:
+            case RISK_SHIFT_TO_INTAKE: {
+                String targetUc = decision.targetUseCase();
+                if (targetUc != null && !targetUc.isBlank() && !targetUc.equals(previousUc)) {
+                    session.setActiveUseCase(targetUc);
+                    session.setIntentConfidence(java.math.BigDecimal.valueOf(
+                            classification.confidence()));
+                    // Surface the new UC in candidate_use_cases when no list
+                    // was committed (so the projection has something useful
+                    // to show downstream).
+                    if (session.getCandidateUseCases() == null
+                            || session.getCandidateUseCases().length == 0) {
+                        session.setCandidateUseCases(new String[]{targetUc});
+                    }
+                    ucMutated = true;
+                }
+                String targetPhase = decision.targetPhase();
+                if (targetPhase != null && !targetPhase.equals(previousPhase)
+                        && controlPolicy.isValidTransition(previousPhase, targetPhase)) {
+                    session.setCurrentPhase(targetPhase);
+                    phaseMutated = true;
+                }
+                break;
+            }
+            case REBOUND_TO_RESOLVE: {
+                String targetPhase = decision.targetPhase();
+                if (targetPhase != null && !targetPhase.equals(previousPhase)
+                        && controlPolicy.isValidTransition(previousPhase, targetPhase)) {
+                    session.setCurrentPhase(targetPhase);
+                    phaseMutated = true;
+                }
+                // UC stays the same; do not overwrite a committed UC.
+                break;
+            }
+            case ESCALATE_IMMEDIATELY:
+                // The kernel's existing step 2.5 / drift-USER_ESCALATION_REQUEST
+                // path already escalated for HUMAN_REQUEST. Do not duplicate.
+                break;
+            case CONTINUE_CURRENT:
+            default:
+                break;
+        }
+
+        // Sprint 10 §L2 — minimal projected issue-state. Always populate
+        // the transient slots so the projection emits a stable shape; the
+        // kernel re-builds these every turn, so values never leak across
+        // turns. Use the PRE-mutation UC for previous_active_use_case
+        // when a switch happened.
+        session.setPreviousActiveUseCase(previousUc);
+        session.setDriftType(deriveDriftTypeToken(action,
+                classification.relation()));
+        session.setCurrentTaskType(classification.taskType());
+        session.setPrimaryEntityType(classification.primaryEntityType());
+        session.setPrimaryEntityValue(classification.primaryEntityValue());
+        session.setIssueStatusSummary("open");
+
+        // Sprint 10 §L2 — lightweight trace observability. log.info captures
+        // the predicted UC, relation, reroute action, previous UC, new UC,
+        // and phase transition reason. A BotEvent is emitted (REROUTE_DECISION)
+        // when an actual reroute fired so the trace UI / eval harness can
+        // surface the runtime reroute path. UNKNOWN / CONTINUE_CURRENT no-ops
+        // are logged at debug to keep production logs quiet on uneventful turns.
+        if (ucMutated || phaseMutated
+                || action == com.gumtree.csagent.model.RerouteDecision.RerouteAction.REBOUND_TO_RESOLVE
+                || action == com.gumtree.csagent.model.RerouteDecision.RerouteAction.ESCALATE_IMMEDIATELY) {
+            log.info("Session {}: reroute applied — predictedUc={}, relation={}, action={}, "
+                            + "previousUc={}, newUc={}, previousPhase={}, newPhase={}, reason={}",
+                    session.getSessionId(),
+                    classification.predictedUseCase(),
+                    classification.relation(),
+                    action,
+                    previousUc,
+                    session.getActiveUseCase(),
+                    previousPhase,
+                    session.getCurrentPhase(),
+                    decision.transitionReason());
+            try {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("predicted_use_case", classification.predictedUseCase());
+                payload.put("relation", classification.relation() == null
+                        ? null : classification.relation().name());
+                payload.put("action", action.name());
+                payload.put("previous_use_case", previousUc);
+                payload.put("new_use_case", session.getActiveUseCase());
+                payload.put("previous_phase", previousPhase);
+                payload.put("new_phase", session.getCurrentPhase());
+                payload.put("transition_reason", decision.transitionReason());
+                payload.put("confidence", classification.confidence());
+                payload.put("task_type", classification.taskType());
+                emitEvent(session, "REROUTE_DECISION",
+                        session.getTotalBotTurns(),
+                        objectMapper.writeValueAsString(payload));
+            } catch (Exception ex) {
+                log.warn("Session {}: failed to emit REROUTE_DECISION event: {}",
+                        session.getSessionId(), ex.getMessage());
+            }
+        } else {
+            log.debug("Session {}: reroute classifier returned {} / {} ({}); no state change",
+                    session.getSessionId(),
+                    classification.relation(),
+                    action,
+                    decision.transitionReason());
+        }
+    }
+
+    /**
+     * Sprint 10 §L2 — translate the {@code (action, relation)} pair into
+     * the short token surfaced in {@link BotSession#getDriftType()} and
+     * the {@code drift_type} projection field.
+     */
+    private static String deriveDriftTypeToken(
+            com.gumtree.csagent.model.RerouteDecision.RerouteAction action,
+            com.gumtree.csagent.model.IntentClassification.IntentRelation relation) {
+        if (action == null) {
+            return null;
+        }
+        return switch (action) {
+            case SOFT_SHIFT_TO_DISCOVER -> "SOFT_SHIFT";
+            case RISK_SHIFT_TO_INTAKE -> "RISK_SHIFT";
+            case REBOUND_TO_RESOLVE ->
+                    relation == com.gumtree.csagent.model.IntentClassification.IntentRelation.SAME_UC_NEW_TASK
+                            ? "SAME_UC_NEW_TASK"
+                            : "SAME_ISSUE";
+            case ESCALATE_IMMEDIATELY -> "ESCALATE";
+            case CONTINUE_CURRENT -> null;
+        };
     }
 
     private KernelResult forceEscalate(BotSession session, String phaseBefore,

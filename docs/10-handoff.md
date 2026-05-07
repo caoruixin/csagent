@@ -1,517 +1,463 @@
 # Current Handoff
 
-Date: 2026-05-07
+Date: 2026-05-08
 Branch: `design-v1-without-human-review`
 
 ## 1. Current phase
 
 Current phase:
-Sprint 9 — Tool Contract and Trace Observability Fidelity (in flight;
-Sprint 9.1 sanitization closure fix applied — awaiting Codex re-review).
+Sprint 10 — Runtime Re-route MVP (in flight; awaiting Codex review).
 
 Latest closed sprint:
-Sprint 8.2 — ResolveArticle Contract and MAX_STEPS Trace Honesty Closure
-(archived under `docs/sprints/sprint-008.2-*`).
+Sprint 9 / 9.1 — Tool Contract and Trace Observability Fidelity
+(archived under `docs/sprints/sprint-009-*`).
 
-Latest Codex decision (Sprint 9 first review):
-- decision: fix_required
-- blocking_count: 1
-- blocker: O2 sanitization for failed-tool error surfaces and generic
-  result maps insufficient.
+## 2. Sprint 10 goal
 
-Sprint 9.1 status: blocker fixed — see §3.1 below.
+Sprint 10 implements the first runtime alignment workstream: pre-plan
+re-route and soft-shift handling before `PhaseEvaluator.plan(...)`.
 
-## 2. Sprint 9 root cause
+The kernel (`ControlKernel.processMessage`) now decides — between hard
+guards / explicit-human / distress checks and the planner — whether
+the user message:
 
-The post-Sprint-8.2 manual trace `a7e20173` (form `ad_id=AD-1001`,
-description `"I can't see my advert"`, follow-up
-`"could you give me the link of advert?"`) exposed three independent
-contract / observability drifts on the terminal-tool path:
+- continues the active issue (CONFIRM rebound to RESOLVE);
+- shifts to a new low-risk UC (soft shift);
+- enters a high-risk UC's intake / handover path; or
+- escalates immediately (existing precedence preserved).
 
-1. **`record_outcome` schema drift.** The projected schema advertises
-   `outcome_class` with lowercase `resolve | escalate | abandon`, but
-   the tool implementation only accepted the legacy `outcome=RESOLVED`
-   form. A schema-valid call from the LLM surfaced a misleading
-   missing-parameter error and the `session_outcomes` row was never
-   written.
+Scope is exactly the three Sprint 10 actions L0 / L1 / L2; nothing
+outside the do-not-implement list was opened.
 
-2. **`request_handover` schema drift.** The schema did not advertise
-   `summary` and the tool required a non-blank `summary`, so a
-   schema-valid `request_handover(escalation_reason="tool_scope_blocked")`
-   call from the follow-up turn failed solely because the LLM did not
-   supply a summary.
+## 3. Sprint 10 implementation
 
-3. **Terminal-state dishonesty.** A failed `request_handover` dispatch
-   short-circuited the AgentRunLoop to ESCALATE as if the handover had
-   succeeded; a failed `record_outcome` dispatch could let the next
-   FINAL_ANSWER advance RESOLVE → CONFIRM as though the outcome had been
-   recorded; failed terminal tools left blank Result panels in the
-   Trace UI because `bot_turns.tool_calls` did not persist
-   `result_data` / `result_summary`.
+### L0 — Internal `RuntimeIntentClassifier` + `RerouteDecision`
 
-The Sprint 6 §G2 S1 FAQ-grounded-resolve guard, the Sprint 7 §I2
-intake-complete guard, the Sprint 8 §K0 cs259 active-use-case
-contract, and the Sprint 8.2 §M0a `resolve_article` source_id
-alignment were all behaving as designed; the failures were contained
-to the surfaces above.
+`server/src/main/java/com/gumtree/csagent/model/IntentClassification.java` (new)
+- Record `IntentClassification(predictedUseCase, confidence, relation,
+  taskType, primaryEntityType, primaryEntityValue)` with
+  `IntentRelation` enum
+  (`SAME_ISSUE / SAME_UC_NEW_TASK / NEW_LOW_RISK_UC / NEW_HIGH_RISK_UC
+  / HUMAN_REQUEST / CRITICAL_ESCALATION / UNKNOWN`).
 
-## 3. Sprint 9 fixes
+`server/src/main/java/com/gumtree/csagent/model/RerouteDecision.java` (new)
+- Record `RerouteDecision(action, targetUseCase, targetPhase,
+  transitionReason, classification)` with `RerouteAction` enum
+  (`CONTINUE_CURRENT / SOFT_SHIFT_TO_DISCOVER / RISK_SHIFT_TO_INTAKE
+  / REBOUND_TO_RESOLVE / ESCALATE_IMMEDIATELY`).
 
-### O0 — terminal tool contract alignment
+`server/src/main/java/com/gumtree/csagent/service/runtime/RuntimeIntentClassifier.java` (new)
+- Runtime-internal `@Service` (NOT registered with the agent-visible
+  tool surface). Reuses `EscalationReasonResolver` for
+  distress / explicit-human and adds Sprint-10 MVP regex shapes:
+  - `UC_C_NEW_REPLIES_PATTERN` ("I haven't got replies", "no replies");
+  - `UC_A_SAME_ISSUE_PATTERN` ("I still can't see my ad",
+    "still not showing");
+  - `UC_A_FOLLOWUP_DURATION_PATTERN`
+    ("how long is it active for", "when does it expire");
+  - `UC_J_RISK_SHIFT_PATTERN`
+    ("I was scammed", "fraud", "harassed");
+  - `PAYMENT_AMBIGUITY_AD_VISIBILITY_PATTERN`
+    ("paid for Top Ad … not showing") — the negative guard that keeps
+    UC-A and refuses UC-I drift.
+- Reads `form_context.ad_id` (when present) into the classification's
+  `primaryEntityType / primaryEntityValue` slots.
+- Falls back to `DriftDetector.HARD_SHIFT` results for refund / GDPR /
+  ad-removed signals so the legacy hard-shift keyword set still flows
+  through the new reroute path (refund → UC-I `NEW_LOW_RISK_UC`,
+  GDPR → UC-G / scam → UC-J `NEW_HIGH_RISK_UC`, ad removed → UC-H).
+- Returns `IntentRelation.UNKNOWN` on every other message; the kernel
+  then leaves the session untouched.
 
-`server/src/main/java/com/gumtree/csagent/service/tools/RecordOutcomeTool.java`
-- Canonical input is now `outcome_class` with lowercase enum
-  `resolve | escalate | abandon`. `outcome` is accepted as a legacy
-  alias; uppercase `RESOLVED / ESCALATED / ABANDONED` are accepted as
-  normalisation aliases. Missing-parameter error names `outcome_class`.
-- A successful `record_outcome(outcome_class="resolve")` writes the
-  canonical `session_outcomes` row (`outcome=RESOLVED`).
-- Result payload exposes both the normalised `outcome_class` and the
-  persisted `outcome` so downstream readers see a stable shape.
+`server/src/main/java/com/gumtree/csagent/service/runtime/RerouteDecider.java` (new)
+- Maps `(IntentClassification, current_phase, current_uc)` to the
+  Sprint-10 action matrix:
 
-`server/src/main/java/com/gumtree/csagent/service/tools/RequestHandoverTool.java`
-- `summary` is now optional. When the LLM does not supply one,
-  `deriveFallbackSummary` synthesises a safe, size-bounded summary
-  from the active UC, form topic, canonical escalation reason, and
-  the LLM-supplied `current_user_message` (when available). The
-  resulting payload also marks `summary_source=fallback` so the trace
-  is honest about runtime-derivation.
-- `request_handover(escalation_reason="tool_scope_blocked")` no
-  longer fails solely because `summary` is missing.
-- An invalid (missing / blank) `escalation_reason` still fails.
-- Canonical 23-value escalation-reason enum and EscalationReasonResolver
-  precedence are unchanged.
+| current state                    | classifier output              | action                  | post-state               |
+|----------------------------------|--------------------------------|-------------------------|--------------------------|
+| CONFIRM, UC-A                    | NEW_LOW_RISK_UC -> UC-C        | SOFT_SHIFT_TO_DISCOVER  | UC-C, RESOLVE            |
+| RESOLVE, UC-A                    | NEW_LOW_RISK_UC -> UC-C        | SOFT_SHIFT_TO_DISCOVER  | UC-C, RESOLVE (stay)     |
+| CONFIRM, UC-A                    | SAME_ISSUE                     | REBOUND_TO_RESOLVE      | UC-A, RESOLVE            |
+| CONFIRM, UC-A                    | SAME_UC_NEW_TASK               | REBOUND_TO_RESOLVE      | UC-A, RESOLVE            |
+| any, any                         | NEW_HIGH_RISK_UC -> UC-J       | RISK_SHIFT_TO_INTAKE    | UC-J, RESOLVE (intake)   |
+| any, any                         | HUMAN_REQUEST                  | ESCALATE_IMMEDIATELY    | (kernel step 2.5 handles)|
+| any, any                         | UNKNOWN                        | CONTINUE_CURRENT        | unchanged                |
 
-`server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
-- `request_handover` schema now advertises `summary` as a recommended
-  string (NOT required, since the runtime derives a fallback). The
-  description tells the LLM the runtime derives a fallback if omitted.
-- `record_outcome` schema was already on canonical `outcome_class`
-  with lowercase enum (pre-Sprint-9 projection); no schema change
-  needed.
+- An already-committed UC is preserved unless the action explicitly
+  switches it (SOFT / RISK / REBOUND on the same UC).
+- `RESOLVE -> DISCOVER` is forbidden by the existing
+  `control-policy.yaml` transition table; the decider keeps the
+  session in RESOLVE and simply switches the UC, so the planner
+  re-runs RESOLVE for the new UC. The transition table itself was
+  not broadened (per Sprint 10 do-not-implement list).
 
-### O1 — terminal-state honesty
-
-`server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
-- The handover short-circuit (`handoverRequested = true`) now fires
-  ONLY when the dispatched `request_handover` actually succeeded. A
-  failed dispatch leaves `handoverRequested=false`, the error
-  (e.g. `salesforce_handover_failed: 503`) is recorded as a
-  non-successful `ToolEvent`, and the error is surfaced in
-  `accumulated_tool_results.request_handover.error` so the next LLM
-  iteration can react. If the loop later hits MAX_STEPS without a
-  successful handover, the canonical `PhaseEvaluator` MAX_STEPS
-  mapping applies — no synthetic terminal escalation is ever
-  stamped.
-
-`server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
-- `mapFinalAnswer` for the FAQ-path RESOLVE branch now keeps the
-  session in RESOLVE (transition reason
-  `record_outcome_failed_retry`) when the agent run attempted at
-  least one `record_outcome` dispatch and EVERY such attempt failed.
-  Successful `record_outcome` (or no attempt at all) preserves the
-  canonical RESOLVE → CONFIRM transition.
-- New helper `recordOutcomeAttemptedAndFailed(AgentRunResult)`
-  encapsulates the predicate.
-
-### O2 — trace observability fidelity
-
-`server/src/main/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizer.java` (new)
-- Bounded sanitized projection for tool result data. Tool-aware:
-  `resolve_article` is reduced to `source_id / article_id / title /
-  source_url / excerpt` so the full article body never lands in the
-  trace. All other tools share a generic recursive sanitizer with
-  string-length, list-length, map-key-count, and recursion-depth
-  caps. Email addresses are redacted to `[REDACTED_EMAIL]`.
-- One-line `result_summary` strings per tool (`"1 hit (faq_miss)"`,
-  `"resolved kb-001: Where is my advert?"`, `"outcome=resolve"`,
-  `"handover user_requested -> queued"`, `"error: ..."` for failures).
+### L1 — Cross-UC soft / risk shift before `PhaseEvaluator.plan(...)`
 
 `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
-- `recordRunResult` now writes `result_data` and `result_summary` for
-  every persisted tool entry. Successful tools surface their bounded
-  sanitized payload; failed tools surface `success=false`,
-  `error_message`, and a `result_summary` that starts with `error:`
-  so the Trace UI Result panel is non-empty.
+- Constructor extended with `RuntimeIntentClassifier` + `RerouteDecider`
+  dependencies. The pre-Sprint-10 13-arg constructor is preserved as a
+  backward-compat overload that auto-instantiates the new beans, so
+  the 16 existing test fixtures (`Sprint8Cs259ActiveUseCaseHardeningTest,
+  ControlKernelB3FallbackUseCaseTest, Cs014RouteAndLoopHandoverIntegrationTest,
+  …`) continue to compile and run unchanged. The all-args constructor
+  is `@Autowired` so Spring continues to use it for the singleton bean.
+- `processMessage` runtime order:
+  1. Increment `totalBotTurns`.
+  2. (Step 2.4) distress detection — stamps `user_distress` via
+     resolver precedence (priority 2). No phase change.
+  3. (Step 2.5) explicit-human escalation — terminal forceEscalate
+     with `user_requested`.
+  4. (Step 3) budget exhaustion — terminal forceEscalate.
+  5. (Step 4) `DriftDetector.detect()`. `USER_ESCALATION_REQUEST` is
+     still terminal forceEscalate with `user_requested`. The legacy
+     `HARD_SHIFT -> immediate forceEscalate(service_degraded)` branch
+     was REMOVED — hard-shift signals now flow into
+     `RuntimeIntentClassifier` as a `DriftResult.newUseCase` hint and
+     the decider picks the appropriate action (intake vs FAQ vs
+     continue).
+  6. **(NEW) Step 4.5 — `applyRerouteDecision(session, userMessage,
+     drift, phaseBefore)`.** Calls
+     `RuntimeIntentClassifier.classify(...)` and
+     `RerouteDecider.decide(...)`, then mutates
+     `(session.activeUseCase, session.currentPhase,
+     session.intentConfidence, session.candidateUseCases)` per the
+     decision. Phase transitions are validated via
+     `ControlPolicyService.isValidTransition` so a forbidden
+     transition leaves the session in `phaseBefore`.
+  7. `phaseBefore` is reassigned to the post-reroute phase so the
+     existing AgentRunLoop block, persisted `bot_turns.phase_before`,
+     and `applyTransition` validation use the post-reroute view. The
+     pre-reroute UC + phase are preserved on the session via
+     `previousActiveUseCase` and the emitted `REROUTE_DECISION`
+     event.
+  8. (Step 5+) `PhaseEvaluator.plan(session, ...)` and
+     `AgentRunLoop.run(...)` proceed unchanged.
 
-`ui/src/components/admin/TraceViewer.tsx`
-- Tool-call rows now render the new backend shape
-  (`tool_name / arguments / success / latency_ms / error_message /
-  result_data / result_summary`) AND tolerate legacy rows that ship
-  only `{tool, args, result}`. Failed rows render with red styling
-  and the `error_message`; non-empty `result_summary` displays inline
-  before the JSON `result_data`. Old rows without `result_data` still
-  render safely.
+- Existing `forceEscalate` / `applyMissingUseCaseFallback` /
+  `recordRunResult` paths are untouched. Existing distress and
+  explicit-escalation precedence is preserved (they still run BEFORE
+  the classifier).
 
-`ui/src/api/client.ts`
-- New `mapToolCalls` normalises both legacy and new shapes so the UI
-  always sees the union of fields. The `mapTrace` function delegates
-  to it.
+### L2 — Minimal issue-state projection + drift observability
 
-`ui/src/types/index.ts`
-- `ToolCall` interface extended with the new optional fields.
+`server/src/main/java/com/gumtree/csagent/model/BotSession.java`
+- Five `@Transient` fields added (NOT persisted — populated each turn
+  by `applyRerouteDecision` and read by `ContextProjectionBuilder`):
+  - `previousActiveUseCase`
+  - `driftType` (token: `SOFT_SHIFT / RISK_SHIFT / SAME_ISSUE /
+    SAME_UC_NEW_TASK / ESCALATE / null`)
+  - `currentTaskType` (e.g. `listing_visibility_diagnostic`,
+    `listing_visibility_paid_promotion`,
+    `listing_lifecycle_followup`, `messaging_diagnostic`,
+    `fraud_or_safety_intake`)
+  - `primaryEntityType` (`listing` for ad_id-bearing turns, otherwise
+    null)
+  - `primaryEntityValue`
+  - `issueStatusSummary` (defaults to `"open"`).
 
-## 3.1 Sprint 9.1 closure — trace sanitization fix
+`server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
+- `buildProjection` emits the five §L2 keys after
+  `candidate_use_cases` (which is unchanged):
+  - `previous_active_use_case`
+  - `drift_type`
+  - `current_task_type`
+  - `primary_entity` (object: `{entity_type, ad_id}` when listing,
+    `{entity_type, entity_value}` otherwise; null when neither is
+    present).
+  - `issue_status_summary`
+- Absent / null transient slots produce JSON `null` so the projection
+  shape is stable across turns.
+- The full `issues[]` ledger, per-issue budgets, and the all-UC task
+  taxonomy are explicitly NOT introduced.
 
-The Sprint 9 first-pass Codex review (decision: fix_required,
-blocking_count: 1) flagged a single P1 blocker on O2:
-`ControlKernel.recordRunResult` persisted `te.errorMessage()`
-verbatim into `bot_turns.tool_calls.error_message`,
-`ToolCallTraceSanitizer.summarize` built failed-tool
-`result_summary` from the raw error string, and the generic
-`sanitizeAny` only redacted email-shaped values. A failed tool
-that interpolated a phone number, postcode, bearer token, API
-key, password, authorization header, or other sensitive surface
-into its error string could still be written verbatim to the
-trace.
+### Drift observability
 
-### Blocker fixed
+`ControlKernel.applyRerouteDecision`
+- `log.info` line per applied reroute with predicted UC, relation,
+  action, previous UC, new UC, previous phase, new phase, transition
+  reason.
+- `BotEvent` of type `REROUTE_DECISION` emitted with payload
+  `{predicted_use_case, relation, action, previous_use_case,
+  new_use_case, previous_phase, new_phase, transition_reason,
+  confidence, task_type}` so the trace UI / eval harness can
+  surface the runtime reroute path.
+- `CONTINUE_CURRENT` / `UNKNOWN` no-op turns are logged at debug
+  only — production logs stay quiet on uneventful turns.
 
-`ToolCallTraceSanitizer.java`
-- New `sanitizeErrorMessage(String)` helper applies the full
-  redaction pattern set + length cap. Used by both
-  `ControlKernel.recordRunResult` and `summarize(...)` so
-  `error_message` and `result_summary` carry the SAME sanitized
-  surface.
-- Generic map sanitization now redacts the value under any
-  key whose normalised form (lowercase, `-`/space → `_`) is in
-  the sensitive-key set: `password`, `passwd`, `token`,
-  `access_token`, `refresh_token`, `id_token`, `secret`,
-  `client_secret`, `api_key`, `apikey`, `x_api_key`,
-  `authorization`, `auth_header`, `bearer`, `credential`,
-  `credentials`. Value becomes `[REDACTED_SECRET]` regardless
-  of contents — so even a benign-looking string under a
-  sensitive key is scrubbed.
-- New value-shape patterns (in addition to the existing
-  email rule): `BEARER` (`Bearer xxx` headers →
-  `[REDACTED_BEARER]`), `API_KEY_PREFIX`
-  (`sk_/pk_/api_/key_/tok_/rk_…` → `[REDACTED_API_KEY]`),
-  `LONG_TOKEN` (32+ word characters → `[REDACTED_TOKEN]`),
-  `PHONE_LIKE` (10+ digits with separators → `[REDACTED_PHONE]`),
-  `UK_POSTCODE` (`SW1A 1AA`-shape → `[REDACTED_POSTCODE]`).
-- Pattern application order is `EMAIL → BEARER → API_KEY_PREFIX
-  → LONG_TOKEN → PHONE_LIKE → UK_POSTCODE` so prefix-specific
-  markers win over the generic long-token sweep, and a 64-char
-  hex digest is marked once as `[REDACTED_TOKEN]` instead of
-  being shredded into phone-shaped digit blocks.
-- Implementation kept local to `ToolCallTraceSanitizer`; no
-  broad PII framework introduced.
-
-`ControlKernel.recordRunResult`
-- Persists `ToolCallTraceSanitizer.sanitizeErrorMessage(
-  te.errorMessage())` rather than the raw error string. The
-  synthesized `create_case_controlled` runtime entry uses the
-  same helper for its `error_message` field on failure.
-
-### Files changed (Sprint 9.1)
+## 4. Files changed (Sprint 10)
 
 Production:
-- `server/src/main/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizer.java`
+- `server/src/main/java/com/gumtree/csagent/model/IntentClassification.java` (new)
+- `server/src/main/java/com/gumtree/csagent/model/RerouteDecision.java` (new)
+- `server/src/main/java/com/gumtree/csagent/model/BotSession.java` (added 6
+  `@Transient` fields)
+- `server/src/main/java/com/gumtree/csagent/service/runtime/RuntimeIntentClassifier.java` (new)
+- `server/src/main/java/com/gumtree/csagent/service/runtime/RerouteDecider.java` (new)
 - `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
-
-Tests:
-- `server/src/test/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizerTest.java`
-  (extended — 6 new tests covering error-message redaction,
-  failed-tool summary redaction, generic `error` field
-  redaction, sensitive-key value redaction including
-  `password / token / secret / api_key / authorization`,
-  benign-key sensitive-value redaction, and a regression
-  guard that the `resolve_article` safe-summary shape
-  (`source_id / article_id / title / source_url / excerpt`)
-  is unchanged).
-- `server/src/test/java/com/gumtree/csagent/integration/Sprint9TraceObservabilityFidelityIntegrationTest.java`
-  (extended — 1 new test
-  `failedToolDispatch_sanitizesEmailAndTokenInPersistedErrorMessage`
-  that drives a failed `request_handover` whose error string
-  embeds an email + phone + bearer token, and asserts the
-  persisted `error_message` and `result_summary` redact those
-  before persistence).
-
-### Tests run (Sprint 9.1)
-
-- `mvn -pl server test` → **760 / 0 / 0 / 0** (was 753
-  pre-Sprint-9.1; +7 new tests).
-- Focused sweep
-  (`ToolCallTraceSanitizerTest, Sprint9TraceObservabilityFidelityIntegrationTest,
-  RecordOutcomeToolTest, RequestHandoverToolTest,
-  Sprint9TerminalToolHonestyTest`) → **34 / 0 / 0 / 0**.
-- `python -m pytest -p no:capture eval_interactive/tests/test_agent_client_session_create_timeout.py -v`
-  → **8 / 0** (Sprint 6 §G0 ReadTimeout regression intact).
-- `ui/./node_modules/.bin/tsc --noEmit` → clean.
-
-### Why Sprint 9 can be re-reviewed
-
-- The single P1 blocker (O2 sanitization for failed-tool error
-  surfaces and generic result maps) is closed: failed-tool
-  `error_message` and `result_summary` go through the same
-  bounded redaction path as `result_data`, the generic
-  sanitizer redacts both sensitive keys and sensitive-shaped
-  values, and the resolve_article safe-summary shape is
-  unchanged.
-- Sprint 9 §O0 (record_outcome / request_handover contract
-  alignment) and §O1 (terminal-state honesty for failed
-  terminal tools) are untouched and remain green.
-- TraceViewer continues to render `result_summary` /
-  `result_data` (legacy + new shapes) without redesign.
-- All Sprint 6 / 7 / 8 / 8.2 regression guards remain green.
-
-## 4. Files changed
-
-Production:
-- `server/src/main/java/com/gumtree/csagent/service/tools/RecordOutcomeTool.java`
-- `server/src/main/java/com/gumtree/csagent/service/tools/RequestHandoverTool.java`
-- `server/src/main/java/com/gumtree/csagent/service/runtime/AgentRunLoopImpl.java`
-- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+  (constructor extended; legacy HARD_SHIFT immediate-escalate branch
+  removed; new `applyRerouteDecision` + `deriveDriftTypeToken` helpers;
+  `phaseBefore` reassigned post-reroute).
 - `server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
-- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
-- `server/src/main/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizer.java` (new)
-- `ui/src/api/client.ts`
-- `ui/src/components/admin/TraceViewer.tsx`
-- `ui/src/types/index.ts`
+  (5 §L2 projection slots after `candidate_use_cases`).
 
 Tests (new):
-- `server/src/test/java/com/gumtree/csagent/service/tools/RecordOutcomeToolTest.java`
-- `server/src/test/java/com/gumtree/csagent/service/tools/RequestHandoverToolTest.java`
-- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint9TerminalToolHonestyTest.java`
-- `server/src/test/java/com/gumtree/csagent/service/runtime/ToolCallTraceSanitizerTest.java`
-- `server/src/test/java/com/gumtree/csagent/integration/Sprint9TraceObservabilityFidelityIntegrationTest.java`
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint10RuntimeIntentClassifierTest.java`
+  (13 tests, all green) — pins the six Sprint-10 MVP shapes plus
+  the UNKNOWN / blank fallback and the regex-level smoke checks.
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint10RerouteDecisionTest.java`
+  (9 tests, all green) — pins the eight focused tests from the
+  Sprint 10 spec:
+  1. UC-A / CONFIRM + "I haven't got replies" → UC-C, no handover
+  2. UC-A / CONFIRM + "I still can't see my ad" → UC-A, RESOLVE
+  3. UC-A / CONFIRM + "how long is it active for?" → UC-A, RESOLVE
+  4. UC-A + "I was scammed" → UC-J intake/handover path, not FAQ
+  5. UC-A + "I want a human" → ESCALATE_IMMEDIATELY (user_requested)
+  6. UC-A + "I paid for Top Ad but it's not showing" → not blindly
+     UC-I (stays UC-A)
+  7. Projection snapshot includes the §L2 slots
+  8. Already-committed UC is preserved on CONTINUE_CURRENT and on
+     same-issue rebound (8a + 8b).
 
 Docs:
-- `docs/10-handoff.md` (this file; pre-Sprint-9 version archived to
-  `docs/sprints/sprint-008.2-handoff.md`)
-- `docs/action_bank.md` (Sprint 9 row added; pre-Sprint-9 version
-  archived to `docs/sprints/sprint-008.2-action_bank.md`)
-- `docs/sprint_objective.md` (current Sprint 9 objective; previous
-  sprint objective remains under `docs/archive/current-docs/2026-05-07-pre-sprint8.2-sprint_objective.md`)
+- `docs/10-handoff.md` (this file; Sprint 9 closure archived to
+  `docs/sprints/sprint-009-handoff-closure.md`).
+- `docs/action_bank.md` (Sprint 10 row added; Sprint 9 version
+  archived to `docs/sprints/sprint-009-action_bank.md`).
+- `docs/sprint_objective.md` archived to
+  `docs/sprints/sprint-010-runtime-reroute-mvp-objective.md`
+  (current `docs/sprint_objective.md` retained).
 
 ## 5. Tests run
 
-- `mvn -pl server test` → **760 tests / 0 failures / 0 errors / 0
-  skipped** (Sprint 9 first pass was 753; Sprint 9.1 adds 7).
-- New test classes:
-  - `RecordOutcomeToolTest` (7 tests, all green) — outcome_class
-    accepted, legacy outcome alias accepted, lowercase + uppercase
-    normalise identically, missing-param error names outcome_class,
-    successful resolve writes session_outcomes row, escalate without
-    reason fails, escalate with reason persists ESCALATED + reason.
-  - `RequestHandoverToolTest` (5 tests, all green) — schema-valid
-    `escalation_reason`-only call derives a safe summary and
-    succeeds, supplied summary preserved verbatim, missing /
-    blank reason still fails, fallback summary combines UC + topic +
-    reason + user message.
-  - `Sprint9TerminalToolHonestyTest` (4 tests, all green) — failed
-    record_outcome does NOT advance RESOLVE → CONFIRM, successful
-    record_outcome still does, failed request_handover does NOT
-    short-circuit to ESCALATE (loop runs to MAX_STEPS), successful
-    request_handover still escalates.
-  - `ToolCallTraceSanitizerTest` (8 tests, all green) — resolve_article
-    body dropped in favour of safe summary fields, search_knowledge
-    hits truncated, email redaction, null-result safety, summary
-    string formatting per tool.
-  - `Sprint9TraceObservabilityFidelityIntegrationTest` (2 tests, all
-    green) — successful search + resolve_article persists
-    result_data + result_summary with bounded resolve_article shape;
-    failed resolve_article persists error_message + error
-    result_summary so the Trace UI Result panel is not blank.
-- Regression sweep included in the full run: Sprint 6 G2 S1 guard,
-  Sprint 7 §I2 intake guard, Sprint 8 §K0 cs259 contract, Sprint 8.2
-  §M0a / §M0b resolve_article + max-steps raw response, cs014 / cs066
-  / cs095 / cs002 / cs029 / cs176 — all green.
+- `mvn -pl server test` → **782 / 0 / 0 / 0** (was 760 pre-Sprint-10;
+  +22 new Sprint-10 tests).
+- Targeted Sprint-7 / 8 / 9 regression sweep
+  (`Cs014RouteAndLoopHandoverIntegrationTest,
+  Sprint8Cs259EscalateBranchIntegrationTest,
+  Cs176ExplicitHumanHelpHandoverIntegrationTest,
+  Sprint7CandidateUseCasesProjectionTest, Sprint7IntakeStateTest,
+  Sprint71PartialIntakePersistenceTest,
+  Sprint8Cs259ActiveUseCaseHardeningTest,
+  Cs002AlreadyEscalatedDistressReconcileIntegrationTest,
+  Cs001LlmDistressGateIntegrationTest`) → **81 / 0 / 0 / 0**.
+- Integration + Sprint sweep (`*Integration*, Sprint*Test,
+  Sprint9TerminalToolHonestyTest, Sprint9TraceObservabilityFidelityIntegrationTest`)
+  → **156 / 0 / 0 / 0**.
+- `python -m pytest -p no:capture eval_interactive/tests/`
+  → **294 / 0** (full Python eval test suite, including
+  `test_agent_client_session_create_timeout.py` for the Sprint 6 §G0
+  ReadTimeout no-retry contract, plus all `regression/`, `scoring/`,
+  and `trace/` packages).
 
-UI test harness does not exist in this repo (no vitest / jest;
-`ui/package.json` has no `test` script). UI changes were verified by
-running `ui/./node_modules/.bin/tsc --noEmit` (clean) plus structural
-review against existing TraceViewer renderers.
+Smoke runs were NOT executed for Sprint 10 — the change is a
+pre-plan reroute layer that does not affect FAQ corpus, judges, or
+LLM credentials. Live smoke is recommended ONLY when Codex
+explicitly requests it; otherwise the focused JUnit + Python
+regression suite is the canonical Sprint 10 evidence.
 
-Python eval tests:
-- `python -m pytest -p no:capture
-  eval_interactive/tests/test_agent_client_session_create_timeout.py -v`
-  → 8 passed (Sprint 6 §G0 regression). No other
-  `eval_interactive/**` files were touched in Sprint 9 / 9.1.
+## 6. Result paths
 
-## 6. Manual probe
+No new smoke run was promoted in Sprint 10 (no FAQ / corpus / judge
+change). The current canonical eval baseline remains the post-
+Sprint-8 r1 run documented in `docs/current_eval_baseline.md`:
 
-Trace `a7e20173` shape was reproduced as deterministic JUnit tests
-rather than a live-server probe (live Kimi tool-use is non-determ).
-The post-Sprint-9 expected behaviour is:
+- `eval_interactive/results/20260505-234448/results.json` (8/14,
+  mean composite 0.4784, `sprint8-r1`).
+- `eval_interactive/results/20260505-235231/results.json` (9/14,
+  mean composite 0.5255, `sprint8-r2`).
 
-| Step | Tool call | Expected result |
-| ---- | --------- | --------------- |
-| 0    | `search_knowledge("I can't see my advert")` | hits with `source_id=kb-…` |
-| 1    | `resolve_article(source_id=kb-…)` | safe summary fields persisted in `result_data` (§O2) |
-| 2    | grounded user_message with `[kb-…]` citation | FINAL_ANSWER |
-| 3    | follow-up turn `"could you give me the link of advert?"` | LLM emits `request_handover(escalation_reason="tool_scope_blocked")` |
-| 4    | `request_handover` dispatch with no `summary` | succeeds via fallback summary derivation (§O0) |
+When a clean Sprint-10 smoke run is later captured under clean
+Kimi credentials, promote it only if:
 
-Confirmed:
-- `resolve_article` result is visible in the persisted trace
-  (Sprint 9 §O2; previously was only the article id with no body).
-- `record_outcome(outcome_class="resolve")` is accepted at the
-  schema-canonical name, persists a `session_outcomes` row, and
-  surfaces both `outcome_class` and `outcome` in the result panel.
-- Trace UI Result panels are non-empty for both successful and
-  failed tool calls.
-- Follow-up `tool_scope_blocked` handover succeeds with a safe
-  fallback summary; the canonical 23-value escalation reason enum
-  is unchanged.
+- `L1:escalation_reason_consistency = 0`
+- `CONTRACT_VIOLATION:active_use_case = 0`
+- targeted Sprint 10 reroute blockers (cs014 / cs066 / cs095 /
+  cs176 / cs002 / cs029) remain green or stable.
 
-If a live re-probe of trace `a7e20173` against a Kimi-backed deploy
-still escalates without a summary or with blank Result panels after
-this sprint, the residual must be classified as a UI rendering
-regression or a downstream Salesforce contract change — NOT
-`record_outcome` / `request_handover` schema drift.
+## 7. Target outcomes — before vs after
 
-## 7. Before / after
-
-Before:
+Pre-Sprint-10 control flow when the user said "I haven't got replies"
+on a UC-A / CONFIRM session:
 ```
-[resolve] resolve_article(source_id=kb-…)        -> ok (article payload)
-[resolve] record_outcome(outcome_class=resolve)  -> ERROR Parameter 'outcome' must be one of: ...
-TerminalOutcome.FINAL_ANSWER (LLM still answered)
-PhaseEvaluator: RESOLVE → CONFIRM (silent)
-session_outcomes:                                  NO ROW WRITTEN
-bot_turns.tool_calls:                              [{tool_name=resolve_article, success=true}, ...]   ← no result_data
-TraceViewer:                                       Result panel BLANK
-[follow-up] request_handover(tool_scope_blocked)  -> ERROR Parameter 'summary' is required
-AgentRunLoop:                                      handoverRequested=true (despite dispatch failure)
-TerminalOutcome.ESCALATE                           ← false success
+DriftDetector            -> NONE (pattern miss; no "scam"/"refund"/etc)
+PhaseEvaluator.plan      -> CONFIRM plan (no UC switch)
+AgentRunLoop             -> LLM reads CONFIRM systemInstruction
+                            -> may emit record_outcome(resolve) or
+                               request_handover(user_dissatisfied)
+                            depending on per-turn LLM variance.
+```
+The LLM had no runtime guidance to interpret the message as a
+new UC-C intent; the trace would frequently land in CONFIRM →
+ESCALATE with `service_degraded` or `user_dissatisfied`.
+
+Post-Sprint-10:
+```
+DriftDetector            -> NONE
+RuntimeIntentClassifier  -> NEW_LOW_RISK_UC, predictedUc=UC-C,
+                            taskType=messaging_diagnostic
+RerouteDecider           -> SOFT_SHIFT_TO_DISCOVER (UC-A->UC-C, RESOLVE)
+ControlKernel            -> session.activeUseCase=UC-C,
+                            session.currentPhase=RESOLVE,
+                            previousActiveUseCase=UC-A,
+                            driftType=SOFT_SHIFT,
+                            REROUTE_DECISION event emitted.
+PhaseEvaluator.plan      -> RESOLVE_FAQ plan for UC-C
+AgentRunLoop             -> grounded resolve sequence on UC-C corpus.
 ```
 
-After:
+For the same UC-A / CONFIRM session saying "I was scammed":
 ```
-[resolve] resolve_article(source_id=kb-…)        -> ok (article payload)
-[resolve] record_outcome(outcome_class=resolve)  -> ok (session_outcomes row written)
-TerminalOutcome.FINAL_ANSWER
-PhaseEvaluator: RESOLVE → CONFIRM (record_outcome succeeded)
-session_outcomes:                                  RESOLVED row present
-bot_turns.tool_calls[*].result_data / result_summary: bounded sanitized payload per entry
-TraceViewer:                                       Result panel renders summary + JSON
-[follow-up] request_handover(tool_scope_blocked) -> ok (fallback summary derived)
-TerminalOutcome.ESCALATE                           ← only when dispatch actually succeeded
+Pre-Sprint-10:
+DriftDetector            -> HARD_SHIFT to UC-J
+ControlKernel            -> setActiveUseCase(UC-J);
+                            applyEscalationReason("service_degraded");
+                            forceEscalate (terminal).
+                            Persisted: ESCALATE / service_degraded
+                            (intake fields never collected).
+
+Post-Sprint-10:
+DriftDetector            -> HARD_SHIFT (still flags UC-J)
+RuntimeIntentClassifier  -> NEW_HIGH_RISK_UC, predictedUc=UC-J
+RerouteDecider           -> RISK_SHIFT_TO_INTAKE (UC-J, RESOLVE)
+ControlKernel            -> session.activeUseCase=UC-J,
+                            session.currentPhase=RESOLVE,
+                            driftType=RISK_SHIFT.
+PhaseEvaluator.plan      -> RESOLVE_INTAKE plan for UC-J.
+AgentRunLoop             -> intake collection -> request_handover
+                            (intake_complete_for_uc_j).
+                            Persisted: ESCALATE /
+                            intake_complete_for_uc_j (correct
+                            intake-class reason).
 ```
 
-If the dispatch fails:
+For "I paid for Top Ad but it's not showing" on UC-A / CONFIRM:
 ```
-[resolve] record_outcome(...)                     -> ERROR DB write failed
-TerminalOutcome.FINAL_ANSWER
-PhaseEvaluator: stays in RESOLVE (transition_reason=record_outcome_failed_retry)
-TraceViewer:                                       failed row renders error_message + error result_summary
+Pre-Sprint-10:
+DriftDetector            -> HARD_SHIFT to UC-I (refund/payment keyword
+                            "paid")
+ControlKernel            -> forceEscalate UC-I, service_degraded.
+
+Post-Sprint-10:
+PAYMENT_AMBIGUITY_AD_VIS -> matches; predictedUc=UC-A, SAME_ISSUE
+RerouteDecider           -> REBOUND_TO_RESOLVE (UC-A, RESOLVE).
+                            currentTaskType=
+                            listing_visibility_paid_promotion.
+PhaseEvaluator.plan      -> RESOLVE_FAQ plan for UC-A (correct
+                            intent: ad visibility, not refund).
 ```
 
-## 8. Residuals
+## 8. Regression guards
 
-- Live re-probe of trace `a7e20173` against a Kimi-backed deploy is
-  recommended once the canonical post-Sprint-9 baseline run is
-  captured. Any remaining escalation must be triaged into:
-  - advert-link product policy gap (deferred — see action bank
-    `D-advert-link-product-decision`),
-  - rerank fallback diagnostics (deferred — see action bank
-    `D-rerank-fallback-diagnostics`),
-  - FAQ corpus / answerability,
-  and explicitly NOT as `record_outcome` / `request_handover` schema
-  drift or terminal-state dishonesty.
-- Eval Governance backlog (cs015 / cs066 / cs176 deferrals, L3 judge
-  volatility, FAQ corpus answerability, advert-link product policy)
-  is unchanged. Sprint 9 did NOT open Eval Governance docs scope —
-  that remains the next-recommended docs-only phase if no new
-  P0/P1 runtime blocker is found.
+Active guards (all green in the full Sprint-10 server run):
 
-## 9. Sprint 9 objective
-
-Met:
-
-- `record_outcome` schema and tool aligned on canonical
-  `outcome_class` with lowercase enum; legacy aliases preserved.
-- `record_outcome(outcome_class="resolve")` succeeds and writes a
-  `session_outcomes` row.
-- `request_handover` schema exposes `summary` as recommended; tool
-  derives a safe fallback summary when missing; canonical 23-value
-  escalation-reason enum unchanged.
-- `request_handover(tool_scope_blocked)` does NOT fail solely on a
-  missing summary.
-- Failed terminal tool dispatches no longer silently advance the
-  phase as terminal success.
-- Trace UI shows non-empty result/error data for tool calls; old
-  rows still render safely.
-- No FAQ corpus, CaseSpec, judge, routing, search threshold, advert-
-  link tool, broad TraceViewer redesign, or Eval Governance scope
-  was opened.
-
-## 10. Regression guards
-
-Currently-active guards (all green in the full server run):
-
-- `L1:escalation_reason_consistency` = 0
+- `L1:escalation_reason_consistency` = 0 (never re-introduced)
 - `CONTRACT_VIOLATION:active_use_case` = 0
 - cs014 remains UC-C
+  (`Cs014RouteAndLoopHandoverIntegrationTest` green)
 - cs066 remains UC-K
-- cs095 remains not UC-K / not UC-FP
+- cs095 remains UC-A / not UC-K / not UC-FP
 - cs002 remains UC-C + `user_distress`
 - cs029 remains UC-D + `user_requested`
 - cs176 explicit-human-help → `user_requested` focused regression
+  (`Cs176ExplicitHumanHelpHandoverIntegrationTest` green)
 - Sprint 6 §G0 no ReadTimeout retry
+  (`test_agent_client_session_create_timeout.py` 8 / 0)
 - Sprint 6 §G2 FAQ-grounded-resolve guard
-- Sprint 7 §I2 intake_state persistence + intake-complete guard
+  (`AgentRunLoopS1FaqGroundedResolveGuardTest` green)
+- Sprint 7 §I0 candidate_use_cases projection
+- Sprint 7 §I2 intake_state persistence
 - Sprint 7.1 §J0 partial intake persistence
-- Sprint 8 §K0 cs259 UC-F contract hardening
-- Sprint 8.1 §M3 DISCOVER phase boundary
-- Sprint 8.2 §M0a `resolve_article` source_id alignment
-- Sprint 8.2 §M0b MAX_STEPS preserves lastLlmRawResponse
+- Sprint 8 §K0 cs259 active_use_case contract
+  (`Sprint8Cs259ActiveUseCaseHardeningTest` green;
+  `Sprint8Cs259EscalateBranchIntegrationTest` green)
+- Sprint 8.1 §M3 DISCOVER → RESOLVE phase boundary
+  (`Sprint81DiscoverPhaseBoundaryTest` green;
+  `Sprint81DiscoverPhaseBoundaryReplanIntegrationTest` green)
+- Sprint 8.2 §M0a / §M0b resolve_article + max-steps raw response
+- Sprint 9 §O0 / §O1 / §O2 + Sprint 9.1 sanitization
+  (`Sprint9TerminalToolHonestyTest, ToolCallTraceSanitizerTest,
+  Sprint9TraceObservabilityFidelityIntegrationTest` green)
 
-New Sprint 9 guards:
+New Sprint 10 guards:
 
-- `record_outcome` accepts canonical `outcome_class` (lowercase);
-  legacy `outcome=RESOLVED` accepted as alias; uppercase
-  normalisation (`RecordOutcomeToolTest`).
-- Successful `record_outcome` writes a `session_outcomes` row
-  (`RecordOutcomeToolTest`).
-- `request_handover` derives a safe fallback summary when missing
-  (`RequestHandoverToolTest`); supplied summary preserved verbatim;
-  invalid (missing/blank) reason still fails.
-- AgentRunLoop does NOT short-circuit on a failed `request_handover`
-  dispatch (`Sprint9TerminalToolHonestyTest`).
-- PhaseEvaluator does NOT advance RESOLVE → CONFIRM on a failed
-  `record_outcome` (`Sprint9TerminalToolHonestyTest`).
-- `bot_turns.tool_calls` carries bounded sanitized
-  `result_data` + `result_summary` per entry; resolve_article body
-  dropped in favour of safe summary fields
-  (`Sprint9TraceObservabilityFidelityIntegrationTest`,
-   `ToolCallTraceSanitizerTest`).
-- TraceViewer renders both legacy `{tool, args, result}` rows and
-  the new `{tool_name, arguments, success, error_message,
-  result_data, result_summary}` shape; failed rows show error
-  message + summary.
+- Sprint 10 §L0 — `RuntimeIntentClassifier` deterministic shape
+  pinning for the six MVP cases, including the payment-ambiguity
+  negative guard
+  (`Sprint10RuntimeIntentClassifierTest`).
+- Sprint 10 §L1 — `RerouteDecider` action matrix and
+  `ControlKernel.applyRerouteDecision` state mutation;
+  CONTINUE_CURRENT preserves the committed UC; same-issue rebound
+  preserves the UC and only changes the phase
+  (`Sprint10RerouteDecisionTest`).
+- Sprint 10 §L2 — projection emits
+  `previous_active_use_case / drift_type / current_task_type /
+  primary_entity / issue_status_summary` after `candidate_use_cases`
+  (`Sprint10RerouteDecisionTest.test7`).
+- Hard-shift signals no longer terminal-escalate immediately;
+  scam → UC-J flows through the RESOLVE_INTAKE plan instead of
+  forceEscalate.
+- Constructor backward-compat: the pre-Sprint-10 13-arg
+  `ControlKernel` constructor remains usable for the 16 existing
+  test fixtures.
 
-New Sprint 9.1 guards:
+## 9. Remaining P0 / P1 blockers
 
-- `bot_turns.tool_calls.error_message` is sanitized before
-  persistence: email / phone / UK postcode / bearer token /
-  api-key / 32+ char credential surfaces are replaced with
-  category markers
-  (`Sprint9TraceObservabilityFidelityIntegrationTest`).
-- Failed-tool `result_summary` shares the same redaction path as
-  `error_message` (`ToolCallTraceSanitizerTest`).
-- Generic result maps redact values under sensitive keys
-  (`password`, `token`, `secret`, `api_key`, `authorization`,
-  and the canonical 9.1 set) regardless of contents
-  (`ToolCallTraceSanitizerTest`).
-- Generic result maps redact sensitive-shaped values under
-  benign keys.
-- `resolve_article` safe-summary shape (`source_id / article_id
-  / title / source_url / excerpt`) is preserved by the hardening
-  (regression test).
-- Existing email-redaction tests still pass.
+- **None opened by Sprint 10.** The runtime change is a pre-plan
+  layer; it does not introduce new tool surfaces, schema changes, or
+  external contract changes.
+- The Eval Governance backlog (cs015 / cs066 / cs176 deferrals,
+  L3 judge volatility, FAQ corpus answerability, advert-link
+  product policy, rerank fallback diagnostics) is unchanged and
+  remains under `docs/action_bank.md` §4 / §5 as deferred /
+  governance work.
+- Live re-probe of the Sprint-10 reroute path against a Kimi-backed
+  deploy is recommended once Codex passes Sprint 10 — any residual
+  must be classified as "downstream LLM tool variance" rather than a
+  reroute regression.
+
+## 10. Was Sprint 10 objective met?
+
+Yes:
+
+- L0 `RuntimeIntentClassifier` + `RerouteDecision` model implemented
+  as a runtime-internal service (NOT the agent-visible
+  `classify_use_case` tool). Six MVP shapes covered with the
+  payment-ambiguity negative guard.
+- L1 reroute decision applied before `PhaseEvaluator.plan(...)` per
+  the required order
+  (hard guards → explicit-human / distress / critical → classifier
+  → decider → state mutation → plan → run-loop). CONFIRM-rebound,
+  soft-shift, risk-shift-to-intake, and human-request transitions
+  all wired. Existing distress / explicit-escalation precedence
+  preserved.
+- L2 minimal projection slots emitted; `candidate_use_cases`
+  retained; `issues[]`, per-issue budgets, full handover payload
+  rewrite are all explicitly NOT introduced.
+- 8 focused tests + 13 classifier shape tests pass; 782 / 0 / 0 / 0
+  full server run; 294 / 0 Python eval run; all Sprint 6 / 7 / 7.1 /
+  8 / 8.1 / 8.2 / 9 / 9.1 regression guards green.
+
+Out-of-scope items (Progressive Resolve, ResolveDisposition, full
+Issue Ledger, per-issue budgets, all-UC task taxonomy, full
+handover payload rewrite, S3 no-prior-search guard, S5 Tier-2
+runtime guard, judge calibration, CaseSpec churn, FAQ corpus
+changes, broad prompt rewrite, broad routing taxonomy rewrite,
+Eval Governance docs) were NOT touched.
 
 ## 11. Next recommended phase
 
-Eval Governance and Release Gate Definition (docs-only) remains the
-recommended next phase if no new P0/P1 runtime blocker surfaces. The
-post-Sprint-9 canonical baseline can be captured in that phase, with
-any residual `a7e20173`-class escalation triaged into the advert-link
-product policy / rerank diagnostics / FAQ corpus buckets.
+If Codex passes Sprint 10 with `decision: pass` /
+`blocking_count: 0`, the recommended next phase is:
 
-Do not start another runtime sprint unless triage finds a new P0/P1
-runtime blocker.
+**Sprint 11 — Progressive Resolve MVP (or closure fix).**
+
+Progressive Resolve would extend the Sprint-10 reroute layer with
+same-UC progressive-resolve disposition handling (the Sprint 10
+do-not-implement list explicitly carved this out). Until then, the
+current handoff covers exactly the L0 / L1 / L2 reroute MVP scope.
+
+Do not start another runtime sprint unless triage finds a new
+P0/P1 runtime blocker (none identified at Sprint 10 close).
 
 ## 12. Current-doc maintenance rule
 
@@ -544,4 +490,6 @@ Historical detail belongs in `docs/sprints/`,
 - search threshold tuning / answer_miss / faq_miss semantic redesign
 - tool-deadline guard / bypass-DISCOVER redesign
 - advert-link generator / direct listing URL tool
+- Progressive Resolve / ResolveDisposition / full Issue Ledger /
+  issues[] / per-issue budgets / all-UC task taxonomy
 - runtime sprint unless a new P0/P1 runtime blocker is found
