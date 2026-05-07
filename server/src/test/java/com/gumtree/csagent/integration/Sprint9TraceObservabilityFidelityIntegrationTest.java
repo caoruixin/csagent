@@ -298,6 +298,81 @@ class Sprint9TraceObservabilityFidelityIntegrationTest {
                 "expected at least one failed resolve_article entry in the persisted trace");
     }
 
+    @Test
+    void failedToolDispatch_sanitizesEmailAndTokenInPersistedErrorMessage() throws Exception {
+        // Sprint 9.1 closure — even when the underlying tool error string
+        // contains email / phone / bearer-token / long-credential surfaces,
+        // bot_turns.tool_calls.error_message and the inline result_summary
+        // must redact those before persistence so secrets / sensitive PII
+        // cannot leak via the trace.
+        BotSession session = ucaSession();
+        mockCommonStubs();
+
+        when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
+                .thenReturn(LlmResponse.builder().content("step0").build())
+                .thenReturn(LlmResponse.builder().content("step1").build())
+                .thenReturn(LlmResponse.builder().content("step2").build())
+                .thenReturn(LlmResponse.builder().content("step3").build());
+        ParsedAction handoverCall = ParsedAction.builder()
+                .toolCalls(List.of(ToolCall.builder()
+                        .name("request_handover")
+                        .arguments(Map.of("escalation_reason", "user_requested"))
+                        .build()))
+                .userMessage("")
+                .build();
+        when(actionParser.parse(anyString())).thenReturn(handoverCall);
+
+        when(toolDispatcher.validateAgainstPlan(any(), eq("request_handover")))
+                .thenReturn(ToolResult.ok(null));
+        // Salesforce-style failure that interpolates user PII + a bearer token
+        // into the error string.
+        String dirtyError =
+                "salesforce_handover_failed: 401 for alice@example.com phone +44 20 7946 0958"
+                        + " token Bearer abcdef0123456789ABCDEFGHabcdef01";
+        when(toolDispatcher.dispatch(eq("request_handover"), any(), any()))
+                .thenReturn(ToolResult.error(dirtyError));
+
+        List<BotTurn> savedTurns = new ArrayList<>();
+        when(turnRepository.save(any(BotTurn.class))).thenAnswer((InvocationOnMock inv) -> {
+            BotTurn t = inv.getArgument(0);
+            savedTurns.add(t);
+            return t;
+        });
+
+        controlKernel.processMessage(session, "please escalate me");
+
+        assertEquals(1, savedTurns.size());
+        BotTurn savedTurn = savedTurns.get(0);
+        JsonNode toolCalls = objectMapper.readTree(savedTurn.getToolCalls());
+
+        boolean checkedAtLeastOne = false;
+        for (JsonNode entry : toolCalls) {
+            if (!"request_handover".equals(entry.path("tool_name").asText())) continue;
+            if (entry.path("success").asBoolean()) continue;
+            checkedAtLeastOne = true;
+
+            String persistedErr = entry.path("error_message").asText();
+            assertFalse(persistedErr.contains("alice@example.com"),
+                    "Sprint 9.1: persisted error_message must redact email (was: " + persistedErr + ")");
+            assertFalse(persistedErr.contains("20 7946 0958"),
+                    "Sprint 9.1: persisted error_message must redact phone digits (was: "
+                            + persistedErr + ")");
+            assertFalse(persistedErr.contains("abcdef0123456789ABCDEFGHabcdef01"),
+                    "Sprint 9.1: persisted error_message must redact long bearer token (was: "
+                            + persistedErr + ")");
+            assertTrue(persistedErr.contains("[REDACTED_EMAIL]"));
+            assertTrue(persistedErr.contains("[REDACTED_BEARER]"));
+
+            String summary = entry.path("result_summary").asText();
+            assertFalse(summary.contains("alice@example.com"));
+            assertFalse(summary.contains("abcdef0123456789ABCDEFGHabcdef01"));
+            assertTrue(summary.startsWith("error:"),
+                    "result_summary must still surface the failure prefix");
+        }
+        assertTrue(checkedAtLeastOne,
+                "expected at least one failed request_handover entry to inspect");
+    }
+
     private static JsonNode findEntry(JsonNode toolCalls, String name) {
         for (JsonNode entry : toolCalls) {
             if (name.equals(entry.path("tool_name").asText())) return entry;

@@ -2,7 +2,9 @@ package com.gumtree.csagent.service.runtime;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -20,10 +22,38 @@ import java.util.regex.Pattern;
  *   <li>{@code result_summary}: a one-line human-readable status string
  *       suitable for inline display when {@code result_data} is too
  *       structured to skim.</li>
+ *   <li>{@code error_message}: a sanitized projection of the underlying
+ *       tool error string, suitable for the
+ *       {@code bot_turns.tool_calls.error_message} column.</li>
  * </ul>
  *
- * <p>Email addresses are redacted to keep accidental PII out of the
- * trace. Strings are truncated. Maps and lists are bounded.
+ * <p>Sprint 9.1 redaction rules (kept local to this class so we don't
+ * grow a broad PII framework):
+ * <ul>
+ *   <li>Sensitive map keys ({@code password}, {@code passwd}, {@code token},
+ *       {@code access_token}, {@code refresh_token}, {@code secret},
+ *       {@code api_key}, {@code apikey}, {@code authorization},
+ *       {@code auth_header}, {@code bearer}, {@code credential},
+ *       {@code credentials}) — values replaced with
+ *       {@code [REDACTED_SECRET]} regardless of contents.</li>
+ *   <li>Sensitive-shaped values:
+ *     <ul>
+ *       <li>email addresses → {@code [REDACTED_EMAIL]}</li>
+ *       <li>phone-like sequences (10+ digits with optional separators)
+ *           → {@code [REDACTED_PHONE]}</li>
+ *       <li>UK postcodes → {@code [REDACTED_POSTCODE]}</li>
+ *       <li>{@code Bearer ...} authorization headers
+ *           → {@code [REDACTED_BEARER]}</li>
+ *       <li>API-key-like prefixes (e.g. {@code sk_abcd...},
+ *           {@code api_xxx...}) → {@code [REDACTED_API_KEY]}</li>
+ *       <li>long random credential-like strings (32+ chars of
+ *           {@code [A-Za-z0-9_\-]}) → {@code [REDACTED_TOKEN]}</li>
+ *     </ul>
+ *   </li>
+ *   <li>Strings are truncated; maps and lists are bounded by size and
+ *       depth so a runaway tool cannot smuggle a multi-megabyte payload
+ *       through.</li>
+ * </ul>
  */
 final class ToolCallTraceSanitizer {
 
@@ -41,8 +71,83 @@ final class ToolCallTraceSanitizer {
     /** Maximum {@code result_summary} length. */
     private static final int MAX_SUMMARY_LEN = 240;
 
+    /** Maximum length of a sanitized {@code error_message}. */
+    private static final int MAX_ERROR_LEN = 240;
+
     private static final Pattern EMAIL = Pattern.compile(
             "[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
+
+    /**
+     * {@code Authorization: Bearer xxxxx} headers and similar inline
+     * bearer tokens. Match before the long-token rule so the
+     * {@code Bearer} prefix gets its own redaction marker.
+     */
+    private static final Pattern BEARER = Pattern.compile(
+            "(?i)\\bbearer\\s+[A-Za-z0-9_\\-.~+/]+=*");
+
+    /**
+     * Common API-key prefixes ({@code sk_...}, {@code pk_...},
+     * {@code api_...}, {@code key_...}, {@code tok_...}, {@code rk_...}
+     * with at least 8 trailing characters). Match before the long-token
+     * rule so the prefix is preserved in the marker.
+     */
+    private static final Pattern API_KEY_PREFIX = Pattern.compile(
+            "(?i)\\b(?:sk|pk|rk|api|key|tok)[_\\-][A-Za-z0-9_\\-]{8,}\\b");
+
+    /**
+     * UK postcode forms — {@code SW1A 1AA}, {@code EC1A 1BB},
+     * {@code M1 1AA}, {@code GIR 0AA}. Word-bounded.
+     */
+    private static final Pattern UK_POSTCODE = Pattern.compile(
+            "(?i)\\b(?:gir\\s?0aa|[a-z]{1,2}\\d{1,2}[a-z]?\\s?\\d[a-z]{2})\\b");
+
+    /**
+     * Phone-like sequences. A {@code +} prefix is optional; the body is
+     * 10+ digits possibly broken by spaces, dashes, dots, or parentheses,
+     * and must end on a digit. Picks up {@code +44 20 7946 0958},
+     * {@code (555) 555-5555}, {@code 020 7946 0958}, {@code 07911 123456}.
+     * Conservative on the lower bound to avoid eating short numeric
+     * fields like ad ids ({@code AD-1001}) or scores.
+     */
+    private static final Pattern PHONE_LIKE = Pattern.compile(
+            "\\+?\\d(?:[\\d\\s().\\-]{8,18})\\d");
+
+    /**
+     * Long random credential-like strings. 32+ word-ish characters with
+     * no spaces — JWT fragments, hex digests, base64-ish secrets. URL
+     * components rarely exceed 32 unbroken characters once you account
+     * for {@code /}, {@code .}, {@code ?}, {@code &} so the false
+     * positive rate is acceptable here.
+     */
+    private static final Pattern LONG_TOKEN = Pattern.compile(
+            "\\b[A-Za-z0-9_\\-]{32,}\\b");
+
+    /**
+     * Map keys whose value should be replaced with
+     * {@code [REDACTED_SECRET]} regardless of the value's content. All
+     * comparisons are case-insensitive after collapsing common
+     * separators ({@code -}, {@code ' '}) to {@code _} so e.g.
+     * {@code Auth-Header}, {@code auth header}, and
+     * {@code authHeader} all hit the same rule.
+     */
+    private static final Set<String> SENSITIVE_KEYS = Set.of(
+            "password",
+            "passwd",
+            "token",
+            "access_token",
+            "refresh_token",
+            "id_token",
+            "secret",
+            "client_secret",
+            "api_key",
+            "apikey",
+            "x_api_key",
+            "authorization",
+            "auth_header",
+            "bearer",
+            "credential",
+            "credentials"
+    );
 
     /**
      * Build a bounded, sanitized projection of {@code resultData} for the
@@ -59,15 +164,36 @@ final class ToolCallTraceSanitizer {
     }
 
     /**
+     * Sprint 9.1 — sanitize the verbatim tool error message before it
+     * is persisted to {@code bot_turns.tool_calls.error_message} or
+     * surfaced through {@link #summarize}. Applies the same redaction
+     * rules used for {@code result_data} string leaves and bounds the
+     * length so a runaway exception cannot dump a stack trace into the
+     * trace column.
+     */
+    static String sanitizeErrorMessage(String errorMessage) {
+        if (errorMessage == null) return null;
+        String redacted = redactPii(errorMessage);
+        if (redacted.length() <= MAX_ERROR_LEN) return redacted;
+        return redacted.substring(0, MAX_ERROR_LEN - 1) + "…";
+    }
+
+    /**
      * Build a one-line summary for the tool call. Failed calls carry
      * the error surface; successful calls carry a tool-specific
      * one-liner (e.g. {@code "1 hit"} for {@code search_knowledge}).
+     *
+     * <p>Sprint 9.1: failed-tool summaries route the error string
+     * through {@link #sanitizeErrorMessage} so the same redaction rules
+     * apply whether the trace surface is the {@code error_message}
+     * column or the inline {@code result_summary} field.
      */
     static String summarize(String toolName, boolean success,
                             Object resultData, String errorMessage) {
         if (!success) {
-            String err = errorMessage != null ? errorMessage : "tool_failed";
-            return truncateSummary("error: " + err);
+            String safe = sanitizeErrorMessage(errorMessage);
+            if (safe == null) safe = "tool_failed";
+            return truncateSummary("error: " + safe);
         }
         if (resultData == null) return "ok";
         if (resultData instanceof Map<?, ?> rawMap) {
@@ -180,7 +306,13 @@ final class ToolCallTraceSanitizer {
                     break;
                 }
                 String k = String.valueOf(e.getKey());
-                out.put(k, sanitizeAny(e.getValue(), depth + 1));
+                if (isSensitiveKey(k)) {
+                    // Sprint 9.1: redact the whole value when the key
+                    // names a credential / token / authorization slot.
+                    out.put(k, "[REDACTED_SECRET]");
+                } else {
+                    out.put(k, sanitizeAny(e.getValue(), depth + 1));
+                }
             }
             return out;
         }
@@ -215,6 +347,19 @@ final class ToolCallTraceSanitizer {
         return truncateString(v.toString());
     }
 
+    /**
+     * True when the map key names a credential / token / authorization
+     * slot. Comparison is case-insensitive after collapsing common
+     * separators ({@code -}, {@code ' '}) into {@code _}.
+     */
+    private static boolean isSensitiveKey(String key) {
+        if (key == null || key.isBlank()) return false;
+        String norm = key.toLowerCase(Locale.ENGLISH)
+                .replace('-', '_')
+                .replace(' ', '_');
+        return SENSITIVE_KEYS.contains(norm);
+    }
+
     private static String truncateString(String s) {
         if (s == null) return null;
         String redacted = redactPii(s);
@@ -228,8 +373,32 @@ final class ToolCallTraceSanitizer {
         return s.substring(0, MAX_SUMMARY_LEN - 1) + "…";
     }
 
+    /**
+     * Apply every redaction pattern in priority order. Order matters:
+     * <ol>
+     *   <li>{@link #EMAIL} — specific @-bearing shape.</li>
+     *   <li>{@link #BEARER} / {@link #API_KEY_PREFIX} — keep their
+     *       prefix-specific markers before the generic
+     *       {@link #LONG_TOKEN} sweep eats the same characters.</li>
+     *   <li>{@link #LONG_TOKEN} — runs BEFORE {@link #PHONE_LIKE} so a
+     *       long hex / base64 credential like a 64-char SHA-256 digest
+     *       gets a single {@code [REDACTED_TOKEN]} marker instead of
+     *       being shredded by the digit-block phone matcher.</li>
+     *   <li>{@link #PHONE_LIKE} — digit-only sequences left over after
+     *       the long-token sweep.</li>
+     *   <li>{@link #UK_POSTCODE} — last so we don't accidentally label
+     *       a number block as a postcode.</li>
+     * </ol>
+     */
     private static String redactPii(String s) {
         if (s == null) return null;
-        return EMAIL.matcher(s).replaceAll("[REDACTED_EMAIL]");
+        String out = s;
+        out = EMAIL.matcher(out).replaceAll("[REDACTED_EMAIL]");
+        out = BEARER.matcher(out).replaceAll("[REDACTED_BEARER]");
+        out = API_KEY_PREFIX.matcher(out).replaceAll("[REDACTED_API_KEY]");
+        out = LONG_TOKEN.matcher(out).replaceAll("[REDACTED_TOKEN]");
+        out = PHONE_LIKE.matcher(out).replaceAll("[REDACTED_PHONE]");
+        out = UK_POSTCODE.matcher(out).replaceAll("[REDACTED_POSTCODE]");
+        return out;
     }
 }

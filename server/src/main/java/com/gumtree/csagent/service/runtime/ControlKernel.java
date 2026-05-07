@@ -1293,8 +1293,17 @@ public class ControlKernel {
                     entry.put("tool_name", te.toolName());
                     entry.put("success", te.success());
                     entry.put("latency_ms", te.latencyMs());
-                    if (te.errorMessage() != null) {
-                        entry.put("error_message", te.errorMessage());
+                    // Sprint 9.1 — sanitize the verbatim tool error
+                    // message before it lands on the persisted trace
+                    // column so secrets / sensitive PII that the tool
+                    // happened to interpolate into its error string
+                    // (email, phone, postcode, bearer token, api key,
+                    // long random credential) cannot leak via
+                    // bot_turns.tool_calls.error_message.
+                    String sanitizedError = ToolCallTraceSanitizer.sanitizeErrorMessage(
+                            te.errorMessage());
+                    if (sanitizedError != null) {
+                        entry.put("error_message", sanitizedError);
                     }
                     // Trace contract requires every tool_call entry to carry an
                     // ``arguments`` map, even when empty (eval_interactive
@@ -1367,7 +1376,12 @@ public class ControlKernel {
                         caseArgs.put("case_id", caseId);
                     }
                 } else if (runtimeCaseResult.getErrorMessage() != null) {
-                    caseEntry.put("error_message", runtimeCaseResult.getErrorMessage());
+                    // Sprint 9.1 — sanitize runtime-side case-creation errors
+                    // through the same redaction path used for AgentRunLoop
+                    // tool errors.
+                    caseEntry.put("error_message",
+                            ToolCallTraceSanitizer.sanitizeErrorMessage(
+                                    runtimeCaseResult.getErrorMessage()));
                 }
                 caseEntry.put("arguments", caseArgs);
                 toolCallsList.add(caseEntry);
