@@ -89,8 +89,9 @@ Sprint 14 §L1 explicitly does NOT use the result of citation extraction
 to reject, rewrite, or loop the response. The output is observability
 material consumed by:
 
-- trace surfaces (`projection.faq_grounding`, `RECORD_OUTCOME_GUARD`
-  enrichment);
+- the durable trace surface
+  `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure;
+  see §5);
 - §L2 grounding diagnostics (`faq_grounding_state`,
   `resolved_but_uncited`, `retrieved_but_unresolved`,
   `citation_present`, `citation_match`, `citation_drift`).
@@ -141,9 +142,53 @@ Sprint 14 §L2 diagnostics are observability-only. They MUST NOT:
 - override the §G2 FAQ-grounded-resolve guard (§L2 is observability that
   COMPLEMENTS §G2; §G2 stays the only enforced runtime check).
 
-## 5. Wiring (current Sprint 14 surface)
+## 5. Wiring (current Sprint 14 + 14.1 surface)
 
-Diagnostics are stamped per-turn on `BotSession` transient fields:
+### 5.1 Durable trace surface (Sprint 14.1 closure)
+
+The §L1 lineage and §L2 diagnostics are persisted per turn on
+`bot_turns.projected_context.faq_grounding` — a JSON object merged
+into the existing `bot_turns.projected_context` JSONB column by
+`ControlKernel.recordRunResult(...)` BEFORE
+`turnRepository.save(turn)`. No schema migration is required: the
+column already existed and is opaque JSON.
+
+The `faq_grounding` object carries snake_case keys matching the
+contract above:
+
+```jsonc
+{
+  "faq_grounding": {
+    "retrieved_source_ids": ["ka..."],
+    "resolved_source_ids":  ["ka..."],
+    "cited_source_ids":     ["ka..."],
+    "cited_canonical_urls": ["https://..."],
+    "output_class":          "factual_answer",
+    "faq_grounding_state":   "factual_grounded",
+    "citation_present": true,
+    "citation_match":   true,
+    "citation_drift":   false,
+    "resolved_but_uncited":     false,
+    "retrieved_but_unresolved": false
+  }
+}
+```
+
+A normal save / reload trace (e.g. `BotTurnRepository.findById(...)`
+or any JPA reload) sees these fields directly under
+`projected_context.faq_grounding`.
+
+Sprint 14.1 closes the Codex Sprint 14 blocker: under Sprint 14 the
+fields lived only on `BotSession` `@Transient` slots stamped AFTER
+the save, so a save / reload trace could not see them. The closure
+pulls computation forward and writes the snake_case payload into the
+durable JSONB column.
+
+### 5.2 In-memory transient slots (preserved for back-compat)
+
+The same values are still mirrored onto `BotSession` transient
+slots so any in-memory reader (the next projection pass within the
+same turn, in-process tests) keeps seeing them:
 
 - §L1: `retrievedSourceIds`, `resolvedSourceIds`, `citedSourceIds`,
   `citedCanonicalUrls`.
@@ -151,12 +196,8 @@ Diagnostics are stamped per-turn on `BotSession` transient fields:
   `citationMatch`, `citationDrift`, `resolvedButUncited`,
   `retrievedButUnresolved`.
 
-Population happens in `ControlKernel.recordRunResult` (the same site
-that already collects `sourceIds` for `bot_turns.source_ids`). The
-existing `bot_turns.source_ids` column is preserved verbatim — no
-schema migration. Trace UIs can pick up the new fields from the next
-context projection or from a future enrichment of an existing event
-payload (out of scope for Sprint 14).
+The existing `bot_turns.source_ids` `text[]` column is preserved
+verbatim — Sprint 14.1 does NOT change its write path.
 
 ## 6. Future narrow Sprint 16 candidates (deferred)
 
