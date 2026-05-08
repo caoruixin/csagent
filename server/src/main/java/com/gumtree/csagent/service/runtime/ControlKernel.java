@@ -395,6 +395,16 @@ public class ControlKernel {
                     responseText = "I'm looking into this for you. One moment please.";
                 }
 
+                // Sprint 12 §N0 — emit RESOLVE_DISPOSITION and
+                // RECORD_OUTCOME_GUARD trace events so a reviewer can audit
+                // why the bot stayed RESOLVE instead of CONFIRM and why
+                // record_outcome(resolve) was allowed or rejected. Both
+                // events are backward-compatible additions; existing
+                // event stream consumers ignore unknown event types.
+                emitResolveDispositionEvent(session, plan, runResult, decision,
+                        effectivePhaseBefore, phaseAfter);
+                emitRecordOutcomeGuardEvent(session, plan, runResult);
+
                 // Update lastAction for budget/loop-detection tracking. We
                 // synthesize a key from the loop's tool events so the existing
                 // repeated-action checks remain meaningful when the agent path
@@ -713,6 +723,22 @@ public class ControlKernel {
         session.setDriftType(deriveDriftTypeToken(action,
                 classification.relation()));
 
+        // Sprint 12 §N0 — runtime alignment observability slots. The
+        // classifier output (predicted_use_case, intent_relation,
+        // confidence), the decider action, and the canonical
+        // phase_transition_reason are all stamped on the session so the
+        // upcoming projection can surface them and a reviewer can audit
+        // why the bot stayed in the current UC, soft-shifted, or
+        // risk-shifted from a single turn's trace evidence. These are
+        // BACKWARD-COMPATIBLE additions: the existing Sprint 10 §L2
+        // slots (previous_active_use_case, drift_type, current_task_type,
+        // primary_entity, issue_status_summary) are preserved verbatim.
+        session.setPredictedUseCase(classification.predictedUseCase());
+        session.setIntentRelation(classification.relation() == null
+                ? null : classification.relation().name());
+        session.setRerouteAction(action == null ? null : action.name());
+        session.setPhaseTransitionReason(decision.transitionReason());
+
         // Sprint 11 §M0 — same-UC progressive resolve: capture an ad_id
         // from the user message even when the Sprint 10 MVP shapes did
         // not match (CONTINUE_CURRENT). The progressive UC-A flow
@@ -807,6 +833,31 @@ public class ControlKernel {
                 payload.put("transition_reason", decision.transitionReason());
                 payload.put("confidence", classification.confidence());
                 payload.put("task_type", classification.taskType());
+                // Sprint 12 §N0 — backward-compat alias keys so the
+                // canonical Sprint 12 observability vocabulary
+                // ({@code intent_relation}, {@code reroute_action},
+                // {@code phase_transition_reason},
+                // {@code previous_active_use_case},
+                // {@code active_use_case}, {@code drift_type},
+                // {@code current_task_type}, {@code primary_entity},
+                // {@code task_status}) is available in one place. The
+                // existing Sprint 10 keys above are preserved verbatim so
+                // any downstream consumer that read them still works.
+                payload.put("intent_relation", classification.relation() == null
+                        ? null : classification.relation().name());
+                payload.put("reroute_action", action.name());
+                payload.put("phase_transition_reason", decision.transitionReason());
+                payload.put("previous_active_use_case", previousUc);
+                payload.put("active_use_case", session.getActiveUseCase());
+                payload.put("drift_type", session.getDriftType());
+                payload.put("current_task_type", session.getCurrentTaskType());
+                payload.put("task_status", session.getTaskStatus());
+                Map<String, Object> primaryEntityNode = buildPrimaryEntityPayload(session);
+                if (primaryEntityNode != null) {
+                    payload.put("primary_entity", primaryEntityNode);
+                } else {
+                    payload.put("primary_entity", null);
+                }
                 emitEvent(session, "REROUTE_DECISION",
                         session.getTotalBotTurns(),
                         objectMapper.writeValueAsString(payload));
@@ -875,6 +926,137 @@ public class ControlKernel {
      * already in RESOLVE because no phase change is needed; that does
      * not mean the relation is uninteresting downstream).
      */
+    /**
+     * Sprint 12 §N0 — shared helper that materialises the
+     * {@code primary_entity} JSON shape from the session's transient
+     * Sprint 10 §L2 slots. Keeps the projection and event emission paths
+     * agreeing on a single canonical shape ({@code listing} →
+     * {@code {entity_type, ad_id}}, otherwise
+     * {@code {entity_type, entity_value}}).
+     *
+     * @return a fresh {@link Map} or {@code null} when no entity is in
+     *         scope.
+     */
+    private static Map<String, Object> buildPrimaryEntityPayload(BotSession session) {
+        if (session == null) return null;
+        String entityType = session.getPrimaryEntityType();
+        String entityValue = session.getPrimaryEntityValue();
+        boolean hasType = entityType != null && !entityType.isBlank();
+        boolean hasValue = entityValue != null && !entityValue.isBlank();
+        if (!hasType && !hasValue) {
+            return null;
+        }
+        Map<String, Object> node = new LinkedHashMap<>();
+        node.put("entity_type", entityType);
+        if ("listing".equals(entityType) && hasValue) {
+            node.put("ad_id", entityValue);
+        } else if (hasValue) {
+            node.put("entity_value", entityValue);
+        }
+        return node;
+    }
+
+    /**
+     * Sprint 12 §N0 — emit a {@code RESOLVE_DISPOSITION} trace event for
+     * RESOLVE / FAQ plans so a reviewer can audit why the bot stayed in
+     * RESOLVE instead of advancing to CONFIRM. The event is a
+     * backward-compatible addition; existing event consumers that filter
+     * by event type continue to work.
+     *
+     * <p>Payload includes {@code resolve_disposition},
+     * {@code task_status}, {@code phase_transition_reason},
+     * {@code terminal_evidence} (record_outcome attempted / succeeded
+     * counts), and the post-loop phase pair so the trace UI can join the
+     * disposition with the eventual phase transition.
+     */
+    private void emitResolveDispositionEvent(BotSession session, PhasePlan plan,
+                                              AgentRunResult runResult,
+                                              PhaseTransitionDecision decision,
+                                              String phaseBefore, String phaseAfter) {
+        if (session == null || plan == null || runResult == null) return;
+        if (!ResolveDispositionEvaluator.isResolveFaqPlan(plan)) return;
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("resolve_disposition", session.getResolveDisposition());
+            payload.put("task_status", session.getTaskStatus());
+            payload.put("phase_transition_reason",
+                    decision == null ? null : decision.transitionReason());
+            payload.put("transition_reason",
+                    decision == null ? null : decision.transitionReason());
+            payload.put("previous_phase", phaseBefore);
+            payload.put("new_phase", phaseAfter);
+            payload.put("active_use_case", session.getActiveUseCase());
+            payload.put("current_task_type", session.getCurrentTaskType());
+            payload.put("primary_entity", buildPrimaryEntityPayload(session));
+            payload.put("terminal_evidence", buildTerminalEvidencePayload(runResult));
+            emitEvent(session, "RESOLVE_DISPOSITION",
+                    session.getTotalBotTurns(),
+                    objectMapper.writeValueAsString(payload));
+        } catch (Exception ex) {
+            log.warn("Session {}: failed to emit RESOLVE_DISPOSITION event: {}",
+                    session.getSessionId(), ex.getMessage());
+        }
+    }
+
+    /**
+     * Sprint 12 §N0 — emit a {@code RECORD_OUTCOME_GUARD} trace event when
+     * the §M1 record-outcome guard observed a {@code record_outcome} call
+     * on a RESOLVE / FAQ plan during this turn. Captures whether the
+     * guard rejected the call (and the canonical reject reason) or
+     * allowed it through, alongside the deterministic terminal-evidence
+     * summary. Backward-compatible: only emitted when there is something
+     * to report.
+     */
+    private void emitRecordOutcomeGuardEvent(BotSession session, PhasePlan plan,
+                                              AgentRunResult runResult) {
+        if (session == null || plan == null || runResult == null) return;
+        String guardResult = session.getRecordOutcomeGuardResult();
+        if (guardResult == null || guardResult.isBlank() || "none".equals(guardResult)) {
+            return;
+        }
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("record_outcome_guard_result", guardResult);
+            payload.put("plan_phase", plan.phase());
+            payload.put("plan_use_case", plan.useCase());
+            payload.put("current_phase", session.getCurrentPhase());
+            payload.put("active_use_case", session.getActiveUseCase());
+            payload.put("terminal_evidence", buildTerminalEvidencePayload(runResult));
+            emitEvent(session, "RECORD_OUTCOME_GUARD",
+                    session.getTotalBotTurns(),
+                    objectMapper.writeValueAsString(payload));
+        } catch (Exception ex) {
+            log.warn("Session {}: failed to emit RECORD_OUTCOME_GUARD event: {}",
+                    session.getSessionId(), ex.getMessage());
+        }
+    }
+
+    /**
+     * Sprint 12 §N0 — terminal evidence summary used by both
+     * {@code RESOLVE_DISPOSITION} and {@code RECORD_OUTCOME_GUARD}
+     * events. Counts {@code record_outcome} attempts and successes for
+     * the agent run that just completed; the {@code succeeded} flag is
+     * the deterministic terminal condition that earns
+     * {@code READY_TO_CONFIRM} per Sprint 11 §M1.
+     */
+    private static Map<String, Object> buildTerminalEvidencePayload(AgentRunResult result) {
+        Map<String, Object> node = new LinkedHashMap<>();
+        int attempted = 0;
+        int succeeded = 0;
+        if (result != null && result.toolEvents() != null) {
+            for (ToolEvent te : result.toolEvents()) {
+                if ("record_outcome".equals(te.toolName())) {
+                    attempted++;
+                    if (te.success()) succeeded++;
+                }
+            }
+        }
+        node.put("record_outcome_attempted", attempted);
+        node.put("record_outcome_succeeded", succeeded);
+        node.put("record_outcome_success", succeeded > 0);
+        return node;
+    }
+
     private static String deriveDriftTypeToken(
             com.gumtree.csagent.model.RerouteDecision.RerouteAction action,
             com.gumtree.csagent.model.IntentClassification.IntentRelation relation) {

@@ -186,4 +186,69 @@ public class BotSession {
      */
     @Transient
     private String lastEntityContextRef;
+
+    /**
+     * Sprint 12 §N0 — runtime alignment observability slots (transient).
+     *
+     * <p>Populated each turn so the projection / trace evidence captures
+     * the latest reroute + progressive-resolve decision. They are
+     * back-compat additions: existing fields are preserved verbatim, and
+     * downstream code that ignores these slots continues to work.
+     *
+     * <p>The slots answer the audit questions enumerated in the Sprint 12
+     * objective (why did the bot stay in current UC / soft-shift /
+     * risk-shift / stay RESOLVE / allow or reject record_outcome).
+     */
+    /** Latest classifier {@code predicted_use_case}. */
+    @Transient
+    private String predictedUseCase;
+
+    /** Latest classifier {@code IntentRelation} token (string form). */
+    @Transient
+    private String intentRelation;
+
+    /** Latest decider {@code RerouteAction} token (string form). */
+    @Transient
+    private String rerouteAction;
+
+    /**
+     * Latest {@code transition_reason} stamped during the turn — set by
+     * {@link com.gumtree.csagent.service.runtime.ControlKernel} on a reroute
+     * decision and updated by {@code PhaseEvaluator.interpretRunResult}
+     * when the phase transitions. Surfaces the canonical reason a
+     * reviewer reads to answer "why did this turn end here".
+     */
+    @Transient
+    private String phaseTransitionReason;
+
+    /**
+     * Latest {@link ResolveDisposition} token (string form) — set by
+     * {@code ResolveDispositionEvaluator} via
+     * {@code PhaseEvaluator.mapFinalAnswer} on RESOLVE / FAQ plans.
+     */
+    @Transient
+    private String resolveDisposition;
+
+    /**
+     * Sprint 12 §N0 — terminal evidence summary for the current turn's
+     * agent run. Populated by
+     * {@link com.gumtree.csagent.service.runtime.AgentRunLoopImpl} after
+     * the loop completes. {@code true / false / null} flags answer the
+     * "why did the bot stay RESOLVE instead of CONFIRM" audit question
+     * in one place.
+     */
+    @Transient
+    private Boolean recordOutcomeAttempted;
+
+    @Transient
+    private Boolean recordOutcomeSucceeded;
+
+    /**
+     * Sprint 12 §N0 — record-outcome guard outcome for the current turn.
+     * One of {@code none / allowed / rejected:<reason>}. Populated by
+     * {@link com.gumtree.csagent.service.runtime.AgentRunLoopImpl} when
+     * the §M1 guard runs.
+     */
+    @Transient
+    private String recordOutcomeGuardResult;
 }

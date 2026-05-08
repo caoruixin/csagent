@@ -6,25 +6,32 @@ Mode: current action ledger
 ## 1. Current phase
 
 Current phase:
-Sprint 11 — Progressive Resolve MVP (in flight; awaiting Codex review).
+Sprint 12 — Runtime Alignment Hardening and Validation (in flight;
+awaiting Codex review).
 
 Latest closed sprint:
-Sprint 10 — Runtime Re-route MVP.
+Sprint 11 / 11.1 — Progressive Resolve MVP + terminal-evidence
+closure.
 
-Latest Codex decision (Sprint 10 review):
+Latest Codex decision (Sprint 11 / 11.1 review):
 - decision: pass
 - blocking_count: 0
-- summary: L0 / L1 / L2 reroute MVP within scope; regression evidence
-  green.
+- summary: Sprint 11.1 closes the previous M1 blocker — non-slot
+  FINAL_ANSWER without successful `record_outcome` stays RESOLVE as
+  ANSWERED_SUBTASK. Focused tests, full server suite, and Python
+  eval tests green.
 
 Current recommendation:
-After Sprint 11 closes (assuming Codex pass + 0 blocking), the next
-recommended phase is **closure or Eval Governance docs sprint**. No
-new runtime sprint unless a P0 / P1 runtime blocker is found.
-Sprint 11 closes the same-UC continuation gap explicitly carved out
-by Sprint 10; further runtime workstreams (full Issue Ledger,
-per-issue budgets, all-UC task taxonomy, full skill runtime,
-handover payload rewrite) remain on the deferred / avoid list.
+After Sprint 12 closes (assuming Codex pass + 0 blocking), the next
+recommended phase is **Eval Governance docs sprint** (or equivalent
+governance-only work). No new runtime sprint unless a new P0 / P1
+runtime blocker is found. Sprint 12 hardens trace observability so
+residual `judge_volatility` / `faq_corpus_gap` / `product_policy_gap`
+items can be audited from a single trace evidence pass without
+expanding hard gates. Further runtime workstreams (full Issue
+Ledger, per-issue budgets, all-UC task taxonomy, full skill
+runtime, handover payload rewrite) remain on the deferred / avoid
+list.
 
 ## 2. Current accepted state
 
@@ -80,7 +87,7 @@ handover payload rewrite) remain on the deferred / avoid list.
     `issue_status_summary`) emitted after `candidate_use_cases`.
     `REROUTE_DECISION` event surfaces the decision payload.
 
-- Sprint 11 in flight (Sprint 11.1 closure fix applied):
+- Sprint 11 closed (Sprint 11.1 closure fix accepted by Codex):
   - M0 minimal same-UC task / entity state — Sprint 10 §L2 slots
     reused; new `task_status` + `last_entity_context_ref`
     transient fields on `BotSession`. Same-UC ad_id capture from
@@ -91,10 +98,10 @@ handover payload rewrite) remain on the deferred / avoid list.
     survives the projection.
   - M1 `ResolveDisposition` enum (`CONTINUE_RESOLVE /
     ASKED_FOR_SLOT / ANSWERED_SUBTASK / READY_TO_CONFIRM /
-    ESCALATE`) + `ResolveDispositionEvaluator`. `PhaseEvaluator.
-    mapFinalAnswer` consults the evaluator on RESOLVE / FAQ
-    FINAL_ANSWER. **Sprint 11.1 closure fix:** the FINAL_ANSWER
-    branch now requires deterministic terminal evidence
+    ESCALATE`) + `ResolveDispositionEvaluator`.
+    `PhaseEvaluator.mapFinalAnswer` consults the evaluator on
+    RESOLVE / FAQ FINAL_ANSWER. **Sprint 11.1 closure fix:** the
+    FINAL_ANSWER branch requires deterministic terminal evidence
     (successful `record_outcome` dispatch on this run) before
     returning `READY_TO_CONFIRM`; non-slot, non-clarifying
     grounded answers default to `ANSWERED_SUBTASK` and stay in
@@ -105,27 +112,61 @@ handover payload rewrite) remain on the deferred / avoid list.
   - M2 progressive UC-A / UC-C regression suite
     (`Sprint11ProgressiveResolveTest`, 14 tests; +3 Sprint-11.1
     closure regressions for the terminal-evidence guard).
-  - `mvn -pl server test`: 796 / 0 / 0 / 0 (was 793 pre-Sprint-11.1;
-    +3 Sprint-11.1 closure tests; was 782 pre-Sprint-11).
-  - `python -m pytest -p no:capture eval_interactive/tests/`:
-    294 / 0.
+
+- Sprint 12 in flight (awaiting Codex review):
+  - N0 drift / task / phase observability hardening — eight
+    backward-compatible `BotSession` `@Transient` slots
+    (`predictedUseCase`, `intentRelation`, `rerouteAction`,
+    `phaseTransitionReason`, `resolveDisposition`,
+    `recordOutcomeAttempted`, `recordOutcomeSucceeded`,
+    `recordOutcomeGuardResult`). `ControlKernel.applyRerouteDecision`
+    stamps the latest classifier / decider signals each turn.
+    `REROUTE_DECISION` event payload is enriched with alias keys
+    (`intent_relation`, `reroute_action`, `phase_transition_reason`,
+    `previous_active_use_case`, `active_use_case`, `drift_type`,
+    `current_task_type`, `task_status`, `primary_entity`); existing
+    Sprint 10 keys preserved verbatim. New `RESOLVE_DISPOSITION`
+    and `RECORD_OUTCOME_GUARD` BotEvents emitted post-loop with
+    `terminal_evidence` summary. `PhaseEvaluator.mapFinalAnswer`
+    stamps `session.resolveDisposition / phaseTransitionReason`.
+    `AgentRunLoopImpl` stamps `recordOutcomeAttempted /
+    recordOutcomeSucceeded / recordOutcomeGuardResult`.
+    `ContextProjectionBuilder` surfaces all §N0 fields plus
+    `drift_history` and `task_history` aggregates derived from
+    prior `bot_turns.projected_context`.
+  - N1 targeted runtime alignment validation suite
+    (`Sprint12RuntimeAlignmentValidationTest`, 13 tests covering
+    the 10 spec scenarios + 2 §N0 projection-surface assertions).
+    Deterministic; no live LLM dependence.
+  - N2 residual classification + next-phase recommendation
+    captured in `docs/10-handoff.md` §6 / §7 / §8. Recommended
+    next phase: **Eval Governance docs sprint**.
+  - `mvn -pl server test`: 809 / 0 / 0 / 0 (was 796 pre-Sprint-12;
+    +13 Sprint-12 §N1 regressions).
+  - `python -m pytest eval_interactive/tests/`: 294 / 0.
+  - Smoke runs were NOT executed — pure observability + targeted
+    regression sprint; no FAQ corpus, CaseSpec, judge, prompt, or
+    routing taxonomy change. The current canonical baseline
+    (`docs/current_eval_baseline.md`) was NOT promoted; remains
+    the post-Sprint-8 r1 / r2 runs.
   - No FAQ corpus, CaseSpec, judge, broad routing taxonomy,
     handover payload rewrite, full Issue Ledger, all-UC task
-    taxonomy, or Eval Governance scope opened.
+    taxonomy, or Eval Governance file was opened.
 
 ## 3. Active / next actions
 
-Sprint 11 deliverables (in flight; Sprint 11.1 closure fix applied):
+Sprint 12 deliverables (in flight; awaiting Codex review):
 
-| id  | deliverable                                                   | status |
-|-----|---------------------------------------------------------------|--------|
-| M0  | Minimal same-UC task / entity state on top of Sprint 10 §L2   | done — accepted by Codex Sprint 11 review |
-| M1  | `ResolveDisposition` enum + RESOLVE → CONFIRM transition guard | Sprint 11.1 closure applied — terminal-evidence requirement; awaiting Codex re-review |
-| M2  | Progressive UC-A / UC-C regression suite                      | done — accepted by Codex Sprint 11 review (+3 Sprint-11.1 closure regressions) |
+| id | deliverable                                                                        | status |
+|----|------------------------------------------------------------------------------------|--------|
+| N0 | Drift / task / phase observability hardening                                        | done — backward-compatible additions to `BotSession`, `ControlKernel`, `PhaseEvaluator`, `AgentRunLoopImpl`, `ContextProjectionBuilder`; new `RESOLVE_DISPOSITION` + `RECORD_OUTCOME_GUARD` events; alias keys on `REROUTE_DECISION` |
+| N1 | Targeted runtime alignment validation suite                                         | done — `Sprint12RuntimeAlignmentValidationTest` 13 / 0; covers all 10 Sprint 12 spec scenarios + 2 projection-surface assertions |
+| N2 | Residual runtime blocker classification + next-phase decision                       | done — captured in `docs/10-handoff.md` §6 / §7 / §8; next-phase recommendation: **Eval Governance docs sprint** |
 
-After Sprint 11 closes (assuming Codex pass + 0 blocking), the
-recommended next phase is **closure or Eval Governance docs sprint**.
-No new runtime sprint unless a new P0 / P1 runtime blocker is found.
+After Sprint 12 closes (assuming Codex pass + 0 blocking), the
+recommended next phase is **Eval Governance docs sprint** (or
+equivalent governance-only work). No new runtime sprint unless a
+new P0 / P1 runtime blocker is found.
 
 ## 4. Deferred runtime candidates
 
@@ -170,7 +211,8 @@ No new runtime sprint unless a new P0 / P1 runtime blocker is found.
 | Sprint 9 | O0 record_outcome + request_handover contracts; O1 terminal-state honesty; O2 bounded sanitized tool result_data | closed | `docs/sprints/sprint-009-*`   |
 | Sprint 9.1 | trace sanitization closure (failed-tool error_message + sensitive-key value redaction) | closed | `docs/sprints/sprint-009-*` |
 | Sprint 10 | L0 RuntimeIntentClassifier + RerouteDecision; L1 cross-UC soft/risk shift before PhaseEvaluator.plan; L2 minimal issue-state projection | closed | `docs/sprints/sprint-010-*` |
-| Sprint 11 | M0 minimal same-UC task/entity state; M1 ResolveDisposition + transition guard (Sprint 11.1 terminal-evidence closure); M2 progressive UC-A/UC-C regression suite | in flight (Sprint 11.1 closure applied; awaiting Codex re-review) | will archive under `docs/sprints/sprint-011-*` on closure |
+| Sprint 11 | M0 minimal same-UC task/entity state; M1 ResolveDisposition + transition guard (Sprint 11.1 terminal-evidence closure); M2 progressive UC-A/UC-C regression suite | closed | `docs/sprints/sprint-011-*` |
+| Sprint 12 | N0 drift/task/phase observability hardening; N1 targeted runtime alignment validation suite; N2 residual classification + next-phase decision | in flight (awaiting Codex review) | will archive under `docs/sprints/sprint-012-*` on closure |
 
 ## 7. Carry-over rule
 
