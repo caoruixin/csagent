@@ -6,18 +6,26 @@ Mode: current action ledger
 ## 1. Current phase
 
 Current phase:
-Sprint 14.1 — FAQ Grounding Observability Persistence Closure
-(closure fix landed; awaiting Codex re-review).
+None — Sprint 14 + Sprint 14.1 closed (Codex pass). Ready for the
+next sprint to be selected.
 
 Sprint 14 alone returned `decision: fix_required, blocking_count: 1`
-on Codex review: §L1 lineage + §L2 diagnostics were computed but
-stamped only on `@Transient` `BotSession` slots after `BotTurn` was
-saved, so a save/reload trace could not observe them. Sprint 14.1
-closes that single blocker by persisting the snake_case payload into
-`bot_turns.projected_context.faq_grounding` BEFORE save. No DB
+on its initial Codex review: §L1 lineage + §L2 diagnostics were
+computed but stamped only on `@Transient` `BotSession` slots after
+`BotTurn` was saved, so a save / reload trace could not observe them.
+Sprint 14.1 closed that single blocker by persisting the snake_case
+payload into `bot_turns.projected_context.faq_grounding` BEFORE save.
+The Sprint 14.1 closure review returned `decision: pass,
+blocking_count: 0`, accepting Sprint 14 + 14.1 as a unit. No DB
 migration, no hard citation gate, no broad S1 rewrite.
 
 Latest closed sprint:
+Sprint 14 + Sprint 14.1 — FAQ / KB Evidence Lineage and Safety, with
+the persistence closure (will archive under
+`docs/sprints/sprint-014-*` and `docs/sprints/sprint-014.1-*` on the
+next ad-hoc transition).
+
+Previously closed sprint:
 Sprint 13 — Runtime Freeze, Risk Policy, and Eval Guardrails
 (archived under `docs/sprints/sprint-013-*`).
 
@@ -27,19 +35,25 @@ Latest Codex decisions:
   and covered by deterministic guardrails, diff stays within docs +
   tests. O1 deferred (docs-only) with narrow prompt proposal +
   golden-test acceptance criteria pre-specified.
-- Sprint 14: decision: fix_required, blocking_count: 1 — §L1 / §L2
-  diagnostics were computed but stamped only on `@Transient`
-  `BotSession` slots after `BotTurn` was saved, so a save/reload
-  trace could not see them. Closed by Sprint 14.1 (this current
-  phase): snake_case payload now persisted in
-  `bot_turns.projected_context.faq_grounding` BEFORE save. Awaiting
-  Codex re-review.
+- Sprint 14 (initial review): decision: fix_required, blocking_count:
+  1 — §L1 / §L2 diagnostics were computed but stamped only on
+  `@Transient` `BotSession` slots after `BotTurn` was saved, so a
+  save / reload trace could not see them. Closed by Sprint 14.1.
+- Sprint 14.1 (closure review): decision: pass, blocking_count: 0 —
+  snake_case payload now persisted in
+  `bot_turns.projected_context.faq_grounding` BEFORE save; Sprint 14
+  + 14.1 accepted as a unit; citation extraction remains passive and
+  non-blocking; diff stays narrow (no hard citation gate, no DB
+  migration, no broad framework, no corpus / CaseSpec / judge /
+  prompt / routing change, no escalation-enum change).
 
 Current recommendation:
-After Sprint 14.1 closure passes Codex re-review, the next
-recommended phase remains **Eval Governance docs sprint** (or
-equivalent governance-only work). No new runtime sprint unless a
-new P0 / P1 runtime blocker is found. The Sprint 14 FAQ grounding
+The Sprint 14.1 Codex review surfaced **Script / Policy Config
+Governance Sprint** as the recommended next phase. The previously
+listed **Eval Governance docs sprint** (or equivalent governance-only
+work) remains a viable alternative. Either is reasonable; choose by
+prioritisation. No new runtime sprint unless a new P0 / P1 runtime
+blocker is found. The Sprint 14 FAQ grounding
 contract (`docs/faq_grounding_contract.md`) is the canonical source
 for the §L1 evidence lineage and §L2 grounding diagnostics; the
 Sprint 14 §L0 audit + repair (`qa-reports/faq-kb-lineage-and-url-audit.md`)
@@ -129,7 +143,8 @@ on the deferred / avoid list.
   - O2 eval guardrails landed at
     `Sprint13RiskPolicyGuardrailsTest` (12 deterministic tests).
 
-- Sprint 14 + 14.1 in flight (awaiting Codex re-review of 14.1):
+- Sprint 14 + 14.1 closed (Codex pass on the Sprint 14.1 closure
+  review; Sprint 14 + 14.1 accepted as a unit):
   - L0 KB canonical URL / Help URL / published safety audit + fix
     landed. Source chain traced (CSV → build script → JSON → DB →
     service → tools); `Help_Site_URL__c` confirmed preserved end-
@@ -200,21 +215,23 @@ on the deferred / avoid list.
 
 ## 3. Active / next actions
 
-Sprint 14 deliverables (in flight; awaiting Codex review):
+Sprint 14 + Sprint 14.1 deliverables (closed — Codex pass on the
+Sprint 14.1 closure review):
 
 | id | deliverable | status |
 |----|-------------|--------|
 | L0 | KB canonical URL / Help URL / published safety audit + fix | done — published-only ANN queries, `ResolveArticleTool` refusal of unpublished, `canonical_url` / `canonical_url_missing` / `safe_to_show` flags, `qa-reports/faq-kb-lineage-and-url-audit.md`; 12 focused tests |
 | L1 | Separate retrieved / resolved / cited source evidence | done — `SourceEvidenceLineage` + `CitationExtractor`; persisted under `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure); 4 `BotSession` transient slots mirrored; legacy `bot_turns.source_ids` preserved; 7 focused tests |
 | L2 | FAQ grounding contract + soft diagnostics | done — `docs/faq_grounding_contract.md` (canonical); `FaqOutputClass`, `FaqOutputClassifier`, `FaqGroundingDiagnostics`; persisted under `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure); 7 `BotSession` transient slots mirrored; 14 focused tests |
-| 14.1 | FAQ grounding observability persistence closure | done — Codex Sprint 14 blocker fix: lineage + diagnostics computed BEFORE `BotTurn.save(...)`, snake_case payload merged into `bot_turns.projected_context.faq_grounding`; no DB migration; no hard citation gate; 5 focused trace-persistence tests |
+| 14.1 | FAQ grounding observability persistence closure | done — Codex Sprint 14 blocker fix: lineage + diagnostics computed BEFORE `BotTurn.save(...)`, snake_case payload merged into `bot_turns.projected_context.faq_grounding`; no DB migration; no hard citation gate; 5 focused trace-persistence tests; Sprint 14.1 closure review returned `decision: pass, blocking_count: 0` |
 
-After Sprint 14 closes (assuming Codex pass + 0 blocking), the
-recommended next phase is **Eval Governance docs sprint** (or
-equivalent governance-only work). No new runtime sprint unless a
-new P0 / P1 runtime blocker is found. Narrow Sprint 16 §S1 hardening
-candidates surfaced by the Sprint 14 §L0 audit are recorded in
-`docs/faq_grounding_contract.md` §6 (R-faq-grounded-resolve-bypass,
+With Sprint 14 + 14.1 closed, the recommended next phase is **Script /
+Policy Config Governance Sprint** (surfaced by the Sprint 14.1 Codex
+review) or the previously listed **Eval Governance docs sprint** —
+either is reasonable; choose by prioritisation. No new runtime sprint
+unless a new P0 / P1 runtime blocker is found. Narrow Sprint 16 §S1
+hardening candidates surfaced by the Sprint 14 §L0 audit are recorded
+in `docs/faq_grounding_contract.md` §6 (R-faq-grounded-resolve-bypass,
 R-cited-but-unresolved, R-resolved-but-uncited-rate,
 R-canonical-url-missing-rate) — all deferred until real-traffic
 evidence motivates them.
@@ -273,8 +290,8 @@ evidence motivates them.
 | Sprint 11 | M0 minimal same-UC task/entity state; M1 ResolveDisposition + transition guard (Sprint 11.1 terminal-evidence closure); M2 progressive UC-A/UC-C regression suite | closed | `docs/sprints/sprint-011-*` |
 | Sprint 12 | N0 drift/task/phase observability hardening; N1 targeted runtime alignment validation suite; N2 residual classification + next-phase decision | closed | `docs/sprints/sprint-012-*` |
 | Sprint 13 | O0 runtime freeze decision + risk taxonomy doc; O1 risk-aware prompt/policy tuning (docs-only deferral); O2 eval guardrails for constrained continue vs immediate escalation | closed | `docs/sprints/sprint-013-*` |
-| Sprint 14 | L0 KB canonical URL / Help URL / published safety audit + fix; L1 separate retrieved/resolved/cited source evidence; L2 FAQ grounding contract + soft diagnostics | Codex review: fix_required (1 blocker — see Sprint 14.1) | will archive under `docs/sprints/sprint-014-*` on closure |
-| Sprint 14.1 | FAQ grounding observability persistence closure (`bot_turns.projected_context.faq_grounding`); fix the Sprint 14 Codex blocker | in flight (awaiting Codex re-review) | will archive under `docs/sprints/sprint-014.1-*` on closure |
+| Sprint 14 | L0 KB canonical URL / Help URL / published safety audit + fix; L1 separate retrieved/resolved/cited source evidence; L2 FAQ grounding contract + soft diagnostics | closed (initial review fix_required → resolved by Sprint 14.1; accepted as a unit on the Sprint 14.1 closure pass) | will archive under `docs/sprints/sprint-014-*` |
+| Sprint 14.1 | FAQ grounding observability persistence closure (`bot_turns.projected_context.faq_grounding`); fix the Sprint 14 Codex blocker | closed (Codex pass) | will archive under `docs/sprints/sprint-014.1-*` |
 
 ## 7. Carry-over rule
 

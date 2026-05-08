@@ -6,19 +6,27 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
-Sprint 14.1 — FAQ Grounding Observability Persistence Closure
-(closure fix landed; awaiting Codex re-review).
+None — Sprint 14 + Sprint 14.1 closed (Codex pass).
+Ready for the next sprint to be selected.
 
-Sprint 14 (FAQ / KB Evidence Lineage and Safety) was reviewed by Codex
-with `decision: fix_required, blocking_count: 1` — the §L1 / §L2
+Sprint 14 (FAQ / KB Evidence Lineage and Safety) initially returned
+Codex `decision: fix_required, blocking_count: 1` — the §L1 / §L2
 diagnostics were computed but stamped only on `@Transient` `BotSession`
 fields, so a save / reload trace could not see them. Sprint 14.1
-closes that single blocker by persisting the snake_case lineage +
+closed that single blocker by persisting the snake_case lineage +
 diagnostics into the existing `bot_turns.projected_context` JSONB
-column under a new `faq_grounding` object. No DB migration, no hard
-citation gate, no broad S1 rewrite.
+column under a new `faq_grounding` object. The Sprint 14.1 closure
+review returned `decision: pass, blocking_count: 0`, accepting Sprint
+14 + 14.1 as a unit. No DB migration, no hard citation gate, no broad
+S1 rewrite landed.
 
 Latest closed sprint:
+Sprint 14 + Sprint 14.1 — FAQ / KB Evidence Lineage and Safety, with
+the persistence closure (will archive under
+`docs/sprints/sprint-014-*` and `docs/sprints/sprint-014.1-*` on
+the next ad-hoc transition).
+
+Previously closed sprint:
 Sprint 13 — Runtime Freeze, Risk Policy, and Eval Guardrails
 (archived under `docs/sprints/sprint-013-*`).
 
@@ -243,8 +251,10 @@ trace evidence.
   Sprint6*,Sprint7*Test,Sprint8*Test,Sprint9*Test'`
   → **269 / 0 / 0 / 0** (named Sprint 14 regression guards).
 - `mvn -pl server test`
-  → **854 / 0 / 0 / 0** (was 821 pre-Sprint-14; +33 new Sprint 14
-  §L0/§L1/§L2 tests).
+  → **854 / 0 / 0 / 0** at the Sprint 14 milestone (was 821
+  pre-Sprint-14; +33 new Sprint 14 §L0/§L1/§L2 tests). Post Sprint
+  14.1 closure the suite is **859 / 0 / 0 / 0** (+5 trace-persistence
+  tests; see §15).
 - `pytest eval_interactive/tests/`
   → **294 / 0** (full Python eval test suite).
 - Smoke runs were NOT executed for Sprint 14. Sprint 14 introduces no
@@ -404,10 +414,16 @@ explicitly does NOT promote a new canonical eval baseline.
 Recommended next phase:
 
 **Eval Governance docs sprint** (or equivalent governance-only work)
-remains the primary recommendation. Sprint 14 closed the FAQ / KB
-evidence lineage and safety workstream that Sprint 13 §8 / §9 had open;
-the largest residual category is still `judge_volatility` /
-`faq_corpus_gap` / `product_policy_gap`, all governance-owned.
+remains the primary recommendation. Sprint 14 + 14.1 closed the FAQ /
+KB evidence lineage and safety workstream (including the persistence
+gap Codex flagged) that Sprint 13 §8 / §9 had open; the largest
+residual category is still `judge_volatility` / `faq_corpus_gap` /
+`product_policy_gap`, all governance-owned.
+
+(The Sprint 14.1 Codex review surfaced **Script / Policy Config
+Governance Sprint** as an alternative recommended next phase. Either
+phase is reasonable; choose by prioritisation, not by Sprint 14 / 14.1
+state.)
 
 Alternative phases ranked:
 
@@ -431,12 +447,13 @@ canonical eval baseline.
 
 ## 12. Was Sprint 14 objective met?
 
-Sprint 14 alone was **not** met before Codex review: the Codex pass
-correctly identified that the §L1 / §L2 diagnostics were stamped only
-onto `@Transient` `BotSession` fields after `BotTurn.save(...)`, so a
-normal save/reload trace could not observe them. Sprint 14.1 (§15
-below) closes that single blocking gap. With Sprint 14.1 applied,
-the combined Sprint 14 + 14.1 objective is met:
+Sprint 14 alone was **not** met under its initial Codex review: the
+review correctly identified that the §L1 / §L2 diagnostics were stamped
+only onto `@Transient` `BotSession` fields after `BotTurn.save(...)`,
+so a normal save / reload trace could not observe them. Sprint 14.1
+(§15 below) closed that single blocking gap. The Sprint 14.1 closure
+review returned `decision: pass, blocking_count: 0`. Sprint 14 + 14.1
+together are accepted:
 
 - L0 KB canonical URL / Help URL / published safety audit + fix landed.
   Source chain traced (CSV → build script → JSON → DB → service →
@@ -466,8 +483,9 @@ the combined Sprint 14 + 14.1 objective is met:
   same computed values for in-process readers / tests. No DB schema
   migration; no broad runtime / prompt / routing scope; no hard
   citation gate; existing §G2 guard preserved verbatim.
-- Full server suite 854 / 0; named Sprint 14 regression suite 269 / 0;
-  full Python eval 294 / 0; `L1:escalation_reason_consistency = 0`;
+- Full server suite 859 / 0 (post Sprint 14.1; was 854 pre-closure);
+  named Sprint 14 regression suite 269 / 0; full Python eval 294 / 0;
+  `L1:escalation_reason_consistency = 0`;
   `CONTRACT_VIOLATION:active_use_case = 0`; cs014 / cs066 / cs095 /
   cs002 / cs029 / cs176 regressions all green.
 
@@ -527,8 +545,13 @@ Sprint 14 will archive to `docs/sprints/sprint-014-*` on closure.
 
 ## 15. Sprint 14.1 closure (FAQ grounding observability persistence)
 
-Codex Sprint 14 review returned `decision: fix_required,
-blocking_count: 1`. The single blocker:
+Status: **closed (Codex pass)**. The Sprint 14.1 closure review
+returned `decision: pass, blocking_count: 0`, accepting Sprint 14 +
+14.1 as a unit.
+
+The initial Sprint 14 Codex review had returned `decision:
+fix_required, blocking_count: 1` against the Sprint 14 diff. The
+single blocker was:
 
 > Sprint 14 L1/L2 lineage + grounding diagnostics are computed but not
 > durably observable. They are stamped onto `@Transient` `BotSession`

@@ -13,14 +13,18 @@ and `docs/runtime_freeze_and_risk_policy.md` §1 (frozen runtime).
 ## 1. Term distinctions
 
 The Sprint 14 §L1 contract splits the historically-overloaded `sourceIds`
-concept into three independently-observable dimensions:
+concept into three independently-observable dimensions. Each field is
+durably persisted on the trace surface
+`bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure; see
+§5 for the full wiring) and mirrored onto the corresponding
+`BotSession` `@Transient` slot for in-process readers:
 
-| Field | Stage | Origin | Sprint 14 §L1 slot |
-|-------|-------|--------|---------------------|
-| `retrieved_source_ids` | search-knowledge hit list | `SearchKnowledgeTool` → `KnowledgeHit.sourceId` (post §L0 published-safety filter) | `BotSession.retrievedSourceIds` (transient) |
-| `resolved_source_ids` | resolve-article success | `ResolveArticleTool` (only successful results that survived the §L0 unpublished-refusal guard) | `BotSession.resolvedSourceIds` (transient) |
-| `cited_source_ids` | passive extraction from bot reply | `CitationExtractor` over the customer-visible message; URL or title matches map back to known candidates | `BotSession.citedSourceIds` (transient) |
-| `cited_canonical_urls` | passive extraction from bot reply | URLs in the reply that did NOT correspond to any candidate `canonical_url` (typically a third-party domain such as `gov.uk`) | `BotSession.citedCanonicalUrls` (transient) |
+| Field | Stage | Origin | Durable trace surface | In-memory mirror |
+|-------|-------|--------|------------------------|------------------|
+| `retrieved_source_ids` | search-knowledge hit list | `SearchKnowledgeTool` → `KnowledgeHit.sourceId` (post §L0 published-safety filter) | `bot_turns.projected_context.faq_grounding.retrieved_source_ids` | `BotSession.retrievedSourceIds` (transient) |
+| `resolved_source_ids` | resolve-article success | `ResolveArticleTool` (only successful results that survived the §L0 unpublished-refusal guard) | `bot_turns.projected_context.faq_grounding.resolved_source_ids` | `BotSession.resolvedSourceIds` (transient) |
+| `cited_source_ids` | passive extraction from bot reply | `CitationExtractor` over the customer-visible message; URL or title matches map back to known candidates | `bot_turns.projected_context.faq_grounding.cited_source_ids` | `BotSession.citedSourceIds` (transient) |
+| `cited_canonical_urls` | passive extraction from bot reply | URLs in the reply that did NOT correspond to any candidate `canonical_url` (typically a third-party domain such as `gov.uk`) | `bot_turns.projected_context.faq_grounding.cited_canonical_urls` | `BotSession.citedCanonicalUrls` (transient) |
 
 The three sets are independent. A turn can:
 
