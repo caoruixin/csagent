@@ -794,7 +794,113 @@ Sprint 13 closes when:
 
 ---
 
-## 10. References
+## 10. Known unspecced surfaces
+
+This section records runtime surfaces where the contract is
+**known to be incomplete** and the implementation has a documented
+risk that a future sprint must close. Sprint 13 owns the freeze;
+Sprint 16 (docs + characterization) added the first entry.
+
+### 10.1 Handover side-effect: dual-path local persistence (Sprint 16)
+
+**Status as of 2026-05-09.** Documented; characterization tests
+landed in Sprint 16 (`Sprint16HandoverDualPathRepro*Test`); runtime
+fix deferred to a future "Single Handover Orchestrator" runtime
+sprint. Cross-reference: `docs/handover_orchestrator_design.md`,
+`docs/release_gate.md` §1, `docs/action_bank.md`.
+
+**Current observable issue (P2 in local / mock).** On the
+LLM-driven `request_handover` path, two independent local handover
+side-effects fire for a single `session_id` on the same ESCALATE
+turn:
+
+1. `RequestHandoverTool.execute` calls
+   `SalesforceService.requestHandover(...)` →
+   `MockSalesforceService` writes a `mock_handover_log` row
+   (Phase 3 §3.6.2 v1.0 payload, built inline in the tool).
+2. `SessionManager.processMessage` observes `phase=ESCALATE` after
+   the loop returns and calls `recordHandover(session)`, which
+   writes a second `mock_handover_log` row directly via
+   `handoverLogRepository.save(...)` using a v1.1 payload built by
+   `HandoverPayloadAssembler`.
+
+The two writers are unaware of each other and produce different
+payload shapes. Both rows reference the same `session_id`.
+
+The hard-OOS path (`SessionManager.createSession` → synthetic
+`request_handover` evidence + single `recordHandover` call) and the
+kernel force-escalate / Step 2.5 path (synthetic
+`request_handover` evidence + single `recordHandover` call) are
+NOT dual today — they each produce one handover row.
+
+**What is NOT confirmed.** A real **double Salesforce transfer** is
+**not** currently proven. The production Salesforce client is not
+wired; only `MockSalesforceService` implements `SalesforceService`,
+and `SessionManager.recordHandover` does not flow through
+`SalesforceService` at all (it writes directly to
+`mock_handover_log`). The repro is duplicated **local persistence**
+only.
+
+**Severity escalation path.**
+
+| Phase | Severity | Why |
+|------|----------|-----|
+| Today (local / mock) | **P2** | Duplicated `mock_handover_log` rows; observable via tests; no live customer impact |
+| Before real Salesforce cutover (launch readiness) | **P1** | The dual-path shape, if extended unchanged to a real Salesforce client, is one wire-up away from producing a real double transfer |
+| Production with real double transfer | **P0 / P1** | A customer's case re-routed twice into Salesforce can be re-assigned, mis-prioritised, or duplicated in the agent queue; user-visible and operationally disruptive |
+
+**Future invariant** (frozen by `docs/handover_orchestrator_design.md`).
+For each `session_id`, **at most one** transmitted /
+`offline_logged` handover decision may exist across the full
+session lifetime. The future `HandoverOrchestrator` is the single
+owner of the four handover side-effects (Salesforce transfer,
+handover payload persistence, handover decision persistence,
+`ESCALATION_REQUESTED` event emission) and is idempotent by
+`session_id`.
+
+**Three contracts kept separate** (do not re-conflate in any
+future review):
+
+1. **Trace evidence** — `request_handover` tool call entry on
+   `bot_turns.tool_calls`. Synthetic evidence from the kernel is
+   allowed and required for force-escalate / hard-OOS / Step 2.5;
+   it must NOT itself produce an external handover side-effect.
+2. **Outcome persistence** — `record_outcome` →
+   `session_outcomes` row. Analytics, not a handover side-effect.
+3. **Handover side-effect** — exactly-once external + durable
+   handover, owned by the future `HandoverOrchestrator`.
+
+**Trigger to start the runtime sprint.** Either of:
+
+- a real Salesforce client is staged for cutover (the launch-time
+  wire-up forces the orchestrator to land first), or
+- a real-traffic case shows duplicated handover routing in
+  Salesforce (would be the first P0/P1 confirmation).
+
+Until then, Sprint 16's characterization tests are the standing
+guard.
+
+**Sprint 16 deliverables (this row).** Docs + characterization
+only:
+
+- `docs/handover_orchestrator_design.md` — exactly-once contract
+  and future orchestrator shape.
+- This §11.1 known-unspecced-surface entry.
+- `docs/release_gate.md` §1 — release-gate blocker before real
+  Salesforce cutover.
+- `docs/action_bank.md` — "Single Handover Orchestrator" action.
+- `Sprint16HandoverDualPathRepro*Test` (new) — repros the dual
+  local persistence shape; distinguishes local persistence
+  duplication from unproven real Salesforce double transfer.
+
+Sprint 16 does **not** modify `RequestHandoverTool`,
+`SessionManager.recordHandover`, `SalesforceService` /
+`MockSalesforceService`, the handover payload schema, or the
+prompts / routing / eval CaseSpecs.
+
+---
+
+## 11. References
 
 - `docs/sprint_objective.md` — Sprint 13 objective.
 - `docs/10-handoff.md` — current handoff (overwrite on closure).
@@ -823,3 +929,17 @@ Sprint 13 closes when:
   — Sprint 11.1 terminal-evidence guard (frozen).
 - `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint13RiskPolicyGuardrailsTest.java`
   — Sprint 13 §O2 deterministic guardrails.
+- `docs/handover_orchestrator_design.md` — Sprint 16
+  handover-exactly-once contract design (§10.1 cross-reference).
+- `docs/release_gate.md` — Sprint 16 release-gate blocker before
+  real Salesforce cutover (§10.1 cross-reference).
+- `server/src/main/java/com/gumtree/csagent/service/tools/RequestHandoverTool.java`
+  — current LLM-driven handover-side writer (Sprint 16 §10.1).
+- `server/src/main/java/com/gumtree/csagent/service/runtime/SessionManager.java`
+  — `recordHandover` / `reconcileEscalationReasonOnAlreadyEscalatedSession`
+  (Sprint 16 §10.1 second writer).
+- `server/src/main/java/com/gumtree/csagent/service/runtime/HandoverPayloadAssembler.java`
+  — current handover payload builder (Sprint 16 §10.1; future
+  orchestrator's payload builder candidate).
+- `server/src/main/java/com/gumtree/csagent/service/mock/MockSalesforceService.java`
+  — current local-profile sink (Sprint 16 §10.1).

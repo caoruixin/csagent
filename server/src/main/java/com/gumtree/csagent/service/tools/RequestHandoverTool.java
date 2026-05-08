@@ -21,6 +21,21 @@ import java.util.Map;
  * so cases like {@code request_handover(tool_scope_blocked)} can complete.
  * The 23-value canonical {@code escalation_reason} enum and the
  * {@code EscalationReasonResolver} precedence remain unchanged.
+ *
+ * <p>Sprint 16 §H0 — known-unspecced-surface marker (no behaviour
+ * change in Sprint 16). On the LLM-driven path this tool's
+ * {@link SalesforceService#requestHandover(String, java.util.Map)}
+ * call is one of two independently-wired local handover writers (the
+ * other is {@code SessionManager.recordHandover}). The future
+ * invariant frozen by {@code docs/handover_orchestrator_design.md}
+ * §3.3 / §6 is: for each {@code session_id}, at most one transmitted
+ * / {@code offline_logged} handover decision may exist; the future
+ * {@code HandoverOrchestrator} is the single owner and must be
+ * idempotent by {@code session_id}. This tool MUST eventually
+ * delegate to the orchestrator instead of calling
+ * {@link SalesforceService} directly. See
+ * {@code Sprint16HandoverDualPathReproTest} for the characterization
+ * repro and {@code docs/release_gate.md} §1.1 for the cutover blocker.
  */
 @Slf4j
 @Component
