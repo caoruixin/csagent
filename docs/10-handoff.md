@@ -3,10 +3,218 @@
 Date: 2026-05-08
 Branch: `design-v1-without-human-review`
 
+## 0. Sprint 11.1 closure fix (terminal evidence)
+
+Sprint 11.1 is a single-blocker closure fix on top of the Sprint 11
+Progressive Resolve MVP. Codex review on Sprint 11 returned
+`decision: fix_required` / `blocking_count: 1` because
+`ResolveDispositionEvaluator.evaluate` still defaulted any non-slot
+`FINAL_ANSWER` to `READY_TO_CONFIRM`, letting a UC-A same-UC
+follow-up answer (e.g. listing expiry / status) collapse RESOLVE →
+CONFIRM without deterministic terminal evidence. M0 and M2 were
+accepted unchanged.
+
+### 0.1 Blocker fixed
+
+- **What broke (pre-fix).** `ResolveDispositionEvaluator.evaluate`
+  matched `FINAL_ANSWER` against `?`-suffix questions, the
+  `CLARIFYING_QUESTION_PATTERN`, and the `SOFT_NEXT_STEP_PATTERN`.
+  Anything else fell through to `READY_TO_CONFIRM`. The helper
+  `recordOutcomeSucceededThisRun` existed at the bottom of the file
+  but was never called, so a non-question UC-A factual answer such as
+  "Your advert is active for 30 days from posting." mapped directly
+  to `RESOLVE → CONFIRM`. Sprint 11 §M1's "no unconditional
+  FINAL_ANSWER → CONFIRM" / "no unconditional record_outcome(resolve)
+  immediately after a single factual answer" guard was therefore
+  bypassed for non-soft FAQ answers.
+- **Fix.** The FINAL_ANSWER branch now requires deterministic
+  terminal evidence (`recordOutcomeSucceededThisRun(result)`) before
+  returning `READY_TO_CONFIRM`. Otherwise — for any non-slot,
+  non-clarifying-question grounded answer — the disposition is
+  `ANSWERED_SUBTASK`, and `PhaseEvaluator.mapFinalAnswer` keeps the
+  session in `RESOLVE` with `transitionReason="progressive_resolve_stay"`
+  and `task_status="answered_subtask"`. Existing branches are
+  preserved verbatim:
+  - `ASKED_FOR_SLOT` (`?`-suffix questions, clarifying-question shapes,
+    soft next-step shapes) — stay RESOLVE.
+  - `ESCALATE` (terminal outcome) — escalate.
+  - `READY_TO_CONFIRM` (deterministic terminal evidence — successful
+    `record_outcome` dispatch on this run) — RESOLVE → CONFIRM with
+    `transitionReason="answer_provided"`.
+  - Sprint 9 §O1 `recordOutcomeAttemptedAndFailed` retry guard
+    upstream of the disposition lookup — failed `record_outcome`
+    keeps RESOLVE with `transitionReason="record_outcome_failed_retry"`.
+  - `record_outcome(outcome_class=resolve)` guard in
+    `AgentRunLoopImpl` — unchanged.
+  - Sprint 10 / 11 §L1 reroute + same-UC ad_id capture +
+    `CONFIRM → RESOLVE` rebound on same-UC follow-up — unchanged.
+  - Explicit human-help → `user_requested` precedence via
+    `EscalationReasonResolver` + kernel step 2.5 — unchanged.
+
+### 0.2 Files changed
+
+Production:
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ResolveDispositionEvaluator.java`
+  — FINAL_ANSWER branch now consults
+  `recordOutcomeSucceededThisRun(result)` before returning
+  `READY_TO_CONFIRM`; non-slot non-question answers map to
+  `ANSWERED_SUBTASK`. Class-level + branch-level Javadoc updated to
+  reflect the new contract.
+
+Tests:
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint11ProgressiveResolveTest.java`
+  — three new focused regressions: `test3e` (UC-A listing
+  expiry/status answer without terminal evidence →
+  `ANSWERED_SUBTASK`), `test3f` (same answer through real
+  `PhaseEvaluator.interpretRunResult` → `nextPhase=RESOLVE`,
+  `transitionReason=progressive_resolve_stay`,
+  `task_status=answered_subtask`), `test3g` (strengthens `test3c`:
+  the closing-style text "All set. Glad I could help." without a
+  successful `record_outcome` event must NOT return
+  `READY_TO_CONFIRM` — defaults to `ANSWERED_SUBTASK`). `test3c` /
+  `test3d` retained: `test3c` continues to pin the
+  WITH-terminal-evidence positive case
+  (successful `record_outcome` ToolEvent → `READY_TO_CONFIRM`).
+- `server/src/test/java/com/gumtree/csagent/service/runtime/PhaseEvaluatorPlanTest.java`
+  — renamed `interpretRunResult_faqFinalAnswer_unchangedTransitionsToConfirm`
+  to `interpretRunResult_faqFinalAnswer_withoutTerminalEvidence_staysInResolve`
+  and updated its expectation to match the new contract
+  (`nextPhase="RESOLVE"`,
+  `transitionReason="progressive_resolve_stay"`).
+- `server/src/test/java/com/gumtree/csagent/integration/AgentRunLoopAd1002IntegrationTest.java`
+  — updated phase assertion: a single grounded UC-A answer with no
+  successful `record_outcome` dispatch now stays in `RESOLVE`. Removed
+  obsolete `isValidTransition("RESOLVE","CONFIRM")` stub flagged by
+  Mockito strictness; kernel short-circuits same-phase transitions.
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint9TraceObservabilityFidelityIntegrationTest.java`
+  — switched `controlPolicy.isValidTransition(anyString(), anyString())`
+  stub to `lenient()` because the successful FAQ flow no longer
+  transitions out of `RESOLVE` for a same-turn grounded answer.
+
+Docs (this commit only):
+- `docs/10-handoff.md` — Sprint 11.1 closure section (this section).
+
+### 0.3 Tests run
+
+- `mvn -pl server test -Dtest='Sprint11ProgressiveResolveTest,PhaseEvaluatorPlanTest,Sprint9TerminalToolHonestyTest'`
+  — **49 / 0 / 0 / 0** (focused).
+- `mvn -pl server test`
+  — **796 / 0 / 0 / 0** (was 793 pre-Sprint-11.1; +3 new Sprint-11.1
+  regressions).
+- Targeted Sprint-7/7.1/8/8.1/9/10/11 + cs014/cs066/cs095/cs002/
+  cs029/cs176/cs001 + Escalation reason regression sweep
+  (`Sprint7*Test,Sprint71*Test,Sprint8*Test,Sprint81*Test,
+  Sprint9*Test,Sprint10*Test,Sprint11*Test,Cs014*,Cs066*,Cs095*,
+  Cs002*,Cs029*,Cs176*,Cs001*,EscalationReason*Test`)
+  — **213 / 0 / 0 / 0**.
+- `python -m pytest -p no:capture eval_interactive/tests/`
+  — **294 / 0**.
+- Smoke runs were NOT executed for Sprint 11.1: the change is a
+  pure runtime-disposition tightening that does not touch FAQ corpus,
+  judges, CaseSpec, prompts, or LLM credentials. Live smoke is
+  recommended only when Codex explicitly requests it.
+
+### 0.4 Before / after — M1 behaviour
+
+```
+Pre-fix (Sprint 11):
+PhaseEvaluator.mapFinalAnswer(RESOLVE/FAQ, FINAL_ANSWER:"Your advert is
+active for 30 days from posting.") -> ResolveDispositionEvaluator
+.evaluate -> READY_TO_CONFIRM (default fall-through)
+-> nextPhase=CONFIRM, transitionReason=answer_provided
+-> session.taskStatus="ready_to_confirm"
+-> next user turn may emit record_outcome(resolve) without explicit
+   user confirmation. Sprint 11 §M1 contract violated.
+
+Post-fix (Sprint 11.1):
+PhaseEvaluator.mapFinalAnswer(RESOLVE/FAQ, FINAL_ANSWER:"Your advert is
+active for 30 days from posting.") -> ResolveDispositionEvaluator
+.evaluate -> ANSWERED_SUBTASK (no successful record_outcome on this
+run -> deterministic terminal evidence absent)
+-> nextPhase=RESOLVE, transitionReason=progressive_resolve_stay
+-> session.taskStatus="answered_subtask"
+-> next user turn re-enters RESOLVE; the LLM still needs explicit
+   user confirmation (or successful record_outcome) before
+   READY_TO_CONFIRM fires. Sprint 11 §M1 contract honoured.
+```
+
+### 0.5 Regression guard outcomes
+
+All Sprint 11 active guards stay green:
+
+- `L1:escalation_reason_consistency = 0`.
+- `CONTRACT_VIOLATION:active_use_case = 0`.
+- cs014 remains UC-C
+  (`Cs014RouteAndLoopHandoverIntegrationTest`,
+  `Cs014RouteAndDistressRegressionTest`).
+- cs066 remains UC-K.
+- cs095 remains UC-A / not UC-K / not UC-FP.
+- cs002 remains UC-C + `user_distress`.
+- cs029 remains UC-D + `user_requested`.
+- cs176 explicit-human-help → `user_requested`
+  (`Cs176ExplicitHumanHelpHandoverIntegrationTest`).
+- Sprint 6 §G2 FAQ-grounded-resolve guard
+  (`AgentRunLoopS1FaqGroundedResolveGuardTest`).
+- Sprint 7 / 7.1 intake-state persistence
+  (`Sprint7CandidateUseCasesProjectionTest`, `Sprint7IntakeStateTest`,
+  `Sprint71PartialIntakePersistenceTest`).
+- Sprint 8 cs259 active-use-case contract hardening
+  (`Sprint8Cs259ActiveUseCaseHardeningTest`,
+  `Sprint8Cs259EscalateBranchIntegrationTest`).
+- Sprint 9 / 9.1 trace observability + record-outcome honesty
+  (`Sprint9TerminalToolHonestyTest`,
+  `Sprint9TraceObservabilityFidelityIntegrationTest`,
+  `ToolCallTraceSanitizerTest`).
+- Sprint 10 reroute MVP
+  (`Sprint10RuntimeIntentClassifierTest` 13/0,
+  `Sprint10RerouteDecisionTest` 9/0).
+- Sprint 11 progressive resolve MVP
+  (`Sprint11ProgressiveResolveTest` 14/0; was 11 pre-Sprint-11.1).
+- `RuntimeIntentClassifier` remains runtime-internal.
+
+### 0.6 Remaining P0 / P1 blockers
+
+- **None opened by Sprint 11.1.** The change is a runtime-disposition
+  tightening and does not introduce new tool surfaces, schema changes,
+  or external contract changes.
+- Codex Sprint 11 P2 regression risk (FAQ RESOLVE prompt/tool loop
+  around repeated rejected `record_outcome(resolve)` calls):
+  documented as a P2 regression risk (no test added). Rationale: the
+  `AgentRunLoopImpl` step `6a''` guard issues a rejection ToolEvent
+  + `accumulated_tool_results.record_outcome.error` hint and the
+  loop already exits on `MAX_STEPS` (mapping to ESCALATE /
+  `clarification_budget_exhausted`), which is the conservative
+  failure mode. Adding a focused test would require a real
+  `AgentRunLoopImpl` integration with deterministic LLM stubs that
+  re-emit `record_outcome(resolve)` on every iteration; the guard
+  itself is already covered by `Sprint11ProgressiveResolveTest.test3a`
+  (rejection on RESOLVE/FAQ) and `test3b` (pass-through on CONFIRM).
+  Reopen only if a real-traffic case shows a budget-exhaustion loop.
+- Codex Sprint 11 P2 task-type token naming
+  (`listing_lifecycle_followup` vs `listing_expiry_or_status_followup`)
+  — unchanged in Sprint 11.1. Rename / alias only if downstream
+  consumers require the exact spec token; the current tokens are
+  pinned in `Sprint11ProgressiveResolveTest`.
+- Eval Governance backlog under `docs/action_bank.md` §4 / §5 is
+  unchanged.
+
+### 0.7 Sprint 11 closure recommendation
+
+Sprint 11 should now close with a Codex re-review on top of this
+Sprint 11.1 closure fix. Expected decision: `pass /
+blocking_count: 0` provided the reviewer accepts the `ANSWERED_SUBTASK`
+default + deterministic-terminal-evidence contract for `READY_TO_CONFIRM`.
+On pass, Sprint 11 archives to `docs/sprints/sprint-011-*` and the
+recommended next phase remains **closure or Eval Governance docs
+sprint** per Sprint 11 objective §12.
+
+---
+
 ## 1. Current phase
 
 Current phase:
-Sprint 11 — Progressive Resolve MVP (in flight; awaiting Codex review).
+Sprint 11 — Progressive Resolve MVP (Sprint 11.1 closure fix
+applied; awaiting Codex re-review).
 
 Latest closed sprint:
 Sprint 10 — Runtime Re-route MVP

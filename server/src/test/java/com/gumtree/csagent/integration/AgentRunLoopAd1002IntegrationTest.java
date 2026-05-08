@@ -132,7 +132,13 @@ class AgentRunLoopAd1002IntegrationTest {
                 new com.gumtree.csagent.service.runtime.UseCaseRegistryService.UseCaseDefinition(
                         "UC-A", "Ad Status & Visibility",
                         List.of("Ad Support"), "LOW", true, "FAQ"));
-        when(controlPolicy.isValidTransition("RESOLVE", "CONFIRM")).thenReturn(true);
+        // Sprint 11.1 closure — FAQ FINAL_ANSWER without successful
+        // record_outcome stays in RESOLVE; the kernel short-circuits
+        // same-phase transitions so isValidTransition is no longer
+        // consulted for this flow. The stub was left intentionally
+        // permissive to avoid coupling the test to phase-control
+        // policy details — but Mockito strictness now flags it as
+        // unused, so it has been removed.
 
         // Projection builder — return any non-null JSON; loop just passes it through
         when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any()))
@@ -214,8 +220,14 @@ class AgentRunLoopAd1002IntegrationTest {
                 "tool_calls JSONB must contain the get_customer_context invocation: "
                         + savedTurn.getToolCalls());
 
-        // 5. Phase transitioned RESOLVE -> CONFIRM (FINAL_ANSWER outcome)
-        assertEquals("CONFIRM", session.getCurrentPhase());
+        // 5. Sprint 11.1 closure — FAQ FINAL_ANSWER without deterministic
+        //    terminal evidence (no successful record_outcome dispatch on
+        //    this run) is a same-UC subtask answer, so the session must
+        //    stay in RESOLVE rather than collapse to CONFIRM. The grounded
+        //    answer is delivered to the user; the LLM still needs the
+        //    user to accept the answer (or call record_outcome) before
+        //    the RESOLVE → CONFIRM transition fires.
+        assertEquals("RESOLVE", session.getCurrentPhase());
 
         // 6. Single HTTP-equivalent response: shouldEndChat is false (not escalation)
         assertFalse(result.shouldEndChat());

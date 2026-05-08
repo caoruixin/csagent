@@ -28,24 +28,28 @@ import java.util.regex.Pattern;
  *           shape ("send the advert ID", "if you can share", "share the
  *           ad id"), the bot ASKED for a slot — return
  *           {@link ResolveDisposition#ASKED_FOR_SLOT}.</li>
- *       <li>If a successful {@code record_outcome} call was emitted on
- *           this turn, the deterministic terminal condition is met —
- *           return {@link ResolveDisposition#READY_TO_CONFIRM}.</li>
- *       <li>Otherwise, the bot delivered a partial / soft answer that
- *           still expects user follow-up — return
- *           {@link ResolveDisposition#ANSWERED_SUBTASK}.</li>
+ *       <li>If deterministic terminal evidence exists — a successful
+ *           {@code record_outcome} call on this run — return
+ *           {@link ResolveDisposition#READY_TO_CONFIRM}.</li>
+ *       <li>Otherwise (a non-question / non-slot-request grounded
+ *           answer such as "Your advert is active for 30 days from
+ *           posting"), the bot answered a same-UC subtask but has not
+ *           earned a hard CONFIRM — return
+ *           {@link ResolveDisposition#ANSWERED_SUBTASK} so the session
+ *           stays in RESOLVE.</li>
  *     </ul>
  *   </li>
  *   <li>Anything else (MAX_STEPS, ERROR, USE_CASE_IDENTIFIED, etc.) →
  *       {@link ResolveDisposition#CONTINUE_RESOLVE}.</li>
  * </ol>
  *
- * <p>The "soft next step" patterns are deliberately narrow: they match
- * the Sprint 11 progressive UC-A flow shapes ("send the advert ID",
- * "share the ad id", "if you can share", "let me know your ad id").
- * Adding new shapes is safe — narrowing the heuristic only over-counts
- * READY_TO_CONFIRM, which is the conservative direction (fewer
- * premature record_outcome(resolve) calls).
+ * <p>Sprint 11.1 closure — the previous iteration defaulted any
+ * non-slot FINAL_ANSWER to {@link ResolveDisposition#READY_TO_CONFIRM},
+ * which let UC-A same-UC follow-up answers (listing expiry / status,
+ * messaging diagnostics) collapse RESOLVE → CONFIRM without a
+ * deterministic terminal marker. The current contract requires
+ * deterministic terminal evidence — successful {@code record_outcome}
+ * dispatch on this turn — before READY_TO_CONFIRM is returned.
  */
 public final class ResolveDispositionEvaluator {
 
@@ -113,14 +117,23 @@ public final class ResolveDispositionEvaluator {
                 if (asksForSlot) {
                     return ResolveDisposition.ASKED_FOR_SLOT;
                 }
-                // Default: a non-soft FAQ-grounded final answer earns a
-                // hard CONFIRM. Sprint 11 §M1 only intercepts the
-                // progressive-resolve shapes (clarifying question +
-                // soft next step). The Sprint 9 §O1 record-outcome
-                // failure-retry path is upstream of this evaluator and
-                // continues to keep failed-record_outcome turns in
-                // RESOLVE via {@link PhaseEvaluator#recordOutcomeAttemptedAndFailed}.
-                return ResolveDisposition.READY_TO_CONFIRM;
+                // Sprint 11.1 — require deterministic terminal evidence
+                // before READY_TO_CONFIRM. A non-question, non-slot
+                // FAQ-grounded final answer (e.g. "Your advert is active
+                // for 30 days from posting.") is a same-UC subtask
+                // answer, NOT a hard close: it does not by itself prove
+                // the user accepted the answer or that the session
+                // outcome was recorded. Only a successful
+                // {@code record_outcome} dispatch on this run earns the
+                // RESOLVE → CONFIRM transition. The Sprint 9 §O1
+                // record-outcome failure-retry path is upstream of this
+                // evaluator and continues to keep failed-record_outcome
+                // turns in RESOLVE via
+                // {@code PhaseEvaluator#recordOutcomeAttemptedAndFailed}.
+                if (recordOutcomeSucceededThisRun(result)) {
+                    return ResolveDisposition.READY_TO_CONFIRM;
+                }
+                return ResolveDisposition.ANSWERED_SUBTASK;
             }
             default:
                 return ResolveDisposition.CONTINUE_RESOLVE;

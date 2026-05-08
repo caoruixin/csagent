@@ -339,6 +339,83 @@ class Sprint11ProgressiveResolveTest {
                 "A soft answer maps to ASKED_FOR_SLOT or ANSWERED_SUBTASK; got " + disposition);
     }
 
+    @Test
+    void test3e_listingStatusAnswer_withoutTerminalEvidence_isAnsweredSubtask() {
+        // Sprint 11.1 closure regression — UC-A same-UC progressive
+        // resolve. The bot delivers a non-question, non-slot grounded
+        // listing expiry / status answer ("Your advert is active for
+        // 30 days from posting."). No successful record_outcome on
+        // this run, no CONFIRM round yet. The disposition must be
+        // ANSWERED_SUBTASK (stay in RESOLVE) — NOT READY_TO_CONFIRM —
+        // so a single factual answer does not collapse into
+        // CONFIRM → record_outcome on the same turn.
+        PhasePlan plan = faqResolvePlan("UC-A");
+        AgentRunResult listingStatusAnswer = AgentRunResult.finalAnswer(
+                "Your advert is active for 30 days from posting.",
+                List.of(), List.of(), null, null);
+        ResolveDisposition disposition =
+                ResolveDispositionEvaluator.evaluate(plan, listingStatusAnswer);
+        assertEquals(ResolveDisposition.ANSWERED_SUBTASK, disposition,
+                "A non-question listing expiry/status answer without successful "
+                        + "record_outcome must map to ANSWERED_SUBTASK so the session "
+                        + "stays in RESOLVE.");
+    }
+
+    @Test
+    void test3f_listingStatusAnswer_withoutTerminalEvidence_phaseStaysResolve() {
+        // PhaseEvaluator.interpretRunResult wiring regression for the
+        // Sprint 11.1 closure. Same listing expiry / status answer fed
+        // through the real PhaseEvaluator must keep the session in
+        // RESOLVE with task_status=answered_subtask.
+        PhasePlan plan = faqResolvePlan("UC-A");
+        AgentRunResult listingStatusAnswer = AgentRunResult.finalAnswer(
+                "Your advert is active for 30 days from posting.",
+                List.of(), List.of(), null, null);
+
+        PhaseEvaluator real = new PhaseEvaluator(
+                org.mockito.Mockito.mock(UseCaseRegistryService.class),
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.knowledge.KnowledgeSearchService.class),
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.guardrails.ScriptLibraryService.class),
+                org.mockito.Mockito.mock(LlmInvocationService.class),
+                org.mockito.Mockito.mock(ContextProjectionBuilder.class),
+                org.mockito.Mockito.mock(ActionParser.class),
+                objectMapper,
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.CreateCaseControlledTool.class),
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.observability.EventEmitter.class),
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class));
+        BotSession s = sessionWithAd("1234567890");
+        PhaseTransitionDecision decision =
+                real.interpretRunResult(plan, listingStatusAnswer, s);
+        assertEquals("RESOLVE", decision.nextPhase(),
+                "Listing expiry/status answer without terminal evidence must keep "
+                        + "the session in RESOLVE.");
+        assertEquals("progressive_resolve_stay", decision.transitionReason(),
+                "Transition reason must reflect progressive-resolve stay, not the "
+                        + "answer_provided hard-confirm contract.");
+        assertEquals("answered_subtask", s.getTaskStatus(),
+                "Sprint 11 §M0 task_status must surface answered_subtask.");
+    }
+
+    @Test
+    void test3g_terminalAnswerText_withoutSuccessfulRecordOutcome_doesNotEarnReadyToConfirm() {
+        // Sprint 11.1 strengthening of test3c — the same closing-style
+        // text ("All set. Glad I could help.") WITHOUT a successful
+        // record_outcome tool event MUST NOT return READY_TO_CONFIRM.
+        // Only deterministic terminal evidence earns CONFIRM.
+        PhasePlan plan = faqResolvePlan("UC-A");
+        AgentRunResult resultNoEvidence = AgentRunResult.finalAnswer(
+                "All set. Glad I could help.",
+                List.of(), List.of(), null, null);
+        ResolveDisposition disposition =
+                ResolveDispositionEvaluator.evaluate(plan, resultNoEvidence);
+        assertNotEquals(ResolveDisposition.READY_TO_CONFIRM, disposition,
+                "Without a successful record_outcome dispatch on this run, even "
+                        + "closing-style text must not earn READY_TO_CONFIRM.");
+        assertEquals(ResolveDisposition.ANSWERED_SUBTASK, disposition,
+                "Terminal-style text without terminal evidence must default to "
+                        + "ANSWERED_SUBTASK so the session stays in RESOLVE.");
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Test group 4 — Projection snapshot
     // ─────────────────────────────────────────────────────────────

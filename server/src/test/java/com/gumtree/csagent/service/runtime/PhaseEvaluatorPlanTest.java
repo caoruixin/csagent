@@ -224,8 +224,13 @@ class PhaseEvaluatorPlanTest {
     }
 
     @Test
-    void interpretRunResult_faqFinalAnswer_unchangedTransitionsToConfirm() {
-        // Sanity check: FAQ plan FINAL_ANSWER still goes to CONFIRM.
+    void interpretRunResult_faqFinalAnswer_withoutTerminalEvidence_staysInResolve() {
+        // Sprint 11.1 closure — a FAQ FINAL_ANSWER without deterministic
+        // terminal evidence (no successful record_outcome dispatch on
+        // this run, no CONFIRM round yet) is a same-UC subtask answer,
+        // not a hard close. The session must stay in RESOLVE so the LLM
+        // does not collapse a single factual answer into CONFIRM →
+        // record_outcome on the same turn.
         when(useCaseRegistry.getUseCase("UC-A")).thenReturn(
                 new UseCaseRegistryService.UseCaseDefinition(
                         "UC-A", "Ad Status & Visibility",
@@ -236,8 +241,10 @@ class PhaseEvaluatorPlanTest {
                 "Here is your answer.", List.of(), List.of());
         PhaseTransitionDecision decision = evaluator.interpretRunResult(faqPlan, result, null);
 
-        assertEquals("CONFIRM", decision.nextPhase());
-        assertEquals("answer_provided", decision.transitionReason());
+        assertEquals("RESOLVE", decision.nextPhase(),
+                "Without deterministic terminal evidence (successful record_outcome), "
+                        + "FAQ FINAL_ANSWER must stay in RESOLVE rather than collapse to CONFIRM.");
+        assertEquals("progressive_resolve_stay", decision.transitionReason());
     }
 
     @Test
