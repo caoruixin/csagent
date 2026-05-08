@@ -429,6 +429,28 @@ public class ContextProjectionBuilder {
                 projection.put("issue_status_summary", "open");
             }
 
+            // Sprint 11 §M0 — task_status surfaces the progressive
+            // resolve checkpoint (in_progress / asked_for_slot /
+            // answered_subtask / ready_to_confirm / escalate). Default
+            // is in_progress so the projection shape is stable across
+            // turns even before the first ResolveDisposition has fired.
+            String taskStatus = session.getTaskStatus();
+            if (taskStatus != null && !taskStatus.isBlank()) {
+                projection.put("task_status", taskStatus);
+            } else {
+                projection.put("task_status", "in_progress");
+            }
+
+            // Sprint 11 §M0 — optional pointer to where the
+            // primary_entity originated (form_context.ad_id vs
+            // user_message.ad_id). null when no entity is in scope.
+            String lastEntityRef = session.getLastEntityContextRef();
+            if (lastEntityRef != null && !lastEntityRef.isBlank()) {
+                projection.put("last_entity_context_ref", lastEntityRef);
+            } else {
+                projection.putNull("last_entity_context_ref");
+            }
+
             // Budget state
             ObjectNode budgetNode = objectMapper.createObjectNode();
             budgetNode.put("total_bot_turns", session.getTotalBotTurns());

@@ -712,10 +712,67 @@ public class ControlKernel {
         session.setPreviousActiveUseCase(previousUc);
         session.setDriftType(deriveDriftTypeToken(action,
                 classification.relation()));
-        session.setCurrentTaskType(classification.taskType());
-        session.setPrimaryEntityType(classification.primaryEntityType());
-        session.setPrimaryEntityValue(classification.primaryEntityValue());
+
+        // Sprint 11 §M0 — same-UC progressive resolve: capture an ad_id
+        // from the user message even when the Sprint 10 MVP shapes did
+        // not match (CONTINUE_CURRENT). The progressive UC-A flow
+        // routinely has the user reply with just an ad_id after a soft
+        // "send the advert ID" turn; without this hook, the
+        // primary_entity slot disappears on the very next user turn.
+        // Only fires when the active UC is a FAQ-class UC where
+        // progressive resolve applies (currently UC-A). Persists the
+        // ad_id back into form_context so subsequent turns also see it
+        // via the form-context fast path.
+        String capturedAdId = null;
+        if (action == com.gumtree.csagent.model.RerouteDecision.RerouteAction.CONTINUE_CURRENT
+                && runtimeIntentClassifier != null) {
+            capturedAdId = runtimeIntentClassifier.captureSameUcAdIdHint(
+                    session, userMessage);
+        }
+
+        String taskType = classification.taskType();
+        String entityType = classification.primaryEntityType();
+        String entityValue = classification.primaryEntityValue();
+        if ((entityValue == null || entityValue.isBlank())
+                && capturedAdId != null && !capturedAdId.isBlank()) {
+            entityType = "listing";
+            entityValue = capturedAdId;
+            // Synthesize a same-UC follow-up task type so the projection
+            // surfaces "user is providing the ad_id we asked for" rather
+            // than re-asking on the next turn. Cheap, deterministic, no
+            // taxonomy expansion.
+            if (taskType == null || taskType.isBlank()) {
+                taskType = "listing_visibility_diagnostic";
+            }
+        }
+
+        session.setCurrentTaskType(taskType);
+        session.setPrimaryEntityType(entityType);
+        session.setPrimaryEntityValue(entityValue);
         session.setIssueStatusSummary("open");
+
+        // Sprint 11 §M0 — last_entity_context_ref. Surface a short
+        // observability pointer so the LLM / trace can see whether the
+        // primary_entity originated from form_context (cold start) or
+        // from a runtime user-message capture (progressive resolve).
+        if (entityValue != null && !entityValue.isBlank()) {
+            String ref = "form_context.ad_id";
+            if (capturedAdId != null && capturedAdId.equals(entityValue)) {
+                ref = "user_message.ad_id";
+            }
+            session.setLastEntityContextRef(ref);
+        } else {
+            session.setLastEntityContextRef(null);
+        }
+
+        // Sprint 11 §M0 — persist a runtime-captured ad_id into
+        // form_context so the next turn's RuntimeIntentClassifier and
+        // FAQ tools see it via the existing form-context fast path. We
+        // only WRITE when the form context did not already carry the
+        // value, so customer-supplied form data always wins.
+        if (capturedAdId != null && !capturedAdId.isBlank()) {
+            persistAdIdIntoFormContext(session, capturedAdId);
+        }
 
         // Sprint 10 §L2 — lightweight trace observability. log.info captures
         // the predicted UC, relation, reroute action, previous UC, new UC,
@@ -767,9 +824,56 @@ public class ControlKernel {
     }
 
     /**
+     * Sprint 11 §M0 — write a runtime-captured ad_id into the session's
+     * form_context JSON so the next turn's {@link RuntimeIntentClassifier}
+     * and FAQ tooling see the entity via the existing form-context fast
+     * path. Tolerant: never throws on null / malformed input. Does not
+     * overwrite a non-blank ad_id that already exists in the form
+     * context.
+     */
+    private void persistAdIdIntoFormContext(BotSession session, String adId) {
+        if (session == null || adId == null || adId.isBlank()) return;
+        try {
+            com.fasterxml.jackson.databind.node.ObjectNode root;
+            String existing = session.getFormContext();
+            if (existing == null || existing.isBlank()) {
+                root = objectMapper.createObjectNode();
+            } else {
+                com.fasterxml.jackson.databind.JsonNode parsed =
+                        objectMapper.readTree(existing);
+                if (parsed == null || !parsed.isObject()) {
+                    root = objectMapper.createObjectNode();
+                } else {
+                    root = (com.fasterxml.jackson.databind.node.ObjectNode) parsed;
+                }
+            }
+            com.fasterxml.jackson.databind.JsonNode adNode = root.get("ad_id");
+            if (adNode != null && !adNode.isNull()) {
+                String current = adNode.asText(null);
+                if (current != null && !current.isBlank()) {
+                    return; // form data wins
+                }
+            }
+            root.put("ad_id", adId);
+            session.setFormContext(objectMapper.writeValueAsString(root));
+        } catch (Exception ex) {
+            log.debug("Session {}: failed to persist ad_id into form_context: {}",
+                    session.getSessionId(), ex.getMessage());
+        }
+    }
+
+    /**
      * Sprint 10 §L2 — translate the {@code (action, relation)} pair into
      * the short token surfaced in {@link BotSession#getDriftType()} and
      * the {@code drift_type} projection field.
+     *
+     * <p>Sprint 11 §M0 — when the action is {@code CONTINUE_CURRENT} but
+     * the classifier's relation is {@code SAME_ISSUE} or
+     * {@code SAME_UC_NEW_TASK}, surface the relation token so the
+     * progressive same-UC follow-up signal survives the projection (the
+     * decider returns {@code CONTINUE_CURRENT} when the session is
+     * already in RESOLVE because no phase change is needed; that does
+     * not mean the relation is uninteresting downstream).
      */
     private static String deriveDriftTypeToken(
             com.gumtree.csagent.model.RerouteDecision.RerouteAction action,
@@ -785,7 +889,11 @@ public class ControlKernel {
                             ? "SAME_UC_NEW_TASK"
                             : "SAME_ISSUE";
             case ESCALATE_IMMEDIATELY -> "ESCALATE";
-            case CONTINUE_CURRENT -> null;
+            case CONTINUE_CURRENT -> switch (relation) {
+                case SAME_ISSUE -> "SAME_ISSUE";
+                case SAME_UC_NEW_TASK -> "SAME_UC_NEW_TASK";
+                default -> null;
+            };
         };
     }
 

@@ -157,4 +157,33 @@ public class BotSession {
     @Transient
     @Builder.Default
     private String issueStatusSummary = "open";
+
+    /**
+     * Sprint 11 §M0 — minimal same-UC task state for progressive resolve
+     * (transient). Populated each turn by {@code ControlKernel.applyRerouteDecision}
+     * from the latest {@link com.gumtree.csagent.model.ResolveDisposition}.
+     *
+     * <p>Stable token reflecting where the current task sits in the
+     * progressive-resolve lifecycle. One of:
+     * <ul>
+     *   <li>{@code in_progress} — task started, no terminal signal yet</li>
+     *   <li>{@code asked_for_slot} — bot asked the user for a missing slot
+     *       such as {@code ad_id}</li>
+     *   <li>{@code answered_subtask} — bot delivered a soft / partial answer
+     *       and is awaiting confirmation or follow-up</li>
+     *   <li>{@code ready_to_confirm} — deterministic terminal condition met</li>
+     *   <li>{@code escalate} — task should escalate</li>
+     * </ul>
+     */
+    @Transient
+    private String taskStatus;
+
+    /**
+     * Sprint 11 §M0 — optional pointer to the last known entity context
+     * reference (e.g. {@code listing_context_ad_id}, {@code session.ad_id}).
+     * Surfaced in the projection so the LLM avoids re-asking known
+     * information across same-UC follow-up turns.
+     */
+    @Transient
+    private String lastEntityContextRef;
 }

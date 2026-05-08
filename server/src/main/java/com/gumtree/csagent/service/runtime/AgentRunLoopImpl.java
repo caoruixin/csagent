@@ -62,6 +62,19 @@ public class AgentRunLoopImpl implements AgentRunLoop {
     private static final String HANDOVER_TOOL = "request_handover";
     private static final String SEARCH_TOOL = "search_knowledge";
     private static final String RESOLVE_TOOL = "resolve_article";
+    private static final String RECORD_OUTCOME_TOOL = "record_outcome";
+
+    /**
+     * Sprint 11 §M1 — record-outcome guard reject reason. Surfaced in
+     * {@code accumulated_tool_results.record_outcome.error} when the LLM
+     * tries to {@code record_outcome(outcome_class=resolve)} during a
+     * RESOLVE / FAQ plan before the deterministic terminal condition is
+     * satisfied (the user has not confirmed and the close phase has not
+     * been reached). The bot stays in RESOLVE so the next user turn can
+     * confirm or refine.
+     */
+    static final String PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON =
+            "progressive_resolve_record_outcome_premature";
     /**
      * Sprint 8.1 §M3 — DISCOVER classification phase boundary. When the
      * LLM successfully calls this tool inside a DISCOVER plan and
@@ -317,6 +330,41 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                         accumulatedToolResults.put(HANDOVER_TOOL, guardWrap);
                         continue;
                     }
+                }
+
+                // 6a''. Sprint 11 §M1 — record-outcome guard. Refuse
+                // record_outcome(outcome_class=resolve) on a RESOLVE / FAQ
+                // plan when the deterministic terminal condition has not
+                // been satisfied (the session is not in CONFIRM / CLOSE
+                // and the user has not explicitly confirmed). Without
+                // this guard, a single grounded RESOLVE answer can chain
+                // into record_outcome(resolve) on the same turn,
+                // collapsing same-UC progressive resolve ("Here is how
+                // to find your ad; send the advert ID if you want me to
+                // check it") into a hard close. Other outcome classes
+                // (escalate, abandon) and CONFIRM / CLOSE plans pass
+                // through unchanged.
+                if (RECORD_OUTCOME_TOOL.equals(toolName)
+                        && shouldRejectPrematureResolveOutcome(plan, session, call)) {
+                    log.warn(
+                            "AgentRunLoop progressive-resolve guard rejected record_outcome(resolve) "
+                                    + "for FAQ-path UC '{}' at step {}: deterministic terminal condition "
+                                    + "not satisfied (phase={}, no prior CONFIRM round).",
+                            plan.useCase(), step,
+                            session == null ? "?" : session.getCurrentPhase());
+                    ToolEvent rejected = ToolEvent.rejected(step, call,
+                            PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON);
+                    toolEvents.add(new ToolEvent(
+                            sequence++, step, rejected.toolName(), rejected.arguments(),
+                            rejected.success(), rejected.resultData(), rejected.errorMessage(),
+                            rejected.latencyMs()));
+                    Map<String, Object> guardWrap = new LinkedHashMap<>();
+                    guardWrap.put("error", PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON);
+                    guardWrap.put("hint",
+                            "Stay in RESOLVE and wait for the user to confirm the answer or "
+                                    + "supply more detail before recording a resolve outcome.");
+                    accumulatedToolResults.put(RECORD_OUTCOME_TOOL, guardWrap);
+                    continue;
                 }
 
                 // 6a'. Sprint 6 §G2 — S1 FAQ-grounded-resolve guard.
@@ -631,6 +679,31 @@ public class AgentRunLoopImpl implements AgentRunLoop {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Sprint 11 §M1 — record-outcome guard predicate. True when the LLM
+     * is calling {@code record_outcome(outcome_class=resolve)} on a
+     * RESOLVE / FAQ plan but the deterministic terminal condition has
+     * not been satisfied (the session is not in CONFIRM / CLOSE and the
+     * progressive-resolve checkpoint has not yet earned a hard
+     * confirm). Other outcome classes pass through; CONFIRM / CLOSE
+     * plans pass through (the normal close-out).
+     */
+    static boolean shouldRejectPrematureResolveOutcome(PhasePlan plan,
+                                                        com.gumtree.csagent.model.BotSession session,
+                                                        ToolCall call) {
+        if (plan == null || call == null || call.getArguments() == null) {
+            return false;
+        }
+        Object outcomeObj = call.getArguments().get("outcome_class");
+        if (outcomeObj == null) {
+            outcomeObj = call.getArguments().get("outcome");
+        }
+        String outcomeClass = outcomeObj == null ? null : outcomeObj.toString();
+        String currentPhase = session == null ? null : session.getCurrentPhase();
+        return ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
+                plan, currentPhase, outcomeClass);
     }
 
     /**
