@@ -1,5 +1,6 @@
 package com.gumtree.csagent.service.knowledge;
 
+import com.gumtree.csagent.config.KnowledgeRetrievalProperties;
 import com.gumtree.csagent.model.KbArticle;
 import com.gumtree.csagent.model.KbChunk;
 import com.gumtree.csagent.model.KnowledgeHit;
@@ -25,6 +26,13 @@ import java.util.stream.Collectors;
  *     -> Return top 3 { source_id, title, snippet, canonical_url, score }
  *     -> faq_miss = retrieval_miss OR answer_miss
  *
+ * <p>Sprint 15 §M2 — the previously hardcoded thresholds (ANN limit,
+ * retrieval gate, rerank candidate count, answer gate, top-results)
+ * are now sourced from {@link com.gumtree.csagent.config.KnowledgeRetrievalProperties}.
+ * Defaults are unchanged. Sprint 15 also adds attribution diagnostics
+ * for retrieval_miss / answer_miss caused by threshold gates and for
+ * top-rank rerank-fallback usage.
+ *
  * <p>Sprint 14 §L0 — KB published-safety / canonical URL audit:
  * the pgvector ANN now joins {@code kb_articles} with an
  * {@code is_published = true} predicate
@@ -40,25 +48,22 @@ import java.util.stream.Collectors;
 @Service
 public class KnowledgeSearchService {
 
-    private static final int ANN_LIMIT = 20;
-    private static final double RETRIEVAL_GATE_THRESHOLD = 0.3;
-    private static final double ANSWER_GATE_THRESHOLD = 3.5;
-    private static final int RERANK_CANDIDATES = 8;
-    private static final int TOP_RESULTS = 3;
-
     private final EmbeddingClient embeddingClient;
     private final KbChunkRepository kbChunkRepository;
     private final KbArticleRepository kbArticleRepository;
     private final RerankService rerankService;
+    private final KnowledgeRetrievalProperties retrievalProps;
 
     public KnowledgeSearchService(EmbeddingClient embeddingClient,
                                    KbChunkRepository kbChunkRepository,
                                    KbArticleRepository kbArticleRepository,
-                                   RerankService rerankService) {
+                                   RerankService rerankService,
+                                   KnowledgeRetrievalProperties retrievalProps) {
         this.embeddingClient = embeddingClient;
         this.kbChunkRepository = kbChunkRepository;
         this.kbArticleRepository = kbArticleRepository;
         this.rerankService = rerankService;
+        this.retrievalProps = retrievalProps;
     }
 
     /**
@@ -73,6 +78,11 @@ public class KnowledgeSearchService {
     public KnowledgeSearchResult search(String query, List<String> ucTags,
                                          String sessionId, int turnIndex) {
         long startTime = System.currentTimeMillis();
+        int annLimit = retrievalProps.getAnnLimit();
+        double retrievalGate = retrievalProps.getRetrievalGateThreshold();
+        double answerGate = retrievalProps.getAnswerGateThreshold();
+        int rerankCandidatesLimit = retrievalProps.getRerankCandidates();
+        int topResultsLimit = retrievalProps.getTopResults();
         log.info("Knowledge search: query='{}', ucTags={}", query, ucTags);
 
         // Step 1: Embed the query
@@ -106,10 +116,10 @@ public class KnowledgeSearchService {
         if (ucTags != null && !ucTags.isEmpty()) {
             String[] ucTagsArray = ucTags.toArray(new String[0]);
             nearestChunks = kbChunkRepository.findNearestByEmbeddingWithUcTagsPublishedOnly(
-                    embeddingStr, ucTagsArray, ANN_LIMIT);
+                    embeddingStr, ucTagsArray, annLimit);
         } else {
             nearestChunks = kbChunkRepository.findNearestByEmbeddingPublishedOnly(
-                    embeddingStr, ANN_LIMIT);
+                    embeddingStr, annLimit);
         }
 
         if (nearestChunks.isEmpty()) {
@@ -131,11 +141,15 @@ public class KnowledgeSearchService {
         scoredChunks.sort(Comparator.comparingDouble(ChunkWithScore::similarity).reversed());
 
         double topSimilarity = scoredChunks.get(0).similarity();
-        boolean retrievalMiss = topSimilarity < RETRIEVAL_GATE_THRESHOLD;
+        boolean retrievalMiss = topSimilarity < retrievalGate;
 
         if (retrievalMiss) {
-            log.info("Knowledge search: retrieval_miss (top cosine_sim={:.4f} < {})",
-                    topSimilarity, RETRIEVAL_GATE_THRESHOLD);
+            // Sprint 15 §M2 diagnostic: retrieval_miss caused by the
+            // configurable retrieval gate. Threshold value is logged so a
+            // trace reader can confirm config-vs-runtime alignment.
+            log.info("Knowledge search: retrieval_miss reason=retrieval_gate "
+                            + "top_cosine_sim={} threshold={}",
+                    topSimilarity, retrievalGate);
             return KnowledgeSearchResult.builder()
                     .hits(List.of())
                     .retrievalMiss(true)
@@ -152,10 +166,10 @@ public class KnowledgeSearchService {
                     (existing, candidate) -> candidate.similarity() > existing.similarity() ? candidate : existing);
         }
 
-        // Step 5: Take top RERANK_CANDIDATES for reranking
+        // Step 5: Take top configured rerank-candidates for reranking
         List<ChunkWithScore> dedupedList = new ArrayList<>(bestPerArticle.values());
         dedupedList.sort(Comparator.comparingDouble(ChunkWithScore::similarity).reversed());
-        List<ChunkWithScore> toRerank = dedupedList.subList(0, Math.min(RERANK_CANDIDATES, dedupedList.size()));
+        List<ChunkWithScore> toRerank = dedupedList.subList(0, Math.min(rerankCandidatesLimit, dedupedList.size()));
 
         // Build rerank candidates
         List<RerankService.RerankCandidate> rerankCandidates = toRerank.stream()
@@ -172,19 +186,28 @@ public class KnowledgeSearchService {
         List<RerankService.ScoredCandidate> reranked = rerankService.rerank(query, rerankCandidates, sessionId, turnIndex);
 
         // Step 7: Answer gate
-        boolean answerMiss = reranked.isEmpty() || reranked.get(0).rerankScore() < ANSWER_GATE_THRESHOLD;
+        boolean answerMiss = reranked.isEmpty() || reranked.get(0).rerankScore() < answerGate;
         boolean faqMiss = retrievalMiss || answerMiss;
 
         if (answerMiss) {
-            log.info("Knowledge search: answer_miss (top rerank_score={} < {})",
-                    reranked.isEmpty() ? "N/A" : reranked.get(0).rerankScore(),
-                    ANSWER_GATE_THRESHOLD);
+            // Sprint 15 §M2 diagnostic: answer_miss caused by the
+            // configurable answer gate. The fallback-score field surfaces
+            // when the top score equals the rerank fallback (parse / call
+            // failure), so observers can attribute the miss to
+            // rerank-fallback rather than a low-relevance match.
+            double topScore = reranked.isEmpty() ? Double.NaN : reranked.get(0).rerankScore();
+            boolean fallbackUsed = !reranked.isEmpty()
+                    && Double.compare(topScore, retrievalProps.getRerankFallbackScore()) == 0;
+            log.info("Knowledge search: answer_miss reason=answer_gate "
+                            + "top_rerank_score={} threshold={} top_is_fallback_score={}",
+                    reranked.isEmpty() ? "N/A" : Double.toString(topScore),
+                    answerGate, fallbackUsed);
         }
 
-        // Step 8: Build top 3 hits
+        // Step 8: Build top configured-results hits
         // Fetch articles for metadata
         Set<String> articleIds = reranked.stream()
-                .limit(TOP_RESULTS)
+                .limit(topResultsLimit)
                 .map(RerankService.ScoredCandidate::articleId)
                 .collect(Collectors.toSet());
         Map<String, KbArticle> articleMap = kbArticleRepository.findAllById(articleIds)
@@ -198,7 +221,7 @@ public class KnowledgeSearchService {
         // landed in the index without a Help_Site_URL so missing-URL gaps
         // are observable in trace evidence rather than silently null.
         List<KnowledgeHit> hits = reranked.stream()
-                .limit(TOP_RESULTS)
+                .limit(topResultsLimit)
                 .map(sc -> {
                     KbArticle article = articleMap.get(sc.articleId());
                     if (article != null && Boolean.FALSE.equals(article.getIsPublished())) {

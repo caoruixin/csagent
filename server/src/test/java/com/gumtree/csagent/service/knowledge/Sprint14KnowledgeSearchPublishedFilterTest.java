@@ -56,7 +56,8 @@ class Sprint14KnowledgeSearchPublishedFilterTest {
     @BeforeEach
     void setUp() {
         service = new KnowledgeSearchService(
-                embeddingClient, kbChunkRepository, kbArticleRepository, rerankService);
+                embeddingClient, kbChunkRepository, kbArticleRepository, rerankService,
+                new com.gumtree.csagent.config.KnowledgeRetrievalProperties());
     }
 
     @Test

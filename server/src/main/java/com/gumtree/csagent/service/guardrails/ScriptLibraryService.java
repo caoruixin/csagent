@@ -30,6 +30,12 @@ public class ScriptLibraryService {
     /** category -> JsonNode (either has "pattern" directly or nested sub-keys) */
     private final Map<String, JsonNode> templates = new LinkedHashMap<>();
 
+    /** Sprint 15 §M1: library version pin (e.g. "v1.1"); empty when YAML omits it. */
+    private String libraryVersion = "";
+
+    /** Sprint 15 §M1: library version date (e.g. "2026-04-21"); empty when YAML omits it. */
+    private String libraryVersionDate = "";
+
     /** OOS category key -> category key in templates map (e.g. "DELIVERY" -> "oos_delivery") */
     private static final Map<String, String> OOS_CATEGORY_MAP = Map.of(
             "DELIVERY", "oos_delivery",
@@ -45,6 +51,19 @@ public class ScriptLibraryService {
             InputStream is = new ClassPathResource(TEMPLATES_PATH).getInputStream();
             JsonNode root = yamlMapper.readTree(is);
 
+            JsonNode versionNode = root.get("library_version");
+            if (versionNode != null && !versionNode.isNull()) {
+                this.libraryVersion = versionNode.asText("");
+            }
+            JsonNode versionDateNode = root.get("library_version_date");
+            if (versionDateNode != null && !versionDateNode.isNull()) {
+                this.libraryVersionDate = versionDateNode.asText("");
+            }
+            if (this.libraryVersion.isBlank()) {
+                throw new IllegalStateException(
+                        TEMPLATES_PATH + ": missing required 'library_version' (Sprint 15 §M1)");
+            }
+
             JsonNode templatesNode = root.get("templates");
             if (templatesNode != null) {
                 Iterator<Map.Entry<String, JsonNode>> fields = templatesNode.fields();
@@ -54,7 +73,8 @@ public class ScriptLibraryService {
                 }
             }
 
-            log.info("Loaded {} script templates from {}", templates.size(), TEMPLATES_PATH);
+            log.info("Loaded script library {} ({}), {} templates from {}",
+                    libraryVersion, libraryVersionDate, templates.size(), TEMPLATES_PATH);
 
         } catch (Exception e) {
             log.error("Failed to load {}: {}", TEMPLATES_PATH, e.getMessage(), e);
@@ -171,6 +191,22 @@ public class ScriptLibraryService {
         // Fall back to generic OOS template
         log.info("Using generic OOS template for category: {}", oosCategory);
         return getTemplate("oos_generic");
+    }
+
+    /**
+     * Sprint 15 §M1: expose the script library version pin so a
+     * docs-vs-runtime consistency check can enforce parity with
+     * docs/fixed_script_library_v1.md.
+     */
+    public String getLibraryVersion() {
+        return libraryVersion;
+    }
+
+    /**
+     * Sprint 15 §M1: expose the version date pin (e.g. "2026-04-21").
+     */
+    public String getLibraryVersionDate() {
+        return libraryVersionDate;
     }
 
     private String substituteVariables(String template, Map<String, String> variables) {

@@ -1,5 +1,6 @@
 package com.gumtree.csagent.service.knowledge;
 
+import com.gumtree.csagent.config.KnowledgeRetrievalProperties;
 import com.gumtree.csagent.config.LlmProperties;
 import com.gumtree.csagent.model.LlmRequest;
 import com.gumtree.csagent.model.LlmResponse;
@@ -37,7 +38,8 @@ class RerankServiceTest {
     void setUp() {
         LlmProperties props = new LlmProperties();
         props.getKimi().setModel("test-model");
-        rerankService = new RerankService(llmClient, llmCallLogger, props);
+        KnowledgeRetrievalProperties retrievalProps = new KnowledgeRetrievalProperties();
+        rerankService = new RerankService(llmClient, llmCallLogger, props, retrievalProps);
     }
 
     // --- C1: Parallel rerank returns results sorted by score ---

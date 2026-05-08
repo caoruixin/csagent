@@ -33,3 +33,18 @@ agent:
   run-loop:
     enabled-phases: [RESOLVE_FAQ, RESOLVE_INTAKE, DISCOVER, CONFIRM, CLOSE, ESCALATE]
     max-tool-steps-default: 4
+
+# Sprint 15 §M2 — knowledge retrieval / answer-gate / rerank thresholds.
+# Defaults match the previously hardcoded constants in
+# KnowledgeSearchService and RerankService exactly. Sprint 15 explicitly
+# does NOT tune these values; future tuning becomes an auditable config
+# diff rather than a hidden Java edit. Validation happens in
+# KnowledgeRetrievalProperties.validate() at startup.
+knowledge:
+  retrieval:
+    ann-limit: 20
+    retrieval-gate-threshold: 0.3
+    answer-gate-threshold: 3.5
+    rerank-candidates: 8
+    top-results: 3
+    rerank-fallback-score: 2.5
