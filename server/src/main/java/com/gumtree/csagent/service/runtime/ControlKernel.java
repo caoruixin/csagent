@@ -1958,12 +1958,45 @@ public class ControlKernel {
             String persistedBotResponse = (displayedResponseText != null && !displayedResponseText.isBlank())
                     ? displayedResponseText
                     : result.finalUserMessage();
+
+            // Sprint 14.1 §closure — compute source-evidence lineage and
+            // FAQ grounding diagnostics BEFORE persisting the BotTurn so
+            // the snake_case faq_grounding object can be merged into
+            // bot_turns.projected_context. The transient BotSession slots
+            // alone are not durable: a save/reload trace cannot read them.
+            // Computation is wrapped in try/catch so unexpected tool-event
+            // shapes never break recordRunResult().
+            String projectedContextJson = result.lastProjection();
+            com.gumtree.csagent.service.knowledge.SourceEvidenceLineage lineage = null;
+            com.gumtree.csagent.service.knowledge.FaqOutputClass outputClass = null;
+            com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics diagnostics = null;
+            try {
+                lineage = com.gumtree.csagent.service.knowledge.SourceEvidenceLineage
+                        .fromToolEvents(result.toolEvents(), persistedBotResponse);
+                boolean intakeUc = plan != null && plan.useCase() != null
+                        && INTAKE_UCS.contains(plan.useCase());
+                boolean handoverDispatched = "ESCALATE".equals(phaseAfter)
+                        && session.getEscalationReason() != null;
+                outputClass = com.gumtree.csagent.service.knowledge.FaqOutputClassifier.classify(
+                        persistedBotResponse,
+                        new com.gumtree.csagent.service.knowledge.FaqOutputClassifier.ClassifierContext(
+                                intakeUc, handoverDispatched));
+                diagnostics = com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics
+                        .compute(outputClass, lineage);
+                projectedContextJson = mergeFaqGroundingIntoProjection(
+                        projectedContextJson,
+                        buildFaqGroundingPayload(lineage, outputClass, diagnostics));
+            } catch (Exception ex) {
+                log.warn("Session {}: §L1/§L2 grounding observability merge failed: {}",
+                        session.getSessionId(), ex.getMessage());
+            }
+
             BotTurn turn = BotTurn.builder()
                     .turnId(UUID.randomUUID().toString())
                     .sessionId(session.getSessionId())
                     .turnIndex(session.getTotalBotTurns())
                     .userMessage(userMessage)
-                    .projectedContext(result.lastProjection())
+                    .projectedContext(projectedContextJson)
                     .llmRawResponse(result.lastLlmRawResponse())
                     .botResponse(persistedBotResponse)
                     .toolCalls(toolCallsJson)
@@ -1977,17 +2010,15 @@ public class ControlKernel {
             turnRepository.save(turn);
 
             // Sprint 14 §L1 / §L2 — stamp source-evidence lineage and FAQ
-            // grounding diagnostics onto the BotSession transient slots so
-            // the next ContextProjectionBuilder call surfaces them in trace
-            // evidence. Diagnostics are observability-only: no rejection,
-            // no rewrite, no re-loop. The block is wrapped in try/catch so
-            // any unexpected pattern in result.toolEvents() / displayed
-            // response text never breaks recordRunResult().
+            // grounding diagnostics onto the BotSession transient slots
+            // so the next ContextProjectionBuilder call (and any in-memory
+            // reader) sees them too. The durable copy now lives in
+            // projected_context.faq_grounding (Sprint 14.1 closure).
+            // Diagnostics remain observability-only: no rejection, no
+            // rewrite, no re-loop.
             try {
-                stampFaqGroundingObservability(
-                        session, plan, result, persistedBotResponse,
-                        "ESCALATE".equals(phaseAfter)
-                                && session.getEscalationReason() != null);
+                stampFaqGroundingObservabilityFromComputed(
+                        session, lineage, outputClass, diagnostics);
             } catch (Exception ex) {
                 log.warn("Session {}: §L1/L2 grounding observability stamping failed: {}",
                         session.getSessionId(), ex.getMessage());
@@ -2179,46 +2210,114 @@ public class ControlKernel {
      * current turn. Pure observability: no side effects on the agent run
      * loop, no escalation decisions, no response rewriting.
      *
-     * <p>The {@code handoverDispatched} flag is the runtime's authoritative
-     * signal for the {@link com.gumtree.csagent.service.knowledge.FaqOutputClass#HANDOVER}
-     * class — a turn that ended in ESCALATE with a stamped escalation
-     * reason is a handover regardless of the bot's wording.
+     * <p>Sprint 14.1 §closure — the durable copy of these fields now lives
+     * on {@code bot_turns.projected_context.faq_grounding} via
+     * {@link #mergeFaqGroundingIntoProjection(String, java.util.Map)}. This
+     * method only mirrors the same values onto the in-memory transient
+     * slots so any reader that already consumes them (the next projection
+     * pass within the same turn, in-process tests) keeps seeing them.
      */
-    private void stampFaqGroundingObservability(BotSession session,
-                                                  PhasePlan plan,
-                                                  AgentRunResult result,
-                                                  String persistedBotResponse,
-                                                  boolean handoverDispatched) {
-        if (session == null || result == null) return;
+    private void stampFaqGroundingObservabilityFromComputed(
+            BotSession session,
+            com.gumtree.csagent.service.knowledge.SourceEvidenceLineage lineage,
+            com.gumtree.csagent.service.knowledge.FaqOutputClass cls,
+            com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics dx) {
+        if (session == null) return;
 
-        com.gumtree.csagent.service.knowledge.SourceEvidenceLineage lineage =
-                com.gumtree.csagent.service.knowledge.SourceEvidenceLineage.fromToolEvents(
-                        result.toolEvents(), persistedBotResponse);
+        if (lineage != null) {
+            session.setRetrievedSourceIds(toArray(lineage.retrievedSourceIds()));
+            session.setResolvedSourceIds(toArray(lineage.resolvedSourceIds()));
+            session.setCitedSourceIds(toArray(lineage.citedSourceIds()));
+            session.setCitedCanonicalUrls(toArray(lineage.citedCanonicalUrls()));
+        }
+        if (cls != null) {
+            session.setFaqOutputClass(cls.token());
+        }
+        if (dx != null) {
+            session.setFaqGroundingState(dx.faqGroundingState());
+            session.setCitationPresent(dx.citationPresent());
+            session.setCitationMatch(dx.citationMatch());
+            session.setCitationDrift(dx.citationDrift());
+            session.setResolvedButUncited(dx.resolvedButUncited());
+            session.setRetrievedButUnresolved(dx.retrievedButUnresolved());
+        }
+    }
 
-        session.setRetrievedSourceIds(toArray(lineage.retrievedSourceIds()));
-        session.setResolvedSourceIds(toArray(lineage.resolvedSourceIds()));
-        session.setCitedSourceIds(toArray(lineage.citedSourceIds()));
-        session.setCitedCanonicalUrls(toArray(lineage.citedCanonicalUrls()));
+    /**
+     * Sprint 14.1 §closure — build the snake_case {@code faq_grounding}
+     * payload that gets merged into {@code bot_turns.projected_context}
+     * so a save/reload trace can observe the §L1 lineage + §L2
+     * diagnostics. Field names match
+     * {@code docs/faq_grounding_contract.md} §3 / §4 verbatim.
+     */
+    private static Map<String, Object> buildFaqGroundingPayload(
+            com.gumtree.csagent.service.knowledge.SourceEvidenceLineage lineage,
+            com.gumtree.csagent.service.knowledge.FaqOutputClass outputClass,
+            com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics dx) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        if (lineage != null) {
+            payload.put("retrieved_source_ids", lineage.retrievedSourceIds());
+            payload.put("resolved_source_ids", lineage.resolvedSourceIds());
+            payload.put("cited_source_ids", lineage.citedSourceIds());
+            payload.put("cited_canonical_urls", lineage.citedCanonicalUrls());
+        } else {
+            payload.put("retrieved_source_ids", List.of());
+            payload.put("resolved_source_ids", List.of());
+            payload.put("cited_source_ids", List.of());
+            payload.put("cited_canonical_urls", List.of());
+        }
+        payload.put("output_class", outputClass != null ? outputClass.token() : null);
+        if (dx != null) {
+            payload.put("faq_grounding_state", dx.faqGroundingState());
+            payload.put("citation_present", dx.citationPresent());
+            payload.put("citation_match", dx.citationMatch());
+            payload.put("citation_drift", dx.citationDrift());
+            payload.put("resolved_but_uncited", dx.resolvedButUncited());
+            payload.put("retrieved_but_unresolved", dx.retrievedButUnresolved());
+        } else {
+            payload.put("faq_grounding_state",
+                    com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics.STATE_UNKNOWN);
+            payload.put("citation_present", false);
+            payload.put("citation_match", false);
+            payload.put("citation_drift", false);
+            payload.put("resolved_but_uncited", false);
+            payload.put("retrieved_but_unresolved", false);
+        }
+        return payload;
+    }
 
-        boolean intakeUc = plan != null && plan.useCase() != null
-                && INTAKE_UCS.contains(plan.useCase());
-
-        com.gumtree.csagent.service.knowledge.FaqOutputClass cls =
-                com.gumtree.csagent.service.knowledge.FaqOutputClassifier.classify(
-                        persistedBotResponse,
-                        new com.gumtree.csagent.service.knowledge.FaqOutputClassifier.ClassifierContext(
-                                intakeUc, handoverDispatched));
-        session.setFaqOutputClass(cls.token());
-
-        com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics dx =
-                com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics.compute(
-                        cls, lineage);
-        session.setFaqGroundingState(dx.faqGroundingState());
-        session.setCitationPresent(dx.citationPresent());
-        session.setCitationMatch(dx.citationMatch());
-        session.setCitationDrift(dx.citationDrift());
-        session.setResolvedButUncited(dx.resolvedButUncited());
-        session.setRetrievedButUnresolved(dx.retrievedButUnresolved());
+    /**
+     * Sprint 14.1 §closure — merge the {@code faq_grounding} payload into
+     * the projection JSON the AgentRunLoop produced for the current turn.
+     * Returns the merged JSON, or the original projection on parse error
+     * (so a malformed projection still persists verbatim and we never lose
+     * the agent's observed projection). When the original projection is
+     * {@code null} or blank the method emits a minimal
+     * {@code {"faq_grounding": ...}} document so the diagnostic surface is
+     * still durably observable.
+     */
+    private String mergeFaqGroundingIntoProjection(String lastProjection,
+                                                     Map<String, Object> faqGrounding) {
+        if (faqGrounding == null) return lastProjection;
+        try {
+            com.fasterxml.jackson.databind.node.ObjectNode root;
+            if (lastProjection == null || lastProjection.isBlank()) {
+                root = objectMapper.createObjectNode();
+            } else {
+                com.fasterxml.jackson.databind.JsonNode parsed =
+                        objectMapper.readTree(lastProjection);
+                if (parsed instanceof com.fasterxml.jackson.databind.node.ObjectNode obj) {
+                    root = obj;
+                } else {
+                    root = objectMapper.createObjectNode();
+                }
+            }
+            root.set("faq_grounding", objectMapper.valueToTree(faqGrounding));
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception ex) {
+            log.warn("faq_grounding merge into projected_context failed: {}", ex.getMessage());
+            return lastProjection;
+        }
     }
 
     private static String[] toArray(List<String> values) {

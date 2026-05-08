@@ -6,8 +6,17 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
-Sprint 14 — FAQ / KB Evidence Lineage and Safety
-(in flight; awaiting Codex review).
+Sprint 14.1 — FAQ Grounding Observability Persistence Closure
+(closure fix landed; awaiting Codex re-review).
+
+Sprint 14 (FAQ / KB Evidence Lineage and Safety) was reviewed by Codex
+with `decision: fix_required, blocking_count: 1` — the §L1 / §L2
+diagnostics were computed but stamped only on `@Transient` `BotSession`
+fields, so a save / reload trace could not see them. Sprint 14.1
+closes that single blocker by persisting the snake_case lineage +
+diagnostics into the existing `bot_turns.projected_context` JSONB
+column under a new `faq_grounding` object. No DB migration, no hard
+citation gate, no broad S1 rewrite.
 
 Latest closed sprint:
 Sprint 13 — Runtime Freeze, Risk Policy, and Eval Guardrails
@@ -274,8 +283,10 @@ conjunctive predicate on `resolve_article`).
 ## 7. Retrieved / resolved / cited evidence contract
 
 Sprint 14 §L1 splits the historically-overloaded `sourceIds` concept
-into four observably-distinct dimensions, all populated each turn on
-`BotSession` transient slots:
+into four observably-distinct dimensions, all populated each turn and
+durably persisted on `bot_turns.projected_context.faq_grounding`
+(Sprint 14.1 closure) and mirrored onto in-memory `BotSession`
+transient slots:
 
 - `retrievedSourceIds` — IDs from successful `search_knowledge` events
   (post §L0 published-safety filter). De-duplicated; insertion order
@@ -296,8 +307,10 @@ response. The output is observability material — see
 
 ## 8. Soft diagnostic fields
 
-Sprint 14 §L2 stamps seven additional `BotSession` transient slots per
-turn (`docs/faq_grounding_contract.md` §4):
+Sprint 14 §L2 surfaces seven additional fields per turn under
+`bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure;
+`docs/faq_grounding_contract.md` §4) and mirrors the same values onto
+`BotSession` transient slots for in-process readers:
 
 - `faqOutputClass` — taxonomy token (`factual_answer`, `clarification`,
   `empathy_ack`, `handover`, `tool_status`, `intake_collection`).
@@ -418,7 +431,12 @@ canonical eval baseline.
 
 ## 12. Was Sprint 14 objective met?
 
-Yes:
+Sprint 14 alone was **not** met before Codex review: the Codex pass
+correctly identified that the §L1 / §L2 diagnostics were stamped only
+onto `@Transient` `BotSession` fields after `BotTurn.save(...)`, so a
+normal save/reload trace could not observe them. Sprint 14.1 (§15
+below) closes that single blocking gap. With Sprint 14.1 applied,
+the combined Sprint 14 + 14.1 objective is met:
 
 - L0 KB canonical URL / Help URL / published safety audit + fix landed.
   Source chain traced (CSV → build script → JSON → DB → service →
@@ -442,9 +460,12 @@ Yes:
   table, and the non-blocking guarantee. `FaqOutputClass`,
   `FaqOutputClassifier`, `FaqGroundingDiagnostics` services compute
   the seven soft diagnostic fields per turn. 14 focused tests.
-- Diagnostics are observable on `BotSession` transient slots; no DB
-  schema migration; no broad runtime / prompt / routing scope; no
-  hard citation gate; existing §G2 guard preserved verbatim.
+- Diagnostics are durably observable on
+  `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure);
+  the in-memory `BotSession` transient slots are mirrored from the
+  same computed values for in-process readers / tests. No DB schema
+  migration; no broad runtime / prompt / routing scope; no hard
+  citation gate; existing §G2 guard preserved verbatim.
 - Full server suite 854 / 0; named Sprint 14 regression suite 269 / 0;
   full Python eval 294 / 0; `L1:escalation_reason_consistency = 0`;
   `CONTRACT_VIOLATION:active_use_case = 0`; cs014 / cs066 / cs095 /
@@ -503,3 +524,118 @@ Sprint 14 will archive to `docs/sprints/sprint-014-*` on closure.
 - hard runtime citation gate — Sprint 14 §L2 explicitly carved this
   out; only consider after real-traffic evidence escalates the
   `citation_drift` / `retrieved_but_unresolved` signals
+
+## 15. Sprint 14.1 closure (FAQ grounding observability persistence)
+
+Codex Sprint 14 review returned `decision: fix_required,
+blocking_count: 1`. The single blocker:
+
+> Sprint 14 L1/L2 lineage + grounding diagnostics are computed but not
+> durably observable. They are stamped onto `@Transient` `BotSession`
+> fields after `BotTurn` is saved, so a normal save/reload trace cannot
+> see `retrieved_source_ids`, `resolved_source_ids`, `cited_source_ids`,
+> `faq_grounding_state`, `citation_present`, `citation_match`,
+> `citation_drift`, `resolved_but_uncited`, `retrieved_but_unresolved`.
+
+### Closure summary
+
+- **Blocker fixed:** the §L1 `SourceEvidenceLineage`, §L2
+  `FaqOutputClass`, and §L2 `FaqGroundingDiagnostics` are now computed
+  in `ControlKernel.recordRunResult(...)` BEFORE
+  `turnRepository.save(turn)`, and the snake_case payload is merged
+  into the existing `bot_turns.projected_context` JSONB column under a
+  new top-level `faq_grounding` key.
+- **Trace surface used:**
+  `bot_turns.projected_context.faq_grounding` (JSONB; no migration —
+  the column already exists and is opaque JSON).
+- **Fields persisted under `faq_grounding`:**
+  - `retrieved_source_ids` (array of source_id strings),
+  - `resolved_source_ids` (array of source_id strings),
+  - `cited_source_ids` (array of source_id strings),
+  - `cited_canonical_urls` (array of free-form URLs that did NOT
+    correspond to any candidate `canonical_url`),
+  - `output_class` (one of `factual_answer`, `clarification`,
+    `empathy_ack`, `handover`, `tool_status`, `intake_collection`, or
+    `null` when classification was skipped),
+  - `faq_grounding_state` (`factual_grounded` / `factual_uncited` /
+    `factual_unresolved` / `factual_unretrieved` / `non_factual` /
+    `unknown`),
+  - `citation_present`, `citation_match`, `citation_drift`,
+  - `resolved_but_uncited`, `retrieved_but_unresolved`.
+- **Backwards compatibility:** the existing
+  `bot_turns.source_ids` `text[]` column is preserved verbatim; its
+  write path in `recordRunResult` is unchanged. The `BotSession`
+  `@Transient` slots are still populated (mirroring the durable
+  values) so any in-memory reader / projection / test that already
+  consumes them keeps working.
+- **Out of scope (carved out, per Sprint 14.1 task):**
+  - no DB migration (uses the existing JSONB column);
+  - no hard citation gate (no rejection / rewrite / re-loop on
+    missing citation);
+  - no new skill runtime framework;
+  - no broad S1 hardening;
+  - no FAQ corpus / CaseSpec / judge / prompt / routing /
+    escalation-enum / risk-policy edit.
+
+### Files changed (Sprint 14.1)
+
+Production code:
+
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+  — `recordRunResult(...)` reordered to compute lineage / output class
+  / diagnostics BEFORE saving the turn; new
+  `mergeFaqGroundingIntoProjection(...)`,
+  `buildFaqGroundingPayload(...)`, and
+  `stampFaqGroundingObservabilityFromComputed(...)` helpers replace
+  the old post-save `stampFaqGroundingObservability(...)` call site.
+
+Tests added:
+
+- `server/src/test/java/com/gumtree/csagent/integration/Sprint141FaqGroundingTracePersistenceTest.java`
+  (5 cases — retrieved-only, resolved-only, cited-by-source-id,
+  cited-by-canonical-url, missing-citation-non-blocking).
+
+Docs:
+
+- `docs/10-handoff.md` (this section + corrections to §1, §7, §8,
+  §12 — Sprint 14 was NOT met before Codex review).
+- `docs/faq_grounding_contract.md` §5 — wiring narrative updated to
+  name the durable trace surface
+  (`bot_turns.projected_context.faq_grounding`).
+- `docs/action_bank.md` — Sprint 14 status reflects the §14.1 closure.
+
+### Tests run
+
+- `mvn -pl server test -Dtest='Sprint14*,Sprint141*'`
+  → **38 / 0 / 0 / 0** (33 Sprint 14 + 5 Sprint 14.1 closure tests).
+- `mvn -pl server test -Dtest='Sprint10*Test,Sprint11*Test,
+  Sprint12*Test,Sprint13*Test,PhaseEvaluatorPlanTest,Cs014*,
+  Cs066*,Cs095*,Cs002*,Cs029*,Cs176*,Cs001*,EscalationReason*Test,
+  Sprint6*,Sprint7*Test,Sprint8*Test,Sprint9*Test'`
+  → **269 / 0 / 0 / 0** (named Sprint regression suite — including
+  Sprint 6 §G2 FAQ S1 guard, cs014 / cs066 / cs095 / cs002 / cs029 /
+  cs176 regressions).
+- `mvn -pl server test`
+  → **859 / 0 / 0 / 0** (was 854; +5 new Sprint 14.1 closure tests).
+- `pytest eval_interactive/tests/` — not re-run; Sprint 14.1 changes
+  no eval-output schema and no Python parsing path.
+- Smoke runs not required — Sprint 14.1 changes no FAQ corpus, no
+  prompt, no judge, no CaseSpec, no escalation enum, no routing
+  taxonomy, no eval-output schema.
+
+### What Sprint 14.1 explicitly does NOT do
+
+- No DB migration. The trace surface is the existing `jsonb`
+  `bot_turns.projected_context` column — `faq_grounding` rides as an
+  additive top-level key. Old rows simply won't have the key.
+- No hard citation gate. Missing citation remains observable
+  (`citation_present=false`, optionally `resolved_but_uncited=true` /
+  `retrieved_but_unresolved=true`) but is never used to reject,
+  rewrite, or re-loop the bot reply.
+- No broad S1 hardening. The Sprint 16 §S1 candidates documented in
+  `docs/faq_grounding_contract.md` §6 (`R-faq-grounded-resolve-bypass`,
+  `R-cited-but-unresolved`, `R-resolved-but-uncited-rate`,
+  `R-canonical-url-missing-rate`) remain deferred.
+- No new skill runtime framework, no new escalation reason value, no
+  CaseSpec edits, no FAQ corpus content edit, no judge / prompt /
+  routing / risk-policy change.
