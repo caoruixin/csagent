@@ -6,8 +6,10 @@ Mode: current action ledger
 ## 1. Current phase
 
 Current phase:
-Script / Policy Config Governance Sprint 15 — implementation
-complete (M0 / M1 / M2 landed), awaiting Codex review.
+Sprint 15 closed by Codex review: decision=pass, blocking_count=0.
+Ready for the next sprint to be selected. Sprint 15 (Script /
+Policy Config Governance) landed M0 / M1 / M2 with no runtime
+semantic change.
 
 Sprint 14 alone returned `decision: fix_required, blocking_count: 1`
 on its initial Codex review: §L1 lineage + §L2 diagnostics were
@@ -25,7 +27,17 @@ the persistence closure (will archive under
 `docs/sprints/sprint-014-*` and `docs/sprints/sprint-014.1-*` on the
 next ad-hoc transition).
 
+Latest accepted sprint:
+Sprint 15 — Script / Policy Config Governance (Codex pass; ready
+to archive under `docs/sprints/sprint-015-*` on the next ad-hoc
+transition).
+
 Previously closed sprint:
+Sprint 14 + Sprint 14.1 — FAQ / KB Evidence Lineage and Safety,
+with the persistence closure (Codex pass; will archive under
+`docs/sprints/sprint-014-*` and `docs/sprints/sprint-014.1-*`).
+
+Earlier closed sprint:
 Sprint 13 — Runtime Freeze, Risk Policy, and Eval Guardrails
 (archived under `docs/sprints/sprint-013-*`).
 
@@ -46,14 +58,21 @@ Latest Codex decisions:
   non-blocking; diff stays narrow (no hard citation gate, no DB
   migration, no broad framework, no corpus / CaseSpec / judge /
   prompt / routing change, no escalation-enum change).
+- Sprint 15: decision: pass, blocking_count: 0 — DriftDetector risk
+  keywords are YAML-backed with parity coverage, script template
+  version metadata is pinned against the approved docs, and
+  knowledge retrieval / rerank thresholds are config-visible with
+  unchanged defaults and diagnostics. Diff stays inside
+  config-governance scope (no prompt, routing, judge, corpus,
+  CaseSpec, hard citation gate, hot reload, dashboard, or broad
+  runtime work). Sprint 15 introduced no runtime semantic change.
 
 Current recommendation:
-Sprint 15 (Script / Policy Config Governance) has been implemented;
-M0 / M1 / M2 are awaiting Codex review. After Sprint 15 closes, the
-remaining recommended next phases are **Eval Governance docs
-sprint** (primary), narrow Sprint 16 §S1 hardening (only on
-real-traffic evidence), or narrow corpus curation. No new runtime
-sprint unless a new P0 / P1 runtime blocker is found. The Sprint 14 FAQ grounding
+Sprint 15 closed (Codex pass). Recommended next phases are **Eval
+Governance Follow-up** (primary, surfaced by the Sprint 15 Codex
+review), narrow Sprint 16 §S1 hardening (only on real-traffic
+evidence), or narrow corpus curation. No new runtime sprint unless
+a new P0 / P1 runtime blocker is found. The Sprint 14 FAQ grounding
 contract (`docs/faq_grounding_contract.md`) is the canonical source
 for the §L1 evidence lineage and §L2 grounding diagnostics; the
 Sprint 14 §L0 audit + repair (`qa-reports/faq-kb-lineage-and-url-audit.md`)
@@ -215,7 +234,8 @@ on the deferred / avoid list.
 
 ## 3. Active / next actions
 
-Sprint 15 deliverables (implemented — awaiting Codex review):
+Sprint 15 deliverables (accepted / ready to archive — Codex
+`decision: pass, blocking_count: 0`):
 
 | id | deliverable | status |
 |----|-------------|--------|
@@ -233,15 +253,15 @@ Sprint 14.1 closure review):
 | L2 | FAQ grounding contract + soft diagnostics | done — `docs/faq_grounding_contract.md` (canonical); `FaqOutputClass`, `FaqOutputClassifier`, `FaqGroundingDiagnostics`; persisted under `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure); 7 `BotSession` transient slots mirrored; 14 focused tests |
 | 14.1 | FAQ grounding observability persistence closure | done — Codex Sprint 14 blocker fix: lineage + diagnostics computed BEFORE `BotTurn.save(...)`, snake_case payload merged into `bot_turns.projected_context.faq_grounding`; no DB migration; no hard citation gate; 5 focused trace-persistence tests; Sprint 14.1 closure review returned `decision: pass, blocking_count: 0` |
 
-With Sprint 14 + 14.1 closed and Sprint 15 implemented (awaiting
-Codex review), the next recommended phase is the **Eval Governance
-docs sprint** (or equivalent governance-only work). No new runtime
-sprint unless a new P0 / P1 runtime blocker is found. Narrow Sprint
-16 §S1 hardening candidates surfaced by the Sprint 14 §L0 audit are
-recorded in `docs/faq_grounding_contract.md` §6
-(R-faq-grounded-resolve-bypass, R-cited-but-unresolved,
-R-resolved-but-uncited-rate, R-canonical-url-missing-rate) — all
-deferred until real-traffic evidence motivates them.
+With Sprint 14 + 14.1 and Sprint 15 all closed (Codex pass), the
+next recommended phase is **Eval Governance Follow-up** (surfaced
+by the Sprint 15 Codex review). No new runtime sprint unless a new
+P0 / P1 runtime blocker is found. Narrow Sprint 16 §S1 hardening
+candidates surfaced by the Sprint 14 §L0 audit are recorded in
+`docs/faq_grounding_contract.md` §6 (R-faq-grounded-resolve-bypass,
+R-cited-but-unresolved, R-resolved-but-uncited-rate,
+R-canonical-url-missing-rate) — all deferred until real-traffic
+evidence motivates them.
 
 ## 4. Deferred runtime candidates
 
@@ -299,7 +319,7 @@ deferred until real-traffic evidence motivates them.
 | Sprint 13 | O0 runtime freeze decision + risk taxonomy doc; O1 risk-aware prompt/policy tuning (docs-only deferral); O2 eval guardrails for constrained continue vs immediate escalation | closed | `docs/sprints/sprint-013-*` |
 | Sprint 14 | L0 KB canonical URL / Help URL / published safety audit + fix; L1 separate retrieved/resolved/cited source evidence; L2 FAQ grounding contract + soft diagnostics | closed (initial review fix_required → resolved by Sprint 14.1; accepted as a unit on the Sprint 14.1 closure pass) | will archive under `docs/sprints/sprint-014-*` |
 | Sprint 14.1 | FAQ grounding observability persistence closure (`bot_turns.projected_context.faq_grounding`); fix the Sprint 14 Codex blocker | closed (Codex pass) | will archive under `docs/sprints/sprint-014.1-*` |
-| Sprint 15 | M0 externalize DriftDetector / risk keywords to YAML; M1 script library version pin + docs ↔ YAML consistency check; M2 retrieval / answer gate / rerank fallback thresholds config + diagnostics | implemented (awaiting Codex review) | will archive under `docs/sprints/sprint-015-*` on closure |
+| Sprint 15 | M0 externalize DriftDetector / risk keywords to YAML; M1 script library version pin + docs ↔ YAML consistency check; M2 retrieval / answer gate / rerank fallback thresholds config + diagnostics | closed (Codex pass) | will archive under `docs/sprints/sprint-015-*` |
 
 ## 7. Carry-over rule
 

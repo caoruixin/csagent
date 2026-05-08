@@ -6,10 +6,11 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
-Script / Policy Config Governance Sprint 15 — implementation
-complete, awaiting Codex review.
+Sprint 15 closed by Codex review: decision=pass, blocking_count=0.
+Ready for the next sprint to be selected.
 
-Sprint 15 lands three behaviour-preserving config-governance moves:
+Sprint 15 (Script / Policy Config Governance) landed three
+behaviour-preserving config-governance moves:
 - §M0 externalizes the previously hardcoded `DriftDetector` risk
   keyword list and escalation regex into
   `server/src/main/resources/config/risk-keywords.yaml` via a new
@@ -24,9 +25,11 @@ Sprint 15 lands three behaviour-preserving config-governance moves:
   (`knowledge.retrieval.*` in `application.yml`) with start-up range
   validation and rerank-fallback / threshold-gate diagnostics.
 
-No runtime semantics, escalation reasons, risk levels, prompt copy,
-routing rules, FAQ corpus content, judge calibration, CaseSpec, or
-eval-output schema changed.
+Sprint 15 introduced no runtime semantic change: no escalation
+reasons, risk levels, prompt copy, routing rules, FAQ corpus
+content, judge calibration, CaseSpec, or eval-output schema were
+touched. The Codex Sprint 15 review accepted the diff as inside the
+config-governance scope.
 
 Earlier Sprint 14 + Sprint 14.1 background (closed, Codex pass):
 
@@ -41,15 +44,16 @@ review returned `decision: pass, blocking_count: 0`, accepting Sprint
 14 + 14.1 as a unit. No DB migration, no hard citation gate, no broad
 S1 rewrite landed.
 
-Latest implemented sprint:
+Latest accepted sprint:
 Sprint 15 — Script / Policy Config Governance
-(this doc; archive under `docs/sprints/sprint-015-*` on closure).
+(Codex `decision: pass, blocking_count: 0`; ready to archive under
+`docs/sprints/sprint-015-*` on the next ad-hoc transition).
 
 Previously closed sprint:
 Sprint 14 + Sprint 14.1 — FAQ / KB Evidence Lineage and Safety, with
-the persistence closure (will archive under
-`docs/sprints/sprint-014-*` and `docs/sprints/sprint-014.1-*` on
-the next ad-hoc transition).
+the persistence closure (closed earlier under Codex pass; will
+archive under `docs/sprints/sprint-014-*` and
+`docs/sprints/sprint-014.1-*` on the next ad-hoc transition).
 
 ## 2. Sprint 14 goal
 
@@ -686,10 +690,13 @@ Docs:
 
 ## 16. Sprint 15 — Script / Policy Config Governance
 
-Status: **implemented, awaiting Codex review**. Sprint 15 is the
-behaviour-preserving config-governance sprint surfaced by the Sprint
-14.1 Codex review. Diff stays narrow: three actions, no runtime
-main-flow / prompt / routing / risk-policy semantic change.
+Status: **accepted / ready to archive**. The Sprint 15 Codex review
+returned `decision: pass, blocking_count: 0`, accepting Sprint 15
+as inside the config-governance scope (no prompt, routing, judge,
+corpus, CaseSpec, hard citation gate, hot reload, dashboard, or
+broad runtime work). Sprint 15 is the latest accepted sprint and
+introduced no runtime semantic change. Diff stays narrow: three
+actions only.
 
 ### 16.1 Implemented actions
 
@@ -902,9 +909,9 @@ citation gate was touched.
 ### 16.3 Tests run
 
 - `mvn -pl server test -Dtest='Sprint15*,DriftDetectorTest,RerankServiceTest'`
-  → **42 / 0 / 0 / 0** (Sprint 15 §M0 / §M1 / §M2 focused suite plus
-  the legacy `DriftDetectorTest` + `RerankServiceTest` to confirm
-  parity under the new wiring).
+  → **55 / 0 / 0 / 0** (25 Sprint 15 §M0 / §M1 / §M2 focused tests +
+  18 legacy `DriftDetectorTest` cases + 12 `RerankServiceTest`
+  cases, confirming parity under the new wiring).
 - `mvn -pl server test -Dtest='Sprint10*Test,Sprint11*Test,
   Sprint12*Test,Sprint13*Test,PhaseEvaluatorPlanTest,Cs014*,
   Cs066*,Cs095*,Cs002*,Cs029*,Cs176*,Cs001*,EscalationReason*Test,
