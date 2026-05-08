@@ -129,37 +129,13 @@ public class KnowledgeIngestionRunner implements ApplicationRunner {
      * Process a single article: save article, chunk text, embed, save chunks.
      */
     private int processArticle(JsonNode articleNode, Map<String, String[]> ucMappings) {
-        String articleId = articleNode.path("article_id").asText();
-        String title = articleNode.path("title").asText("");
-        String summary = articleNode.path("summary").isNull() ? null : articleNode.path("summary").asText();
-        String contentPlain = articleNode.path("content_plain").asText("");
-        String sourceUrl = articleNode.path("source_url").isNull() ? null : articleNode.path("source_url").asText();
-        String urlCategory = articleNode.path("url_category").isNull() ? null : articleNode.path("url_category").asText();
-        boolean published = articleNode.path("published_status").asBoolean(true);
-        int tokenEstimate = articleNode.path("token_estimate").asInt(0);
-
-        // UC tags: prefer JSON field, fall back to CSV mapping
-        String[] ucTags = extractUcTags(articleNode);
-        if ((ucTags == null || ucTags.length == 0) && ucMappings.containsKey(articleId)) {
-            ucTags = ucMappings.get(articleId);
-        }
-
-        // Step 1: Save article
         OffsetDateTime now = OffsetDateTime.now();
-        KbArticle article = KbArticle.builder()
-                .articleId(articleId)
-                .title(title)
-                .summary(summary)
-                .description(contentPlain)
-                .sourceUrl(sourceUrl)
-                .urlCategory(urlCategory)
-                .ucTags(ucTags)
-                .isPublished(published)
-                .tokenCount(tokenEstimate)
-                .version(1)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
+        KbArticle article = buildKbArticleFromJson(articleNode, ucMappings, now);
+
+        String articleId = article.getArticleId();
+        String title = article.getTitle();
+        String contentPlain = article.getDescription();
+
         kbArticleRepository.save(article);
 
         // Step 2: Clean HTML and chunk text
@@ -210,9 +186,52 @@ public class KnowledgeIngestionRunner implements ApplicationRunner {
     }
 
     /**
-     * Extract UC tags from the JSON article node.
+     * Sprint 14 §L0 — package-private helper that maps a single article
+     * JSON node into a {@link KbArticle}. Extracted from
+     * {@link #processArticle} so the FAQ → KbArticle field-preservation
+     * contract (most importantly {@code source_url} / Help_Site_URL and
+     * {@code is_published}) can be unit-tested without standing up the
+     * embedding client / chunker / repository wiring.
      */
-    private String[] extractUcTags(JsonNode articleNode) {
+    static KbArticle buildKbArticleFromJson(JsonNode articleNode,
+                                             Map<String, String[]> ucMappings,
+                                             OffsetDateTime now) {
+        String articleId = articleNode.path("article_id").asText();
+        String title = articleNode.path("title").asText("");
+        String summary = articleNode.path("summary").isNull() ? null : articleNode.path("summary").asText();
+        String contentPlain = articleNode.path("content_plain").asText("");
+        String sourceUrl = articleNode.path("source_url").isNull() ? null : articleNode.path("source_url").asText();
+        String urlCategory = articleNode.path("url_category").isNull() ? null : articleNode.path("url_category").asText();
+        // `published_status` defaults to TRUE so curated CSV exports without
+        // a published flag still ingest as published; if the JSON sets it
+        // explicitly to false we must respect that and NOT silently coerce.
+        boolean published = articleNode.path("published_status").asBoolean(true);
+        int tokenEstimate = articleNode.path("token_estimate").asInt(0);
+
+        // UC tags: prefer JSON field, fall back to CSV mapping
+        String[] ucTags = extractUcTagsStatic(articleNode);
+        if ((ucTags == null || ucTags.length == 0) && ucMappings != null
+                && ucMappings.containsKey(articleId)) {
+            ucTags = ucMappings.get(articleId);
+        }
+
+        return KbArticle.builder()
+                .articleId(articleId)
+                .title(title)
+                .summary(summary)
+                .description(contentPlain)
+                .sourceUrl(sourceUrl)
+                .urlCategory(urlCategory)
+                .ucTags(ucTags)
+                .isPublished(published)
+                .tokenCount(tokenEstimate)
+                .version(1)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
+
+    private static String[] extractUcTagsStatic(JsonNode articleNode) {
         JsonNode ucTagsNode = articleNode.path("uc_tags");
         if (ucTagsNode.isMissingNode() || ucTagsNode.isNull()) {
             return new String[0];

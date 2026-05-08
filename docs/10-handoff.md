@@ -6,302 +6,372 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
-Sprint 13 — Runtime Freeze, Risk Policy, and Eval Guardrails
+Sprint 14 — FAQ / KB Evidence Lineage and Safety
 (in flight; awaiting Codex review).
 
 Latest closed sprint:
-Sprint 12 — Runtime Alignment Hardening and Validation
-(archived under `docs/sprints/sprint-012-*`).
+Sprint 13 — Runtime Freeze, Risk Policy, and Eval Guardrails
+(archived under `docs/sprints/sprint-013-*`).
 
-## 2. Sprint 13 goal
+## 2. Sprint 14 goal
 
-Sprint 13 freezes the runtime main flow that converged across
-Sprints 10 / 11 / 11.1 / 12 and shifts the next iteration layer to
-**risk policy**, **prompt behaviour**, and **eval guardrails**.
+Sprint 14 upgrades FAQ / KB grounding trustworthiness by making the
+knowledge source chain, published safety, canonical URL availability,
+and citation observability explicit — without introducing a broad hard
+runtime citation gate, a new skill runtime framework, broad routing
+rewrites, or additional mechanical escalation.
 
-The product principle: **risk signals are not always escalation
-triggers**. The agent should be able to continue safely under low /
-medium risk when it does not promise refunds, decide liability,
-request sensitive credentials, or perform restricted actions.
+Scope is exactly the three Sprint 14 actions L0 / L1 / L2.
 
-Sprint 13 explicitly does NOT introduce a new broad runtime feature,
-modify the runtime main state machine, edit the pre-plan reroute
-architecture, edit the progressive resolve architecture, open a full
-Issue Ledger / `issues[]` / per-issue budgets / all-UC task taxonomy /
-handover payload rewrite, change the FAQ corpus, calibrate judges,
-churn CaseSpecs, expand anchor / exploration / promotion hard gates,
-add a new `escalation_reason` enum value, or run release candidate
-hardening.
+## 3. Sprint 14 implementation
 
-Scope is exactly the three Sprint 13 actions O0 / O1 / O2.
+### L0 — KB canonical URL / Help URL / published safety audit + fix
 
-## 3. Sprint 13 implementation
+Code changes:
 
-### O0 — Runtime freeze decision + risk taxonomy doc
+- `server/src/main/java/com/gumtree/csagent/repository/KbChunkRepository.java`
+  — added `findNearestByEmbeddingPublishedOnly` and
+  `findNearestByEmbeddingWithUcTagsPublishedOnly` queries that join
+  `kb_articles` with `is_published = true`. Existing legacy methods
+  preserved for backward compatibility.
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/KnowledgeSearchService.java`
+  — routes through the new published-only ANN methods so unpublished
+  candidates never enter the rerank pipeline. Added defense-in-depth
+  hit-projection filter that drops any post-fetch unpublished article
+  even if the ANN returned it via a stale cache. Stamps
+  `canonical_url_missing` per hit.
+- `server/src/main/java/com/gumtree/csagent/model/KnowledgeHit.java`
+  — added `canonicalUrlMissing` boolean (Jackson `canonical_url_missing`).
+- `server/src/main/java/com/gumtree/csagent/service/tools/SearchKnowledgeTool.java`
+  — projects `hits[*].canonical_url_missing` into the agent-visible
+  response so missing-URL data-quality gaps are observable.
+- `server/src/main/java/com/gumtree/csagent/service/tools/ResolveArticleTool.java`
+  — refuses unpublished articles with deterministic
+  `article_unpublished_safe_refuse` reject reason
+  (`UNPUBLISHED_REJECT_REASON` constant). Exposes `canonical_url`
+  alongside legacy `source_url`. Stamps `canonical_url_missing` and
+  `safe_to_show` (= published AND non-blank body).
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/KnowledgeIngestionRunner.java`
+  — extracted `buildKbArticleFromJson(...)` package-private helper so
+  the FAQ → KbArticle field-preservation contract (including
+  `source_url` and `is_published`) is unit-testable.
+- `scripts/build_knowledge_base.py` — additive: `mapping_summary_report.md`
+  now carries a "URL & Published-Safety Coverage" block enumerating
+  total / published / unpublished / with-canonical-URL / missing-URL /
+  unsafe-to-show counts. JSON content unchanged.
 
-`docs/runtime_freeze_and_risk_policy.md` (new) — the canonical Sprint 13
-deliverable. Contents:
+QA report: `qa-reports/faq-kb-lineage-and-url-audit.md`.
 
-- §1 Runtime freeze decision:
-  - what is frozen: pre-plan reroute flow, same-UC progressive resolve
-    flow, ResolveDisposition terminal-evidence guard, record_outcome
-    guard, observability + validation layer.
-  - what can still be tuned: prompt wording, reroute policy
-    thresholds (eval-side), escalation policy wording, eval cases,
-    risk taxonomy.
-  - what requires a future runtime sprint: full Issue Ledger,
-    per-issue budgets, all-UC task taxonomy, handover payload
-    redesign, new escalation reason enum.
-- §2 Frozen runtime contract (seven rules) recapping the
-  Sprint-10/11/12 invariants Sprint 13 must preserve.
-- §3 Risk taxonomy:
-  - Level 1 — observe only.
-  - Level 2 — constrained continue.
-  - Level 3 — immediate escalation, split into 3a (explicit user
-    request) and 3b (policy-driven: GDPR, scam/fraud, appeal /
-    restoration, real payment dispute, sensitive credentials,
-    distress / critical safety).
-  - Full taxonomy table with signal example, routing, escalation
-    yes/no, and bot behaviour for each level.
-- §4 Term distinctions: `risk_flag` (informational, single turn)
-  vs `escalation_trigger` (per-turn boolean) vs `handover_reason`
-  (canonical 23-value enum, persisted on session) vs
-  `intake_reason` (intake UC token, becomes
-  `intake_complete_for_uc_*` at intake completion).
-- §5 Five canonical examples walked end-to-end through the runtime
-  decision path AND the desired bot behaviour:
-  - "I paid for Top Ad but it is not showing." → Level 1.
-  - "I want my money back because my ad is not visible." → Level 2.
-  - "Delete my account." → Level 3b GDPR.
-  - "I was scammed." → Level 3b trust & safety.
-  - "I want a human." → Level 3a explicit user request.
-- §6 O1 prompt / policy tuning decision (see below).
-- §7 Cross-reference to the Sprint 13 §O2 deterministic test suite.
-- §8 Acceptance criteria.
-- §9 Out-of-scope list.
-- §10 References.
+Tests added (5 focused tests of the form Sprint 14 §L0 prescribed):
 
-### O1 — Risk-aware prompt / policy tuning
+- `Sprint14KnowledgeIngestionCanonicalUrlTest`
+  (4 cases — preservation of `Help_Site_URL__c` → `source_url`, respects
+  explicit `published_status=false`, missing URL surfaces null,
+  CSV-mapping fallback for `uc_tags`).
+- `Sprint14KnowledgeSearchPublishedFilterTest`
+  (4 cases — UC-scoped path routes through published-only ANN, no-tag
+  path same, post-rerank projection drops still-unpublished article,
+  missing-URL hit stamps `canonical_url_missing=true`).
+- `Sprint14ResolveArticleSafetyTest`
+  (4 cases — refuses unpublished with canonical reject reason,
+  exposes `canonical_url` mirroring `search_knowledge`, missing URL
+  classified as observable DQ gap, blank body marks `safe_to_show=false`).
 
-**Decision: docs-only deferral.** The system prompt
-(`server/src/main/resources/prompts/system_prompt.txt`) is **not
-edited** in Sprint 13.
+### L1 — Separate retrieved / resolved / cited source evidence
 
-Rationale (recorded in `docs/runtime_freeze_and_risk_policy.md` §6.1):
+Code:
 
-1. The existing prompt already encodes the safety-side rules:
-   "Never claim to be human" / "Never promise actions you cannot
-   take (refunds, account changes, ad removal)" / "Never fabricate
-   facts; ground answers in retrieved knowledge or context" / "If
-   you cannot help, request a human handover via the appropriate
-   tool", plus the Sprint 6 §G1 ACTIVE-UC TIEBREAKER block and the
-   GENUINE TIER-2 ESCAPE HATCH block.
-2. The Sprint 13 risk policy is testable AT THE RUNTIME LAYER
-   without a prompt edit (`Sprint13RiskPolicyGuardrailsTest` covers
-   it deterministically).
-3. A prompt edit cascades to live smoke runs, judge calibration,
-   and golden snapshots. Sprint 13 explicitly defers smoke,
-   anchor, and promotion gate work.
-4. No live regression case requires a prompt change today.
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/CitationExtractor.java`
+  (new) — passive citation extractor. Detects Salesforce KA `source_id`
+  pattern, canonical URL pattern, and (conservatively) title fuzzy
+  match against retrieved/resolved candidates. Stateless;
+  side-effect-free.
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/SourceEvidenceLineage.java`
+  (new) — record `(retrievedSourceIds, resolvedSourceIds,
+  citedSourceIds, citedCanonicalUrls, retrievedCanonicalUrls)` with
+  `fromToolEvents(toolEvents, botResponse)` constructor walking
+  `search_knowledge` (retrieved) and `resolve_article` (resolved) tool
+  events. §L0 contract: a refused unpublished resolve is NOT counted
+  as resolved — the article remains in the
+  `retrievedButUnresolvedSourceIds` set.
+- `server/src/main/java/com/gumtree/csagent/model/BotSession.java`
+  — added 4 new `@Transient` slots: `retrievedSourceIds`,
+  `resolvedSourceIds`, `citedSourceIds`, `citedCanonicalUrls`. Schema
+  unchanged; `bot_turns.source_ids` column preserved verbatim.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+  — `recordRunResult(...)` now stamps the new transient slots via the
+  new `stampFaqGroundingObservability(...)` helper. The existing
+  `bot_turns.source_ids` write path is untouched. Stamping is wrapped
+  in try/catch so any unexpected pattern in tool events / bot text
+  cannot break record-turn persistence.
 
-`docs/runtime_freeze_and_risk_policy.md` §6.2 carries the **exact,
-narrow prompt change proposal** (the new "Risk signal handling"
-block) plus the five focused golden prompt tests that would land
-with it. The Eval Governance sprint or a real-traffic incident is
-the trigger to land that proposal; Sprint 13 ships the proposal as
-documentation only.
+Tests:
 
-### O2 — Eval guardrails for constrained continue vs immediate escalation
+- `Sprint14SourceEvidenceLineageTest` (7 cases):
+  retrieved-only does not imply cited, resolved evidence tracked
+  separately, source_id mention detected, URL mention detected and
+  mapped back to candidate, third-party URL recorded as free-form
+  citation, missing citation observable but non-blocking, refused
+  unpublished resolve excluded from resolved set.
 
-`server/src/test/java/com/gumtree/csagent/service/runtime/Sprint13RiskPolicyGuardrailsTest.java`
-(new) — 12 deterministic tests pinning each Sprint 13 risk-policy
-row:
-
-| # | Scenario | Test |
-|---|---|---|
-| 1 | Level 1 — paid Top Ad not showing → stays UC-A, no escalation, no UC-I | `observeOnly_paidTopAdNotShowing_staysUcA_noEscalation_noUcI` |
-| 2 | Level 1 — classifier-side negative guard fires + predicted UC stays UC-A | `observeOnly_paidTopAdNotShowing_classifierSurfacesNegativeGuard` |
-| 3 | Level 2 — money back does not stamp escalation_reason | `constrainedContinue_moneyBack_doesNotStampEscalationReason` |
-| 4 | Level 2 — classifier does not auto-escalate from "money back" | `constrainedContinue_moneyBack_classifierDoesNotEscalateImmediately` |
-| 5 | Level 3a — resolver detects every Sprint 13 §3.3a explicit-human shape | `explicitHumanRequest_userRequested_resolverDetectsAllShapes` |
-| 6 | Level 3a — classifier surfaces HUMAN_REQUEST relation | `explicitHumanRequest_classifierSurfacesHumanRequestRelation` |
-| 7 | Level 3b — "I was scammed" risk-shifts to UC-J intake (not generic FAQ) | `scammed_routesToUcJ_intakePath_notFaq` |
-| 8 | Level 3b — "Delete my account" risk-shifts to UC-G GDPR intake | `gdprDeleteMyAccount_routesToUcG_intakePath_notFaq` |
-| 9 | Level 3b — alternate GDPR phrasings ("delete my data under GDPR") also route to UC-G | `gdprDeleteMyData_alsoRoutesToUcG` |
-| 10 | Negative guard — generic "How do I find my ad?" stays UC-A, no over-escalation | `negativeGuard_genericAdVisibility_staysUcA_noOverEscalation` |
-| 11 | Negative guard — UC-A same-UC follow-up "How long is it active for?" stays UC-A | `negativeGuard_followupDuration_staysUcA_noOverEscalation` |
-| 12 | Cross-cutting — risk_flag does NOT imply escalation_trigger across L1 + L2 | `riskFlag_doesNotImplyEscalationTrigger_acrossLevel1AndLevel2` |
-
-Each test runs the real `RuntimeIntentClassifier`, `RerouteDecider`,
-`EscalationReasonResolver`, and (where applicable) the
-`ControlKernel.applyRerouteDecision` path. No live LLM, no FAQ
-service, no agent run loop. The fixture shape mirrors
-`Sprint10RerouteDecisionTest` /
-`Sprint11ProgressiveResolveTest` /
-`Sprint12RuntimeAlignmentValidationTest`.
-
-The suite asserts the CURRENT runtime contract. It does NOT modify
-the kernel, the classifier, the decider, the resolver, the
-disposition evaluator, or the system prompt; if a future change
-regresses the risk taxonomy without an explicit migration, the
-suite will fail loudly.
-
-## 4. Files changed (Sprint 13)
-
-Production code:
-- (none) — Sprint 13 is a docs + tests sprint. No file under
-  `server/src/main/` was edited.
-
-Tests (new):
-- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint13RiskPolicyGuardrailsTest.java`
-  (12 deterministic tests, all green).
+### L2 — FAQ grounding contract + soft diagnostics
 
 Docs:
-- `docs/runtime_freeze_and_risk_policy.md` (new, normative).
-- `docs/10-handoff.md` (this file; Sprint 12 closure already
-  mirrored to `docs/sprints/sprint-012-handoff.md`).
-- `docs/action_bank.md` (Sprint 13 row added; Sprint 12 entry
-  moved to closed-action index).
-- `docs/sprints/sprint-013-runtime-freeze-and-risk-policy-objective.md`
-  (new — mirror of `docs/sprint_objective.md` for archival).
-- `docs/sprint_objective.md` retained — already contains the
-  Sprint 13 objective.
 
-No FAQ corpus, CaseSpec, judge, broad routing taxonomy, handover
-payload, Salesforce contract, prompt rewrite, or Eval Governance
-file was touched.
+- `docs/faq_grounding_contract.md` (new, normative) — defines the
+  output class taxonomy, the §L1 evidence lineage construction, the
+  §L2 diagnostic state transition table, and the non-blocking
+  guarantee. Records future narrow Sprint 16 §S1 hardening candidates
+  surfaced by the §L0 audit (`R-faq-grounded-resolve-bypass`,
+  `R-cited-but-unresolved`, `R-resolved-but-uncited-rate`,
+  `R-canonical-url-missing-rate`).
 
-No production runtime file (kernel / classifier / decider /
-resolver / phase evaluator / agent run loop / projection builder /
-session model / drift detector / disposition evaluator) was
+Code:
+
+- `FaqOutputClass` enum — six classes: `factual_answer`,
+  `clarification`, `empathy_ack`, `handover`, `tool_status`,
+  `intake_collection`. Only `factual_answer` requires grounding.
+- `FaqOutputClassifier` — heuristic classifier with
+  `ClassifierContext(intakeUseCase, handoverDispatched)` so the
+  runtime's `handoverDispatched` flag overrides any wording-based
+  guess and intake UCs prefer `intake_collection` over
+  `clarification` on a question shape.
+- `FaqGroundingDiagnostics` — record `(outputClass, faqGroundingState,
+  citationPresent, citationMatch, citationDrift, resolvedButUncited,
+  retrievedButUnresolved)`. State table: `factual_grounded`,
+  `factual_uncited`, `factual_unresolved`, `factual_unretrieved`,
+  `non_factual`, `unknown`.
+- `BotSession` — added 7 transient slots: `faqOutputClass`,
+  `faqGroundingState`, `citationPresent`, `citationMatch`,
+  `citationDrift`, `resolvedButUncited`, `retrievedButUnresolved`.
+- `ControlKernel.stampFaqGroundingObservability(...)` — single call
+  from `recordRunResult` populates §L1 + §L2 slots; observability-only
+  with no rejection / rewrite / loop.
+
+Tests:
+
+- `Sprint14FaqGroundingDiagnosticsTest` (14 cases):
+  taxonomy exemption check (only factual requires grounding),
+  classifier coverage for each shape (clarification / empathy /
+  handover-flag override / tool_status / intake / factual default), and
+  the full diagnostic state table (`factual_grounded`,
+  `factual_uncited`, `factual_unresolved`, `factual_unretrieved`,
+  `citation_drift`, all five non-factual classes skip grounding,
+  missing citation is observable not blocking).
+
+### Audit findings (factual-answer bypass — Sprint 16 candidate)
+
+Per Sprint 14 §L2, if the audit found a current factual-answer bypass
+of search/resolve, document it as a future narrow Sprint 16 candidate.
+The audit recorded **R-faq-grounded-resolve-bypass** in
+`docs/faq_grounding_contract.md` §6: the existing Sprint 6 §G2 guard
+refuses the `request_handover(faq_miss_threshold_exceeded)` shape, but
+does NOT refuse a FINAL_ANSWER shape that paraphrases an unresolved
+hit. This is observable today as `retrieved_but_unresolved=true` on a
+factual-answer turn. Sprint 14 explicitly does NOT close it — the
+guidance is for a future narrow Sprint 16 §S1 hardening if real-traffic
+evidence motivates it.
+
+## 4. Files changed (Sprint 14)
+
+Production code:
+
+- `server/src/main/java/com/gumtree/csagent/repository/KbChunkRepository.java`
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/KnowledgeSearchService.java`
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/KnowledgeIngestionRunner.java`
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/CitationExtractor.java` (new)
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/SourceEvidenceLineage.java` (new)
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/FaqOutputClass.java` (new)
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/FaqOutputClassifier.java` (new)
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/FaqGroundingDiagnostics.java` (new)
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java`
+  (added §L1/§L2 stamping helper; preserved all existing logic)
+- `server/src/main/java/com/gumtree/csagent/service/tools/SearchKnowledgeTool.java`
+- `server/src/main/java/com/gumtree/csagent/service/tools/ResolveArticleTool.java`
+- `server/src/main/java/com/gumtree/csagent/model/KnowledgeHit.java`
+- `server/src/main/java/com/gumtree/csagent/model/BotSession.java`
+  (added 11 `@Transient` slots; no schema change)
+
+Tests (new):
+
+- `Sprint14KnowledgeIngestionCanonicalUrlTest` (4 cases)
+- `Sprint14KnowledgeSearchPublishedFilterTest` (4 cases)
+- `Sprint14ResolveArticleSafetyTest` (4 cases)
+- `Sprint14SourceEvidenceLineageTest` (7 cases)
+- `Sprint14FaqGroundingDiagnosticsTest` (14 cases)
+
+Docs:
+
+- `docs/faq_grounding_contract.md` (new, normative)
+- `qa-reports/faq-kb-lineage-and-url-audit.md` (new — §L0 audit + repair)
+- `docs/10-handoff.md` (this file)
+- `docs/action_bank.md` (Sprint 14 row added)
+- `docs/sprint_objective.md` retained — already contains the Sprint 14
+  objective.
+
+Scripts:
+
+- `scripts/build_knowledge_base.py` — additive URL & Published-Safety
+  Coverage block in the auto-generated mapping report.
+
+No FAQ corpus content, CaseSpec, judge, broad routing taxonomy,
+handover payload contract, Salesforce backend contract, full Issue
+Ledger, all-UC task taxonomy, escalation enum, or system prompt was
 touched.
 
-The system prompt (`server/src/main/resources/prompts/system_prompt.txt`)
-was not touched — see §3 / §6 of `docs/runtime_freeze_and_risk_policy.md`
-for the deferred-prompt-edit decision and the exact proposal.
+No DB schema migration. The `bot_turns.source_ids` column is
+preserved verbatim; new lineage / diagnostics fields are
+session-transient observability material consumed via projection /
+trace evidence.
 
 ## 5. Tests run
 
-- `mvn -pl server test -Dtest='Sprint13RiskPolicyGuardrailsTest'`
-  → **12 / 0 / 0 / 0** (Sprint 13 §O2 risk-policy guardrails).
+- `mvn -pl server test -Dtest='Sprint14*'`
+  → **33 / 0 / 0 / 0** (Sprint 14 §L0/§L1/§L2 focused tests).
 - `mvn -pl server test -Dtest='Sprint10*Test,Sprint11*Test,
   Sprint12*Test,Sprint13*Test,PhaseEvaluatorPlanTest,Cs014*,
   Cs066*,Cs095*,Cs002*,Cs029*,Cs176*,Cs001*,EscalationReason*Test,
   Sprint6*,Sprint7*Test,Sprint8*Test,Sprint9*Test'`
-  → **269 / 0 / 0 / 0** (Sprint 6 / 7 / 7.1 / 8 / 8.1 / 8.2 / 9 /
-  9.1 / 10 / 11 / 11.1 / 12 / 13 + Cs014 / Cs066 / Cs095 / Cs002 /
-  Cs029 / Cs176 / Cs001 + Escalation reason).
+  → **269 / 0 / 0 / 0** (named Sprint 14 regression guards).
 - `mvn -pl server test`
-  → **821 / 0 / 0 / 0** (was 809 pre-Sprint-13; +12 new Sprint-13
-  §O2 regressions).
-- `python -m pytest -p no:capture eval_interactive/tests/`
-  → **294 / 0** (full Python eval test suite, including
-  `test_agent_client_session_create_timeout.py` for the Sprint 6 §G0
-  ReadTimeout no-retry contract, plus all `regression/`,
-  `scoring/`, `trace/` packages).
-- Smoke runs were NOT executed for Sprint 13. The change is a
-  docs-only + targeted-test sprint that does NOT touch FAQ corpus,
-  judges, CaseSpec, prompts, runtime production code, or LLM
-  credentials. Live smoke remains optional and is recommended
-  only when Codex explicitly requests runtime evidence; the focused
-  JUnit + Python regression suite is the canonical Sprint 13
-  evidence.
+  → **854 / 0 / 0 / 0** (was 821 pre-Sprint-14; +33 new Sprint 14
+  §L0/§L1/§L2 tests).
+- `pytest eval_interactive/tests/`
+  → **294 / 0** (full Python eval test suite).
+- Smoke runs were NOT executed for Sprint 14. Sprint 14 introduces no
+  FAQ corpus content change, no judge change, no CaseSpec change, no
+  prompt change, no escalation enum change, no routing taxonomy
+  change, and no eval-output schema change. The current canonical
+  baseline (`docs/current_eval_baseline.md`) is preserved
+  (post-Sprint-8 r1 / r2 runs).
 
-## 6. Risk-policy before / after
+## 6. KB URL / published audit result
 
-**Before Sprint 13.** The runtime-side risk taxonomy was implicit:
-- Sprint 6 §G1 ACTIVE-UC TIEBREAKER pinned explicit-human → user_requested.
-- Sprint 8 §K0 cs259 pinned active_use_case at the ESCALATE branch.
-- Sprint 10 §L0 / §L1 added pre-plan reroute including
-  `PAYMENT_AMBIGUITY_AD_VISIBILITY_PATTERN` (Top-Ad negative guard)
-  and `UC_J_RISK_SHIFT_PATTERN` (scam → UC-J).
-- Sprint 11 / 11.1 added progressive same-UC resolve + terminal-evidence
-  guard.
-- Sprint 12 §N0 added drift / task / phase observability so a reviewer
-  can audit any one turn.
-- The product distinction "risk signal vs escalation trigger" was
-  encoded across the resolver / classifier / decider / system prompt
-  but never centralised in a single canonical document or
-  consolidated test suite.
+| Metric | Value |
+|--------|-------|
+| Total articles | 218 |
+| Articles published (`published_status=true`) | 218 |
+| Articles unpublished (`published_status=false`) | 0 |
+| Articles with `source_url` (canonical URL) | 180 |
+| Articles missing `source_url` (canonical-URL DQ gap) | 38 |
+| Articles unsafe to show (unpublished OR empty body) | 0 |
 
-**After Sprint 13.**
-- `docs/runtime_freeze_and_risk_policy.md` is the single canonical
-  source for: (a) which surfaces are frozen, (b) which can be tuned,
-  (c) which need a future runtime sprint, (d) the Level 1 / 2 / 3
-  risk taxonomy, (e) the term distinctions, (f) the five canonical
-  examples, (g) the deferred prompt change proposal.
-- `Sprint13RiskPolicyGuardrailsTest` deterministically pins each
-  taxonomy row at the runtime layer, with no live LLM dependence.
-- Sprint 13 introduced no production runtime change. All Sprint 10 /
-  11 / 11.1 / 12 hard invariants remain green (see §7 below).
+The 38 articles missing a canonical URL come from rows the Salesforce
+export shipped without `Help_Site_URL__c`. They remain searchable but
+the §L0 fix surfaces the gap as `canonical_url_missing=true` on every
+search-hit and resolve-article response so a reviewer can classify the
+case as a corpus-side curation task rather than a runtime fix. The
+broader curation work is out of Sprint 14 scope and queued for the Eval
+Governance / corpus-audit owner alongside `G-FAQ-corpus-answerability`.
 
-## 7. Regression guard outcomes
+Per `qa-reports/faq-kb-lineage-and-url-audit.md` §3, nine concrete §L0
+fixes landed this sprint (published-safety filter at SQL layer + at hit
+projection, refusal of unpublished `resolve_article`, exposure of
+`canonical_url` alongside `source_url`, observable
+`canonical_url_missing` flag on both tools, and the `safe_to_show`
+conjunctive predicate on `resolve_article`).
 
-All Sprint 13 active guards pass:
+## 7. Retrieved / resolved / cited evidence contract
+
+Sprint 14 §L1 splits the historically-overloaded `sourceIds` concept
+into four observably-distinct dimensions, all populated each turn on
+`BotSession` transient slots:
+
+- `retrievedSourceIds` — IDs from successful `search_knowledge` events
+  (post §L0 published-safety filter). De-duplicated; insertion order
+  preserved.
+- `resolvedSourceIds` — IDs that successfully passed through
+  `resolve_article`. A refused unpublished resolve is NOT counted.
+- `citedSourceIds` — IDs detected in the customer-visible reply by
+  the passive `CitationExtractor` (source_id mention, URL mention
+  mapped back to candidate, conservative title match).
+- `citedCanonicalUrls` — URLs in the reply that did NOT correspond to
+  any candidate `canonical_url`. Typically third-party (e.g. gov.uk).
+
+The `bot_turns.source_ids` column is preserved verbatim as the
+backward-compatible aggregate. Sprint 14 §L1 explicitly does NOT use
+the diff between the four dimensions to gate / rewrite / loop the bot
+response. The output is observability material — see
+`docs/faq_grounding_contract.md` §3 for the canonical contract.
+
+## 8. Soft diagnostic fields
+
+Sprint 14 §L2 stamps seven additional `BotSession` transient slots per
+turn (`docs/faq_grounding_contract.md` §4):
+
+- `faqOutputClass` — taxonomy token (`factual_answer`, `clarification`,
+  `empathy_ack`, `handover`, `tool_status`, `intake_collection`).
+- `faqGroundingState` — coarse state (`factual_grounded`,
+  `factual_uncited`, `factual_unresolved`, `factual_unretrieved`,
+  `non_factual`, `unknown`).
+- `citationPresent`, `citationMatch`, `citationDrift` — citation
+  observability triplet.
+- `resolvedButUncited`, `retrievedButUnresolved` — evidence-diff
+  observability pair.
+
+All seven are observability-only. Sprint 14 §L2 does NOT block, rewrite,
+re-loop, or escalate based on any of them. The §G2 FAQ-grounded-resolve
+guard from Sprint 6 remains the only enforced runtime check on this
+surface.
+
+## 9. Regression guard outcomes
+
+All Sprint 14 active guards pass:
 
 - `L1:escalation_reason_consistency` = **0** (never re-introduced).
 - `CONTRACT_VIOLATION:active_use_case` = **0**.
-- Sprint 6 §G0 no ReadTimeout retry
-  (`test_agent_client_session_create_timeout.py` 8 / 0).
-- Sprint 6 §G2 FAQ-grounded-resolve guard
-  (`AgentRunLoopS1FaqGroundedResolveGuardTest` green).
-- Sprint 7 / 7.1 candidate_use_cases + intake-state persistence
-  (`Sprint7CandidateUseCasesProjectionTest`, `Sprint7IntakeStateTest`,
-  `Sprint71PartialIntakePersistenceTest` green).
-- Sprint 8 §K0 cs259 active-use-case contract hardening
-  (`Sprint8Cs259ActiveUseCaseHardeningTest`,
-  `Sprint8Cs259EscalateBranchIntegrationTest` green).
-- Sprint 8.1 §M3 DISCOVER → RESOLVE phase boundary green.
-- Sprint 8.2 §M0a / §M0b green.
-- Sprint 9 / 9.1 trace observability + record-outcome honesty
-  (`Sprint9TerminalToolHonestyTest`,
-  `Sprint9TraceObservabilityFidelityIntegrationTest`,
-  `ToolCallTraceSanitizerTest` green).
-- Sprint 10 reroute MVP
-  (`Sprint10RuntimeIntentClassifierTest` 13 / 0,
-  `Sprint10RerouteDecisionTest` 9 / 0).
-- Sprint 11 progressive resolve MVP + 11.1 terminal-evidence closure
-  (`Sprint11ProgressiveResolveTest` 14 / 0).
-- Sprint 12 §N0 / §N1 / §N2 observability + validation
-  (`Sprint12RuntimeAlignmentValidationTest` 13 / 0).
-- cs014 remains UC-C (`Cs014RouteAndLoopHandoverIntegrationTest`,
+- Existing FAQ S1 guard tests remain green
+  (`AgentRunLoopS1FaqGroundedResolveGuardTest`).
+- Sprint 6 §G0 ReadTimeout closure intact
+  (`test_agent_client_session_create_timeout.py`).
+- cs014 remains UC-C
+  (`Cs014RouteAndLoopHandoverIntegrationTest`,
   `Cs014RouteAndDistressRegressionTest`).
 - cs066 remains UC-K.
 - cs095 remains UC-A / not UC-K / not UC-FP.
-- cs002 remains UC-C + `user_distress`.
+- cs002 distress reconciliation remains green.
 - cs029 remains UC-D + `user_requested`.
-- cs176 explicit-human-help → `user_requested`
-  (`Cs176ExplicitHumanHelpHandoverIntegrationTest`).
-- `RuntimeIntentClassifier` remains runtime-internal (NOT registered
-  with the agent-visible tool surface; never exposed via
-  `classify_use_case`).
+- cs176 explicit-human-help → `user_requested` regression remains
+  green (`Cs176ExplicitHumanHelpHandoverIntegrationTest`).
+- All Sprint 7 / 7.1 / 8 / 8.1 / 8.2 / 9 / 9.1 / 10 / 11 / 11.1 / 12 /
+  13 hard invariants remain green
+  (named regression suite: 269 / 0).
+- `RuntimeIntentClassifier` remains runtime-internal.
+- `bot_turns.source_ids` write path unchanged.
+- `bot_turns` / `bot_sessions` / `kb_articles` / `kb_chunks` schemas
+  unchanged.
 
-New Sprint 13 §O2 guards:
+New Sprint 14 §L0 / §L1 / §L2 guards (33 deterministic JUnit tests):
 
-- `Sprint13RiskPolicyGuardrailsTest.observeOnly_paidTopAdNotShowing_*` —
-  Level 1 paid-Top-Ad does not blindly route to UC-I.
-- `Sprint13RiskPolicyGuardrailsTest.constrainedContinue_moneyBack_*` —
-  Level 2 "money back" does not auto-stamp `escalation_reason`.
-- `Sprint13RiskPolicyGuardrailsTest.explicitHumanRequest_*` —
-  Level 3a explicit-human shapes still produce HUMAN_REQUEST and
-  `user_requested` precedence.
-- `Sprint13RiskPolicyGuardrailsTest.scammed_routesToUcJ_intakePath_notFaq` —
-  Level 3b "I was scammed" risk-shifts to UC-J intake.
-- `Sprint13RiskPolicyGuardrailsTest.gdprDeleteMyAccount_*` /
-  `gdprDeleteMyData_alsoRoutesToUcG` — Level 3b account deletion /
-  GDPR risk-shifts to UC-G intake.
-- `Sprint13RiskPolicyGuardrailsTest.negativeGuard_*` — generic ad
-  visibility stays normal flow with no over-escalation.
-- `Sprint13RiskPolicyGuardrailsTest.riskFlag_doesNotImplyEscalationTrigger_*` —
-  L1 + L2 risk_flag does NOT imply an escalation_trigger.
+- §L0 — `Sprint14KnowledgeIngestionCanonicalUrlTest`,
+  `Sprint14KnowledgeSearchPublishedFilterTest`,
+  `Sprint14ResolveArticleSafetyTest`.
+- §L1 — `Sprint14SourceEvidenceLineageTest`.
+- §L2 — `Sprint14FaqGroundingDiagnosticsTest`.
 
-## 8. Remaining P0 / P1 blockers
+## 10. Remaining risks
 
-**No new P0 / P1 blockers opened by Sprint 13.** The change is
-docs + targeted tests only; no production runtime file was touched
-and no new schema / contract / tool surface was introduced.
+**No new P0 / P1 blockers opened by Sprint 14.** The change is additive
+observability + a narrow §L0 published-safety / canonical-URL fix; no
+runtime main-flow architecture file was modified.
 
-Residuals carried forward from Sprint 12 §7 (unchanged):
+Sprint 14 §L0 audit surfaced four narrow follow-ups (recorded in
+`docs/faq_grounding_contract.md` §6 — all deferred):
+
+- **R-faq-grounded-resolve-bypass** — factual answers paraphrasing
+  retrieved-but-unresolved hits. Observable today as
+  `retrieved_but_unresolved=true` on a factual-answer turn. Future
+  narrow Sprint 16 §S1 hardening candidate IF real-traffic shows
+  reproducible cases.
+- **R-cited-but-unresolved** — `citation_drift=true` with cited
+  source_id never retrieved/resolved. Hallucination signal candidate;
+  Eval Governance owns until reproduced.
+- **R-resolved-but-uncited-rate** — corpus-level rate of uncited
+  factual answers. Eval Governance.
+- **R-canonical-url-missing-rate** — 38 articles missing
+  `Help_Site_URL__c`. Corpus curation, not runtime.
+
+Residuals carried forward from Sprint 13 §8 (unchanged):
 
 - `R-cs015-description-keyword`, `R-cs176-UC-I-drift`,
   `R-S3-no-prior-search-guard`, `R-S5-Tier2-runtime-guard`,
@@ -309,103 +379,84 @@ Residuals carried forward from Sprint 12 §7 (unchanged):
   `R-FAQ-corpus-answerability`, `R-advert-link-product-decision`,
   `R-rerank-fallback-diagnostics`, `R-task-type-token-naming`,
   `R-record-outcome-loop`, `R-clean-baseline-promote`,
-  `R-full-issue-ledger`, `R-skill-runtime-framework`.
-
-New Sprint 13 deferral (documentation-only):
-
-- **R-prompt-risk-signal-handling** — the narrow "Risk signal
-  handling" block proposed in
-  `docs/runtime_freeze_and_risk_policy.md` §6.2 is **deferred**
-  pending an Eval Governance sprint or a P0 / P1 real-traffic case.
-  Five focused golden prompt tests are pre-specified as the
-  acceptance criteria for that future edit.
+  `R-full-issue-ledger`, `R-skill-runtime-framework`,
+  `R-prompt-risk-signal-handling`.
 
 The current canonical eval baseline remains the post-Sprint-8 r1 / r2
-runs documented in `docs/current_eval_baseline.md`:
+runs documented in `docs/current_eval_baseline.md`. Sprint 14
+explicitly does NOT promote a new canonical eval baseline.
 
-- `eval_interactive/results/20260505-234448/results.json` (8/14,
-  mean composite 0.4784, `sprint8-r1`).
-- `eval_interactive/results/20260505-235231/results.json` (9/14,
-  mean composite 0.5255, `sprint8-r2`).
-
-Sprint 13 explicitly does NOT promote a new canonical eval baseline.
-
-## 9. Next-phase recommendation
+## 11. Recommendation for Sprint 15 or Sprint 16
 
 Recommended next phase:
 
-**Eval Governance docs sprint** (or equivalent governance-only
-work) — same recommendation Sprint 12 §8 made.
-
-Justification:
-
-- Sprint 13 closed the risk-policy / freeze-doc / eval-guardrails
-  workstream that Sprint 12 §N2 carried forward. The runtime layer
-  is fully frozen, with `docs/runtime_freeze_and_risk_policy.md` as
-  the single source of truth.
-- The largest residual category remains `judge_volatility` /
-  `faq_corpus_gap` / `product_policy_gap`, all of which belong to
-  Eval Governance, not runtime.
-- The deferred prompt edit (R-prompt-risk-signal-handling) is the
-  natural first item for the Eval Governance sprint to consider, IF
-  a real-traffic case demonstrates the prompt is making a refund
-  / liability / appeal promise OR requesting sensitive credentials.
-- A clean live smoke run under uncontested Kimi credentials should
-  be captured during Eval Governance so a Sprint-12-or-13-era
-  canonical baseline can replace the post-Sprint-8 r1 / r2 runs in
-  `docs/current_eval_baseline.md` when it is clean.
+**Eval Governance docs sprint** (or equivalent governance-only work)
+remains the primary recommendation. Sprint 14 closed the FAQ / KB
+evidence lineage and safety workstream that Sprint 13 §8 / §9 had open;
+the largest residual category is still `judge_volatility` /
+`faq_corpus_gap` / `product_policy_gap`, all governance-owned.
 
 Alternative phases ranked:
 
 1. **Eval Governance** — primary recommendation (above).
-2. **Re-run validation after infra cleanup** — viable if Kimi /
-   smoke credentials are blocking the baseline promote; runs
-   alongside Eval Governance work.
-3. **Release Candidate Hardening** — premature; depends on a
+2. **Narrow Sprint 16 §S1 hardening** — only if real-traffic evidence
+   demonstrates `R-faq-grounded-resolve-bypass` reproducibly affects
+   answer correctness on a high-traffic UC. The Sprint 14 §L1 / §L2
+   diagnostics surface (`retrieved_but_unresolved=true` on a
+   `factual_answer` turn) is the trigger to look for. Until then, the
+   §G2 prompt-side nudge already handles the dominant case.
+3. **Narrow Corpus Curation** — fill the 38 missing
+   `Help_Site_URL__c` rows. Owner: Eval Governance / corpus audit.
+4. **Re-run validation after infra cleanup** — viable if Kimi /
+   smoke credentials are available; runs alongside Eval Governance.
+5. **Release Candidate Hardening** — premature; depends on a
    clean canonical baseline that has not yet been promoted.
-4. **Narrow Runtime Follow-up** — only if a real-traffic case
-   surfaces a new P0 / P1 runtime blocker (none today).
 
 Do not start another runtime sprint unless triage finds a new
-P0 / P1 runtime blocker. Sprint 13 explicitly does NOT promote
-a new canonical eval baseline.
+P0 / P1 runtime blocker. Sprint 14 explicitly does NOT promote a new
+canonical eval baseline.
 
-## 10. Was Sprint 13 objective met?
+## 12. Was Sprint 14 objective met?
 
 Yes:
 
-- O0 runtime freeze decision + risk taxonomy doc landed at
-  `docs/runtime_freeze_and_risk_policy.md`. Includes runtime freeze
-  decision, frozen runtime contract, three-level risk taxonomy with
-  examples and bot-behaviour guardrails, the four-term distinction
-  table (`risk_flag` / `escalation_trigger` / `handover_reason` /
-  `intake_reason`), the five canonical examples walked through the
-  runtime decision path, the prompt change proposal + deferral, and
-  the Sprint 13 §O2 cross-reference.
-- O1 risk-aware prompt / policy tuning DECISION recorded as
-  docs-only deferral with the exact narrow prompt change proposal
-  pre-specified (no system_prompt.txt edit landed). Five focused
-  golden prompt tests pre-specified as the acceptance criteria for
-  the future edit.
-- O2 eval guardrails landed at
-  `Sprint13RiskPolicyGuardrailsTest.java` (12 deterministic Java
-  tests covering the six required cases plus a cross-cutting
-  risk_flag-vs-escalation_trigger separation guard).
-- All Sprint 6 / 7 / 8 / 9 / 10 / 11 / 11.1 / 12 hard invariants
-  remain green; full server suite 821 / 0; full Python eval 294 / 0;
-  `L1:escalation_reason_consistency = 0`;
-  `CONTRACT_VIOLATION:active_use_case = 0`.
+- L0 KB canonical URL / Help URL / published safety audit + fix landed.
+  Source chain traced (CSV → build script → JSON → DB → service →
+  tools); `Help_Site_URL__c` confirmed preserved; published-safety
+  filter added at SQL + projection layer; `resolve_article` refuses
+  unpublished with deterministic reject reason; missing canonical URL
+  classified as observable DQ gap; QA report
+  `qa-reports/faq-kb-lineage-and-url-audit.md` shipped; 12 focused
+  tests.
+- L1 separate retrieved / resolved / cited source evidence landed.
+  `SourceEvidenceLineage` value object splits the historically-
+  overloaded `sourceIds` concept; `CitationExtractor` provides passive
+  citation extraction (source_id pattern, URL pattern, conservative
+  title match); existing `bot_turns.source_ids` write path preserved
+  for back-compat; 7 focused tests confirm retrieved-only does not
+  imply cited, resolved tracked separately, citation extractor
+  patterns work, missing citation observable not blocking.
+- L2 FAQ grounding contract + soft diagnostics landed.
+  `docs/faq_grounding_contract.md` defines the output class taxonomy,
+  the §L1 evidence lineage construction, the §L2 diagnostic state
+  table, and the non-blocking guarantee. `FaqOutputClass`,
+  `FaqOutputClassifier`, `FaqGroundingDiagnostics` services compute
+  the seven soft diagnostic fields per turn. 14 focused tests.
+- Diagnostics are observable on `BotSession` transient slots; no DB
+  schema migration; no broad runtime / prompt / routing scope; no
+  hard citation gate; existing §G2 guard preserved verbatim.
+- Full server suite 854 / 0; named Sprint 14 regression suite 269 / 0;
+  full Python eval 294 / 0; `L1:escalation_reason_consistency = 0`;
+  `CONTRACT_VIOLATION:active_use_case = 0`; cs014 / cs066 / cs095 /
+  cs002 / cs029 / cs176 regressions all green.
 
-Out-of-scope items (runtime main-flow changes; DriftDetector /
-RuntimeIntentClassifier architecture changes; full Issue Ledger;
-`issues[]`; per-issue budgets; all-UC task taxonomy; broad routing
-taxonomy rewrite; broad Java guard; new escalation reason enum; S5
-Tier-2 runtime guard; FAQ corpus changes; product policy backend
-changes; judge calibration; CaseSpec churn; CaseSpec override
-changes; release candidate hardening execution; live smoke baseline
-promotion) were NOT touched.
+Out-of-scope items (broad hard citation gate, new skill runtime
+framework, broad S1 rewrite, broad routing taxonomy rewrite,
+escalation enum changes, CaseSpec churn, FAQ corpus content rewrite,
+judge calibration, eval expansion, broad prompt rewrite, mechanical
+risk-keyword escalation) were NOT touched.
 
-## 11. Current-doc maintenance rule
+## 13. Current-doc maintenance rule
 
 `docs/10-handoff.md`, `docs/codex-findings.md`,
 `docs/sprint_objective.md`, and `docs/action_bank.md` are
@@ -421,15 +472,10 @@ Historical detail belongs in `docs/sprints/`,
 `docs/archive/current-docs/`, `eval_interactive/results/`, and
 `qa-reports/`.
 
-Sprint 11 / 11.1 archives are at `docs/sprints/sprint-011-*`;
-Sprint 12 archives are at `docs/sprints/sprint-012-*`;
-Sprint 13 will archive to `docs/sprints/sprint-013-*` on closure.
+Sprint 13 archives are at `docs/sprints/sprint-013-*`;
+Sprint 14 will archive to `docs/sprints/sprint-014-*` on closure.
 
-The Sprint 13 objective is mirrored at
-`docs/sprints/sprint-013-runtime-freeze-and-risk-policy-objective.md`
-for historical reference.
-
-## 12. Do not reopen
+## 14. Do not reopen
 
 - broad full review
 - broad routing rewrite
@@ -451,3 +497,9 @@ for historical reference.
 - broad system prompt rewrite — narrow risk-signal-handling proposal
   in `docs/runtime_freeze_and_risk_policy.md` §6.2 only on Eval
   Governance trigger
+- broad FAQ corpus rewrite — narrow corpus curation for the 38
+  `Help_Site_URL__c` gap rows is a queued Eval Governance / corpus
+  audit task
+- hard runtime citation gate — Sprint 14 §L2 explicitly carved this
+  out; only consider after real-traffic evidence escalates the
+  `citation_drift` / `retrieved_but_unresolved` signals

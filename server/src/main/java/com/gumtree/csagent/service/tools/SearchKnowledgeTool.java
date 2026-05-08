@@ -63,6 +63,10 @@ public class SearchKnowledgeTool implements Tool {
             hitMap.put("title", hit.getTitle());
             hitMap.put("snippet", hit.getSnippet());
             hitMap.put("canonical_url", hit.getCanonicalUrl());
+            // Sprint 14 §L0 — surface missing-URL cases so downstream
+            // observability can classify a missing canonical_url as a
+            // data-quality gap rather than ambiguity.
+            hitMap.put("canonical_url_missing", hit.isCanonicalUrlMissing());
             hitMap.put("score", hit.getScore());
             return hitMap;
         }).collect(Collectors.toList()));

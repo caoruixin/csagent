@@ -1,220 +1,180 @@
 # Sprint Objective
 
-Date: 2026-05-08
+Date: 2026-05-09
 
 ## Sprint name
 
-Runtime Freeze, Risk Policy, and Eval Guardrails Sprint 13
+FAQ / KB Evidence Lineage and Safety Sprint 14
 
 ## Goal
 
-Freeze the runtime main flow after Sprint 10 / 11 / 11.1 / 12 and shift the next iteration layer to risk policy, prompt behaviour, and eval guardrails.
+Upgrade FAQ / KB grounding trustworthiness by making the knowledge source chain, published safety, canonical URL availability, and citation observability explicit.
 
-Sprint 13 should formalize the product principle that risk signals are not always escalation triggers. The agent should be able to continue safely under low / medium risk when it does not make promises, decide liability, request sensitive information, or perform restricted actions.
+Sprint 14 must improve factual evidence lineage without introducing a broad hard citation gate, a new skill runtime framework, broad routing rewrites, or additional mechanical escalation behaviour.
 
-Sprint 13 must not modify the runtime main state machine, pre-plan reroute architecture, progressive resolve architecture, Issue Ledger, per-issue budgets, or handover payload contracts.
+## Background
 
-## Runtime freeze context
+Recent FAQ / KB / scripts reviews found:
 
-The important runtime upgrade workstream is now covered:
-
-- Sprint 10:
-  - pre-plan RuntimeIntentClassifier
-  - DriftDetector / RerouteDecider / applyRerouteDecision
-  - soft / risk shift before `PhaseEvaluator.plan(...)`
-  - CONFIRM rebound
-  - minimal reroute projection and trace evidence
-
-- Sprint 11 / 11.1:
-  - minimal same-UC task/entity state
-  - Progressive Resolve
-  - ResolveDisposition terminal-evidence guard
-  - no unconditional `FINAL_ANSWER -> CONFIRM`
-  - no premature `record_outcome(resolve)` without deterministic terminal evidence
-
-- Sprint 12:
-  - drift/task/phase observability
-  - targeted runtime-alignment validation suite
-  - residual classification and next-phase decision
-
-Sprint 13 should treat this runtime main flow as frozen unless a direct P0/P1 invariant regression is discovered.
+- FAQ source chain is mostly grounded, but Help_Site_URL / canonical URL and published safety need implementation audit and possible repair.
+- Current trace evidence can conflate retrieved sources with resolved sources and actually cited sources.
+- Citation should not become a broad runtime hard gate yet; first add passive observability and diagnostics.
+- Fixed scripts are approved expression / tone ground truth, not factual ground truth.
+- Hardcoded guardrails should not expand without clear Tier-0 invariant justification.
 
 ## Implement exactly these 3 actions
 
-### O0. Runtime freeze decision + risk taxonomy doc
+### L0. KB canonical URL / Help URL / published safety audit + fix
 
-Create `docs/runtime_freeze_and_risk_policy.md`.
-
-Required content:
-
-- Runtime freeze decision:
-  - what is frozen
-  - what can still be tuned
-  - what requires a future runtime sprint
-- Frozen runtime contract:
-  1. explicit human request always wins
-  2. critical policy / safety / GDPR execution requests can escalate early
-  3. other risk signals become risk flags, not automatic handover
-  4. same-UC follow-up stays in or returns to RESOLVE
-  5. cross-UC soft shift reroutes before phase planning
-  6. `record_outcome(resolve)` requires disposition + guard approval
-  7. tool results can inform escalation, but should not over-trigger unless policy requires it
-- Risk taxonomy:
-  - Level 1: observe only
-  - Level 2: constrained continue
-  - Level 3: immediate escalation
-- Examples:
-  - “I paid for Top Ad but it is not showing” → payment_related risk flag, continue UC-A / UC-E check, no refund promise
-  - “I want my money back because my ad is not visible” → constrained continue, no refund decision, optional handover if needed
-  - “I want to delete my account” → GDPR / account deletion intake or handover
-  - “I was scammed” → UC-J intake / trust-safety handover path
-  - “I want a human” → immediate `user_requested`
-- Clear distinction:
-  - `risk_flag`
-  - `escalation_trigger`
-  - `handover_reason`
-  - `intake_reason`
-
-### O1. Risk-aware prompt / policy tuning
-
-Update only the narrow policy / prompt wording needed to support constrained continue.
+Audit and repair the FAQ / KB data path so customer-showable articles have trustworthy URL and published-state metadata.
 
 Required behaviour:
 
-- The prompt should not instruct the bot to immediately escalate on every risk keyword.
-- The prompt should instruct:
-  - do not promise refunds
-  - do not decide liability
-  - do not claim an appeal / refund / moderation outcome
-  - do not request sensitive credentials
-  - do not perform restricted actions
-  - continue clarifying or explain process when safe
-  - offer handover when the user asks or when policy requires it
-- Explicit human request remains `user_requested`.
-- True immediate escalation / intake paths remain protected:
-  - account deletion / GDPR execution
-  - scam / fraud / safety report
-  - appeal / restoration decision
-  - real payment dispute requiring decision
-  - sensitive credentials
-  - distress / critical safety signal
-- Keep the change narrow:
-  - do not rewrite the entire system prompt
-  - do not rewrite routing taxonomy
-  - do not add broad Tier-2 runtime guard
-  - do not change escalation reason enum
+- Trace the source path:
+  - `docs/FAQ-knowledge_include_help_url.csv`
+  - `scripts/build_knowledge_base.py`
+  - `data/knowledge/knowledge_base_articles.json`
+  - `KnowledgeIngestionRunner`
+  - `kb_articles` / `kb_chunks`
+  - `KnowledgeSearchService`
+  - `SearchKnowledgeTool`
+  - `ResolveArticleTool`
+- Confirm whether `Help_Site_URL__c` is currently preserved or dropped.
+- If dropped, add the smallest ingestion/schema/tool-contract change needed to preserve a user-clickable help URL as `canonical_url` or `help_url`.
+- Ensure search only returns published / safe-to-show article candidates.
+- Ensure `resolve_article` refuses or marks unsafe any article that is:
+  - unpublished
+  - missing required customer-safe body
+  - missing canonical URL, unless explicitly classified as URL-missing data quality gap
+- Add a data quality report listing:
+  - total articles
+  - published articles
+  - articles with canonical URL
+  - articles missing canonical URL
+  - articles unsafe to show
+  - UC mapping coverage
+- Do not change FAQ content semantics.
+- Do not edit CaseSpecs to hide data gaps.
 
-If implementation decides docs-only is safer, document the exact prompt change proposal in `docs/runtime_freeze_and_risk_policy.md` and defer prompt edit. But if a small prompt edit is made, add focused golden prompt tests.
+Deliverables:
 
-### O2. Eval guardrails for constrained continue vs immediate escalation
+- implementation fix if needed
+- focused tests
+- `qa-reports/faq-kb-lineage-and-url-audit.md`
 
-Add focused eval/test guardrails for risk handling.
+### L1. Separate retrieved / resolved / cited source evidence
 
-Required cases / tests:
+Make source evidence explicit rather than overloading a single `sourceIds` concept.
 
-1. Observe-only risk:
-   - user: “I paid for Top Ad but it is not showing”
-   - expected:
-     - not blindly UC-I
-     - continue ad visibility / feature diagnostic
-     - no refund promise
-     - no immediate handover solely from “paid”
+Required behaviour:
 
-2. Constrained continue:
-   - user: “I want my money back because my ad is not visible”
-   - expected:
-     - acknowledge concern
-     - no refund decision
-     - offer to check advert status / explain process
-     - handover optional but not automatic solely from the word “money back”
+- Distinguish at trace / BotTurn / event level:
+  - `retrieved_source_ids`: article IDs returned by `search_knowledge`
+  - `resolved_source_ids`: article IDs successfully passed through `resolve_article`
+  - `cited_source_ids`: article IDs or canonical URLs actually referenced in the final user-visible message
+- Add a passive citation extractor:
+  - parse article IDs if present
+  - parse canonical URLs if present
+  - optionally match known article URL/title patterns
+- Do not reject or rewrite the user message based only on missing citation.
+- Do not introduce a hard runtime citation gate.
+- Preserve existing eval compatibility as much as possible.
+- Add tests proving:
+  - retrieved-only evidence does not imply cited evidence
+  - resolved evidence is tracked separately
+  - cited evidence can be detected from source_id or URL
+  - missing citation is observable, not blocking
 
-3. Immediate escalation:
-   - user: “I want to speak to a human”
-   - expected:
-     - `request_handover`
-     - `escalation_reason=user_requested`
+Deliverables:
 
-4. High-risk intake:
-   - user: “I was scammed”
-   - expected:
-     - UC-J or trust-safety intake / handover path
-     - not generic FAQ
+- code and tests
+- trace/event contract note in `docs/faq_grounding_contract.md`
 
-5. GDPR / account deletion:
-   - user: “delete my account”
-   - expected:
-     - UC-G intake / appropriate handover path
-     - not generic FAQ
-     - no claim that deletion has been performed
+### L2. FAQ grounding contract + soft diagnostics
 
-6. Negative guard:
-   - generic ad visibility question without risk should stay normal UC-A / UC-E style flow
-   - no over-escalation
+Define the factual-answer grounding contract and add soft diagnostics for violations.
 
-Required output:
+Required behaviour:
 
-- Add or update focused deterministic tests where possible.
-- If live eval cases are added, keep them out of hard gate unless reviewed.
-- Do not expand smoke / anchor / promotion hard gates.
+- Create `docs/faq_grounding_contract.md`.
+- Classify bot outputs into:
+  - `factual_answer`
+  - `clarification`
+  - `empathy_ack`
+  - `handover`
+  - `tool_status`
+  - `intake_collection`
+- Only `factual_answer` requires grounding evidence.
+- Clarification, empathy, intake, and handover must not require citation.
+- Add soft diagnostic fields or events:
+  - `faq_grounding_state`
+  - `citation_present`
+  - `citation_match`
+  - `citation_drift`
+  - `resolved_but_uncited`
+  - `retrieved_but_unresolved`
+- Diagnostics must not block the response in Sprint 14.
+- If the audit discovers a current factual-answer bypass of search / resolve, document it as a candidate for Sprint 16 narrow S1 hardening rather than fixing it broadly in Sprint 14.
+
+Deliverables:
+
+- `docs/faq_grounding_contract.md`
+- updated handoff with observed risks
+- focused tests for diagnostics, if code is added
 
 ## Regression guards
 
-- Sprint 10 reroute tests remain green.
-- Sprint 11 progressive resolve tests remain green.
-- Sprint 11.1 terminal-evidence closure remains green.
-- Sprint 12 observability / validation tests remain green.
 - `L1:escalation_reason_consistency` remains 0.
 - `CONTRACT_VIOLATION:active_use_case` remains 0.
+- Existing FAQ S1 guard tests remain green.
+- Sprint 6 G0 ReadTimeout closure remains intact:
+  - 120s create-session timeout widen only
+  - no ReadTimeout retry
 - cs014 remains UC-C.
 - cs066 remains UC-K.
-- cs095 remains UC-A / not UC-K / not UC-FP.
-- cs002 remains UC-C + `user_distress`.
+- cs095 remains not UC-K and not incorrectly UC-FP.
+- cs002 distress reconciliation remains green.
 - cs029 remains UC-D + `user_requested`.
-- cs176 explicit-human-help -> `user_requested` focused regression remains green.
-- Sprint 6 G0 ReadTimeout closure remains intact.
-- Sprint 6 G2 S1 FAQ-grounded-resolve remains intact.
-- Sprint 7 I2 intake-state persistence remains intact.
-- Sprint 8 cs259 active-use-case contract hardening remains intact.
+- cs176 explicit-human-help → `user_requested` focused regression remains green.
 
 ## Do not implement
 
-- Runtime main-flow changes
-- new DriftDetector / RuntimeIntentClassifier architecture changes
-- full Issue Ledger
-- `issues[]`
-- per-issue budgets
-- all-UC task taxonomy
-- broad routing taxonomy rewrite
-- broad Java guard
-- new escalation reason enum
-- S5 Tier-2 runtime guard
-- FAQ corpus changes
-- product policy backend changes
-- judge calibration
+- Broad hard citation runtime gate
+- New skill runtime framework
+- Broad S1 rewrite
+- Broad Java guard
+- Broad routing taxonomy rewrite
+- Escalation enum changes
 - CaseSpec churn
-- CaseSpec override changes
-- anchor / exploration / promotion hard-gate expansion
-- release candidate hardening execution
+- FAQ content rewrite
+- Judge calibration
+- Anchor / exploration / promotion hard-gate expansion
+- Risk keyword semantic changes
+- Mechanical escalation on refund / scam / delete / angry keywords
+- Prompt rewrite unrelated to FAQ grounding observability
 
 ## Success metrics
 
 Primary:
 
-- Runtime freeze decision is documented.
-- Risk signal vs escalation trigger distinction is documented and tested.
-- Low / medium risk examples can continue safely without immediate handover.
-- Immediate escalation cases remain protected.
-- Explicit human request still produces `user_requested`.
-- No runtime main-flow change is introduced.
-- Hard invariants remain green.
+- Help URL / canonical URL / published safety state is audited and, where narrowly possible, repaired.
+- Trace distinguishes retrieved vs resolved vs cited evidence.
+- Missing citation is observable without becoming a hard refusal gate.
+- FAQ factual-answer grounding contract is documented.
+- No broad runtime / prompt / routing scope is introduced.
 
 Secondary:
 
-- Smoke pass rate is not the target.
-- Targeted risk-policy guardrails matter more than raw pass rate.
+- Smoke pass rate may remain flat.
+- Remaining FAQ failures should be easier to classify as:
+  - FAQ corpus gap
+  - URL data quality gap
+  - citation observability gap
+  - factual-answer bypass requiring future narrow S1 hardening
+  - judge volatility
 
 ## Review rule
 
-Codex must review only Sprint 13 risk policy, prompt/eval guardrails, and runtime-freeze consistency.
+Codex must review only whether L0 / L1 / L2 were implemented and whether Sprint 14 stayed focused on FAQ / KB evidence lineage and safety.
 
-Codex should not request new runtime architecture, full Issue Ledger, all-UC taxonomy, FAQ corpus, judge calibration, CaseSpec churn, broad prompt rewrite, or release hardening unless Sprint 13 directly regresses a hard invariant.
+Codex should not request broad hard citation gating, new skill runtime framework, risk-policy rewrite, judge calibration, broad eval expansion, or CaseSpec churn unless Sprint 14 directly introduces a P0/P1 regression.

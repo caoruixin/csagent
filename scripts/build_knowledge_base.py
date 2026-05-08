@@ -368,6 +368,30 @@ def main():
         report_lines.append(f"| UNMATCHED | — | {len(unmatched)} | — |")
 
     report_lines.append("")
+    # Sprint 14 §L0 — KB URL / published-safety data-quality block.
+    # Surface missing canonical URLs as a visible DQ gap rather than
+    # silently coalescing them to null at ingest time. The Java tools
+    # (`SearchKnowledgeTool`, `ResolveArticleTool`) also stamp
+    # `canonical_url_missing` per hit at runtime.
+    articles_with_url = sum(1 for a in articles if a["source_url"])
+    articles_missing_url = len(articles) - articles_with_url
+    articles_published = sum(1 for a in articles if a.get("published_status") is True)
+    articles_unpublished = len(articles) - articles_published
+    articles_unsafe = sum(
+        1 for a in articles
+        if not a.get("published_status") or not a.get("content_plain")
+    )
+    report_lines.append("## URL & Published-Safety Coverage (Sprint 14 §L0)")
+    report_lines.append("")
+    report_lines.append("| Metric | Value |")
+    report_lines.append("|--------|-------|")
+    report_lines.append(f"| Total articles | {len(articles)} |")
+    report_lines.append(f"| Articles published | {articles_published} |")
+    report_lines.append(f"| Articles unpublished | {articles_unpublished} |")
+    report_lines.append(f"| Articles with canonical_url | {articles_with_url} |")
+    report_lines.append(f"| Articles missing canonical_url | {articles_missing_url} |")
+    report_lines.append(f"| Articles unsafe to show (unpublished or empty body) | {articles_unsafe} |")
+    report_lines.append("")
     report_lines.append("## Token Budget Summary")
     report_lines.append("")
     tokens = [a["token_estimate"] for a in articles]
