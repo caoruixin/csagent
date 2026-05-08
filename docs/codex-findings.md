@@ -1,41 +1,37 @@
 ## Sprint Review Decision
 
-decision: fix_required
-blocking_count: 1
-summary: L0 is substantially met, and the L1/L2 extraction/diagnostic logic is implemented as passive, non-blocking code with focused Maven regressions green. Sprint 14 does not yet meet the citation observability goal because the new lineage and grounding diagnostics are stamped only onto non-persisted `@Transient` session fields after the `BotTurn` is saved, so they are not observable at trace / BotTurn / event level.
+decision: pass
+blocking_count: 0
+summary: Sprint 14.1 closes the previous persistence blocker: `SourceEvidenceLineage`, `FaqOutputClass`, and `FaqGroundingDiagnostics` are computed before `BotTurn` save and persisted as snake_case fields under `bot_turns.projected_context.faq_grounding`. Citation extraction remains passive and non-blocking, and the diff stays narrow with no hard citation gate, DB migration, broad framework, corpus change, CaseSpec/judge/prompt/routing change, or escalation-enum change.
 
 ## Blocking Sprint Failures
 
-- severity: P1
-- target doc/code/test: `server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:1977`, `server/src/main/java/com/gumtree/csagent/model/BotSession.java:276`, `server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java:455`, `docs/faq_grounding_contract.md:92`
-- blocks current sprint goal: yes
-- evidence: `recordRunResult` saves the `BotTurn` before calling `stampFaqGroundingObservability`, and the L1/L2 fields it stamps live only on JPA `@Transient` `BotSession` properties. `ContextProjectionBuilder` does not emit a `faq_grounding` / lineage object, `ChatSessionResponse.additional_data` only returns `latency_ms`, and the contract claims trace surfaces such as `projection.faq_grounding`; after a normal save/reload path the fields are gone, leaving `retrieved_source_ids`, `resolved_source_ids`, `cited_source_ids`, and the soft diagnostics computed but not durably observable.
-- exact minimal fix: Compute `SourceEvidenceLineage` and `FaqGroundingDiagnostics` before saving the turn and persist the snake_case fields into an existing trace surface, such as `bot_turns.projected_context.faq_grounding` or a narrow `BotEvent` payload; add a focused persistence/trace test that reloads the saved turn and asserts retrieved-only, resolved-only, cited-by-id, cited-by-url, and missing-citation cases are visible. Do not add a hard citation gate, DB migration, new runtime framework, or broad S1 rewrite.
+None.
 
 ## Non-Blocking Notes
 
 - severity: P2
-- target doc/code/test: `qa-reports/faq-kb-lineage-and-url-audit.md`, `scripts/build_knowledge_base.py`, `data/knowledge/knowledge_base_articles.json`
+- target doc/code/test: `docs/10-handoff.md` §11/§12 and `docs/action_bank.md` §3
 - blocks current sprint goal: no
-- exact minimal fix, if any: None for Sprint 14. The CSV -> JSON -> ingest -> DB -> service -> tool chain is specifically documented, and a local recount matches the report's 218 total articles, 218 published, 180 with `source_url`, 38 missing canonical URLs, and 0 unsafe-to-show articles.
+- exact minimal fix, if any: After this Codex pass, clean up the few pre-review phrases that still read as premature closure, such as "Sprint 14 closed" / "combined Sprint 14 + 14.1 objective is met", and update the older §12 test-count line from 854 to the Sprint 14.1 count of 859. The current phase headers correctly say Sprint 14.1 is awaiting Codex re-review, so this is documentation polish rather than a blocker.
 
 - severity: P2
-- target doc/code/test: `server/src/main/java/com/gumtree/csagent/repository/KbChunkRepository.java:37`, `server/src/main/java/com/gumtree/csagent/service/knowledge/KnowledgeSearchService.java:203`, `server/src/main/java/com/gumtree/csagent/service/tools/ResolveArticleTool.java:86`
+- target doc/code/test: `docs/faq_grounding_contract.md` §1 and §5
 - blocks current sprint goal: no
-- exact minimal fix, if any: Optional hardening only: if `safe_to_show` is intended to include a non-blank body at search time, mirror the `ResolveArticleTool` body check in the published-only ANN SQL or post-fetch projection and add one stale-chunk test. Current corpus has 0 empty-body unsafe articles, and ingestion does not create chunks for blank bodies, so this is not a Sprint 14 blocker.
+- exact minimal fix, if any: Optional clarity only: add the durable trace surface to the §1 term table alongside the `BotSession` transient slots. §5 already accurately describes `bot_turns.projected_context.faq_grounding` as the durable surface.
 
 ## Regression Risks
 
 - severity: P2
-- target doc/code/test: `mvn -pl server test -Dtest='Sprint14*'` and focused Sprint 6/7/8/10/11/12/13 regression command
+- target doc/code/test: `server/src/test/java/com/gumtree/csagent/integration/Sprint141FaqGroundingTracePersistenceTest.java`
 - blocks current sprint goal: no
-- exact minimal fix, if any: None. I reran both Maven suites locally: Sprint 14 focused tests passed 33/0/0/0, and the named regression guard suite passed 269/0/0/0, covering the existing FAQ S1 guard, Sprint 6 ReadTimeout no-retry closure tests, and focused cs014/cs066/cs095/cs002/cs029/cs176 guards.
+- exact minimal fix, if any: Optional hardening only: add a true repository save/reload test if a future DB-backed trace regression appears. The current test captures the exact `BotTurn.projectedContext` value handed to `BotTurnRepository.save(...)`, and `projected_context` is already the durable JSONB column.
 
 - severity: P2
-- target doc/code/test: `pytest eval_interactive/tests/`
+- target doc/code/test: `mvn -pl server test -Dtest='Sprint14*,Sprint141*'`, focused Sprint 6/7/8/10/11/12/13 regression command, and `mvn -pl server test`
 - blocks current sprint goal: no
-- exact minimal fix, if any: Re-run in the repo's intended Python environment if a validation-only closure needs the Python eval suite. The handoff records 294/0, but in this local shell `/Users/caoruixin/miniconda3/bin/pytest` exited with code 139 and `python3 -m pytest` had no pytest module, so I could not independently verify that line.
+- exact minimal fix, if any: None. I reran the focused Sprint 14/14.1 suite (38/0/0/0), the named regression guard suite (269/0/0/0), and the full server test suite (859/0/0/0); the existing FAQ S1 guard and Sprint 6 ReadTimeout no-retry closure remain green.
 
 ## Recommended Next Phase
 
-Narrow Runtime Fix
+Script / Policy Config Governance Sprint
