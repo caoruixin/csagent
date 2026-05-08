@@ -864,9 +864,39 @@ public class PhaseEvaluator {
                             result.finalUserMessage(),
                             null, "record_outcome_failed_retry");
                 }
-                return new PhaseTransitionDecision("CONFIRM",
-                        result.finalUserMessage(),
-                        null, "answer_provided");
+                // Sprint 11 §M1 — ResolveDisposition guard. A single
+                // grounded answer that asks for a slot or delivers a
+                // soft next step ("here is how to find your ad; send the
+                // advert ID if you want me to check it") must remain in
+                // RESOLVE. Only a deterministic terminal condition
+                // (successful record_outcome dispatch on this turn)
+                // earns the RESOLVE → CONFIRM transition. The bot's
+                // own clarifying-question heuristics already gate
+                // CLARIFICATION_NEEDED upstream; this branch handles the
+                // FINAL_ANSWER case where the bot text shape implies a
+                // follow-up is expected.
+                com.gumtree.csagent.model.ResolveDisposition disposition =
+                        ResolveDispositionEvaluator.evaluate(plan, result);
+                if (session != null) {
+                    session.setTaskStatus(disposition.toTaskStatusToken());
+                }
+                switch (disposition) {
+                    case ASKED_FOR_SLOT:
+                    case ANSWERED_SUBTASK:
+                    case CONTINUE_RESOLVE:
+                        return new PhaseTransitionDecision("RESOLVE",
+                                result.finalUserMessage(),
+                                null, "progressive_resolve_stay");
+                    case ESCALATE:
+                        return new PhaseTransitionDecision("ESCALATE",
+                                result.finalUserMessage(),
+                                "service_degraded", "agent_escalated");
+                    case READY_TO_CONFIRM:
+                    default:
+                        return new PhaseTransitionDecision("CONFIRM",
+                                result.finalUserMessage(),
+                                null, "answer_provided");
+                }
             }
             case "CONFIRM":
                 // FINAL_ANSWER from CONFIRM means the user is satisfied; the LLM

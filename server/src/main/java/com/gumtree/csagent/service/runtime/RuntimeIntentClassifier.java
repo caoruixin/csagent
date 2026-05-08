@@ -86,6 +86,26 @@ public class RuntimeIntentClassifier {
             Pattern.CASE_INSENSITIVE);
 
     /**
+     * Sprint 11 §M0 — ad_id user-message capture. Same numeric shape used
+     * by the {@code PiiRedactionFilter} ({@code \\d{10,}}) plus a
+     * dash-prefixed variant ({@code AD-12345...}) and an inline
+     * "ad id: 123..." form. Used to reuse {@code primary_entity} across
+     * same-UC follow-up turns when the user types the listing ID directly
+     * into the chat.
+     */
+    private static final Pattern AD_ID_FROM_USER_MESSAGE_PATTERN = Pattern.compile(
+            "(?:^|[^\\w])("
+                    + "AD-\\d{4,}"
+                    + "|\\d{10,}"
+                    + ")(?=$|[^\\w])",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern AD_ID_LABELED_PATTERN = Pattern.compile(
+            "\\b(?:ad(?:vert)?[-\\s]?id|advert\\s+id|ad\\s+number|listing\\s+id)\\s*[:#=]?\\s*"
+                    + "(AD-\\d{4,}|\\d{4,})",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
      * Sprint 10 §L0 — payment-ambiguity negative guard.
      * "I paid for Top Ad but it's not showing" / "paid for promotion but no
      * boost" must NOT route to UC-I (Payments). The user paid for an ad
@@ -198,7 +218,8 @@ public class RuntimeIntentClassifier {
             String taskType = adVisibilityPaymentAmbiguity
                     ? "listing_visibility_paid_promotion"
                     : "listing_visibility_diagnostic";
-            String adId = readAdIdFromForm(session);
+            String adId = preferAdId(readAdIdFromForm(session),
+                    extractAdIdFromUserMessage(userMessage));
             // Always SAME_ISSUE for ad-visibility shape: predicted UC = UC-A.
             // If the active UC is already UC-A, this rebounds CONFIRM →
             // RESOLVE on the same UC. If the active UC is something else
@@ -213,7 +234,8 @@ public class RuntimeIntentClassifier {
         }
 
         if (uc_a_followup) {
-            String adId = readAdIdFromForm(session);
+            String adId = preferAdId(readAdIdFromForm(session),
+                    extractAdIdFromUserMessage(userMessage));
             if (activeUc == null || "UC-A".equals(activeUc)) {
                 return IntentClassification.of("UC-A", 0.80, IntentRelation.SAME_UC_NEW_TASK,
                         "listing_lifecycle_followup",
@@ -265,6 +287,62 @@ public class RuntimeIntentClassifier {
                     ex.getMessage());
         }
         return null;
+    }
+
+    /**
+     * Sprint 11 §M0 — extract an ad_id from the user's chat message. The
+     * progressive UC-A flow asks the user to provide their advert ID
+     * after a soft "send the advert ID" answer; on the next turn the
+     * user may type the ID without any re-stated context. Capturing it
+     * here lets the runtime stamp {@code primary_entity} so subsequent
+     * follow-up turns reuse the entity instead of re-asking.
+     *
+     * <p>Visible for unit tests so the Sprint 11 progressive-resolve
+     * regression can pin the regex shapes.
+     */
+    static String extractAdIdFromUserMessage(String userMessage) {
+        if (userMessage == null || userMessage.isBlank()) {
+            return null;
+        }
+        java.util.regex.Matcher labeled = AD_ID_LABELED_PATTERN.matcher(userMessage);
+        if (labeled.find()) {
+            return labeled.group(1);
+        }
+        java.util.regex.Matcher numeric = AD_ID_FROM_USER_MESSAGE_PATTERN.matcher(userMessage);
+        if (numeric.find()) {
+            return numeric.group(1);
+        }
+        return null;
+    }
+
+    /**
+     * Sprint 11 §M0 — same-UC ad_id capture. When the user message has
+     * no Sprint 10 MVP shape but contains a bare ad_id, surface it so
+     * {@code ControlKernel.applyRerouteDecision} can persist it on
+     * {@code session.primaryEntity} for the next same-UC follow-up
+     * turn. Returns {@code null} when no ad_id is present in the
+     * message.
+     */
+    public String captureSameUcAdIdHint(BotSession session, String userMessage) {
+        if (session == null || userMessage == null || userMessage.isBlank()) {
+            return null;
+        }
+        String activeUc = session.getActiveUseCase();
+        // Only capture for FAQ-class UCs that benefit from progressive
+        // resolve (UC-A in particular). High-risk intake UCs already
+        // capture entities via the intake_fields / handover payload.
+        if (!"UC-A".equals(activeUc)) {
+            return null;
+        }
+        return extractAdIdFromUserMessage(userMessage);
+    }
+
+    /** Prefer the user-supplied ad_id over a stale form_context entry. */
+    private static String preferAdId(String fromForm, String fromUserMessage) {
+        if (fromUserMessage != null && !fromUserMessage.isBlank()) {
+            return fromUserMessage;
+        }
+        return fromForm;
     }
 
     static boolean isLowRiskFaqUc(String uc) {
