@@ -1,0 +1,63 @@
+# Sprint 15 §M0 — DriftDetector risk keyword config.
+#
+# Behaviour-preserving externalization of the previously hardcoded
+# DriftDetector.HARD_SHIFT_KEYWORDS list and ESCALATION_PATTERN regex.
+#
+# Contract (must be preserved exactly):
+#   - escalation-pattern is a single (?i)-flagged regex compiled with
+#     java.util.regex.Pattern. A match in the raw user message returns
+#     DriftType.USER_ESCALATION_REQUEST (escalationRequested=true,
+#     newUseCase=null). Escalation precedes any hard-shift match.
+#   - hard-shift-groups are evaluated in declaration order. Within a
+#     group, keywords are evaluated in declaration order. The match
+#     condition is exactly: lowercased(userMessage).contains(keyword)
+#     where keyword is already lowercase. The first matching keyword
+#     across groups wins.
+#   - A hard-shift only fires when the matched group's target-use-case
+#     differs from session.activeUseCase (a same-UC match returns
+#     DriftType.NONE).
+#
+# Sprint 15 explicitly does NOT introduce new risk semantics, new risk
+# levels, new escalation reasons, or auto-handover for Level 1 / Level 2
+# risk signals. Future risk-policy reviews should land here as
+# config diff rather than Java source edits.
+
+version: 1
+
+escalation-pattern: "(?i)(talk to (an?\\s+)?agent|human agent|real person|transfer me|speak (to|with) (a\\s+)?(human|person|agent|someone)|connect me|live agent|customer service|live support)"
+
+hard-shift-groups:
+  - target-use-case: UC-J
+    keywords:
+      - scam
+      - scammed
+      - fraud
+      - fraudulent
+  - target-use-case: UC-G
+    keywords:
+      - delete my data
+      - delete my account
+      - gdpr
+      - data deletion
+      - right to be forgotten
+  - target-use-case: UC-I
+    keywords:
+      - refund
+      - money back
+      - charge back
+      - chargeback
+      - dispute payment
+  - target-use-case: UC-J
+    keywords:
+      - unsafe
+      - harassment
+      - threatening
+      - danger
+      - abusive
+  - target-use-case: UC-H
+    keywords:
+      - ad removed
+      - ad deleted
+      - ad taken down
+      - why was my ad removed
+      - appeal

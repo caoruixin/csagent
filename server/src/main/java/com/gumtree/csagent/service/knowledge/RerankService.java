@@ -1,5 +1,6 @@
 package com.gumtree.csagent.service.knowledge;
 
+import com.gumtree.csagent.config.KnowledgeRetrievalProperties;
 import com.gumtree.csagent.config.LlmProperties;
 import com.gumtree.csagent.model.ChatMessage;
 import com.gumtree.csagent.model.LlmRequest;
@@ -21,6 +22,13 @@ import java.util.regex.Pattern;
 /**
  * Reranks candidate chunks using LLM-based relevance scoring.
  * Each chunk is scored 1-5 for how well it answers the user query.
+ *
+ * <p>Sprint 15 §M2: the neutral fallback score returned on parse /
+ * call failure is sourced from
+ * {@link com.gumtree.csagent.config.KnowledgeRetrievalProperties}
+ * (default 2.5, unchanged). All fallback paths log a structured
+ * diagnostic so observability can attribute a missing answer to
+ * rerank failure rather than a low-relevance match.
  */
 @Slf4j
 @Service
@@ -46,12 +54,15 @@ public class RerankService {
     private final LlmClient llmClient;
     private final LlmCallLogger llmCallLogger;
     private final String modelName;
+    private final KnowledgeRetrievalProperties retrievalProps;
 
     public RerankService(LlmClient llmClient, LlmCallLogger llmCallLogger,
-                         LlmProperties llmProperties) {
+                         LlmProperties llmProperties,
+                         KnowledgeRetrievalProperties retrievalProps) {
         this.llmClient = llmClient;
         this.llmCallLogger = llmCallLogger;
         this.modelName = llmProperties.getKimi().getModel();
+        this.retrievalProps = retrievalProps;
     }
 
     /**
@@ -83,14 +94,21 @@ public class RerankService {
                         },
                         RERANK_EXECUTOR
                 ).exceptionally(ex -> {
-                    log.warn("Rerank future failed for chunk {}: {}", candidate.chunkId(), ex.getMessage());
+                    // Sprint 15 §M2 diagnostic: future-level failure drops to
+                    // the configured fallback score so the rerank pipeline
+                    // can keep running. The fallback score is configured to
+                    // sit strictly below the answer gate so a fallback
+                    // result never satisfies the gate by accident.
+                    log.warn("Rerank future failed for chunk {}: {} (using fallback score {})",
+                            candidate.chunkId(), ex.getMessage(),
+                            retrievalProps.getRerankFallbackScore());
                     return new ScoredCandidate(
                             candidate.articleId(),
                             candidate.chunkId(),
                             candidate.chunkText(),
                             candidate.sectionHeading(),
                             candidate.cosineSimilarity(),
-                            2.5
+                            retrievalProps.getRerankFallbackScore()
                     );
                 }))
                 .toList();
@@ -148,20 +166,25 @@ public class RerankService {
 
         } catch (Exception e) {
             int elapsed = (int) (System.currentTimeMillis() - start);
-            log.warn("Failed to score chunk for reranking: {}", e.getMessage());
+            // Sprint 15 §M2 diagnostic: rerank LLM call failure → fallback score.
+            log.warn("Rerank LLM call failed; reason=rerank_call_failure msg='{}' fallback_score={}",
+                    e.getMessage(), retrievalProps.getRerankFallbackScore());
             llmCallLogger.logFailure(sessionId, turnIndex, "rerank", modelName,
                     elapsed, requestSummary, e.getMessage());
-            // Return neutral score on failure
-            return 2.5;
+            return retrievalProps.getRerankFallbackScore();
         }
     }
 
     /**
-     * Parse the integer score from LLM response. Falls back to 2.5 if unparseable.
+     * Parse the integer score from LLM response. Falls back to the
+     * configured rerank-fallback score if unparseable. Sprint 15 §M2
+     * surfaces the fallback reason in logs for observability.
      */
     private double parseScore(String content) {
         if (content == null || content.isBlank()) {
-            return 2.5;
+            log.debug("Rerank parse fallback: reason=empty_response fallback_score={}",
+                    retrievalProps.getRerankFallbackScore());
+            return retrievalProps.getRerankFallbackScore();
         }
 
         Matcher matcher = SCORE_PATTERN.matcher(content.trim());
@@ -169,8 +192,9 @@ public class RerankService {
             return Double.parseDouble(matcher.group());
         }
 
-        log.warn("Could not parse rerank score from LLM response: '{}'", content);
-        return 2.5;
+        log.warn("Rerank parse fallback: reason=unparseable response='{}' fallback_score={}",
+                content, retrievalProps.getRerankFallbackScore());
+        return retrievalProps.getRerankFallbackScore();
     }
 
     /**

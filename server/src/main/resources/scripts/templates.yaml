@@ -1,6 +1,13 @@
 # Fixed Script Library v1 — Bot Template Library
 # Source: docs/fixed_script_library_v1.md (approved v5, 2026-04-19)
 # 14 categories / 50+ templates / forbidden phrases list
+#
+# Sprint 15 §M1: explicit version pin. Must match the latest entry of
+# the `## 11. Version` table in docs/fixed_script_library_v1.md. The
+# Sprint15ScriptLibraryConsistencyTest enforces this on build.
+
+library_version: "v1.1"
+library_version_date: "2026-04-21"
 
 templates:
 

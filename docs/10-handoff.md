@@ -6,8 +6,29 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
-None — Sprint 14 + Sprint 14.1 closed (Codex pass).
-Ready for the next sprint to be selected.
+Script / Policy Config Governance Sprint 15 — implementation
+complete, awaiting Codex review.
+
+Sprint 15 lands three behaviour-preserving config-governance moves:
+- §M0 externalizes the previously hardcoded `DriftDetector` risk
+  keyword list and escalation regex into
+  `server/src/main/resources/config/risk-keywords.yaml` via a new
+  `RiskKeywordsConfig` loader (with structural validation).
+- §M1 pins a `library_version` / `library_version_date` on
+  `server/src/main/resources/scripts/templates.yaml` and adds a
+  build-time docs ↔ YAML consistency test against
+  `docs/fixed_script_library_v1.md`.
+- §M2 externalizes the previously hardcoded retrieval / answer-gate /
+  rerank fallback thresholds into a new
+  `KnowledgeRetrievalProperties` `@ConfigurationProperties` bean
+  (`knowledge.retrieval.*` in `application.yml`) with start-up range
+  validation and rerank-fallback / threshold-gate diagnostics.
+
+No runtime semantics, escalation reasons, risk levels, prompt copy,
+routing rules, FAQ corpus content, judge calibration, CaseSpec, or
+eval-output schema changed.
+
+Earlier Sprint 14 + Sprint 14.1 background (closed, Codex pass):
 
 Sprint 14 (FAQ / KB Evidence Lineage and Safety) initially returned
 Codex `decision: fix_required, blocking_count: 1` — the §L1 / §L2
@@ -20,15 +41,15 @@ review returned `decision: pass, blocking_count: 0`, accepting Sprint
 14 + 14.1 as a unit. No DB migration, no hard citation gate, no broad
 S1 rewrite landed.
 
-Latest closed sprint:
+Latest implemented sprint:
+Sprint 15 — Script / Policy Config Governance
+(this doc; archive under `docs/sprints/sprint-015-*` on closure).
+
+Previously closed sprint:
 Sprint 14 + Sprint 14.1 — FAQ / KB Evidence Lineage and Safety, with
 the persistence closure (will archive under
 `docs/sprints/sprint-014-*` and `docs/sprints/sprint-014.1-*` on
 the next ad-hoc transition).
-
-Previously closed sprint:
-Sprint 13 — Runtime Freeze, Risk Policy, and Eval Guardrails
-(archived under `docs/sprints/sprint-013-*`).
 
 ## 2. Sprint 14 goal
 
@@ -662,3 +683,379 @@ Docs:
 - No new skill runtime framework, no new escalation reason value, no
   CaseSpec edits, no FAQ corpus content edit, no judge / prompt /
   routing / risk-policy change.
+
+## 16. Sprint 15 — Script / Policy Config Governance
+
+Status: **implemented, awaiting Codex review**. Sprint 15 is the
+behaviour-preserving config-governance sprint surfaced by the Sprint
+14.1 Codex review. Diff stays narrow: three actions, no runtime
+main-flow / prompt / routing / risk-policy semantic change.
+
+### 16.1 Implemented actions
+
+#### M0 — Externalize DriftDetector / risk keywords to YAML
+
+What landed:
+
+- New config: `server/src/main/resources/config/risk-keywords.yaml`
+  (`version: 1`). Carries the exact same five hard-shift groups
+  (UC-J / UC-G / UC-I / UC-J / UC-H, in the original declaration
+  order) with the exact same keyword strings as the previous
+  hardcoded `DriftDetector.HARD_SHIFT_KEYWORDS` list, plus the same
+  escalation regex under `escalation-pattern`.
+- New loader: `RiskKeywordsConfig` (Spring `@Service`) loads the YAML
+  at startup, compiles the escalation pattern, and validates:
+  required fields, non-empty groups, non-blank keywords, no
+  cross-group keyword duplicates (which would be unreachable under
+  first-match-wins), and a parseable regex. Fail-fast on any
+  violation.
+- `DriftDetector` constructor-injects `RiskKeywordsConfig`. The
+  matching contract is unchanged — same lower-case substring check,
+  same first-match-wins precedence within and across groups, same
+  same-UC suppression, same `DriftResult` outputs.
+- A no-arg test convenience constructor on `DriftDetector` loads the
+  bundled default classpath resource so legacy unit tests
+  (`DriftDetectorTest`) keep working without behavioural change.
+
+Sprint 15 §M0 explicitly does NOT add new risk semantics, new risk
+levels, new escalation reasons, or auto-handover for Level 1 / Level
+2 risk signals. Future risk-policy reviews are expected to land as
+config diff rather than Java source edits.
+
+Tests added:
+
+- `Sprint15RiskKeywordsConfigTest` (11 cases) — config validation
+  parity (default loads, group / keyword set parity vs the hardcoded
+  reference, version pin), six structural-validation negative tests
+  (missing escalation pattern, empty group list, empty keywords,
+  blank target UC, duplicate keyword, invalid regex), the full
+  parity matrix across escalation phrases / hard-shift groups /
+  same-UC suppression / escalation-precedence / no-drift baseline,
+  the cross-group first-match-wins precedence assertion, and a
+  keyword-uniqueness sanity guard.
+
+#### M1 — Script library version pin and docs ↔ YAML consistency check
+
+What landed:
+
+- `server/src/main/resources/scripts/templates.yaml` now declares
+  `library_version: "v1.1"` and `library_version_date: "2026-04-21"`,
+  matching the latest entry of the `## 11. Version` table in
+  `docs/fixed_script_library_v1.md`.
+- `ScriptLibraryService` reads and exposes the version pin
+  (`getLibraryVersion()`, `getLibraryVersionDate()`) and fails fast
+  at startup if `library_version` is missing.
+- New build-time check:
+  `Sprint15ScriptLibraryConsistencyTest` parses both surfaces and
+  fails the build when:
+  - `library_version` / `library_version_date` is absent or blank,
+  - the YAML version pin diverges from the latest doc version row,
+  - any required template ID listed in the test's reference manifest
+    is missing from the YAML,
+  - a required template's `variables:` declaration drifts from the
+    doc's variable contract,
+  - a top-level template id is duplicated.
+
+Sprint 15 §M1 explicitly does NOT rewrite script copy, change tone /
+escalation wording, alter forbidden-phrase rules, or introduce a new
+template engine. ScriptLibraryService substitution semantics are
+unchanged except for additive metadata validation.
+
+Tests added:
+
+- `Sprint15ScriptLibraryConsistencyTest` (5 cases) — version pin
+  presence, version + date parity vs the doc's §11 Version table,
+  required-template-IDs presence, required-variables contract
+  parity for every template that takes parameters, and duplicate
+  top-level id detection.
+
+#### M2 — Retrieval / answer gate / rerank fallback thresholds + diagnostics
+
+What landed:
+
+- New `@ConfigurationProperties("knowledge.retrieval")` bean
+  `KnowledgeRetrievalProperties` carrying the previously hardcoded
+  thresholds with **defaults unchanged**:
+  - `ann-limit: 20`
+  - `retrieval-gate-threshold: 0.3`
+  - `answer-gate-threshold: 3.5`
+  - `rerank-candidates: 8`
+  - `top-results: 3`
+  - `rerank-fallback-score: 2.5`
+- Range validation runs in a `@PostConstruct` `validate()` step:
+  `ann-limit ≥ rerank-candidates ≥ top-results ≥ 1`, retrieval gate
+  ∈ [0.0, 1.0], answer gate ∈ [1.0, 5.0], fallback score ∈ [1.0,
+  5.0], and `rerank-fallback-score < answer-gate-threshold` so a
+  fallback-score result can never satisfy the answer gate.
+- `application.yml` adds an explicit `knowledge.retrieval` block
+  whose values match the defaults verbatim — future tuning becomes
+  an auditable config diff rather than a hidden Java edit.
+- `KnowledgeSearchService` no longer holds `static final`
+  thresholds; it reads them per-call from the injected properties
+  bean. Pipeline behaviour (ANN limit, retrieval gate test, dedup,
+  rerank window, answer gate test, top-results truncation) is
+  unchanged.
+- `RerankService` now sources the neutral fallback score from
+  `KnowledgeRetrievalProperties.rerankFallbackScore()` (default 2.5,
+  unchanged) for both the parse-fallback path and the LLM-failure /
+  future-failure paths.
+- Diagnostics added (observability-only, no behaviour change):
+  - `KnowledgeSearchService` logs `retrieval_miss` /
+    `answer_miss` with `reason=retrieval_gate` or `reason=answer_gate`
+    and the threshold value; on `answer_miss` it also logs
+    `top_is_fallback_score=true|false` so a parse-failure /
+    call-failure attribution is visible.
+  - `RerankService` logs `Rerank parse fallback` with
+    `reason=empty_response | unparseable` plus the fallback score
+    used, and `Rerank LLM call failed` /
+    `Rerank future failed` with the fallback score on the failure
+    paths.
+
+Sprint 15 §M2 explicitly does NOT tune thresholds, change FAQ
+answerability semantics, change corpus content, or change eval
+expected outcomes.
+
+Tests added:
+
+- `Sprint15KnowledgeRetrievalConfigTest` (9 cases) — defaults parity
+  (each default pinned by literal value), defaults pass validation,
+  and seven structural-validation negative tests (ann-limit < 1,
+  ann-limit < rerank-candidates, rerank-candidates < top-results,
+  retrieval gate out of range, answer gate out of range,
+  fallback ≥ answer gate, fallback out of range).
+
+Updates to existing tests for constructor signature changes:
+
+- `RerankServiceTest` — passes the default
+  `KnowledgeRetrievalProperties` instance into the constructor; the
+  pre-existing parse-failure / call-failure cases remain green and
+  continue to assert the 2.5 fallback score (now sourced from the
+  default config).
+- `Sprint14KnowledgeSearchPublishedFilterTest` — passes the default
+  `KnowledgeRetrievalProperties` instance into the constructor;
+  Sprint 14 §L0 published-only filter / projection contract is
+  preserved and remains green.
+
+### 16.2 Files changed (Sprint 15)
+
+Production code:
+
+- `server/src/main/java/com/gumtree/csagent/service/runtime/RiskKeywordsConfig.java` (new)
+- `server/src/main/java/com/gumtree/csagent/service/runtime/DriftDetector.java`
+  (constructor-injects `RiskKeywordsConfig`; matching contract
+  unchanged)
+- `server/src/main/java/com/gumtree/csagent/service/guardrails/ScriptLibraryService.java`
+  (reads `library_version` / `library_version_date`; fail-fast on
+  missing pin; substitution semantics unchanged)
+- `server/src/main/java/com/gumtree/csagent/config/KnowledgeRetrievalProperties.java` (new)
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/KnowledgeSearchService.java`
+  (constructor-injects `KnowledgeRetrievalProperties`; reads
+  thresholds from config; adds threshold-gate diagnostics; pipeline
+  behaviour unchanged)
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/RerankService.java`
+  (constructor-injects `KnowledgeRetrievalProperties`; reads
+  fallback score from config; adds parse / call / future failure
+  diagnostics; scoring contract unchanged)
+
+Config / resources:
+
+- `server/src/main/resources/config/risk-keywords.yaml` (new)
+- `server/src/main/resources/scripts/templates.yaml`
+  (additive `library_version` + `library_version_date` keys; no
+  template copy change)
+- `server/src/main/resources/application.yml`
+  (additive `knowledge.retrieval.*` block matching the previous
+  hardcoded defaults verbatim)
+
+Tests (new):
+
+- `Sprint15RiskKeywordsConfigTest` (11 cases — config validation,
+  group / keyword parity, full DriftDetector behavioural parity
+  matrix, first-match-wins precedence)
+- `Sprint15ScriptLibraryConsistencyTest` (5 cases — version pin
+  presence, doc-vs-YAML version + date parity, required template
+  IDs, required variables contract, duplicate-id guard)
+- `Sprint15KnowledgeRetrievalConfigTest` (9 cases — defaults parity,
+  validation positive + 7 negatives)
+
+Tests (updated for constructor signature):
+
+- `RerankServiceTest`
+- `Sprint14KnowledgeSearchPublishedFilterTest`
+
+Docs:
+
+- `docs/10-handoff.md` (this section + §1 update).
+- `docs/action_bank.md` (Sprint 15 deliverables added).
+- `docs/sprint_objective.md` retained — already contains the
+  Sprint 15 objective.
+- No edit to `docs/current_eval_baseline.md` — Sprint 15 changes no
+  eval expected outcome; baseline remains the post-Sprint-8 r1 / r2
+  runs.
+
+No FAQ corpus content, CaseSpec, judge, broad routing taxonomy,
+handover payload contract, Salesforce backend contract, full Issue
+Ledger, all-UC task taxonomy, escalation enum, system prompt, DB
+schema migration, runtime main-flow architecture file, or hard
+citation gate was touched.
+
+### 16.3 Tests run
+
+- `mvn -pl server test -Dtest='Sprint15*,DriftDetectorTest,RerankServiceTest'`
+  → **42 / 0 / 0 / 0** (Sprint 15 §M0 / §M1 / §M2 focused suite plus
+  the legacy `DriftDetectorTest` + `RerankServiceTest` to confirm
+  parity under the new wiring).
+- `mvn -pl server test -Dtest='Sprint10*Test,Sprint11*Test,
+  Sprint12*Test,Sprint13*Test,PhaseEvaluatorPlanTest,Cs014*,
+  Cs066*,Cs095*,Cs002*,Cs029*,Cs176*,Cs001*,EscalationReason*Test,
+  Sprint6*,Sprint7*Test,Sprint8*Test,Sprint9*Test,Sprint14*,
+  Sprint141*,Sprint15*'`
+  → **332 / 0 / 0 / 0** (extended named regression suite — including
+  Sprint 6 §G2 FAQ S1 guard, cs014 / cs066 / cs095 / cs002 / cs029 /
+  cs176 regressions, all Sprint 14 §L0 / §L1 / §L2 + §14.1 trace
+  persistence, plus the new Sprint 15 §M0 / §M1 / §M2 focused
+  suite).
+- `mvn -pl server test`
+  → **884 / 0 / 0 / 0** (was 859 pre-Sprint-15; +25 new Sprint 15
+  §M0 / §M1 / §M2 tests).
+- `pytest eval_interactive/tests/` — not re-run; Sprint 15 changes
+  no Python parsing path and no eval-output schema.
+- Smoke runs not required — Sprint 15 changes no FAQ corpus, no
+  prompt, no judge, no CaseSpec, no escalation enum, no routing
+  taxonomy, no eval-output schema. The current canonical baseline
+  (`docs/current_eval_baseline.md`) is preserved (post-Sprint-8 r1 /
+  r2 runs).
+
+### 16.4 Behaviour-preservation evidence
+
+- §M0 — `Sprint15RiskKeywordsConfigTest.detect_parityMatrix_matchesHardcodedReference`
+  exercises every escalation phrase, every hard-shift keyword group,
+  the same-UC suppression rule, the escalation-precedence rule, and
+  the no-drift baseline against the previously hardcoded
+  expectations. The legacy `DriftDetectorTest` (18 cases) keeps
+  passing under the new YAML-loaded path. The
+  cross-group-first-match-wins assertion locks the precedence
+  ordering. No DriftResult shape, type, or field has changed.
+- §M1 — `ScriptLibraryService.getTemplate(...)` /
+  `renderTemplate(...)` substitution semantics are unchanged. The
+  approved template copy (50+ templates / 14 categories) is
+  bit-for-bit identical to v1.1 of the doc; the consistency test
+  enforces no silent copy drift in the variables contract.
+- §M2 — `Sprint15KnowledgeRetrievalConfigTest.defaults_matchPreviouslyHardcodedConstants`
+  pins each default to the literal value of the prior `static
+  final` constant. `Sprint14KnowledgeSearchPublishedFilterTest`
+  (Sprint 14 §L0 contract) and `RerankServiceTest` (parse / call
+  failure → 2.5 fallback) keep passing under the new wiring. The
+  full retrieval pipeline (ANN limit, retrieval gate test, dedup,
+  rerank window, answer gate test, top-results truncation) is
+  observable-equivalent under default config; the validator
+  forbids any threshold combination that would change semantic
+  ordering.
+
+### 16.5 Config files added / changed
+
+- `server/src/main/resources/config/risk-keywords.yaml` (added) —
+  source of truth for `DriftDetector` escalation pattern + hard-shift
+  groups.
+- `server/src/main/resources/scripts/templates.yaml` (changed —
+  additive `library_version`, `library_version_date` only).
+- `server/src/main/resources/application.yml` (changed — additive
+  `knowledge.retrieval.*` block; defaults match prior hardcoded
+  constants verbatim).
+
+### 16.6 Regression guard outcomes
+
+All Sprint 15 active guards pass:
+
+- `L1:escalation_reason_consistency` = **0** (never re-introduced).
+- `CONTRACT_VIOLATION:active_use_case` = **0**.
+- Sprint 14 `bot_turns.projected_context.faq_grounding` persistence
+  trace remains intact (`Sprint141FaqGroundingTracePersistenceTest`,
+  5 cases).
+- Sprint 14 published-only KB search remains intact
+  (`Sprint14KnowledgeSearchPublishedFilterTest`, 4 cases).
+- Existing FAQ S1 guard remains green
+  (`AgentRunLoopS1FaqGroundedResolveGuardTest`).
+- Sprint 6 §G0 ReadTimeout no-retry closure intact.
+- cs014 remains UC-C
+  (`Cs014RouteAndLoopHandoverIntegrationTest`,
+  `Cs014RouteAndDistressRegressionTest`).
+- cs066 remains UC-K.
+- cs095 remains UC-A / not UC-K / not UC-FP.
+- cs002 distress reconciliation remains green.
+- cs029 remains UC-D + `user_requested`.
+- cs176 explicit-human-help → `user_requested` regression remains
+  green.
+- All Sprint 7 / 7.1 / 8 / 8.1 / 8.2 / 9 / 9.1 / 10 / 11 / 11.1 /
+  12 / 13 hard invariants remain green
+  (named regression suite: 332 / 0).
+- `RuntimeIntentClassifier` remains runtime-internal.
+- `bot_turns.source_ids` write path unchanged.
+- `bot_turns` / `bot_sessions` / `kb_articles` / `kb_chunks`
+  schemas unchanged.
+
+### 16.7 Remaining risks
+
+**No new P0 / P1 blockers opened by Sprint 15.** The change is
+config-governance + diagnostics; no runtime main-flow architecture
+file gained new semantics, no DriftResult / KnowledgeSearchResult /
+ScoredCandidate shape changed.
+
+Carry-over notes:
+
+- The `library_version` pin must be updated whenever
+  `docs/fixed_script_library_v1.md` ships a new approved version
+  row — `Sprint15ScriptLibraryConsistencyTest` will fail the build
+  if the two surfaces diverge. This is the intended invariant.
+- Future threshold tuning must land as a `knowledge.retrieval.*`
+  config diff. The validator constraints
+  (`fallback < answer-gate`, `ann ≥ rerank ≥ top`) are the floor,
+  not a tuned recommendation.
+- `RiskKeywordsConfig` is loaded once at startup. Hot-reload remains
+  out of scope; Sprint 15 explicitly does NOT introduce ops-owned
+  runtime config. A risk-keyword change still requires a redeploy.
+
+Residuals carried forward from Sprint 14 §10 remain unchanged
+(`R-faq-grounded-resolve-bypass`, `R-cited-but-unresolved`,
+`R-resolved-but-uncited-rate`, `R-canonical-url-missing-rate`, plus
+the older Sprint 13 §8 list).
+
+### 16.8 Recommended next phase
+
+The Sprint 15 closure surfaces no runtime regression. The previously
+listed alternatives remain viable:
+
+1. **Eval Governance docs sprint** — primary recommendation. The
+   largest residual category is still `judge_volatility` /
+   `faq_corpus_gap` / `product_policy_gap`, all governance-owned.
+2. **Narrow Sprint 16 §S1 hardening** — only if real-traffic
+   evidence demonstrates `R-faq-grounded-resolve-bypass`
+   reproducibly affects answer correctness on a high-traffic UC.
+3. **Narrow Corpus Curation** — fill the 38 missing
+   `Help_Site_URL__c` rows. Owner: Eval Governance / corpus audit.
+4. **Re-run validation after infra cleanup** — viable if Kimi /
+   smoke credentials are available; runs alongside Eval Governance.
+
+Do not start another runtime sprint unless triage finds a new
+P0 / P1 runtime blocker. Sprint 15 explicitly does NOT promote a
+new canonical eval baseline.
+
+### 16.9 What Sprint 15 explicitly does NOT do
+
+- No new risk semantics, no new escalation reasons, no new risk
+  levels, no auto-handover for Level 1 / Level 2 risk signals.
+- No new hard Java guard.
+- No prompt rewrite, no system prompt edit, no broad routing
+  rewrite.
+- No hard runtime citation gate.
+- No FAQ corpus rewrite.
+- No judge calibration, no CaseSpec changes, no eval expansion.
+- No anchor / exploration / promotion hard-gate expansion.
+- No hot reload / ops-owned runtime config.
+- No dashboard work, no full TraceViewer redesign.
+- No new skill runtime framework.
+- No broad S1 rewrite.
+- No DB migration. No schema change. No bot_turns / bot_sessions /
+  kb_articles / kb_chunks edit.
+- No threshold tuning. Defaults are pinned to the previous
+  hardcoded values verbatim.
