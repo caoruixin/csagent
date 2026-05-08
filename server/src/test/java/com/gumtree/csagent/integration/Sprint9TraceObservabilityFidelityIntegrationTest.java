@@ -45,6 +45,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import org.mockito.invocation.InvocationOnMock;
 
@@ -133,7 +134,12 @@ class Sprint9TraceObservabilityFidelityIntegrationTest {
                         List.of("Ad Support"), "LOW", true, "FAQ"));
         when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any()))
                 .thenReturn("{\"phase\":\"RESOLVE\",\"use_case\":\"UC-A\"}");
-        when(controlPolicy.isValidTransition(anyString(), anyString())).thenReturn(true);
+        // Sprint 11.1 — RESOLVE/FAQ FINAL_ANSWER without successful
+        // record_outcome now stays in RESOLVE rather than transitioning
+        // to CONFIRM, so isValidTransition may not be consulted for
+        // every successful flow under the stricter contract. Keep the
+        // permissive stub but mark it lenient.
+        lenient().when(controlPolicy.isValidTransition(anyString(), anyString())).thenReturn(true);
     }
 
     @Test

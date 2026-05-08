@@ -80,7 +80,7 @@ handover payload rewrite) remain on the deferred / avoid list.
     `issue_status_summary`) emitted after `candidate_use_cases`.
     `REROUTE_DECISION` event surfaces the decision payload.
 
-- Sprint 11 in flight:
+- Sprint 11 in flight (Sprint 11.1 closure fix applied):
   - M0 minimal same-UC task / entity state — Sprint 10 §L2 slots
     reused; new `task_status` + `last_entity_context_ref`
     transient fields on `BotSession`. Same-UC ad_id capture from
@@ -93,16 +93,20 @@ handover payload rewrite) remain on the deferred / avoid list.
     ASKED_FOR_SLOT / ANSWERED_SUBTASK / READY_TO_CONFIRM /
     ESCALATE`) + `ResolveDispositionEvaluator`. `PhaseEvaluator.
     mapFinalAnswer` consults the evaluator on RESOLVE / FAQ
-    FINAL_ANSWER: soft next-step / clarifying answers stay in
-    RESOLVE; only a deterministic terminal condition (successful
-    `record_outcome` dispatch on this run) earns `READY_TO_CONFIRM`
-    → CONFIRM. `AgentRunLoopImpl` rejects
+    FINAL_ANSWER. **Sprint 11.1 closure fix:** the FINAL_ANSWER
+    branch now requires deterministic terminal evidence
+    (successful `record_outcome` dispatch on this run) before
+    returning `READY_TO_CONFIRM`; non-slot, non-clarifying
+    grounded answers default to `ANSWERED_SUBTASK` and stay in
+    RESOLVE. Soft next-step / clarifying answers continue to
+    return `ASKED_FOR_SLOT`. `AgentRunLoopImpl` rejects
     `record_outcome(outcome_class=resolve)` on RESOLVE / FAQ when
-    the session is not in CONFIRM / CLOSE.
+    the session is not in CONFIRM / CLOSE (unchanged).
   - M2 progressive UC-A / UC-C regression suite
-    (`Sprint11ProgressiveResolveTest`, 11 tests).
-  - `mvn -pl server test`: 793 / 0 / 0 / 0 (was 782 pre-Sprint-11;
-    +11 Sprint-11 tests).
+    (`Sprint11ProgressiveResolveTest`, 14 tests; +3 Sprint-11.1
+    closure regressions for the terminal-evidence guard).
+  - `mvn -pl server test`: 796 / 0 / 0 / 0 (was 793 pre-Sprint-11.1;
+    +3 Sprint-11.1 closure tests; was 782 pre-Sprint-11).
   - `python -m pytest -p no:capture eval_interactive/tests/`:
     294 / 0.
   - No FAQ corpus, CaseSpec, judge, broad routing taxonomy,
@@ -111,13 +115,13 @@ handover payload rewrite) remain on the deferred / avoid list.
 
 ## 3. Active / next actions
 
-Sprint 11 deliverables (in flight):
+Sprint 11 deliverables (in flight; Sprint 11.1 closure fix applied):
 
 | id  | deliverable                                                   | status |
 |-----|---------------------------------------------------------------|--------|
-| M0  | Minimal same-UC task / entity state on top of Sprint 10 §L2   | done — awaiting Codex review |
-| M1  | `ResolveDisposition` enum + RESOLVE → CONFIRM transition guard | done — awaiting Codex review |
-| M2  | Progressive UC-A / UC-C regression suite                      | done — awaiting Codex review |
+| M0  | Minimal same-UC task / entity state on top of Sprint 10 §L2   | done — accepted by Codex Sprint 11 review |
+| M1  | `ResolveDisposition` enum + RESOLVE → CONFIRM transition guard | Sprint 11.1 closure applied — terminal-evidence requirement; awaiting Codex re-review |
+| M2  | Progressive UC-A / UC-C regression suite                      | done — accepted by Codex Sprint 11 review (+3 Sprint-11.1 closure regressions) |
 
 After Sprint 11 closes (assuming Codex pass + 0 blocking), the
 recommended next phase is **closure or Eval Governance docs sprint**.
@@ -166,7 +170,7 @@ No new runtime sprint unless a new P0 / P1 runtime blocker is found.
 | Sprint 9 | O0 record_outcome + request_handover contracts; O1 terminal-state honesty; O2 bounded sanitized tool result_data | closed | `docs/sprints/sprint-009-*`   |
 | Sprint 9.1 | trace sanitization closure (failed-tool error_message + sensitive-key value redaction) | closed | `docs/sprints/sprint-009-*` |
 | Sprint 10 | L0 RuntimeIntentClassifier + RerouteDecision; L1 cross-UC soft/risk shift before PhaseEvaluator.plan; L2 minimal issue-state projection | closed | `docs/sprints/sprint-010-*` |
-| Sprint 11 | M0 minimal same-UC task/entity state; M1 ResolveDisposition + transition guard; M2 progressive UC-A/UC-C regression suite | in flight (awaiting Codex review) | will archive under `docs/sprints/sprint-011-*` on closure |
+| Sprint 11 | M0 minimal same-UC task/entity state; M1 ResolveDisposition + transition guard (Sprint 11.1 terminal-evidence closure); M2 progressive UC-A/UC-C regression suite | in flight (Sprint 11.1 closure applied; awaiting Codex re-review) | will archive under `docs/sprints/sprint-011-*` on closure |
 
 ## 7. Carry-over rule
 
