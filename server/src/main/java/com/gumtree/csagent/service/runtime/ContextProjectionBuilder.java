@@ -451,6 +451,63 @@ public class ContextProjectionBuilder {
                 projection.putNull("last_entity_context_ref");
             }
 
+            // Sprint 12 §N0 — runtime alignment observability. Each
+            // turn's projection / persisted bot_turns row carries the
+            // canonical reroute + progressive-resolve signals so a
+            // reviewer reading any single turn can audit
+            // (a) why the bot stayed in current UC, (b) why it
+            // soft-shifted, (c) why it risk-shifted, (d) why it stayed
+            // RESOLVE instead of CONFIRM, (e) why record_outcome(resolve)
+            // was allowed or rejected. All additions are
+            // backward-compatible JSON fields; existing keys are
+            // preserved verbatim above.
+            putNullableString(projection, "predicted_use_case",
+                    session.getPredictedUseCase());
+            putNullableString(projection, "intent_relation",
+                    session.getIntentRelation());
+            putNullableString(projection, "reroute_action",
+                    session.getRerouteAction());
+            putNullableString(projection, "phase_transition_reason",
+                    session.getPhaseTransitionReason());
+            putNullableString(projection, "resolve_disposition",
+                    session.getResolveDisposition());
+            putNullableString(projection, "record_outcome_guard_result",
+                    session.getRecordOutcomeGuardResult());
+
+            // Terminal evidence: deterministic facts about whether a
+            // record_outcome dispatch landed during the most recent run
+            // loop. Always emitted with stable shape so the trace UI /
+            // contract validators see a predictable JSON object.
+            ObjectNode terminalEvidence = objectMapper.createObjectNode();
+            Boolean attempted = session.getRecordOutcomeAttempted();
+            Boolean succeeded = session.getRecordOutcomeSucceeded();
+            if (attempted != null) {
+                terminalEvidence.put("record_outcome_attempted", attempted);
+            } else {
+                terminalEvidence.putNull("record_outcome_attempted");
+            }
+            if (succeeded != null) {
+                terminalEvidence.put("record_outcome_succeeded", succeeded);
+            } else {
+                terminalEvidence.putNull("record_outcome_succeeded");
+            }
+            terminalEvidence.put("record_outcome_success",
+                    Boolean.TRUE.equals(succeeded));
+            projection.set("terminal_evidence", terminalEvidence);
+
+            // drift_history / task_history — reconstructed from the
+            // conversation_history's projected_context entries so a
+            // reviewer reading a single turn sees the same drift /
+            // task trajectory the runtime saw across turns. Cheap: capped
+            // at the same last-10-turns window already used for
+            // conversation_history above.
+            ArrayNode driftHistoryNode = objectMapper.createArrayNode();
+            ArrayNode taskHistoryNode = objectMapper.createArrayNode();
+            buildDriftAndTaskHistory(conversationHistory, driftHistoryNode,
+                    taskHistoryNode);
+            projection.set("drift_history", driftHistoryNode);
+            projection.set("task_history", taskHistoryNode);
+
             // Budget state
             ObjectNode budgetNode = objectMapper.createObjectNode();
             budgetNode.put("total_bot_turns", session.getTotalBotTurns());
@@ -688,6 +745,88 @@ public class ContextProjectionBuilder {
             log.warn("Failed to inject phase_plan / accumulated_tool_results into projection: {}",
                     ex.getMessage());
             return baseJson;
+        }
+    }
+
+    /**
+     * Sprint 12 §N0 — write a nullable string field to the projection so
+     * the JSON shape is stable across turns (absent values become JSON
+     * {@code null} rather than missing keys). Keeps the trace contract
+     * predictable for downstream readers.
+     */
+    private static void putNullableString(ObjectNode node, String key, String value) {
+        if (value == null || value.isBlank()) {
+            node.putNull(key);
+        } else {
+            node.put(key, value);
+        }
+    }
+
+    /**
+     * Sprint 12 §N0 — reconstruct {@code drift_history} and
+     * {@code task_history} arrays from prior turns' persisted projection
+     * JSON. Each entry captures one prior turn's
+     * {@code drift_type / intent_relation / reroute_action} and
+     * {@code current_task_type / task_status / resolve_disposition}
+     * trajectory so a reviewer reading any single turn can audit the
+     * sequence of decisions that led here.
+     *
+     * <p>The window matches the conversation-history window emitted
+     * above (last 10 turns). Skips silently when a prior turn did not
+     * persist a projected_context (e.g. legacy rows from before
+     * Sprint 10). Uses {@code turn_index} as the sort key when present.
+     */
+    private void buildDriftAndTaskHistory(List<BotTurn> conversationHistory,
+                                          ArrayNode driftHistoryNode,
+                                          ArrayNode taskHistoryNode) {
+        if (conversationHistory == null || conversationHistory.isEmpty()) {
+            return;
+        }
+        int startIdx = Math.max(0, conversationHistory.size() - 10);
+        for (int i = startIdx; i < conversationHistory.size(); i++) {
+            BotTurn turn = conversationHistory.get(i);
+            if (turn == null) continue;
+            String projected = turn.getProjectedContext();
+            if (projected == null || projected.isBlank()) continue;
+            try {
+                com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(projected);
+                if (root == null || !root.isObject()) continue;
+
+                ObjectNode driftEntry = objectMapper.createObjectNode();
+                driftEntry.put("turn_index", turn.getTurnIndex());
+                copyTextField(root, driftEntry, "drift_type");
+                copyTextField(root, driftEntry, "intent_relation");
+                copyTextField(root, driftEntry, "reroute_action");
+                copyTextField(root, driftEntry, "predicted_use_case");
+                copyTextField(root, driftEntry, "active_use_case");
+                copyTextField(root, driftEntry, "previous_active_use_case");
+                copyTextField(root, driftEntry, "phase_transition_reason");
+                driftHistoryNode.add(driftEntry);
+
+                ObjectNode taskEntry = objectMapper.createObjectNode();
+                taskEntry.put("turn_index", turn.getTurnIndex());
+                copyTextField(root, taskEntry, "current_task_type");
+                copyTextField(root, taskEntry, "task_status");
+                copyTextField(root, taskEntry, "resolve_disposition");
+                copyTextField(root, taskEntry, "record_outcome_guard_result");
+                copyTextField(root, taskEntry, "issue_status_summary");
+                taskHistoryNode.add(taskEntry);
+            } catch (Exception ex) {
+                log.debug("drift/task history skip for turn_index={}: {}",
+                        turn.getTurnIndex(), ex.getMessage());
+            }
+        }
+    }
+
+    private static void copyTextField(com.fasterxml.jackson.databind.JsonNode src,
+                                      ObjectNode dst, String key) {
+        com.fasterxml.jackson.databind.JsonNode v = src.get(key);
+        if (v == null || v.isNull()) {
+            dst.putNull(key);
+        } else if (v.isTextual()) {
+            dst.put(key, v.asText());
+        } else {
+            dst.put(key, v.toString());
         }
     }
 

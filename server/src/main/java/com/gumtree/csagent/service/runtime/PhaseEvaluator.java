@@ -879,24 +879,29 @@ public class PhaseEvaluator {
                         ResolveDispositionEvaluator.evaluate(plan, result);
                 if (session != null) {
                     session.setTaskStatus(disposition.toTaskStatusToken());
+                    // Sprint 12 §N0 — stamp the canonical
+                    // resolve_disposition token so the projection / trace
+                    // events can surface the disposition independently of
+                    // task_status (which is the Sprint 11 §M0 alias).
+                    session.setResolveDisposition(disposition.name());
                 }
-                switch (disposition) {
-                    case ASKED_FOR_SLOT:
-                    case ANSWERED_SUBTASK:
-                    case CONTINUE_RESOLVE:
-                        return new PhaseTransitionDecision("RESOLVE",
+                PhaseTransitionDecision dispositionDecision = switch (disposition) {
+                    case ASKED_FOR_SLOT,
+                         ANSWERED_SUBTASK,
+                         CONTINUE_RESOLVE -> new PhaseTransitionDecision("RESOLVE",
                                 result.finalUserMessage(),
                                 null, "progressive_resolve_stay");
-                    case ESCALATE:
-                        return new PhaseTransitionDecision("ESCALATE",
+                    case ESCALATE -> new PhaseTransitionDecision("ESCALATE",
                                 result.finalUserMessage(),
                                 "service_degraded", "agent_escalated");
-                    case READY_TO_CONFIRM:
-                    default:
-                        return new PhaseTransitionDecision("CONFIRM",
+                    case READY_TO_CONFIRM -> new PhaseTransitionDecision("CONFIRM",
                                 result.finalUserMessage(),
                                 null, "answer_provided");
+                };
+                if (session != null) {
+                    session.setPhaseTransitionReason(dispositionDecision.transitionReason());
                 }
+                return dispositionDecision;
             }
             case "CONFIRM":
                 // FINAL_ANSWER from CONFIRM means the user is satisfied; the LLM

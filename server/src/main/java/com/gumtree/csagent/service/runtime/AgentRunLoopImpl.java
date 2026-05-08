@@ -364,7 +364,33 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                             "Stay in RESOLVE and wait for the user to confirm the answer or "
                                     + "supply more detail before recording a resolve outcome.");
                     accumulatedToolResults.put(RECORD_OUTCOME_TOOL, guardWrap);
+                    // Sprint 12 §N0 — stamp the guard result on the
+                    // session so the kernel post-loop emits a
+                    // RECORD_OUTCOME_GUARD trace event and the projection
+                    // surfaces the canonical {@code
+                    // record_outcome_guard_result} field. Sticky across
+                    // the loop iterations: the first rejection wins so a
+                    // later allowed call does not erase the audit
+                    // signal (downstream readers can still see the
+                    // accumulated tool events).
+                    if (session != null && (session.getRecordOutcomeGuardResult() == null
+                            || session.getRecordOutcomeGuardResult().isBlank()
+                            || "none".equals(session.getRecordOutcomeGuardResult()))) {
+                        session.setRecordOutcomeGuardResult(
+                                "rejected:" + PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON);
+                    }
                     continue;
+                }
+                // Sprint 12 §N0 — observability: record_outcome calls that
+                // pass the guard mark the session so the post-loop
+                // RECORD_OUTCOME_GUARD event captures the allowed branch
+                // for trace fidelity. A later rejection in the same loop
+                // overwrites this back to rejected via the branch above.
+                if (RECORD_OUTCOME_TOOL.equals(toolName) && session != null
+                        && (session.getRecordOutcomeGuardResult() == null
+                                || session.getRecordOutcomeGuardResult().isBlank()
+                                || "none".equals(session.getRecordOutcomeGuardResult()))) {
+                    session.setRecordOutcomeGuardResult("allowed");
                 }
 
                 // 6a'. Sprint 6 §G2 — S1 FAQ-grounded-resolve guard.
@@ -419,6 +445,24 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                         sequence++, step, base2.toolName(), base2.arguments(),
                         base2.success(), base2.resultData(), base2.errorMessage(),
                         base2.latencyMs()));
+
+                // Sprint 12 §N0 — stamp terminal-evidence summary on the
+                // session as soon as a record_outcome dispatch lands so
+                // every run-loop exit path (final answer, escalate,
+                // max_steps, error) leaves the trace evidence consistent.
+                // The kernel post-loop helpers
+                // ({@code emitResolveDispositionEvent},
+                // {@code emitRecordOutcomeGuardEvent}) read these slots,
+                // and the projection surfaces them under
+                // {@code terminal_evidence}.
+                if (RECORD_OUTCOME_TOOL.equals(toolName) && session != null) {
+                    session.setRecordOutcomeAttempted(Boolean.TRUE);
+                    if (result != null && result.isSuccess()) {
+                        session.setRecordOutcomeSucceeded(Boolean.TRUE);
+                    } else if (session.getRecordOutcomeSucceeded() == null) {
+                        session.setRecordOutcomeSucceeded(Boolean.FALSE);
+                    }
+                }
 
                 // 6c. Accumulate result so the next iteration sees it.
                 if (result != null && result.isSuccess()) {
