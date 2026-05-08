@@ -251,4 +251,85 @@ public class BotSession {
      */
     @Transient
     private String recordOutcomeGuardResult;
+
+    /**
+     * Sprint 14 §L1 — turn-level source evidence lineage (transient).
+     *
+     * <p>Splits the historically-overloaded {@code sourceIds} concept into
+     * three observably-distinct slots:
+     *
+     * <ul>
+     *   <li>{@link #retrievedSourceIds} — IDs returned by every successful
+     *       {@code search_knowledge} call this turn.</li>
+     *   <li>{@link #resolvedSourceIds} — IDs that successfully passed
+     *       through {@code resolve_article} (and survived the §L0
+     *       published-safety guard).</li>
+     *   <li>{@link #citedSourceIds} — IDs detected in the customer-visible
+     *       reply by the passive {@code CitationExtractor}.</li>
+     * </ul>
+     *
+     * <p>Populated by {@code ControlKernel.recordRunResult}. Sprint 14 §L1
+     * explicitly does NOT use these fields to gate the response — they
+     * are observability material consumed by trace surfaces and the §L2
+     * grounding diagnostics.
+     */
+    @Transient
+    private String[] retrievedSourceIds;
+
+    @Transient
+    private String[] resolvedSourceIds;
+
+    @Transient
+    private String[] citedSourceIds;
+
+    @Transient
+    private String[] citedCanonicalUrls;
+
+    /**
+     * Sprint 14 §L2 — soft FAQ grounding diagnostics (transient).
+     *
+     * <p>{@link #faqGroundingState} carries a coarse-grained string token
+     * describing the grounding state of the current turn (one of
+     * {@code factual_grounded}, {@code factual_uncited},
+     * {@code factual_unresolved}, {@code factual_unretrieved},
+     * {@code non_factual}, {@code unknown}).
+     *
+     * <p>The remaining boolean slots are independently observable: a
+     * reviewer can answer "did the bot cite anything", "did the cited
+     * source come from the resolved set", "did the bot drift from the
+     * retrieved evidence", "are there resolved-but-uncited articles", and
+     * "are there retrieved-but-unresolved articles" without re-deriving
+     * any of them from the others.
+     *
+     * <p>All five fields are observability-only — Sprint 14 §L2 does not
+     * gate the response on any of them.
+     */
+    @Transient
+    private String faqGroundingState;
+
+    @Transient
+    private Boolean citationPresent;
+
+    @Transient
+    private Boolean citationMatch;
+
+    @Transient
+    private Boolean citationDrift;
+
+    @Transient
+    private Boolean resolvedButUncited;
+
+    @Transient
+    private Boolean retrievedButUnresolved;
+
+    /**
+     * Sprint 14 §L2 — bot output classification token. One of
+     * {@code factual_answer}, {@code clarification}, {@code empathy_ack},
+     * {@code handover}, {@code tool_status}, {@code intake_collection}.
+     * Populated by {@code FaqOutputClassifier}; surfaced in trace
+     * evidence so a reviewer can see WHY a turn was (or was not)
+     * subject to factual-grounding observability.
+     */
+    @Transient
+    private String faqOutputClass;
 }

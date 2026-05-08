@@ -1976,6 +1976,23 @@ public class ControlKernel {
                     .build();
             turnRepository.save(turn);
 
+            // Sprint 14 §L1 / §L2 — stamp source-evidence lineage and FAQ
+            // grounding diagnostics onto the BotSession transient slots so
+            // the next ContextProjectionBuilder call surfaces them in trace
+            // evidence. Diagnostics are observability-only: no rejection,
+            // no rewrite, no re-loop. The block is wrapped in try/catch so
+            // any unexpected pattern in result.toolEvents() / displayed
+            // response text never breaks recordRunResult().
+            try {
+                stampFaqGroundingObservability(
+                        session, plan, result, persistedBotResponse,
+                        "ESCALATE".equals(phaseAfter)
+                                && session.getEscalationReason() != null);
+            } catch (Exception ex) {
+                log.warn("Session {}: §L1/L2 grounding observability stamping failed: {}",
+                        session.getSessionId(), ex.getMessage());
+            }
+
             // Emit RETRIEVAL_EXECUTED if any search_knowledge ran
             if (searchKnowledgeCount > 0) {
                 int hitCount = sourceIds == null ? 0 : sourceIds.length;
@@ -2154,6 +2171,59 @@ public class ControlKernel {
             sb.append(tc.getName() == null ? "" : tc.getName());
         }
         return sb.toString();
+    }
+
+    /**
+     * Sprint 14 §L1 / §L2 — populate the BotSession transient slots that
+     * carry source-evidence lineage and FAQ grounding diagnostics for the
+     * current turn. Pure observability: no side effects on the agent run
+     * loop, no escalation decisions, no response rewriting.
+     *
+     * <p>The {@code handoverDispatched} flag is the runtime's authoritative
+     * signal for the {@link com.gumtree.csagent.service.knowledge.FaqOutputClass#HANDOVER}
+     * class — a turn that ended in ESCALATE with a stamped escalation
+     * reason is a handover regardless of the bot's wording.
+     */
+    private void stampFaqGroundingObservability(BotSession session,
+                                                  PhasePlan plan,
+                                                  AgentRunResult result,
+                                                  String persistedBotResponse,
+                                                  boolean handoverDispatched) {
+        if (session == null || result == null) return;
+
+        com.gumtree.csagent.service.knowledge.SourceEvidenceLineage lineage =
+                com.gumtree.csagent.service.knowledge.SourceEvidenceLineage.fromToolEvents(
+                        result.toolEvents(), persistedBotResponse);
+
+        session.setRetrievedSourceIds(toArray(lineage.retrievedSourceIds()));
+        session.setResolvedSourceIds(toArray(lineage.resolvedSourceIds()));
+        session.setCitedSourceIds(toArray(lineage.citedSourceIds()));
+        session.setCitedCanonicalUrls(toArray(lineage.citedCanonicalUrls()));
+
+        boolean intakeUc = plan != null && plan.useCase() != null
+                && INTAKE_UCS.contains(plan.useCase());
+
+        com.gumtree.csagent.service.knowledge.FaqOutputClass cls =
+                com.gumtree.csagent.service.knowledge.FaqOutputClassifier.classify(
+                        persistedBotResponse,
+                        new com.gumtree.csagent.service.knowledge.FaqOutputClassifier.ClassifierContext(
+                                intakeUc, handoverDispatched));
+        session.setFaqOutputClass(cls.token());
+
+        com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics dx =
+                com.gumtree.csagent.service.knowledge.FaqGroundingDiagnostics.compute(
+                        cls, lineage);
+        session.setFaqGroundingState(dx.faqGroundingState());
+        session.setCitationPresent(dx.citationPresent());
+        session.setCitationMatch(dx.citationMatch());
+        session.setCitationDrift(dx.citationDrift());
+        session.setResolvedButUncited(dx.resolvedButUncited());
+        session.setRetrievedButUnresolved(dx.retrievedButUnresolved());
+    }
+
+    private static String[] toArray(List<String> values) {
+        if (values == null || values.isEmpty()) return new String[0];
+        return values.toArray(new String[0]);
     }
 
     /**

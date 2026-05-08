@@ -24,6 +24,17 @@ import java.util.stream.Collectors;
  *     -> Answer Gate (top rerank score < 3.5 -> answer_miss)
  *     -> Return top 3 { source_id, title, snippet, canonical_url, score }
  *     -> faq_miss = retrieval_miss OR answer_miss
+ *
+ * <p>Sprint 14 §L0 — KB published-safety / canonical URL audit:
+ * the pgvector ANN now joins {@code kb_articles} with an
+ * {@code is_published = true} predicate
+ * ({@code findNearestByEmbeddingPublishedOnly} /
+ * {@code findNearestByEmbeddingWithUcTagsPublishedOnly}) so unpublished
+ * articles never surface as a search hit. The hit-projection step also
+ * filters out any article whose post-fetch {@code isPublished} is false (a
+ * defense-in-depth check in case ANN returns stale data) and stamps a
+ * {@code canonicalUrlMissing} flag on every hit so missing-URL cases are
+ * observable downstream rather than silently coalesced into a {@code null}.
  */
 @Slf4j
 @Service
@@ -88,13 +99,17 @@ public class KnowledgeSearchService {
         }
         String embeddingStr = embeddingToString(queryEmbedding);
 
-        // Step 2: pgvector ANN search
+        // Step 2: pgvector ANN search. Sprint 14 §L0 — published-only filter
+        // is enforced at the SQL layer so the rerank / answer-gate stages
+        // never see an unpublished candidate.
         List<KbChunk> nearestChunks;
         if (ucTags != null && !ucTags.isEmpty()) {
             String[] ucTagsArray = ucTags.toArray(new String[0]);
-            nearestChunks = kbChunkRepository.findNearestByEmbeddingWithUcTags(embeddingStr, ucTagsArray, ANN_LIMIT);
+            nearestChunks = kbChunkRepository.findNearestByEmbeddingWithUcTagsPublishedOnly(
+                    embeddingStr, ucTagsArray, ANN_LIMIT);
         } else {
-            nearestChunks = kbChunkRepository.findNearestByEmbedding(embeddingStr, ANN_LIMIT);
+            nearestChunks = kbChunkRepository.findNearestByEmbeddingPublishedOnly(
+                    embeddingStr, ANN_LIMIT);
         }
 
         if (nearestChunks.isEmpty()) {
@@ -176,18 +191,31 @@ public class KnowledgeSearchService {
                 .stream()
                 .collect(Collectors.toMap(KbArticle::getArticleId, a -> a));
 
+        // Sprint 14 §L0 — defense-in-depth: even after the SQL-layer
+        // published-only filter, drop any candidate whose post-fetch
+        // KbArticle is unpublished (covers stale ANN cache / mocked-repo
+        // tests). Stamp `canonical_url_missing=true` whenever the article
+        // landed in the index without a Help_Site_URL so missing-URL gaps
+        // are observable in trace evidence rather than silently null.
         List<KnowledgeHit> hits = reranked.stream()
                 .limit(TOP_RESULTS)
                 .map(sc -> {
                     KbArticle article = articleMap.get(sc.articleId());
+                    if (article != null && Boolean.FALSE.equals(article.getIsPublished())) {
+                        return null;
+                    }
+                    String canonicalUrl = article != null ? article.getSourceUrl() : null;
+                    boolean canonicalUrlMissing = canonicalUrl == null || canonicalUrl.isBlank();
                     return KnowledgeHit.builder()
                             .sourceId(sc.articleId())
                             .title(article != null ? article.getTitle() : "")
                             .snippet(truncateSnippet(sc.chunkText(), 300))
-                            .canonicalUrl(article != null ? article.getSourceUrl() : null)
+                            .canonicalUrl(canonicalUrl)
+                            .canonicalUrlMissing(canonicalUrlMissing)
                             .score(sc.rerankScore())
                             .build();
                 })
+                .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toList());
 
         long elapsed = System.currentTimeMillis() - startTime;
