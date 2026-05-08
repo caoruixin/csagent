@@ -4,158 +4,108 @@ Date: 2026-05-09
 
 ## Sprint name
 
-Script / Policy Config Governance Sprint 15
+Handover Exactly-Once Contract and Repro Sprint 16
 
 ## Goal
 
-Reduce hardcoded policy / script / threshold drift by moving selected governance data into explicit config surfaces and adding consistency checks, while preserving current runtime semantics.
+Freeze the handover side-effect contract before implementing a runtime refactor.
 
-Sprint 15 must be behaviour-preserving. It should not introduce new routing semantics, new escalation semantics, new risk levels, new prompt policy, FAQ corpus changes, judge calibration, CaseSpec churn, or broad runtime rewrites.
+This sprint documents the current dual-path handover risk, defines the future exactly-once contract, and adds characterization tests that expose the current duplicated local handover log / payload shape.
 
-Sprint 14 closed with:
-- KB published-safety and canonical URL observability improved
-- retrieved / resolved / cited evidence separated
-- FAQ grounding diagnostics durably persisted under `bot_turns.projected_context.faq_grounding`
-- no hard citation gate
-- no DB migration
-- Codex decision: pass
-- blocking_count: 0
+This is a docs + characterization-test sprint. It must not refactor runtime behaviour.
+
+## Background
+
+Current reports confirm:
+
+- `request_handover` in the LLM-driven AgentRunLoop path directly reaches `RequestHandoverTool`.
+- `RequestHandoverTool` currently performs a handover side-effect through `SalesforceService.requestHandover(...)`.
+- In the local/mock implementation, this writes a `mock_handover_log` row.
+- After the same turn ends, `SessionManager` lifecycle finalization can also call `recordHandover(session)`, which writes another local handover log / payload.
+- Current code does not prove a real double Salesforce transfer because the production Salesforce client is not wired yet.
+- The confirmed current bug shape is duplicated mock handover log / payload and split side-effect ownership.
+- If a real Salesforce transfer client is wired into both paths later, this becomes a launch-blocking double-transfer risk.
 
 ## Implement exactly these 3 actions
 
-### M0. Externalize DriftDetector / risk keywords to YAML, behaviour-preserving
+### H0. Define handover exactly-once contract
 
-Move the existing DriftDetector risk keyword list from hardcoded Java into a runtime-loaded YAML config.
+Create or update docs to define the contract:
 
-Required behaviour:
+- `request_handover` is the semantic handover command / trace evidence.
+- `record_outcome` is outcome analytics persistence.
+- Handover side-effects are:
+  - Salesforce transfer
+  - handover payload persistence
+  - handover log / decision persistence
+  - escalation requested event emission
+- Handover side-effects must have exactly one owner.
+- Future owner should be `HandoverOrchestrator`.
+- For each `session_id`, at most one transmitted / offline-logged handover decision may exist.
+- Synthetic request_handover evidence may be created for force escalation / hard-OOS / legacy paths, but synthetic evidence must not directly duplicate external side-effects.
 
-- Create a config file, for example:
-  `server/src/main/resources/config/risk-keywords.yaml`
-- Preserve current behaviour exactly:
-  - same keyword groups
-  - same matching semantics
-  - same risk labels / drift outputs
-  - same precedence
-- Keep deterministic guard boundaries intact.
-- Do not add new risk keywords unless required to preserve an already-hardcoded Java keyword.
-- Do not change escalation behaviour.
-- Do not turn Level 1 / Level 2 risk signals into automatic handover.
-- Add a focused parity test proving YAML-loaded config produces the same results as the previous hardcoded list on representative examples.
-- Add a config validation test:
-  - file exists
-  - no duplicate keys
-  - required fields present
-  - empty keyword groups fail fast
+Recommended doc targets:
 
-Acceptance condition:
+- `docs/runtime_freeze_and_risk_policy.md`
+- `docs/release_gate.md`
+- `docs/action_bank.md`
+- optionally `docs/handover_orchestrator_design.md`
 
-- DriftDetector behaviour remains unchanged.
-- Policy changes can later be reviewed through config diff instead of Java source changes.
+### H1. Add characterization tests for current dual-path behaviour
 
-### M1. Script library version pin and docs ↔ YAML consistency check
+Add focused tests that characterize the current issue without changing runtime.
 
-Add a lightweight consistency check between approved script docs and runtime templates.
+Required tests:
 
-Required behaviour:
+- LLM-driven `request_handover` path currently produces two local handover persistence surfaces, or at minimum demonstrates two independent handover side-effect paths.
+- Force escalation / hard-OOS / legacy path should not be incorrectly described as double-Salesforce today.
+- The test must clearly distinguish:
+  - duplicated local log / payload
+  - not-yet-proven real Salesforce double transfer
+- If the test would currently fail by design, mark it disabled / TODO with a clear reason and reference to the future orchestrator sprint.
 
-- Add explicit script library version metadata to `server/src/main/resources/scripts/templates.yaml` if absent.
-- Align it with `docs/fixed_script_library_v1.md` version metadata.
-- Add a test or build-time check that fails if:
-  - docs version and YAML version diverge
-  - required template IDs are missing
-  - required template variables are missing or renamed without docs update
-- Do not rewrite script copy.
-- Do not alter tone or escalation wording.
-- Do not change forbidden phrase rules.
-- Do not introduce a new template engine.
+Do not make the build red unless this sprint explicitly decides to treat the current duplicate local log as an immediate blocker.
 
-Acceptance condition:
+### H2. Add release-gate / action-bank tracking
 
-- Runtime templates and approved docs cannot silently drift.
-- Existing ScriptLibraryService behaviour remains unchanged except for metadata validation.
+Update `docs/action_bank.md` and release-gate docs so this is tracked as:
 
-### M2. Retrieval / answer gate / rerank fallback thresholds config exposure + diagnostics
-
-Expose existing knowledge retrieval thresholds as config with defaults unchanged.
-
-Required behaviour:
-
-- Externalize current constants such as:
-  - ANN limit
-  - retrieval threshold
-  - answer gate
-  - max returned results
-  - rerank fallback score
-- Defaults must remain exactly equivalent to current Java constants.
-- Add startup/config validation:
-  - thresholds are numeric
-  - thresholds are in sane ranges
-  - answer gate remains >= retrieval gate where relevant
-- Add diagnostics / logging for rerank fallback usage:
-  - when rerank parsing fails
-  - when rerank service returns fallback score
-  - when answer_miss / retrieval_miss is caused by threshold gate
-- Do not tune thresholds in this sprint.
-- Do not change FAQ answerability semantics.
-- Do not change corpus content.
-- Do not change eval expected outcomes.
-
-Acceptance condition:
-
-- Current retrieval behaviour is preserved under default config.
-- Future threshold changes become auditable config changes rather than hidden Java edits.
-
-## Regression guards
-
-- `L1:escalation_reason_consistency` remains 0.
-- `CONTRACT_VIOLATION:active_use_case` remains 0.
-- Sprint 14 FAQ grounding observability remains intact:
-  - `bot_turns.projected_context.faq_grounding` persists retrieved / resolved / cited / diagnostic fields.
-- Sprint 14 KB published-safety remains intact.
-- Existing FAQ S1 guard remains green.
-- Sprint 6 ReadTimeout no-retry closure remains intact.
-- cs014 remains UC-C.
-- cs066 remains UC-K.
-- cs095 remains UC-A / not UC-K / not UC-FP.
-- cs002 distress reconciliation remains green.
-- cs029 remains UC-D + `user_requested`.
-- cs176 explicit-human-help → `user_requested` focused regression remains green.
+- Current severity: P2 in local/mock environment.
+- Launch severity: P1 before real Salesforce cutover.
+- Production incident severity: P0/P1 if real double transfer occurs.
+- Required before production Salesforce cutover:
+  - Single Handover Orchestrator
+  - idempotency by `session_id`
+  - exactly-one handover decision test
+  - no duplicate external transfer attempt
 
 ## Do not implement
 
-- New risk semantics
-- New escalation reasons
-- New hard Java guard
-- Broad routing rewrite
-- Prompt rewrite
-- Hard citation gate
-- FAQ corpus rewrite
-- Judge calibration
+- HandoverOrchestrator runtime
+- Salesforce production client
+- payload schema redesign
+- HandoverContext redesign
+- soft handover
+- future LLM evidence enrichment
+- new escalation reason enum values
+- prompt changes
+- routing changes
+- FAQ corpus changes
+- judge changes
 - CaseSpec changes
-- Anchor / exploration / promotion hard-gate expansion
-- Hot reload / ops-owned runtime config
-- Dashboard work
-- Full TraceViewer redesign
-- New skill runtime framework
-- Broad S1 rewrite
 
 ## Success metrics
 
-Primary:
-
-- Risk keyword config is externalized with behaviour parity.
-- Script template version pin prevents docs/runtime drift.
-- Retrieval / rerank thresholds are config-visible with defaults unchanged.
-- No runtime semantics change is introduced.
-- Regression guards remain green.
-
-Secondary:
-
-- Smoke pass rate is not a primary metric for this sprint.
-- Focused config parity tests matter more than pass-rate movement.
+- The handover exactly-once contract is documented.
+- Current dual-path risk is documented accurately:
+  - duplicated local log / payload today
+  - real double transfer is a future cutover risk, not currently proven
+- Characterization tests exist or are explicitly disabled with TODO references.
+- `docs/action_bank.md` contains a clear future runtime sprint item.
+- No runtime behaviour changes are introduced.
 
 ## Review rule
 
-Codex must review only whether M0 / M1 / M2 were implemented and whether Sprint 15 stayed behaviour-preserving.
+Codex must review only whether the handover contract and repro characterization are accurate and scoped.
 
-Codex should not request semantic risk policy changes, prompt rewrites, routing changes, judge calibration, CaseSpec churn, corpus updates, hard citation gate, or broad runtime work unless Sprint 15 directly introduces a P0/P1 regression.
+Codex should not request the full orchestrator implementation in this sprint unless the sprint objective is changed.

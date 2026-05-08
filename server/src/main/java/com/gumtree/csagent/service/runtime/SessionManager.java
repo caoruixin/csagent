@@ -530,6 +530,23 @@ public class SessionManager {
         }
     }
 
+    /**
+     * Sprint 16 §H0 — known-unspecced-surface marker (no behaviour
+     * change in Sprint 16). This method is the second independently-wired
+     * local handover writer on the LLM-driven path; the first is
+     * {@code RequestHandoverTool} →
+     * {@code SalesforceService.requestHandover(...)}. The future
+     * invariant frozen by {@code docs/handover_orchestrator_design.md}
+     * §3.3 / §6 is: for each {@code session_id}, at most one
+     * transmitted / {@code offline_logged} handover decision may
+     * exist; the future {@code HandoverOrchestrator} is the single
+     * owner and must be idempotent by {@code session_id}. This method
+     * MUST eventually delegate to the orchestrator (or be removed in
+     * favour of the orchestrator firing once at the kernel boundary).
+     * See {@code Sprint16HandoverDualPathReproTest} for the
+     * characterization repro and {@code docs/release_gate.md} §1.1
+     * for the cutover blocker.
+     */
     private void recordHandover(BotSession session) {
         try {
             // Sprint §A1: ensure the session reason persists as a canonical

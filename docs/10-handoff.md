@@ -6,8 +6,47 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
+Sprint 16 (Handover Exactly-Once Contract and Repro) landed as a
+docs + characterization-test sprint. No runtime behaviour was
+changed.
+
+Sprint 16 deliverables:
+
+- §H0 — defined the handover exactly-once contract in a new
+  `docs/handover_orchestrator_design.md`. The doc separates three
+  historically-conflated contracts: (1) trace evidence via the
+  `request_handover` tool entry on `bot_turns.tool_calls`, (2)
+  outcome persistence via `record_outcome` →
+  `session_outcomes`, and (3) the future `HandoverOrchestrator`
+  handover side-effect (Salesforce transfer + payload persistence
+  + decision persistence + `ESCALATION_REQUESTED` emission, owned
+  by a single writer that is idempotent by `session_id`). Added
+  a known-unspecced-surface entry to
+  `docs/runtime_freeze_and_risk_policy.md` §10.1.
+- §H1 — added `Sprint16HandoverDualPathReproTest` (3 cases). Two
+  cases pass and characterize the current dual local-persistence
+  shape: on the LLM-driven `request_handover` path,
+  `RequestHandoverTool` writes `mock_handover_log` row #1 via
+  `SalesforceService.requestHandover(...)` and
+  `SessionManager.recordHandover` writes `mock_handover_log` row
+  #2 directly through the same repository. The third case
+  (`futureInvariant_atMostOneTransmittedHandoverDecisionPerSessionId_disabledUntilOrchestratorLands`)
+  is `@Disabled` and encodes the future invariant — it would fail
+  today by design and is the explicit trigger to the future
+  "Single Handover Orchestrator" runtime sprint.
+- §H2 — opened a new `docs/release_gate.md` with §1.1 blocking
+  rule (no real Salesforce cutover until handover side-effect is
+  idempotent by `session_id`); added a **Single Handover
+  Orchestrator: exactly-once side-effect owner before Salesforce
+  production cutover** action to `docs/action_bank.md` §3 + §4. The
+  action item is **not** marked fixed.
+
+Sprint 16 also adds future-invariant docstrings (no behaviour
+change) on `RequestHandoverTool` and `SessionManager.recordHandover`
+pointing to the design doc and the characterization test.
+
+Earlier accepted sprint:
 Sprint 15 closed by Codex review: decision=pass, blocking_count=0.
-Ready for the next sprint to be selected.
 
 Sprint 15 (Script / Policy Config Governance) landed three
 behaviour-preserving config-governance moves:
@@ -1066,3 +1105,238 @@ new canonical eval baseline.
   kb_articles / kb_chunks edit.
 - No threshold tuning. Defaults are pinned to the previous
   hardcoded values verbatim.
+
+## 17. Sprint 16 — Handover Exactly-Once Contract and Repro
+
+Status: **landed (docs + characterization-test sprint, no runtime
+change)**. Sprint 16 freezes the handover exactly-once contract and
+adds the characterization tests that demonstrate the current
+LLM-driven dual local-persistence shape, without modifying any
+runtime behaviour. It does not yet implement
+`HandoverOrchestrator`; that is the explicitly deferred future
+runtime sprint trigger.
+
+### 17.1 Exact docs / tests changed
+
+Docs (new + edited):
+
+- `docs/handover_orchestrator_design.md` (new) — defines the
+  exactly-once contract. §1 names the current dual-path shape
+  (writer #1 = `RequestHandoverTool` →
+  `SalesforceService.requestHandover` →
+  `MockSalesforceService` → `mock_handover_log` row #1; writer #2
+  = `SessionManager.recordHandover` → direct
+  `handoverLogRepository.save(...)` → `mock_handover_log` row
+  #2). §2 distinguishes confirmed local persistence duplication
+  from unproven real Salesforce double transfer. §3 freezes three
+  contracts: trace evidence (`request_handover`), outcome
+  persistence (`record_outcome`), and the future
+  `HandoverOrchestrator` handover side-effect (idempotent by
+  `session_id`). §4 sketches the future orchestrator shape. §5
+  records why Sprint 16 is docs + characterization only. §6
+  pre-specifies acceptance criteria for the future runtime sprint.
+- `docs/runtime_freeze_and_risk_policy.md` (edited) — added §10
+  "Known unspecced surfaces" with §10.1 entry covering the
+  handover dual-path. Renumbered References to §11; added
+  cross-reference links to the Sprint 16 design / release_gate /
+  source files.
+- `docs/release_gate.md` (new) — opens the release-gate ledger.
+  §1.1 blocking rule: before real Salesforce cutover, the
+  handover side-effect must be idempotent by `session_id`. The
+  rule is **not satisfied** at Sprint 16 close.
+- `docs/action_bank.md` (edited) — Sprint 16 row added to §3
+  active deliverables (H0 / H1 / H2); new
+  D-single-handover-orchestrator entry in §4 deferred runtime
+  candidates ("Single Handover Orchestrator: exactly-once
+  side-effect owner before Salesforce production cutover");
+  Sprint 16 row added to §6 closed-action index.
+- `docs/sprint_objective.md` retained — already contains the
+  Sprint 16 objective.
+- `docs/10-handoff.md` (this file) — §1 and new §17 (this
+  section).
+
+Tests (new):
+
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint16HandoverDualPathReproTest.java`
+  (3 cases): two passing characterization cases plus one
+  `@Disabled` future-invariant case.
+  - `dualLocalPersistence_llmDrivenRequestHandoverPath_producesTwoMockHandoverLogWrites_currentBehaviour`
+    (passing) — exercises `RequestHandoverTool.execute(...)` with
+    a real `MockSalesforceService` backed by a mocked
+    `MockHandoverLogRepository`, then replays the
+    `SessionManager.recordHandover` surface (real
+    `HandoverPayloadAssembler` → direct `repo.save(...)`).
+    Asserts two saves on the same repository for the same
+    `session_id`; asserts the two payloads carry distinct
+    `version` (`"1.0"` vs `"1.1"`) and distinct `transfer_result`
+    (`MockSalesforceService` set vs `mock_transfer` literal).
+  - `distinguishesLocalPersistenceDuplication_fromUnprovenRealSalesforceDoubleTransfer`
+    (passing) — pins that today the only `SalesforceService`
+    implementation is `MockSalesforceService`. Designed to break
+    on first wire-up of a real Salesforce client so the reviewer
+    is forced to re-read the §10.1 contract before passing the
+    release gate.
+  - `futureInvariant_atMostOneTransmittedHandoverDecisionPerSessionId_disabledUntilOrchestratorLands`
+    (`@Disabled`, TODO) — encodes the future invariant: at most
+    one transmitted / `offline_logged` handover decision per
+    `session_id`. Would fail today by design (the LLM-driven
+    path writes twice). Removing the `@Disabled` annotation is
+    listed as one of the acceptance criteria for the future
+    "Single Handover Orchestrator" runtime sprint
+    (`docs/release_gate.md` §1.1 #4-#5).
+
+Source comments (new, no behaviour change):
+
+- `server/src/main/java/com/gumtree/csagent/service/tools/RequestHandoverTool.java`
+  — class-level Javadoc carries a Sprint 16 §H0
+  known-unspecced-surface marker pointing to
+  `docs/handover_orchestrator_design.md` and the future-invariant
+  test.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/SessionManager.java`
+  — `recordHandover(...)` carries the matching marker on its
+  Javadoc.
+
+### 17.2 Current confirmed risk
+
+- **Duplicated local persistence (P2 today, mock / local).** On
+  the LLM-driven `request_handover` path two
+  `mock_handover_log` rows are written for the same `session_id`
+  on the same ESCALATE turn. The two writers are unaware of each
+  other and persist payloads with different `version` and
+  `transfer_result` shapes.
+- **P1 launch-readiness severity.** The dual-path shape is one
+  wire-up away from a real double transfer at the moment a
+  production `SalesforceService` implementation lands.
+- **P0 / P1 production-incident severity** if a real double
+  transfer occurs after cutover (case re-routed twice in
+  Salesforce: re-assignment, mis-prioritisation, queue
+  duplication; user-visible).
+- The hard-OOS path (`SessionManager.createSession` → synthetic
+  `request_handover` evidence + single `recordHandover`) and the
+  kernel force-escalate / Step 2.5 path remain single-write today
+  (pinned by Sprint 16 §H0 contract; not opened or weakened by
+  Sprint 16).
+
+### 17.3 What is not confirmed
+
+- A real **double Salesforce transfer** is not currently proven.
+  The production Salesforce client is not wired; only
+  `MockSalesforceService` (`@Profile("local")`) implements
+  `SalesforceService`, and `SessionManager.recordHandover` does
+  not flow through `SalesforceService` at all (it writes directly
+  to `mock_handover_log`).
+- `HandoverPayloadAssembler` is the candidate single payload
+  builder for the future orchestrator. Sprint 16 does not commit
+  to it as the final shape; the orchestrator design doc names it
+  as the candidate but leaves payload-schema decisions to the
+  runtime sprint.
+- No production case routing is currently affected. The
+  characterization test runs against an in-memory mocked
+  repository.
+
+### 17.4 Future runtime sprint trigger
+
+A future "Single Handover Orchestrator" runtime sprint must start
+when either:
+
+1. a real Salesforce client is staged for cutover (the launch-time
+   wire-up forces the orchestrator to land first to satisfy
+   `docs/release_gate.md` §1.1), or
+2. a real-traffic case shows duplicated handover routing in
+   Salesforce (would be the first P0 / P1 confirmation that
+   moves the issue out of P2 territory).
+
+Until then, `Sprint16HandoverDualPathReproTest` is the standing
+guard that the dual-path shape has not been silently fixed (the
+two passing cases would break) and that the future invariant has
+not been silently re-introduced as a hard gate (the `@Disabled`
+case would need to be re-enabled deliberately).
+
+The runtime sprint's acceptance criteria are pre-specified in
+`docs/handover_orchestrator_design.md` §6 and
+`docs/release_gate.md` §1.1.
+
+### 17.5 Tests run
+
+- `mvn -pl server test
+  -Dtest='Sprint16*,RequestHandoverToolTest,HandoverPayloadAssemblerTest,Cs014RouteAndLoopHandoverIntegrationTest,Cs176ExplicitHumanHelpHandoverIntegrationTest,AgentRunLoopHandoverReasonNormalizationIntegrationTest'`
+  → **22 / 0 / 0 / 1** (Sprint 16 §H1 focused suite + handover
+  regression suite; the 1 skipped is the `@Disabled`
+  future-invariant case).
+- `mvn -pl server test`
+  → **887 / 0 / 0 / 1** (was 884 pre-Sprint-16; +2 new passing
+  Sprint 16 tests + 1 new disabled future-invariant test). No
+  regression in any Sprint 6 / 7 / 7.1 / 8 / 8.2 / 9 / 9.1 / 10
+  / 11 / 11.1 / 12 / 13 / 14 / 14.1 / 15 invariant. The cs014 /
+  cs066 / cs095 / cs002 / cs029 / cs176 / cs001 regression suite
+  remains green. `L1:escalation_reason_consistency = 0` and
+  `CONTRACT_VIOLATION:active_use_case = 0` are preserved.
+- `pytest eval_interactive/tests/` — not re-run; Sprint 16
+  changes no Python file, no eval-output schema, no judge, no
+  CaseSpec, no FAQ corpus. The Sprint 16 diff is two Markdown
+  files (new), three Markdown files (edited), one new Java test,
+  and two Javadoc-only edits on existing Java source.
+- Smoke runs not required — Sprint 16 changes no FAQ corpus, no
+  prompt, no judge, no CaseSpec, no escalation enum, no routing
+  taxonomy, no eval-output schema, no DB schema. The current
+  canonical baseline (`docs/current_eval_baseline.md`) is
+  preserved (post-Sprint-8 r1 / r2 runs).
+
+### 17.6 Next recommended action
+
+Recommended next phase: **defer**. Sprint 16 is intentionally a
+docs + characterization sprint; the runtime fix
+("Single Handover Orchestrator") is queued as a deferred runtime
+candidate (`docs/action_bank.md` §4 row
+`D-single-handover-orchestrator`) and gated by the real-Salesforce
+cutover plan (`docs/release_gate.md` §1.1).
+
+In priority order:
+
+1. **Eval Governance Follow-up** — primary recommendation
+   carried over from Sprint 15. Largest residual category is
+   still `judge_volatility` / `faq_corpus_gap` /
+   `product_policy_gap`.
+2. **Single Handover Orchestrator runtime sprint** — start ONLY
+   when (a) a real Salesforce client is staged for cutover, or
+   (b) a real-traffic case shows duplicated handover routing.
+   Acceptance criteria pre-specified in
+   `docs/handover_orchestrator_design.md` §6 and
+   `docs/release_gate.md` §1.1; the `@Disabled` future-invariant
+   test is the closing artifact.
+3. **Narrow Sprint 16 §S1 hardening** (FAQ-grounded resolve
+   bypass) — only on real-traffic evidence per
+   `docs/faq_grounding_contract.md` §6.
+4. **Narrow Corpus Curation** — fill the 38 missing
+   `Help_Site_URL__c` rows.
+
+Do not start the Single Handover Orchestrator runtime sprint
+opportunistically. Sprint 13's runtime freeze remains in force; a
+new runtime sprint requires a P0 / P1 trigger or the real
+Salesforce cutover plan.
+
+### 17.7 What Sprint 16 explicitly does NOT do
+
+- No `HandoverOrchestrator` implementation. Sprint 16 is design
+  + characterization only; the runtime fix is the future
+  "Single Handover Orchestrator" sprint.
+- No production Salesforce client. The release-gate rule
+  (`docs/release_gate.md` §1.1) blocks that wire-up until the
+  orchestrator lands.
+- No change to `RequestHandoverTool` behaviour. Class-level
+  Javadoc adds a §H0 marker only.
+- No change to `SessionManager.recordHandover` behaviour. Method
+  Javadoc adds a §H0 marker only.
+- No change to `MockSalesforceService` behaviour or the
+  `SalesforceService` interface.
+- No change to the Phase 3 §3.6.2 handover payload schema.
+- No change to `HandoverPayloadAssembler` behaviour.
+- No prompt edit. No `system_prompt.txt` change.
+- No routing change. No new escalation reason. No CaseSpec
+  change. No FAQ corpus change. No judge calibration change. No
+  eval expected-outcome change.
+- No DB migration. No schema change. `mock_handover_log` /
+  `bot_turns` / `bot_sessions` / `kb_articles` / `kb_chunks`
+  schemas unchanged.
+- No new live smoke baseline. No anchor / exploration /
+  promotion hard-gate change.
