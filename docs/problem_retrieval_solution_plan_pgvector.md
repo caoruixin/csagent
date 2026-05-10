@@ -1,3 +1,20 @@
+---
+title: 问题检索方案计划（pgvector）
+doc_tier: proposal
+status: proposal
+implementation_status: unknown
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Retrieval scheme proposal based on PostgreSQL + pgvector. Use as design
+  reference for retrieval/grounding work; verify against the current
+  retrieval modules under `server/` and `data/` before treating any
+  specific table layout, prompt assembly, or recall budget as live.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 # 问题检索方案计划（pgvector）
 
 本文档描述基于 **PostgreSQL + pgvector** 的「文章分块向量入库 → 语义召回 → 大模型综合生成」检索方案，用于客服/知识场景下的问题理解与答案生成。

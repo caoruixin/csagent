@@ -1,3 +1,21 @@
+---
+title: Prompt / Context Projection Audit — Sprint 5 (F1)
+doc_tier: diagnostic
+status: diagnostic
+implementation_status: unknown
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Sprint 5 point-in-time audit of the prompt / context surfaces the LLM
+  actually sees (system prompt, routing prompt, projected context). Line
+  numbers and file paths in the body are accurate as of that snapshot;
+  verify against current prompts and `ContextProjectionBuilder` before
+  treating any specific code reference as live.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 # Prompt / Context Projection Audit — Sprint 5 (F1)
 
 Date: 2026-05-05

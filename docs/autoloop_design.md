@@ -1,3 +1,20 @@
+---
+title: Autoloop Design — Autonomous Improvement Loop for csagent
+doc_tier: proposal
+status: proposal
+implementation_status: unknown
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Forward-looking design for a standalone autonomous improvement loop.
+  Treat the architecture, scoring rules, and surface boundaries as design
+  intent; verify against any live `autoloop/` code before relying on a
+  specific component being implemented.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 # Autoloop Design — Autonomous Improvement Loop for csagent
 
 > **Purpose**: Define a standalone, independently-triggerable autonomous improvement loop that hill-climbs csagent's customer service quality by iterating on prompts and configuration, scored by the existing eval infrastructure.

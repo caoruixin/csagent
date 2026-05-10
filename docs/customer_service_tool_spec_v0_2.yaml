@@ -1,3 +1,20 @@
+# SUPERSEDED — historical V1 tool spec.
+# The current tool contract (agent-visible vs runtime-only types, argument
+# names, enum values, allowed-UC matrix) lives in
+# docs/current/customer_service_tool_spec_v0_3.md, sourced from the live
+# server/src/main/resources/config/tool-policy.yaml and the Java tool
+# implementations under server/src/main/java/com/gumtree/csagent/service/tools/.
+# This YAML is preserved for history; do not edit the body. Treat any
+# specific field, enum, or allowed/disallowed entry below as historical
+# until verified against current code/config.
+#
+# doc_tier: archived
+# status: superseded
+# implementation_status: historical
+# runtime_contract: false
+# superseded_by: docs/current/customer_service_tool_spec_v0_3.md
+# last_reviewed: 2026-05-10
+
 schema_version: '0.2'
 spec_type: customer_service_agent_tool_spec
 project:

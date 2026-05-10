@@ -1,3 +1,23 @@
+---
+title: UC 分类与 Topic Subject 拉齐方案
+doc_tier: proposal
+status: partial
+implementation_status: partial
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Proposal whose top banner reports the alignment as confirmed and
+  executed (2026-04-21) with foundational docs updated. Treat this file
+  as a historical decision record explaining the change; the current
+  runtime contract for UC ↔ Topic Subject mapping lives in the
+  foundational specs (phase0/phase1/phase2/phase3) and the tool spec
+  YAML, plus live code. Verify before relying on any specific mapping
+  detail here.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 # UC 分类与 Topic Subject 拉齐方案
 
 > **状态**: ✅ **已确认并执行**（2026-04-21）

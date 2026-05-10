@@ -1,3 +1,27 @@
+---
+title: Customer Service Agent — Tool Spec v0.2
+doc_tier: archived
+status: superseded
+implementation_status: historical
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+superseded_by: docs/current/customer_service_tool_spec_v0_3.md
+notes: >
+  Historical V1 tool spec (April 2026 baseline). The current tool
+  surface — agent-visible vs runtime-only types, argument names,
+  enum values, allowed-UC matrix — is described in
+  `docs/current/customer_service_tool_spec_v0_3.md`, sourced from
+  the live `tool-policy.yaml` and Java tool implementations. This
+  file is preserved for history; do not edit the body.
+---
+
+> **Superseded.** The current tool contract lives in
+> [`docs/current/customer_service_tool_spec_v0_3.md`](current/customer_service_tool_spec_v0_3.md).
+> This document is preserved as the V1 v0.2 baseline; treat any specific
+> field, enum value, or allowed/disallowed matrix entry below as
+> historical until verified against current code/config.
+
 # Customer Service Agent — Tool Spec v0.2
 
 > **基于**: tool_spec v0.1 + platform_api_detailed_reference.md + FAQ-knowledge_include_help_url.csv + problem_retrieval_solution_plan_pgvector.md + customer_service_agent-Common-Phrases.md + phase1_solution_input_pack.md §1.4.13 (Pre-chat Form) + phase2_domain_realization_spec.md §2.10

@@ -1,3 +1,21 @@
+---
+title: Skill Orchestration Candidates — Sprint 5 (F2)
+doc_tier: proposal
+status: proposal
+implementation_status: not_started
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Self-declared diagnostic that proposes candidate skill / plan-template
+  shapes (e.g. Resolve.FAQ, intake-collect-and-handover) without
+  implementing them. Use as a design starting point when a sprint picks
+  up skill orchestration; do not treat any candidate as a current runtime
+  feature.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 # Skill Orchestration Candidates — Sprint 5 (F2)
 
 Date: 2026-05-05

@@ -1,3 +1,22 @@
+---
+title: Fix Layer Taxonomy — Sprint 5 (F0)
+doc_tier: diagnostic
+status: diagnostic
+implementation_status: unknown
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Sprint 5 classification of post-Sprint-4 smoke failures into fix layers
+  (java_guard, prompt_context_projection, skill_orchestration,
+  case_spec_eval, infra_runtime, judge_calibration, product_policy_gap,
+  unknown_needs_human_review). Use as a layer-selection lens; the
+  specific failure inventory is a snapshot and may not reflect current
+  smoke results.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 # Fix Layer Taxonomy — Sprint 5 (F0)
 
 Date: 2026-05-05
