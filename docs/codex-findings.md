@@ -1,3 +1,20 @@
+---
+title: Codex findings (latest sprint review)
+doc_tier: diagnostic
+status: diagnostic
+implementation_status: unknown
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Point-in-time sprint review findings (most recent: Sprint 16 contract
+  /repro pass). The body references specific tests, gates, and docs that
+  may have moved on. Use as a historical review record, not as a live
+  list of P2 follow-ups.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 ## Sprint Review Decision
 
 decision: pass

@@ -1,3 +1,21 @@
+---
+title: Java Guard / Prompt Flexibility / Skill / Eval — Layer Responsibilities — Sprint 5 (F3)
+doc_tier: diagnostic
+status: diagnostic
+implementation_status: not_started
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Self-declared diagnostic defining the responsibility split between Java
+  guard, prompt flexibility, skill orchestration, and eval verification,
+  plus stop conditions for future sprints. The file itself implements no
+  runtime / prompt / spec change. Use as a layer-selection lens before
+  picking a fix layer for a given failure.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 # Java Guard / Prompt Flexibility / Skill / Eval — Layer Responsibilities — Sprint 5 (F3)
 
 Date: 2026-05-05

@@ -1,3 +1,21 @@
+---
+title: Interactive CaseSpec Generation Plan
+doc_tier: proposal
+status: partial
+implementation_status: partial
+runtime_contract: false
+last_reviewed: 2026-05-10
+review_cadence: on_reactivation
+notes: >
+  Multi-wave generation plan. Some waves (e.g. A4 transcript-evidence
+  selection) are described as landed; others (later waves, semantic QA
+  layer, hybrid review) are forward-looking. Verify wave-by-wave against
+  the generator code under `eval_interactive/` before assuming a
+  particular wave shipped.
+---
+
+> This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
+
 # Interactive CaseSpec Generation Plan
 
 Status: design contract for the next implementation waves. Code changes must follow this plan after `docs/phase5_evaluation_design.md` is updated.
