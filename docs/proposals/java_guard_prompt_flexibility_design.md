@@ -42,7 +42,7 @@ Codex review at the end of Sprint 4 effectively asked: *which remaining
 failures are genuinely Java guard concerns vs. which are prompt /
 context projection / skill orchestration / case-spec / infra concerns?*
 
-The fix-layer taxonomy (`docs/fix_layer_taxonomy.md`) classified the
+The fix-layer taxonomy (`docs/diagnostics/fix_layer_taxonomy.md`) classified the
 remaining smoke failures and found that **zero** of them are best fixed
 as new Java runtime invariants. The marginal Java-guard payoff is now
 low, and continuing to add runtime taxonomies on top of LLM enum picks
@@ -195,7 +195,7 @@ Skills should be introduced when:
 - Prompt-only fixes have been tried and the failure mode persists
   across nondeterminism re-runs.
 
-Per `docs/skill_orchestration_candidates.md` §6 and `docs/codex-findings.md`
+Per `docs/proposals/skill_orchestration_candidates.md` §6 and `docs/diagnostics/codex-findings.md`
 Sprint 5.1 review, Sprint 6 ships exactly one skill:
 
 - **S1 FAQ-grounded-resolve**: DISCOVER → search → resolve_article →
@@ -390,9 +390,9 @@ sprints should explicitly guard against.
 
 ## 7. Cross-references
 
-- Fix-layer per case: `docs/fix_layer_taxonomy.md`.
-- Prompt / context candidate changes: `docs/prompt_context_projection_audit.md`.
-- Skill candidates: `docs/skill_orchestration_candidates.md`.
+- Fix-layer per case: `docs/diagnostics/fix_layer_taxonomy.md`.
+- Prompt / context candidate changes: `docs/diagnostics/prompt_context_projection_audit.md`.
+- Skill candidates: `docs/proposals/skill_orchestration_candidates.md`.
 - Recommended next sprint direction:
   `docs/current_eval_baseline.md` §"Recommended next sprint direction".
 - Carry-over deferrals: `docs/action_bank.md` D1–D7, D15.

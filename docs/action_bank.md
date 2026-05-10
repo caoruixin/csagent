@@ -93,7 +93,7 @@ Governance Follow-up** (primary, surfaced by the Sprint 15 Codex
 review), narrow Sprint 16 §S1 hardening (only on real-traffic
 evidence), or narrow corpus curation. No new runtime sprint unless
 a new P0 / P1 runtime blocker is found. The Sprint 14 FAQ grounding
-contract (`docs/faq_grounding_contract.md`) is the canonical source
+contract (`docs/current/faq_grounding_contract.md`) is the canonical source
 for the §L1 evidence lineage and §L2 grounding diagnostics; the
 Sprint 14 §L0 audit + repair (`qa-reports/faq-kb-lineage-and-url-audit.md`)
 records the published-safety + canonical-URL findings. Further
@@ -210,7 +210,7 @@ on the deferred / avoid list.
     verbatim. Sprint 14 §L1 explicitly does NOT use the lineage
     diff to gate / rewrite / loop the response.
   - L2 FAQ grounding contract + soft diagnostics landed.
-    `docs/faq_grounding_contract.md` (new, normative) defines
+    `docs/current/faq_grounding_contract.md` (new, normative) defines
     the six-class output taxonomy (`factual_answer`,
     `clarification`, `empathy_ack`, `handover`, `tool_status`,
     `intake_collection`) — only `factual_answer` requires
@@ -259,7 +259,7 @@ runtime change):
 
 | id | deliverable | status |
 |----|-------------|--------|
-| H0 | Define handover exactly-once contract | done — new `docs/handover_orchestrator_design.md` separates three contracts (trace evidence via `request_handover`, outcome persistence via `record_outcome`, and the future `HandoverOrchestrator` handover side-effect); future invariant: at most one transmitted / `offline_logged` handover decision per `session_id`; Sprint 16 §10.1 entry added to `docs/runtime_freeze_and_risk_policy.md` |
+| H0 | Define handover exactly-once contract | done — new `docs/proposals/handover_orchestrator_design.md` separates three contracts (trace evidence via `request_handover`, outcome persistence via `record_outcome`, and the future `HandoverOrchestrator` handover side-effect); future invariant: at most one transmitted / `offline_logged` handover decision per `session_id`; Sprint 16 §10.1 entry added to `docs/runtime_freeze_and_risk_policy.md` |
 | H1 | Characterization tests for dual-path handover | done — new `Sprint16HandoverDualPathReproTest` (mock / local persistence repro; passing today) and `Sprint16HandoverDualPathLlmDrivenReproTest` (LLM-driven dual local persistence; **disabled / TODO** because the dual write fails the future invariant by design — the explicit trigger to the future "Single Handover Orchestrator" runtime sprint); tests distinguish duplicated local log / payload from unproven real Salesforce double transfer |
 | H2 | Release-gate / action-bank tracking | done — new `docs/release_gate.md` §1.1 blocking rule (no real Salesforce cutover until handover side-effect is idempotent by `session_id`); new "Single Handover Orchestrator" deferred runtime candidate in §4 below; the rule remains **not satisfied** at Sprint 16 close |
 
@@ -270,7 +270,7 @@ Single Handover Orchestrator action item (NOT marked fixed):
 > persistence + handover decision persistence + `ESCALATION_REQUESTED`
 > emission) the responsibility of a single owner that is idempotent
 > by `session_id`. Required before real Salesforce production
-> cutover. Cross-references: `docs/handover_orchestrator_design.md`,
+> cutover. Cross-references: `docs/proposals/handover_orchestrator_design.md`,
 > `docs/release_gate.md` §1.1, `docs/runtime_freeze_and_risk_policy.md`
 > §10.1.
 
@@ -290,7 +290,7 @@ Sprint 14.1 closure review):
 |----|-------------|--------|
 | L0 | KB canonical URL / Help URL / published safety audit + fix | done — published-only ANN queries, `ResolveArticleTool` refusal of unpublished, `canonical_url` / `canonical_url_missing` / `safe_to_show` flags, `qa-reports/faq-kb-lineage-and-url-audit.md`; 12 focused tests |
 | L1 | Separate retrieved / resolved / cited source evidence | done — `SourceEvidenceLineage` + `CitationExtractor`; persisted under `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure); 4 `BotSession` transient slots mirrored; legacy `bot_turns.source_ids` preserved; 7 focused tests |
-| L2 | FAQ grounding contract + soft diagnostics | done — `docs/faq_grounding_contract.md` (canonical); `FaqOutputClass`, `FaqOutputClassifier`, `FaqGroundingDiagnostics`; persisted under `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure); 7 `BotSession` transient slots mirrored; 14 focused tests |
+| L2 | FAQ grounding contract + soft diagnostics | done — `docs/current/faq_grounding_contract.md` (canonical); `FaqOutputClass`, `FaqOutputClassifier`, `FaqGroundingDiagnostics`; persisted under `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure); 7 `BotSession` transient slots mirrored; 14 focused tests |
 | 14.1 | FAQ grounding observability persistence closure | done — Codex Sprint 14 blocker fix: lineage + diagnostics computed BEFORE `BotTurn.save(...)`, snake_case payload merged into `bot_turns.projected_context.faq_grounding`; no DB migration; no hard citation gate; 5 focused trace-persistence tests; Sprint 14.1 closure review returned `decision: pass, blocking_count: 0` |
 
 With Sprint 14 + 14.1 and Sprint 15 all closed (Codex pass), the
@@ -298,7 +298,7 @@ next recommended phase is **Eval Governance Follow-up** (surfaced
 by the Sprint 15 Codex review). No new runtime sprint unless a new
 P0 / P1 runtime blocker is found. Narrow Sprint 16 §S1 hardening
 candidates surfaced by the Sprint 14 §L0 audit are recorded in
-`docs/faq_grounding_contract.md` §6 (R-faq-grounded-resolve-bypass,
+`docs/current/faq_grounding_contract.md` §6 (R-faq-grounded-resolve-bypass,
 R-cited-but-unresolved, R-resolved-but-uncited-rate,
 R-canonical-url-missing-rate) — all deferred until real-traffic
 evidence motivates them.
@@ -321,7 +321,7 @@ evidence motivates them.
 | D-hard-citation-gate | hard runtime citation gate (refuse / rewrite / loop on missing citation) | deferred / avoid | none | Sprint 14 §L2 explicitly carved this out; observability via `citationPresent` / `citationMatch` / `citationDrift` / `resolvedButUncited` is in place. Reopen only when real-traffic evidence escalates the diagnostic signals into a P0/P1 blocker |
 | D-faq-grounded-resolve-bypass | refuse / replan a FINAL_ANSWER shape that paraphrases a `retrieved_but_unresolved` hit on a FAQ-path UC | deferred — Sprint 16 §S1 candidate | runtime / S1 | observable today as `retrieved_but_unresolved=true` on a `factual_answer` turn; current §G2 guard handles the dominant `request_handover(faq_miss_threshold_exceeded)` shape, not the FINAL_ANSWER shape |
 | D-cited-but-unresolved | hallucination signal candidate when `citation_drift=true` with a cited source_id never retrieved/resolved | deferred — diagnostics-only | runtime / S1 | needs reproducible cases before any runtime hardening; watch the §L2 diagnostics surface |
-| D-single-handover-orchestrator | Single Handover Orchestrator: exactly-once side-effect owner before Salesforce production cutover | deferred — release-gate blocker | runtime | Sprint 16 documented the contract in `docs/handover_orchestrator_design.md` and added repro tests; current LLM-driven path produces dual local handover persistence (P2 today, P1 launch-readiness, P0/P1 if real double transfer occurs in production); release-gate rule `docs/release_gate.md` §1.1 blocks real Salesforce cutover until handover side-effect is idempotent by `session_id`; trigger to start runtime sprint = real Salesforce client staged for cutover OR real-traffic case shows duplicated handover routing |
+| D-single-handover-orchestrator | Single Handover Orchestrator: exactly-once side-effect owner before Salesforce production cutover | deferred — release-gate blocker | runtime | Sprint 16 documented the contract in `docs/proposals/handover_orchestrator_design.md` and added repro tests; current LLM-driven path produces dual local handover persistence (P2 today, P1 launch-readiness, P0/P1 if real double transfer occurs in production); release-gate rule `docs/release_gate.md` §1.1 blocks real Salesforce cutover until handover side-effect is idempotent by `session_id`; trigger to start runtime sprint = real Salesforce client staged for cutover OR real-traffic case shows duplicated handover routing |
 
 ## 5. Eval governance / non-runtime backlog
 
@@ -361,7 +361,7 @@ evidence motivates them.
 | Sprint 14 | L0 KB canonical URL / Help URL / published safety audit + fix; L1 separate retrieved/resolved/cited source evidence; L2 FAQ grounding contract + soft diagnostics | closed (initial review fix_required → resolved by Sprint 14.1; accepted as a unit on the Sprint 14.1 closure pass) | will archive under `docs/sprints/sprint-014-*` |
 | Sprint 14.1 | FAQ grounding observability persistence closure (`bot_turns.projected_context.faq_grounding`); fix the Sprint 14 Codex blocker | closed (Codex pass) | will archive under `docs/sprints/sprint-014.1-*` |
 | Sprint 15 | M0 externalize DriftDetector / risk keywords to YAML; M1 script library version pin + docs ↔ YAML consistency check; M2 retrieval / answer gate / rerank fallback thresholds config + diagnostics | closed (Codex pass) | will archive under `docs/sprints/sprint-015-*` |
-| Sprint 16 | H0 define handover exactly-once contract (`docs/handover_orchestrator_design.md` + runtime-freeze §10.1 known-unspecced-surface entry); H1 characterization tests for dual-path handover (LLM-driven repro disabled / TODO by design); H2 release-gate blocker + action-bank "Single Handover Orchestrator" item | docs + characterization-test sprint; no runtime change | will archive under `docs/sprints/sprint-016-*` |
+| Sprint 16 | H0 define handover exactly-once contract (`docs/proposals/handover_orchestrator_design.md` + runtime-freeze §10.1 known-unspecced-surface entry); H1 characterization tests for dual-path handover (LLM-driven repro disabled / TODO by design); H2 release-gate blocker + action-bank "Single Handover Orchestrator" item | docs + characterization-test sprint; no runtime change | will archive under `docs/sprints/sprint-016-*` |
 
 ## 7. Carry-over rule
 

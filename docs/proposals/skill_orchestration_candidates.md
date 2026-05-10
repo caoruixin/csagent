@@ -46,7 +46,7 @@ introducing a separate "skill engine".
 
 ## 2. Why scan now (root-cause framing)
 
-Per `docs/fix_layer_taxonomy.md`, two of the recurring failure modes are
+Per `docs/diagnostics/fix_layer_taxonomy.md`, two of the recurring failure modes are
 not best fixed by a one-line prompt cue:
 
 - **cs_259** UC-F payment FAQ — r2 evidence shows
@@ -441,7 +441,7 @@ prompt fix, add S5 as a follow-up. Do NOT ship both at once.
 
 ## 6. Recommended Sprint 6 scope (skill side)
 
-Per `docs/codex-findings.md` Sprint 5.1 review, Sprint 6 is capped at
+Per `docs/diagnostics/codex-findings.md` Sprint 5.1 review, Sprint 6 is capped at
 **exactly 3 actions** (one infra + one prompt + one skill). On the
 skill side that is exactly **one** skill:
 

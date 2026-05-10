@@ -13,7 +13,7 @@ is binary: every rule must be satisfied or the cutover is held.
 
 This is distinct from the eval gate (anchor / exploration /
 promotion thresholds, judge calibration) tracked in
-`docs/phase5_evaluation_design.md` and `docs/current_eval_baseline.md`.
+`docs/foundational/phase5_evaluation_design.md` and `docs/current_eval_baseline.md`.
 This file is operational launch governance, not eval governance.
 
 ## 1. Blocking rules
@@ -79,7 +79,7 @@ mis-prioritisation, queue duplication — and is user-visible.
 
 **Cross-references.**
 
-- Contract design: `docs/handover_orchestrator_design.md`.
+- Contract design: `docs/proposals/handover_orchestrator_design.md`.
 - Risk record: `docs/runtime_freeze_and_risk_policy.md` §10.1.
 - Action item: `docs/action_bank.md` (Single Handover
   Orchestrator).
@@ -123,7 +123,7 @@ issue is identified.
   cycle; archive them on the next ad-hoc transition under
   `docs/archive/current-docs/`.
 - Do not list eval thresholds here. Those belong in
-  `docs/phase5_evaluation_design.md` and
+  `docs/foundational/phase5_evaluation_design.md` and
   `docs/current_eval_baseline.md`.
 
 Sprint 16 establishes this file with one blocking rule (§1.1).

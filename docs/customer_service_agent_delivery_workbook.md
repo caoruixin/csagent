@@ -23,12 +23,12 @@
 
 | 阶段 | 状态 | 产出文件 |
 |------|------|---------|
-| Phase 0 — Freeze Normative Layer | ✅ 已完成（v6; v8 HR 完成反映）| [`phase0_normative_freeze.md`](./phase0_normative_freeze.md) |
-| Phase 1 — Build Solution Input Pack | ✅ 已完成（v6; v8 HR 完成反映）| [`phase1_solution_input_pack.md`](./phase1_solution_input_pack.md) |
-| Phase 2 — Produce Domain Realization Spec | ✅ 已完成（v6; v8 HR 完成反映）| [`phase2_domain_realization_spec.md`](./phase2_domain_realization_spec.md) |
-| Phase 3 — Produce Detailed Technical Design | ✅ 已完成（v1; v8 HR 完成反映）| [`phase3_detailed_technical_design.md`](./phase3_detailed_technical_design.md) |
+| Phase 0 — Freeze Normative Layer | ✅ 已完成（v6; v8 HR 完成反映）| [`foundational/phase0_normative_freeze.md`](./foundational/phase0_normative_freeze.md) |
+| Phase 1 — Build Solution Input Pack | ✅ 已完成（v6; v8 HR 完成反映）| [`foundational/phase1_solution_input_pack.md`](./foundational/phase1_solution_input_pack.md) |
+| Phase 2 — Produce Domain Realization Spec | ✅ 已完成（v6; v8 HR 完成反映）| [`foundational/phase2_domain_realization_spec.md`](./foundational/phase2_domain_realization_spec.md) |
+| Phase 3 — Produce Detailed Technical Design | ✅ 已完成（v1; v8 HR 完成反映）| [`foundational/phase3_detailed_technical_design.md`](./foundational/phase3_detailed_technical_design.md) |
 | Phase 4 — Coding Agent Implementation Packet | ✅ 已完成（v1）| [`phase4_coding_agent_implementation_packet.md`](./phase4_coding_agent_implementation_packet.md) |
-| Phase 5 — Eval / Release / Feedback Loop | ✅ 已完成（v1; v8 HR 完成反映）| [`phase5_evaluation_design.md`](./phase5_evaluation_design.md) |
+| Phase 5 — Eval / Release / Feedback Loop | ✅ 已完成（v1; v8 HR 完成反映）| [`foundational/phase5_evaluation_design.md`](./foundational/phase5_evaluation_design.md) |
 
 本 workbook 保留作为**阶段模板与索引**；每个阶段的实际产出在独立文件中维护，便于 review 与迭代。
 
@@ -36,22 +36,22 @@
 
 | 文件 | 角色 |
 |------|------|
-| [`customer_service_agent_tech_spec.md`](./customer_service_agent_tech_spec.md) | 通用 Customer Service Agent 技术规范（V1 内核 / 架构 / 控制 / 工具 / Handover / Guardrails / Observability / NFR / Release Criteria）|
+| [`foundational/customer_service_agent_tech_spec.md`](./foundational/customer_service_agent_tech_spec.md) | 通用 Customer Service Agent 技术规范（V1 内核 / 架构 / 控制 / 工具 / Handover / Guardrails / Observability / NFR / Release Criteria）|
 | [`customer_service_agent_eval_spec.md`](./customer_service_agent_eval_spec.md) | 通用 Eval 规范（Eval scope / Dataset / Grader / Metrics / Launch Gates / CI/CD）|
 
 ## 业务输入文件
 
 | 文件 | 角色 |
 |------|------|
-| [`BRD.md`](./BRD.md) | Business Requirements — scope、user stories、UX、tone-of-voice、launch criteria |
-| [`PRD_biz_part.md`](./PRD_biz_part.md) | Business-only PRD — 系统角色、handling 状态机、A–F' 对话流、Salesforce 数据模型骨架 |
+| [`foundational/BRD.md`](./foundational/BRD.md) | Business Requirements — scope、user stories、UX、tone-of-voice、launch criteria |
+| [`foundational/PRD_biz_part.md`](./foundational/PRD_biz_part.md) | Business-only PRD — 系统角色、handling 状态机、A–F' 对话流、Salesforce 数据模型骨架 |
 | [`case-data-stat.md`](./case-data-stat.md) | 120,367 条 Case 历史数据分析（Case Reason 维度）|
 | [`case-samples.md`](./case-samples.md) | 原始 Case 样本 |
 | [`customer_service_conversation_samples_organized.xlsx`](./customer_service_conversation_samples_organized.xlsx) | **新增** — 499 条 Live Chat 会话（含 262 条 transcript、2,890 turns、43 条 curated examples）|
 | [`inferred_tool_candidates_from_human_conversations.xlsx`](./inferred_tool_candidates_from_human_conversations.xlsx) | **新增** — 从 262 条对话反推的 10 类工具候选 + 证据 |
 | [`customer_service_tool_spec_v0_2.yaml`](./customer_service_tool_spec_v0_2.yaml) | **v4 更新** — V1 Tool Spec v0.2（concrete API mapping / pre-chat form / pgvector backend / `get_moderation_review_context` / runtime capabilities）|
-| [`salesforce-part-spec.md`](./salesforce-part-spec.md) | **v4 新增** — Salesforce 组织配置确认（Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form）|
-| [`problem_retrieval_solution_plan_pgvector.md`](./problem_retrieval_solution_plan_pgvector.md) | **v4 新增** — pgvector 检索方案确认 |
+| [`runbooks/salesforce-part-spec.md`](./runbooks/salesforce-part-spec.md) | **v4 新增** — Salesforce 组织配置确认（Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form）|
+| [`proposals/problem_retrieval_solution_plan_pgvector.md`](./proposals/problem_retrieval_solution_plan_pgvector.md) | **v4 新增** — pgvector 检索方案确认 |
 | [`customer_service_agent-Common-Phrases.md`](./customer_service_agent-Common-Phrases.md) | **v4 新增** — 从 1.18 万条 transcript 提炼的标准话术指导（7 类模板）|
 | [`FAQ-knowledge_include_help_url.csv`](./FAQ-knowledge_include_help_url.csv) | **v4 新增，v6 修正** — 218 篇 Salesforce Knowledge 文章（Id / Title / Summary / Help_Site_URL__c）。原统计 3,963 系 CSV 行数（Description__c 含多行 HTML），实际文章数 218 |
 | [`platform_api_detailed_reference.md`](./platform_api_detailed_reference.md) | **v4 新增** — 196 REST 端点 / 14 微服务详细 API 参考 |
@@ -464,7 +464,7 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
 | # | 原缺失项 | 解决方式 | 影响文件 |
 |---|---------|---------|---------|
 | 8 | Embedding 模型选型 | **Vertex AI `text-embedding-004`（GCP native）**；768 维；入库与在线 Query 同一模型 | `phase0_normative_freeze.md` §0.3 / `phase1_solution_input_pack.md` §1.4.3 |
-| 10 | 流量分配策略与 go/no-go 阈值 | **GrowthBook** 管理；10%→20%→50%→100% 渐进放量；代码不硬编码阈值（见 `docs/abtesing-policy.md`）| `phase1_solution_input_pack.md` §1.1.4 Go/No-Go |
+| 10 | 流量分配策略与 go/no-go 阈值 | **GrowthBook** 管理；10%→20%→50%→100% 渐进放量；代码不硬编码阈值（见 `docs/runbooks/abtesing-policy.md`）| `phase1_solution_input_pack.md` §1.1.4 Go/No-Go |
 | 17 | article → UC 映射（218 篇文章 UC 分类标注）| **初版已完成**：`data/knowledge/article_uc_mapping.csv`（218 篇全量 auto-mapped，0 unmatched）+ `knowledge_base_articles.json`（pgvector 入库就绪）；详见 `data/knowledge/mapping_summary_report.md` | `phase2_domain_realization_spec.md` §2.5 |
 | 19 | gumshield cs-review API Bot 服务账号访问审批 | **Dev/demo 阶段**：使用 mock 数据开发和 debug；**正式审批**：流程进行中，prod 部署前完成配置（非阻塞 Phase 3 设计）| `phase2_domain_realization_spec.md` §2.10.2 |
 | 20 | Golden Dataset human review 标注完成（367 条 queue）| ~~当前阶段跳过人工标注~~ **v8 更新（2026-04-22）：367 sessions 已全部标注完成**（`data/human_review_annotations_2026-04-22_complete.csv`）；作为 supplementary ground truth 用于 eval 校准 | `phase1_solution_input_pack.md` §1.5.1 / `phase5_evaluation_design.md` |

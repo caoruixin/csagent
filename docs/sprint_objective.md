@@ -49,7 +49,7 @@ Recommended doc targets:
 - `docs/runtime_freeze_and_risk_policy.md`
 - `docs/release_gate.md`
 - `docs/action_bank.md`
-- optionally `docs/handover_orchestrator_design.md`
+- optionally `docs/proposals/handover_orchestrator_design.md`
 
 ### H1. Add characterization tests for current dual-path behaviour
 

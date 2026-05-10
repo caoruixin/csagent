@@ -44,12 +44,14 @@ content; the formal marking will land in a later PR.
 For changes to the runtime loop, phase transitions, drift detection, or
 risk gates.
 
-- `phase0_normative_freeze.md`, `phase3_detailed_technical_design.md`
-  (foundational) — durable architecture and intent.
-- `runtime_freeze_and_risk_policy.md` (foundational / durable-connective)
-  — risk policy intent.
-- `prompt_context_projection_audit.md` (diagnostic) — known drift areas
-  observed in past audits.
+- `foundational/phase0_normative_freeze.md`,
+  `foundational/phase3_detailed_technical_design.md` (foundational) —
+  durable architecture and intent.
+- `runtime_freeze_and_risk_policy.md` (foundational / durable-connective;
+  still at top level — see TODO_REVIEW in `../README.md`) — risk policy
+  intent.
+- `diagnostics/prompt_context_projection_audit.md` (diagnostic) — known
+  drift areas observed in past audits.
 - Recent sprint archives under `docs/sprints/` whose objective names
   "runtime", "alignment", "freeze", or "drift" — for the most recent
   delta.
@@ -62,14 +64,16 @@ For tool-call schema changes, new tools, policy on which tools may run
 where.
 
 - `customer_service_tool_spec_v0_2.md` and the matching
-  `customer_service_tool_spec_v0_2.yaml` (foundational) — durable schema
-  intent. Verify the YAML against actual tool definitions in code; the
-  YAML is the design intent, not necessarily a faithful mirror of what
-  ships today.
-- `phase3_detailed_technical_design.md` (foundational) — for the
-  surrounding architecture the tools plug into.
-- `customer_service_agent_tech_spec.md` (foundational) — interface-level
-  context.
+  `customer_service_tool_spec_v0_2.yaml` (foundational, **superseded** —
+  still at top level for history; see `customer_service_tool_spec_v0_3.md`
+  in this directory for the current spec) — durable schema intent.
+  Verify the YAML against actual tool definitions in code; the YAML is
+  the design intent, not necessarily a faithful mirror of what ships
+  today.
+- `foundational/phase3_detailed_technical_design.md` (foundational) —
+  for the surrounding architecture the tools plug into.
+- `foundational/customer_service_agent_tech_spec.md` (foundational) —
+  interface-level context.
 - Recent sprint archives whose objective names "tool" or "trace
   observability".
 - Code: the tool schema and dispatch path under `server/`.
@@ -79,12 +83,14 @@ where.
 For FAQ retrieval, grounding rules, evidence lineage, knowledge index
 work.
 
-- `faq_grounding_contract.md` (durable-connective) — grounding contract
-  intent.
-- `problem_retrieval_solution_plan_pgvector.md` (foundational / proposal)
-  — retrieval plan; verify which parts shipped before treating any
+- `current/faq_grounding_contract.md` (current canonical FAQ
+  grounding contract) — grounding contract definition (term
+  distinctions, output classes, soft diagnostics).
+- `proposals/problem_retrieval_solution_plan_pgvector.md` (proposal) —
+  retrieval plan; verify which parts shipped before treating any
   detail as authoritative.
-- `FAQ-knowledge_include_help_url.csv` (reference) — the dataset.
+- `FAQ-knowledge_include_help_url.csv` (reference; still at top level)
+  — the dataset.
 - Recent sprint archives whose objective names "faq", "kb", "evidence",
   or "retrieval".
 - Code: retrieval and grounding modules under `server/` and `data/`.
@@ -93,10 +99,13 @@ work.
 
 For case intake, handover orchestration, and Salesforce integration.
 
-- `10-handoff.md` (foundational) — durable handoff contract.
-- `handover_orchestrator_design.md` (foundational / durable-connective).
-- `salesforce-part-spec.md` (foundational / reference).
-- `case-data-stat.md` (reference) — case data background.
+- `10-handoff.md` (working file; still at top level) — durable handoff
+  contract.
+- `proposals/handover_orchestrator_design.md` (proposal — design
+  freeze for the future single-owner handover orchestrator).
+- `runbooks/salesforce-part-spec.md` (runbook / reference).
+- `case-data-stat.md` (reference; still at top level) — case data
+  background.
 - Recent sprint archives whose objective names "handover", "intake", or
   "exactly-once".
 - Code: intake and handover modules under `server/`.
@@ -105,10 +114,11 @@ For case intake, handover orchestration, and Salesforce integration.
 
 For privacy, PII handling, and trace/observability.
 
-- `07-engineering-constraints.md` (foundational) — engineering
-  constraints including privacy posture.
-- `prompt_context_projection_audit.md` (diagnostic) — observed
-  projection / leakage issues.
+- `07-engineering-constraints.md` (foundational; still at top level —
+  see TODO_REVIEW in `../README.md`) — engineering constraints
+  including privacy posture.
+- `diagnostics/prompt_context_projection_audit.md` (diagnostic) —
+  observed projection / leakage issues.
 - Sprint archives whose objective names "trace observability" or "tool
   contract trace".
 - Code: tracing, redaction, and logging paths under `server/` and
@@ -119,26 +129,30 @@ For privacy, PII handling, and trace/observability.
 For evaluation harness changes, eval datasets, governance of release
 gates.
 
-- `phase5_evaluation_design.md` (foundational) — durable eval design.
-- `customer_service_agent_eval_spec.md` (foundational) — eval intent at
-  the agent level.
-- `current_eval_baseline.md` (current-runtime / diagnostic) — last
-  recorded baseline. Verify the date before trusting any specific
-  number.
-- `release_gate.md` (foundational / runbook) — release gate policy.
-- `abtesing-policy.md` (foundational) — A/B testing policy.
+- `foundational/phase5_evaluation_design.md` (foundational) — durable
+  eval design.
+- `customer_service_agent_eval_spec.md` (foundational; still at top
+  level — see TODO_REVIEW in `../README.md`) — eval intent at the
+  agent level.
+- `current_eval_baseline.md` (current-runtime / diagnostic; still at
+  top level — see TODO_REVIEW in `../README.md`) — last recorded
+  baseline. Verify the date before trusting any specific number.
+- `release_gate.md` (runbook-leaning; still at top level — see
+  TODO_REVIEW in `../README.md`) — release gate policy.
+- `runbooks/abtesing-policy.md` (runbook) — A/B testing policy.
 - Code and configs under `eval/` and `eval_interactive/`.
 
 ### Production readiness
 
 For production-readiness tasks: admin operations, runbooks, deployment.
 
-- `admin-guide.md` (runbook) — operational reference.
-- `release_gate.md` (runbook) — gate policy.
-- `07-engineering-constraints.md` (foundational) — non-functional
-  constraints.
-- `platform_api_detailed_reference.md` (reference) — platform API
-  surface.
+- `runbooks/admin-guide.md` (runbook) — operational reference.
+- `release_gate.md` (runbook-leaning; still at top level — see
+  TODO_REVIEW in `../README.md`) — gate policy.
+- `07-engineering-constraints.md` (foundational; still at top level —
+  see TODO_REVIEW in `../README.md`) — non-functional constraints.
+- `platform_api_detailed_reference.md` (reference; still at top
+  level) — platform API surface.
 - Code: deploy / scripts under `scripts/` and config files at the repo
   root.
 
@@ -147,11 +161,11 @@ For production-readiness tasks: admin operations, runbooks, deployment.
 For exploring or extending a proposal, or evaluating whether a proposal
 should be promoted.
 
-- `autoloop_design.md` (proposal).
-- `skill_orchestration_candidates.md` (proposal).
-- `proposal_uc_topic_subject_alignment.md` (proposal).
-- `interactive_case_spec_generation_plan.md` (proposal).
-- `java_guard_prompt_flexibility_design.md` (proposal).
+- `proposals/autoloop_design.md` (proposal).
+- `proposals/skill_orchestration_candidates.md` (proposal).
+- `proposals/proposal_uc_topic_subject_alignment.md` (proposal).
+- `proposals/interactive_case_spec_generation_plan.md` (proposal).
+- `proposals/java_guard_prompt_flexibility_design.md` (proposal).
 - The relevant foundational doc for the surrounding subsystem (use the
   task-type sections above).
 - Sprint archives that mention the proposal by name — they often record

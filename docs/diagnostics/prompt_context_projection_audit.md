@@ -109,7 +109,7 @@ and `escalationPolicy` string (≈ 1–4 sentences each).
 ## 2. Where the LLM lacks useful state or constraints
 
 These are the gaps observed in the cs_176 / cs_192 / cs_015 / cs_259 /
-cs_066 evidence in `docs/fix_layer_taxonomy.md`. Each gap is small and
+cs_066 evidence in `docs/diagnostics/fix_layer_taxonomy.md`. Each gap is small and
 local — none of them justify a broad prompt rewrite.
 
 ### Gap 2.1 — `request_handover` decision tree is not active_use_case-aware
@@ -332,7 +332,7 @@ plain `tool_name → result.data` last-write-wins map. The LLM cannot
 tell whether `search_knowledge` was called once or three times, what
 the prior queries were, or which iteration of `resolve_article` came
 from which `source_id`. This is a known
-`docs/phase3_detailed_technical_design.md` §3.2.6 simplification.
+`docs/foundational/phase3_detailed_technical_design.md` §3.2.6 simplification.
 
 **Why we leave this gap unaddressed in Sprint 5**: no current smoke
 failure is causally attributable to this. Re-keying the map by

@@ -806,7 +806,7 @@ Sprint 16 (docs + characterization) added the first entry.
 **Status as of 2026-05-09.** Documented; characterization tests
 landed in Sprint 16 (`Sprint16HandoverDualPathRepro*Test`); runtime
 fix deferred to a future "Single Handover Orchestrator" runtime
-sprint. Cross-reference: `docs/handover_orchestrator_design.md`,
+sprint. Cross-reference: `docs/proposals/handover_orchestrator_design.md`,
 `docs/release_gate.md` §1, `docs/action_bank.md`.
 
 **Current observable issue (P2 in local / mock).** On the
@@ -849,7 +849,7 @@ only.
 | Before real Salesforce cutover (launch readiness) | **P1** | The dual-path shape, if extended unchanged to a real Salesforce client, is one wire-up away from producing a real double transfer |
 | Production with real double transfer | **P0 / P1** | A customer's case re-routed twice into Salesforce can be re-assigned, mis-prioritised, or duplicated in the agent queue; user-visible and operationally disruptive |
 
-**Future invariant** (frozen by `docs/handover_orchestrator_design.md`).
+**Future invariant** (frozen by `docs/proposals/handover_orchestrator_design.md`).
 For each `session_id`, **at most one** transmitted /
 `offline_logged` handover decision may exist across the full
 session lifetime. The future `HandoverOrchestrator` is the single
@@ -883,7 +883,7 @@ guard.
 **Sprint 16 deliverables (this row).** Docs + characterization
 only:
 
-- `docs/handover_orchestrator_design.md` — exactly-once contract
+- `docs/proposals/handover_orchestrator_design.md` — exactly-once contract
   and future orchestrator shape.
 - This §11.1 known-unspecced-surface entry.
 - `docs/release_gate.md` §1 — release-gate blocker before real
@@ -907,13 +907,13 @@ prompts / routing / eval CaseSpecs.
 - `docs/sprints/sprint-012-handoff.md` — Sprint 12 closure.
 - `docs/sprints/sprint-011-handoff.md` — Sprint 11 / 11.1 closure.
 - `docs/sprints/sprint-010-handoff-closure.md` — Sprint 10 closure.
-- `docs/codex-findings.md` — Sprint 12 Codex review (pass).
+- `docs/diagnostics/codex-findings.md` — Sprint 12 Codex review (pass).
 - `docs/customer_service_tool_spec_v0_2.yaml` — canonical
   escalation_reason enum + tool schemas.
-- `docs/phase2_domain_realization_spec.md` — Phase 2 escalation
+- `docs/foundational/phase2_domain_realization_spec.md` — Phase 2 escalation
   precedence rules.
-- `docs/phase3_detailed_technical_design.md` — runtime contract.
-- `docs/phase5_evaluation_design.md` — eval gate structure
+- `docs/foundational/phase3_detailed_technical_design.md` — runtime contract.
+- `docs/foundational/phase5_evaluation_design.md` — eval gate structure
   (anchor / exploration / promotion).
 - `server/src/main/resources/prompts/system_prompt.txt` — system
   prompt referenced in §6.
@@ -929,7 +929,7 @@ prompts / routing / eval CaseSpecs.
   — Sprint 11.1 terminal-evidence guard (frozen).
 - `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint13RiskPolicyGuardrailsTest.java`
   — Sprint 13 §O2 deterministic guardrails.
-- `docs/handover_orchestrator_design.md` — Sprint 16
+- `docs/proposals/handover_orchestrator_design.md` — Sprint 16
   handover-exactly-once contract design (§10.1 cross-reference).
 - `docs/release_gate.md` — Sprint 16 release-gate blocker before
   real Salesforce cutover (§10.1 cross-reference).

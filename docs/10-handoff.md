@@ -13,7 +13,7 @@ changed.
 Sprint 16 deliverables:
 
 - §H0 — defined the handover exactly-once contract in a new
-  `docs/handover_orchestrator_design.md`. The doc separates three
+  `docs/proposals/handover_orchestrator_design.md`. The doc separates three
   historically-conflated contracts: (1) trace evidence via the
   `request_handover` tool entry on `bot_turns.tool_calls`, (2)
   outcome persistence via `record_outcome` →
@@ -199,7 +199,7 @@ Tests:
 
 Docs:
 
-- `docs/faq_grounding_contract.md` (new, normative) — defines the
+- `docs/current/faq_grounding_contract.md` (new, normative) — defines the
   output class taxonomy, the §L1 evidence lineage construction, the
   §L2 diagnostic state transition table, and the non-blocking
   guarantee. Records future narrow Sprint 16 §S1 hardening candidates
@@ -245,7 +245,7 @@ Tests:
 Per Sprint 14 §L2, if the audit found a current factual-answer bypass
 of search/resolve, document it as a future narrow Sprint 16 candidate.
 The audit recorded **R-faq-grounded-resolve-bypass** in
-`docs/faq_grounding_contract.md` §6: the existing Sprint 6 §G2 guard
+`docs/current/faq_grounding_contract.md` §6: the existing Sprint 6 §G2 guard
 refuses the `request_handover(faq_miss_threshold_exceeded)` shape, but
 does NOT refuse a FINAL_ANSWER shape that paraphrases an unresolved
 hit. This is observable today as `retrieved_but_unresolved=true` on a
@@ -283,7 +283,7 @@ Tests (new):
 
 Docs:
 
-- `docs/faq_grounding_contract.md` (new, normative)
+- `docs/current/faq_grounding_contract.md` (new, normative)
 - `qa-reports/faq-kb-lineage-and-url-audit.md` (new — §L0 audit + repair)
 - `docs/10-handoff.md` (this file)
 - `docs/action_bank.md` (Sprint 14 row added)
@@ -377,13 +377,13 @@ The `bot_turns.source_ids` column is preserved verbatim as the
 backward-compatible aggregate. Sprint 14 §L1 explicitly does NOT use
 the diff between the four dimensions to gate / rewrite / loop the bot
 response. The output is observability material — see
-`docs/faq_grounding_contract.md` §3 for the canonical contract.
+`docs/current/faq_grounding_contract.md` §3 for the canonical contract.
 
 ## 8. Soft diagnostic fields
 
 Sprint 14 §L2 surfaces seven additional fields per turn under
 `bot_turns.projected_context.faq_grounding` (Sprint 14.1 closure;
-`docs/faq_grounding_contract.md` §4) and mirrors the same values onto
+`docs/current/faq_grounding_contract.md` §4) and mirrors the same values onto
 `BotSession` transient slots for in-process readers:
 
 - `faqOutputClass` — taxonomy token (`factual_answer`, `clarification`,
@@ -443,7 +443,7 @@ observability + a narrow §L0 published-safety / canonical-URL fix; no
 runtime main-flow architecture file was modified.
 
 Sprint 14 §L0 audit surfaced four narrow follow-ups (recorded in
-`docs/faq_grounding_contract.md` §6 — all deferred):
+`docs/current/faq_grounding_contract.md` §6 — all deferred):
 
 - **R-faq-grounded-resolve-bypass** — factual answers paraphrasing
   retrieved-but-unresolved hits. Observable today as
@@ -536,7 +536,7 @@ together are accepted:
   imply cited, resolved tracked separately, citation extractor
   patterns work, missing citation observable not blocking.
 - L2 FAQ grounding contract + soft diagnostics landed.
-  `docs/faq_grounding_contract.md` defines the output class taxonomy,
+  `docs/current/faq_grounding_contract.md` defines the output class taxonomy,
   the §L1 evidence lineage construction, the §L2 diagnostic state
   table, and the non-blocking guarantee. `FaqOutputClass`,
   `FaqOutputClassifier`, `FaqGroundingDiagnostics` services compute
@@ -561,7 +561,7 @@ risk-keyword escalation) were NOT touched.
 
 ## 13. Current-doc maintenance rule
 
-`docs/10-handoff.md`, `docs/codex-findings.md`,
+`docs/10-handoff.md`, `docs/diagnostics/codex-findings.md`,
 `docs/sprint_objective.md`, and `docs/action_bank.md` are
 overwrite-current-state files. Before replacing one of them:
 
@@ -686,7 +686,7 @@ Docs:
 
 - `docs/10-handoff.md` (this section + corrections to §1, §7, §8,
   §12 — Sprint 14 was NOT met before Codex review).
-- `docs/faq_grounding_contract.md` §5 — wiring narrative updated to
+- `docs/current/faq_grounding_contract.md` §5 — wiring narrative updated to
   name the durable trace surface
   (`bot_turns.projected_context.faq_grounding`).
 - `docs/action_bank.md` — Sprint 14 status reflects the §14.1 closure.
@@ -720,7 +720,7 @@ Docs:
   `retrieved_but_unresolved=true`) but is never used to reject,
   rewrite, or re-loop the bot reply.
 - No broad S1 hardening. The Sprint 16 §S1 candidates documented in
-  `docs/faq_grounding_contract.md` §6 (`R-faq-grounded-resolve-bypass`,
+  `docs/current/faq_grounding_contract.md` §6 (`R-faq-grounded-resolve-bypass`,
   `R-cited-but-unresolved`, `R-resolved-but-uncited-rate`,
   `R-canonical-url-missing-rate`) remain deferred.
 - No new skill runtime framework, no new escalation reason value, no
@@ -1120,7 +1120,7 @@ runtime sprint trigger.
 
 Docs (new + edited):
 
-- `docs/handover_orchestrator_design.md` (new) — defines the
+- `docs/proposals/handover_orchestrator_design.md` (new) — defines the
   exactly-once contract. §1 names the current dual-path shape
   (writer #1 = `RequestHandoverTool` →
   `SalesforceService.requestHandover` →
@@ -1190,7 +1190,7 @@ Source comments (new, no behaviour change):
 - `server/src/main/java/com/gumtree/csagent/service/tools/RequestHandoverTool.java`
   — class-level Javadoc carries a Sprint 16 §H0
   known-unspecced-surface marker pointing to
-  `docs/handover_orchestrator_design.md` and the future-invariant
+  `docs/proposals/handover_orchestrator_design.md` and the future-invariant
   test.
 - `server/src/main/java/com/gumtree/csagent/service/runtime/SessionManager.java`
   — `recordHandover(...)` carries the matching marker on its
@@ -1253,7 +1253,7 @@ not been silently re-introduced as a hard gate (the `@Disabled`
 case would need to be re-enabled deliberately).
 
 The runtime sprint's acceptance criteria are pre-specified in
-`docs/handover_orchestrator_design.md` §6 and
+`docs/proposals/handover_orchestrator_design.md` §6 and
 `docs/release_gate.md` §1.1.
 
 ### 17.5 Tests run
@@ -1301,12 +1301,12 @@ In priority order:
    when (a) a real Salesforce client is staged for cutover, or
    (b) a real-traffic case shows duplicated handover routing.
    Acceptance criteria pre-specified in
-   `docs/handover_orchestrator_design.md` §6 and
+   `docs/proposals/handover_orchestrator_design.md` §6 and
    `docs/release_gate.md` §1.1; the `@Disabled` future-invariant
    test is the closing artifact.
 3. **Narrow Sprint 16 §S1 hardening** (FAQ-grounded resolve
    bypass) — only on real-traffic evidence per
-   `docs/faq_grounding_contract.md` §6.
+   `docs/current/faq_grounding_contract.md` §6.
 4. **Narrow Corpus Curation** — fill the 38 missing
    `Help_Site_URL__c` rows.
 
