@@ -1,5 +1,35 @@
+---
+title: A/B testing policy — GrowthBook configuration
+doc_tier: runbook
+status: current
+implementation_status: not_started
+source_of_truth: GrowthBook Dashboard (external system) + this file (rollout policy)
+last_reviewed: 2026-05-10
+review_cadence: every 3-5 sprints
+supersedes: []
+superseded_by: null
+notes: >
+  Describes the GrowthBook configuration and progressive-rollout policy
+  intended to gate csagent traffic in production. The csagent server
+  and UI in this repo do not currently import GrowthBook SDKs, fetch
+  feature payloads, or read a `cs_bot_enabled` flag — see PRODUCTION_GAP
+  note below. The GrowthBook configuration described here lives on the
+  Gumtree main-site stack (referenced URLs target gum-site-prod /
+  gum-site-stage), not on this repository.
+---
 
 # A/B testing policy
+
+> **Status (CURRENT for the rollout agreement, PRODUCTION_GAP for csagent integration)**
+>
+> The GrowthBook configuration, traffic-allocation strategy, and
+> progressive-rollout cadence described below are the agreed policy
+> for production. They are not implemented in this repo: a grep of
+> `server/` and `ui/` for `growthbook`, `GrowthBook`, or
+> `cs_bot_enabled` returns no matches today. When csagent is wired
+> into a production deployment, the integration must follow this
+> policy; until then the server runs unconditionally on whoever hits
+> the local endpoint.
 
 ## GrowthBook 配置总结
 

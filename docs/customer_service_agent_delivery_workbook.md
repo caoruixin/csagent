@@ -2,6 +2,39 @@
 
 > 目标：把已有的 Normative Layer，稳定转化为某个具体 customer service agent 项目的 coding-ready technical design，并形成可交给 coding agent 的实现包。
 
+> **Asset audit (2026-05-10, docs-only sweep)** — Several files
+> referenced from the tables below are **not present in the repo
+> today**. The pre-existing links have been preserved (not silently
+> deleted, per `docs/current/doc_governance.md` §"Stale references")
+> and annotated inline as `MISSING_ASSET` / `TODO_REVIEW`. The known
+> gaps:
+>
+> - `case-samples.md` — **MISSING_ASSET / TODO_REVIEW**. No file
+>   matches at `docs/case-samples.md` or anywhere under `docs/`.
+>   Treat as a reference-only pointer until the owner re-supplies
+>   it or the reference is consciously retired.
+> - `customer_service_conversation_samples_organized.xlsx` —
+>   **MISSING_ASSET / TODO_REVIEW**. Not present in the repo.
+> - `inferred_tool_candidates_from_human_conversations.xlsx` —
+>   **MISSING_ASSET / TODO_REVIEW**. Not present in the repo.
+> - `data/human_review_annotations_2026-04-22_complete.csv` —
+>   **MISSING_ASSET / TODO_REVIEW (path drift)**. The actual file in the repo is
+>   `data/human_review_annotations_2026-04-22_golden.csv` (with
+>   `data/bak/human_review_annotations_2026-04-22--bak.csv` as a
+>   backup). Either correct the link to `_golden.csv` or confirm
+>   the `_complete.csv` artefact was renamed.
+>
+> This sweep does NOT delete the references — it marks them so
+> readers can tell which links are actionable and which point at
+> retired/renamed assets. Decisions on rename / retire / re-supply
+> should come from the workbook owner, not from a docs-cleanup PR.
+> The same MISSING_ASSET pointers also appear in
+> `docs/foundational/phase1_solution_input_pack.md` and
+> `docs/foundational/phase2_domain_realization_spec.md`; those were
+> intentionally left untouched in this docs-only PR (foundational
+> docs are edited only on the fold-back cadence — see
+> `docs/current/doc_governance.md`).
+
 ---
 
 ## 使用方式
@@ -46,9 +79,9 @@
 | [`foundational/BRD.md`](./foundational/BRD.md) | Business Requirements — scope、user stories、UX、tone-of-voice、launch criteria |
 | [`foundational/PRD_biz_part.md`](./foundational/PRD_biz_part.md) | Business-only PRD — 系统角色、handling 状态机、A–F' 对话流、Salesforce 数据模型骨架 |
 | [`case-data-stat.md`](./case-data-stat.md) | 120,367 条 Case 历史数据分析（Case Reason 维度）|
-| [`case-samples.md`](./case-samples.md) | 原始 Case 样本 |
-| [`customer_service_conversation_samples_organized.xlsx`](./customer_service_conversation_samples_organized.xlsx) | **新增** — 499 条 Live Chat 会话（含 262 条 transcript、2,890 turns、43 条 curated examples）|
-| [`inferred_tool_candidates_from_human_conversations.xlsx`](./inferred_tool_candidates_from_human_conversations.xlsx) | **新增** — 从 262 条对话反推的 10 类工具候选 + 证据 |
+| [`case-samples.md`](./case-samples.md) | 原始 Case 样本 — **MISSING_ASSET / TODO_REVIEW**: file not present in repo (2026-05-10 audit) |
+| [`customer_service_conversation_samples_organized.xlsx`](./customer_service_conversation_samples_organized.xlsx) | **新增** — 499 条 Live Chat 会话（含 262 条 transcript、2,890 turns、43 条 curated examples）— **MISSING_ASSET / TODO_REVIEW**: file not present in repo (2026-05-10 audit) |
+| [`inferred_tool_candidates_from_human_conversations.xlsx`](./inferred_tool_candidates_from_human_conversations.xlsx) | **新增** — 从 262 条对话反推的 10 类工具候选 + 证据 — **MISSING_ASSET / TODO_REVIEW**: file not present in repo (2026-05-10 audit) |
 | [`customer_service_tool_spec_v0_2.yaml`](./customer_service_tool_spec_v0_2.yaml) | **v4 更新** — V1 Tool Spec v0.2（concrete API mapping / pre-chat form / pgvector backend / `get_moderation_review_context` / runtime capabilities）|
 | [`runbooks/salesforce-part-spec.md`](./runbooks/salesforce-part-spec.md) | **v4 新增** — Salesforce 组织配置确认（Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form）|
 | [`proposals/problem_retrieval_solution_plan_pgvector.md`](./proposals/problem_retrieval_solution_plan_pgvector.md) | **v4 新增** — pgvector 检索方案确认 |
@@ -363,11 +396,11 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
 
 最近一次迭代（v6，2026-04-19）主要更新（基于 Embedding 选型 + A/B testing 策略 + article→UC 映射初版 + gumshield API dev-phase 方案 + human review 跳过决策）：
 - **Phase 0 / 1 / 2 更新**：
-  - **Embedding 模型确认**：Vertex AI `text-embedding-004`（768 维，GCP native）
+  - **Embedding 模型确认**（design intent）：**PRODUCTION_TARGET / FUTURE_DESIGN** — Vertex AI `text-embedding-004`（768 维，GCP native）；**CURRENT_LOCAL / CURRENT_DEMO** runtime uses **DashScope `text-embedding-v3` (768-dim)** via `DashScopeEmbeddingClient` (`@Profile("local")`). The Vertex AI swap is not implemented in this repo.
   - **流量分配策略确认**：GrowthBook 管理，10%→20%→50%→100% 渐进放量；代码不硬编码阈值
   - **Article → UC 映射初版完成**：`data/knowledge/article_uc_mapping.csv`（218 篇 auto-mapped）+ `knowledge_base_articles.json`（见 `data/knowledge/mapping_summary_report.md`）
   - **gumshield API dev-phase 方案**：mock 数据先行开发和 debug；正式接入审批流程进行中，prod 部署前完成
-  - **Human review 决策**：~~当前跳过 367 条 queue 人工标注~~ **v8 更新（2026-04-22）：367 sessions 已全部标注完成**（`data/human_review_annotations_2026-04-22_complete.csv`）；作为 supplementary ground truth 用于 eval 校准，主 ground truth 仍为 `csagent/data/eval_datasets/`（7 类 datasets / 601 sessions / 11,288 turns）
+  - **Human review 决策**：~~当前跳过 367 条 queue 人工标注~~ **v8 更新（2026-04-22）：367 sessions 已全部标注完成**（`data/human_review_annotations_2026-04-22_complete.csv` — **MISSING_ASSET / TODO_REVIEW**: actual file in repo is `data/human_review_annotations_2026-04-22_golden.csv`; confirm rename or update reference）；作为 supplementary ground truth 用于 eval 校准，主 ground truth 仍为 `csagent/data/eval_datasets/`（7 类 datasets / 601 sessions / 11,288 turns）
 - **Phase 3 启动条件达成**：§6.4 所有阻塞项已解决
 
 最近一次迭代（v5，2026-04-19）主要更新（基于合规审批结果 + GDPR/PII 决策 + repo 创建 + pgvector 索引策略 + CSAT 机制确认 + queue routing 统一 + Bot_Session__c 追加决策）：
@@ -418,9 +451,9 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
 - **业务 BRD**: `BRD.md`
 - **PRD 业务部分**: `PRD_biz_part.md`
 - **数据分析**: `case-data-stat.md`（120,367 条 Case 结构化分析）
-- **Case 样本**: `case-samples.md`
-- **Live Chat 会话样本**: `customer_service_conversation_samples_organized.xlsx`（499 会话，262 条 transcript）
-- **工具候选证据**: `inferred_tool_candidates_from_human_conversations.xlsx`（10 类工具候选）
+- **Case 样本**: `case-samples.md` — **MISSING_ASSET / TODO_REVIEW** (file not present in repo, 2026-05-10 audit)
+- **Live Chat 会话样本**: `customer_service_conversation_samples_organized.xlsx`（499 会话，262 条 transcript）— **MISSING_ASSET / TODO_REVIEW** (file not present in repo, 2026-05-10 audit)
+- **工具候选证据**: `inferred_tool_candidates_from_human_conversations.xlsx`（10 类工具候选）— **MISSING_ASSET / TODO_REVIEW** (file not present in repo, 2026-05-10 audit)
 - **Salesforce 配置确认（v4 新增）**: `salesforce-part-spec.md`（Enhanced Chat / Omni-Channel / Knowledge API / Case 字段 / Queue / Off-hours / Pre-chat Form）
 - **向量检索方案（v4 新增）**: `problem_retrieval_solution_plan_pgvector.md`
 - **标准话术指导（v4 新增）**: `customer_service_agent-Common-Phrases.md`（从 1.18 万条 transcript 提炼）
@@ -463,15 +496,40 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
 
 | # | 原缺失项 | 解决方式 | 影响文件 |
 |---|---------|---------|---------|
-| 8 | Embedding 模型选型 | **Vertex AI `text-embedding-004`（GCP native）**；768 维；入库与在线 Query 同一模型 | `phase0_normative_freeze.md` §0.3 / `phase1_solution_input_pack.md` §1.4.3 |
-| 10 | 流量分配策略与 go/no-go 阈值 | **GrowthBook** 管理；10%→20%→50%→100% 渐进放量；代码不硬编码阈值（见 `docs/runbooks/abtesing-policy.md`）| `phase1_solution_input_pack.md` §1.1.4 Go/No-Go |
+| 8 | Embedding 模型选型 | **PRODUCTION_TARGET / FUTURE_DESIGN**: Vertex AI `text-embedding-004`（GCP native，768 维，入库与在线 Query 同一模型）。**CURRENT_LOCAL / CURRENT_DEMO**: DashScope `text-embedding-v3` (768-dim) via `DashScopeEmbeddingClient` (`@Profile("local")`); see `docs/runbooks/admin-guide.md` §4.1 / §10. The Vertex AI swap is NOT implemented in this repo. | `phase0_normative_freeze.md` §0.3 / `phase1_solution_input_pack.md` §1.4.3 |
+| 10 | 流量分配策略与 go/no-go 阈值 | **Policy defined; csagent runtime integration pending (PRODUCTION_GAP / FUTURE_DESIGN).** **GrowthBook** 管理；10%→20%→50%→100% 渐进放量；代码不硬编码阈值（见 `docs/runbooks/abtesing-policy.md`）。`server/` 与 `ui/` 目前没有 GrowthBook SDK 引用、不读取 `cs_bot_enabled` flag — see `docs/runbooks/abtesing-policy.md` for the not-started status. | `phase1_solution_input_pack.md` §1.1.4 Go/No-Go |
 | 17 | article → UC 映射（218 篇文章 UC 分类标注）| **初版已完成**：`data/knowledge/article_uc_mapping.csv`（218 篇全量 auto-mapped，0 unmatched）+ `knowledge_base_articles.json`（pgvector 入库就绪）；详见 `data/knowledge/mapping_summary_report.md` | `phase2_domain_realization_spec.md` §2.5 |
 | 19 | gumshield cs-review API Bot 服务账号访问审批 | **Dev/demo 阶段**：使用 mock 数据开发和 debug；**正式审批**：流程进行中，prod 部署前完成配置（非阻塞 Phase 3 设计）| `phase2_domain_realization_spec.md` §2.10.2 |
-| 20 | Golden Dataset human review 标注完成（367 条 queue）| ~~当前阶段跳过人工标注~~ **v8 更新（2026-04-22）：367 sessions 已全部标注完成**（`data/human_review_annotations_2026-04-22_complete.csv`）；作为 supplementary ground truth 用于 eval 校准 | `phase1_solution_input_pack.md` §1.5.1 / `phase5_evaluation_design.md` |
+| 20 | Golden Dataset human review 标注完成（367 条 queue）| ~~当前阶段跳过人工标注~~ **v8 更新（2026-04-22）：367 sessions 已全部标注完成**（`data/human_review_annotations_2026-04-22_complete.csv` — **MISSING_ASSET / TODO_REVIEW**: actual file in repo is `data/human_review_annotations_2026-04-22_golden.csv`）；作为 supplementary ground truth 用于 eval 校准 | `phase1_solution_input_pack.md` §1.5.1 / `phase5_evaluation_design.md` |
 
-### 🟢 仍待补齐：无
+### 🟢 仍待补齐：无 Phase 3 设计阻塞项
 
-**§6.4 所有阻塞项已全部解决，Phase 3 Detailed Technical Design 可以正式启动。**
+**§6.4 所有 Phase 3 设计阻塞项已解决，Phase 3 Detailed Technical Design 可以正式启动。**
+
+> **Production-readiness scope (NOT closed by this section).** The
+> bullets above only certify that no Phase 3 *design* item remains
+> open. Several entries above were closed at design-intent level
+> while their production runtime is still **PRODUCTION_GAP /
+> FUTURE_DESIGN** in the current repo. Do not read this section as
+> "production is ready". Open items include, but are not limited to:
+>
+> - **#8 Embedding model**: PRODUCTION_TARGET is Vertex AI
+>   `text-embedding-004`; CURRENT_LOCAL / CURRENT_DEMO runtime uses
+>   DashScope `text-embedding-v3`. Vertex AI swap not implemented.
+> - **#10 GrowthBook rollout**: Policy defined; csagent server/UI
+>   integration not implemented (no `growthbook` references in
+>   `server/` or `ui/`). See `docs/runbooks/abtesing-policy.md`.
+> - **#19 gumshield API**: dev/demo uses mock data only; production
+>   service-account approval still in flight.
+> - **Salesforce live integration**: `MockSalesforceService` is the
+>   only live `SalesforceService` implementation; real Enhanced
+>   Chat / Omni-Channel queues, `Chat_Message_Log__c`, and
+>   `Bot_Session__c` / `Bot_Event__c` objects are PRODUCTION_GAP.
+>   See `docs/runbooks/salesforce-part-spec.md` and
+>   `docs/runbooks/admin-guide.md` §13.4.
+>
+> Track these in §6.5 below as PRODUCTION_GAP / FUTURE_DESIGN, not
+> as design blockers.
 
 ## 6.5 下一步行动
 
@@ -485,10 +543,10 @@ v6 解决了最后 5 项阻塞项（Embedding 模型 / 流量策略 / article→
 2. **并行推进（外部依赖，不阻塞设计但需在编码前到位）**：
    - **gumshield API 正式审批**（#19）：dev + prod 环境服务账号配置，prod 部署前完成
    - **pgvector extension**：Cloud SQL 实例启用 pgvector
-   - **Vertex AI API**：项目启用 Embedding + Gemini API
+   - **Vertex AI API**（**PRODUCTION_GAP / FUTURE_DESIGN**）：项目启用 Embedding + Gemini API。Not part of CURRENT_LOCAL / CURRENT_DEMO runtime; the live embedding path is DashScope `text-embedding-v3` and the chat path is DeepSeek primary / Kimi fallback (see `docs/runbooks/admin-guide.md` §4.1).
    - **Salesforce Connected App**：OAuth 凭证创建
    - **Bot_Session__c / Bot_Event__c 对象创建**：Salesforce Admin 按 Phase 3 §3.2.1 建字段
-   - **GrowthBook feature flag**：创建 `cs_bot_enabled` flag
+   - **GrowthBook feature flag**（**PRODUCTION_GAP / FUTURE_DESIGN**）：创建 `cs_bot_enabled` flag。Policy lives in `docs/runbooks/abtesing-policy.md`; csagent server/UI does not yet consume it (`growthbook` is not imported in `server/` or `ui/`).
    - **Kafka topic + Avro schema**：analytics 事件通道
    - **GCP Secret Manager entries**：所有 API key / token
 
