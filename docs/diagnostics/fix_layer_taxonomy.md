@@ -60,7 +60,7 @@ All evidence is anchored to these two smoke runs:
 - nondeterminism reference: `eval_interactive/results/20260504-223153/results.json` (6/14, mean composite 0.3615)
 
 Reference also: `docs/current_eval_baseline.md`, `docs/10-handoff.md` §9
-"Remaining P0 / P1 blockers", `docs/codex-findings.md` (Sprint 4.1 review,
+"Remaining P0 / P1 blockers", `docs/diagnostics/codex-findings.md` (Sprint 4.1 review,
 no blocking, three P2 documentation notes only).
 
 ## Classifications
@@ -185,7 +185,7 @@ no blocking, three P2 documentation notes only).
 | Secondary layer | `skill_orchestration` (only relevant after UC-FP is selected: the rejected-ad / appeal-or-edit flow is a multi-step `get_customer_context` → `search_knowledge` → `resolve_article` shape that a skill could package. It is not the primary fix layer because cs_015 does not get past the UC-A vs UC-FP routing call in the first place.) Tertiary: `infra_runtime` (r2 ReadTimeout — same shared mode). |
 | Why primary | The persona reveals "ad title was X" only when the bot asks for details; on turn 1 the bot has no signal to distinguish UC-A from UC-FP. The decisive fix is to make the routing / projection layer carry the moderation-status tiebreaker so the routing prompt can prefer UC-FP when `customer_context.moderation_status` indicates a removal/rejection/appeal-eligible state. Skill orchestration only matters after UC-FP is correctly selected. |
 | Why other layers should not be fixed first | A `java_guard` for UC-A vs UC-FP would be content-keyword brittle. A `case_spec_eval` widening would mask the genuine routing miss. An `infra_runtime` fix unblocks r2 but does not address r1. A `skill_orchestration` skill (UC-FP rejected-ad / appeal-or-edit) is only useful after UC-FP is selected; cs_015 fails at routing, before any skill would trigger. |
-| Recommended minimal next action | F1 candidate C2 "routing prompt UC-FP tiebreaker" (one-line change: when `topic_subject = Ad Support` and `description` contains "what happened to my ad" / "removed" / "on hold" / "rejected", prefer UC-FP over UC-A) — gated on `customer_context.moderation_status` being visible to the routing surface. Verify that `routing_prompt.txt` (or the projected JSON the routing call sees) actually carries `customer_context.moderation_status` before shipping; if it does not, the projection must be widened first (see F1 §2.2 and `docs/codex-findings.md` Sprint 5 P2 note on C2). |
+| Recommended minimal next action | F1 candidate C2 "routing prompt UC-FP tiebreaker" (one-line change: when `topic_subject = Ad Support` and `description` contains "what happened to my ad" / "removed" / "on hold" / "rejected", prefer UC-FP over UC-A) — gated on `customer_context.moderation_status` being visible to the routing surface. Verify that `routing_prompt.txt` (or the projected JSON the routing call sees) actually carries `customer_context.moderation_status` before shipping; if it does not, the projection must be widened first (see F1 §2.2 and `docs/diagnostics/codex-findings.md` Sprint 5 P2 note on C2). |
 | Confidence | medium |
 
 ### cs_interactive_095 — UC-A email-sync product gap

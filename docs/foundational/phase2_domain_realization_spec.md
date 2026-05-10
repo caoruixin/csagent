@@ -1357,7 +1357,7 @@ topic_uc_mismatch: true                 # 当 form_topic_subject 的 primary UC 
 
 **已解决（v6，2026-04-19）：**
 - ~~Embedding 模型选型~~ → ✅ **Vertex AI `text-embedding-004`**（768 维，GCP native）
-- ~~流量分配策略与 go/no-go 阈值~~ → ✅ **GrowthBook** 管理；10% → 20% → 50% → 100% 渐进放量；代码不硬编码阈值（见 `docs/abtesing-policy.md`）
+- ~~流量分配策略与 go/no-go 阈值~~ → ✅ **GrowthBook** 管理；10% → 20% → 50% → 100% 渐进放量；代码不硬编码阈值（见 `docs/runbooks/abtesing-policy.md`）
 - ~~article → UC 映射~~ → ✅ 初版已完成：`data/knowledge/article_uc_mapping.csv`（218 篇，auto-mapped）；`knowledge_base_articles.json` 已可用于 pgvector 入库
 - ~~gumshield cs-review API 访问审批~~ → ✅（Dev 阶段）mock 数据可先行开发；正式审批流程进行中，prod 部署前完成
 - ~~Golden Dataset human review 标注~~ → ✅ 当前阶段**跳过人工标注**，直接以 `csagent/data/eval_datasets/`（7 类数据集 601 sessions / 11,288 turns）为 ground truth

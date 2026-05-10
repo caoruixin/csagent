@@ -306,11 +306,11 @@ trigger that flips to passing the moment the orchestrator lands.
 - `docs/release_gate.md` — release-gate blocker before real
   Salesforce cutover.
 - `docs/action_bank.md` — Single Handover Orchestrator action item.
-- `docs/phase3_detailed_technical_design.md` — handover payload
+- `docs/foundational/phase3_detailed_technical_design.md` — handover payload
   schema (§3.6.2).
 - `docs/customer_service_tool_spec_v0_2.yaml` — `request_handover`
   tool schema; canonical `escalation_reason` enum.
-- `docs/salesforce-part-spec.md` — current Salesforce part spec
+- `docs/runbooks/salesforce-part-spec.md` — current Salesforce part spec
   (case creation, queues, off-hours behaviour).
 - `server/src/main/java/com/gumtree/csagent/service/tools/RequestHandoverTool.java`
   — current LLM-driven writer (Contract A producer + side-effect).

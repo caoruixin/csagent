@@ -461,13 +461,13 @@ authoritative:
 The following are described in proposal / design docs but are not
 delivered today. Treat anything in them as forward-looking:
 
-- The **autoloop** described in `docs/autoloop_design.md` is a
-  separate Python CLI design; no autoloop code is wired into the
-  server runtime.
+- The **autoloop** described in `docs/proposals/autoloop_design.md`
+  is a separate Python CLI design; no autoloop code is wired into
+  the server runtime.
 - A unified **HandoverOrchestrator** that owns handover side-effects
   and is idempotent by `session_id` is referenced as a future
   invariant (see `RequestHandoverTool` javadoc and
-  `docs/handover_orchestrator_design.md`). Today, two paths can
+  `docs/proposals/handover_orchestrator_design.md`). Today, two paths can
   independently produce a local/mock handover write
   (`RequestHandoverTool` → `SalesforceService.requestHandover`, and
   `SessionManager.recordHandover`). `Sprint16HandoverDualPathReproTest`
@@ -476,7 +476,8 @@ delivered today. Treat anything in them as forward-looking:
   `futureInvariant_atMostOneTransmittedHandoverDecisionPerSessionId_disabledUntilOrchestratorLands`
   is `@Disabled` until the orchestrator lands.
 - A **skill / plan-template framework** beyond `PhasePlan` — see
-  `docs/skill_orchestration_candidates.md` — is not implemented.
+  `docs/proposals/skill_orchestration_candidates.md` — is not
+  implemented.
   The current "skill" granularity is the `PhasePlan` itself.
 - A **single-handover idempotency gate** keyed on `session_id` is
   not yet wired (see `docs/release_gate.md` for the cutover blocker).

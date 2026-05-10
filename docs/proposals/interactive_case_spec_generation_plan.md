@@ -18,7 +18,7 @@ notes: >
 
 # Interactive CaseSpec Generation Plan
 
-Status: design contract for the next implementation waves. Code changes must follow this plan after `docs/phase5_evaluation_design.md` is updated.
+Status: design contract for the next implementation waves. Code changes must follow this plan after `docs/foundational/phase5_evaluation_design.md` is updated.
 
 ## Problem
 

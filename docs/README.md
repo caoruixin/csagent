@@ -29,6 +29,107 @@ The current runtime and tool contracts live in `docs/current/`:
   `customer_service_tool_spec_v0_2.md` / `.yaml`, which are now stamped
   as archived/historical.
 
+## Directory layout
+
+The `docs/` tree is being reorganized so each tier has a home directory.
+The current layout:
+
+- `docs/current/` — current runtime / durable-connective contracts.
+  Entry points: `runtime_contract.md`,
+  `customer_service_tool_spec_v0_3.md`, `faq_grounding_contract.md`,
+  `doc_governance.md`, `agent_context_guide.md`. Anything here is
+  expected to track reality.
+- `docs/foundational/` — durable architecture, business intent,
+  normative freezes, foundational specs (phase0–phase5, BRD, PRD,
+  agent tech spec). Edited only on the fold-back cadence.
+- `docs/proposals/` — forward-looking or partially-implemented designs
+  (autoloop, skill orchestration, problem-retrieval pgvector,
+  interactive case-spec, UC/topic/subject alignment, Java guard
+  prompt flexibility, handover orchestrator). Read as "what we plan",
+  not "what runs".
+- `docs/diagnostics/` — audits, post-mortems, and finding logs
+  (prompt-context projection audit, fix-layer taxonomy, codex
+  findings).
+- `docs/runbooks/` — operational references (admin guide, Salesforce
+  part spec, A/B testing policy).
+- `docs/sprints/` — immutable per-sprint archives. Never edited after
+  the sprint closes.
+- `docs/archive/` — historical snapshots that fall outside the
+  per-sprint archive (see `docs/archive/current-docs/README.md`).
+- `docs/bak/` — local backup copies of older spec versions retained
+  for diff history. Not part of any active tier; do not link from
+  current docs.
+- `docs/design-extract/` — generated design-extraction artefacts
+  (HTML/CSS/screenshots) used by the design tooling. Not part of any
+  active tier; treated as a build/data artefact directory.
+- `docs/` (top level) — files not yet sorted into one of the
+  directories above; see TODO_REVIEW below.
+
+When you cite a doc, use its tier directory in the path so readers can
+tell which tier they are reading at a glance.
+
+## TODO_REVIEW (directory reorganization follow-ups)
+
+The first reorganization pass placed only docs whose tier was
+unambiguous. Several files were left at the top level pending a
+governance decision — they fit more than one tier or carry working-file
+semantics that need to be confirmed before moving:
+
+- `07-engineering-constraints.md` — engineering constraints: likely
+  `foundational/`, but partially overlaps with `runbooks/` for
+  non-functional / privacy posture. Decide tier and move.
+- `10-handoff.md`, `action_bank.md`, `sprint_objective.md` —
+  latest-only working files (see `archive/current-docs/README.md`).
+  Decide whether they belong in `current/` (working state) or stay
+  at the top level as a separate "working files" zone. Either way,
+  capture the decision in `current/doc_governance.md`.
+- `case-data-stat.md`, `customer_service_agent-Common-Phrases.md`,
+  `FAQ-knowledge_include_help_url.csv`,
+  `platform_api_detailed_reference.md` — reference / dataset
+  material. Likely a future `docs/reference/` tier; not created
+  this pass to avoid speculative scaffolding.
+- `current_eval_baseline.md` — eval baseline; mixes current-state
+  numbers and diagnostic observations. Decide whether to split into
+  `current/` (live baseline) and `diagnostics/` (point-in-time
+  observations).
+- `customer_service_agent_delivery_workbook.md`,
+  `customer_service_agent_eval_spec.md` — likely `foundational/`;
+  confirm against existing phase docs first.
+- `customer_service_tool_spec_v0_2.md` /
+  `customer_service_tool_spec_v0_2.yaml` — superseded by
+  `current/customer_service_tool_spec_v0_3.md`. Body intact per the
+  current PR's scope rules; consider moving to `archive/` (or a
+  `foundational/superseded/` subdirectory) in a follow-up, leaving
+  the `superseded_by:` front matter pointer intact.
+- `fixed_script_library_v1.md` — foundational reference for the
+  script library; pending the related TODO_DECISION in
+  `current/customer_service_tool_spec_v0_3.md` about whether the
+  fixed script library is a runtime capability or a tool.
+- `phase4_coding_agent_implementation_packet.md` — sister to
+  `foundational/phase4_demo_coding_agent_implementation_packet.md`.
+  Move to `foundational/` once roles of the two phase4 packets are
+  documented.
+- `release_gate.md` — release-gate policy; tier is between
+  `runbooks/` and `foundational/`. Decide and move.
+- `runtime_freeze_and_risk_policy.md` — foundational-leaning risk
+  policy. Likely `foundational/`; confirm.
+- **Doc-body path references** — the active non-archive docs were
+  swept in this PR for stale `docs/<file>.md` references that point
+  at moved files, and updated to the new tier paths
+  (`foundational/`, `proposals/`, `diagnostics/`, `runbooks/`).
+  Sprint archives (`docs/sprints/`, `docs/archive/`) intentionally
+  still carry the old paths because those are immutable historical
+  records. A future fold-back pass may catch any stragglers.
+- `archive/current-docs/` — directory of dated snapshots (the
+  earliest is `pre-sprint-9`). The reorg request suggested renaming
+  to `archive/pre-sprint-9-snapshot/`, but the directory's own
+  README documents it as a general-purpose snapshot home that also
+  holds pre-sprint-8.2 content, so the rename was deferred. Decide
+  whether to (a) rename and accept the loss of the per-snapshot
+  date prefixes inside the directory, (b) split into one directory
+  per snapshot date, or (c) leave the directory as-is and clarify
+  its scope in `current/doc_governance.md`.
+
 ## Source of truth, in order
 
 1. **Code and tests** — for any *delivered* runtime behavior. If the running
@@ -38,11 +139,11 @@ The current runtime and tool contracts live in `docs/current/`:
    that are hard to recover from code alone (vocabulary alignment, governance
    decisions, cross-module conventions), and any long-lived agreement that
    describes today's behavior at a level above any single file.
-3. **Foundational design docs** at `docs/` (e.g. the phase0–phase5 specs,
-   business/PRD docs, tool specs) — for durable architecture and business
-   intent. They explain *why* the system is shaped the way it is. They are
-   not necessarily a faithful description of last-week's code; that is by
-   design.
+3. **Foundational design docs** at `docs/foundational/` (e.g. the
+   phase0–phase5 specs, BRD, PRD, agent tech spec) — for durable
+   architecture and business intent. They explain *why* the system is
+   shaped the way it is. They are not necessarily a faithful description
+   of last-week's code; that is by design.
 4. **Proposal docs** — for *future* intended behavior or design directions
    that have not fully landed. They are read as "what we plan / considered",
    not "what runs".
