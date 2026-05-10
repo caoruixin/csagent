@@ -1,4 +1,47 @@
-#  The current salesforce part spec
+---
+title: Salesforce part spec — production-target configuration
+doc_tier: runbook
+status: current
+implementation_status: not_started
+source_of_truth: this file (production-target agreement); MockSalesforceService for local behaviour
+last_reviewed: 2026-05-10
+review_cadence: every 3-5 sprints
+supersedes: []
+superseded_by: null
+notes: >
+  This document is the agreed Salesforce configuration the csagent
+  runtime is intended to integrate with in production. It is NOT a
+  description of what runs in this repo today: the only live
+  SalesforceService implementation in the codebase is
+  MockSalesforceService (@Profile("local")), which writes to the
+  mock_cases / mock_handover_log tables. Real Enhanced Chat /
+  Omni-Channel queues, Chat_Message_Log__c persistence, and the
+  Topic Subject picklist are PRODUCTION_GAP — not yet wired in this
+  repo.
+---
+
+#  Salesforce part spec — production-target configuration
+
+> **Status (CURRENT, PRODUCTION_GAP for live integration)**
+>
+> This file captures the production-target Salesforce configuration
+> (Enhanced Chat version, Case fields, Topic Subject picklist, queue
+> routing, off-hours policy, pre-chat form schema). It is a design
+> agreement between csagent and the Salesforce admin/CS team.
+>
+> The local/demo runtime does not implement any of this against a real
+> Salesforce org. `MockSalesforceService` writes to local
+> `mock_cases` / `mock_handover_log` tables, with the
+> `transferred` / `offline_logged` toggle driven by
+> `MockProperties.businessHours` (see
+> `docs/runbooks/admin-guide.md` §4.3). Wiring a production
+> `SalesforceService` implementation against the queues / objects
+> below is the production-readiness work this spec describes.
+>
+> If you are reading this to understand "what the code does today",
+> the answer is the mock layer above. If you are reading this to
+> understand "what the production integration must look like",
+> continue below.
 
 ## 问题1：create_case_controlled per-UC required_fields 终稿  + Queue 路由表（UC-H / UC-J / UC-K）
 

@@ -1,6 +1,44 @@
+---
+title: CS Agent Demo — Admin & Operations Guide
+doc_tier: runbook
+status: current
+implementation_status: partial
+source_of_truth: server/src/main/resources/application.yml + server/src/main/java/com/gumtree/csagent/config/ + server/src/main/java/com/gumtree/csagent/controller/
+last_reviewed: 2026-05-10
+review_cadence: every 3-5 sprints
+supersedes: []
+superseded_by: null
+notes: >
+  Operational reference for the local/demo deployment shipped in this
+  repo. The runtime described here is the only one that ships today.
+  Production deployment artefacts (Dockerfile, helm-chart, Jenkinsfile,
+  Salesforce live integration) are not in the repo; sections that
+  describe a production-style capability are marked PRODUCTION_GAP.
+  Sections that describe behaviour only available under the local
+  Spring profile (mock Salesforce, mock business-hours toggle, mock
+  Gumtree API) are marked LOCAL_ONLY.
+---
+
 # CS Agent Demo -- Admin & Operations Guide
 
-## 1. Quick Start
+> **Status legend used in this guide**
+>
+> - **CURRENT** — describes delivered behaviour in the local/demo runtime
+>   that ships in this repo and is verifiable against `server/`.
+> - **LOCAL_ONLY** — only active under the `local` Spring profile (mock
+>   Salesforce, mock Gumtree API, mock business-hours toggle, demo
+>   inspection endpoints). Not a production capability.
+> - **PRODUCTION_GAP** — capability is referenced or partially supported
+>   by code (e.g. K8s liveness/readiness endpoints exist) but the
+>   surrounding production-readiness assets (Dockerfile, helm-chart,
+>   Jenkinsfile, real Salesforce integration, secret management) are
+>   **not present in this repo** and are out of scope for this guide.
+>
+> The whole repo today is the local/demo runtime. Treat any section
+> below without an explicit marker as describing that local/demo
+> runtime. Do not infer a production deployment exists.
+
+## 1. Quick Start (CURRENT, LOCAL_ONLY)
 
 ```bash
 # One-time setup
@@ -64,7 +102,15 @@ Open `http://localhost:5173` for the chat UI, `http://localhost:5173/admin` for 
 
 ## 4. Configuration Reference
 
-### 4.1 Environment Variables (`.env.local`)
+### 4.1 Environment Variables (`.env.local`) (CURRENT)
+
+LLM lineup as wired by `LlmClientConfig` (Sprint 8.1 follow-up #2,
+2026-05-06): **DeepSeek is the primary chat-completion provider**;
+**Kimi is the fallback** engaged only on transient primary failures
+(5xx / 429 / network). DashScope is used **only for embeddings** by
+`DashScopeEmbeddingClient`; the `dashscope.chat-model` property is
+defined on `LlmProperties.DashScopeProperties` (default
+`qwen-plus`) but no live code path uses it for chat today.
 
 | Variable              | Purpose                        | Required |
 |-----------------------|--------------------------------|----------|
@@ -75,13 +121,17 @@ Open `http://localhost:5173` for the chat UI, `http://localhost:5173/admin` for 
 | `DB_NAME`             | Database name (default: csagent)| No       |
 | `REDIS_HOST`          | Redis host (default: localhost) | No       |
 | `REDIS_PORT`          | Redis port (default: 6379)     | No       |
-| `KIMI_API_KEY`        | Kimi K2.6 API key (primary LLM for chat/routing/rerank) | Yes (for LLM) |
-| `KIMI_BASE_URL`       | Kimi API endpoint (default: `https://api.moonshot.ai/v1`) | No |
+| `DEEPSEEK_API_KEY`    | DeepSeek API key — **PRIMARY** chat-completion provider. Missing key is FATAL at startup (`LlmConfigValidator`). | Yes (for LLM) |
+| `DEEPSEEK_BASE_URL`   | DeepSeek API endpoint (default: `https://api.deepseek.com/v1`) | No |
+| `DEEPSEEK_MODEL`      | DeepSeek model name (default: `deepseek-v4-pro`; `.env.local` ships `deepseek-v4-flash`) | No |
+| `KIMI_API_KEY`        | Kimi K2.6 API key — **FALLBACK** chat-completion provider. Missing key is WARN (fallback degradation). | Recommended |
+| `KIMI_BASE_URL`       | Kimi API endpoint (default: `https://api.moonshot.ai/v1`; `.cn` legacy host triggers `base_url_legacy_warning`) | No |
 | `KIMI_MODEL`          | Kimi model name (default: `kimi-k2.6`) | No |
-| `DASHSCOPE_API_KEY`   | Alibaba DashScope API key (used for embeddings only) | Yes (for embeddings) |
-| `DASHSCOPE_BASE_URL`  | DashScope endpoint             | No       |
-| `DASHSCOPE_CHAT_MODEL`| DashScope chat model (fallback if Kimi key not set) | No |
-| `DASHSCOPE_EMBEDDING_MODEL` | Embedding model name      | No       |
+| `DASHSCOPE_API_KEY`   | Alibaba DashScope API key (used **only for embeddings**) | Yes (for embeddings) |
+| `DASHSCOPE_BASE_URL`  | DashScope endpoint (default: `https://dashscope.aliyuncs.com/compatible-mode/v1`) | No |
+| `DASHSCOPE_CHAT_MODEL`| Configured on `LlmProperties.DashScopeProperties` (default `qwen-plus`) but **not used as a chat fallback today** — chat fallback is Kimi (see `LlmClientConfig`). | No |
+| `DASHSCOPE_EMBEDDING_MODEL` | Embedding model name (default: `text-embedding-v3`) | No |
+| `DASHSCOPE_EMBEDDING_DIMENSION` | Embedding vector dimension (default: 768) | No |
 
 ### 4.2 Application Config (`server/src/main/resources/`)
 
@@ -101,9 +151,17 @@ spring.datasource.hikari.maximum-pool-size: 10
 mock.business-hours: true     # Toggle online/offline escalation behavior
 ```
 
-### 4.3 Runtime Config Toggle
+### 4.3 Runtime Config Toggle (LOCAL_ONLY)
 
-Toggle mock business hours at runtime (affects escalation behavior):
+`POST /v1/demo/config` is registered by `DemoInspectionController` and
+flips `MockProperties.businessHours`, which is read by
+`MockSalesforceService` to decide between `transferred` and
+`offline_logged`. The endpoint and the property only have meaning
+because the live profile uses the mock Salesforce implementation —
+there is no production Salesforce client wired in this repo.
+
+Toggle mock business hours at runtime (affects mock escalation
+behaviour):
 
 ```bash
 # Set to offline (handover result = "offline_logged")
@@ -119,13 +177,19 @@ curl -X POST http://localhost:8080/v1/demo/config \
 
 ---
 
-## 5. Health Checks
+## 5. Health Checks (CURRENT)
 
-| Endpoint                        | Purpose            | Checks          |
-|---------------------------------|--------------------|-----------------|
-| `GET /internal/health`          | Full health        | DB + Redis      |
-| `GET /internal/health/liveness` | K8s liveness probe | Always UP       |
-| `GET /internal/health/readiness`| K8s readiness probe| DB + Redis      |
+`HealthController` registers three endpoints under `/internal/health`.
+The `liveness` / `readiness` shapes are K8s-probe compatible, but
+**no Kubernetes manifests, Dockerfile, or helm chart ship in this
+repo (PRODUCTION_GAP)** — wiring the probes into a cluster is a
+production-readiness exercise outside this guide.
+
+| Endpoint                        | Purpose                            | Checks          |
+|---------------------------------|------------------------------------|-----------------|
+| `GET /internal/health`          | Full health                        | DB + Redis      |
+| `GET /internal/health/liveness` | K8s-probe-compatible liveness      | Always UP       |
+| `GET /internal/health/readiness`| K8s-probe-compatible readiness     | DB + Redis      |
 
 ```bash
 # Quick health check
@@ -175,23 +239,33 @@ logging:
     org.hibernate.type.descriptor.sql: TRACE # Show SQL bind params
 ```
 
-### 6.3 Key Log Patterns to Watch
+### 6.3 Key Log Patterns to Watch (CURRENT)
 
-| Pattern | What it means |
-|---------|---------------|
-| `LLM config loaded` | Startup summary showing resolved provider/model config |
-| `LLM request: provider=` | Per-call log showing which provider and model is used |
-| `LLM response: model=` | Per-call response with model, latency, and token counts |
-| `LLM [chat]` / `LLM [routing]` / `LLM [rerank]` | Scenario-specific LLM call |
-| `Embedding request: provider=` | Embedding call with provider and model |
-| `LLM invocation failed` | LLM API call failed, bot will use fallback response |
-| `Embedding failed` | DashScope embedding API error, search returns empty |
-| `Budget exceeded` | Session hit a turn/clarification/faq-miss limit |
-| `Drift detected` | User changed topic mid-conversation |
-| `Tool scope blocked` | Tool was called for a UC it's not allowed for |
-| `Forbidden phrase detected` | Bot response contained a disallowed phrase |
-| `PII redacted` | Personal data was redacted from logs/projection |
-| `OUT_OF_SCOPE` | Topic not covered by any UC, escalating |
+Patterns below match strings actually emitted by the current code
+(`LlmClientConfig`, `OpenAiCompatibleLlmClient`, `FallbackLlmClient`,
+`LlmInvocationService`, `RerankService`, `DashScopeEmbeddingClient`,
+`ForbiddenPhraseDetector`, `SessionManager`, `EventEmitter`).
+
+| Pattern | What it means | Source |
+|---------|---------------|--------|
+| `LLM provider lineup:` | Startup summary line emitted once by `LlmClientConfig` after `LlmConfigValidator.validateOrThrow`. Format: `primary=deepseek[model=…, base=…, key=present\|placeholder\|blank], fallback=kimi[…]`. | `LlmClientConfig.llmClient` |
+| `LLM config FATAL/WARN [<provider>/<code>]` | Per-diagnostic line from `LlmConfigValidator` (e.g. `api_key_blank`, `api_key_placeholder`, `base_url_legacy_warning`). FATAL aborts startup. | `LlmConfigValidator.validateOrThrow` |
+| `LLM [chat:request] provider=… model=…` | Per-attempt outbound chat call. | `OpenAiCompatibleLlmClient` |
+| `LLM [chat:response] provider=… model=… latency=… tokens=…` | Successful chat response. | `OpenAiCompatibleLlmClient` |
+| `LLM [chat:retry]` / `LLM [chat:non-retryable-status]` / `LLM [chat:exhausted]` | Retry / abort decisions inside the per-provider client. | `OpenAiCompatibleLlmClient` |
+| `LLM [chat:auth-error]` | 401/403 from the provider; check key + base URL. | `OpenAiCompatibleLlmClient` |
+| `LLM [chat:fallback-engaged] primary=… failed transiently` | Fallback chain switched from DeepSeek to Kimi. | `FallbackLlmClient` |
+| `LLM [chat:fallback-skipped-deadline-exceeded]` / `LLM [chat:fallback-skipped-budget]` / `LLM [chat:fallback-skipped-insufficient-budget]` | Fallback was not attempted because the wall-clock / attempt budget was already used. | `FallbackLlmClient` |
+| `LLM [routing] response: latency=` | Routing-scenario LLM call completion. | `LlmInvocationService` |
+| `LLM [rerank] scored … candidates` | Rerank-scenario LLM call completion. | `RerankService` |
+| `Embedding request: provider=DashScope, model=… texts=…` | Embedding call. | `DashScopeEmbeddingClient` |
+| `Embedding API call failed` | DashScope embedding API error; search returns empty. | `DashScopeEmbeddingClient` |
+| `Forbidden phrase detected [<rule>]: '…' at position …` | Bot response contained a disallowed phrase. | `ForbiddenPhraseDetector` |
+| `Mock case created: caseId=… useCaseId=… sessionId=…` (LOCAL_ONLY) | Mock Salesforce case creation. | `MockSalesforceService` |
+| `Mock handover logged: logId=… sessionId=… result=transferred\|offline_logged` (LOCAL_ONLY) | Mock Salesforce handover write. | `MockSalesforceService` |
+| `Session …: OUT_OF_SCOPE routing detail=` | Soft OOS routing decision. | `SessionManager` |
+| `OUT_OF_SCOPE_HANDOVER` (event payload) | OOS topic detected, immediate handover. | `EventEmitter` / `SessionManager` |
+| `"reasoning":"LLM invocation failure"` (in `bot_response`) | Sentinel marker for the bot's safe-escalation response when the LLM call could not be parsed. | `LlmInvocationService` / `ControlKernel` |
 
 ---
 
@@ -212,7 +286,7 @@ psql -h localhost -p 5432 -U postgres csagent
 | Table               | Purpose                           | Key columns                    |
 |---------------------|-----------------------------------|--------------------------------|
 | `bot_sessions`      | All chat sessions                 | session_id, current_phase, active_use_case, handling_state, containment_outcome |
-| `bot_turns`         | Per-turn traces                   | session_id, turn_index, user_message, bot_response, action_selected |
+| `bot_turns`         | Per-turn traces                   | session_id, turn_index, user_message, projected_context, llm_raw_response, tool_calls, bot_response, source_ids, phase_before, phase_after, active_use_case, latency_ms |
 | `bot_events`        | Event timeline                    | session_id, event_type, payload |
 | `session_outcomes`  | Final session outcomes            | session_id, outcome, escalation_reason |
 | `kb_articles`       | Knowledge base articles           | article_id, title, uc_tags     |
@@ -223,6 +297,14 @@ psql -h localhost -p 5432 -U postgres csagent
 
 ### 7.3 Useful Queries
 
+> **Schema note (CURRENT)**: Migration `V11__drop_action_columns_from_bot_turns.sql`
+> dropped `bot_turns.action_selected` and `bot_turns.action_parameters`.
+> Phase 0 deviation 2026-05-01 retired the action layer; semantic
+> actions are now derived from `bot_turns.tool_calls` JSONB. Queries
+> below select only columns that exist on the live table; if you have
+> a custom dashboard or notebook still reading `action_selected` /
+> `action_parameters`, update it to read from `tool_calls`.
+
 ```sql
 -- Session overview
 SELECT session_id, current_phase, active_use_case, handling_state,
@@ -230,7 +312,7 @@ SELECT session_id, current_phase, active_use_case, handling_state,
 FROM bot_sessions ORDER BY created_at DESC LIMIT 20;
 
 -- Turn-by-turn trace for a session
-SELECT turn_index, user_message, bot_response, action_selected,
+SELECT turn_index, user_message, bot_response, tool_calls,
        phase_before, phase_after, latency_ms
 FROM bot_turns
 WHERE session_id = '<SESSION_ID>'
@@ -317,23 +399,43 @@ URL: `http://localhost:5173/admin`
 - **escalated** (yellow) = `QUEUE_TO_HUMAN` or `HUMAN_HANDLING`
 - **ended** (blue) = `CLOSED`
 
-### Trace Viewer — LLM Interaction Detail
+### Trace Viewer — LLM Interaction Detail (CURRENT)
 
-Each step in the Trace tab now includes a **"View LLM Detail"** button that reveals
-the full App↔LLM interaction for that turn. The detail panel shows:
+Each step in the Trace tab includes a **"View LLM Detail"** button that
+reveals the full App↔LLM interaction for that turn. The detail panel
+shows the following sections; column "Source field on `BotTurn`" tracks
+the live entity (`server/.../model/BotTurn.java`) after the
+`V11__drop_action_columns_from_bot_turns.sql` migration removed the
+old action-layer columns.
 
 | Section | Content | Source field on `BotTurn` |
 |---------|---------|--------------------------|
 | **Metadata bar** | Phase transition, active UC, latency, source count | `phaseBefore`, `phaseAfter`, `activeUseCase`, `latencyMs`, `sourceIds` |
 | **LLM Reasoning** | The model's internal chain-of-thought (not shown to the customer) | Parsed from `reasoning` key inside `llmRawResponse` JSON |
-| **Projected Context** | Full context projection JSON sent to the LLM (session state, allowed actions, budget, form/customer/listing context, conversation history, knowledge hits) | `projectedContext` (jsonb) |
-| **LLM Raw Response** | Complete model output JSON (`action`, `parameters`, `user_message`, `reasoning`) | `llmRawResponse` |
-| **Action Parameters** | Parsed action-specific parameters | `actionParameters` (jsonb) |
+| **Projected Context** | Full context projection JSON sent to the LLM (session state, plan, allowed tools, budget, form/customer/listing context, conversation history, accumulated tool results) | `projectedContext` (jsonb) |
+| **LLM Raw Response** | Complete model output JSON (`tool_calls`, `user_message`, `reasoning` per the v0.3 single-layer tool-use contract) | `llmRawResponse` |
+| **Tool Calls** | Tool invocations issued by the LLM in this turn (current source for tool-dispatch detail after the V11 migration retired the action layer). | `toolCalls` (jsonb) |
 
-No backend changes are required — the existing `GET /v1/demo/sessions/{id}/trace`
-endpoint already returns the full `BotTurn` entity including all fields above.
-The frontend `mapTrace` function and `TraceStep` type have been extended to
-carry these fields through to the UI.
+**DB-side cleanup vs UI cleanup are separate (TODO_REVIEW for UI cleanup).**
+On the **DB side**, `bot_turns.action_selected` and
+`bot_turns.action_parameters` were retired/dropped by
+`V11__drop_action_columns_from_bot_turns.sql` and are no longer
+present on `BotTurn` / new traces. On the **UI side**,
+`ui/src/components/admin/TraceViewer.tsx` still renders a
+**conditional legacy "Action Parameters" panel** when an inbound
+trace payload happens to carry `action_parameters` (e.g. older trace
+data, replays, or external readers populating the optional
+`action_parameters?` field on the `TraceStep` type in
+`ui/src/types/index.ts`). New turns persisted by the current backend
+do not populate this field, so the panel collapses, but the UI
+cleanup is **not yet complete**. Treat the Tool Calls panel as the
+canonical source for new traces and the Action Parameters panel as a
+backward-compatibility fallback whose removal is a separate UI-side
+task — out of scope for this docs PR (`docs/current/doc_governance.md`
+forbids code edits in this PR scope).
+
+The existing `GET /v1/demo/sessions/{id}/trace` endpoint returns the
+full `BotTurn` entity including all the fields above.
 
 ---
 
@@ -362,7 +464,12 @@ curl -X POST http://localhost:8080/v1/chat/sessions/{session_id}/messages \
 curl http://localhost:8080/v1/chat/sessions/{session_id}
 ```
 
-### Demo Inspection API
+### Demo Inspection API (LOCAL_ONLY)
+
+The `/v1/demo/*` surface is registered by `DemoInspectionController` and
+backed by the mock Salesforce / mock Gumtree API services that activate
+under the `local` Spring profile. It is intended for the demo UI and
+local diagnostics; it is not a production API surface.
 
 ```bash
 # List all sessions
@@ -501,38 +608,47 @@ After eval runs, find reports in `eval/target/eval-reports/`:
 | `relation "bot_sessions" does not exist` | Flyway migrations not applied | They run automatically on startup; check Flyway logs |
 | `column is of type jsonb but expression is of type character varying` | Missing `?stringtype=unspecified` in JDBC URL | Check `application-local.yml` datasource URL |
 
-### Verifying LLM provider/model in use
+### Verifying LLM provider/model in use (CURRENT)
 
-After startup or config change, verify which LLM is active for each scenario:
+After startup or config change, verify which LLM is active for each
+scenario. Log strings below match the literal patterns emitted by
+`LlmClientConfig`, `OpenAiCompatibleLlmClient`, `LlmInvocationService`,
+`RerankService`, and `DashScopeEmbeddingClient`.
 
 ```bash
-# 1. Check startup config summary
-grep "LLM config loaded" /tmp/csagent.log
-# Expected: kimi=[model=kimi-k2.6, baseUrl=https://api.moonshot.ai/v1], dashscope=[chatModel=qwen-plus, ...]
+# 1. Check startup lineup summary (DeepSeek primary, Kimi fallback after Sprint 8.1 follow-up #2)
+grep "LLM provider lineup" /tmp/csagent.log
+# Expected (one line):
+#   LLM provider lineup: primary=deepseek[model=deepseek-v4-flash, base=https://api.deepseek.com/v1, key=present], fallback=kimi[model=kimi-k2.6, base=https://api.moonshot.ai/v1, key=present]
 
-# 2. Check per-request provider selection (send a test message first)
-grep "LLM request:" /tmp/csagent.log | tail -5
-# Expected: provider=Kimi, model=kimi-k2.6 for chat/routing/rerank
+# 2. Check per-attempt chat call (send a test message first)
+grep "LLM \[chat:request\]" /tmp/csagent.log | tail -5
+# Expected: provider=deepseek, model=deepseek-v4-flash on the primary path
+grep "LLM \[chat:response\]" /tmp/csagent.log | tail -5
 
-# 3. Check embedding provider
+# 3. Check fallback engagement (only on transient primary failure)
+grep "LLM \[chat:fallback-engaged\]" /tmp/csagent.log | tail -5
+
+# 4. Check embedding provider (DashScope is the only embedding wiring today)
 grep "Embedding request:" /tmp/csagent.log | tail -3
 # Expected: provider=DashScope, model=text-embedding-v3
 
-# 4. Scenario-specific checks
-grep "LLM \[chat\]" /tmp/csagent.log      # Bot conversation turns
-grep "LLM \[routing\]" /tmp/csagent.log    # UC classification
-grep "LLM \[rerank\]" /tmp/csagent.log     # Knowledge reranking
+# 5. Scenario-specific checks
+grep "LLM \[chat:" /tmp/csagent.log        # Bot conversation chat path
+grep "LLM \[routing\]" /tmp/csagent.log     # UseCaseRouter LLM call
+grep "LLM \[rerank\]" /tmp/csagent.log      # Knowledge reranking
 ```
 
 ### LLM not responding
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Bot says "experiencing a technical issue" | LLM API call failed | See below |
-| `401 Unauthorized` in logs | API keys not loaded | Run via `make backend` (auto-loads `.env.local`), or manually: `set -a && source .env.local && set +a` before starting |
-| `LLM request: provider=DashScope` when expecting Kimi | `KIMI_API_KEY` not set | Check `.env.local` has `KIMI_API_KEY=sk-...` and was sourced |
-| Knowledge search returns empty | Embedding API failed | Check `DASHSCOPE_API_KEY`; verify `kb_chunks` table has data |
-| Slow responses (>10s) | API rate limiting | Check LLM provider dashboard for quota |
+| Bot says "experiencing a technical issue" | LLM API call failed (`LlmInvocationService` SAFE_ESCALATION_RESPONSE) | See below |
+| `LLM [chat:auth-error]` in logs | 401/403 from primary provider | Check `DEEPSEEK_API_KEY` / `KIMI_API_KEY` in `.env.local`; sourced via `make backend` or `set -a && source .env.local && set +a` |
+| `LLM config FATAL [deepseek/api_key_blank]` at startup | `DEEPSEEK_API_KEY` empty/unset; `LlmConfigValidator` aborts startup | Set `DEEPSEEK_API_KEY` (primary). Missing Kimi key is WARN, not FATAL. |
+| `LLM [chat:fallback-engaged]` more often than expected | DeepSeek primary returning transient errors | Check provider dashboard; Kimi must remain configured to absorb the failover |
+| `Embedding API call failed` in logs | DashScope embedding API error | Check `DASHSCOPE_API_KEY`; verify `kb_chunks` table has data |
+| Slow responses (>10s) | API rate limiting / deadline exceeded (`LLM [chat:deadline-exceeded]`) | Check LLM provider dashboard for quota; review `LlmCallContext` deadlines |
 
 **Common root cause**: Spring Boot does NOT auto-read `.env.local` files. The Makefile uses `include .env.local` + `export` to inject them as environment variables. If running manually outside Make, you must source the file first:
 
@@ -540,9 +656,10 @@ grep "LLM \[rerank\]" /tmp/csagent.log     # Knowledge reranking
 # Required before running spring-boot:run manually
 set -a && source .env.local && set +a
 
-# Verify keys are loaded
-echo $DASHSCOPE_API_KEY   # Should show sk-f4ada...
-echo $KIMI_API_KEY        # Should show sk-GXVVb...
+# Verify keys are loaded (DeepSeek is the chat primary; Kimi the fallback; DashScope is embeddings only)
+echo $DEEPSEEK_API_KEY    # Should show sk-...     (PRIMARY chat)
+echo $KIMI_API_KEY        # Should show sk-...     (FALLBACK chat)
+echo $DASHSCOPE_API_KEY   # Should show sk-...     (embeddings only)
 ```
 
 ### Frontend issues
@@ -622,24 +739,56 @@ curl -s http://localhost:5173 | head -1
 
 ---
 
-## 14. Event Types Reference
+## 13.4 Production deployment (PRODUCTION_GAP)
 
-The system emits 12 event types to `bot_events`:
+This repo does not ship production deployment artefacts. The following
+are intentionally absent and out of scope for this guide:
 
-| Event Type              | When emitted                                     |
-|-------------------------|--------------------------------------------------|
-| `SESSION_STARTED`       | New session created from pre-chat form            |
-| `USE_CASE_INFERRED`     | UC routing completed (strong prior or LLM)        |
-| `RETRIEVAL_EXECUTED`    | Knowledge search performed                        |
-| `ARTICLE_SHOWN`         | Knowledge article presented to user               |
-| `CLARIFICATION_ASKED`   | Bot asked a clarifying question                   |
-| `ESCALATION_REQUESTED`  | Handover to human initiated                       |
-| `CASE_CREATED`          | Mock Salesforce case created (UC-H/J/K)           |
-| `OUTCOME_RECORDED`      | Session outcome saved (RESOLVED/ESCALATED/etc.)   |
-| `SESSION_CLOSED`        | Session fully closed                              |
-| `TOOL_SCOPE_BLOCKED`    | Tool called outside allowed UC scope              |
-| `GUARDRAIL_VIOLATION`   | Forbidden phrase detected in bot response         |
-| `OUT_OF_SCOPE_HANDOVER` | OOS topic detected, immediate handover            |
+- **No `Dockerfile`** at the repo root or under `server/`.
+- **No Kubernetes manifests** (`k8s/`, `deploy/`) and **no helm chart**
+  (`helm-chart/`). The K8s-probe-compatible `/internal/health/liveness`
+  and `/internal/health/readiness` endpoints exist on `HealthController`
+  but no chart consumes them.
+- **No CI/CD pipeline** (`Jenkinsfile`, GitHub Actions workflow, GitLab
+  CI). `make eval-smoke` / `make eval-full` are the only release-gate
+  runners, executed locally.
+- **No real Salesforce client.** `SalesforceService` is implemented only
+  by `MockSalesforceService` (`@Profile("local")`). A production-grade
+  implementation, OAuth wiring, queue routing, and `Chat_Message_Log__c`
+  upsert path are not in this repo. See
+  `docs/runbooks/salesforce-part-spec.md` for the target Salesforce
+  configuration; treat that document as the production-readiness
+  specification, not as live behaviour.
+- **No production secret management.** `.env.local` is the only
+  credential source. Wiring GCP Secret Manager / Vault / AWS Secrets
+  Manager is a production-readiness exercise.
+- **No observability backends wired.** `management.endpoints.web.exposure.include`
+  exposes `prometheus` from `application.yml`, but no Prometheus
+  scraper, dashboard, or alert routing is bundled with this repo.
+
+If you need to deploy this beyond a developer laptop, treat the items
+above as the production-readiness backlog rather than implicit defaults.
+
+## 14. Event Types Reference (CURRENT)
+
+The system emits 13 event types to `bot_events` (source:
+`server/.../model/enums/EventType.java`):
+
+| Event Type                 | When emitted                                     |
+|----------------------------|--------------------------------------------------|
+| `SESSION_STARTED`          | New session created from pre-chat form            |
+| `USE_CASE_INFERRED`        | UC routing completed (strong prior or LLM)        |
+| `RETRIEVAL_EXECUTED`       | Knowledge search performed                        |
+| `ARTICLE_SHOWN`            | Knowledge article presented to user               |
+| `CLARIFICATION_ASKED`      | Bot asked a clarifying question                   |
+| `ESCALATION_REQUESTED`     | Handover to human initiated                       |
+| `CASE_CREATED`             | Mock Salesforce case created (UC-H/J/K) — LOCAL_ONLY |
+| `OUTCOME_RECORDED`         | Session outcome saved (RESOLVED/ESCALATED/etc.)   |
+| `SESSION_CLOSED`           | Session fully closed                              |
+| `TOOL_SCOPE_BLOCKED`       | Tool called outside allowed UC scope              |
+| `GUARDRAIL_VIOLATION`      | Forbidden phrase detected in bot response         |
+| `OUT_OF_SCOPE_HANDOVER`    | OOS topic detected, immediate handover            |
+| `CLASSIFICATION_COMMITTED` | `classify_use_case` tool committed an `activeUseCase` during DISCOVER (see `runtime_contract.md` and `customer_service_tool_spec_v0_3.md`) |
 
 Query events:
 ```bash
