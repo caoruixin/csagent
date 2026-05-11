@@ -1,0 +1,60 @@
+# Repo Constitution
+
+This repository builds a customer-service agent for an online classifieds
+marketplace. The agent is **LLM-first**: the LLM owns the semantic
+understanding of the user's problem (goal, drift, escalation posture,
+response strategy), and the Java / Python runtime owns the deterministic
+boundaries (tool schema, capability / permission, PII and safety floor,
+grounding floor, idempotency, persistence, trace and eval contract).
+Rules define boundaries; rules do not replace semantic judgement.
+
+The constitution and the doc-governance rules live under
+`docs/current/`. Foundational architecture, phase specs, and durable
+freezes live under `docs/foundational/`. Active sprint scope is named
+in `docs/sprint_objective.md`; closed sprints live under
+`docs/sprints/` as immutable archives. Per-task reading lists for
+agents are in `docs/current/agent_context_guide.md`.
+
+Sprint scope is decided by the human + deliver agent through
+`docs/sprint_objective.md`. A sprint that touches a semantic surface
+must include the **Layer-classification + anti-hardcode stanza**
+defined in `docs/current/iteration_governance.md` §7. Pure infra,
+docs-only, config-governance, and characterization-test sprints are
+exempt from the stanza.
+
+## Constitution chain
+
+The three governance docs below are loaded transitively for every
+agent that respects this file via `@AGENTS.md`. Read them in this
+order on a cold start: doc-governance first (tier model + decision
+rules), agent-context-guide second (which reading list to load for the
+task at hand), iteration-governance last (the operational gates that
+shape what you write).
+
+@docs/current/doc_governance.md
+
+@docs/current/agent_context_guide.md
+
+@docs/current/iteration_governance.md
+
+## How to use this constitution
+
+Every dev and review agent that loads `CLAUDE.md` transitively loads
+this file, and through this file loads the three governance docs
+above. That means:
+
+- The doc front-matter schema, source-of-truth rules, and fold-back
+  cadence in `doc_governance.md` apply to every docs PR.
+- The per-task reading lists and the Context Pack Prompt in
+  `agent_context_guide.md` apply before any non-trivial task.
+- The Constitution (§1), the Failure Brief Template (§2), the Fix
+  Layer Classification Checklist (§3), the Anti-Hardcode Review
+  Prompt (§4), the Eval Acceptance Rules (§5), the Architecture-Health
+  Metric definitions (§6), and the required sprint-objective stanza
+  (§7) in `iteration_governance.md` apply to every change that
+  touches the agent's behaviour.
+
+Sprint-specific scope lives in `docs/sprint_objective.md` and is
+replaced when a new sprint is promoted. The constitution itself is
+not edited per sprint; it is folded back on the cadence specified in
+each governance doc's `review_cadence` front-matter field.

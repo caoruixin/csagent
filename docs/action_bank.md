@@ -1,11 +1,27 @@
 # Action Bank
 
-Date: 2026-05-09
+Date: 2026-05-11
 Mode: current action ledger
 
 ## 1. Current phase
 
 Current phase:
+Sprint 17 (Iteration Governance Lite — G0) is the active sprint as
+of 2026-05-11. G0 is a docs-only governance sprint that extends
+`docs/current/iteration_governance.md` from a Constitution-only
+file into the full six-section governance bundle (Constitution +
+Failure Brief Template + Fix Layer Classification Checklist +
+Anti-Hardcode Review Prompt + Eval Acceptance Rules +
+Architecture-Health Metric definitions), closes the `AGENTS.md`
+constitution-chain gap (Option A: seed `AGENTS.md` with includes
+of the three `docs/current/` governance docs), and cross-wires the
+required Layer-classification + anti-hardcode stanza into the
+sprint-objective format. G0 does not change runtime, prompt, FAQ
+corpus, CaseSpec, judge, eval harness, or any test. G1 (Failure
+Portfolio) and G2 (Interactive Eval Case Family + Shadow Split)
+are deferred to subsequent governance sprints; see §5.1.
+
+Preceding sprint (most recently closed, Codex pass):
 Sprint 16 (Handover Exactly-Once Contract and Repro) landed as a
 docs + characterization-test sprint. It documents the current
 LLM-driven dual local handover persistence shape, separates three
@@ -254,6 +270,17 @@ on the deferred / avoid list.
 
 ## 3. Active / next actions
 
+Sprint 17 deliverables (G0 — Iteration Governance Lite; docs-only
+governance sprint; no runtime, prompt, FAQ corpus, CaseSpec, judge,
+eval harness, or test change):
+
+| id | deliverable | status |
+|----|-------------|--------|
+| G0.1 | Extend `docs/current/iteration_governance.md` to the full six-section bundle | done — front matter added; Constitution promoted verbatim to Section 1 (with subsections 1.1–1.7); Sections 2–6 land Failure Brief Template, Fix Layer Classification Checklist (9 layers, 7 ordered questions, judge_calibration tail, human_review_required default), Anti-Hardcode Review Prompt (9 questions + 4 verdict values), Eval Acceptance Rules (target / neighbor / negative / shadow + safety / grounding / wrong-containment / over-escalation / architecture-health bars), and Architecture-Health Metric definitions (4 metrics, all `collection_status: not_started`) |
+| G0.2 | Close the `AGENTS.md` constitution-chain gap (Option A) | done — `AGENTS.md` seeded with repo intent + explicit includes of `docs/current/doc_governance.md`, `docs/current/agent_context_guide.md`, `docs/current/iteration_governance.md` + how-to-use paragraph; `CLAUDE.md` unchanged; `@AGENTS.md` now resolves to a non-empty constitution chain |
+| G0.3 | Add the Layer-classification + anti-hardcode stanza to the sprint-objective format | done — landed as Section 7 of `iteration_governance.md` with stanza template (Target failure layer / Tier-0 invariant / Semantic hardcode / Generalization coverage), exemption list (pure infra, docs-only, config-governance, characterization-test), and a hypothetical Sprint 18 worked example using `cs_example_001` |
+| G0.4 | Update this file to reflect Sprint 17 (G0) and the next-up G1 / G2 backlog | done — §1 current-phase narrative now leads with Sprint 17 (G0); §3 carries this Sprint 17 entry; §5.1 (new) captures G1 / G2 as deferred governance-track backlog |
+
 Sprint 16 deliverables (docs + characterization-test sprint; no
 runtime change):
 
@@ -335,6 +362,17 @@ evidence motivates them.
 | G-prompt-risk-signal-evaluation | when / whether to land the deferred Sprint 13 prompt edit | prompt governance | Eval Governance | trigger on first real-traffic refund-promise / liability-decision / credentials-request finding |
 | G-canonical-url-corpus-curation | fill the 38 articles in the FAQ corpus that ship with no `Help_Site_URL__c` | corpus_audit / faq_corpus_gap | Eval Governance / corpus audit | observable today as `canonical_url_missing=true` on every search hit / resolve_article result for the affected articles; runtime fix already lands in Sprint 14 §L0 |
 | G-resolved-but-uncited-rate | per-corpus rate of `resolved_but_uncited=true` factual-answer turns | judge_volatility / prompt | Eval Governance | a high rate suggests the prompt does not encourage citation; watch the Sprint 14 §L2 diagnostic before opening a prompt change |
+
+### 5.1 Governance track backlog
+
+The governance track is the multi-sprint sequence that converts the
+research-proposed iteration governance into delivered gates. G0 is
+the docs scaffolding (Sprint 17). G1 and G2 build on G0's templates.
+
+| id | candidate | status | owner | notes |
+|---|---|---|---|---|
+| G1 | Human-led Failure Portfolio (10–20 representative failures from human experience / past traces, each filed as a Failure Brief per `docs/current/iteration_governance.md` §2) | deferred — next governance sprint | deliver / human | depends on G0 templates; populates `docs/diagnostics/failure-briefs/` |
+| G2 | Interactive Eval Case Family + Shadow Split (target / neighbor / negative / shadow per failure brief, with the shadow split readable only to the human / review agent per `docs/current/iteration_governance.md` §5.1) | deferred — after G1 | deliver / eval governance | depends on G1 briefs; lands the case families and the shadow split |
 
 ## 6. Closed action index
 
