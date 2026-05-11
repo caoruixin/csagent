@@ -540,6 +540,8 @@ ESCALATE ◄─── (reachable from any phase via escalation triggers)
 
 ### 3.3.3 Agent Run Loop Architecture (v9 — D16)
 
+> **[FOLD-BACK 2026-05-11]** This section was last reconciled with delivered code on 2026-05-11. For the live runtime contract (component ownership, `PhasePlan` table per phase, `tool_schemas` projection filter, direct runtime tool invocations, `accumulated_tool_results` in-loop / same-turn semantics — see also the "Direct runtime tool invocations" note at §3.3.3 below for the explicit no-cross-turn-persistence statement — and TODO_DECISIONs that have not yet been folded back here), see [`docs/current/runtime_contract.md`](../current/runtime_contract.md). This section preserves the *intent* and *historical deviation log*; `runtime_contract.md` is the source of truth for "what currently runs". Sources cited inline below: `ControlKernel.java`, `PhaseEvaluator.java`, `AgentRunLoopImpl.java`, `ContextProjectionBuilder.java`, `ToolDispatcher.java`, `ClassifyUseCaseTool.java`, `RequestHandoverTool.java`, `RecordOutcomeTool.java` (all under `server/src/main/java/com/gumtree/csagent/service/`).
+
 > **Background**: The original V1 design merged turn supervision, phase logic, and tool execution into `ControlKernel + PhaseEvaluator`. As tool surface grew, this became leaky: LLM-requested tools (e.g., `get_customer_context` after the user supplies an ad ID) were parsed and recorded in trace, but **never executed**. Pre-planned tools that PhaseEvaluator hardcoded (e.g., `search_knowledge` in FAQ phase) worked, but generic LLM tool-use did not.
 >
 > **v9 Decision**: Introduce `AgentRunLoop` as a dedicated model↔tool execution worker. Refactor `PhaseEvaluator` from *executor* to *planner* (returns a `PhasePlan`). Keep `ControlKernel` as the deterministic supervisor.
@@ -551,7 +553,7 @@ ESCALATE ◄─── (reachable from any phase via escalation triggers)
 | `ControlKernel` | Deterministic turn lifecycle: budget, drift, transitions, persistence, response packaging | Talk to LLM, dispatch tools, decide phase content |
 | `PhaseEvaluator` | Phase **planner** — returns `PhasePlan`. After run: `interpretRunResult()` decides phase transition. | Call LLM directly, dispatch tools directly, build context JSON |
 | `AgentRunLoop` | Mechanical model↔tool loop, bounded by `plan.maxToolSteps` | Decide business phase, validate phase transitions, persist turns |
-| `ContextProjectionBuilder` | Pure projection assembly. Called by `AgentRunLoop` every iteration. Reads `requiredContextKeys` from PhasePlan. | Decide what to include — that's the plan's job |
+| `ContextProjectionBuilder` | Pure projection assembly. Called by `AgentRunLoop` every iteration. **[FOLD-BACK 2026-05-11]** It does **not** read `plan.requiredContextKeys` to decide what to include — the live `build(...)` populates a fixed set of slots (`session`, `task_summary`, `risk_flags`, `intake_state`, `candidate_use_cases`, `primary_entity`, plus `form_context` / `customer_context` / `listing_context` when the corresponding `BotSession` field is non-empty) keyed off `BotSession` state, not off `plan.requiredContextKeys`. **No `moderation_context` slot is projected today** (cite: `ContextProjectionBuilder.java:544–552` only emits `customer_context` and `listing_context`) even though FAQ RESOLVE `PhasePlan.requiredContextKeys` declares `moderation_context` — see the matching TODO_DECISION in §3.3.3. | Decide what to include based on the plan's `requiredContextKeys` (despite the name, this is planner metadata only today — see the projection-contract TODO_DECISION) |
 | `ToolDispatcher` | Validates every tool call against `plan.allowedTools` (`validateAgainstPlan`), dispatches, audits | Trust the LLM blindly |
 
 #### Per-Turn Execution Flow
@@ -598,7 +600,9 @@ public record PhasePlan(
 ) {}
 ```
 
-The full `PhasePlan` is **injected into the projected context** so the LLM understands its mission. `maxToolSteps` is enforced server-side and not shown to the model.
+The `PhasePlan` is **injected into the projected context** so the LLM understands its mission. `maxToolSteps` is enforced server-side and not shown to the model.
+
+> **[FOLD-BACK 2026-05-11]** Live `ContextProjectionBuilder.build(...)` emits a `phase_plan` node containing only `phase`, `use_case`, `objective`, `allowed_tools`, `grounding_instruction`, `system_instruction`, `escalation_policy`, and `valid_terminal_outcomes` (cite: `ContextProjectionBuilder.java` `if (plan != null)` block). `requiredContextKeys` and `allowInterimMessage` are **not** projected — `requiredContextKeys` is planner metadata only today (not read by the projection builder or enforced as a precondition), and `allowInterimMessage` gates the unimplemented Phase E streaming path. The "full PhasePlan minus only `maxToolSteps`" wording in earlier docs is therefore inaccurate. See the projection-contract TODO_DECISION in the §3.3.3 list.
 
 #### `AgentRunResult` Contract
 
@@ -607,38 +611,60 @@ public record AgentRunResult(
     List<AgentMessage> messages,                     // 1..N: ack? + progress* + final
     List<ToolEvent> toolEvents,                      // every tool call with input/output/latency
     List<LlmCallEvent> llmEvents,                    // every LLM invocation in the loop
-    TerminalOutcome terminalOutcome,                 // FINAL_ANSWER | ESCALATE | MAX_STEPS | ERROR
+    TerminalOutcome terminalOutcome,                 // see enum below
     String finalUserMessage,
-    Optional<String> escalationReason
+    Optional<String> escalationReason,
+    String lastProjection,                           // JSON projection sent to final LLM call (Sprint 8.2 §M0b)
+    String lastLlmRawResponse                        // verbatim LLM response of final iteration; preserved for trace replay
 ) {}
 ```
+
+> **[FOLD-BACK 2026-05-11]** `lastProjection` and `lastLlmRawResponse` were added in Sprint 8.2 §M0b to preserve the final-iteration LLM raw response for replay-quality trace even when the loop terminates with `MAX_STEPS` / `CLARIFICATION_NEEDED`. The original 6-field record predates that sprint.
+
+The actual `TerminalOutcome` enum surfaced by `AgentRunLoopImpl` is wider than the original FINAL_ANSWER / ESCALATE / MAX_STEPS / ERROR set. Current values, with the producing condition:
+
+| Value | Producing condition |
+|---|---|
+| `FINAL_ANSWER` | LLM returned a response with **no `tool_calls`** and the `user_message` does not match the clarification heuristic (cite: `AgentRunLoopImpl.run(...)` step 5 / `AgentRunResult.finalAnswer(...)`). **Parser failures do NOT produce `FINAL_ANSWER`**: `ActionParser.parse(...)` catches its own exceptions internally and returns a fallback `ParsedAction` whose `tool_calls` contains a single `request_handover` with `escalation_reason="system_failure"` (cite: `ActionParser.buildFallback()`). **[FOLD-BACK 2026-05-11]** Whether that fallback ends the run as `ESCALATE` depends on the active `PhasePlan`: `ToolDispatcher.validateAgainstPlan(plan, "request_handover")` runs **before** `ToolDispatcher.dispatch`, so on plans that omit `request_handover` from `allowedTools` (currently DISCOVER and CLOSE — DISCOVER: `[search_knowledge, classify_use_case]`; CLOSE: `[record_outcome]`) the fallback handover is rejected with `tool_not_in_plan`, the loop records a failed `ToolEvent`, and no coercion / dispatch / `ESCALATE` happens — the run continues until another exit condition fires (e.g. `MAX_STEPS`). On plans that **do** allow `request_handover` (RESOLVE_FAQ, RESOLVE_INTAKE, CONFIRM, ESCALATE), the fallback path proceeds as previously documented: the dispatcher coerces the non-canonical reason to `service_degraded` (`ToolDispatcher.CANONICAL_ESCALATION_REASONS`), the handover dispatches, and the loop terminates with `ESCALATE`. The defensive try/catch around `actionParser.parse(...)` in `AgentRunLoopImpl.run(...)` is therefore unreachable in normal operation; if it ever fires it falls back to a `FINAL_ANSWER` with the raw content, but `ActionParser` does not throw today. |
+| `CLARIFICATION_NEEDED` | LLM returned a `user_message` with no `tool_calls` and the message matches the clarification heuristic (ends with `?` / contains "could you", "can you tell", "what is", "which", "do you have"). Sprint 8.1 follow-up. |
+| `ESCALATE` | A `request_handover` tool call dispatched **successfully** (any failure in the same batch is recorded as a tool error and the loop continues — Sprint 9 §O1). |
+| `USE_CASE_IDENTIFIED` | A successful `classify_use_case` inside a DISCOVER plan committed a non-blank `activeUseCase`. Sprint 8.1 §M3; signals the kernel to attempt a same-turn DISCOVER → RESOLVE replan (see "Same-turn DISCOVER → RESOLVE replan" below). Note: this value is produced by the loop **out-of-band** of the DISCOVER plan's declared `validTerminalOutcomes` — see TODO_DECISION below. |
+| `MAX_STEPS` | `plan.maxToolSteps` hit without termination. |
+| `ERROR` | Loop entry / projection / LLM invocation failure only — specifically: `null` plan, `ContextProjectionBuilder.build(...)` exception, or `LlmInvocationService.invokeChat(...)` exception (cite: `AgentRunLoopImpl.run(...)` `AgentRunResult.error(...)` call sites). **Tool-dispatch exceptions are NOT mapped to `ERROR`**: they are recorded as a failed `ToolEvent` (`tool_dispatch_exception: ...`) and the loop continues to the next call (cite: `AgentRunLoopImpl.run(...)` step 6b try/catch). Parser failures are not `ERROR` either — see `FINAL_ANSWER` above. |
+| `DEADLINE_EXCEEDED` | Wall-clock budget exhausted before any LLM attempt could complete (Sprint 8.1 §M2) |
+| `LLM_UNAVAILABLE` | LLM provider chain failed after retry exhaustion. **[FOLD-BACK 2026-05-11]** Live wiring is **DeepSeek v4 pro primary + Kimi 2.6 fallback** (`server/.../config/LlmClientConfig.java` `llmClient(...)` constructs `new FallbackLlmClient(deepseekLlmClient, kimiLlmClient, "deepseek", "kimi")` per Sprint 8.1 follow-up #2). The §3.9.1 "Degraded mode" entry below still reads as Kimi-primary / DeepSeek-fallback — that is the original 2026-05-01 deviation text and is now superseded by the Sprint 8.1 follow-up #2 reversal; treat the live `LlmClientConfig` constructor as authoritative. |
+
+`PhaseEvaluator.interpretRunResult(...)` maps these to phase transitions. `MAX_STEPS` becomes an ESCALATE with the *transition reason* `max_steps_exceeded` and an *escalation reason* derived per plan / session: `incomplete_intake` for INTAKE plans, else `clarification_budget_exhausted` when the session has clarification turns, else `faq_miss_threshold_exceeded` when the loop ran `search_knowledge`, else the catch-all `turn_budget_exhausted` (cite: `PhaseEvaluator.resolveMaxStepsReason(...)` and the `MAX_STEPS` branch of `interpretRunResult(...)`). `ERROR` is gated by the runtime-error retry threshold (§3.3.3 below). Cite: `AgentRunLoopImpl.java` (terminal-outcome short-circuit branches in `run(...)`), `PhaseEvaluator.interpretRunResult(...)`.
 
 #### Loop Bounds vs. Session Budgets
 
 `plan.maxToolSteps` (default 4) is **independent** of session budgets (`max_bot_turns`, `max_faq_miss`, `max_clarification`):
 
 - Session budgets are checked by `ControlKernel` **before** the loop runs (existing behavior).
-- `maxToolSteps` bounds a single agent run (one user turn). Hitting it produces `TerminalOutcome.MAX_STEPS`, which `PhaseEvaluator.interpretRunResult` maps to escalation with reason `agent_max_steps_exceeded`.
+- `maxToolSteps` bounds a single agent run (one user turn). Hitting it produces `TerminalOutcome.MAX_STEPS`, which `PhaseEvaluator.interpretRunResult` maps to ESCALATE with *transition reason* `max_steps_exceeded` and an *escalation reason* derived per plan / session — see the `TerminalOutcome` table above and `PhaseEvaluator.resolveMaxStepsReason(...)`.
 
 #### Runtime ERROR retry threshold (deviation 2026-05-01 — phase0 §0.6)
 
 `PhaseEvaluator.interpretRunResult()` (`server/src/main/java/.../control/PhaseEvaluator.java:489-517`) historically mapped any `AgentRunResult.ERROR` (projection failure, LLM exception, parser failure, tool-dispatch exception, etc.) directly to `ESCALATE` on first occurrence. Transient runtime failures should not become a user-visible escalation on a single hit. Updated mapping rule:
 
-- Maintain a per-session, per-phase `runtimeErrorCount` counter on `BotSession` (a small counter field; reuse an existing per-phase counter if grep on the session class shows one — confirm before final implementation).
-- On `AgentRunResult.ERROR`:
-  - If `runtimeErrorCount` in the **current phase** is `< 2` → increment, **stay in current phase**, re-prompt next turn (no user-visible escalation).
-  - If `runtimeErrorCount` in the current phase is `≥ 2` → map to `ESCALATE` with `escalation_reason = runtime_error_threshold` (new value added to the canonical 22-value escalation_trigger enum, expanding it to 23).
-- `runtimeErrorCount` resets on phase transition.
+- Maintain a per-session `runtimeErrorCount` counter on `BotSession` (reset on any non-ERROR outcome, see `PhaseEvaluator.interpretRunResult(...)` non-ERROR branches).
+- On `AgentRunResult.ERROR` (cite: `PhaseEvaluator.interpretRunResult(...)` ERROR case):
+  1. Read the existing count (default 0), **increment** it, and persist back on the session.
+  2. If the new count is `< 2` (i.e. this was the **first** consecutive ERROR) → stay in the current phase with transition reason `agent_error_retry`, return the LLM's `finalUserMessage` (or `"Let me try that again."` if absent), **no user-visible escalation**.
+  3. Otherwise (count `≥ 2`, i.e. this is the **second consecutive ERROR** or later) → map to `ESCALATE` with transition reason `agent_error` and `escalation_reason = runtime_error_threshold` (one of the canonical 23 escalation_reason values).
+- The counter resets implicitly on any non-ERROR outcome because the non-ERROR branches in `interpretRunResult` zero it; an explicit reset on phase transition is not the mechanism in code today.
 
-`MAX_STEPS` (`agent_max_steps_exceeded`), `FINAL_ANSWER`, and `ESCALATE` terminal outcomes are unchanged.
+`MAX_STEPS` (transition reason `max_steps_exceeded`; derived escalation reason per `resolveMaxStepsReason`), `FINAL_ANSWER`, and `ESCALATE` terminal outcomes are unchanged.
 
 #### Example PhasePlans
+
+> **[FOLD-BACK 2026-05-11]** The example yaml blocks below are *illustrative* only — the live `allowedTools` and `maxToolSteps` per phase are emitted by `PhaseEvaluator.plan(...)` and may differ in detail (notably: RESOLVE/INTAKE no longer exposes `create_case_controlled` to the LLM; that tool is `RUNTIME_ONLY` and invoked directly by `ControlKernel.createCaseIfNeeded` on escalation, see "Direct runtime tool invocations" below). The current per-phase plan table is in [`docs/current/runtime_contract.md`](../current/runtime_contract.md) §"Current PhasePlan concept".
 
 **RESOLVE / FAQ (UC-A "Ad Support")**
 ```yaml
 phase: RESOLVE
 objective: "Determine what happened to the customer's ad and explain it clearly"
-allowedTools: [get_customer_context, search_knowledge, resolve_article, request_handover]
+allowedTools: [get_customer_context, search_knowledge, resolve_article, record_outcome, request_handover]
 maxToolSteps: 4
 validTerminalOutcomes: [FINAL_ANSWER, CLARIFICATION_NEEDED, ESCALATE]
 groundingInstruction: |
@@ -650,8 +676,10 @@ groundingInstruction: |
 ```yaml
 phase: RESOLVE
 objective: "Collect required intake fields and hand over to specialist"
-allowedTools: [request_handover, create_case_controlled]   # NO search_knowledge / resolve_article
-maxToolSteps: 2
+# [FOLD-BACK 2026-05-11] live allowedTools is [request_handover] only.
+# create_case_controlled is RUNTIME_ONLY and not LLM-visible; see §3.4.2.
+allowedTools: [request_handover]
+maxToolSteps: 3
 validTerminalOutcomes: [CLARIFICATION_NEEDED, ESCALATE]
 ```
 
@@ -660,9 +688,96 @@ validTerminalOutcomes: [CLARIFICATION_NEEDED, ESCALATE]
 phase: CONFIRM
 objective: "Determine whether the user is satisfied with the prior answer"
 allowedTools: [record_outcome, request_handover]
-maxToolSteps: 1
-validTerminalOutcomes: [CLOSE, RETRY_RESOLVE, ESCALATE]
+maxToolSteps: 2   # [FOLD-BACK 2026-05-11] live value is 2, not 1
+# [FOLD-BACK 2026-05-11] live values are [FINAL_ANSWER, CLARIFICATION_NEEDED, ESCALATE]
+# (cite: PhaseEvaluator.plan() CONFIRM branch). The original example used
+# [CLOSE, RETRY_RESOLVE, ESCALATE], which were not actual TerminalOutcome
+# enum values — CLOSE / RETRY_RESOLVE are post-loop phase transitions
+# decided by interpretRunResult, not loop terminals.
+validTerminalOutcomes: [FINAL_ANSWER, CLARIFICATION_NEEDED, ESCALATE]
 ```
+
+**DISCOVER**
+```yaml
+# [FOLD-BACK 2026-05-11] DISCOVER plan added by Sprint 8.1 §M3 / Phase 2 Fix 3c
+# (see §3.4.1.6 classify_use_case below).
+phase: DISCOVER
+useCase: null   # may be null — by definition not yet committed
+objective: "Identify the user's use case so RESOLVE can run on the right plan"
+allowedTools: [search_knowledge, classify_use_case]
+# [FOLD-BACK 2026-05-11] `search_knowledge` is *plan-projected* on DISCOVER
+# (cite: PhaseEvaluator.plan() DISCOVER branch) but **policy-blocked** in the
+# normal DISCOVER state where activeUseCase = null. `tool-policy.yaml` allows
+# `search_knowledge` only for FAQ UCs (UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP),
+# and `ToolPolicyEnforcer.isToolAllowed(...)` denies the call when activeUseCase
+# is null (cite: server/.../tools/ToolPolicyEnforcer.java `isToolAllowed` —
+# `activeUseCase != null && policy.allowedUcs.contains(activeUseCase)`). The
+# only DISCOVER tool that passes both filters today is `classify_use_case`
+# (`allowed-ucs: [ALL]`). The projection therefore still surfaces a
+# `search_knowledge` schema slot, but an actual call would be rejected at
+# dispatch with `TOOL_SCOPE_BLOCKED`. See the plan-vs-policy mismatch
+# TODO_DECISION in the §3.3.3 list.
+maxToolSteps: 2
+# [FOLD-BACK 2026-05-11] live values are [CLARIFICATION_NEEDED, FINAL_ANSWER, ESCALATE]
+# (cite: PhaseEvaluator.plan() DISCOVER branch). USE_CASE_IDENTIFIED is
+# produced by the loop out-of-band of the plan's declared validTerminalOutcomes
+# when classify_use_case commits a UC. See TODO_DECISION below.
+validTerminalOutcomes: [CLARIFICATION_NEEDED, FINAL_ANSWER, ESCALATE]
+```
+
+#### In-loop guards (delivered)
+
+> **[FOLD-BACK 2026-05-11]** Sprints 6 / 7 / 8.1 / 11 introduced four named in-loop guards now owned by `AgentRunLoopImpl`. Each rejects a specific tool call before dispatch (or short-circuits the loop) without escalating the session, giving the LLM room to self-correct on the next iteration. None of these were enumerated in the original §3.3.3 v9 text; they are stable, code-grounded delivered behavior.
+
+| Guard | Plan scope | What it does | Cite |
+|---|---|---|---|
+| **S1 FAQ-grounded-resolve** (Sprint 6 §G2) | RESOLVE / FAQ UCs | Rejects `request_handover(faq_miss_threshold_exceeded)` when `search_knowledge` returned viable evidence (`faq_miss = false` + hits) **and** `resolve_article` was not yet attempted, so the bot must read the article it just retrieved before claiming an FAQ miss. | `AgentRunLoopImpl` S1 guard branch; `Sprint6FaqGroundedResolveTest` |
+| **Intake-complete guard** (Sprint 7 §I2) | RESOLVE / INTAKE UCs (G/H/I/J/K) | Rejects `request_handover(intake_complete_for_uc_X)` when required intake fields are still missing. Surfaces the missing-field hint via `accumulated_tool_results`. | `AgentRunLoopImpl` intake-complete branch; `IntakeFieldsRegistry` |
+| **Progressive resolve guard** (Sprint 11 §M1) | RESOLVE / FAQ UCs | Rejects `record_outcome(outcome_class=resolve)` when the deterministic terminal-evidence condition (`ResolveDispositionEvaluator`) has not been met. Reason: `progressive_resolve_record_outcome_premature`. The loop continues so the LLM can produce the missing evidence or surface the answer first. | `AgentRunLoopImpl.PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON` |
+| **`classify_use_case` DISCOVER short-circuit** (Sprint 8.1 §M3) | DISCOVER plan only | A successful `classify_use_case` that commits a non-blank `activeUseCase` returns `TerminalOutcome.USE_CASE_IDENTIFIED` immediately, signalling the kernel to attempt a same-turn DISCOVER → RESOLVE replan. | `ClassifyUseCaseTool.execute(...)`; `AgentRunLoopImpl` post-dispatch branch |
+
+#### Terminal-tool short-circuit semantics (delivered)
+
+> **[FOLD-BACK 2026-05-11]** The handling of `request_handover` and `record_outcome` inside the loop is asymmetric and worth being explicit about; the original §3.3.3 / §3.3.4 text was loose on this.
+
+- A **successful** `request_handover` dispatch sets a `handoverRequested` flag and short-circuits **further LLM iterations**, but only after the *current model response's remaining `tool_calls` batch* has finished dispatching. This means a single LLM response that emitted both `record_outcome` and `request_handover` will execute both before the loop exits with `ESCALATE` **only when both calls pass `ToolDispatcher.validateAgainstPlan`, `ToolPolicyEnforcer`, and the in-loop guards above**. Any call rejected at the plan whitelist, per-UC policy, or guard layer is recorded as a failed `ToolEvent` and skipped; the rest of the batch continues. For example: on the CLOSE plan (`allowedTools = [record_outcome]`) an emitted `request_handover` is rejected as `tool_not_in_plan` and only `record_outcome` runs; conversely on the RESOLVE_INTAKE plan (`allowedTools = [request_handover]`) an emitted `record_outcome` is rejected as `tool_not_in_plan` and only `request_handover` runs (Sprint 9 §O1; cite: `AgentRunLoopImpl.run(...)` step 6d and the post-batch `if (handoverRequested)` return).
+- A **failed** `request_handover` (malformed payload, `SalesforceService` failure) does **not** set the flag and does **not** itself short-circuit the loop or stamp a successful terminal handover. The error is recorded into `accumulated_tool_results`; the loop continues until a later step succeeds or `maxToolSteps` is exhausted. This preserves Sprint 9 §O1 terminal-state honesty for the **handover-success** path: a `phase_after = ESCALATE` driven by `handoverRequested` is never stamped from a handover that did not actually transmit. The loop can still exit `ESCALATE` via the orthogonal `MAX_STEPS` → `ESCALATE` mapping in `PhaseEvaluator.interpretRunResult(...)` if the run subsequently exhausts `maxToolSteps`; in that case the escalation reason comes from `resolveMaxStepsReason(...)` (e.g. `clarification_budget_exhausted`, `faq_miss_threshold_exceeded`) rather than from the failed handover call.
+- `record_outcome` is **not** a loop-terminating tool. Its result is stamped on session state (`recordOutcomeAttempted`, `recordOutcomeSucceeded`) and accumulated; the loop continues normally. The progressive-resolve guard above is the only **post-validation** path that rejects it without dispatch; `ToolDispatcher.validateAgainstPlan` can also reject `record_outcome` **before** the guard runs on plans that omit it from `allowedTools` (e.g. DISCOVER), surfacing as `tool_not_in_plan` rather than `progressive_resolve_record_outcome_premature`.
+- `classify_use_case` is loop-terminating only inside DISCOVER (see guard table above). Outside DISCOVER it would fail the plan whitelist before reaching the tool.
+
+#### Same-turn DISCOVER → RESOLVE replan (delivered)
+
+> **[FOLD-BACK 2026-05-11]** Sprint 8.1 §M3 added a bounded same-turn replan so a DISCOVER turn that commits a UC can produce a RESOLVE answer in the same user turn. The original §3.3.3 v9 text predates this; the live algorithm is summarised below. Authoritative: `ControlKernel.processMessage(...)` §M3 block.
+
+When `AgentRunLoop` returns `TerminalOutcome.USE_CASE_IDENTIFIED` from a DISCOVER plan, `ControlKernel.processMessage(...)` performs **at most one** bounded same-turn replan into RESOLVE before returning the response:
+
+1. Apply the deterministic DISCOVER → RESOLVE phase transition on the session (`session.setCurrentPhase("RESOLVE")`) if `controlPolicy.isValidTransition(...)` allows it. The pre-replan phase tracked for transition logging is also promoted to `RESOLVE` so the post-replan transition (e.g. RESOLVE → CONFIRM on a FAQ FINAL_ANSWER) stays inside the policy graph.
+2. **Wall-clock budget gate**: the shared `LlmCallContext` budget (used by both DISCOVER and the would-be RESOLVE call) must have at least `MIN_RESOLVE_REPLAN_BUDGET_MS` remaining. If not, the replan is skipped: the session stays in RESOLVE and the kernel returns the DISCOVER result as a transitional response so the next user turn runs RESOLVE fresh. (The per-invocation HTTP-attempt budget is re-armed at `FallbackLlmClient.chat` entry, so two successful DISCOVER calls do not poison the replan's first attempt — only wall-clock bounds whether the replan can fit.)
+3. If the budget is sufficient and `phaseEvaluator.plan(...)` returns a non-null RESOLVE plan, the kernel runs `agentRunLoop.run(resolvePlan, ...)` once more on the same user message and history, then **merges** the DISCOVER and RESOLVE `AgentRunResult`s via `mergeAgentRunResults(...)` so the persisted bot turn captures whatever DISCOVER tool events occurred (in practice `classify_use_case` — `search_knowledge` is plan-projected on DISCOVER but policy-blocked while `activeUseCase` is null, see the DISCOVER plan note above) alongside the RESOLVE tool chain. The merged result becomes the turn's outcome and feeds the post-loop phase transition.
+4. If the second `plan(...)` returns null, the kernel falls back to the DISCOVER `USE_CASE_IDENTIFIED` transitional response.
+
+The replan is bounded to a single attempt — there is no recursion into further phase replans within one user turn, and the `USE_CASE_IDENTIFIED` flag is not used outside this exit condition.
+
+#### Direct runtime tool invocations (bypass `ToolDispatcher`)
+
+> **[FOLD-BACK 2026-05-11]** A handful of deterministic Java callers construct a `Tool` bean and invoke its `execute(...)` directly, **not** through `ToolDispatcher.dispatch`. These calls do not run `validateAgainstPlan` or `ToolPolicyEnforcer`; they exist to keep side effects under deterministic Java control rather than letting the LLM order them via a tool call.
+
+- `ControlKernel.createCaseIfNeeded` → `CreateCaseControlledTool.execute(...)` (escalation-time case creation for UC-H/J/K).
+- `PhaseEvaluator.createCaseIfAllowed` → `CreateCaseControlledTool.execute(...)` (legacy intake-complete path on the rollback `evaluate(...)` flow).
+- `FormContextIngestionService` → `GetCustomerContextTool.execute(...)` (auto-trigger at `SessionManager.createSession(...)` when the pre-chat form provides an `email` and at least one of the session's initial candidate UCs is in the per-UC allow set; see `FormContextIngestionService` and the §"Session create and form ingestion" entry in [`runtime_contract.md`](../current/runtime_contract.md)).
+
+These callers are responsible for their own argument shape and per-UC gating; they intentionally do not project a `PhasePlan` and do not emit `TOOL_SCOPE_BLOCKED`. The LLM has no schema for `create_case_controlled` (RUNTIME_ONLY in `tool-policy.yaml`); the form-driven `get_customer_context` auto-trigger populates `session.customerContext` / `listingContext` / `moderationContext` once at session create, before any LLM call. Cross-turn persistence of LLM-issued tool returns into those session slots is **not** implemented today; an LLM-issued `get_customer_context` surfaces only via `accumulated_tool_results.get_customer_context` on the next iteration of the same turn.
+
+#### Allowed-tool enforcement (delivered)
+
+> **[FOLD-BACK 2026-05-11]** Two enforcement points run on every dispatch through `ToolDispatcher`. The §3.2.6 / §3.3.4 text below pre-dates the per-PhasePlan filter (Sprint 8.1 §M3); the live behavior is summarised here.
+
+1. **Plan whitelist** — `ToolDispatcher.validateAgainstPlan(plan, name)` checks the tool name against `PhasePlan.allowedTools` before the per-UC enforcer runs. A failure becomes a rejected `ToolEvent` with reason `tool_not_in_plan: ...` and the loop continues so the LLM can self-correct.
+2. **Per-UC policy** — `ToolPolicyEnforcer` loads `server/src/main/resources/config/tool-policy.yaml` at startup. Each tool has `type` (`AGENT_VISIBLE` | `RUNTIME_ONLY`) and an `allowed-ucs` list (`[ALL]` is the wildcard). On a deny the dispatcher emits a `TOOL_SCOPE_BLOCKED` `BotEvent` and returns an error.
+
+The plan-side filter is also applied to the projection: the `tool_schemas` array surfaced to the LLM is filtered to exactly the plan's `allowedTools` (cite: `ContextProjectionBuilder.build(...)` Sprint 8.1 §M3 schema-filter), so the model never sees tools outside the current `PhasePlan`. **The two filters are independent** — `tool_schemas` is *not* the intersection of plan and policy. For example, the FAQ RESOLVE plan exposes `get_customer_context` for all FAQ UCs, but `tool-policy.yaml` only allows that tool for UC-A, UC-C, UC-D, UC-F, UC-FP, UC-K. On UC-B / UC-E the schema is projected and an actual call would be denied at dispatch with `TOOL_SCOPE_BLOCKED`. See the matching TODO_DECISION block in [`runtime_contract.md`](../current/runtime_contract.md) for the open governance question on whether to intersect, widen the policy, or keep the divergence.
+
+`request_handover` carries an extra coercion: any non-canonical `escalation_reason` is logged WARN and rewritten to `service_degraded` inside `ToolDispatcher.dispatch` before the tool runs (cite: `ToolDispatcher.CANONICAL_ESCALATION_REASONS`, mirrored in `PhaseEvaluator.CANONICAL_ESCALATION_REASONS`).
 
 #### Feature Flag Rollout
 
@@ -671,7 +786,7 @@ Migration is gated by `agent.run-loop.enabled-phases` (config). The flag served 
 ```yaml
 agent:
   run-loop:
-    # D16.E (current production default): all 6 phases use the AgentRunLoop path.
+    # D16.E (current application.yml default): all 6 phases use the AgentRunLoop path.
     enabled-phases: [RESOLVE_FAQ, RESOLVE_INTAKE, DISCOVER, CONFIRM, CLOSE, ESCALATE]
     # Historical rollout (kept for reference):
     #   D16.A: []                           — scaffolding only
@@ -687,16 +802,45 @@ agent:
 
 | Path | Entry Points | When Active | LLM/Tool Calls in PhaseEvaluator? |
 |------|-------------|-------------|-----------------------------------|
-| **New (planner)** | `plan()` → `interpretRunResult()` | Route key is in `enabled-phases` (production default after D16.E) | None — execution lives in `AgentRunLoop` |
+| **New (planner)** | `plan()` → `interpretRunResult()` | Route key is in `enabled-phases` (current `application.yml` default after D16.E) | None — execution lives in `AgentRunLoop` |
 | **Legacy (executor)** | `evaluate()` → `evaluateDiscover` / `resolveFaq` / `resolveIntake` / `evaluateConfirm` / `evaluateClose` / `evaluateEscalate` | Route key NOT in `enabled-phases` (rollback only) | Yes — `llmInvocation.invokeChat`, `toolDispatcher.dispatch`, `createCaseTool.execute` are still wired here |
 
-The legacy methods are **deliberately retained** as a rollback target. They are dead code in production after D16.E but become live again the moment a route key is removed from `enabled-phases`. Their continued existence is **not a violation of the architectural intent** — it is the rollback safety net.
+The legacy methods are **deliberately retained** as a rollback target. Under the current configured route set (all six keys in `enabled-phases`) they are unreached in normal operation, but they become live again the moment a route key is removed from `enabled-phases`. Their continued existence is **not a violation of the architectural intent** — it is the rollback safety net.
+
+> **[FOLD-BACK 2026-05-11]** As of 2026-05-11 the live `application.yml` setting is `agent.run-loop.enabled-phases: [RESOLVE_FAQ, RESOLVE_INTAKE, DISCOVER, CONFIRM, CLOSE, ESCALATE]` — i.e. all six route keys. The kernel's `ControlKernel.computeRouteKey(...)` resolves the per-turn route key as follows: DISCOVER / CONFIRM / CLOSE / ESCALATE map directly to their phase name; RESOLVE maps to `RESOLVE_FAQ` when `activeUseCase ∈ {UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP}`, to `RESOLVE_INTAKE` when `activeUseCase ∈ {UC-G, UC-H, UC-I, UC-J, UC-K}`, and to `null` otherwise (no committed UC, or a UC outside both sets). A `null` route key, an unrecognised key, or a `null` return from `PhaseEvaluator.plan(...)` falls back to the legacy `evaluate(...)` path. The legacy path is therefore rollback-only in normal operation but is also the documented fallback for unconfigured / unknown phase-UC combinations. See [`runtime_contract.md`](../current/runtime_contract.md) §"Run-loop routing" for the live route map.
 
 A future cleanup PR may delete the legacy methods once D16.E has been validated in production for a sustained period (suggested gate: ≥ 2 weeks with no eval regressions and no production rollbacks).
 
 #### Streaming UX (Phase E — out of scope for D16)
 
+> **[FUTURE_DESIGN]** Preserved as forward-looking design. Not implemented today; no SSE/WebSocket transport is wired into the live runtime.
+
 Once `AgentRunLoop` emits a sequence of `AgentMessage` values (ack + progress* + final), an SSE/WebSocket transport can push them to the frontend progressively. This is tracked as a separate workstream; D16 delivers the foundational architecture only.
+
+#### TODO_DECISION
+
+> **[FOLD-BACK 2026-05-11]** The first three items below are mirrored from [`docs/current/runtime_contract.md`](../current/runtime_contract.md) "TODO_DECISION" and that file holds the authoritative text. The remaining items were **identified during this Phase 3 fold-back** and are owned here in §3.3.3 — they are *not* present in `runtime_contract.md` today. A future runtime-contract update may pull them up if/when they require live-runtime governance text; until then, treat this section as the authoritative location for them.
+
+Mirrored from `runtime_contract.md`:
+
+- **Plan-vs-policy mismatch on projected `tool_schemas`** — the per-phase plan filter and the per-UC `tool-policy.yaml` matrix are independent, so the projection can surface tools that `ToolPolicyEnforcer` will deny. Two live instances today: (i) `get_customer_context` is projected on the FAQ RESOLVE plan but the policy only allows it for UC-A / UC-C / UC-D / UC-F / UC-FP / UC-K, so on UC-B / UC-E a call is denied at dispatch with `TOOL_SCOPE_BLOCKED`; (ii) `search_knowledge` is projected on the DISCOVER plan (`PhaseEvaluator.plan()` DISCOVER branch) but the policy only allows it for FAQ UCs, and `ToolPolicyEnforcer.isToolAllowed(...)` denies when `activeUseCase` is null — which is the normal DISCOVER state — so the only DISCOVER tool that actually clears both filters is `classify_use_case`. Decide whether to (a) intersect plan ∩ policy in the projection, (b) widen the policy (e.g. add a "pre-classification" allow set so DISCOVER `search_knowledge` is genuinely callable), or (c) document the divergence in `runtime_contract.md` and keep the current behaviour.
+- **Dormant runtime-only tool beans** — `lookup_customer_account`, `lookup_listing_or_ad`, `get_moderation_review_context`, `get_message_moderation_context` are registered as `RUNTIME_ONLY` with `Tool` bean implementations but no live deterministic call site has been identified. Decide whether to wire callers, retire, or document an owner. The composite `get_customer_context` covers the form-ingestion path today.
+- **Moderation context written but not projected** — `FormContextIngestionService` populates `session.moderationContext` and `RequestHandoverTool` reads it for handover identifiers, but `ContextProjectionBuilder` does not emit a `moderation_context` projection slot, even though FAQ RESOLVE `PhasePlan.requiredContextKeys` lists it. Decide whether to project, drop the required-key, or formally document as session-internal / handover-only.
+
+Owned by this Phase 3 fold-back:
+
+- **`record_outcome` sink ownership** — the live tool only writes the local `session_outcomes` row. The original §3.4.1.5 design also called for Salesforce `Bot_Session__c.ContainmentOutcome__c` sync, `OUTCOME_RECORDED` to `Bot_Event__c`, an Avro publish to a Kafka analytics topic, and per-sink retry. Decide whether `record_outcome` should grow into the multi-sink owner (option a), whether those sinks belong to a separate kernel-side aggregator analogous to the `ARTICLE_SHOWN` path (option b), or whether the local-only behaviour is the intended end state and the production sink list should be retired (option c). Until decided, treat `record_outcome` as local-only and the v0.3 spec as the source of truth for the live sink set.
+- **`ARTICLE_SHOWN` dispatch site** — today `ResolveArticleTool` only returns data. `ControlKernel.recordRunResult(...)` collects `source_id`s from successful `search_knowledge` `hits` (not from `resolve_article`) and emits **one `ARTICLE_SHOWN` event per source ID** via `eventEmitter.emitArticleShown(...)`. Decide whether the event should (a) move into `ResolveArticleTool.execute(...)` to keep tool-level traceability and use `resolve_article` as the trigger, (b) stay in the kernel aggregation path keyed off `search_knowledge` hits as today, or (c) be split (per-tool dispatch event + kernel rollup). The §3.8.1 row has been reconciled to the live emit site; this TODO_DECISION governs whether the live behaviour is the intended end state or should change.
+- **`ARTICLE_SHOWN` payload contract** — `EventEmitter.emitArticleShown(...)` writes `{ articleId, title }` and `ControlKernel.recordRunResult(...)` calls it with `(sid, null)`, so the live payload is `articleId = <source id>` and `title = null`. The original §3.8.1 contract said `source_id, canonical_urls[]`. Decide whether to (a) rename / re-shape the payload to `{ source_id, canonical_url }` and look up `canonical_url` from the most recent `search_knowledge` / `resolve_article` hit before emitting, (b) declare the live `{ articleId, title }` shape as the contract and update the §3.8.1 row + any downstream consumers (BigQuery / Looker schemas, admin trace viewer) accordingly, or (c) keep `articleId` but populate `title` from the same hit aggregation so the emitted row is at least non-null. Owner: observability holder; coordinate with the "dispatch site" decision above.
+- **`PhasePlan.validTerminalOutcomes` vs out-of-band `USE_CASE_IDENTIFIED`** — `AgentRunLoopImpl` returns `TerminalOutcome.USE_CASE_IDENTIFIED` from a successful DISCOVER-plan `classify_use_case`, but the DISCOVER plan's declared `validTerminalOutcomes` is `[CLARIFICATION_NEEDED, FINAL_ANSWER, ESCALATE]` (no USE_CASE_IDENTIFIED). This is an intentional out-of-band loop terminal — the kernel handles it specially via the same-turn DISCOVER → RESOLVE replan. Decide whether to (a) add `USE_CASE_IDENTIFIED` to the DISCOVER plan's declared set so plan ↔ loop are in sync, or (b) formally document `USE_CASE_IDENTIFIED` as out-of-band and out-of-scope for `validTerminalOutcomes`. Either way the kernel logic is unchanged; this is a contract-shape decision.
+- **Runtime-only tools: caller-gated vs `ToolPolicyEnforcer`-gated wording** — the canonical text in `customer_service_tool_spec_v0_2.{md,yaml}` and Phase 3 §3.4.2 says runtime-only tools are gated by `tool_policy_enforcer`, but the live direct-call paths (`ControlKernel.createCaseIfNeeded`, `PhaseEvaluator.createCaseIfAllowed`, `FormContextIngestionService` → `GetCustomerContextTool`) bypass both `ToolDispatcher` and `ToolPolicyEnforcer` and rely on the calling Java code for per-UC gating. Decide whether to (a) standardise on caller-side gating in the docs and remove the `ToolPolicyEnforcer` framing for runtime-only tools, (b) route all runtime-only invocations through `ToolDispatcher` so the enforcer actually runs, or (c) document the split (some runtime-only tools dispatcher-gated, some caller-gated).
+- **DISCOVER plan-vs-ESCALATE contract** — DISCOVER's `validTerminalOutcomes` includes `ESCALATE` and its `escalationPolicy` tells the model to escalate when the request is "clearly out of scope" or after a failed clarification, but `allowedTools = [search_knowledge, classify_use_case]` omits `request_handover` — so an LLM-emitted `request_handover` inside the DISCOVER loop is rejected as `tool_not_in_plan` (cite: `PhaseEvaluator.plan()` DISCOVER branch + `ToolDispatcher.validateAgainstPlan`). The only paths that actually reach `ESCALATE` from DISCOVER today are deterministic pre-loop branches (`ControlKernel.forceEscalate(...)` for budget / drift / hard-OOS, the synthesize-handover helper on the legacy `recordTurn(...)` path). Decide whether to (a) add `request_handover` to the DISCOVER `allowedTools` so the LLM-driven escalation path actually works, (b) drop `ESCALATE` from DISCOVER `validTerminalOutcomes` and rewrite the `escalationPolicy` to defer escalation to the deterministic supervisor only, or (c) document the live behaviour explicitly — DISCOVER ESCALATE is supervisor-driven only, the LLM should never call `request_handover` from DISCOVER — and keep the plan as-is.
+- **LLM observability fidelity (`llm_call_log` served-model)** — `LlmInvocationService` writes `llm_call_log` rows with `modelName = llmProperties.getDeepseek().getModel()` (captured once at construction), and `LlmResponse` carries no provider/model field, so fallback Kimi success is still persisted as DeepSeek (see §3.8.5 fold-back). The `LLM [chat:request] / [chat:response] / [chat:fallback-engaged]` process logs are the only authoritative record of which provider actually served each attempt. Decide whether to (a) extend `LlmResponse` (and the `LlmClient` contract) to carry `provider` / `model` per attempt and rewrite `LlmCallLogger` to persist that, so `llm_call_log` reflects ground truth, (b) document `llm_call_log.model` as "configured primary, not served provider" and treat the process logs as the canonical fidelity surface, or (c) introduce a separate `LLM_PROVIDER_FALLBACK` event row keyed off `LLM [chat:fallback-engaged]` so the served provider is at least queryable from the DB without changing the existing `llm_call_log` shape.
+- **`PhasePlan` projection contract (`requiredContextKeys` / `allowInterimMessage`)** — `ContextProjectionBuilder.build(...)` projects only a subset of `PhasePlan` fields (`phase`, `use_case`, `objective`, `allowed_tools`, `grounding_instruction`, `system_instruction`, `escalation_policy`, `valid_terminal_outcomes`) and does **not** project `requiredContextKeys` or `allowInterimMessage`, nor does it read `requiredContextKeys` to gate what context slots get populated (those slots are emitted whenever the corresponding `BotSession` field is non-empty). The "Moderation context written but not projected" item above is one symptom of this. Decide whether to (a) project `requiredContextKeys` into `phase_plan` and enforce it as a precondition on `build(...)` (failing-loud when a required key is missing), (b) project `requiredContextKeys` as a soft hint and let the projection continue regardless, (c) document `requiredContextKeys` and `allowInterimMessage` as planner-internal metadata only and remove them from the `PhasePlan` record (or rename to make that explicit), or (d) keep the live behaviour and document this section as "PhasePlan has two zones: projected fields and planner-internal fields." Owner: runtime-contract holder.
+- **`llm_call_log` coverage contract (retry / provider-attempt rows)** — live behaviour writes `chat`, `routing`, and `rerank` rows for logical app-level LLM invocations (cite: `LlmInvocationService.invokeChat/invokeRouting`, `RerankService.scoreCandidate`); per-turn cardinality of those rows is governed by the separate "per-turn cardinality + non-blocking-routing coverage" decision below. Provider-level retry and primary→fallback attempts inside `OpenAiCompatibleLlmClient` / `FallbackLlmClient` are folded into the single `chat` row for the enclosing invocation and visible only in the `LLM [chat:*]` process logs. The §3.8.6 SQL still lists `'retry'` as a call type but no live logger writes it. Decide whether to (a) widen `LlmCallLogger` to persist a row per provider attempt (and start writing `retry` / `fallback` call types so the DB matches the process-log timeline), (b) declare the live "one row per logical app-level call, no per-attempt rows" coverage as the contract, drop `'retry'` from the SQL comment / instrumented-call-sites table, and rely on process logs for per-attempt fidelity, or (c) introduce a separate `llm_provider_attempt_log` table keyed off the `chat` row's `id` so per-attempt rows live alongside the logical-call row without re-shaping the existing table. Coordinates with the §3.3.3 "LLM observability fidelity" decision above and the per-turn cardinality decision below. Owner: observability holder.
+- **`llm_call_log.session_id` foreign-key shape** — the §3.8.6 schema in this doc declares `session_id TEXT NOT NULL REFERENCES bot_sessions(session_id)`, but live `db/migration/V9__create_llm_call_log.sql` is plain `session_id TEXT NOT NULL` with **no FK**. Decide whether to (a) add the FK via a follow-up migration (matching the docs) and accept the cascade / lifecycle implications (sessions may outlive logs, or vice versa, depending on retention policy), (b) keep the live no-FK shape and rewrite the §3.8.6 SQL to match — `llm_call_log` would remain a soft-linked observability table, indexed on `session_id` but without referential integrity, or (c) treat the no-FK shape as a temporary deviation, leave the docs as the production target, and mark the live migration with a `TODO(FK)` comment so the next persistence-layer sweep adds it. Owner: persistence-layer holder.
+- **`llm_call_log` per-turn cardinality + non-blocking-routing coverage** — earlier §3.8.6 text framed `chat` as "1 per agent turn" and `routing` as "1 per session init"; both are inaccurate against the live runtime. `LlmInvocationService.invokeChat(...)` is called from `AgentRunLoopImpl.run(...)` **once per loop iteration that reaches the LLM**, so a single user turn that drives the loop through multiple steps writes multiple `chat` rows sharing the same `session_id` / `turn_index`. `LlmInvocationService.invokeRouting(...)` is only reached from `UseCaseRouter.routeViaLlm(...)`; `SessionManager.createSession(...)` uses `UseCaseRouter.routeNonBlocking(...)` (Sprint 8.1 §M0) and never calls it, so today **no `routing` row is normally written at session create**. Decide whether to (a) declare the live "one row per logical LLM invocation, multiple `chat` rows per turn" cardinality as the contract, retire the "1 per session init" routing-row expectation, and rewrite §3.8.6 + the trace-API consumer contracts to query the multi-row shape (e.g. aggregate by `(session_id, turn_index)`), (b) keep `routing` as an inert call-type slot in the live runtime and document a follow-up to re-enable a deterministic post-classification routing logger so the `routing` row reappears (e.g. on `classify_use_case` DISCOVER → RESOLVE commits), or (c) collapse `chat` rows server-side into one row per `(session_id, turn_index)` (folding per-step latency / token counts into a summary) so the surface matches the original "1 per turn" framing. Coordinates with the existing "`llm_call_log` coverage contract" and "LLM observability fidelity" decisions above. Owner: observability holder.
+- **`get_customer_context` composite fanout vs direct `GumtreeApiService` shape** — §3.4.1.3 originally described `get_customer_context` as a composite read that orchestrates the `RUNTIME_ONLY` beans (`lookup_customer_account`, `lookup_listing_or_ad`, `get_moderation_review_context`) across bapi-server / user-service / gumshield-api / livead-search chains. Live `GetCustomerContextTool.execute(...)` is a thin single-bean caller of `GumtreeApiService` (`getAccountByEmail`, `getListingByAdId`, conditional `getModerationReview`); it does not dispatch the runtime-only beans and does not chain endpoints. The "dormant runtime-only tool beans" item above governs the registered-but-uncalled beans themselves; this decision governs the **composite-tool contract**. Decide whether to (a) declare the live direct-`GumtreeApiService` shape as the intended end state, retire the runtime-only fanout description (and either retire the dormant beans per the item above or repurpose them for non-`get_customer_context` callers), (b) wire `GetCustomerContextTool` to dispatch the runtime-only beans as originally designed so the composite is restored (which also unblocks per-UC tightening via `tool-policy.yaml` on the inner calls), or (c) keep the direct shape but document the FUTURE_DESIGN composite as the production target gated behind the runtime-only bean cleanup. Owner: tool-spec holder; coordinates with `customer_service_tool_spec_v0_3.md` §`get_customer_context`.
 
 ---
 
@@ -718,6 +862,11 @@ LLM 响应采用 OpenAI-style 原生 tool-use 格式：
 可调用工具范围由 active_use_case 经 ToolPolicyEnforcer 过滤；agent_visible 工具集见 §3.4.1。
 
 **[DEVIATION 2026-05-01 — 见 phase0 §0.6；原 5-action 抽象层（ask_user / retrieve_knowledge / answer_grounded / escalate_human / finish）已移除。语义动作由 tool_calls 内容隐式表达。]**
+
+> **[FOLD-BACK 2026-05-11]** Delivered behavior, code-grounded:
+> - The LLM response is parsed by `ActionParser.parse(...)` into a `ParsedAction` of the form `{ tool_calls: [...], user_message: "...", reasoning: "..." }`. The `reasoning` field is parsed and carried on `ParsedAction` (cite: `runtime/ActionParser.java:65` reading `root.get("reasoning")` and `ParsedAction.@Builder.reasoning`) but is **not** consumed for control flow — there is no 5-action enum and no routing-decision layer, and all control-flow branching in `AgentRunLoopImpl.run(...)` derives from `tool_calls` + `user_message` + session state. `reasoning` is preserved on the parsed action for traceability only.
+> - Tool-call validation is two-stage (plan whitelist + per-UC policy) — see "Allowed-tool enforcement (delivered)" in §3.3.3.
+> - Argument-shape canonicalisation and legacy-alias acceptance per tool live in [`docs/current/customer_service_tool_spec_v0_3.md`](../current/customer_service_tool_spec_v0_3.md), which supersedes `customer_service_tool_spec_v0_2.{md,yaml}` for what the LLM actually sees today.
 
 ### 3.3.5 Control Budgets
 
@@ -752,6 +901,8 @@ LLM 响应采用 OpenAI-style 原生 tool-use 格式：
 
 ## 3.4 Tools / Capabilities
 
+> **[FOLD-BACK 2026-05-11]** The live tool registry is governed by `server/src/main/resources/config/tool-policy.yaml` and the `Tool` beans under `server/src/main/java/com/gumtree/csagent/service/tools/`. Today's count is **6 AGENT_VISIBLE + 5 RUNTIME_ONLY = 11 tools**, with no `HUMAN_ONLY` type registered. The agent-visible set is `search_knowledge`, `resolve_article`, `get_customer_context`, `request_handover`, `record_outcome`, **`classify_use_case`** (added 2026-05-02; DISCOVER-only via plan, see §3.4.1.6). The runtime-only set is `create_case_controlled` plus four dormant beans (`lookup_customer_account`, `lookup_listing_or_ad`, `get_moderation_review_context`, `get_message_moderation_context`) — see "Dormant runtime-only tools" TODO_DECISION in [`runtime_contract.md`](../current/runtime_contract.md). The authoritative per-tool argument and return contract is [`docs/current/customer_service_tool_spec_v0_3.md`](../current/customer_service_tool_spec_v0_3.md), which **supersedes** the older `customer_service_tool_spec_v0_2.{md,yaml}`. The §3.4.x sections below preserve durable design intent.
+
 ### 3.4.1 Agent-Visible Tools — Implementation Detail
 
 #### 3.4.1.1 `search_knowledge`
@@ -762,7 +913,7 @@ Endpoint:  Internal — KnowledgeRetrievalService.search()
 
 **Implementation**:
 1. Receive `query` + `use_case_id` + optional `knowledge_scope`
-2. Embed query via Vertex AI `text-embedding-004` (768-dim)
+2. Embed query via the configured embedding client. **[FOLD-BACK 2026-05-11]** Live runtime uses `DashScopeEmbeddingClient` with `text-embedding-v3` at 768-dim (cite: `application-local.yml` `llm.dashscope.embedding-model` / `embedding-dimension`, `LlmProperties.DashScopeProperties`). **[FUTURE_DESIGN]** Vertex AI `text-embedding-004` (768-dim) is preserved as the production-design intent for the GCP cutover; not wired today.
 3. Execute pgvector ANN search:
    ```sql
    SET LOCAL hnsw.ef_search = 100;
@@ -794,63 +945,88 @@ Endpoint:  Internal — KnowledgeRetrievalService.search()
 
 #### 3.4.1.2 `resolve_article`
 
-**Implementation**:
-1. Receive `source_ids[]` (1–3 article IDs)
-2. For each article: verify `is_published = true` in `kb_articles` table
-3. Construct customer-safe package: `title` + 1–3 sentence summary + `canonical_url` (Help_Site_URL__c)
-4. Write `ARTICLE_SHOWN` event to Bot_Event__c
-5. Return `resolved_articles[]` with `safe_to_show` flag
+> **[FOLD-BACK 2026-05-11]** Delivered shape: the canonical projected schema accepts a single **`source_id: string`** (Sprint 8.2 §M0a); `article_id` is accepted as a legacy alias by `ResolveArticleTool`. Unpublished articles are refused with the deterministic reason `article_unpublished_safe_refuse` (Sprint 14 §L0). The tool emits both `source_url` and `canonical_url` so callers reading either name keep working; `canonical_url_missing` is stamped per hit. See [`docs/current/customer_service_tool_spec_v0_3.md`](../current/customer_service_tool_spec_v0_3.md) §`resolve_article` for the live arg/return contract.
+
+**Implementation (current)**:
+1. Receive `source_id` (canonical) or `article_id` (legacy alias) — single string
+2. Verify `is_published = true` in `kb_articles` table; on failure return error `article_unpublished_safe_refuse: article '<id>' is not published`
+3. Construct customer-safe package: `title` + summary + `description` + `canonical_url` (Help_Site_URL__c) + `source_url` (legacy mirror); stamp `canonical_url_missing` and `safe_to_show`
+4. Return the resolved article with `safe_to_show` flag (cite: `ResolveArticleTool.execute(...)` ends with `ToolResult.ok(data)`).
+
+> **[FOLD-BACK 2026-05-11]** `ARTICLE_SHOWN` is **not** emitted by this tool. The event is emitted later by `ControlKernel.recordRunResult(...)`, which collects `source_id`s **only** from successful `search_knowledge` `hits[*].source_id` entries (cite: `ControlKernel.java` aggregation block — `if ("search_knowledge".equals(te.toolName()) && te.success())`) and then emits **one `ARTICLE_SHOWN` event per source ID** via `eventEmitter.emitArticleShown(...)` in a per-id loop (cite: `ControlKernel.recordRunResult(...)` `for (String sid : sourceIds)`). Successful `resolve_article` events do not feed this aggregation today. See TODO_DECISION below for whether the dispatch site should move into the tool itself or stay in the kernel aggregation path.
 
 #### 3.4.1.3 `get_customer_context`
 
-**Implementation** (composite read — orchestrates runtime-only tools):
-1. **Input**: `context_type` (account / listing / combined) + identifiers (email / ad_id from form_context or user input)
-2. **Account chain** (when email available, for UC-A/C/D/F/FP/K):
-   - `GET /api/emails/{email}/user` → bapi-server (resolve email → user/account)
-   - Fallback: `GET /users/{email}/user` → user-service
-   - `GET /api/accounts/{accountId}` → bapi-server (account details)
-   - `GET /api/users/{id}/known-good` → gumshield-api (trust status)
-   - `POST /api/blacklists/email/check` → gumshield-api (blacklist check)
-   - `GET /users/last-logged-in/{userId}` → user-service
-3. **Listing chain** (when ad_id available, for UC-A/FP/K):
-   - `GET /api/adverts/{id}` → bapi-server
-   - `GET /api/adverts/{id}/features` → bapi-server
-   - `GET /api/adverts/status/{id}` → gumshield-api (moderation status)
-   - `GET /api/adverts/{id}/known-good` → gumshield-api
-   - **For UC-A/FP only**: `POST /api/cs-review/ad-id/` → gumshield-api (moderation review reason via `get_moderation_review_context`)
-   - `GET /api/advert/{advertId}` → livead-search
-4. **safe_summary** construction: strip PII; compose human-readable summary; store structured context in session state
-5. **Auto-trigger**: `must_auto_trigger_on_form_context: true` — when session starts with email, automatically run account lookup (before UC routing)
+> **[FOLD-BACK 2026-05-11]** Live `GetCustomerContextTool.execute(...)` is a thin, single-bean caller of `GumtreeApiService` — it does **not** orchestrate the runtime-only tool beans (`lookup_customer_account`, `lookup_listing_or_ad`, `get_moderation_review_context`) and does **not** chain multiple bapi-server / gumshield-api / user-service / livead-search endpoints. The composite-fanout "Implementation" steps below are **[FUTURE_DESIGN]** intent preserved for the production topology; they are not the live shape. The live shape is documented in the `[FOLD-BACK]` block immediately following.
 
-**gumshield mock → prod strategy (v6)**:
-- Dev/demo: `get_moderation_review_context` returns mock data from `src/test/resources/mock/cs-review-responses.json`
-- Staging: if gumshield service account approved → real API; else → mock with `X-Mock: true` header logged
-- Prod: real API only after service account approval confirmed
+**Implementation (current — direct `GumtreeApiService`)**:
+1. **Input**: `email` (optional), `ad_id` (optional); at least one is required, otherwise the tool returns `error("At least 'email' or 'ad_id' parameter is required")`.
+2. **Account branch** (when `email` is non-blank): one call to `gumtreeApiService.getAccountByEmail(email)`; result is PII-sanitised via `sanitizeAccount(...)` (keeps `account_status`, `account_type`, `creation_date`, `active_ads_count`, `total_ads_count`, `has_verified_email`, `has_verified_phone`; drops raw email / phone / name / address). No bapi-server / user-service / gumshield-api fanout from this tool today.
+3. **Listing branch** (when `ad_id` is non-blank): one call to `gumtreeApiService.getListingByAdId(adId)`; result is PII-sanitised via `sanitizeListing(...)`. When the returned listing `status` is `removed` or `moderated`, the tool issues one follow-up call to `gumtreeApiService.getModerationReview(adId)` and emits its raw payload under `moderation_review` (no further sanitisation). Per-UC narrowing (UC-A/FP for moderation review) is not enforced inside the tool today; it is governed upstream by `tool-policy.yaml` `allowed-ucs` and by the form-ingestion auto-trigger's per-UC allow set.
+4. **Cross-turn persistence into `session.customerContext` / `listingContext` / `moderationContext`** is populated **only** by the deterministic `FormContextIngestionService` auto-trigger path (see §3.3.3 "Direct runtime tool invocations"). An LLM-issued `get_customer_context` surfaces its return via `accumulated_tool_results.get_customer_context` for the current turn only and does not write back to the session-level context slots — cite: `runtime/AgentRunLoopImpl.run(...)` accumulation block and the absence of session-slot writes in `GetCustomerContextTool.execute(...)`.
+5. **Auto-trigger**: `FormContextIngestionService` invokes this tool directly (not through `ToolDispatcher`) at `SessionManager.createSession(...)` when the pre-chat form provides an `email` **and** at least one of the session's initial candidate UCs is in the per-UC allow set. See the runtime-contract §"Session create and form ingestion" entry for the exact gating.
+
+> **[FUTURE_DESIGN — see TODO_DECISION below]** The steps that follow describe the originally intended composite fanout. None of the bapi-server / user-service / gumshield-api / livead-search chains, the `account chain` / `listing chain` UC narrowing, the `must_auto_trigger_on_form_context` schema flag, or the gumshield mock → prod gating below are wired into `GetCustomerContextTool` today; the live shape is the `GumtreeApiService` direct-call summary above. Preserved as the durable production design.
+>
+> 1. **Input**: `context_type` (account / listing / combined) + identifiers (email / ad_id from form_context or user input)
+> 2. **Account chain** (when email available, for UC-A/C/D/F/FP/K):
+>    - `GET /api/emails/{email}/user` → bapi-server (resolve email → user/account)
+>    - Fallback: `GET /users/{email}/user` → user-service
+>    - `GET /api/accounts/{accountId}` → bapi-server (account details)
+>    - `GET /api/users/{id}/known-good` → gumshield-api (trust status)
+>    - `POST /api/blacklists/email/check` → gumshield-api (blacklist check)
+>    - `GET /users/last-logged-in/{userId}` → user-service
+> 3. **Listing chain** (when ad_id available, for UC-A/FP/K):
+>    - `GET /api/adverts/{id}` → bapi-server
+>    - `GET /api/adverts/{id}/features` → bapi-server
+>    - `GET /api/adverts/status/{id}` → gumshield-api (moderation status)
+>    - `GET /api/adverts/{id}/known-good` → gumshield-api
+>    - **For UC-A/FP only**: `POST /api/cs-review/ad-id/` → gumshield-api (moderation review reason via `get_moderation_review_context`)
+>    - `GET /api/advert/{advertId}` → livead-search
+> 4. **safe_summary** construction: strip PII; compose human-readable summary; store structured context in session state
+> 5. **Auto-trigger**: `must_auto_trigger_on_form_context: true` — when session starts with email, automatically run account lookup (before UC routing)
+>
+> **gumshield mock → prod strategy (v6)** (also FUTURE_DESIGN — not wired in the live tool):
+> - Dev/demo: `get_moderation_review_context` returns mock data from `src/test/resources/mock/cs-review-responses.json`
+> - Staging: if gumshield service account approved → real API; else → mock with `X-Mock: true` header logged
+> - Prod: real API only after service account approval confirmed
 
 #### 3.4.1.4 `request_handover`
 
-**Implementation**:
-1. Build handover payload (§3.6.2)
-2. Determine message by `is_business_hours` + `escalation_reason`:
-   - Business hours → `escalation_business_hours` template
-   - Off hours → `escalation_off_hours` template
-3. Write `Bot_Context__c` to Case (JSON payload)
-4. Call Salesforce Omni-Channel Transfer API:
-   - Online → route to `CS_NEW_chat` queue
-   - Offline → route to `CS_Cases_New` queue
-5. Write `ESCALATION_REQUESTED` event
-6. Return `handover_status`: `queued` / `transferred` / `offline_logged` / `failed`
+> **[FOLD-BACK 2026-05-11]** Delivered shape: `escalation_reason` is required and constrained to a 23-value canonical enum (mirrored in `ToolDispatcher.CANONICAL_ESCALATION_REASONS` and `PhaseEvaluator.CANONICAL_ESCALATION_REASONS`); a non-canonical value is logged WARN and **coerced to `service_degraded`** before the tool runs (Sprint 9 §O0). `summary` is **optional** — when absent, `RequestHandoverTool.deriveFallbackSummary(...)` synthesises a bounded summary from session topic / UC / canonical reason / optional `current_user_message`, and the outbound payload includes `summary_source: "fallback"`. The 23 canonical values, the full outbound payload (including derived `primary_use_case = session.activeUseCase`, which may be null on early forced escalations), and the loop-level short-circuit semantics are documented in [`docs/current/customer_service_tool_spec_v0_3.md`](../current/customer_service_tool_spec_v0_3.md) and §3.3.3 above.
+>
+> **[FUTURE_DESIGN — Sprint 16 §H0]** A unified `HandoverOrchestrator` is defined in [`docs/proposals/handover_orchestrator_design.md`](../proposals/handover_orchestrator_design.md) as the single owner of handover side effects, idempotent by `session_id`. Today, two paths can independently produce a local/mock handover write (`RequestHandoverTool.execute(...)` → `SalesforceService.requestHandover(...)`, and `SessionManager.recordHandover(...)`); `Sprint16HandoverDualPathReproTest` characterises the current dual-path shape and the disabled `futureInvariant_atMostOneTransmittedHandoverDecisionPerSessionId_disabledUntilOrchestratorLands` test pins the future invariant. Real Salesforce cutover is gated by the orchestrator landing — see `docs/release_gate.md` §1.1.
 
-**is_business_hours check**: query Salesforce for "New Chat" queue agent availability. If ≥1 agent online → business hours.
+**Implementation (current — local/mock)**:
+1. Validate canonical `escalation_reason`; coerce non-canonical values to `service_degraded` at the dispatcher layer (`ToolDispatcher.dispatch`).
+2. Resolve `summary`: use the LLM-supplied value if present; otherwise call `deriveFallbackSummary(...)` and stamp `summary_source: "fallback"`.
+3. Build the handover payload (§3.6.2) and call `SalesforceService.requestHandover(sessionId, payload)`. **Cite: `RequestHandoverTool.execute(...)`**.
+4. In the local/mock implementation (`MockSalesforceService.requestHandover(...)`) the `transfer_result` is computed deterministically from `mockProperties.isBusinessHours()` (`"transferred"` vs `"offline_logged"`) and the call writes a single `MockHandoverLog` row.
+5. Return `transfer_result` plus `session_id`, `escalation_reason`, `summary`, and (when fallback) `summary_source`.
+
+> **[FUTURE_DESIGN — gated by `docs/release_gate.md` §1.1]** The original §3.4.1.4 implementation steps below describe the intended **production** Salesforce side effects. None of the following are wired in the live runtime today: writing `Bot_Context__c` JSON to the Case, calling the Salesforce Omni-Channel Transfer API, queue routing between `CS_NEW_chat` and `CS_Cases_New`, querying real Salesforce agent availability for `is_business_hours`, and emitting `ESCALATION_REQUESTED` from the tool itself. They are preserved as the durable production design and remain blocked behind the `HandoverOrchestrator` cutover (`docs/release_gate.md` §1.1; `docs/proposals/handover_orchestrator_design.md`):
+>
+> 1. Determine message by `is_business_hours` + `escalation_reason`:
+>    - Business hours → `escalation_business_hours` template
+>    - Off hours → `escalation_off_hours` template
+> 2. Write `Bot_Context__c` to Case (JSON payload).
+> 3. Call Salesforce Omni-Channel Transfer API:
+>    - Online → route to `CS_NEW_chat` queue
+>    - Offline → route to `CS_Cases_New` queue
+> 4. Write `ESCALATION_REQUESTED` event from this tool.
+> 5. `is_business_hours` check: query Salesforce for "New Chat" queue agent availability. If ≥1 agent online → business hours.
 
 #### 3.4.1.5 `record_outcome`
 
-**Implementation**:
-1. Write to local `session_outcomes` table
-2. Update `Bot_Session__c.ContainmentOutcome__c` via Salesforce REST
-3. Write `OUTCOME_RECORDED` event to `Bot_Event__c`
-4. Publish Avro event to Kafka analytics topic
-5. **retry_on_failure: true** — if any sink fails, retry once; log failure but don't block session close
+> **[FOLD-BACK 2026-05-11]** Delivered shape: the canonical projected arg is **`outcome_class: string`** with lowercase enum `resolve | escalate | abandon` (Sprint 9 §O0). The legacy `outcome` arg name and the uppercase past-tense forms (`RESOLVED / ESCALATED / ABANDONED`) are still accepted by `RecordOutcomeTool.normalizeOutcomeClass`; the persisted column in `session_outcomes` keeps the legacy uppercase form so downstream eval/L1 readers are unaffected. `escalation_reason` is required when the normalized class is `escalate`. The progressive-resolve guard (§3.3.3) rejects `outcome_class=resolve` on RESOLVE/FAQ plans before deterministic terminal evidence has been produced.
+
+**Implementation (current)**:
+1. Read `outcome_class` (canonical) or `outcome` (legacy alias); normalise via `normalizeOutcomeClass(...)` to lowercase canonical.
+2. Require `escalation_reason` if normalised class is `escalate`.
+3. Write a single row to the local `session_outcomes` table via `SessionOutcomeRepository.save(...)` (persisted form: uppercase `RESOLVED / ESCALATED / ABANDONED`). **Cite: `RecordOutcomeTool.execute(...)`**.
+4. Return `{session_id, outcome_class (canonical lowercase), outcome (persisted uppercase), use_case_id}`.
+
+> **[FUTURE_DESIGN]** The original §3.4.1.5 sink list — Salesforce `Bot_Session__c.ContainmentOutcome__c` update via REST, `OUTCOME_RECORDED` event to `Bot_Event__c`, Avro publish to a Kafka analytics topic, and per-sink retry-on-failure — describes the intended production sink topology and is **not currently wired into `RecordOutcomeTool`**. The tool's live side effect is local-only. Preserved as durable design intent; see TODO_DECISION below for whether this tool should grow into the multi-sink owner or whether those sinks belong elsewhere.
 
 #### 3.4.1.6 `classify_use_case` *(added 2026-05-02 — see phase0 §0.6 deviation)*
 
@@ -875,10 +1051,13 @@ Endpoint:  Internal — KnowledgeRetrievalService.search()
 **Implementation**:
 1. Validate `use_case_id` against `UseCaseRegistryService.isKnownUseCase(...)` — if invalid return failure with reason `unknown_use_case`.
 2. Validate `confidence` is numeric and in `[0, 1]` — else `invalid_confidence`.
-3. Set `session.activeUseCase = use_case_id`, `session.intentConfidence = BigDecimal(confidence)`.
-4. Persist via `BotSessionRepository.save(session)`.
-5. Emit a `CLASSIFICATION_COMMITTED` event row (sessionId, payload `{use_case_id, confidence, reasoning}`).
-6. Return success payload `{committed: true, use_case_id, confidence}`. The AgentRunLoop continues — the LLM can then call `search_knowledge` or emit a final user_message; `PhaseEvaluator.interpretRunResult` already transitions DISCOVER → RESOLVE on FINAL_ANSWER once `activeUseCase != null`.
+3. **Strong-prior carry-forward guard** (Sprint §C2; cite: `ClassifyUseCaseTool.shouldPreserveStrongPrior`): if the session already has an `activeUseCase` matching the deterministic strong-prior / B2 phrase-bias UC for the current form context, refuse to overwrite with a *different* UC. Returns `{committed: false, preserved_use_case_id, rejected_use_case_id, reason: "strong_prior_carry_forward"}`. Idempotent re-classification with the same UC is allowed and still emits the event. Hard-shift drift (UC-G/I/J/H) is pre-empted by `DriftDetector` before the loop runs, so the guard releases on legitimate hard shifts.
+4. Set `session.activeUseCase = use_case_id`, `session.intentConfidence = BigDecimal(confidence)` (clamped to scale 2 to fit the column).
+5. Persist via `BotSessionRepository.save(session)`.
+6. Emit a `CLASSIFICATION_COMMITTED` event row (sessionId, payload `{use_case_id, confidence, reasoning}`).
+7. Return success payload `{committed: true, use_case_id, confidence}`.
+
+> **[FOLD-BACK 2026-05-11]** A successful classify_use_case in DISCOVER short-circuits the run loop with `TerminalOutcome.USE_CASE_IDENTIFIED`, which the kernel uses to trigger the bounded same-turn DISCOVER → RESOLVE replan described in §3.3.3. The note in step 6/7 of the original §3.4.1.6 text — "the AgentRunLoop continues" — was correct for the in-loop behaviour around classify_use_case before the same-turn replan landed; the live behaviour is now: *the AgentRunLoop returns USE_CASE_IDENTIFIED, and the kernel may then run a fresh RESOLVE plan in the same user turn if the wall-clock budget allows it*. `PhaseEvaluator.interpretRunResult` continues to map DISCOVER FINAL_ANSWER (no `classify_use_case` issued) into the appropriate transition based on whether `activeUseCase` was committed.
 
 ### 3.4.2 Runtime-Only Tools
 
@@ -886,10 +1065,13 @@ These are never exposed to LLM prompt. Triggered by runtime logic based on UC po
 
 #### `create_case_controlled`
 
-- **Triggered when**: `intake_complete` for UC-H, UC-J, or UC-K
-- **Validation**: `tool_policy_enforcer` checks UC ∈ {UC-H, UC-J, UC-K}; validates per-UC required fields (§2.10.5)
-- **API**: `POST /services/data/vXX.0/sobjects/Case` → Salesforce
-- **Field mapping**:
+> **[FOLD-BACK 2026-05-11]** Live wiring: `RUNTIME_ONLY` in `tool-policy.yaml` with no LLM-visible schema. The two live deterministic call sites — `ControlKernel.createCaseIfNeeded(...)` (escalation-time case creation) and `PhaseEvaluator.createCaseIfAllowed(...)` (legacy intake-complete path on the rollback `evaluate(...)` flow) — invoke `CreateCaseControlledTool.execute(...)` **directly**, bypassing both `ToolDispatcher.validateAgainstPlan` and `ToolPolicyEnforcer`. The deterministic caller gates the UC set (UC ∈ {UC-H, UC-J, UC-K}); the per-UC required-field validation lives **inside** `CreateCaseControlledTool.execute(...)` (cite: `CreateCaseControlledTool.REQUIRED_FIELDS_BY_UC` + the `missingFields` check at the top of `execute(...)`), so a missing field surfaces as a `ToolResult.error("Missing required fields for ...")` from the tool itself rather than being short-circuited by the caller. `ControlKernel.createCaseIfNeeded(...)` pulls `description` / `email` / `ad_id` best-effort from `BotSession.formContext` and forwards whatever is present; `PhaseEvaluator.createCaseIfAllowed(...)` is analogous. See §3.3.3 "Direct runtime tool invocations". Production Salesforce Case creation is **gated by `docs/release_gate.md` §1.1** (single-owner handover orchestrator before Salesforce cutover) — today the local/mock implementation writes a `MockCase` row via `MockSalesforceService` rather than calling the real Salesforce REST API.
+
+- **Triggered when (live)**: `ControlKernel.createCaseIfNeeded(...)` on escalation for UC-H / UC-J / UC-K; `PhaseEvaluator.createCaseIfAllowed(...)` on the legacy intake-complete rollback path.
+- **Validation (live)**: deterministic Java caller checks UC ∈ {UC-H, UC-J, UC-K} before invoking the tool; per-UC required-field validation (§2.10.5) is enforced **inside** `CreateCaseControlledTool.execute(...)` and surfaces as a tool-level `ToolResult.error` when a required field is absent. `ToolPolicyEnforcer` is **not** in this path.
+- **API (current)**: local/mock — `MockSalesforceService.createCase(...)` writes a `MockCase` row.
+- **API (future, gated by `release_gate.md` §1.1)**: `POST /services/data/vXX.0/sobjects/Case` → Salesforce.
+- **Field mapping** (intent — applies to both mock and the future Salesforce call):
 
 | Case Field | Source |
 |-----------|--------|
@@ -904,14 +1086,20 @@ These are never exposed to LLM prompt. Triggered by runtime logic based on UC po
 
 #### `lookup_customer_account` / `lookup_listing_or_ad` / `get_moderation_review_context` / `get_message_moderation_context`
 
-Internally invoked by `get_customer_context` — see §3.4.1.3. No separate external surface.
+> **[FOLD-BACK 2026-05-11]** These four tool beans are registered with `type: RUNTIME_ONLY` in `tool-policy.yaml` but have **no live deterministic caller** today. The original §3.4.2 text said they were "internally invoked by `get_customer_context`"; that is not what the live runtime does. `GetCustomerContextTool.execute(...)` calls `GumtreeApiService` (`getAccountByEmail` / `getListingByAdId` / `getModerationReview`) **directly**, not via tool dispatch — the four tool beans are not reached from this path. They are therefore dormant runtime-only beans: present in the registry, agent-invisible by `tool-policy.yaml`, and never triggered. See also the "Dormant runtime-only tools" TODO_DECISION in [`docs/current/runtime_contract.md`](../current/runtime_contract.md).
+>
+> **[FUTURE_DESIGN]** The original design intent — a composite `get_customer_context` that fans out via tool dispatch to per-API runtime tools (so each leg gets a `ToolEvent` row, scope enforcement, and a uniform trace shape) — is preserved as forward-looking design. The sections below describe that intent and are **not** the live behaviour.
 
-**`get_message_moderation_context`** (v0.2.1 新���，V1 scope confirmed):
+Designed external surface (intent — not how the live runtime is wired): invoked by `get_customer_context` — see §3.4.1.3.
+
+**`get_message_moderation_context`** (v0.2.1; V1 scope confirmed at design time) **[FUTURE_DESIGN / DEFERRED — no live deterministic caller]**:
 - **Allowed UCs**: UC-C only
-- **Trigger**: `get_customer_context` in UC-C messaging diagnostic scenarios (user reports "can't get replies" / "messages not working")
+- **Designed trigger**: `get_customer_context` in UC-C messaging diagnostic scenarios (user reports "can't get replies" / "messages not working"). **Live today**: not wired — `GetCustomerContextTool` does not dispatch this bean; UC-C diagnostic resolution does not currently include a message-moderation lookup.
 - **API**: `POST /history/moderation/search` → message-moderation-history microservice
 - **Purpose**: Determine if user's messages are being blocked by platform safety filters vs. simply unread by recipients
 - **Output**: `has_blocked_messages` flag + count + reason summary → feeds into UC-C diagnostic resolution path (Phase 2 §2.6 UC-C-01)
+
+> **TODO_DECISION (dormant runtime-only tools)**: Decide whether `lookup_customer_account`, `lookup_listing_or_ad`, `get_moderation_review_context`, and `get_message_moderation_context` should be (a) **retired** (deleted from the registry / `tool-policy.yaml` because `GetCustomerContextTool` already speaks to `GumtreeApiService` directly), (b) **wired** as the back-end legs of a refactored `GetCustomerContextTool` that dispatches through `ToolDispatcher` so each leg produces its own `ToolEvent` and obeys `ToolPolicyEnforcer`, or (c) **explicitly kept as future design** with a `@Deprecated` annotation and a doc pointer so they do not look like live wiring. Owner: runtime-contract holder. Mirror to [`docs/current/runtime_contract.md`](../current/runtime_contract.md) once decided.
 
 ### 3.4.3 Runtime Capabilities (Non-Tool)
 
@@ -1025,7 +1213,9 @@ Pipeline:
 ```text
 User query
   │
-  ├─ 1. Embed query → Vertex AI text-embedding-004 (768-dim)
+  ├─ 1. Embed query → embedding client (768-dim)
+  │     [FOLD-BACK 2026-05-11] Live: DashScopeEmbeddingClient + text-embedding-v3.
+  │     [FUTURE_DESIGN] Vertex AI text-embedding-004 preserved as production intent.
   │
   ├─ 2. pgvector ANN search (ef_search=100, iterative_scan=relaxed_order)
   │     WHERE is_published=true AND uc_tags && {active_uc_tags}
@@ -1215,7 +1405,7 @@ If any pattern matches → log `GUARDRAIL_VIOLATION` event → substitute with s
 | Prompt templates | `prompt-v{major}.{minor}.{patch}` | `/src/main/resources/prompts/` |
 | Projection policy | `projection-v{major}.{minor}` | Code constant + config |
 | Control policy (budgets, transitions) | `control-v{major}.{minor}` | Code constant + config |
-| Tool schemas | `toolspec-v{major}.{minor}` | `customer_service_tool_spec_v0_2.yaml` |
+| Tool schemas | `toolspec-v{major}.{minor}` | **Live: [`docs/current/customer_service_tool_spec_v0_3.md`](../current/customer_service_tool_spec_v0_3.md)**, sourced from `server/src/main/resources/config/tool-policy.yaml` + Java tool beans. The original `customer_service_tool_spec_v0_2.yaml` reference is preserved here as the legacy artifact. |
 | Eval suite | `eval-v{major}.{minor}` | `data/eval_datasets/` |
 | Script library | `scripts-v{major}.{minor}` | `/src/main/resources/scripts/` |
 
@@ -1232,7 +1422,7 @@ All versions recorded in `bot_sessions` and `bot_turns` tables for traceability.
 | `SESSION_STARTED` | First message received | session_id, traffic_variant, form_context (redacted), prompt_version |
 | `USE_CASE_INFERRED` | DISCOVER phase completes | active_use_case, candidate_use_cases, intent_confidence, routing_signal_source |
 | `RETRIEVAL_EXECUTED` | After `search_knowledge` | query (v9: enriched query, not raw userMessage), result_count, top_score, faq_miss, retrieval_latency_ms |
-| `ARTICLE_SHOWN` | After `resolve_article` | source_ids[], canonical_urls[] |
+| `ARTICLE_SHOWN` | **[FOLD-BACK 2026-05-11]** Emitted by `ControlKernel.recordRunResult(...)` after a run completes, **one event per `source_id`** drawn from successful `search_knowledge` `hits[*].source_id` entries (cite: `ControlKernel.java` aggregation block — `if ("search_knowledge".equals(te.toolName()) && te.success())` plus `for (String sid : sourceIds)` calling `eventEmitter.emitArticleShown(...)`). Successful `resolve_article` events do not currently feed this aggregation — see the §3.4.1.2 fold-back note. The original "after `resolve_article`" wording is **superseded** | **[FOLD-BACK 2026-05-11]** Live payload (cite: `EventEmitter.emitArticleShown(...)`): `articleId` (string — the source id passed in from the kernel) and `title` (string or null — `ControlKernel.recordRunResult(...)` currently passes `null`, see L2045–2046). The original "source_id, canonical_urls[]" contract is **not** what the emitter writes today; see the ARTICLE_SHOWN payload-contract TODO_DECISION in §3.3.3. |
 | `CLARIFICATION_ASKED` | After bot turn where `tool_calls` is empty AND `user_message` contains a question (heuristic: ends with `?` or contains clarifying language). Detected by ControlKernel post-LLM. | clarification_count, question_topic |
 | `ESCALATION_REQUESTED` | Handover initiated | escalation_reason, is_business_hours, queue, case_id |
 | `CASE_CREATED` | After `create_case_controlled` | case_id, use_case_id, topic_subject |
@@ -1276,14 +1466,16 @@ All versions recorded in `bot_sessions` and `bot_turns` tables for traceability.
 
 ### 3.8.3 Event Pipeline
 
+> **[FOLD-BACK 2026-05-11]** Live wiring: `EventEmitter` writes the local `bot_events` table only via `BotEventRepository.save(...)`; `bot_turns` and `session_outcomes` are written by their respective repository call sites. **Salesforce sync (`Bot_Session__c`, `Bot_Event__c`) and Kafka Avro publish are not wired** — the diagram below preserves the durable production sink topology and is gated by the production cutover (`docs/release_gate.md` §1.1).
+
 ```text
 Bot Runtime
   │
-  ├─► PostgreSQL (bot_turns, session_outcomes)    — local hot store
-  ├─► Salesforce (Bot_Session__c, Bot_Event__c)   — agent-visible + reporting
-  └─► Kafka (Avro, analytics topic)               — data warehouse pipeline
+  ├─► PostgreSQL (bot_turns, session_outcomes, bot_events)    — local hot store [LIVE]
+  ├─► Salesforce (Bot_Session__c, Bot_Event__c)               — agent-visible + reporting [FUTURE_DESIGN — gated by release_gate.md §1.1]
+  └─► Kafka (Avro, analytics topic)                            — data warehouse pipeline [FUTURE_DESIGN — gated by release_gate.md §1.1]
        │
-       └─► BigQuery / Looker (downstream)          — dashboards
+       └─► BigQuery / Looker (downstream)                       — dashboards [FUTURE_DESIGN]
 ```
 
 ### 3.8.4 V1 Minimal Funnel Dashboard
@@ -1302,29 +1494,35 @@ Bot Runtime
 
 ### 3.8.5 LLM Provider Identification Logging
 
-All LLM call-sites MUST emit structured INFO-level logs that identify the provider, model, and scenario in use. This enables rapid verification of which LLM backs each feature, especially after provider/model switches (e.g. DashScope → Kimi K2.6) and to distinguish primary vs fallback invocations introduced by the §3.9.1 Kimi → DeepSeek fallback path.
+All LLM call-sites MUST emit structured INFO-level logs that identify the provider, model, and scenario in use. This enables rapid verification of which LLM backs each feature, especially after provider/model switches (e.g. DashScope → Kimi K2.6) and to distinguish primary vs fallback invocations introduced by the §3.9.1 fallback path.
 
-> **Chat-completion provider lineup (deviation 2026-05-01 — phase0 §0.6)**: `LlmInvocationService` (server-side agent loop) treats Kimi 2.6 as **primary** and DeepSeek v4 pro as **fallback** for chat completions. Embeddings remain DashScope-only (`text-embedding-v3`, 768-dim) and are unaffected. The `eval_interactive` harness (its own user-simulator + judge LLM) also uses DashScope `qwen-plus` and is not in scope. See §3.9.1 "Degraded mode" for the fallback decision logic.
+> **[FOLD-BACK 2026-05-11]** Chat-completion provider lineup: `LlmInvocationService` (server-side agent loop) treats **DeepSeek v4 pro as primary** and **Kimi 2.6 as fallback** per Sprint 8.1 follow-up #2 (cite: `LlmClientConfig.llmClient(...)` constructs `new FallbackLlmClient(deepseekLlmClient, kimiLlmClient, "deepseek", "kimi")`). Embeddings remain DashScope-only (`text-embedding-v3`, 768-dim) and are unaffected. The `eval_interactive` harness (its own user-simulator + judge LLM) also uses DashScope `qwen-plus` and is not in scope. See §3.9.1 "Degraded mode" for the fallback decision logic and the original deviation history.
 >
-> Operationally this means a single chat turn may produce one or two `LLM request:` log lines (primary attempt + optional fallback attempt), and the corresponding row(s) in `llm_call_log` will record the actual model that served the request (`kimi-k2.6` vs `deepseek-v4-pro`).
+> Operationally this means a single chat turn may produce one or two `LLM [chat:request]` log lines (primary attempt + optional fallback attempt). **[FOLD-BACK 2026-05-11]** The corresponding row in `llm_call_log` does **not** reflect the actually-served model: `LlmInvocationService` captures `modelName = llmProperties.getDeepseek().getModel()` once at construction (cite: `LlmInvocationService` constructor — Sprint 8.1 follow-up #2 comment "Telemetry tag for the modelName surface points at the primary's model so trace metadata reflects the model that ran most often. Fallback model leaks into per-call client logs already.") and writes that same `modelName` into every `llmCallLogger.log(...)` call for both primary success and fallback success. `LlmResponse` carries no provider/model field today (cite: `model/LlmResponse.java` — only `content`, `finishReason`, `promptTokens`, `completionTokens`, `latencyMs`), so the per-call client cannot tell the logger which provider actually served the request. The authoritative source for "which provider served this attempt" is the `LLM [chat:request] / [chat:response] / [chat:fallback-engaged]` process-log lines on `OpenAiCompatibleLlmClient` / `FallbackLlmClient`. See the LLM observability fidelity TODO_DECISION in §3.3.3.
 
 #### Startup log (once per boot)
 
-On application startup, `OpenAiCompatibleLlmClient` logs the resolved LLM configuration. After the deviation 2026-05-01 fallback work lands, the line MUST include the DeepSeek fallback block alongside the existing primaries:
+On application startup, `LlmClientConfig.llmClient(...)` logs the resolved provider lineup via `LlmConfigValidator.describe(...)` (the validator reports key presence as `present | placeholder | blank` and never logs the secret itself):
 
 ```
-INFO  LLM config loaded: kimi=[model=kimi-k2.6, baseUrl=https://api.moonshot.ai/v1] (primary chat), deepseek=[model=deepseek-v4-pro, baseUrl=https://api.deepseek.com/v1] (fallback chat), dashscope=[chatModel=qwen-plus, baseUrl=https://dashscope.aliyuncs.com/compatible-mode/v1] (embedding + eval-side only)
+INFO  LLM provider lineup: <describe(props) output — deepseek primary, kimi fallback, dashscope embedding-only>
 ```
+
+> **[FOLD-BACK 2026-05-11]** Live source-of-truth is `LlmClientConfig.java` line `log.info("LLM provider lineup: {}", LlmConfigValidator.describe(props));`. The earlier `LLM config loaded:` line documented here previously did not match any live log; the live startup line is `LLM provider lineup:`.
 
 #### Per-request logs (every LLM call)
 
 | Layer | Log pattern | Level | Key fields |
 |-------|-------------|-------|------------|
-| `OpenAiCompatibleLlmClient` (request) | `LLM request: provider={}, model={}, url={}, role={}` | INFO | provider (Kimi / DeepSeek / DashScope), model name, full endpoint URL, role (`primary` / `fallback`) |
-| `OpenAiCompatibleLlmClient` (response) | `LLM response: model={}, latency={}ms, tokens={}/{}` | INFO | model, latency, prompt/completion tokens |
-| `LlmInvocationService` | `LLM [chat] ...` / `LLM [routing] ...` | INFO | scenario tag, latency, token counts; on fallback engagement also emit `LLM [chat:fallback-engaged] reason={exceptionClass}, primary=kimi-k2.6, fallback=deepseek-v4-pro` |
+| `OpenAiCompatibleLlmClient` (request) | `LLM [chat:request] provider={} model={} url={} attempt={}` | INFO | provider (`deepseek` / `kimi` / `dashscope`), model name, full endpoint URL, retry attempt index (1-based) |
+| `OpenAiCompatibleLlmClient` (response) | `LLM [chat:response] provider={} model={} attempt={} latency={}ms tokens={}/{}` | INFO | provider, model, attempt, latency, prompt/completion tokens |
+| `OpenAiCompatibleLlmClient` (retry / non-retryable) | `LLM [chat:retry] ...` / `LLM [chat:non-retryable-status] ...` / `LLM [chat:exhausted] ...` | WARN / ERROR | provider, attempt, status code, elapsed, retry decision |
+| `FallbackLlmClient` (fallback engagement) | `LLM [chat:fallback-engaged] primary={} failed transiently (...); ...` then `LLM [chat:fallback-success] fallback={} succeeded ...` or `LLM [chat:fallback-failed] both primary={} and fallback={} failed` | WARN / INFO / ERROR | primary label (`deepseek`), fallback label (`kimi`), failure class for engagement |
+| `LlmInvocationService` | `LLM [chat] response: latency={}ms, tokens={}/{}` / `LLM [routing] response: latency={}ms` | INFO | scenario tag, latency, token counts |
 | `RerankService` | `LLM [rerank] scored {} candidates, top={}` | INFO | candidate count, top score |
 | `DashScopeEmbeddingClient` | `Embedding request: provider=DashScope, model={}, texts={}` | INFO | model, batch size |
+
+> **TODO_DECISION (LLM logging contract source-of-truth)**: The live patterns above are emitted from `OpenAiCompatibleLlmClient` / `FallbackLlmClient` / `LlmInvocationService` and are the authoritative source. Decide whether this §3.8.5 table should (a) continue to mirror the live patterns by hand and accept fold-back drift each time the code log lines change, or (b) point at the code as source-of-truth and keep only the *contract* (which call sites MUST log provider + model + attempt + outcome) in this section. Owner: observability holder.
 
 #### Python eval_interactive logs
 
@@ -1338,23 +1536,31 @@ INFO  LLM config loaded: kimi=[model=kimi-k2.6, baseUrl=https://api.moonshot.ai/
 Quick verification command after deployment or config change:
 
 ```bash
-grep "LLM request:" /tmp/csagent.log | head -5    # Which provider/model per call
-grep "LLM config loaded:" /tmp/csagent.log         # Startup config summary
+grep "LLM \[chat:request\]" /tmp/csagent.log | head -5    # Which provider/model/attempt per call
+grep "LLM provider lineup:" /tmp/csagent.log              # Startup provider lineup (deepseek primary, kimi fallback)
+grep "LLM \[chat:fallback-engaged\]" /tmp/csagent.log     # When the primary fell through to the fallback
 ```
 
 ### 3.8.6 LLM Call Log (v9 — Full Observability)
 
-Problem statement: the existing trace system only records the **final** LLM response per turn (in `bot_turns.llm_raw_response`). Routing calls, rerank calls (N per turn), and retry calls are completely invisible — creating a 100% observability blackout for the majority of LLM invocations.
+Problem statement: the existing trace system only records the **final** LLM response per turn (in `bot_turns.llm_raw_response`). Routing calls and rerank calls (N per turn) are completely invisible — creating a major observability gap for the non-chat LLM invocations.
 
-**Solution**: dedicated `llm_call_log` table that records **every** LLM call regardless of call site.
+**Solution**: dedicated `llm_call_log` table that records **logical app-level LLM calls** (one row per `routing` / `chat` / `rerank` invocation).
+
+> **[FOLD-BACK 2026-05-11]** Coverage contract — live behaviour: `llm_call_log` records **one row per logical app-level LLM invocation**, across three logger-emitted `call_type` values:
+> - **`chat`** — one row per `LlmInvocationService.invokeChat(...)` call. This is **per `AgentRunLoopImpl.run(...)` iteration**, not per user turn: a single user turn that drives the loop through multiple steps (e.g. `search_knowledge` → `resolve_article` → final answer) produces **multiple `chat` rows for the same `session_id` / `turn_index`**, one per loop step that actually reached the LLM. Provider-level retry and primary→fallback attempts inside `OpenAiCompatibleLlmClient` / `FallbackLlmClient` are folded into the single `chat` row for that invocation and surface only in the `LLM [chat:request] / [chat:retry] / [chat:fallback-engaged] / [chat:response]` process logs.
+> - **`routing`** — one row per `LlmInvocationService.invokeRouting(...)` call. The only live call site is `UseCaseRouter.routeViaLlm(...)`, reached on the **blocking** route path (`UseCaseRouter.route(..., allowLlm=true)`). The session-init create path (`SessionManager.createSession(...)`) explicitly takes `UseCaseRouter.routeNonBlocking(...)` (Sprint 8.1 §M0), which short-circuits before `routeViaLlm`, so **no `routing` row is written at session create today**. The earlier "1 per session init" wording is incorrect; see the TODO_DECISION below for whether `routing` is now an inert call-type slot in the live runtime.
+> - **`rerank`** — one row per `RerankService.scoreCandidate(...)` call (typically 4–8 per `search_knowledge` invocation).
+>
+> The earlier "records every LLM call regardless of call site" wording overstates this. See the call-log coverage TODO_DECISION in §3.3.3 and the new per-turn cardinality / non-blocking-routing TODO_DECISION below.
 
 ```sql
 CREATE TABLE llm_call_log (
     id                  BIGSERIAL PRIMARY KEY,
-    session_id          TEXT NOT NULL REFERENCES bot_sessions(session_id),
-    turn_index          INT,                         -- NULL for routing (pre-turn)
-    call_type           TEXT NOT NULL,                -- 'routing' | 'chat' | 'rerank' | 'retry'
-    model               TEXT NOT NULL,                -- e.g. 'kimi-k2.6'
+    session_id          TEXT NOT NULL,                -- [FOLD-BACK 2026-05-11] live migration V9 has no FK to bot_sessions
+    turn_index          INT,                          -- NULL for routing (pre-turn)
+    call_type           TEXT NOT NULL,                -- live: 'routing' | 'chat' | 'rerank'
+    model               TEXT NOT NULL,                -- e.g. 'kimi-k2.6' — see §3.8.5 fold-back: this is the configured primary, not the actually-served provider
     prompt_tokens       INT,
     completion_tokens   INT,
     latency_ms          INT NOT NULL,
@@ -1369,14 +1575,16 @@ CREATE INDEX idx_llm_call_session ON llm_call_log(session_id, turn_index);
 CREATE INDEX idx_llm_call_type ON llm_call_log(call_type);
 ```
 
-**Instrumented call sites**:
+> **[FOLD-BACK 2026-05-11]** Live `server/src/main/resources/db/migration/V9__create_llm_call_log.sql` defines `session_id TEXT NOT NULL` with **no foreign key** to `bot_sessions(session_id)`. The `REFERENCES bot_sessions(session_id)` clause shown above is the **[FUTURE_DESIGN]** intent and is **not** in the live migration; see the FK shape TODO_DECISION in §3.3.3. Similarly, `'retry'` is preserved as a forward-looking call-type slot but is **not** written by any live logger today.
+
+**Instrumented call sites** (live):
 
 | Call Site | `call_type` | `turn_index` | Notes |
 |-----------|-------------|--------------|-------|
-| `LlmInvocationService.invokeRouting()` | `routing` | NULL | 1 per session init |
-| `LlmInvocationService.invokeChat()` | `chat` | current turn | Main agent LLM call |
-| `LlmInvocationService.invokeChat()` (retry) | `retry` | current turn | When first call returns invalid action |
-| `RerankService.scoreCandidate()` | `rerank` | current turn | N per search (4–8 candidates) |
+| `LlmInvocationService.invokeRouting()` | `routing` | NULL | One row per blocking `UseCaseRouter.routeViaLlm(...)` (cite: `LlmInvocationService.java:266`). **Not** called from `SessionManager.createSession(...)`: that path uses `UseCaseRouter.routeNonBlocking(...)` and short-circuits before any LLM call (Sprint 8.1 §M0), so today no `routing` row is normally produced — see the §3.3.3 "`llm_call_log` per-turn cardinality + non-blocking-routing coverage" TODO_DECISION |
+| `LlmInvocationService.invokeChat()` | `chat` | current turn | One row **per `AgentRunLoopImpl.run(...)` loop iteration** that reaches the LLM, not per user turn (cite: `LlmInvocationService.java:114`, `AgentRunLoopImpl.run(...)` step 2 inside the per-step loop). A single user turn driving multiple loop steps produces multiple `chat` rows sharing the same `session_id` / `turn_index`. Provider retry / fallback attempts are **not** separate `chat` rows — they are folded into the single `chat` row for that invocation and visible only in process logs |
+| `RerankService.scoreCandidate()` | `rerank` | current turn | N per search (4–8 candidates) (cite: `RerankService.java:160`) |
+| **[FUTURE_DESIGN]** retry / per-provider attempt rows | `retry` | current turn | Not written by any live logger today; preserved as the v9 aspirational coverage |
 
 **Trace API endpoint**:
 
@@ -1419,23 +1627,29 @@ Response:
 
 ### 3.9.1 Reliability
 
+> **[FOLD-BACK 2026-05-11]** The original cells in this table mix delivered behaviour with future Salesforce-cutover behaviour and pre-date the Sprint 8.1 follow-up #2 LLM provider reversal. The fold-back markers below correct the live claims; durable production-design intent is preserved verbatim under each row.
+
 | Requirement | Implementation |
 |-------------|---------------|
-| Handover request retryable | `request_handover` retries once on Salesforce API failure; if still fails → return `failed` status + log alert; degrade to "please contact us again" message |
-| State write verifiable | PostgreSQL transaction with `RETURNING` clause; Salesforce write verified via HTTP 201 response |
-| Degraded mode | **Two-tier fallback (deviation 2026-05-01 — phase0 §0.6)**: Server-side chat completion has primary = Kimi 2.6, fallback = DeepSeek v4 pro. `LlmInvocationService` (or its underlying client wrapper) catches a defined set of transient failure classes from the primary call — timeout, HTTP 5xx, rate-limit (HTTP 429), and provider-specific connection-reset / circuit-broken exceptions (the exact exception classes are enumerated by the implementer based on the actual client surface) — and automatically retries the same prompt against DeepSeek v4 pro with the same tool schema. Non-transient errors (4xx other than 429, parse failures, prompt-too-long) skip the fallback and surface immediately. If both providers fail, `AgentRunResult.ERROR` is produced and handled by the §3.3.3 ERROR retry threshold (≥ 2 errors in current phase → `ESCALATE` with `escalation_reason = runtime_error_threshold`). After the threshold is exceeded the user-facing message remains "I'm having trouble right now — let me connect you to the team." (`escalation_reason = service_degraded` is retained for non-LLM degraded paths.) Fallback is for chat completions only — embeddings (`DashScopeEmbeddingClient`) are unaffected, and the Python `eval_interactive` harness's own LLM (DashScope `qwen-plus` per `eval_interactive.yaml`) is out of scope. Provider configuration: `application-local.yml` `llm.kimi` (primary) + `llm.deepseek` (fallback) blocks; env vars `KIMI_*` (existing) and `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` (default `https://api.deepseek.com/v1`) / `DEEPSEEK_MODEL` (default `deepseek-v4-pro`). DeepSeek's API is OpenAI-compatible, so the implementer can either reuse `OpenAiCompatibleLlmClient` with swapped base-url/key/model or introduce a thin `DeepSeekClient` wrapper. |
-| No data loss on crash | Session state persisted to PostgreSQL on every turn completion; Salesforce sync is async but has retry queue |
+| Handover request retryable | **[FUTURE_DESIGN — gated by `docs/release_gate.md` §1.1]** `request_handover` retries once on Salesforce API failure; if still fails → return `failed` status + log alert; degrade to "please contact us again" message. **Live today**: `RequestHandoverTool` calls `SalesforceService.requestHandover(...)`; the local `MockSalesforceService` writes a single `MockHandoverLog` row and returns `transferred` / `offline_logged` based on `mockProperties.isBusinessHours()`. There is no real Salesforce retry path because there is no real Salesforce client wired yet. See §3.4.1.4. |
+| State write verifiable | **[FOLD-BACK 2026-05-11]** PostgreSQL writes are attempted via Spring Data JPA `…Repository.save(...)` (e.g. `BotSessionRepository.save(...)`, `BotEventRepository.save(...)`, `BotTurnRepository.save(...)`) within the surrounding `@Transactional` boundary. Core write entities (`BotTurn`, `BotEvent`, `SessionOutcome`) use **application-assigned** IDs (cite: `BotTurn.@Id turnId`, `BotEvent.@Id eventId`, `SessionOutcome.@Id sessionId` — no `@GeneratedValue`), so the JPA flush does not produce a generated-id round-trip. No `RETURNING` clause exists in `server/src/main/resources/db/migration/*.sql` or in runtime write paths, and **no explicit row-echo verification exists today** beyond JDBC's reported affected-row count. The original "PostgreSQL transaction with `RETURNING` clause" wording is preserved here as the durable design intent (explicit DB-level verification of the inserted row) but is **not** what the live runtime does. **[FUTURE_DESIGN — gated by `docs/release_gate.md` §1.1]** Salesforce write verified via HTTP 201 response — no real Salesforce write path exists in the live runtime; the mock returns deterministic strings rather than HTTP-201 verification. |
+| Degraded mode | **[FOLD-BACK 2026-05-11]** Live wiring is **DeepSeek v4 pro primary + Kimi 2.6 fallback** (cite: `LlmClientConfig.llmClient(...)` constructs `new FallbackLlmClient(deepseekLlmClient, kimiLlmClient, "deepseek", "kimi")` per Sprint 8.1 follow-up #2). The transient-failure classes catalogued below still describe the trigger conditions for fallback engagement; only the primary/fallback identity is reversed. **Provider-chain failure does NOT surface as `AgentRunResult.ERROR` today**: `AgentRunLoopImpl` catches `LlmDeadlineExceededException` → `TerminalOutcome.DEADLINE_EXCEEDED` and `LlmUnavailableException` → `TerminalOutcome.LLM_UNAVAILABLE`, both of which `PhaseEvaluator.interpretRunResult(...)` (Sprint 8.1 §M2) intentionally **does not escalate** — the session stays in the current phase with `shouldEndChat=false` so the user can retry on their next message, rather than producing a fake business handover that hides the real infra failure. The `runtime_error_threshold` ESCALATE path is reached only when the loop produces `ERROR` (null plan, projection-build exception, or generic LLM-invocation exception) **twice consecutively** — see §3.3.3 "Runtime ERROR retry threshold". The original 2026-05-01 deviation text below is preserved as the historical decision log; treat the live `LlmClientConfig.llmClient(...)` constructor and the §3.3.3 ERROR / DEADLINE_EXCEEDED / LLM_UNAVAILABLE behaviour as authoritative. **Two-tier fallback (deviation 2026-05-01 — phase0 §0.6, superseded by Sprint 8.1 follow-up #2)**: Server-side chat completion originally had primary = Kimi 2.6, fallback = DeepSeek v4 pro. `LlmInvocationService` (or its underlying client wrapper) catches a defined set of transient failure classes from the primary call — timeout, HTTP 5xx, rate-limit (HTTP 429), and provider-specific connection-reset / circuit-broken exceptions (the exact exception classes are enumerated by the implementer based on the actual client surface) — and automatically retries the same prompt against the fallback with the same tool schema. Non-transient errors (4xx other than 429, parse failures, prompt-too-long) skip the fallback and surface immediately. After the threshold is exceeded the user-facing message remains "I'm having trouble right now — let me connect you to the team." (`escalation_reason = service_degraded` is retained for non-LLM degraded paths.) Fallback is for chat completions only — embeddings (`DashScopeEmbeddingClient`) are unaffected, and the Python `eval_interactive` harness's own LLM (DashScope `qwen-plus` per `eval_interactive.yaml`) is out of scope. Provider configuration: `application-local.yml` `llm.kimi` + `llm.deepseek` blocks; env vars `KIMI_*` and `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` (default `https://api.deepseek.com/v1`) / `DEEPSEEK_MODEL` (default `deepseek-v4-pro`). DeepSeek's API is OpenAI-compatible, so the implementer can either reuse `OpenAiCompatibleLlmClient` with swapped base-url/key/model or introduce a thin `DeepSeekClient` wrapper. |
+| No data loss on crash | Session state persisted to PostgreSQL on every turn completion is delivered. **[FUTURE_DESIGN — gated by `docs/release_gate.md` §1.1]** "Salesforce sync is async but has retry queue" describes the future production sync path; no Salesforce sync queue is wired in the live runtime today. |
 | Idempotent message handling | Dedup on `(session_id, turn_index)` unique constraint; replay-safe |
+
+> **TODO_DECISION (State-write verification semantics)**: The original "PostgreSQL transaction with `RETURNING` clause" wording specified DB-level row-echo verification, but no `RETURNING` clause exists today in either migrations or runtime write paths — all writes use Spring Data JPA `Repository.save(...)` with application-assigned IDs on `BotTurn` / `BotEvent` / `SessionOutcome` (no `@GeneratedValue`, so no generated-id round-trip either). Decide whether (a) the "verifiable write" contract should be reframed to "JPA-managed write inside `@Transactional` with no explicit row-echo verification" (treat the live behaviour as the contract), (b) introduce explicit `RETURNING` semantics on critical write paths (`bot_sessions`, `bot_events`, `bot_turns`, `session_outcomes`) where row-echo verification is genuinely needed, or (c) keep `RETURNING` as forward-looking intent for the production Salesforce-cutover write path only. Owner: persistence-layer holder.
 
 ### 3.9.2 Performance
 
+> **[FOLD-BACK 2026-05-11]** The FAQ-answer p95 budget and the escalation-request p95 budget include Salesforce write / Transfer API contributions that are **not wired in the live runtime today** (production Salesforce cutover gated by `docs/release_gate.md` §1.1; live handover writes a `MockHandoverLog` row only — see §3.4.1.4). The targets are preserved as durable production-design intent; today's live latency profile excludes the Salesforce contribution.
+
 | Metric | Target | Enforcement |
 |--------|--------|-------------|
-| FAQ answer e2e p95 | ≤ 5s | Includes: query embedding (~100ms) + pgvector search (~50ms) + rerank (~700ms parallel, was ~5s serial pre-v9) + LLM generation (~2–3s) + Salesforce write (~500ms) |
-| Escalation request e2e p95 | ≤ 3s | Salesforce Transfer API + payload write |
+| FAQ answer e2e p95 | ≤ 5s | Includes: query embedding (~100ms) + pgvector search (~50ms) + rerank (~700ms parallel, was ~5s serial pre-v9) + LLM generation (~2–3s) **+ Salesforce write (~500ms) [FUTURE_DESIGN — gated by `release_gate.md` §1.1]** |
+| Escalation request e2e p95 | ≤ 3s | **[FUTURE_DESIGN — gated by `release_gate.md` §1.1]** Salesforce Transfer API + payload write. **Live today**: `RequestHandoverTool` → `MockSalesforceService.requestHandover(...)` writes one `MockHandoverLog` row; no real Salesforce Transfer API call. |
 | Median turns for solved FAQ | ≤ 6 | Control budget enforcement |
 | pgvector query latency p95 | ≤ 100ms | HNSW index with ef_search=100; 218 articles / ~500 chunks is small dataset |
-| Vertex AI Embedding latency p95 | ≤ 200ms | Single query embedding (768-dim) |
+| Embedding latency p95 | ≤ 200ms | Single query embedding (768-dim). **[FOLD-BACK 2026-05-11]** Live runtime: `DashScopeEmbeddingClient` with `text-embedding-v3`. **[FUTURE_DESIGN]** Vertex AI `text-embedding-004` preserved as the production-cutover intent; target latency applies to whichever provider is configured. |
 | Progress placeholder threshold | 1.5s | CompletableFuture timeout |
 
 ### 3.9.3 Privacy / Security
@@ -1454,7 +1668,7 @@ Response:
 | Requirement | Implementation |
 |-------------|---------------|
 | Clear versioned configs | All prompts, policies, tool schemas, scripts versioned with semver; recorded in trace |
-| Bounded tool surface | 5 agent-visible + 4 runtime-only; no tool added without eval-first |
+| Bounded tool surface | **6 agent-visible** (Sprint 2026-05-02 added `classify_use_case`) **+ 5 runtime-only** (1 active deterministic caller + 4 dormant — see [`runtime_contract.md`](../current/runtime_contract.md) TODO_DECISION); no tool added without eval-first |
 | Regression-friendly | All changes trigger eval via CI gate; eval datasets are ground truth |
 | Config vs code separation | Budgets, UC registry, escalation triggers → YAML config (hot-reloadable); control logic → code |
 | Repo structure | Standard Gumtree layout: `/server` (Spring Boot), `/helm-chart`, `/contract` (OpenAPI), `/data` (eval datasets + knowledge) |
@@ -1603,7 +1817,7 @@ Phase 4 (Coding Agent Implementation Packet) receives:
 | Runtime architecture + component breakdown | ✅ This document §3.1 |
 | State model DDL (PostgreSQL + Salesforce) | ✅ §3.2 |
 | Control kernel state machine + budgets + transitions | ✅ §3.3 |
-| Tool implementation specs (all 12 tools: 5 agent-visible + 5 runtime-only + 2 human-only; + 4 capabilities) | ✅ §3.4 |
+| Tool implementation specs (live: **6 agent-visible + 5 runtime-only + 0 human-only = 11 tools**, + 4 capabilities; original Phase 3 handoff line read "5 + 5 + 2") | ✅ §3.4 — see also [`docs/current/customer_service_tool_spec_v0_3.md`](../current/customer_service_tool_spec_v0_3.md) |
 | pgvector schema + retrieval pipeline + embedding config | ✅ §3.5 |
 | Handover payload schema + routing + UX | ✅ §3.6 |
 | Guardrails implementation (forbidden phrases, PII, versioning) | ✅ §3.7 |
