@@ -1,11 +1,39 @@
 # Current Handoff
 
-Date: 2026-05-09
+Date: 2026-05-11
 Branch: `design-v1-without-human-review`
 
 ## 1. Current phase
 
 Current phase:
+Sprint 17 (Iteration Governance Lite — G0) is the active sprint as of
+2026-05-11. G0 lands the minimum docs-only governance scaffolding so
+that every Sprint 18+ semantic change is evaluated against an explicit
+layer-classification gate and an anti-hardcode review prompt before
+merge. Three deliverable files changed plus one new sprint handoff:
+
+- `docs/current/iteration_governance.md` extended from 40-line
+  Constitution to a 506-line bundle (Constitution + Failure Brief
+  template + Fix Layer Classification checklist + Anti-Hardcode Review
+  Prompt + Eval Acceptance Rules + Architecture-Health Metric
+  definitions + Section 7 sprint-objective stanza).
+- `AGENTS.md` seeded with the constitution chain (Option A:
+  `@docs/current/iteration_governance.md` /
+  `@docs/current/doc_governance.md` /
+  `@docs/current/agent_context_guide.md`) so the existing `@AGENTS.md`
+  include in `CLAUDE.md` now resolves to non-empty content.
+- `docs/action_bank.md` updated: §1 Current phase = Sprint 17,
+  §3 Active actions table for G0.1 / G0.2 / G0.3 / G0.4 all done,
+  new §5.1 Governance track backlog for G1 / G2 deferred.
+
+No runtime, prompt, FAQ corpus, CaseSpec, judge, eval harness, test,
+or script changed. Codex Sprint 17 review returned
+`decision: pass, blocking_count: 0`. Full handoff:
+`docs/sprints/sprint-017-handoff.md`. Archive:
+`docs/sprints/sprint-017-iteration-governance-lite-objective.md` and
+`docs/sprints/sprint-017-codex-review.md`.
+
+Preceding sprint (most recently closed, Codex pass):
 Sprint 16 (Handover Exactly-Once Contract and Repro) landed as a
 docs + characterization-test sprint. No runtime behaviour was
 changed.
