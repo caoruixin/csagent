@@ -372,7 +372,7 @@ the docs scaffolding (Sprint 17). G1 and G2 build on G0's templates.
 | id | candidate | status | owner | notes |
 |---|---|---|---|---|
 | G1 | Human-led Failure Portfolio (10–20 representative failures from human experience / past traces, each filed as a Failure Brief per `docs/current/iteration_governance.md` §2) | done — Sprint 18 G1; 10 briefs filed (9 smoke + 1 manual-probe) at `docs/diagnostics/failure-briefs/`; full handoff `docs/sprints/sprint-018-handoff.md`; objective archive `docs/sprints/sprint-018-g1-failure-portfolio-objective.md` | deliver / human | unblocked G2; see §5.2 for the 18 R-items + 2 open observations the briefs surfaced |
-| G2 | Interactive Eval Case Family + Shadow Split (target / neighbor / negative / shadow per failure brief, with the shadow split readable only to the human / review agent per `docs/current/iteration_governance.md` §5.1) | deferred — after G1 (now unblocked); also blocked on `R-smoke-regression-investigation` from §5.2 below | deliver / eval governance | depends on G1 briefs (delivered Sprint 18); lands the case families and the shadow split. Recommended to follow the regression investigation sprint so G2 starts from a clean smoke baseline |
+| G2 | Interactive Eval Case Family + Shadow Split (target / neighbor / negative / shadow per failure brief, with the shadow split readable only to the human / review agent per `docs/current/iteration_governance.md` §5.1) | next — Sprint 20 primary track (G1 prerequisites cleared by Sprint 19 investigation) | deliver / eval governance | depends on G1 briefs (delivered Sprint 18) and the Sprint 19 §3.2 walks (smoke-baseline shape annotations); lands the target / neighbor / negative / shadow case families per failure brief and the shadow-split mechanism |
 
 ### 5.2 G1 surfaced backlog
 
@@ -423,13 +423,31 @@ instance confirms the pattern) is recorded in
 
 | id | source brief | description |
 |----|--------------|-------------|
-| R-runtime-orchestrator-tool-call-deduplication | manual-probe 2026-05-13 | `infra` layer per §3.2 Q1. 1 LLM request → 3 identical `search_knowledge` executions, same params / results. Investigate root cause among 3 hypotheses (phase transition re-trigger, Turn 1 failed-call replay, LLM new request). Document orchestrator's intended de-dup / idempotency contract. Add regression test. |
+| R-runtime-orchestrator-tool-call-deduplication | manual-probe 2026-05-13 | **status: partial** — layer reclassified to `semantic_planner` per Sprint 19 §4.3 (LLM emitted three identical `search_knowledge` calls across three consecutive AgentRunLoop steps within the same T2 RESOLVE; no orchestrator-side amplification; `AgentRunLoopImpl.java` has no de-duplication path). Remediation split into read-side `R-prompt-projection-already-called-soft-signal` (`prompt_projection`) for the soft-signal slot and write-side (the future `HandoverOrchestrator` design freeze in `docs/proposals/handover_orchestrator_design.md`). Sprint 19 de-dup / idempotency contract write-up at `docs/sprints/sprint-019-handoff.md` §4.2. |
 
 **External / regression discovery**
 
 | id | source | description |
 |----|--------|-------------|
-| R-smoke-regression-investigation | 2026-05-05 → 2026-05-10 smoke run drop (9/14 = 64% → 3/14 = 21%) | **P1, must resolve before G2** otherwise G2 case-family construction has no clean baseline. 6 cases regressed (cs_002, cs_011, cs_014, cs_038, cs_040, cs_066) with symptoms ranging from empty `escalation_reason` to `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP` to `CONTRACT_VIOLATION:active_use_case`. Sprints 14 / 14.1 / 15 / 16 all declared no-runtime-semantic-change; trace evidence may contradict. Recommended next sprint. |
+| R-smoke-regression-investigation | 2026-05-05 → 2026-05-10 smoke run drop (9/14 = 64% → 3/14 = 21%) | **status: partial** — P1 investigation complete (Sprint 19); remediation deferred across 3 follow-on R-items. 6 regressed cases resolved to a multi-shape root cause: 4 cases (cs_002 / cs_014 / cs_038 / cs_040) and 1 partial case (cs_011) share the slow-LLM placeholder loop (`infra`, see `R-slow-llm-placeholder-coalesce`); cs_011 additionally shows planner failure to escalate-on-explicit-request (`semantic_planner`); cs_066 shows UC-K intake-complete `case_id` binding loss (`skill_state`, see `R-uc-k-intake-complete-case-id-binding`). Sprint 19 §3.2 walks at `docs/sprints/sprint-019-handoff.md` §3. |
+
+**Sprint 19 surfaced backlog**
+
+Sprint 19 (2026-05-13) walked `docs/current/iteration_governance.md`
+§3.2 per case for the two G1-blocking R-items and surfaced 7 new
+R-items (6 from the handoff §11 + 1 promoted from the Sprint 18 G1
+open observation per the conditional-broadening rule, now n=3 across
+cs_259 + manual-probe + cs_011 T2 silence).
+
+| id | source | description |
+|----|--------|-------------|
+| R-slow-llm-placeholder-coalesce | Sprint 19 §3 + §11 (cs_002 / cs_011 / cs_014 / cs_038 / cs_040) | `infra` layer. Two consecutive `LlmDeadlineExceededException` paths re-emit the same user-facing `"Sorry, I'm a bit slow right now. Please try sending that again in a moment."` message from `PhaseEvaluator.java` line 765; the loop / stall detector then flags it as a loop. Recommended remediation: (a) coalesce consecutive deadline events within a session into one user-facing beat (or move the placeholder to a side-channel typing-indicator path that does not consume a transcript turn); and/or (b) escalate honestly on the second consecutive deadline. Scope: `PhaseEvaluator.java` line 754–770 + `AgentRunResult.deadlineExceeded` propagation. **No keyword / regex / if-else / enum / per-UC matrix.** |
+| R-uc-k-intake-complete-case-id-binding | Sprint 19 §3.6 + §11 (cs_066) | `skill_state` layer per §3.2 Q4. UC-K intake completes per the Sprint 7 §I2 intake-complete guard and the bot escalates with `intake_complete_for_uc_k`, but the assembled handover payload carries a null `case_id` because the auto-create-case step before escalation no longer reliably runs. Recommended scope: audit `CreateCaseControlledTool` call-site coverage across intake UCs (UC-G / H / I / J / K) + the post-intake-complete escalation path in `ControlKernel.java` line 1490–1595. |
+| R-prompt-projection-already-called-soft-signal | Sprint 19 §4.2 + §11 (manual-probe Track B Layer 1) | `prompt_projection` layer. Add an `already_called: [{tool, arguments_hash, at_step}]` diagnostic slot to the per-step projection so the LLM can see "you already called this tool with these args" before re-emitting. **Soft signal only** — the LLM owns whether to re-emit. Scope: `ContextProjectionBuilder.java` projection assembly + a JSON-schema documentation update. **Sprint 20 Track B candidate** per the next-sprint recommendation. |
+| R-idempotent-read-tool-short-circuit | Sprint 19 §4.2 + §11 (manual-probe Track B Layer 2) | `infra` layer, **conditional** on the soft-signal-only approach (`R-prompt-projection-already-called-soft-signal`) proving insufficient. For side-effect-free tools (`search_knowledge`, `lookup_*`, `get_*_context`), short-circuit identical-args re-emission within the same `AgentRunLoop.run(...)` by returning the cached prior result. Write tools opt out; they are owned by the Sprint 16 `HandoverOrchestrator` design freeze. |
+| R-per-case-trace-dump-for-smoke-harness | Sprint 19 doc-status warning #1 + open question 6 + §11 | `infra` / eval harness. Re-enable per-case JSON trace dumping (tool_calls, phase_plan, projection, LlmCallEvents) under each `eval_interactive/results/<run-id>/` directory so future Track A §3.2 walks and Track B per-step investigations have first-party evidence. Scope: `eval_interactive/eval_interactive/` Python package (smoke runner). |
+| R-sprint-narrative-vs-git-log-reconciliation | Sprint 19 doc-status warning #2 + open question 4 + §11 | governance / docs-only. The Sprint 18 G1 narrative that Sprints 14 / 14.1 / 15 / 16 made "no runtime semantic change" is contradicted by the git log (40 commits in the smoke gap window, 18 touching code). A reconciliation note in `docs/current/` or a fold-back into a `iteration_governance.md`-adjacent governance doc should land on `doc_governance.md` §"Code ahead of docs" cadence. |
+| R-prompt-phase-plan-directive-followship | cs_259 (Sprint 7 §I0 violation, UC-F) + manual-probe (RESOLVE MUST-call-resolve_article violation, UC-A) + cs_011 T2 silence (Sprint 19 §3.3, UC-D) | **Promoted from Sprint 18 G1 open observation** per the conditional-broadening rule (n=3 across 3 UCs and 3 directive shapes). `prompt_projection` layer. Bot ignores explicit phase-plan directives the runtime has just placed in the per-turn projection (Sprint 7 §I0 weak-candidate cue, RESOLVE MUST-call-resolve_article, T2 cs_011 explicit handover request that bot promised to honor). Recommended approach: surface a soft directive-compliance diagnostic (e.g. `pending_directive_unfulfilled=true` on the next projection) so the LLM has explicit signal before responding — **not** a Java check that the bot complied. |
 
 **Open observations (NOT opened as R-items)**
 
@@ -437,16 +455,14 @@ n=1 evidence is insufficient to open an R-item; controlled multi-shape
 testing needed (rule recorded in
 `docs/sprints/sprint-018-handoff.md` §0 / §8.7).
 
-- **Bot ignores explicit phase-plan directives** — cs_259 (Sprint 7
-  §I0 weak-candidate cue violation) + manual-probe (RESOLVE
-  MUST-call-resolve_article violation). n=2 opportunistic
-  observations across mixed surfaces; controlled multi-shape testing
-  across UC-B / UC-C / UC-D / UC-F empty-form shapes needed before
-  opening `R-prompt-phase-plan-directive-followship`. Tracked here
-  for visibility.
 - **ad_id form-vs-listing data consistency** — manual-probe (form
   `ad_id=ad-1003` vs listing `ad_id=AD-1001`). n=1; needs production
   data to know if this is a common shape. Not opening on n=1.
+
+(Note: `R-prompt-phase-plan-directive-followship`, previously an
+n=2 open observation in this section, was promoted to a Sprint 19
+surfaced R-item above after the Sprint 19 §3.3 cs_011 T2 silence
+finding constituted a 3rd instance across a 3rd UC.)
 
 ## 6. Closed action index
 
@@ -474,6 +490,9 @@ testing needed (rule recorded in
 | Sprint 14.1 | FAQ grounding observability persistence closure (`bot_turns.projected_context.faq_grounding`); fix the Sprint 14 Codex blocker | closed (Codex pass) | will archive under `docs/sprints/sprint-014.1-*` |
 | Sprint 15 | M0 externalize DriftDetector / risk keywords to YAML; M1 script library version pin + docs ↔ YAML consistency check; M2 retrieval / answer gate / rerank fallback thresholds config + diagnostics | closed (Codex pass) | will archive under `docs/sprints/sprint-015-*` |
 | Sprint 16 | H0 define handover exactly-once contract (`docs/proposals/handover_orchestrator_design.md` + runtime-freeze §10.1 known-unspecced-surface entry); H1 characterization tests for dual-path handover (LLM-driven repro disabled / TODO by design); H2 release-gate blocker + action-bank "Single Handover Orchestrator" item | docs + characterization-test sprint; no runtime change | will archive under `docs/sprints/sprint-016-*` |
+| Sprint 17 | G0.1 extend `docs/current/iteration_governance.md` to the 7-section governance bundle; G0.2 `AGENTS.md` constitution chain (Option A); G0.3 §7 Layer-classification + anti-hardcode stanza for the sprint-objective format; G0.4 action_bank refresh + §5.1 governance-track backlog | closed (Codex pass; docs-only governance sprint, no runtime change) | `docs/sprints/sprint-017-*` |
+| Sprint 18 | G1 Human-led Failure Portfolio — 10 Failure Briefs at `docs/diagnostics/failure-briefs/` (9 smoke + 1 manual-probe); §5.2 G1 surfaced backlog with 18 R-items + 2 open observations | closed (docs-only governance; no Codex review per packaging-workflow option 2; no runtime change) | `docs/sprints/sprint-018-*` |
+| Sprint 19 | A + B parallel investigation — Track A smoke-regression diagnosis (`R-smoke-regression-investigation` → multi-shape root cause; 5/6 cases share slow-LLM placeholder loop, cs_066 UC-K state-loss); Track B orchestrator tool-call de-dup investigation (`R-runtime-orchestrator-tool-call-deduplication` reclassified `infra` → `semantic_planner`; remediation split into read-side soft signal + write-side HandoverOrchestrator); 7 new R-items surfaced (incl. promoted `R-prompt-phase-plan-directive-followship` per conditional-broadening rule, n=3) | closed (Codex pass; investigation-only sprint per Bundle-or-defer policy; proposal-only on both tracks; no bundled fixes) | `docs/sprints/sprint-019-*` |
 
 ## 7. Carry-over rule
 
