@@ -1,331 +1,341 @@
+---
+title: Sprint 19 — Smoke Regression Investigation + Orchestrator Tool-Call De-Dup (parallel A + B)
+doc_tier: current-runtime
+status: current
+implementation_status: not_started
+source_of_truth: this file
+last_reviewed: 2026-05-13
+review_cadence: per sprint
+supersedes: []
+superseded_by: null
+notes: >
+  Sprint 19 is an investigation-class sprint with bundled-fixes-allowed
+  policy on each per-case clean layer finding. Two disjoint tracks run
+  in parallel under one sprint scope. Section 7 stanza is in multi-layer
+  prospective form (Track A spans judge_calibration / semantic_planner /
+  prompt_projection / human_review_required per per-case finding;
+  Track B is infra). See §"Bundle-or-defer policy" for the rule the dev
+  agent applies per finding. Sprint 19 must complete before G2 case-
+  family construction; G2 has no clean baseline until Track A closes.
+---
+
 # Sprint Objective
 
 Date: 2026-05-13
 
 ## Sprint name
 
-Sprint 18 — Human-led Failure Portfolio (G1)
+Sprint 19 — Smoke Regression Investigation + Orchestrator Tool-Call
+De-Dup (parallel A + B)
 
 ## Goal
 
-Convert 10 representative real failures into structured Failure Briefs
-under `docs/diagnostics/failure-briefs/`, populate the deferred-backlog
-ledger with the R-items those briefs surface, and add a Method note to
-the Sprint 18 handoff documenting the two ground-truth derivation
-techniques the briefs depend on (CaseSpec L3 override check; manual-
-probe ground-truth from authoritative authoring sources).
+Resolve the two R-items in the Sprint 18 G1 backlog that block the G2
+case-family construction:
 
-This is a **docs-only governance sprint** (G1 in the research agents'
-G0 → G1 → G2 → G3+ sequencing — see Sprint 17 G0's background section).
-It must not change runtime, prompt, FAQ corpus, CaseSpec, judge, eval
-harness, tests, or scripts. It must not propose fixes. Briefs name the
-likely-responsible layer per `docs/current/iteration_governance.md` §3
-and the tempting-but-wrong fix per the §1.5 Iteration rule; remediation
-itself is the work of G3+ runtime sprints (gated by G2 case families
-first).
+- **Track A — `R-smoke-regression-investigation` (P1).** Diagnose the
+  64 % → 21 % smoke-set drop between `eval_interactive/results/20260505-235231/`
+  and `eval_interactive/results/20260510-134558/` over the 6 regressed
+  cases (cs_002, cs_011, cs_014, cs_038, cs_040, cs_066). Sprints 14 /
+  14.1 / 15 / 16 all declared "no runtime semantic change"; the dev
+  agent walks `docs/current/iteration_governance.md` §3.2 per case and
+  identifies the matching layer. Per-case bundle-or-defer per §"Bundle-
+  or-defer policy" below.
+- **Track B — `R-runtime-orchestrator-tool-call-deduplication`.** From
+  manual-probe 2026-05-13: 1 LLM request → 3 identical
+  `search_knowledge` executions, same params and same results.
+  Investigate the 3 hypotheses (phase-transition re-trigger, Turn 1
+  failed-call replay, LLM new request), document the orchestrator's
+  intended de-dup / idempotency contract, and — if the per-case layer
+  resolves to `infra` — bundle the fix with a regression test. If the
+  layer resolves to `semantic_planner` (LLM emitted three identical
+  calls), defer the fix and produce a remediation proposal only.
 
-The scope is intentionally narrow: G1 is the human-led failure
-catalogue. Brief authoring is the deliverable. Per-case fixes, case
-families, shadow splits, and runtime change are explicitly out of
-scope and live in G2 / G3+.
+The two tracks are **disjoint** (Track A diagnoses the smoke baseline;
+Track B diagnoses orchestrator transport). The dev agent may interleave
+them in one PR or split into two; either is acceptable.
 
 ## Background
 
-The research agents converged on the following sequencing:
+Sprint 18 G1 closed with `decision: <no Codex review run; deliver-direct
+authoring>` and surfaced 18 R-items + 2 open observations
+(`docs/sprints/sprint-018-handoff.md`, commit `18a96ed`). Two of those
+items must close before G2:
 
-1. **G0 — Iteration Governance Lite** (Sprint 17, closed Codex pass):
-   docs-only governance scaffolding. Landed
-   `docs/current/iteration_governance.md` Sections 1–7, seeded
-   `AGENTS.md` constitution chain, opened
-   `docs/diagnostics/failure-briefs/` as the directory G1 will
-   populate.
-2. **G1 — Human-led Failure Portfolio** (this sprint): pick
-   representative failures from the human's experience plus the most
-   recent smoke runs and convert each into a Failure Brief per
-   `docs/current/iteration_governance.md` §2.
-3. **G2 — Interactive Eval Case Family + Shadow Split** (deferred to
-   next governance sprint): turn each G1 brief into a target /
-   neighbor / negative / shadow case family with the shadow split
-   readable only to human / review agent per
-   `docs/current/iteration_governance.md` §5.1.
-4. Only after G0 → G1 → G2 do we re-open Semantic Planner shadow mode
-   and runtime work (G3+).
+1. The smoke baseline is unstable — G2 case-family construction over
+   target / neighbor / negative / shadow requires a clean reference
+   run, which the 2026-05-10 21 % rerun does not provide.
+2. The manual-probe `search_knowledge` triple-execution is the first
+   evidence of an orchestrator transport anomaly that may corrupt
+   trace evidence the G2 shadow split would later rely on.
 
-Repo state at the start of G1:
+Sprint 19 closes both. G2 (Interactive Eval Case Family + Shadow Split)
+follows Sprint 19; it does not run inside Sprint 19.
 
-- Sprint 17 (G0) closed with Codex `decision: pass, blocking_count: 0`
-  (commit `ac778bc`). The 7-section governance bundle is live; the
-  Section 2 Failure Brief Template is the template G1 follows.
-- `docs/diagnostics/failure-briefs/` is empty / not-yet-created at G0
-  close; G1 creates it and populates 10 briefs.
-- The two most recent smoke runs (`20260505-235231` and
-  `20260510-134558`) over the same 14-case interactive smoke set are
-  the primary trace input for the smoke briefs. Run 1 was 9 / 14
-  pass, run 2 was 3 / 14 pass; the regression itself is flagged as
-  `R-smoke-regression-investigation` and deferred (Cluster C, see
-  §Framing C below).
-- The Wave A6 / A6.6 L3 override pipeline (per
-  `docs/proposals/interactive_case_spec_generation_plan.md`) is the
-  authority that distinguishes human-reviewed CaseSpec ground truth
-  from raw rule-extracted ground truth. Several G1 briefs cite a
-  Wave A5 / A6 override as their authority; the briefs that do not
-  flag the underlying CaseSpec as a candidate for L3 triage.
+## Tracks (in scope)
 
-## Implement exactly these 5 actions
+### Track A — Smoke Regression Investigation
 
-### G1.1 — File 10 Failure Briefs under `docs/diagnostics/failure-briefs/`
+**Input artefacts:**
 
-Each brief covers one representative failure shape and follows the
-6-field structure defined in
-`docs/current/iteration_governance.md` §2 (What happened? / What
-should a good CS agent have done? / Why does this matter? / Is this a
-one-off or a pattern? / Which layer is likely responsible? / What
-should NOT be done?), plus header metadata (source case,
-source_session_id, CaseSpec path, approved L3 override status, runs,
-filed date), plus an optional Ground-truth chain preamble when a Wave
-A5 / A6 override exists or when ground truth must be derived from
-non-CaseSpec sources, plus an optional Related observation tail for
-tangential phase 2 / eval_spec / corpus / R-item findings.
+- `eval_interactive/results/20260505-235231/results.json` (label
+  `sprint8-r2`; 9 / 14 pass).
+- `eval_interactive/results/20260510-134558/results.json` (label
+  `smoke_rerun_20260510-214558`; 3 / 14 pass).
+- 6 regressed cases: cs_002, cs_011, cs_014, cs_038, cs_040, cs_066.
+  Symptoms span empty `escalation_reason`, `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP`,
+  `turn_budget_exhausted`, UC mis-route,
+  `CONTRACT_VIOLATION:active_use_case`.
+- 8 non-regressed smoke cases (the other 8 of the 14): treated as
+  neighbor cases — must not have regressed in the opposite direction
+  during any fix bundled in this sprint.
 
-The 10 briefs split as **9 smoke briefs + 1 manual-probe brief**:
+**Required per-case walk (per `iteration_governance.md` §3.2):**
 
-| # | brief filename | source | cluster |
-|---|----------------|--------|---------|
-| 1 | `cs015-uc-fp-mis-route-and-premature-escalate.md` | smoke | A (persistent fail) |
-| 2 | `cs001-uc-c-template-escalate-on-faq-miss.md` | smoke | B-1 (disengaged-template) |
-| 3 | `cs011-uc-d-detailed-description-ignored-on-faq-miss.md` | smoke | B-1 (user-detail-ignored extreme) |
-| 4 | `cs038-uc-j-intake-redundancy-and-jargon-framing.md` | smoke | B-2 (engaged-but-mechanical) |
-| 5 | `cs040-uc-k-disengaged-jargon-intake-false-complete.md` | smoke | B-3 (disengaged + jargon hybrid) |
-| 6 | `cs095-uc-classification-and-account-aware-path-skipped.md` | smoke | A (persistent fail) |
-| 7 | `cs176-uc-e-wrong-escalation-reason-family.md` | smoke | A (persistent fail) |
-| 8 | `cs192-uc-b-mechanical-escalate-on-resolvable-giveaway-question.md` | smoke | A (persistent fail; mechanical surface) |
-| 9 | `cs259-uc-f-sprint7-i0-violation-on-payment-question.md` | smoke | A (persistent fail) |
-| 10 | `manual-probe-2026-05-13-ad-visibility-multi-layer-failure.md` | manual probe | — (multi-layer, single-trace) |
+For each of the 6 regressed cases, the dev agent records:
 
-Filename convention α: `<case_id>-<uc>-<slug>.md` for smoke briefs;
-`manual-probe-<date>-<slug>.md` for the manual probe brief.
+- The two trace excerpts (2026-05-05 PASS, 2026-05-10 FAIL).
+- The first-match-wins §3.2 question that triggers.
+- The classified layer from §3.1.
+- Whether a reversible fix is bundled this sprint OR deferred to a
+  remediation proposal — per §"Bundle-or-defer policy" below.
 
-### G1.2 — Append 18 R-items + 2 open observations to `docs/action_bank.md`
+**Special-case stop-and-escalate (cs_192 shape):** if any per-case walk
+surfaces a `CONTRACT_VIOLATION:active_use_case` that would re-open
+Sprint 8 §K0 territory, the dev agent **stops bundling** and asks for
+human Tier-0 review per §3.2 Q2's "no current Tier-0 → flag
+`human_review_required`" rule. Do not invent a new Tier-0 invariant.
+cs_192 itself is not in the 6 regressed cases, but it is the
+canonical shape this rule guards against.
 
-Append a new sub-section `§5.2 G1 surfaced backlog` to
-`docs/action_bank.md` capturing the 18 R-items the briefs surface,
-plus the 2 open observations that are *not* opened on n=1 evidence
-(n=1 evidence is insufficient per the cs_259 / manual-probe rule;
-see the Sprint 18 handoff for the full reasoning).
+### Track B — Orchestrator Tool-Call De-Dup
 
-R-item composition:
+**Input artefact:** `manual-probe-2026-05-13` brief (session
+`4a2f3680-02a8-4d13-8f0b-f99d7c249b57`) at
+`docs/diagnostics/failure-briefs/manual-probe-2026-05-13-ad-visibility-multi-layer-failure.md`.
 
-- 1 Tier-0 candidate (`R-escalation-reason-runtime-evidence-contract-review` — 3 instances; solidly systematic)
-- 5 systematic (≥2 instances each: generator-vs-policy mismatch, L3 judge form-context-trust, corpus coverage audit, faqMissCount threshold/timing, duplicated greeting)
-- 9 per-case L3 / governance items (1 per affected brief, plus 1 conditional)
-- 1 G2 input item (multi-turn followup case family design)
-- 1 new infra item (manual-probe orchestrator tool-call dedup)
-- 1 external / regression discovery item (`R-smoke-regression-investigation`; pre-existing, formally restated here)
+**Required investigation:**
 
-The 2 open observations track:
+- Read the manual-probe trace; locate the 3 `search_knowledge`
+  executions and confirm parameter / result identity.
+- Walk the 3 hypotheses (phase-transition re-trigger, Turn 1 failed-call
+  replay, LLM new request) against the trace and the
+  AgentRunLoop / ToolDispatcher code paths. Cite specific code paths.
+- Document the orchestrator's intended de-dup / idempotency contract
+  in the handoff (what the contract is today; what it should be).
+- Walk §3.2 to classify: typically `infra` per Q1, but if the trace
+  shows the LLM itself emitted 3 separate `tool_use` blocks it is
+  `semantic_planner`.
 
-- bot ignores explicit phase-plan directives (cs_259 + manual-probe —
-  n=2 opportunistic; controlled multi-shape testing needed before
-  opening as R-item)
-- ad_id form-vs-listing data consistency (manual-probe only; n=1;
-  needs production data)
+## Bundle-or-defer policy
 
-### G1.3 — Mark `docs/action_bank.md` §5.1 G1 row as `done`
+When the per-case (Track A) or whole-track (Track B) layer walk yields
+a clean layer below, the dev agent **MAY** bundle a reversible fix in
+the same PR. Otherwise, the dev agent produces a remediation proposal
+only.
 
-Update the G1 row from `deferred — next governance sprint` to
-`done — 10 briefs filed (9 smoke + 1 manual-probe); see
-docs/diagnostics/failure-briefs/`. G2 remains deferred. No other
-§5.1 entry changes.
+**Bundle allowed (reversible fix):**
 
-### G1.4 — Document the Method note in the Sprint 18 handoff
+- `infra` — orchestration, transport, persistence, idempotency,
+  timeouts, OOM, endpoint / credential wiring. Reversible means a
+  small targeted change with a regression test attached. The Track B
+  tool-call dedup, if `infra`, is the canonical bundle.
+- `judge_calibration` — narrow rubric-stability fix that does **not**
+  widen the rubric to accept a genuine bot mistake (forbidden by
+  Constitution §1.7). Allowed: tightening a judge configuration knob
+  that flips across reruns; **not allowed**: relaxing an L1 / L2 / L3
+  bar.
+- `prompt_projection` — adding a **soft signal** (an additional
+  projected slot, a candidate list, a diagnostic flag) that the LLM
+  may consume. **Not** a prompt if-else, **not** a keyword / regex
+  branch in projection assembly.
 
-The Sprint 18 handoff includes a Method note section documenting the
-two ground-truth derivation techniques the briefs used:
+**Defer (remediation proposal only):**
 
-- **CaseSpec L3 override check.** Before filing a Failure Brief on a
-  generated CaseSpec, check `eval_interactive/case_spec_overrides.yaml`
-  for an approved L3 override keyed by `source_session_id`. If
-  present, anchor the brief's expected behaviour on the override's
-  `classification.*` / `expected.*` blocks. If absent, the CaseSpec
-  is L1 rule-extracted (plus optional L2 persona review) and the
-  brief should flag whether the CaseSpec itself needs L3 triage as a
-  candidate `eval_spec` failure per §3.2 Q6.
-- **Manual-probe ground-truth chain.** For traces with no CaseSpec
-  (manual probe or production capture), derive expected behaviour
-  from authoritative authoring sources: phase 2 UC policy +
-  `phase_plan.system_instruction` text the bot itself receives at
-  the failing turn. Both are checked into the repo / observable in
-  the trace; both are written by humans for the agent to consume.
-  Document the derivation chain in the brief's Ground-truth chain
-  preamble.
+- `semantic_planner` — the LLM's own semantic choices. Fixes here
+  require shadow case coverage that Sprint 19 does not have. Defer
+  to a G3+ runtime sprint.
+- `eval_spec` — CaseSpec / rubric edits go through Wave A5 / A6 L3
+  review, not this sprint.
+- `product_policy` — requires product sign-off.
+- `human_review_required` — surface to human; do not invent a Tier-0.
+- `skill_state` — multi-turn state changes touch the semantic surface
+  the G2 case family is supposed to exercise; defer to G2 / G3+.
+- `java_guard` — only justified by a current Tier-0 invariant. If the
+  finding looks like Java-guard territory and no current Tier-0
+  covers it, flag `human_review_required` (do not invent a new
+  Tier-0). This is the cs_192 stop-and-escalate clause restated.
 
-These techniques are documented in the handoff (G1.4) rather than in
-`docs/current/iteration_governance.md` §2 to avoid expanding the
-governance doc mid-sprint; if the techniques prove durable, fold-back
-to §2 happens on the normal `iteration_governance.md` cadence (every
-3–5 sprints).
+**Bundle hard rules:**
 
-### G1.5 — Archive Sprint 18 G1 objective + write Sprint 18 handoff
+- No keyword / regex / if-else / enum / per-UC matrix added for any
+  semantic decision in any bundled fix.
+- No CaseSpec or override edit in any bundled fix.
+- No prompt edit beyond pure projection (a new projected slot wired
+  through the existing projection assembly is allowed; a new prompt
+  paragraph or if-else is not).
+- Every bundled fix carries a regression test.
 
-This `docs/sprint_objective.md` is copied verbatim to
-`docs/sprints/sprint-018-g1-failure-portfolio-objective.md` as the
-sprint archive. The full Sprint 18 handoff lands at
-`docs/sprints/sprint-018-handoff.md` and follows the Sprint 17 G0
-handoff section structure (Context Pack, exact actions implemented,
-files changed, layer-classification self-walk, anti-hardcode
-self-walk, Method note, sprint-objective-met check, open questions,
-next recommended action).
+The dev agent records its bundle / defer decision and the §3.2
+walk per case in the Sprint 19 handoff.
 
-No Codex review file is created for G1. Per the human's Q3 packaging
-decision (option 2, recorded in `compact/sprint-deliver-orchestrator.md`
-§4.3), G1 brief authoring is done by the deliver agent + human jointly
-in chat; no dev agent and no Codex review agent are run on G1.
-`docs/codex-findings.md` retains its Sprint 17 G0 content until the
-next sprint that runs a Codex review.
+## Layer-classification + anti-hardcode stanza
 
-## Framing C (scope decision; recorded for the archive)
+**Target failure layer:** **multi-layer prospective.** Track A's per-
+case walk may resolve, per case, to any of: `judge_calibration` |
+`semantic_planner` | `prompt_projection` | `human_review_required`.
+(Pre-investigation `infra` for Track A is implausible — the smoke
+harness ran end-to-end on both dates; `skill_state` and `eval_spec`
+are possible but the per-case walk decides.) Track B is **`infra`**
+prospectively per `iteration_governance.md` §3.2 Q1; if the trace
+shows the LLM itself emitted 3 separate `tool_use` blocks, the layer
+re-resolves to `semantic_planner` and Track B's fix is deferred.
 
-Three framings were considered before brief authoring:
+The dev agent walks `iteration_governance.md` §3.2 per regressed case
+(Track A) and once for Track B, and records the matching layer in the
+Sprint 19 handoff layer-classification self-walk section.
 
-- **Framing A** — file 10–20 briefs covering both smoke runs plus
-  human-experience failures. Risk: too broad, no clean baseline
-  because the 64% → 21% run-to-run regression confounds clusters.
-- **Framing B** — open a G0.5 regression-investigation sprint before
-  G1 so G1 starts from a stable baseline. Risk: G0 → G0.5 → G1 → G2
-  serializes too aggressively; the regression itself is a finding
-  G1 can surface and defer.
-- **Framing C (chosen)** — narrow G1 to 9 smoke briefs (5 persistent
-  failures from Cluster A + 4 representative mechanical-surface
-  briefs from Cluster B) + 1 manual-probe brief. The 6 regressed
-  cases (Cluster C: cs_002, cs_011, cs_014, cs_038, cs_040, cs_066)
-  are not separately briefed; the regression is surfaced as
-  `R-smoke-regression-investigation` and deferred. cs_011 / cs_038 /
-  cs_040 already have Cluster B briefs that cover the mechanical
-  surface; cs_002 / cs_014 / cs_066 are deferred to G2 as neighbor
-  cases on the existing Cluster B representatives.
+**Tier-0 invariant:** This sprint adds no Tier-0 invariant.
+`iteration_governance.md` §3.2 Q2 is the only branch that re-classifies
+a finding as `java_guard`; per the §"Bundle-or-defer policy" hard rule,
+any `java_guard`-looking finding without a current Tier-0 invariant
+flags `human_review_required` rather than introducing one. The cs_192
+`CONTRACT_VIOLATION:active_use_case` shape is the canonical case this
+clause guards against (Sprint 8 §K0 re-open territory).
 
-Framing C was approved by the human before brief authoring started.
+**Semantic hardcode:** No semantic hardcode introduced. Per
+§"Bundle-or-defer policy", bundles forbid keyword / regex / if-else /
+enum / per-UC-matrix additions; any finding whose only fix would be
+such an addition is deferred to a G3+ runtime sprint with a written
+remediation proposal. `prompt_projection` bundles add **soft signals
+only** (additional projected slots / candidate lists / diagnostic
+flags) — never prompt if-else or projection-time regex branches.
+`judge_calibration` bundles do **not** widen rubrics to accept a
+genuine bot mistake (Constitution §1.7).
 
-## Layer-classification + anti-hardcode stanza — EXEMPT
-
-Per `docs/current/iteration_governance.md` §7, the stanza is required
-for **semantic-touching sprints**: sprints that change prompt, a
-runtime semantic decision (UC routing, drift detection, escalation
-posture, follow-up policy), the eval spec, or judge calibration.
-
-Sprint 18 G1 is **docs-only governance** (Failure Brief authoring +
-action-bank ledger update + Method note). It changes no prompt, no
-runtime semantic code, no CaseSpec, no eval spec, no judge config.
-It surfaces R-items naming candidate layers for later sprints; it
-does not itself touch those layers.
-
-Sprint 18 therefore declares the §7 stanza **exempt** under the same
-exemption Sprint 15 (config governance) and Sprint 16 (docs +
-characterization tests) used. The exemption is named explicitly here
-so a future deliver-agent review does not over-apply the stanza to
-G1-style human-led brief authoring sprints.
+**Generalization coverage:** target = the 6 regressed cases (cs_002,
+cs_011, cs_014, cs_038, cs_040, cs_066) for Track A plus the
+manual-probe-2026-05-13 trace for Track B; neighbor = the 8 non-
+regressed smoke cases (must not regress in the opposite direction
+during any bundled fix); negative = at least 2 cases that should **not**
+re-pass post-fix (the dev agent identifies these from the smoke set
+when proposing each bundle, so the bundle is provably narrow); shadow
+= deferred to G2 (case-family + shadow split is the next sprint after
+Sprint 19; Sprint 19 does not construct shadow). The shadow gap is
+intentional and explicit per `iteration_governance.md` §5.1's allowance
+for sprints that pre-date the shadow split.
 
 ## Do not implement
 
-- Any change under `server/`, `ui/`, `eval/`, `eval_interactive/`,
-  `data/`, `scripts/`, or root config files.
-- Any prompt edit (`system_prompt.txt`, routing prompts, judge prompts).
-- Any FAQ corpus / CaseSpec / judge / eval-output schema change.
-- Any CaseSpec override edit (`eval_interactive/case_spec_overrides.yaml`).
-  The L3 override pipeline is Wave A5 / A6 / A6.6's responsibility,
-  not G1's. Briefs may flag CaseSpec candidates for L3 re-review
-  (e.g. `R-cs001-escalation-trigger-l3-review`,
-  `R-cs095-uc-classification-l3-rereview`,
-  `R-cs176-escalation-reason-l3-review`); the L3 work itself happens
-  in a later sprint.
-- Any new test (Java, Python, or eval harness).
-- Any per-case fix or runtime patch. Briefs name the likely-responsible
-  layer per §3 and the tempting-but-wrong fix per §1.5; remediation is
-  the work of G3+ runtime sprints, gated by G2 case families first.
-- Any G2 case family construction (target / neighbor / negative /
-  shadow). G2 depends on G1 briefs as input and runs as a separate
-  governance sprint.
-- Any architecture-health metric collection. Per §6, the four metrics
-  are defined-only with `collection_status: not_started`; G1 does not
-  open collection.
-- Any edit to `docs/sprints/*` archived sprints.
-- Any edit to `docs/foundational/*` (phase docs, normative freezes).
-- Any edit to `docs/current/iteration_governance.md`. The Method note
-  lives in the Sprint 18 handoff, not in §2; if it proves durable,
-  fold-back happens on the §2 cadence (every 3–5 sprints).
-- Any edit to `docs/current/doc_governance.md` or
-  `docs/current/agent_context_guide.md`.
-- Any update to `docs/codex-findings.md`. No Codex review is run for
-  G1; the file retains its Sprint 17 G0 content.
-- Any update to `docs/current_eval_baseline.md`. G1 does not run eval;
-  the canonical baseline is unchanged.
-- Any new tier or new front-matter status. Reuse existing
-  `doc_governance.md` enums.
+- Any change under `eval/`, `eval_interactive/case_specs/`,
+  `eval_interactive/case_spec_overrides.yaml`, or
+  `eval_interactive/personas*.yaml`. CaseSpec / override edits go
+  through Wave A5 / A6 L3 review, not this sprint.
+- Any FAQ corpus edit (`data/faq/*`, `FAQ-knowledge_include_help_url.csv`).
+  `R-corpus-coverage-audit-per-uc` is deferred.
+- Any prompt edit beyond pure projection (no new prompt paragraph,
+  no prompt if-else, no system_prompt copy edit). A new projected
+  slot wired through existing projection assembly is allowed for a
+  `prompt_projection` bundle.
+- Any judge rubric edit that widens an L1 / L2 / L3 bar to accept
+  the bot's actual output (Constitution §1.7).
+- Any keyword / regex / if-else / enum / per-UC matrix added to
+  runtime or prompt for a semantic decision. The bundle policy
+  forbids these; a finding whose only fix is such an addition must
+  be deferred.
+- Any new Tier-0 invariant in `docs/runtime_freeze_and_risk_policy.md`.
+  cs_192-shaped findings flag `human_review_required`; the human
+  decides whether to open a new Tier-0.
+- Any work on the other 16 R-items in `docs/action_bank.md` §5.2.
+  Wave A5 / A6 L3 review batch, corpus audit, faqMissCount threshold,
+  duplicated greeting, etc. are explicitly out of scope.
+- Any G2 case-family construction (target / neighbor / negative /
+  shadow split). G2 follows Sprint 19.
+- Any edit to `docs/current/iteration_governance.md`,
+  `docs/current/doc_governance.md`, `docs/current/agent_context_guide.md`,
+  `docs/foundational/*`, or `docs/sprints/*` (the Sprint 19 archive
+  copies in `docs/sprints/` are written by the deliver agent at
+  sprint close, not by the dev agent).
+- Any architecture-health metric collection. Per §6, the four
+  metrics remain `collection_status: not_started`; Sprint 19 does
+  not open collection.
+- Any change to `docs/codex-findings.md` by the dev agent. The Codex
+  review writes this file at sprint close.
 
-## Success metrics
+## Success metrics (per `iteration_governance.md` §5.1)
 
-- `docs/diagnostics/failure-briefs/` contains exactly 10 brief files,
-  each with the 6 required fields from
-  `docs/current/iteration_governance.md` §2, each naming exactly one
-  primary layer from the §3.1 layer set (multiple-candidate layers
-  allowed, per §2 brief-field 5).
-- Each brief whose CaseSpec is anchored by a Wave A5 / A6 approved L3
-  override cites the override file + line range and rules out
-  `eval_spec` as a candidate layer for the outcome failure (the
-  override is the human-reviewed ground truth).
-- Each brief whose CaseSpec has no approved L3 override flags the
-  CaseSpec as a candidate for L3 triage in its Ground-truth chain
-  preamble OR in its What should NOT be done? field (no silent
-  CaseSpec-is-authority assumption).
-- The manual-probe brief derives ground truth from phase 2 UC policy
-  + the bot's own `phase_plan.system_instruction` (both authoritative
-  authoring sources). The brief documents the derivation chain in its
-  preamble.
-- `docs/action_bank.md` §5.2 (new sub-section) lists all 18 R-items
-  with stable kebab-case ids and one-line descriptions, plus the 2
-  open observations.
-- `docs/action_bank.md` §5.1 G1 row is updated to `done`; G2 remains
-  `deferred`.
-- The Sprint 18 handoff includes the Method note (G1.4) and the
-  layer-classification self-walk required by Sprint 17 G0 §3
-  precedent.
-- `mvn -pl server test` and `pytest eval_interactive/tests/` are not
-  required to be re-run (no code touched). The handoff explicitly
-  states "no code touched, no tests run".
-- No file under `server/`, `ui/`, `eval/`, `eval_interactive/`,
-  `data/`, `scripts/`, `docs/foundational/`, `docs/current/`, or
-  `docs/sprints/` (other than the new Sprint 18 archive copies) is
-  modified.
+- **Target cases addressed.** For each of the 6 regressed cases
+  (Track A) and the manual-probe trace (Track B): a §3.2 walk in
+  the Sprint 19 handoff and a bundle-or-defer decision per the
+  §"Bundle-or-defer policy" rule. Cases whose layer is `bundle-
+  allowed` (above) and whose fix is bundled must show a passing
+  regression test in the PR.
+- **Neighbor cases no regression.** Smoke rerun after bundled fixes
+  shows no regression on the 8 non-regressed smoke cases. If no fix
+  is bundled (proposal-only sprint), this bar is trivially satisfied.
+- **Negative-control no false positive.** For each bundled fix, the
+  dev agent names ≥2 negative-control cases the fix must **not**
+  start passing. The smoke rerun confirms.
+- **Shadow no regression.** Sprint 19 pre-dates the shadow split.
+  This bar is deferred per `iteration_governance.md` §5.1's shadow
+  allowance and is explicitly named in the handoff.
+- **Safety floor unchanged.** Tier-0 safety invariants (PII, safety,
+  identity verification, imminent harm) remain green. The dev agent
+  confirms in the handoff.
+- **Grounding floor unchanged.** FAQ grounding diagnostics per
+  `docs/current/faq_grounding_contract.md` (six output classes,
+  citation diagnostics) remain at or above their prior level.
+- **Wrong-containment rate unchanged or down.** Sessions contained
+  in the wrong UC / wrong phase / with no grounded answer must not
+  increase.
+- **Over-escalation rate unchanged or down.** `request_handover`
+  rate on cases that should resolve must not increase.
+- **Architecture-health metrics not regressed.** §6 metrics remain
+  `collection_status: not_started`; this bar is trivially satisfied
+  for Sprint 19.
 
 ## Review rule
 
-No Codex review is run for G1 per the human's Q3 packaging decision
-(option 2). The deliver agent + human jointly authored the briefs in
-chat; the packaging commit captures the human-approved end state.
+Codex runs the Anti-Hardcode Review (`iteration_governance.md` §4.1)
+on the Sprint 19 PR diff and writes its decision to
+`docs/codex-findings.md` using the §4.2 sprint-close 4-line header
+(`## Sprint Review Decision` / `decision:` / `blocking_count:` /
+`summary:`).
 
-If a future review pass is opened on G1 (deferred decision), the
-reviewer would check:
+Codex is told explicitly (in the review prompt) that a bundled `infra`
+fix (Track B) or a bundled narrow `judge_calibration` / soft-signal
+`prompt_projection` fix (Track A) is **not scope drift**. The
+investigation framing of Sprint 19 contemplates exactly these bundles
+per the §"Bundle-or-defer policy" above. Out-of-scope concerns Codex
+surfaces (e.g. opinions on the other 16 R-items, opinions on G2 design)
+are recorded in `docs/action_bank.md` as deferred items rather than as
+blocking findings.
 
-1. Each brief has the 6 fields with no empty field.
-2. Each brief's named primary layer is reachable by walking
-   `iteration_governance.md` §3.2's 7 first-match-wins questions
-   against the What happened? + Why does this matter? content.
-3. Each brief's What should NOT be done? names a concrete
-   keyword / regex / if-else / enum / per-UC matrix and cites the
-   Constitution clause it violates.
-4. R-items in `docs/action_bank.md` §5.2 are traceable to ≥1 brief
-   each (n=1 → per-case R-item is allowed; n≥2 → systematic R-item
-   is required, applying the conditional-broadening rule recorded in
-   the Sprint 18 handoff §6).
-5. The Method note in the Sprint 18 handoff is consistent with
-   `iteration_governance.md` §2 and §3.2 Q6 (eval_spec layer
-   selection).
-6. The diff stays inside docs (no `server/` / `eval/` / etc.).
-7. The Sprint 17 G0 archive is not edited.
+`fix_required` is reserved for concrete §4.1-failing findings on the
+Sprint 19 diff: a bundle that introduces a forbidden hardcode, a
+bundled fix without a regression test, a `human_review_required`
+finding that was silently treated as a bundle, a `java_guard` finding
+that the dev agent introduced without a Tier-0 invariant, or a per-case
+§3.2 walk missing for any of the 6 regressed cases.
 
-If the review finds a missing field in any brief, the expected
-`decision` is `fix_required` with a named brief + the missing field.
-If the review finds an R-item with no source brief, the expected
-`decision` is `fix_required` with the R-item id named. If the review
-finds the diff inside scope and the briefs internally consistent,
-the expected `decision` is `pass`.
+## Deliverables (what the dev-agent PR must contain)
+
+- A single PR on a fresh branch (recommended: `sprint-019-a-b-parallel`
+  or similar).
+- Per-case Track A handoff section: §3.2 walk for each of the 6
+  regressed cases + bundle / defer decision + (if bundled) the test
+  evidence.
+- Track B handoff section: 3-hypothesis investigation + orchestrator
+  de-dup / idempotency contract write-up + bundle / defer decision +
+  (if bundled) regression test.
+- A 12-section Sprint 19 handoff at `docs/sprints/sprint-019-handoff.md`
+  following the Sprint 17 / Sprint 18 precedent (Context Pack, exact
+  actions, files changed, layer-classification self-walk, anti-hardcode
+  self-walk, generalization-coverage table, sprint-objective-met
+  check, open questions, next recommended action, etc.).
+- Updated `docs/10-handoff.md` leading with Sprint 19.
+- No edit to `docs/sprint_objective.md`, `docs/sprints/*`, or any
+  archived file. The deliver agent archives at sprint close.
+
+Codex writes its review to `docs/codex-findings.md` after the PR is
+open, per the review prompt at `compact/sprint-019-review-prompt.md`.
