@@ -371,8 +371,82 @@ the docs scaffolding (Sprint 17). G1 and G2 build on G0's templates.
 
 | id | candidate | status | owner | notes |
 |---|---|---|---|---|
-| G1 | Human-led Failure Portfolio (10–20 representative failures from human experience / past traces, each filed as a Failure Brief per `docs/current/iteration_governance.md` §2) | deferred — next governance sprint | deliver / human | depends on G0 templates; populates `docs/diagnostics/failure-briefs/` |
-| G2 | Interactive Eval Case Family + Shadow Split (target / neighbor / negative / shadow per failure brief, with the shadow split readable only to the human / review agent per `docs/current/iteration_governance.md` §5.1) | deferred — after G1 | deliver / eval governance | depends on G1 briefs; lands the case families and the shadow split |
+| G1 | Human-led Failure Portfolio (10–20 representative failures from human experience / past traces, each filed as a Failure Brief per `docs/current/iteration_governance.md` §2) | done — Sprint 18 G1; 10 briefs filed (9 smoke + 1 manual-probe) at `docs/diagnostics/failure-briefs/`; full handoff `docs/sprints/sprint-018-handoff.md`; objective archive `docs/sprints/sprint-018-g1-failure-portfolio-objective.md` | deliver / human | unblocked G2; see §5.2 for the 18 R-items + 2 open observations the briefs surfaced |
+| G2 | Interactive Eval Case Family + Shadow Split (target / neighbor / negative / shadow per failure brief, with the shadow split readable only to the human / review agent per `docs/current/iteration_governance.md` §5.1) | deferred — after G1 (now unblocked); also blocked on `R-smoke-regression-investigation` from §5.2 below | deliver / eval governance | depends on G1 briefs (delivered Sprint 18); lands the case families and the shadow split. Recommended to follow the regression investigation sprint so G2 starts from a clean smoke baseline |
+
+### 5.2 G1 surfaced backlog
+
+Sprint 18 G1 (2026-05-13) filed 10 Failure Briefs at
+`docs/diagnostics/failure-briefs/` and surfaced the items below. R-item
+ids are stable kebab-case; sources cite the brief file(s) that named
+each R-item. Conditional-broadening (rename retroactively when a 2nd
+instance confirms the pattern) is recorded in
+`docs/sprints/sprint-018-handoff.md` §8.8.
+
+**Tier-0 candidates**
+
+| id | source briefs | description |
+|----|---------------|-------------|
+| R-escalation-reason-runtime-evidence-contract-review | cs_040 + cs_176 + manual-probe (3 instances) | Solidly systematic. Should the runtime enforce that escalation_reasons claiming session events (`intake_complete_for_uc_*`, `faq_miss_threshold_exceeded`, `clarification_budget_exhausted`, etc.) require corresponding event evidence? Scope: evidence-claiming subset only (not `user_requested` / `user_distress` which have separate contracts). Tier-0 promotion requires `human_review_required` per §3.2 Q2. |
+
+**Systematic (≥2 instances confirmed)**
+
+| id | source briefs | description |
+|----|---------------|-------------|
+| R-generator-get-customer-context-policy-mismatch | cs_001 (UC-C) + cs_011 (UC-D) + cs_259 (UC-F) | CaseSpec generator includes `get_customer_context` in `expected_tool_sequence` regardless of phase 2 §2.10 line 358 UC-A/UC-FP/UC-K restriction. Wave A5/A6 priority. |
+| R-l3-judge-form-context-trust-rubric | cs_038 (Paul) + cs_040 (Mo) + cs_192 (Rita) | L3 judge over-reaches by criticizing form-supplied `first_name` as "without confirmation". Rubric should account for `form_context.first_name` as a trustable signal. |
+| R-corpus-coverage-audit-per-uc | cs_095 (UC-D account/email) + cs_192 (UC-B free-items/giveaway) + cs_259 (UC-F payment) | Per-UC FAQ corpus coverage audit. Resolve-grade articles for common entry-point questions per UC. **No generator-synthesized articles** (only genuine help-center content). |
+| R-faqMissCount-threshold-and-timing-review | cs_095 + cs_192 + cs_259 | Two-part: (a) `>= 2` threshold given auto-search burns one; (b) threshold check timing vs form-description fallback. Config governance, not runtime semantic change. |
+| R-duplicated-greeting-projection-fix | cs_095 ("Hi Trish! Hi Trish") + cs_176 ("Hi Gary! Hi Gary") | Single projection / template-rendering bug rendering greeting twice. |
+
+**Per-case L3 / governance**
+
+| id | source brief | description |
+|----|--------------|-------------|
+| R-uc-b-customer-context-policy-review | cs_015 (Related observation) | Phase 2 §2.10 line 358 restricts `get_customer_context` to UC-A/UC-FP/UC-K. Should UC-B (Posting & Editing) be added? Tangential to cs_015's main failure but worth a separate product-policy review. |
+| R-cs001-escalation-trigger-l3-review | cs_001 | CaseSpec trigger `clarification_budget_exhausted` conflicts with `intake fields (none)`. Wave A5/A6 review. |
+| R-cs038-l3-review-intake-efficiency | cs_038 | Should intake completion at T2 be the correct `turn_efficiency` target? |
+| R-cs040-l3-review-intake-completion-semantics | cs_040 | Should `escalation_reason=intake_complete_for_uc_k` + `intake_fields_collected=0` be a hard outcome fail (not just an L3 quality issue)? |
+| R-persona-goal-summary-scope-clarity | cs_040 | **Conditional** — only open if G2 case-family work shows the same scope-broadening pattern on other personas. |
+| R-cs095-uc-classification-l3-rereview | cs_095 | PRD / Eval = UC-D vs CaseSpec override (Wave A2.1 legacy) = UC-A. Substantive mismatch. Wave A5/A6 L3 re-review. **Most impactful follow-up for cs_095.** |
+| R-l1-source-citation-quality-rubric | cs_095 | L1 `source_citation_present` accepts internal SF IDs (`ka44J000000gKxqQAE`). Tighten to require canonical_url OR article title. |
+| R-cs176-escalation-reason-l3-review | cs_176 | Is `user_requested` the optimal expected reason for UC-E refund demand, or should UC-E have a more specific reason? |
+| R-cs192-secondary-ucs-duplicate-uc-b | cs_192 | Low priority. CaseSpec lists UC-B both as primary and as `secondary_ucs`. Generator quirk. |
+
+**G2 input / future input**
+
+| id | source brief | description |
+|----|--------------|-------------|
+| R-g2-multi-turn-followup-case-family-design | cs_095 | G2 case-family construction should intentionally include multi-turn followup cases on FAQ-resolve UCs to exercise the `skill_state` surface. |
+
+**New infra (from manual probe)**
+
+| id | source brief | description |
+|----|--------------|-------------|
+| R-runtime-orchestrator-tool-call-deduplication | manual-probe 2026-05-13 | `infra` layer per §3.2 Q1. 1 LLM request → 3 identical `search_knowledge` executions, same params / results. Investigate root cause among 3 hypotheses (phase transition re-trigger, Turn 1 failed-call replay, LLM new request). Document orchestrator's intended de-dup / idempotency contract. Add regression test. |
+
+**External / regression discovery**
+
+| id | source | description |
+|----|--------|-------------|
+| R-smoke-regression-investigation | 2026-05-05 → 2026-05-10 smoke run drop (9/14 = 64% → 3/14 = 21%) | **P1, must resolve before G2** otherwise G2 case-family construction has no clean baseline. 6 cases regressed (cs_002, cs_011, cs_014, cs_038, cs_040, cs_066) with symptoms ranging from empty `escalation_reason` to `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP` to `CONTRACT_VIOLATION:active_use_case`. Sprints 14 / 14.1 / 15 / 16 all declared no-runtime-semantic-change; trace evidence may contradict. Recommended next sprint. |
+
+**Open observations (NOT opened as R-items)**
+
+n=1 evidence is insufficient to open an R-item; controlled multi-shape
+testing needed (rule recorded in
+`docs/sprints/sprint-018-handoff.md` §0 / §8.7).
+
+- **Bot ignores explicit phase-plan directives** — cs_259 (Sprint 7
+  §I0 weak-candidate cue violation) + manual-probe (RESOLVE
+  MUST-call-resolve_article violation). n=2 opportunistic
+  observations across mixed surfaces; controlled multi-shape testing
+  across UC-B / UC-C / UC-D / UC-F empty-form shapes needed before
+  opening `R-prompt-phase-plan-directive-followship`. Tracked here
+  for visibility.
+- **ad_id form-vs-listing data consistency** — manual-probe (form
+  `ad_id=ad-1003` vs listing `ad_id=AD-1001`). n=1; needs production
+  data to know if this is a common shape. Not opening on n=1.
 
 ## 6. Closed action index
 

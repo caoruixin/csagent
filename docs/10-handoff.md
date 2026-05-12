@@ -1,16 +1,60 @@
 # Current Handoff
 
-Date: 2026-05-11
+Date: 2026-05-13
 Branch: `design-v1-without-human-review`
 
 ## 1. Current phase
 
 Current phase:
-Sprint 17 (Iteration Governance Lite — G0) is the active sprint as of
-2026-05-11. G0 lands the minimum docs-only governance scaffolding so
-that every Sprint 18+ semantic change is evaluated against an explicit
-layer-classification gate and an anti-hardcode review prompt before
-merge. Three deliverable files changed plus one new sprint handoff:
+Sprint 18 (Human-led Failure Portfolio — G1) is the active sprint as
+of 2026-05-13. G1 converts 10 representative real failures into
+structured Failure Briefs under `docs/diagnostics/failure-briefs/`
+per the Sprint 17 G0 §2 Failure Brief Template, populates the
+deferred-backlog ledger with the R-items those briefs surface, and
+documents the two ground-truth derivation techniques the briefs
+depend on in the Sprint 18 handoff. Three deliverable surfaces
+changed plus one new sprint handoff:
+
+- `docs/diagnostics/failure-briefs/` (new directory) carries 10
+  briefs: 9 smoke briefs covering Cluster A persistent failures
+  (cs_015, cs_095, cs_176, cs_192, cs_259) and Cluster B
+  mechanical-surface representatives (cs_001, cs_011, cs_038,
+  cs_040) plus 1 manual-probe brief
+  (`manual-probe-2026-05-13-ad-visibility-multi-layer-failure.md`).
+  Each brief carries the 6 required §2 fields plus header
+  metadata, and (where applicable) a Ground-truth chain preamble
+  and / or a Related observation tail.
+- `docs/action_bank.md` updated: §5.1 G1 row marked `done` with
+  the 10-brief deliverable; new §5.2 sub-section
+  `G1 surfaced backlog` records 18 R-items (1 Tier-0 candidate, 5
+  systematic, 9 per-case L3 / governance, 1 G2 input, 1 new
+  infra, 1 external / regression discovery) + 2 open
+  observations not opened on n=1 evidence.
+- `docs/sprint_objective.md` replaced with the Sprint 18 G1
+  objective; the previous Sprint 17 G0 content is preserved at
+  `docs/sprints/sprint-017-iteration-governance-lite-objective.md`.
+
+No runtime, prompt, FAQ corpus, CaseSpec, judge, eval harness, test,
+or script changed. No Codex review was run for G1 (per the human's
+packaging-workflow decision option 2: deliver agent + human jointly
+authored the briefs in chat; no dev agent, no review agent).
+`docs/codex-findings.md` retains its Sprint 17 G0 review content.
+Full handoff: `docs/sprints/sprint-018-handoff.md`. Archive:
+`docs/sprints/sprint-018-g1-failure-portfolio-objective.md`.
+
+This sprint declares the
+`docs/current/iteration_governance.md` §7 Layer-classification +
+anti-hardcode stanza **exempt** under the same docs-only governance
+exemption Sprint 15 (config governance) and Sprint 16 (docs +
+characterization tests) used. G1 is docs-only failure cataloguing;
+no semantic surface is changed.
+
+Preceding sprint (most recently closed, Codex pass):
+Sprint 17 (Iteration Governance Lite — G0) landed the minimum
+docs-only governance scaffolding so every Sprint 18+ semantic
+change is evaluated against an explicit layer-classification gate
+and an anti-hardcode review prompt before merge. Three deliverable
+files changed plus one sprint handoff:
 
 - `docs/current/iteration_governance.md` extended from 40-line
   Constitution to a 506-line bundle (Constitution + Failure Brief
@@ -28,12 +72,12 @@ merge. Three deliverable files changed plus one new sprint handoff:
 
 No runtime, prompt, FAQ corpus, CaseSpec, judge, eval harness, test,
 or script changed. Codex Sprint 17 review returned
-`decision: pass, blocking_count: 0`. Full handoff:
-`docs/sprints/sprint-017-handoff.md`. Archive:
-`docs/sprints/sprint-017-iteration-governance-lite-objective.md` and
+`decision: pass, blocking_count: 0`. Sprint 17 archive:
+`docs/sprints/sprint-017-iteration-governance-lite-objective.md`,
+`docs/sprints/sprint-017-handoff.md`, and
 `docs/sprints/sprint-017-codex-review.md`.
 
-Preceding sprint (most recently closed, Codex pass):
+Earlier sprint:
 Sprint 16 (Handover Exactly-Once Contract and Repro) landed as a
 docs + characterization-test sprint. No runtime behaviour was
 changed.
