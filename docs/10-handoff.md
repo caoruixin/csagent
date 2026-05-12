@@ -6,78 +6,109 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
-Sprint 18 (Human-led Failure Portfolio — G1) is the active sprint as
-of 2026-05-13. G1 converts 10 representative real failures into
-structured Failure Briefs under `docs/diagnostics/failure-briefs/`
-per the Sprint 17 G0 §2 Failure Brief Template, populates the
-deferred-backlog ledger with the R-items those briefs surface, and
-documents the two ground-truth derivation techniques the briefs
-depend on in the Sprint 18 handoff. Three deliverable surfaces
-changed plus one new sprint handoff:
+Sprint 19 (Smoke Regression Investigation + Orchestrator Tool-Call
+De-Dup — parallel A + B) is the active sprint as of 2026-05-13.
+Sprint 19 is an investigation-class sprint that walks
+`docs/current/iteration_governance.md` §3.2 per case for the two
+R-items the Sprint 18 G1 backlog named as blocking G2:
+`R-smoke-regression-investigation` (Track A) and
+`R-runtime-orchestrator-tool-call-deduplication` (Track B). Per the
+sprint objective §"Bundle-or-defer policy", each per-case (Track A)
+and whole-track (Track B) finding is either bundled as a reversible
+fix or deferred to a remediation proposal. **Outcome: proposal-only
+on both tracks.** Two deliverable surfaces changed:
 
-- `docs/diagnostics/failure-briefs/` (new directory) carries 10
-  briefs: 9 smoke briefs covering Cluster A persistent failures
-  (cs_015, cs_095, cs_176, cs_192, cs_259) and Cluster B
-  mechanical-surface representatives (cs_001, cs_011, cs_038,
-  cs_040) plus 1 manual-probe brief
-  (`manual-probe-2026-05-13-ad-visibility-multi-layer-failure.md`).
-  Each brief carries the 6 required §2 fields plus header
-  metadata, and (where applicable) a Ground-truth chain preamble
-  and / or a Related observation tail.
-- `docs/action_bank.md` updated: §5.1 G1 row marked `done` with
-  the 10-brief deliverable; new §5.2 sub-section
-  `G1 surfaced backlog` records 18 R-items (1 Tier-0 candidate, 5
-  systematic, 9 per-case L3 / governance, 1 G2 input, 1 new
-  infra, 1 external / regression discovery) + 2 open
-  observations not opened on n=1 evidence.
-- `docs/sprint_objective.md` replaced with the Sprint 18 G1
-  objective; the previous Sprint 17 G0 content is preserved at
-  `docs/sprints/sprint-017-iteration-governance-lite-objective.md`.
+- `docs/sprints/sprint-019-handoff.md` (new) — 12-section handoff
+  with §3.2 walks for all 6 regressed cases (cs_002, cs_011,
+  cs_014, cs_038, cs_040, cs_066), Track B 3-hypothesis
+  investigation + de-dup / idempotency contract write-up, and §11
+  action-bank delta recommendations (2 updated rows + 6 proposed
+  new R-items + 2 out-of-scope deferrals).
+- `docs/10-handoff.md` (this file) updated lead to Sprint 19;
+  Sprint 18 G1 demoted to "Preceding sprint".
 
-No runtime, prompt, FAQ corpus, CaseSpec, judge, eval harness, test,
-or script changed. No Codex review was run for G1 (per the human's
-packaging-workflow decision option 2: deliver agent + human jointly
-authored the briefs in chat; no dev agent, no review agent).
-`docs/codex-findings.md` retains its Sprint 17 G0 review content.
-Full handoff: `docs/sprints/sprint-018-handoff.md`. Archive:
-`docs/sprints/sprint-018-g1-failure-portfolio-objective.md`.
+Track A — diagnosis. Five of the six regressed cases (cs_002,
+cs_011, cs_014, cs_038, cs_040) share a slow-LLM placeholder
+shape: a `LlmDeadlineExceededException` surfaces the `"Sorry, I'm
+a bit slow right now. Please try sending that again in a moment."`
+user-facing message from `PhaseEvaluator.java` line 765, the user
+simulator replies, the next deadline event re-emits the same
+placeholder, and the runtime loop / stall detector flags it as a
+loop. Layer = `infra` per §3.2 Q1 in four cases; cs_011 lands at
+`semantic_planner` per §3.2 Q5 (bot did not escalate on an
+explicit handover request despite a prior promise to do so).
+cs_066 lands at `skill_state` per §3.2 Q4 (UC-K intake-complete
+escalation payload lost its `case_id` binding because the
+auto-create-case step no longer reliably runs).
+
+Track B — diagnosis. The manual-probe `search_knowledge × 3`
+shape is most parsimoniously explained as the LLM emitting the
+same `search_knowledge` call across three consecutive AgentRunLoop
+steps within the same T2 RESOLVE invocation, with no orchestrator-
+side amplification. Code reading of `AgentRunLoopImpl.java`
+confirms no de-duplication exists anywhere on the dispatch path.
+Layer = `semantic_planner` per §3.2 Q5. The brief's "1 LLM request
+→ 3 executions" framing is most likely the brief author observing
+only the `lastLlmRawResponse` field while seeing 3 ToolEvents.
+
+No bundled fixes in either track per the Sprint 19 §"Bundle-or-
+defer policy" + the user brief §"Files in scope" constraint (Track
+A `server/**` edits restricted to `prompt_projection` soft-signal
+additions; Track B `semantic_planner` defers per policy). No
+smoke rerun was triggered (no fix to validate). No runtime,
+prompt, FAQ corpus, CaseSpec, judge, eval harness, test, or
+script changed; no edit under `eval/`, `eval_interactive/`,
+`data/`, `scripts/`, `docs/foundational/`, `docs/current/`,
+`docs/runtime_freeze_and_risk_policy.md`, `docs/sprints/sprint-001..018-*`,
+`docs/sprint_objective.md`, or `docs/codex-findings.md`. Full
+handoff: `docs/sprints/sprint-019-handoff.md`.
 
 This sprint declares the
 `docs/current/iteration_governance.md` §7 Layer-classification +
-anti-hardcode stanza **exempt** under the same docs-only governance
-exemption Sprint 15 (config governance) and Sprint 16 (docs +
-characterization tests) used. G1 is docs-only failure cataloguing;
-no semantic surface is changed.
+anti-hardcode stanza fulfilled in **multi-layer prospective**
+form per the sprint objective (Track A spans `infra` /
+`semantic_planner` / `skill_state`; Track B resolves to
+`semantic_planner`). No Tier-0 invariant is added; no semantic
+hardcode is introduced; shadow coverage is explicitly deferred to
+G2 per `iteration_governance.md` §5.1's shadow allowance.
 
-Preceding sprint (most recently closed, Codex pass):
-Sprint 17 (Iteration Governance Lite — G0) landed the minimum
-docs-only governance scaffolding so every Sprint 18+ semantic
-change is evaluated against an explicit layer-classification gate
-and an anti-hardcode review prompt before merge. Three deliverable
-files changed plus one sprint handoff:
+Preceding sprint (most recently closed, no Codex run):
+Sprint 18 (Human-led Failure Portfolio — G1) converted 10
+representative real failures into structured Failure Briefs under
+`docs/diagnostics/failure-briefs/` per the Sprint 17 G0 §2
+Failure Brief Template, populated the deferred-backlog ledger
+with the R-items those briefs surfaced, and documented the two
+ground-truth derivation techniques the briefs depend on in the
+Sprint 18 handoff:
 
-- `docs/current/iteration_governance.md` extended from 40-line
-  Constitution to a 506-line bundle (Constitution + Failure Brief
-  template + Fix Layer Classification checklist + Anti-Hardcode Review
-  Prompt + Eval Acceptance Rules + Architecture-Health Metric
-  definitions + Section 7 sprint-objective stanza).
-- `AGENTS.md` seeded with the constitution chain (Option A:
-  `@docs/current/iteration_governance.md` /
-  `@docs/current/doc_governance.md` /
-  `@docs/current/agent_context_guide.md`) so the existing `@AGENTS.md`
-  include in `CLAUDE.md` now resolves to non-empty content.
-- `docs/action_bank.md` updated: §1 Current phase = Sprint 17,
-  §3 Active actions table for G0.1 / G0.2 / G0.3 / G0.4 all done,
-  new §5.1 Governance track backlog for G1 / G2 deferred.
+- `docs/diagnostics/failure-briefs/` carries 10 briefs: 9 smoke
+  briefs covering Cluster A persistent failures (cs_015, cs_095,
+  cs_176, cs_192, cs_259) and Cluster B mechanical-surface
+  representatives (cs_001, cs_011, cs_038, cs_040) plus 1
+  manual-probe brief
+  (`manual-probe-2026-05-13-ad-visibility-multi-layer-failure.md`).
+- `docs/action_bank.md` §5.2 records 18 G1-surfaced R-items (1
+  Tier-0 candidate, 5 systematic, 9 per-case L3 / governance, 1
+  G2 input, 1 new infra, 1 external / regression discovery) + 2
+  open observations not opened on n=1 evidence.
 
-No runtime, prompt, FAQ corpus, CaseSpec, judge, eval harness, test,
-or script changed. Codex Sprint 17 review returned
-`decision: pass, blocking_count: 0`. Sprint 17 archive:
-`docs/sprints/sprint-017-iteration-governance-lite-objective.md`,
-`docs/sprints/sprint-017-handoff.md`, and
-`docs/sprints/sprint-017-codex-review.md`.
+No runtime, prompt, FAQ corpus, CaseSpec, judge, eval harness,
+test, or script changed in Sprint 18. No Codex review was run
+(per the human's packaging-workflow decision option 2: deliver
+agent + human jointly authored the briefs in chat). G1 declared
+the §7 Layer-classification + anti-hardcode stanza **exempt**
+under the docs-only governance exemption. Full Sprint 18 handoff:
+`docs/sprints/sprint-018-handoff.md`. Archive:
+`docs/sprints/sprint-018-g1-failure-portfolio-objective.md`.
 
-Earlier sprint:
+Earlier sprint (Codex pass):
+Sprint 17 (Iteration Governance Lite — G0) landed the docs-only
+governance bundle (`docs/current/iteration_governance.md` 7
+sections + `AGENTS.md` constitution chain + `docs/action_bank.md`
+§5.1 governance-track backlog); Codex `decision: pass,
+blocking_count: 0`; archive under `docs/sprints/sprint-017-*`.
+
+Earlier accepted sprint:
 Sprint 16 (Handover Exactly-Once Contract and Repro) landed as a
 docs + characterization-test sprint. No runtime behaviour was
 changed.
