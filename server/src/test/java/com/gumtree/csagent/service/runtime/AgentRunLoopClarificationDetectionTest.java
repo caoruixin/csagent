@@ -71,7 +71,7 @@ class AgentRunLoopClarificationDetectionTest {
         String json = "{\"user_message\":\"" + userMsg + "\",\"reasoning\":\"x\",\"tool_calls\":[]}";
         LlmResponse resp = LlmResponse.builder()
                 .content(json).finishReason("stop").latencyMs(100L).build();
-        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(resp);

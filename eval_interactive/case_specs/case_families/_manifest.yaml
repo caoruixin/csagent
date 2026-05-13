@@ -1,0 +1,200 @@
+version: 1
+
+# Sprint 20 G2 case-family manifest (visible class).
+#
+# Each entry is a case family per docs/current/iteration_governance.md §5.1:
+# target (>=1) + neighbor (>=2) + negative (>=2) + shadow (>=2).
+# Shadow case ids are REDACTED in this visible manifest; the shadow
+# manifest at eval_interactive/case_specs_shadow/_manifest.yaml carries
+# them. See case_specs_shadow/_ACCESS_BOUNDARY.md for who may read what.
+#
+# Targets for the 9 smoke briefs reference the existing
+# eval_interactive/case_specs/smoke/<case_id>.yaml file via the
+# `target_case_path` field (no duplication; see Sprint 20 Context Pack
+# §7.5 Option A).
+#
+# Hand-authored neighbor / negative / shadow CaseSpecs all use
+# `source_dataset: case_family_authored` for provenance, and a
+# `source_session_id` of the form
+# `synthetic-sprint20-<family>-<class>-<idx>`.
+
+families:
+
+  - family_id: cs015_uc_fp_mis_route
+    source_brief: docs/diagnostics/failure-briefs/cs015-uc-fp-mis-route-and-premature-escalate.md
+    primary_layer: prompt_projection
+    secondary_layer: semantic_planner
+    l3_override_status: approved (Wave A6, source_session_id=570Q5000008WmXxIAK, eval_interactive/case_spec_overrides.yaml lines 64-98)
+    target_case_ids: [cs_interactive_015]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_015.yaml
+    neighbor_case_ids: [cs15n01_uc_fp_appeal_after_takedown, cs15n02_uc_fp_understand_removal]
+    negative_case_ids: [cs15g01_uc_a_top_ad_visibility, cs15g02_uc_b_repost_after_edit]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief primary layer is prompt_projection (UC-FP routing on empty-ad_id
+      deletion-question shape). Neighbors keep UC-FP shape across different
+      Ad Support deletion / appeal entries. Negatives are deliberately
+      adjacent UCs (UC-A visibility, UC-B repost) where a remediation that
+      hard-routes "ad-deletion-shape" -> UC-FP would mis-fire.
+
+  - family_id: cs001_uc_c_template_escalate
+    source_brief: docs/diagnostics/failure-briefs/cs001-uc-c-template-escalate-on-faq-miss.md
+    primary_layer: prompt_projection
+    secondary_layer: semantic_planner
+    l3_override_status: NONE (CaseSpec flagged for L3 triage; see brief Related observation #1)
+    target_case_ids: [cs_interactive_001]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_001.yaml
+    neighbor_case_ids: [cs01n01_uc_c_inbox_filter_question, cs01n02_uc_c_messaging_general]
+    negative_case_ids: [cs01g01_uc_c_user_requested_handover, cs01g02_uc_c_strong_distress_signal]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief primary layer is prompt_projection (fixed-template surface on
+      faq_miss). Neighbors are other UC-C "messages not arriving" shapes
+      that should resolve or escalate with acknowledgment. Negatives are
+      UC-C cases where a template-style fast-escalate IS correct (explicit
+      user_requested handover; confirmed user_distress) -- a remediation
+      that suppresses the template universally would mis-fire here.
+
+  - family_id: cs011_uc_d_description_ignored
+    source_brief: docs/diagnostics/failure-briefs/cs011-uc-d-detailed-description-ignored-on-faq-miss.md
+    primary_layer: prompt_projection
+    secondary_layer: semantic_planner
+    l3_override_status: approved (Sprint 4 §E1, source_session_id=570Q5000008NWIjIAO, eval_interactive/case_spec_overrides.yaml line 164)
+    target_case_ids: [cs_interactive_011]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_011.yaml
+    neighbor_case_ids: [cs11n01_uc_d_2fa_loop_verbose, cs11n02_uc_d_email_sync_detailed]
+    negative_case_ids: [cs11g01_uc_d_brief_user_requested, cs11g02_uc_d_explicit_distress]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief primary layer is prompt_projection (high-frustration high-verbosity
+      template-escalate). Neighbors share UC-D account/login + detailed user
+      narrative shape. Negatives are short, explicit-user_requested UC-D cases
+      where a quick handover IS correct.
+
+  - family_id: cs038_uc_j_intake_redundancy
+    source_brief: docs/diagnostics/failure-briefs/cs038-uc-j-intake-redundancy-and-jargon-framing.md
+    primary_layer: prompt_projection
+    secondary_layer: skill_state
+    l3_override_status: NONE (CaseSpec flagged for L3 triage; see brief Related observation #2)
+    target_case_ids: [cs_interactive_038]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_038.yaml
+    neighbor_case_ids: [cs38n01_uc_j_fraud_narrative_complete, cs38n02_uc_j_harassment_report_complete]
+    negative_case_ids: [cs38g01_uc_j_sparse_user_info_intake_required, cs38g02_uc_j_genuine_report_partial]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief layers: prompt_projection (internal-jargon framing) +
+      skill_state (intake completion not recognised from narrative).
+      Neighbors give the bot a complete intake narrative on T1; bot should
+      close intake without re-asking. Negatives give sparse user info where
+      field-by-field intake IS the correct flow.
+
+  - family_id: cs040_uc_k_disengaged_jargon
+    source_brief: docs/diagnostics/failure-briefs/cs040-uc-k-disengaged-jargon-intake-false-complete.md
+    primary_layer: prompt_projection
+    secondary_layer: semantic_planner
+    l3_override_status: NONE (CaseSpec flagged for L3 triage; see brief Related observation #3)
+    target_case_ids: [cs_interactive_040]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_040.yaml
+    neighbor_case_ids: [cs40n01_uc_k_app_crash_detail, cs40n02_uc_k_payment_button_flaw]
+    negative_case_ids: [cs40g01_uc_k_intake_complete_from_form, cs40g02_uc_k_explicit_user_requested]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief layers: prompt_projection (jargon framing) + semantic_planner
+      (false intake-complete stamp). Neighbors expand UC-K technical defect
+      shapes that share the false-intake risk. Negatives are UC-K cases
+      where intake IS already complete (form_context carries the platform +
+      repro_steps) or where user_requested IS the right reason.
+
+  - family_id: cs095_uc_classification_account_aware
+    source_brief: docs/diagnostics/failure-briefs/cs095-uc-classification-and-account-aware-path-skipped.md
+    primary_layer: prompt_projection
+    secondary_layer: skill_state
+    l3_override_status: approved (Wave A2.1 legacy, source_session_id=570Q5000008U5C9IAK, eval_interactive/case_spec_overrides.yaml line 311; classification UNDER L3 RE-REVIEW per R-cs095-uc-classification-l3-rereview)
+    target_case_ids: [cs_interactive_095]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_095.yaml
+    neighbor_case_ids: [cs95n01_uc_d_app_login_email_mismatch, cs95n02_uc_d_no_ads_visible_state]
+    negative_case_ids: [cs95g01_uc_a_pure_visibility_question, cs95g02_uc_d_pure_email_change_question]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief layers: prompt_projection (UC label vs UC content inconsistency)
+      + skill_state (T1 follow-up unhandled). Neighbors are multi-symptom
+      account-state-flavored cases that require get_customer_context-first.
+      Negatives are unambiguous single-axis questions (pure UC-A visibility
+      OR pure UC-D email-change) where a one-shot FAQ answer IS correct.
+
+  - family_id: cs176_uc_e_wrong_escalation_reason
+    source_brief: docs/diagnostics/failure-briefs/cs176-uc-e-wrong-escalation-reason-family.md
+    primary_layer: semantic_planner
+    secondary_layer: prompt_projection
+    l3_override_status: NONE (CaseSpec flagged for L3 triage; see brief Related observation #2)
+    target_case_ids: [cs_interactive_176]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_176.yaml
+    neighbor_case_ids: [cs76n01_uc_e_refund_demand, cs76n02_uc_e_fulfillment_demand]
+    negative_case_ids: [cs76g01_uc_e_policy_question_faq_path, cs76g02_uc_e_clarification_first_turn]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief layers: semantic_planner (cross-family escalation_reason
+      mis-selection) + prompt_projection (family distinction not surfaced).
+      Neighbors are other UC-E user-intent demands that should escalate
+      with user_requested. Negatives are UC-E policy questions where
+      faq_miss_threshold_exceeded IS the right reason after legitimate
+      FAQ search.
+
+  - family_id: cs192_uc_b_giveaway
+    source_brief: docs/diagnostics/failure-briefs/cs192-uc-b-mechanical-escalate-on-resolvable-giveaway-question.md
+    primary_layer: prompt_projection
+    secondary_layer: semantic_planner
+    l3_override_status: NONE (CaseSpec flagged for L3 triage; see brief Related observation #4)
+    target_case_ids: [cs_interactive_192]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_192.yaml
+    neighbor_case_ids: [cs92n01_uc_b_free_pickup_listings, cs92n02_uc_b_zero_pound_pricing]
+    negative_case_ids: [cs92g01_uc_b_obscure_policy_genuine_faq_miss, cs92g02_uc_b_explicit_user_requested]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief layers: prompt_projection (template-on-faq_miss) + semantic_planner
+      (resolve-vs-escalate decision). Authoring on cs_192 itself did NOT
+      surface a CONTRACT_VIOLATION:active_use_case shape (target is the
+      2026-05-05 PASS-by-CaseSpec shape, where the contract held); §3.2 Q2
+      stop-gate did not fire. cs_192's 2026-05-10 Cluster C
+      CONTRACT_VIOLATION shape is regression noise per Sprint 19 §3 and
+      not the target. Neighbors share UC-B basic-policy shapes. Negatives
+      are UC-B genuinely-obscure policy or explicit user_requested cases
+      where escalation IS correct.
+
+  - family_id: cs259_uc_f_payment_question
+    source_brief: docs/diagnostics/failure-briefs/cs259-uc-f-sprint7-i0-violation-on-payment-question.md
+    primary_layer: semantic_planner
+    secondary_layer: prompt_projection
+    l3_override_status: NONE (no specific L3 ask per brief Related observation; cs_259 outcome is correct, surface is mechanical I0 violation)
+    target_case_ids: [cs_interactive_259]
+    target_case_path: eval_interactive/case_specs/smoke/cs_interactive_259.yaml
+    neighbor_case_ids: [cs59n01_uc_b_empty_form_posting_question, cs59n02_uc_c_empty_form_messages_question]
+    negative_case_ids: [cs59g01_uc_f_obscure_payment_taxation, cs59g02_uc_f_user_requested_first_turn]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief layers: semantic_planner (Sprint 7 §I0 directive violation) +
+      prompt_projection (directive may not surface effectively at decision
+      time). Neighbors are other empty-form + FAQ-shaped messages that
+      activate §I0 (UC-B / UC-C) and should NOT request_handover after one
+      user turn. Negatives are UC-F cases where escalation IS correct
+      (genuinely obscure tax question; explicit user_requested).
+
+  - family_id: manual_probe_uc_a_resolve_must
+    source_brief: docs/diagnostics/failure-briefs/manual-probe-2026-05-13-ad-visibility-multi-layer-failure.md
+    primary_layer: semantic_planner
+    secondary_layer: prompt_projection
+    l3_override_status: N/A (manual probe; no CaseSpec; ground truth from phase 2 UC-A + bot phase_plan.system_instruction per Sprint 18 §5.2)
+    target_case_ids: [cs_manual_probe_target_uc_a_resolve_must]
+    target_case_path: eval_interactive/case_specs/case_families/manual_probe_uc_a_resolve_must/target/cs_manual_probe_target_uc_a_resolve_must.yaml
+    neighbor_case_ids: [csmp_n01_uc_a_visibility_search_hits, csmp_n02_uc_a_top_ad_status_question]
+    negative_case_ids: [csmp_g01_uc_a_genuine_faq_miss_obscure, csmp_g02_uc_a_user_requested_specialist]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Brief layers: semantic_planner (RESOLVE MUST-call-resolve_article
+      violation + self-stamped faq_miss despite faq_miss=false) +
+      prompt_projection (system_instruction MUST clause visibility). Target
+      authored fresh from the brief's quoted system_instruction + phase 2
+      UC-A policy. Neighbors are UC-A visibility cases where search_knowledge
+      returns viable hits; the bot must resolve, not escalate. Negatives
+      are UC-A cases where escalation IS correct (truly no viable hit;
+      explicit user_requested).

@@ -6,73 +6,103 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
+Sprint 20 (G2 Interactive Case Family + Shadow Split + Already-Called
+Soft Signal — parallel A + B) is the active sprint as of 2026-05-13.
+Sprint 20 is a two-track semantic-touching sprint. Track A is
+content-authoring on the eval-spec surface; it converts the 10
+G1 Failure Briefs into the four-class case-family structure
+required by `docs/current/iteration_governance.md` §5.1 (target /
+neighbor / negative / shadow) and builds the v0 shadow-split
+mechanism that hides shadow-class cases from the dev agent.
+Track B is the canonical `prompt_projection` bundle per Sprint 19
+§"Bundle-or-defer policy": it surfaces an `already_called: [{tool,
+arguments_hash, at_step}]` diagnostic slot in the per-step
+projection so the LLM can see prior identical-args calls before
+re-emitting. **Outcome: both tracks land.** Track A explicitly
+does NOT remediate any G1 brief; remediation is a G3+ sprint that
+consumes the families. Three deliverable surfaces changed:
+
+- `eval_interactive/case_specs/case_families/` (new) and
+  `eval_interactive/case_specs_shadow/` (new) — 61 new CaseSpec
+  files across 10 families plus visible + shadow manifests + an
+  access-boundary doc. 9 smoke targets referenced via the visible
+  manifest (no file duplication per Context Pack §7.5 Option A);
+  1 manual-probe target hand-authored from the brief's quoted
+  system_instruction MUST clause + phase 2 UC-A policy. Totals:
+  10 targets + 20 neighbors + 20 negatives + 20 shadows = 70
+  CaseSpec-shaped entries.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/ContextProjectionBuilder.java`
+  and `AgentRunLoopImpl.java` — new 6-argument `build(...)` overload
+  emits `already_called` from successful prior `ToolEvent`s; legacy
+  5-argument overload preserved (delegates with an empty list, still
+  emits the slot for projection shape stability). Argument hash via
+  stable Jackson canonicalisation + first-16-hex-chars of SHA-256.
+  Slot is observability-only; the runtime does NOT short-circuit
+  dispatch on slot population.
+- `docs/sprints/sprint-020-handoff.md` (new) — 12-section handoff
+  with the Context Pack, per-family detail, shadow-split mechanism
+  description, slot wiring detail, 9-question anti-hardcode self-walk
+  (verdict `approve`), generalization-coverage table, and §12 action
+  bank delta recommendations (2 updated rows + 3 proposed new R-items
+  + out-of-scope deferrals).
+- `docs/10-handoff.md` (this file) updated lead to Sprint 20; Sprint
+  19 demoted to "Preceding sprint".
+
+Track A — case families and shadow split. Each of the 10 G1 briefs
+gets a family with ≥1 target + ≥2 neighbor + ≥2 negative + ≥2 shadow.
+Hand-authored neighbor / negative / shadow CaseSpecs carry
+`source_dataset: case_family_authored` for grep-able provenance and
+do not encode keyword / regex / per-UC matrix into YAML content
+— each spec describes a user shape + expected behaviour, and a
+remediation that ships against the visible target is independently
+checkable against the family's negatives. The shadow-split v0
+mechanism is a sibling `case_specs_shadow/` directory not loaded
+by the default CaseSetManager; `_ACCESS_BOUNDARY.md` documents who
+may read what and the v1 hardening direction. The cs_192 §3.2 Q2
+stop-gate did NOT fire during target authoring (the target stays
+on the brief's 2026-05-05 PASS-by-CaseSpec shape).
+
+Track B — `already_called` slot. The `AgentRunLoopImpl.run(...)`
+projection-build call site now passes the accumulated
+`List<ToolEvent>` into the new 6-argument
+`ContextProjectionBuilder.build(...)` overload. The builder filters to
+successful events and emits an array of `{tool, arguments_hash,
+at_step}` entries. New regression test
+`AlreadyCalledProjectionTest` (7 cases) covers the three
+sprint-objective behaviour bars: (a) populated when prior identical-
+args call exists, (b) empty array otherwise, (c) runtime does not
+short-circuit (two identical-args dispatches produce two slot
+entries; both calls land in toolEvents). Full server suite re-run
+after wiring: **894 / 0 / 0 / 1 (1 pre-existing skip)**.
+
+This sprint declares the `docs/current/iteration_governance.md` §7
+Layer-classification + anti-hardcode stanza fulfilled in
+**multi-layer** form per the sprint objective: Track A = `eval_spec`
+(case-family authoring) + `infra` (shadow-split mechanism); Track B
+= `prompt_projection`. No Tier-0 invariant is added; no semantic
+hardcode is introduced; no `human_review_required` flag fired. The
+generalization-coverage table is the deliverable itself for Track A.
+
+Preceding sprint (most recently closed, Codex pending sprint-close
+review):
 Sprint 19 (Smoke Regression Investigation + Orchestrator Tool-Call
-De-Dup — parallel A + B) is the active sprint as of 2026-05-13.
-Sprint 19 is an investigation-class sprint that walks
-`docs/current/iteration_governance.md` §3.2 per case for the two
-R-items the Sprint 18 G1 backlog named as blocking G2:
-`R-smoke-regression-investigation` (Track A) and
-`R-runtime-orchestrator-tool-call-deduplication` (Track B). Per the
-sprint objective §"Bundle-or-defer policy", each per-case (Track A)
-and whole-track (Track B) finding is either bundled as a reversible
-fix or deferred to a remediation proposal. **Outcome: proposal-only
-on both tracks.** Two deliverable surfaces changed:
+De-Dup — parallel A + B) walked `docs/current/iteration_governance.md`
+§3.2 per case for the two R-items the Sprint 18 G1 backlog named
+as blocking G2: `R-smoke-regression-investigation` (Track A) and
+`R-runtime-orchestrator-tool-call-deduplication` (Track B). Outcome
+was proposal-only on both tracks: Track A found five of six regressed
+cases share a slow-LLM placeholder shape (layer `infra` per §3.2
+Q1; deferred remediation as `R-slow-llm-placeholder-coalesce`),
+cs_011 lands at `semantic_planner` (failure to escalate on explicit
+handover request), cs_066 at `skill_state` (UC-K case_id-binding
+loss). Track B re-classified the orchestrator-de-dup R-item from
+`infra` to `semantic_planner` and proposed two follow-on items:
+`R-prompt-projection-already-called-soft-signal` (read-side soft
+signal — now delivered by Sprint 20 Track B) and
+`R-idempotent-read-tool-short-circuit` (conditional). Full handoff:
+`docs/sprints/sprint-019-handoff.md`.
 
-- `docs/sprints/sprint-019-handoff.md` (new) — 12-section handoff
-  with §3.2 walks for all 6 regressed cases (cs_002, cs_011,
-  cs_014, cs_038, cs_040, cs_066), Track B 3-hypothesis
-  investigation + de-dup / idempotency contract write-up, and §11
-  action-bank delta recommendations (2 updated rows + 6 proposed
-  new R-items + 2 out-of-scope deferrals).
-- `docs/10-handoff.md` (this file) updated lead to Sprint 19;
-  Sprint 18 G1 demoted to "Preceding sprint".
-
-Track A — diagnosis. Five of the six regressed cases (cs_002,
-cs_011, cs_014, cs_038, cs_040) share a slow-LLM placeholder
-shape: a `LlmDeadlineExceededException` surfaces the `"Sorry, I'm
-a bit slow right now. Please try sending that again in a moment."`
-user-facing message from `PhaseEvaluator.java` line 765, the user
-simulator replies, the next deadline event re-emits the same
-placeholder, and the runtime loop / stall detector flags it as a
-loop. Layer = `infra` per §3.2 Q1 in four cases; cs_011 lands at
-`semantic_planner` per §3.2 Q5 (bot did not escalate on an
-explicit handover request despite a prior promise to do so).
-cs_066 lands at `skill_state` per §3.2 Q4 (UC-K intake-complete
-escalation payload lost its `case_id` binding because the
-auto-create-case step no longer reliably runs).
-
-Track B — diagnosis. The manual-probe `search_knowledge × 3`
-shape is most parsimoniously explained as the LLM emitting the
-same `search_knowledge` call across three consecutive AgentRunLoop
-steps within the same T2 RESOLVE invocation, with no orchestrator-
-side amplification. Code reading of `AgentRunLoopImpl.java`
-confirms no de-duplication exists anywhere on the dispatch path.
-Layer = `semantic_planner` per §3.2 Q5. The brief's "1 LLM request
-→ 3 executions" framing is most likely the brief author observing
-only the `lastLlmRawResponse` field while seeing 3 ToolEvents.
-
-No bundled fixes in either track per the Sprint 19 §"Bundle-or-
-defer policy" + the user brief §"Files in scope" constraint (Track
-A `server/**` edits restricted to `prompt_projection` soft-signal
-additions; Track B `semantic_planner` defers per policy). No
-smoke rerun was triggered (no fix to validate). No runtime,
-prompt, FAQ corpus, CaseSpec, judge, eval harness, test, or
-script changed; no edit under `eval/`, `eval_interactive/`,
-`data/`, `scripts/`, `docs/foundational/`, `docs/current/`,
-`docs/runtime_freeze_and_risk_policy.md`, `docs/sprints/sprint-001..018-*`,
-`docs/sprint_objective.md`, or `docs/codex-findings.md`. Full
-handoff: `docs/sprints/sprint-019-handoff.md`.
-
-This sprint declares the
-`docs/current/iteration_governance.md` §7 Layer-classification +
-anti-hardcode stanza fulfilled in **multi-layer prospective**
-form per the sprint objective (Track A spans `infra` /
-`semantic_planner` / `skill_state`; Track B resolves to
-`semantic_planner`). No Tier-0 invariant is added; no semantic
-hardcode is introduced; shadow coverage is explicitly deferred to
-G2 per `iteration_governance.md` §5.1's shadow allowance.
-
-Preceding sprint (most recently closed, no Codex run):
+Earlier sprint (no Codex run):
 Sprint 18 (Human-led Failure Portfolio — G1) converted 10
 representative real failures into structured Failure Briefs under
 `docs/diagnostics/failure-briefs/` per the Sprint 17 G0 §2

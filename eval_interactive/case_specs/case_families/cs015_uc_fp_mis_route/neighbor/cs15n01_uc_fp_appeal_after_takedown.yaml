@@ -1,0 +1,68 @@
+case_id: cs15n01_uc_fp_appeal_after_takedown
+source_session_id: synthetic-sprint20-cs015-neighbor-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Priya
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: My listing was taken down and I want to appeal it
+persona:
+  user_goal_summary: User wants to understand why their listing was removed and either appeal the decision or edit-and-repost. Drift - none.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - It was a perfectly normal kitchen blender listing -- I don't understand
+  - Can someone review it again?
+  hidden_facts:
+  - fact: The listing title was "KitchenAid blender - barely used, collection only".
+    disclose_when: if the bot asks for details about the listing
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-H
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Retrieve safe customer/listing/moderation context, explain the takedown reason in user-facing language, clarify whether the listing can be edited or appealed, and escalate only on explicit appeal/review/restoration requests or when a safe reason cannot be produced.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

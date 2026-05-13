@@ -1,0 +1,78 @@
+version: 1
+
+# Sprint 20 G2 case-family manifest (SHADOW class).
+#
+# READING THIS FILE
+# -----------------
+# Per case_specs_shadow/_ACCESS_BOUNDARY.md, this file is readable by the
+# human reviewer and the review agent (Codex). The dev agent must not
+# read this file during development. Sprint 20 IS the sprint that
+# authored these case ids; Sprint 20 does not consume them.
+#
+# Each entry mirrors the visible manifest at
+# eval_interactive/case_specs/case_families/_manifest.yaml but reveals
+# the shadow case ids that were redacted there. Targets / neighbors /
+# negatives are not duplicated here -- the visible manifest is the
+# source of truth for the non-shadow classes.
+
+families:
+
+  - family_id: cs015_uc_fp_mis_route
+    shadow_case_ids:
+      - cs15s01_uc_fp_empty_ad_id_image_flag
+      - cs15s02_uc_fp_keyword_match_appeal
+    notes: Shadow exercises the same empty-ad_id UC-FP routing surface with different content shapes (image policy flag, keyword-match appeal) -- distinct from neighbors which target deletion + repost.
+
+  - family_id: cs001_uc_c_template_escalate
+    shadow_case_ids:
+      - cs01s01_uc_c_notification_lag_detailed
+      - cs01s02_uc_c_inbox_empty_after_form
+    notes: Shadow cases probe whether a remediation that adds acknowledgment also handles two unseen UC-C shapes (notification-lag detail, post-form-submission empty inbox).
+
+  - family_id: cs011_uc_d_description_ignored
+    shadow_case_ids:
+      - cs11s01_uc_d_two_emails_one_account
+      - cs11s02_uc_d_password_change_loop_high_distress
+    notes: Shadow probes high-context UC-D shapes (two-emails-one-account; password-loop with distress-ish signals) where the bot must acknowledge specifics, not template.
+
+  - family_id: cs038_uc_j_intake_redundancy
+    shadow_case_ids:
+      - cs38s01_uc_j_scam_seller_full_narrative
+      - cs38s02_uc_j_harassment_full_narrative
+    notes: Shadow probes UC-J variants where the user gives the complete intake narrative on T1; bot must close intake without re-asking.
+
+  - family_id: cs040_uc_k_disengaged_jargon
+    shadow_case_ids:
+      - cs40s01_uc_k_login_intermittent_with_repro
+      - cs40s02_uc_k_image_upload_timeout_with_platform
+    notes: Shadow probes UC-K variants where form_context already carries enough intake to close (platform + symptom); bot must not re-ask.
+
+  - family_id: cs095_uc_classification_account_aware
+    shadow_case_ids:
+      - cs95s01_uc_d_phone_changed_no_messages
+      - cs95s02_uc_d_logged_in_different_browser_no_ads
+    notes: Shadow probes multi-symptom UC-D account-state-flavored cases where get_customer_context-first is required to avoid generic UC-A FAQ misrouting.
+
+  - family_id: cs176_uc_e_wrong_escalation_reason
+    shadow_case_ids:
+      - cs76s01_uc_e_paid_top_ad_not_running
+      - cs76s02_uc_e_featured_listing_demoted
+    notes: Shadow probes UC-E user-intent demands distinct from visible neighbors; cross-family escalation_reason must still be user_requested, not faq_miss_threshold_exceeded.
+
+  - family_id: cs192_uc_b_giveaway
+    shadow_case_ids:
+      - cs92s01_uc_b_charity_donation_listing
+      - cs92s02_uc_b_pickup_only_no_price
+    notes: Shadow probes UC-B basic-policy questions adjacent to giveaway shape (charity, pickup-only) where the bot must resolve, not template-escalate.
+
+  - family_id: cs259_uc_f_payment_question
+    shadow_case_ids:
+      - cs59s01_uc_d_empty_form_account_recovery
+      - cs59s02_uc_f_empty_form_payout_timing
+    notes: Shadow probes Sprint 7 §I0 activation on additional empty-form + FAQ-shaped messages across UC-D and UC-F.
+
+  - family_id: manual_probe_uc_a_resolve_must
+    shadow_case_ids:
+      - csmp_s01_uc_a_search_hits_with_ad_id_mismatch
+      - csmp_s02_uc_a_search_hits_user_pivots_to_followup
+    notes: Shadow probes RESOLVE MUST-call-resolve_article compliance under (a) a form-vs-listing ad_id mismatch (same shape as the brief's real probe) and (b) a multi-turn follow-up where the bot must sustain past the first grounded answer.

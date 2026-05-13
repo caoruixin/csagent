@@ -1,0 +1,67 @@
+case_id: cs15g01_uc_a_top_ad_visibility
+source_session_id: synthetic-sprint20-cs015-negative-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Sarah
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: '1899234001'
+  description: I paid for Top Ad and my listing isn't showing higher than the free ones
+persona:
+  user_goal_summary: User paid for a Top Ad upgrade and wants to understand why their ad is not visibly above non-paid listings in search results. Drift - none.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - I refreshed and it's still in the same place
+  - is there a delay or did I pay for nothing
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-E
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the visibility question, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, record_outcome), explain Top Ad placement timing and search-rank rules from the knowledge base, and confirm with the user whether their concern is resolved.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

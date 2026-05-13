@@ -1,0 +1,64 @@
+case_id: cs76g02_uc_e_clarification_first_turn
+source_session_id: synthetic-sprint20-cs176-negative-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Mira
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: my featured ad isn't right
+persona:
+  user_goal_summary: User opens with a vague UC-E complaint with no demand and no detail; bot must clarify before deciding outcome. If the clarification reveals a user-intent demand (refund / fulfillment), user_requested is correct; if it reveals a policy question, resolve via FAQ. The negative tests that bot does NOT jump straight to faq_miss based on the form_context alone. Drift - none.
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - I paid £10 and it doesn't look featured to me
+  - can you check?
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-E
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Open with a clarifying question to confirm whether the user is asking about visibility (UC-E -> UC-A overlap) or expecting a refund / fix; once the user reveals the intent ("I paid £10 and it doesn't look featured", "can you check") which is a user-intent demand for verification + remediation, hand over with reason user_requested. Do NOT stamp faq_miss_threshold_exceeded based solely on a no-FAQ-hit search.
+  escalation_trigger: user_requested
+  risk_level: medium
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 8
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - escalation_timing
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

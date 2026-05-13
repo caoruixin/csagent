@@ -169,11 +169,19 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         mergePartialIntakeFromContext(session, plan, userMessage);
 
         for (int step = 0; step < maxSteps; step++) {
-            // 1. Build plan-aware projection
+            // 1. Build plan-aware projection.
+            //
+            // Sprint 20 Track B (R-prompt-projection-already-called-soft-
+            // signal): pass the per-run toolEvents list to the projection
+            // builder so it can surface an `already_called` slot listing
+            // every successful prior tool dispatch in this run. Slot is
+            // observability-only; no short-circuit on dispatch (see
+            // Sprint 19 §4.2 + Sprint 20 objective §"Defer (Track B)").
             String projection;
             try {
                 projection = contextProjectionBuilder.build(
-                        session, history, plan, userMessage, accumulatedToolResults);
+                        session, history, plan, userMessage, accumulatedToolResults,
+                        toolEvents);
             } catch (Exception ex) {
                 log.error("AgentRunLoop projection build failed at step {}: {}",
                         step, ex.getMessage(), ex);

@@ -86,7 +86,7 @@ class Sprint81DiscoverPhaseBoundaryTest {
         // the session. Without §M3 the loop would now call the LLM a
         // third time, run out of steps (maxToolSteps=2), and return
         // MAX_STEPS — which the legacy mapper turns into ESCALATE.
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("step0").build())
@@ -134,7 +134,7 @@ class Sprint81DiscoverPhaseBoundaryTest {
         // When classify_use_case dispatch fails (e.g. invalid UC, strong-prior
         // refusal that left activeUseCase null), the loop must NOT take the
         // §M3 phase boundary — there is nothing to resolve.
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("step0").build())
@@ -171,7 +171,7 @@ class Sprint81DiscoverPhaseBoundaryTest {
                 .maxToolSteps(3)
                 .validTerminalOutcomes(Set.of(TerminalOutcome.FINAL_ANSWER))
                 .build();
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("c1").build())

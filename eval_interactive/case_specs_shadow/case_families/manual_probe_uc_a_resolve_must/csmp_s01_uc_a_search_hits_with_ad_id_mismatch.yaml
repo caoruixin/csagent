@@ -1,0 +1,68 @@
+case_id: csmp_s01_uc_a_search_hits_with_ad_id_mismatch
+source_session_id: synthetic-sprint20-manualprobe-shadow-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Yara
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ad-2007
+  description: Why has my advert gone offline?
+persona:
+  user_goal_summary: User asks a UC-A visibility question; the form-supplied ad_id and the listing-context ad_id intentionally differ (probe of the manual-probe brief's form-vs-listing mismatch shape). search_knowledge returns viable hits. Bot must call resolve_article on the top hit, surface the ad_id mismatch back to the user, and produce a grounded answer. Drift - none.
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - it was up at lunchtime today
+  - I don't know if the ID is the right format
+  hidden_facts:
+  - fact: The form-supplied ad_id "ad-2007" does not match the listing-context ad_id (production data inconsistency analogous to the original manual-probe trace's ad-1003 vs AD-1001).
+    disclose_when: never (the bot's job is to detect and surface the inconsistency back to the user, not for the persona to volunteer it)
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the visibility question, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, record_outcome), call resolve_article on the top viable hit before answering. Surface any detected form/listing ad_id mismatch back to the user in plain language. Do NOT self-stamp faq_miss_threshold_exceeded when viable hits exist.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 12
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

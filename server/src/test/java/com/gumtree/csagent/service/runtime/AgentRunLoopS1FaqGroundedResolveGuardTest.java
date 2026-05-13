@@ -255,7 +255,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         //           — guard must reject; loop continues
         //   step 2: LLM calls resolve_article + grounded answer; loop ends
         //           via FINAL_ANSWER (or via handover with a different reason).
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
 
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
@@ -318,7 +318,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         // search_knowledge runs but returns faq_miss=true; the LLM then
         // escalates with faq_miss_threshold_exceeded — the guard must NOT
         // fire because there is no viable evidence to ground.
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
 
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
@@ -368,7 +368,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         // turn-0 shape), the guard does not pre-empt the handover. The
         // prompt-side nudge in PhaseEvaluator's groundingInstruction owns
         // the search-before-answer behaviour.
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
 
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
@@ -403,7 +403,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         // Cross-check with G1: user_requested wins over the FAQ family;
         // the S1 guard never blocks a user_requested handover, even with
         // viable search hits in accumulated_tool_results.
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
 
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))

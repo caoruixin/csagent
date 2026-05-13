@@ -1,6 +1,7 @@
 package com.gumtree.csagent.service.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.gumtree.csagent.model.BotSession;
@@ -8,11 +9,16 @@ import com.gumtree.csagent.model.BotTurn;
 import com.gumtree.csagent.model.KnowledgeHit;
 import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.model.TerminalOutcome;
+import com.gumtree.csagent.model.ToolEvent;
 import com.gumtree.csagent.service.tools.ToolPolicyEnforcer;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +41,16 @@ public class ContextProjectionBuilder {
     private final UseCaseRegistryService useCaseRegistry;
     private final ControlPolicyService controlPolicy;
     private final ToolPolicyEnforcer toolPolicyEnforcer;
+
+    /**
+     * Sprint 20 Track B — stable JSON canonicaliser for the
+     * {@code already_called.arguments_hash} projection slot. Configured to
+     * sort map entries by key so two ToolCalls with identical content but
+     * different field-emission order hash identically. Reused per build()
+     * call; instance-shared.
+     */
+    private final ObjectMapper argumentsHashMapper = new ObjectMapper()
+            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
 
     /**
      * Static schema map for agent_visible tools, populated in {@link #initToolSchemas()}.
@@ -639,18 +655,78 @@ public class ContextProjectionBuilder {
                         PhasePlan plan,
                         String userMessage,
                         Map<String, Object> accumulatedToolResults) {
+        return build(session, history, plan, userMessage, accumulatedToolResults,
+                Collections.emptyList());
+    }
+
+    /**
+     * Sprint 20 Track B overload — same as
+     * {@link #build(BotSession, List, PhasePlan, String, Map)} but also emits
+     * an {@code already_called} projection slot derived from
+     * {@code priorToolEvents}.
+     *
+     * <p>The slot is an array of {@code {tool, arguments_hash, at_step}}
+     * entries describing every successful tool dispatch that has already
+     * landed in the current {@code AgentRunLoop.run(...)} invocation. The
+     * slot is observability-only: the LLM owns whether to re-emit. The
+     * runtime does <strong>not</strong> short-circuit dispatch on this slot
+     * (an idempotent-read short-circuit is a separate concern tracked under
+     * {@code R-idempotent-read-tool-short-circuit}; see Sprint 19 §4.2 and
+     * Sprint 20 objective §"Defer (do not bundle in Track B)").
+     *
+     * <p>Behaviour:
+     * <ul>
+     *   <li>Empty array {@code []} when {@code priorToolEvents} is null,
+     *       empty, or contains only unsuccessful events. The slot is always
+     *       present in the projection for shape stability (§N0
+     *       nullable-field convention).</li>
+     *   <li>For each {@link ToolEvent} where {@code success == true}, the
+     *       slot carries a single entry. Failed-by-plan rejections and
+     *       intake-guard rejections are excluded because they were never
+     *       dispatched — they were not "already called".</li>
+     *   <li>Argument hash is computed by canonical-JSON-serialising the
+     *       event's {@code arguments} map (lexicographic key order) and
+     *       taking the first 16 hex chars of the SHA-256. Two events with
+     *       the same tool + same arguments hash to the same value
+     *       regardless of insertion order.</li>
+     * </ul>
+     *
+     * @param session                  current bot session
+     * @param history                  prior turns in the session
+     * @param plan                     the phase plan from PhaseEvaluator.plan()
+     * @param userMessage              the current user message
+     * @param accumulatedToolResults   map of tool_name -> result.data accumulated
+     *                                 across prior loop iterations (may be null)
+     * @param priorToolEvents          ordered list of {@link ToolEvent}s that
+     *                                 have already landed in the current
+     *                                 {@code AgentRunLoop.run(...)} invocation,
+     *                                 across all prior steps (may be null or empty)
+     * @return JSON string representing the full plan-aware projection plus
+     *         the {@code already_called} slot
+     */
+    public String build(BotSession session,
+                        List<BotTurn> history,
+                        PhasePlan plan,
+                        String userMessage,
+                        Map<String, Object> accumulatedToolResults,
+                        List<ToolEvent> priorToolEvents) {
         // Delegate to legacy path for the bulk of the projection. We pass
         // null knowledgeHits because in the run-loop world, knowledge results
         // arrive via accumulatedToolResults (under search_knowledge), not as
         // a pre-loaded slot.
         String baseJson = buildProjection(session, history, null, userMessage);
 
-        if (plan == null && (accumulatedToolResults == null || accumulatedToolResults.isEmpty())) {
-            return baseJson;
-        }
-
         try {
             ObjectNode projection = (ObjectNode) objectMapper.readTree(baseJson);
+
+            // Track B always emits an already_called array (possibly empty)
+            // for projection shape stability. Done first so the slot is
+            // present even when there is no PhasePlan / accumulated results.
+            projection.set("already_called", buildAlreadyCalledNode(priorToolEvents));
+
+            if (plan == null && (accumulatedToolResults == null || accumulatedToolResults.isEmpty())) {
+                return objectMapper.writeValueAsString(projection);
+            }
 
             // Inject the PhasePlan (excluding maxToolSteps).
             if (plan != null) {
@@ -745,6 +821,78 @@ public class ContextProjectionBuilder {
             log.warn("Failed to inject phase_plan / accumulated_tool_results into projection: {}",
                     ex.getMessage());
             return baseJson;
+        }
+    }
+
+    /**
+     * Sprint 20 Track B — build the {@code already_called} projection
+     * slot from a list of prior {@link ToolEvent}s within the current
+     * {@code AgentRunLoop.run(...)} invocation. Returns an
+     * {@link ArrayNode} of {@code {tool, arguments_hash, at_step}}
+     * entries, in the same order the events were dispatched.
+     *
+     * <p>Only events with {@code success == true} produce an entry; plan-
+     * rejected and intake-guard-rejected events were not dispatched and
+     * are excluded. {@code null} or empty input produces an empty array
+     * (kept on the projection for shape stability, per the §N0 nullable-
+     * field convention).
+     *
+     * <p>If argument-hashing fails for a specific event (very unusual —
+     * the Jackson canonical-JSON serialiser would have to throw, or the
+     * SHA-256 algorithm would have to be unavailable), the entry uses the
+     * sentinel {@code "hash_error"} so the slot remains parseable.
+     */
+    private ArrayNode buildAlreadyCalledNode(List<ToolEvent> priorToolEvents) {
+        ArrayNode alreadyCalled = objectMapper.createArrayNode();
+        if (priorToolEvents == null || priorToolEvents.isEmpty()) {
+            return alreadyCalled;
+        }
+        for (ToolEvent evt : priorToolEvents) {
+            if (evt == null || !evt.success()) {
+                continue;
+            }
+            ObjectNode entry = objectMapper.createObjectNode();
+            entry.put("tool", evt.toolName());
+            entry.put("arguments_hash", canonicalArgumentsHash(evt.arguments()));
+            entry.put("at_step", evt.stepIndex());
+            alreadyCalled.add(entry);
+        }
+        return alreadyCalled;
+    }
+
+    /**
+     * Sprint 20 Track B — canonical, order-insensitive 16-hex-char
+     * SHA-256 of a tool-call {@code arguments} map. The map is serialised
+     * via a Jackson {@link ObjectMapper} configured with
+     * {@link SerializationFeature#ORDER_MAP_ENTRIES_BY_KEYS}, then SHA-256
+     * is applied to the UTF-8 bytes and the result is truncated to the
+     * first 16 hex chars for projection compactness.
+     *
+     * <p>Two ToolCalls with identical content but differently-ordered map
+     * keys produce the same hash. The truncation length (16 hex chars =
+     * 64 bits) is comfortably collision-free for the per-run scale of a
+     * single {@code AgentRunLoop.run(...)} invocation (bounded by
+     * {@code plan.maxToolSteps()}).
+     */
+    String canonicalArgumentsHash(Map<String, Object> arguments) {
+        try {
+            String canonical = argumentsHashMapper.writeValueAsString(
+                    arguments == null ? Collections.emptyMap() : arguments);
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(16);
+            for (int i = 0; i < 8 && i < digest.length; i++) {
+                sb.append(String.format("%02x", digest[i] & 0xff));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException | RuntimeException ex) {
+            log.warn("Sprint 20 Track B: arguments_hash computation failed for tool args: {}",
+                    ex.getMessage());
+            return "hash_error";
+        } catch (Exception ex) {
+            log.warn("Sprint 20 Track B: arguments_hash serialisation failed for tool args: {}",
+                    ex.getMessage());
+            return "hash_error";
         }
     }
 

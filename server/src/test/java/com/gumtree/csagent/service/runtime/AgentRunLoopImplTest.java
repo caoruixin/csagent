@@ -66,7 +66,7 @@ class AgentRunLoopImplTest {
 
     @Test
     void singleIteration_finalAnswer() {
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{\"x\":1}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("{}").build());
@@ -86,7 +86,7 @@ class AgentRunLoopImplTest {
 
     @Test
     void multiIteration_dispatchesToolThenReturnsFinalAnswer() {
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         // First LLM call: requests get_customer_context
         // Second LLM call: returns final answer
@@ -126,7 +126,7 @@ class AgentRunLoopImplTest {
 
     @Test
     void toolNotInPlan_isRejectedAndLoopContinues() {
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("disallowed").build())
@@ -157,7 +157,7 @@ class AgentRunLoopImplTest {
 
     @Test
     void maxSteps_returnsMaxStepsOutcome() {
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         // Every LLM call requests a tool. Loop should hit maxToolSteps.
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
@@ -183,7 +183,7 @@ class AgentRunLoopImplTest {
 
     @Test
     void llmException_returnsError() {
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenThrow(new RuntimeException("connection refused"));
@@ -196,7 +196,7 @@ class AgentRunLoopImplTest {
 
     @Test
     void handoverRequested_shortCircuitsToEscalate() {
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("handover").build());
@@ -222,7 +222,7 @@ class AgentRunLoopImplTest {
 
     @Test
     void parseReturnsNull_treatsAsFinalAnswer() {
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("garbage").build());
@@ -242,7 +242,7 @@ class AgentRunLoopImplTest {
 
     @Test
     void accumulatedToolResults_passedToNextProjection() {
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("c1").build())
@@ -265,7 +265,7 @@ class AgentRunLoopImplTest {
         org.mockito.ArgumentCaptor<Map<String, Object>> captor =
                 org.mockito.ArgumentCaptor.forClass(Map.class);
         verify(contextProjectionBuilder, times(2))
-                .build(any(), any(), any(PhasePlan.class), anyString(), captor.capture());
+                .build(any(), any(), any(PhasePlan.class), anyString(), captor.capture(), any());
         // Second invocation's accumulated map should contain the tool result
         Map<String, Object> secondMap = captor.getAllValues().get(1);
         assertNotNull(secondMap);

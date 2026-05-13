@@ -1,0 +1,71 @@
+case_id: cs38g01_uc_j_sparse_user_info_intake_required
+source_session_id: synthetic-sprint20-cs038-negative-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Owen
+  email: customer@example.com
+  topic_subject: Report a Safety Issue
+  ad_id: ''
+  description: someone is doing fraud
+persona:
+  user_goal_summary: User opens with a one-line vague report ("someone is doing fraud") with no target, no type detail, no description; the bot must run field-by-field intake to elicit the three required intake fields. Drift - none.
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - "yeah a seller"
+  - "they didn't send the thing"
+  hidden_facts:
+  - fact: The seller's profile name is "BargainHunter77" and the item was a £200 lawnmower.
+    disclose_when: only when the bot asks for the seller name and the item details
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Open with user-facing language, recognise that the user's initial messages do NOT carry the required intake fields, run a field-by-field intake conversation (target, type, description) using clear questions, then run policy-mandated tools (create_case_controlled, request_handover, record_outcome), escalate with reason trust_safety_required.
+  escalation_trigger: trust_safety_required
+  risk_level: high
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  - trust & safety report intake
+  - technical issue intake
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  - tool_sequence_match
+  - case_id_present
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,66 @@
+case_id: cs76g01_uc_e_policy_question_faq_path
+source_session_id: synthetic-sprint20-cs176-negative-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Sofie
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: How long does a Featured Listing stay featured for and can I extend it?
+persona:
+  user_goal_summary: User is asking a clean UC-E policy question with no demand for action; a FAQ-grounded answer is the right path. If FAQ search legitimately returns no resolve-grade hit, faq_miss_threshold_exceeded IS the correct escalation reason. Drift - none.
+  frustration_level: none
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - just trying to plan
+  - thanks
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-E
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the policy question, run policy-mandated tools (search_knowledge, resolve_article, record_outcome), produce a grounded answer on Featured Listing duration + extension policy from the knowledge base, confirm resolution. If (and only if) FAQ returns no viable hit, hand over with reason faq_miss_threshold_exceeded -- that reason IS appropriate here.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

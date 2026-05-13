@@ -1,0 +1,68 @@
+case_id: cs15s02_uc_fp_keyword_match_appeal
+source_session_id: synthetic-sprint20-cs015-shadow-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Marcus
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: my advert was removed and I don't agree
+persona:
+  user_goal_summary: User's listing was flagged on a banned-keyword match (the listing title contained an ambiguous abbreviation that triggered an automated check); user wants the reason explained and the option to appeal or edit. Drift - none.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - I think this was an automatic mistake
+  - can a human look at it again?
+  hidden_facts:
+  - fact: The listing title used the word "rifle" in the context of a vintage camera lens; the automated check flagged the word but the item was not a weapon.
+    disclose_when: if the bot asks for listing details
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-H
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Retrieve safe customer/listing/moderation context, explain the automated-check policy in user-facing language, clarify the appeal/review path from the knowledge base, and escalate only on explicit appeal/review/restoration requests or when the reason cannot be produced.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness
