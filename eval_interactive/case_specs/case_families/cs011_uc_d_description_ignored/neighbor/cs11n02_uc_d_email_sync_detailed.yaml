@@ -1,0 +1,67 @@
+case_id: cs11n02_uc_d_email_sync_detailed
+source_session_id: synthetic-sprint20-cs011-neighbor-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Henrik
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I changed my email on Gumtree on Friday but my old email still gets all the notifications and the new one gets nothing. I confirmed the new email via the link. Three days have passed.
+persona:
+  user_goal_summary: User completed the email-change flow but notifications still route to the old email; user wants the bot to acknowledge the specific sync-gap symptom and the timing detail before deciding next steps. Drift - none.
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: none
+  seed_messages:
+  - "I've already done the click-confirm step on the new address"
+  - "is there a separate notifications preference page I missed?"
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: resolve
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-C
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the specific multi-symptom reproduction (email changed + confirmed + 3-day delay), restate the user's account-state observations, run policy-mandated tools (search_knowledge, resolve_article, record_outcome), and produce a grounded answer about email-routing + notification-preferences from the knowledge base.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

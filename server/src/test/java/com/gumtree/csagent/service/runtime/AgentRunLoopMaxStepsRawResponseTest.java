@@ -86,7 +86,7 @@ class AgentRunLoopMaxStepsRawResponseTest {
         session.setActiveUseCase("UC-A");
         session.setTotalBotTurns(0);
 
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
 
         String firstRaw = "{\"tool_calls\":[{\"name\":\"resolve_article\",\"arguments\":{\"source_id\":\"kb-001\"}}]}";
@@ -155,7 +155,7 @@ class AgentRunLoopMaxStepsRawResponseTest {
         session.setActiveUseCase("UC-A");
         session.setTotalBotTurns(0);
 
-        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
 
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))

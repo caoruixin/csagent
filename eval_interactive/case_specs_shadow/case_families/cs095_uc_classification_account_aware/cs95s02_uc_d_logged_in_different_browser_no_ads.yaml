@@ -1,0 +1,68 @@
+case_id: cs95s02_uc_d_logged_in_different_browser_no_ads
+source_session_id: synthetic-sprint20-cs095-shadow-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Saskia
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: When I log in from Safari on my Mac I see my listings. When I log in from Chrome on the same Mac with the same email, I see zero listings.
+persona:
+  user_goal_summary: User describes browser-conditional account state where the same email shows different listings on different browsers. This is a strong account-state mismatch signal where get_customer_context is the right first move. Drift - none.
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: none
+  seed_messages:
+  - "definitely the same email - I copy-pasted from a password manager"
+  - "I've cleared cookies on Chrome and the issue persists"
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-A
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the browser-conditional account-state mismatch, verify account state via get_customer_context (with email and any available identifier), run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome), name the verified state back, and hand over honestly with reason faq_miss_threshold_exceeded if no resolve-grade article fits the browser-state-divergence shape.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

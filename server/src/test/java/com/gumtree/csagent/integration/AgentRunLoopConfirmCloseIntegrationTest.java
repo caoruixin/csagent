@@ -117,7 +117,7 @@ class AgentRunLoopConfirmCloseIntegrationTest {
                 .thenReturn(List.of());
         when(controlPolicy.isValidTransition("CONFIRM", "CLOSE")).thenReturn(true);
 
-        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"phase\":\"CONFIRM\",\"use_case\":\"UC-A\"}");
 
         // Step 1: LLM calls record_outcome(RESOLVED).

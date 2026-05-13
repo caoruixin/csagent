@@ -1,0 +1,64 @@
+case_id: cs11g02_uc_d_explicit_distress
+source_session_id: synthetic-sprint20-cs011-negative-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Mia
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I think my account has been hacked PLEASE HELP ME NOW
+persona:
+  user_goal_summary: User reports a suspected account compromise with ALL-CAPS distress phrasing matching the deterministic Sprint 2 §B1 distress detector; the bot should hand over quickly with user_distress acknowledgment. Drift - none.
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - I CAN'T GET BACK IN
+  - SOMEONE CHANGED MY EMAIL WITHOUT ME
+  hidden_facts: []
+  will_request_human_if: from the first turn
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the user's situation in a de-escalating tone, hand over with reason user_distress within the first two turns; the Sprint 2 §B1 detector authorises the user_distress reason given the ALL-CAPS phrasing and account-compromise content.
+  escalation_trigger: user_distress
+  risk_level: high
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 5
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - escalation_timing
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -141,7 +141,7 @@ class AgentRunLoopAd1002IntegrationTest {
         // unused, so it has been removed.
 
         // Projection builder — return any non-null JSON; loop just passes it through
-        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"phase\":\"RESOLVE\",\"use_case\":\"UC-A\"}");
 
         // First LLM call requests get_customer_context.

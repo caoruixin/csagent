@@ -189,7 +189,7 @@ class Cs014RouteAndLoopHandoverIntegrationTest {
                 new com.gumtree.csagent.service.runtime.UseCaseRegistryService.UseCaseDefinition(
                         "UC-C", "Messages & Replies",
                         List.of("Replies or Messaging"), "LOW", true, "FAQ"));
-        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"phase\":\"RESOLVE\",\"use_case\":\"UC-C\"}");
         when(controlPolicy.isValidTransition("RESOLVE", "ESCALATE")).thenReturn(true);
 

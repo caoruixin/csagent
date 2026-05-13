@@ -1,0 +1,64 @@
+case_id: cs59g02_uc_f_user_requested_first_turn
+source_session_id: synthetic-sprint20-cs259-negative-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Idris
+  email: customer@example.com
+  topic_subject: ''
+  ad_id: ''
+  description: ''
+persona:
+  user_goal_summary: User opens with empty form and an explicit human-handover request from the first turn ("get me a human, please, payment problem"). Bot should escalate with user_requested, not run §I0 search-and-resolve and not stamp faq_miss. Drift - none.
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - "get me a human, please, payment problem"
+  - "thanks"
+  hidden_facts: []
+  will_request_human_if: from the first turn
+expected:
+  outcome_class: escalate
+  primary_uc: UC-F
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Recognise the explicit human-handover request from the first turn overrides §I0 (the §I0 cue is for FAQ-shaped messages, not explicit handover demands). Hand over with reason user_requested within 1-2 turns. Do NOT stamp faq_miss_threshold_exceeded.
+  escalation_trigger: user_requested
+  risk_level: low
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 5
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - escalation_timing
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

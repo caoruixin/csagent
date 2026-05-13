@@ -1,0 +1,64 @@
+case_id: cs11g01_uc_d_brief_user_requested
+source_session_id: synthetic-sprint20-cs011-negative-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Krish
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I want a human to fix my account please
+persona:
+  user_goal_summary: User has explicitly requested a human agent in the form description for an account issue; the bot should hand over with user_requested without running a long FAQ attempt. Drift - none.
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - a human please
+  - thanks
+  hidden_facts: []
+  will_request_human_if: from the first turn
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the explicit handover request and hand over with reason user_requested within the first one or two turns; do not run search_knowledge / resolve_article speculatively.
+  escalation_trigger: user_requested
+  risk_level: low
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 5
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - escalation_timing
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

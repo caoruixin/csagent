@@ -1,0 +1,67 @@
+case_id: csmp_n02_uc_a_top_ad_status_question
+source_session_id: synthetic-sprint20-manualprobe-neighbor-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Owen
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: '1798221145'
+  description: My Top Ad upgrade was supposed to start yesterday but I don't see the highlight
+persona:
+  user_goal_summary: User is asking a UC-A status question about Top Ad highlighting; FAQ corpus has resolve-grade Top Ad placement content. Bot must call resolve_article on the top hit before answering. Drift - none.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - the receipt says active
+  - is there a delay window?
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-E
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the Top Ad status question, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, record_outcome), call resolve_article on the top viable hit before answering, produce a grounded answer with source citation on Top Ad activation timing. Do NOT self-stamp faq_miss_threshold_exceeded when viable hits exist.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 12
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

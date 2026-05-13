@@ -186,7 +186,7 @@ class Sprint9TerminalToolHonestyTest {
                 .build();
         BotSession s = session();
 
-        when(contextProjection.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjection.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("step0").build())
@@ -247,7 +247,7 @@ class Sprint9TerminalToolHonestyTest {
                 .build();
         BotSession s = session();
 
-        when(contextProjection.build(any(), any(), any(PhasePlan.class), anyString(), any()))
+        when(contextProjection.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("step0").build());

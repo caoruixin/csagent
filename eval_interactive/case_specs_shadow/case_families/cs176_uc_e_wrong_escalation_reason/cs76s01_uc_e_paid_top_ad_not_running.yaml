@@ -1,0 +1,65 @@
+case_id: cs76s01_uc_e_paid_top_ad_not_running
+source_session_id: synthetic-sprint20-cs176-shadow-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Quentin
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: My paid Top Ad has been off for 4 days. £25 wasted.
+persona:
+  user_goal_summary: User has a paid Top Ad that is not delivering the promised placement; explicit money mention and a specific outage duration. The escalation must be user_requested (user_intent), not faq_miss. Drift - none.
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - "I have the receipt, paid Monday"
+  - "either turn it on or refund me"
+  hidden_facts: []
+  will_request_human_if: from the second turn
+expected:
+  outcome_class: escalate
+  primary_uc: UC-E
+  secondary_ucs:
+  - UC-A
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the specific outage (Top Ad not running for 4 days) and the specific amount (£25), restate the user's "fix-or-refund" expectation, run policy-mandated tools (request_handover, record_outcome), hand over with reason user_requested within 2-3 turns. Do NOT stamp faq_miss_threshold_exceeded.
+  escalation_trigger: user_requested
+  risk_level: medium
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 8
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - escalation_timing
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

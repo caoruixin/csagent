@@ -138,7 +138,7 @@ class AgentRunLoopIntakeIntegrationTest {
                 new com.gumtree.csagent.service.runtime.UseCaseRegistryService.UseCaseDefinition(
                         "UC-H", "Ad Removal Appeal",
                         List.of("Ad Support"), "MEDIUM", false, "INTAKE"));
-        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"phase\":\"RESOLVE\",\"use_case\":\"UC-H\"}");
     }
 

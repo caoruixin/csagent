@@ -132,7 +132,7 @@ class AgentRunLoopDeadlineExceededBotResponseIntegrationTest {
                 DriftResult.builder().type(DriftResult.DriftType.NONE).build());
         when(turnRepository.findBySessionIdOrderByTurnIndex(anyString()))
                 .thenReturn(List.of());
-        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any()))
+        when(contextProjectionBuilder.build(any(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"phase\":\"DISCOVER\"}");
     }
 

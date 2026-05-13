@@ -1,0 +1,70 @@
+case_id: cs01s01_uc_c_notification_lag_detailed
+source_session_id: synthetic-sprint20-cs001-shadow-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Iris
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: Email notifications for new messages are arriving 12-24 hours late
+persona:
+  user_goal_summary: User receives buyer messages in the inbox but the email notifications for new messages are delayed by half a day; user wants to understand why and how to ensure timely notifications. Drift - none.
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: none
+  seed_messages:
+  - the email arrives the next morning even though the message was sent at 5pm the day before
+  - have other people reported this?
+  hidden_facts:
+  - fact: The user's email provider is a small UK ISP rather than a major provider.
+    disclose_when: if the bot asks about the user's email provider
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the specific symptom (12-24 hour email-notification lag), run policy-mandated tools (search_knowledge, resolve_article, request_handover, record_outcome), attempt a grounded answer on notification timing or email-provider deliverability, and if no resolve-grade article fits, hand over honestly with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

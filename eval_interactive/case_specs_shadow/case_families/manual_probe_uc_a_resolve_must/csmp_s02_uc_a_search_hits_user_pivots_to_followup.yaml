@@ -1,0 +1,68 @@
+case_id: csmp_s02_uc_a_search_hits_user_pivots_to_followup
+source_session_id: synthetic-sprint20-manualprobe-shadow-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Kenji
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: '1742008833'
+  description: I can't find my advert when I search the title
+persona:
+  user_goal_summary: User asks a UC-A visibility question; search_knowledge returns viable hits and the bot produces a grounded T0 answer. User pivots on T1 to a related follow-up ("could it be a location filter?") -- bot must sustain past the first answer rather than dropping the conversation or producing a stall placeholder. Drift - soft_shift.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - thanks - but could it also be a location filter on the search?
+  - I'm searching from outside the original region
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: T0 grounded answer per RESOLVE MUST clause (search_knowledge -> resolve_article on top hit -> grounded answer with citation). T1 sustain the conversation - run a second search_knowledge with the location-filter framing, resolve_article on the new top hit, produce a grounded follow-up answer with citation. Do NOT stall, do NOT terminate the conversation, do NOT stamp faq_miss_threshold_exceeded.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  - I'm looking into this for you
+  - Sorry, I'm a bit slow
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness
