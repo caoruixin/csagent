@@ -372,7 +372,7 @@ the docs scaffolding (Sprint 17). G1 and G2 build on G0's templates.
 | id | candidate | status | owner | notes |
 |---|---|---|---|---|
 | G1 | Human-led Failure Portfolio (10–20 representative failures from human experience / past traces, each filed as a Failure Brief per `docs/current/iteration_governance.md` §2) | done — Sprint 18 G1; 10 briefs filed (9 smoke + 1 manual-probe) at `docs/diagnostics/failure-briefs/`; full handoff `docs/sprints/sprint-018-handoff.md`; objective archive `docs/sprints/sprint-018-g1-failure-portfolio-objective.md` | deliver / human | unblocked G2; see §5.2 for the 18 R-items + 2 open observations the briefs surfaced |
-| G2 | Interactive Eval Case Family + Shadow Split (target / neighbor / negative / shadow per failure brief, with the shadow split readable only to the human / review agent per `docs/current/iteration_governance.md` §5.1) | next — Sprint 20 primary track (G1 prerequisites cleared by Sprint 19 investigation) | deliver / eval governance | depends on G1 briefs (delivered Sprint 18) and the Sprint 19 §3.2 walks (smoke-baseline shape annotations); lands the target / neighbor / negative / shadow case families per failure brief and the shadow-split mechanism |
+| G2 | Interactive Eval Case Family + Shadow Split (target / neighbor / negative / shadow per failure brief, with the shadow split readable only to the human / review agent per `docs/current/iteration_governance.md` §5.1) | done — Sprint 20 Track A; 10 case families × (≥1 target + ≥2 neighbor + ≥2 negative + ≥2 shadow) = 70 CaseSpec-shaped entries delivered; v0 shadow-split mechanism (directory boundary + custom-path-only loading via `CaseSetManager.load_custom(path)` + documented self-restraint) delivered; full handoff `docs/sprints/sprint-020-handoff.md`; fix iteration `docs/sprints/sprint-020-fix-handoff.md`; objective archive `docs/sprints/sprint-020-objective.md`; Codex fix re-review `docs/sprints/sprint-020-fix-codex-review.md` (substantive findings closed, packaging-only blocker rolled forward in close commit) | deliver / eval governance | v1 hardening direction: `R-shadow-include-flag-runner-gate` (`infra`); prompt consumption: `R-already-called-prompt-consumption` (`prompt_projection`) |
 
 ### 5.2 G1 surfaced backlog
 
@@ -443,7 +443,7 @@ cs_259 + manual-probe + cs_011 T2 silence).
 |----|--------|-------------|
 | R-slow-llm-placeholder-coalesce | Sprint 19 §3 + §11 (cs_002 / cs_011 / cs_014 / cs_038 / cs_040) | `infra` layer. Two consecutive `LlmDeadlineExceededException` paths re-emit the same user-facing `"Sorry, I'm a bit slow right now. Please try sending that again in a moment."` message from `PhaseEvaluator.java` line 765; the loop / stall detector then flags it as a loop. Recommended remediation: (a) coalesce consecutive deadline events within a session into one user-facing beat (or move the placeholder to a side-channel typing-indicator path that does not consume a transcript turn); and/or (b) escalate honestly on the second consecutive deadline. Scope: `PhaseEvaluator.java` line 754–770 + `AgentRunResult.deadlineExceeded` propagation. **No keyword / regex / if-else / enum / per-UC matrix.** |
 | R-uc-k-intake-complete-case-id-binding | Sprint 19 §3.6 + §11 (cs_066) | `skill_state` layer per §3.2 Q4. UC-K intake completes per the Sprint 7 §I2 intake-complete guard and the bot escalates with `intake_complete_for_uc_k`, but the assembled handover payload carries a null `case_id` because the auto-create-case step before escalation no longer reliably runs. Recommended scope: audit `CreateCaseControlledTool` call-site coverage across intake UCs (UC-G / H / I / J / K) + the post-intake-complete escalation path in `ControlKernel.java` line 1490–1595. |
-| R-prompt-projection-already-called-soft-signal | Sprint 19 §4.2 + §11 (manual-probe Track B Layer 1) | `prompt_projection` layer. Add an `already_called: [{tool, arguments_hash, at_step}]` diagnostic slot to the per-step projection so the LLM can see "you already called this tool with these args" before re-emitting. **Soft signal only** — the LLM owns whether to re-emit. Scope: `ContextProjectionBuilder.java` projection assembly + a JSON-schema documentation update. **Sprint 20 Track B candidate** per the next-sprint recommendation. |
+| R-prompt-projection-already-called-soft-signal | Sprint 19 §4.2 + §11 (manual-probe Track B Layer 1) | **status: done** — delivered by Sprint 20 Track B. Slot landed in `ContextProjectionBuilder.build(..., List<ToolEvent> priorToolEvents)` via a new 6-argument overload; regression test `AlreadyCalledProjectionTest` (7 cases) demonstrates populated / empty / runtime-non-short-circuit bars; Sprint 20 fix iteration added `AgentRunLoopAlreadyCalledNonEnforcementIntegrationTest` (runtime-level non-enforcement evidence) and `AlreadyCalledCs011T2ShapeTest` (cs_011 T2 slot-population target). Full server suite 896 / 0 / 0 / 1 post-fix. See `docs/sprints/sprint-020-handoff.md` §5 and `docs/sprints/sprint-020-fix-handoff.md`. |
 | R-idempotent-read-tool-short-circuit | Sprint 19 §4.2 + §11 (manual-probe Track B Layer 2) | `infra` layer, **conditional** on the soft-signal-only approach (`R-prompt-projection-already-called-soft-signal`) proving insufficient. For side-effect-free tools (`search_knowledge`, `lookup_*`, `get_*_context`), short-circuit identical-args re-emission within the same `AgentRunLoop.run(...)` by returning the cached prior result. Write tools opt out; they are owned by the Sprint 16 `HandoverOrchestrator` design freeze. |
 | R-per-case-trace-dump-for-smoke-harness | Sprint 19 doc-status warning #1 + open question 6 + §11 | `infra` / eval harness. Re-enable per-case JSON trace dumping (tool_calls, phase_plan, projection, LlmCallEvents) under each `eval_interactive/results/<run-id>/` directory so future Track A §3.2 walks and Track B per-step investigations have first-party evidence. Scope: `eval_interactive/eval_interactive/` Python package (smoke runner). |
 | R-sprint-narrative-vs-git-log-reconciliation | Sprint 19 doc-status warning #2 + open question 4 + §11 | governance / docs-only. The Sprint 18 G1 narrative that Sprints 14 / 14.1 / 15 / 16 made "no runtime semantic change" is contradicted by the git log (40 commits in the smoke gap window, 18 touching code). A reconciliation note in `docs/current/` or a fold-back into a `iteration_governance.md`-adjacent governance doc should land on `doc_governance.md` §"Code ahead of docs" cadence. |
@@ -463,6 +463,69 @@ testing needed (rule recorded in
 n=2 open observation in this section, was promoted to a Sprint 19
 surfaced R-item above after the Sprint 19 §3.3 cs_011 T2 silence
 finding constituted a 3rd instance across a 3rd UC.)
+
+**Sprint 20 surfaced backlog**
+
+Sprint 20 (2026-05-13, closed after fix iteration) delivered Track A
+(case families + v0 shadow split) and Track B (`already_called`
+soft-signal slot) and surfaced the items below. The Sprint 20 fix
+iteration closed Codex's two original substantive blocking findings
+(runtime non-enforcement evidence + `_ACCESS_BOUNDARY.md`
+reconciliation). The fix re-review returned
+`decision: out_of_scope_review, blocking_count: 1` on packaging
+grounds only (commit-boundary observation that the dev's fix commit
+bundled deliver-agent-owned files); substantive content closed
+cleanly per Codex's own evidence. The packaging artefact is rolled
+forward in the close commit.
+
+| id | source | description |
+|----|--------|-------------|
+| R-shadow-include-flag-runner-gate | Sprint 20 §12 + Sprint 20 fix `_ACCESS_BOUNDARY.md` "Known v0 gaps / v1 hardening" | `infra` / eval harness. Sprint 20's v0 shadow-split mechanism relies on directory boundary + custom-path-only loading via `CaseSetManager.load_custom(path)` + documented self-restraint. A `--include-shadow` runner-flag gate is documented as a v1 hardening direction for a follow-on eval-governance sprint to add if the v0 boundary proves insufficient (e.g. accidental glob-loading by a dev agent in a later sprint). Scope: `eval_interactive/eval_interactive/batch/sets.py` + `eval_interactive/eval_interactive/cli.py`. Disposition: **deferred (Sprint 20 §12 + Sprint 20 fix `_ACCESS_BOUNDARY.md` "Known v0 gaps / v1 hardening")**. |
+| R-already-called-prompt-consumption | Sprint 20 §12 + §11 open question 5 | `prompt_projection` (prompt sprint). Sprint 20 Track B emits the `already_called` slot in the projection JSON but the system prompt does not yet describe the slot's semantics to the LLM. A separate prompt sprint should add a short paragraph naming the slot and documenting that the LLM owns whether to re-emit a same-args call — without escalating to enforcement / short-circuit logic. Scope: `server/src/main/resources/system_prompt.txt` (or wherever the current prompt template lives). Disposition: **deferred (Sprint 20 §12 open question 5)**. |
+| R-case-family-runner-set | Sprint 20 §12 + §11 open question 4 | `infra` / eval harness. The 60 hand-authored CaseSpecs under `eval_interactive/case_specs/case_families/` load via `--path` only. Adding a `--set case-families` flag (or equivalent) would let the human + review agent sample-run a family for ground-truth validation. Scope: `eval_interactive/eval_interactive/batch/sets.py` + CLI. Disposition: **deferred (Sprint 20 §12 open question 4)**. |
+
+**Sprint 20 open questions (next-sprint sequencing, not blockers)**
+
+The Sprint 20 handoff §11 records three open questions (beyond §11 Q1
+and Q5, which are tracked as R-items above) that the next sprint
+should weigh when picking scope. They are sequencing concerns, not
+blockers on Sprint 20 close.
+
+- **cs_095 classification re-review urgency** (Sprint 20 §11 Q2).
+  cs_095's existing Wave A2.1 override pins UC-A primary; the human
+  brief re-review identifies UC-D primary
+  (`R-cs095-uc-classification-l3-rereview`). Track A authored every
+  cs095-family neighbor / negative / shadow assuming UC-D primary is
+  the correct classification. If the L3 re-review reverses (UC-A
+  confirmed), the family's expected fields need a refresh.
+  Recommendation: the L3 review batch should run before any
+  cs095-shape remediation sprint.
+- **cs_011 cluster C regression interaction** (Sprint 20 §11 Q3).
+  cs_011's Sprint 4 §E1 L3-approved override pins the 2026-05-05
+  PASS shape; Sprint 19's Cluster C analysis annotated the
+  2026-05-10 regression as slow-LLM placeholder + planner
+  failure-to-escalate noise. When a future remediation sprint
+  addresses the cs011 pattern, the open question is whether the
+  regression noise (`R-slow-llm-placeholder-coalesce` and
+  `R-prompt-phase-plan-directive-followship`) should be addressed
+  first or remediation can proceed in parallel.
+- **Hand-authored CaseSpec validation harness** (Sprint 20 §11 Q4).
+  The 60 hand-authored CaseSpecs validate by inspection today
+  (Sprint 20 objective allows this for the authoring deliverable).
+  The validation question becomes load-bearing as soon as the first
+  remediation sprint wants to consume a family; tracked separately
+  as the `R-case-family-runner-set` R-item above.
+
+**Recommendation:** the next sprint after Sprint 20 close should
+pick the L3 review batch (Wave A5/A6 — `R-cs001-escalation-trigger-l3-review`,
+`R-cs038-l3-review-intake-efficiency`,
+`R-cs040-l3-review-intake-completion-semantics`,
+`R-cs095-uc-classification-l3-rereview`,
+`R-cs176-escalation-reason-l3-review`,
+`R-cs192-secondary-ucs-duplicate-uc-b`, and the systematic
+`R-generator-get-customer-context-policy-mismatch`) as the natural
+follow-on. The cs095 Q2 sequencing concern names this batch as the
+prerequisite for any cs095-shape remediation.
 
 ## 6. Closed action index
 
@@ -493,6 +556,7 @@ finding constituted a 3rd instance across a 3rd UC.)
 | Sprint 17 | G0.1 extend `docs/current/iteration_governance.md` to the 7-section governance bundle; G0.2 `AGENTS.md` constitution chain (Option A); G0.3 §7 Layer-classification + anti-hardcode stanza for the sprint-objective format; G0.4 action_bank refresh + §5.1 governance-track backlog | closed (Codex pass; docs-only governance sprint, no runtime change) | `docs/sprints/sprint-017-*` |
 | Sprint 18 | G1 Human-led Failure Portfolio — 10 Failure Briefs at `docs/diagnostics/failure-briefs/` (9 smoke + 1 manual-probe); §5.2 G1 surfaced backlog with 18 R-items + 2 open observations | closed (docs-only governance; no Codex review per packaging-workflow option 2; no runtime change) | `docs/sprints/sprint-018-*` |
 | Sprint 19 | A + B parallel investigation — Track A smoke-regression diagnosis (`R-smoke-regression-investigation` → multi-shape root cause; 5/6 cases share slow-LLM placeholder loop, cs_066 UC-K state-loss); Track B orchestrator tool-call de-dup investigation (`R-runtime-orchestrator-tool-call-deduplication` reclassified `infra` → `semantic_planner`; remediation split into read-side soft signal + write-side HandoverOrchestrator); 7 new R-items surfaced (incl. promoted `R-prompt-phase-plan-directive-followship` per conditional-broadening rule, n=3) | closed (Codex pass; investigation-only sprint per Bundle-or-defer policy; proposal-only on both tracks; no bundled fixes) | `docs/sprints/sprint-019-*` |
+| Sprint 20 | G2 Interactive Case Family + Shadow Split (Track A) + `already_called` soft-signal slot (Track B) — Track A delivered 10 case families × (≥1 target + ≥2 neighbor + ≥2 negative + ≥2 shadow) = 70 CaseSpec-shaped entries + v0 shadow-split mechanism (directory boundary + custom-path-only loading + documented self-restraint); Track B delivered `already_called: [{tool, arguments_hash, at_step}]` projection slot in `ContextProjectionBuilder.build(...)` (observability-only, runtime non-enforcement). Required a narrow fix iteration after Codex first review `decision: fix_required, blocking_count: 2` (runtime non-enforcement test at `AgentRunLoopImpl.run` granularity + `_ACCESS_BOUNDARY.md` reconciliation). Codex fix re-review verdict `decision: out_of_scope_review, blocking_count: 1` on commit-boundary / packaging grounds only — both substantive findings closed cleanly per Codex's own evidence. | closed (substantive findings closed; packaging-only blocker rolled forward in close commit; full server suite 896 / 0 / 0 / 1) | `docs/sprints/sprint-020-*` |
 
 ## 7. Carry-over rule
 
