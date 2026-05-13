@@ -21,7 +21,6 @@ review agent.
 | Human reviewer | yes | yes |
 | Review agent (Codex, Anti-Hardcode reviewer) | yes | yes |
 | Eval-harness runner (default invocation) | yes | no |
-| Eval-harness runner (with `--include-shadow`) | yes | yes |
 
 The dev agent **must not** load, sample, or glob this directory during
 development of any sprint, including Sprint 20 itself. Sprint 20 IS
@@ -31,7 +30,9 @@ it.
 ## Enforcement (v0)
 
 The boundary above is enforced by three lightweight measures, none of
-which is cryptographic isolation:
+which is cryptographic isolation. These are the v0 mechanisms that
+actually shipped in Sprint 20 (see also
+`docs/sprints/sprint-020-handoff.md` lines 443–448):
 
 1. **Directory boundary.** Shadow CaseSpecs live in
    `eval_interactive/case_specs_shadow/case_families/`, **not** under
@@ -41,11 +42,12 @@ which is cryptographic isolation:
    under any `--set` flag (`anchor`, `promotion`, `exploration`,
    `smoke`, `all`).
 
-2. **Runner gate.** The `eval-interactive run` CLI command does not
-   load shadow CaseSpecs unless `--include-shadow` is passed
-   explicitly. The flag is intended for the human and the review
-   agent. Sprint 20 does not add the flag to any documented dev-agent
-   workflow.
+2. **Custom-path-only loading.** Reading shadow CaseSpecs requires an
+   explicit `CaseSetManager.load_custom(path)` call with a path under
+   `eval_interactive/case_specs_shadow/`. No `--set` value resolves to
+   that directory; no default-invocation surface walks it. Human and
+   review-agent workflows that need to read shadow content invoke
+   `load_custom(path)` deliberately.
 
 3. **Documented self-restraint.** This file. The dev agent reads
    `case_specs_shadow/_ACCESS_BOUNDARY.md` if and only if it stumbles
@@ -55,7 +57,7 @@ which is cryptographic isolation:
    `docs/current/agent_context_guide.md` (added in the next governance
    fold-back, not this sprint).
 
-## Known v0 gaps
+## Known v0 gaps / v1 hardening
 
 - The directory is checked into the git working tree. A future agent
   that runs an unconstrained `find` / `glob` over the repo will see
@@ -64,15 +66,25 @@ which is cryptographic isolation:
   `case_specs/case_families/_manifest.yaml` lists each family's
   `shadow_case_ids` as `[REDACTED — see case_specs_shadow/_manifest.yaml]`
   to limit accidental cross-reading.
-- The `--include-shadow` runner flag is a developer-facing flag. It is
-  not a hard isolation; a dev agent that ran the flag deliberately
-  could observe shadow results. The flag's purpose is to make the
-  human's and the review agent's review easy, not to defeat a
-  determined dev agent.
+- **`--include-shadow` runner flag (v1 hardening direction).** Sprint
+  20 did **not** add a `--include-shadow` CLI flag; the runner-gate
+  surface is documented here as a v1 hardening direction the next
+  eval-governance sprint may add (tracked as
+  `R-shadow-include-flag-runner-gate` per
+  `docs/sprints/sprint-020-handoff.md:927`). If/when added, the flag
+  would gate `eval-interactive run` so that shadow CaseSpecs are not
+  loaded by default and the human / review agent passes
+  `--include-shadow` to opt in. The flag would be a developer-facing
+  flag, not cryptographic isolation: a dev agent that ran the flag
+  deliberately could still observe shadow results. The flag's purpose
+  would be to make the human's and the review agent's review easy and
+  to harden the default-off semantics, not to defeat a determined
+  dev agent.
 - A v1 hardened mechanism (gitignore + separate committed branch /
   out-of-band delivery) is deferred. Sprint 20 records the gap; the
-  next eval-governance sprint may revisit if the v0 self-restraint
-  proves insufficient in practice.
+  next eval-governance sprint may revisit if the v0 directory
+  boundary + custom-path-only loading + self-restraint prove
+  insufficient in practice.
 
 ## Adding to or amending the shadow class
 
