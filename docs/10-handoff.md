@@ -1,11 +1,90 @@
 # Current Handoff
 
-Date: 2026-05-13
+Date: 2026-05-14
 Branch: `design-v1-without-human-review`
 
 ## 1. Current phase
 
 Current phase:
+Sprint 21 (Wave A5/A6 L3 Review Batch — per-case + 1 systematic)
+closed on 2026-05-14 as a single-track semantic-touching sprint on
+the eval_spec surface. Sprint 21 processed the seven L3 R-items
+named in Sprint 20 §12 / `docs/action_bank.md` §5.2 Wave A5/A6
+backlog and delivered an L3 disposition for each — one of three
+classes: approved override (`eval_spec` adjustment landed in
+`eval_interactive/case_spec_overrides.yaml`), rejected as
+non-eval_spec (layer reclassified + new R-item proposed), or
+deferred with reason (named dependency that must lift first). The
+sprint is paper-only on the eval_spec surface: no runtime change,
+no prompt change, no FAQ corpus change, no judge code change, no
+edit to any Sprint 20-authored case-family content (the cascade
+rule was non-negotiable per the sprint objective). Three deliverable
+surfaces changed:
+
+- `eval_interactive/case_spec_overrides.yaml` — three new approved
+  override entries added (cs_001 escalation_trigger flip from
+  `clarification_budget_exhausted` to `faq_miss_threshold_exceeded`
+  with matching `bot_handling_pattern` rewrite; cs_192
+  `secondary_ucs` dedupe from `[UC-K, UC-D, UC-B]` to `[UC-K, UC-D]`;
+  cs_095 classification flip from UC-A primary `[UC-D, UC-K]`
+  secondary to UC-D primary `[UC-A, UC-K]` secondary — supersedes
+  the Wave A2.1 legacy migration entry, which is removed from the
+  legacy block + header comment updated from "9 remaining" to
+  "8 remaining (plus cs_interactive_095 superseded by Sprint 21
+  below)"). Verified by the actual loader at
+  `eval_interactive/eval_interactive/case_spec/extractor.py:_load_case_spec_overrides`:
+  17 applied entries (was 15), 0 pending, 0 duplicate session ids.
+  Disposition summary: 3 approved (cs_001, cs_095, cs_192), 2
+  rejected (cs_176 → `semantic_planner`, systematic
+  `R-generator-get-customer-context-policy-mismatch` →
+  `product_policy`), 2 deferred (cs_038 + cs_040 blocked on the
+  override schema not supporting `scoring.*` overrides — both
+  routed to the new `R-case-spec-overrides-schema-scoring-extension`
+  R-item).
+- `docs/sprints/sprint-021-handoff.md` — NEW. The 12-section sprint
+  handoff with the Context Pack, sprint-objective recap, per-R-item
+  disposition write-ups with §1.7 self-check evidence for every
+  approved override, YAML deltas table, cascade-rule observance
+  evidence, files-changed list, 9-question anti-hardcode self-walk
+  (verdict `approve`), §3 layer-classification walk for the rejected
+  R-items, generalization-coverage statement per approved override,
+  sprint-objective-met check, five open questions for the human, and
+  the action-bank deltas + next recommended action recommendation.
+  Four new R-items proposed: `R-phase2-uc-cdf-customer-context-policy-widen`
+  (`product_policy`; widen phase 2 §2.10 line 358 to allow
+  `get_customer_context` for UC-C / UC-D / UC-F),
+  `R-cs176-semantic-planner-escalation-family-discrimination`
+  (`semantic_planner`; user-intent vs bot-limit escalation reason
+  selection), `R-case-spec-overrides-schema-scoring-extension`
+  (`infra` / eval harness; extend the override schema to permit
+  `scoring.*` overrides or add new `Expected` fields the scorer
+  consumes), and `R-cs095-family-refresh-post-l3-reversal`
+  (contingent / DORMANT — only fires if a future disposition
+  reverses cs_095 UC primary back to UC-A).
+- `docs/10-handoff.md` (this file) updated lead to Sprint 21; Sprint
+  20 demoted to "Preceding sprint" with the existing detail
+  paragraphs preserved below for history.
+
+This sprint declares the `docs/current/iteration_governance.md` §7
+Layer-classification + anti-hardcode stanza fulfilled in
+**multi-layer prospective** form per the Sprint 19 / Sprint 20
+precedent: the seven dispositions span four §3.1 layers (3 ×
+`eval_spec` approved overrides, 1 × `product_policy` rejection, 1 ×
+`semantic_planner` rejection, 2 × deferred pending the schema
+extension at `infra` / eval harness). No Tier-0 invariant is added;
+no semantic hardcode is introduced (each approved override is per-
+`source_session_id` ground truth, not a runtime branch or prompt
+rule); no `human_review_required` flag fires beyond cs_040's
+explicit §3.2 Q2 routing back to the pre-existing Tier-0 candidate
+`R-escalation-reason-runtime-evidence-contract-review` (out of Sprint
+21 scope per the objective). The §1.7 forbidden-line check ("widening
+eval spec to accept a genuine bot mistake") was applied to every
+approved override with brief-quoted evidence (see Sprint 21 handoff
+§3.1, §3.4, §3.6) and to every rejected / deferred disposition (see
+Sprint 21 handoff §3.2, §3.3, §3.5, §3.7); cs_176 is the explicit
+example of declining to widen an L1-correctly-hard-failed case.
+
+Preceding sprint (most recently closed, Codex pass):
 Sprint 20 (G2 Interactive Case Family + Shadow Split + Already-Called
 Soft Signal — parallel A + B) closed on 2026-05-13 after a narrow fix
 iteration on the same branch. Sprint 20 was a two-track
@@ -99,7 +178,7 @@ Tier-0 invariant is added; no semantic hardcode is introduced; no
 `human_review_required` flag fired. The generalization-coverage
 table is the deliverable itself for Track A.
 
-Preceding sprint (most recently closed, Codex pass):
+Earlier sprint (Codex pass):
 Sprint 19 (Smoke Regression Investigation + Orchestrator Tool-Call
 De-Dup — parallel A + B) walked `docs/current/iteration_governance.md`
 §3.2 per case for the two R-items the Sprint 18 G1 backlog named

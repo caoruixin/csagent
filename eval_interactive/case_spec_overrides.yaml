@@ -44,10 +44,12 @@ overrides:
         - record_outcome
 
   # -----------------------------------------------------------------------
-  # Wave A2.1 UC-B reclassification entries (9 remaining after merging
-  # cs_interactive_012 and cs_interactive_015 above). Each is
-  # migrated_from_legacy: true so empty supporting_turn_numbers is allowed;
-  # the rationale carries the original one-liner from the inline comment.
+  # Wave A2.1 UC-B reclassification entries (8 remaining after merging
+  # cs_interactive_012 and cs_interactive_015 above, plus cs_interactive_095
+  # superseded by the Sprint 21 L3 re-review block further below). Each
+  # remaining entry is migrated_from_legacy: true so empty
+  # supporting_turn_numbers is allowed; the rationale carries the original
+  # one-liner from the inline comment.
   # -----------------------------------------------------------------------
   # -----------------------------------------------------------------------
   # cs_interactive_015 / 570Q5000008WmXxIAK
@@ -295,6 +297,200 @@ overrides:
       primary_uc: UC-D
       secondary_ucs: [UC-C]
 
+  # =======================================================================
+  # Sprint 21 — Wave A5/A6 L3 review batch (2026-05-14)
+  # Three approved overrides delivered by the per-R-item L3 disposition
+  # work named in `docs/sprint_objective.md` (Sprint 21). Each entry cites
+  # the source brief at `docs/diagnostics/failure-briefs/`. The remaining
+  # four Sprint 21 R-items resolved to non-approved dispositions (two
+  # rejected — `product_policy` widening and `semantic_planner`
+  # escalation-family discrimination — and two deferred pending an
+  # override schema extension); they appear in
+  # `docs/sprints/sprint-021-handoff.md` §3, not here.
+  # =======================================================================
+
+  # -----------------------------------------------------------------------
+  # cs_interactive_001 / 570Q5000008kr6LIAQ
+  # Sprint 21 L3 disposition (2026-05-14, R-cs001-escalation-trigger-l3-review).
+  # The L1-generated CaseSpec pairs `escalation_trigger:
+  # clarification_budget_exhausted` with `bot_handling_pattern` naming
+  # "intake fields (none)" — a logical contradiction (there is no
+  # clarification budget to exhaust when no clarification fields are
+  # required). The bot's actual `escalation_reason=faq_miss_threshold_exceeded`
+  # on session 570Q5000008kr6LIAQ matches phase 2 §2.4 for a UC-C case
+  # that runs `search_knowledge` and exhausts FAQ search without a
+  # resolve-grade hit (trace shows `search_knowledge` + 3 × `resolve_article`
+  # behind a turn-0 mechanical-template message). This override aligns
+  # the CaseSpec's expected reason with the truthful phase 2 reason and
+  # the bot's actual correct behaviour on this dimension. The bot's
+  # separate L3-quality failure (mechanical template, no acknowledgment
+  # of "I am unable to receive messages on my account") is a
+  # `prompt_projection` / `semantic_planner` bug captured by the Sprint 20
+  # cs001 case family at
+  # `eval_interactive/case_specs/case_families/cs001_uc_c_template_escalate/`
+  # and is NOT affected by this override.
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008kr6LIAQ
+    case_id_hint: cs_interactive_001
+    status: approved
+    source: Sprint 21 Wave A5/A6 L3 batch disposition (R-cs001-escalation-trigger-l3-review)
+    reviewer: human semantic review (Sprint 21 L3 batch)
+    date: 2026-05-14
+    confidence: high
+    supporting_turn_numbers: [0, 1]
+    rationale: >-
+      The L1-generated CaseSpec pairs `escalation_trigger:
+      clarification_budget_exhausted` with `bot_handling_pattern` naming
+      "intake fields (none)" — a logical contradiction (no clarification
+      budget exists to exhaust when no clarification fields are
+      required). The bot's actual `escalation_reason=faq_miss_threshold_exceeded`
+      on this UC-C session matches phase 2 §2.4 for a case that runs
+      `search_knowledge` and exhausts FAQ without a resolve-grade hit
+      (trace shows `search_knowledge` + 3 × `resolve_article` +
+      `request_handover`). This override aligns the CaseSpec's expected
+      reason with the truthful phase 2 reason and the bot's actual
+      correct behaviour on this specific dimension; it is NOT a §1.7
+      widening to mask a bot mistake. The bot's separate L3-quality
+      failure (turn-0 mechanical template "Hi Benjamin! I'm having
+      difficulty resolving this. Let me connect you with a specialist."
+      with zero acknowledgement of the user's specific complaint
+      "I am unable to receive messages on my account") is a
+      `prompt_projection` / `semantic_planner` bug captured by the
+      Sprint 20 cs001 case family and is NOT papered over by this
+      override.
+    expected:
+      escalation_trigger: faq_miss_threshold_exceeded
+      bot_handling_pattern: >-
+        Acknowledge the user's specific Replies/Messaging complaint, run
+        policy-mandated tools (search_knowledge, resolve_article,
+        request_handover, record_outcome), collect required intake
+        fields (none), and hand over with reason
+        faq_miss_threshold_exceeded once FAQ search exhausts without a
+        resolve-grade hit on the UC-C messaging topic.
+
+  # -----------------------------------------------------------------------
+  # cs_interactive_095 / 570Q5000008U5C9IAK
+  # Sprint 21 L3 re-review (2026-05-14, R-cs095-uc-classification-l3-rereview).
+  # SUPERSEDES the Wave A2.1 legacy migration entry that previously lived
+  # in the Wave A2.1 legacy block (now removed — header comment updated
+  # to "8 remaining"). Sprint 18 G1 brief
+  # `docs/diagnostics/failure-briefs/cs095-uc-classification-and-account-aware-path-skipped.md`
+  # documents the disagreement: PRD/Eval classify cs_095 as UC-D primary
+  # (account / email recovery), the Wave A2.1 legacy override pinned
+  # UC-A primary, the bot's actual user-facing answer reads as UC-D
+  # (steps to change the contact email cited via internal SF source_id),
+  # and the dominant user signal ("I have the wrong email address on my
+  # app account") is account-state. Wave A2.1 was migrated_from_legacy:
+  # true with empty supporting_turn_numbers — a low-evidence inherited
+  # classification that predates PRD/Eval convergence on UC-D.
+  # Cascade rule (Sprint 20 §3.6 + Sprint 20 §11 Q2): the Sprint 20-
+  # authored cs_095 case family at
+  # `eval_interactive/case_specs/case_families/cs095_uc_classification_account_aware/`
+  # and `eval_interactive/case_specs_shadow/case_families/cs095_uc_classification_account_aware/`
+  # was AUTHORED ASSUMING UC-D PRIMARY as the correct classification, so
+  # this disposition does NOT require a family refresh; the family
+  # neighbor / negative / shadow cases are unchanged. A future
+  # disposition that reverses UC primary again would fire
+  # `R-cs095-family-refresh-post-l3-reversal` (recorded in Sprint 21
+  # handoff §12 as a contingent future R-item; NOT opened by this
+  # sprint). Dependency note: the cs_095 base CaseSpec's
+  # `expected.expected_tool_sequence` starts with `get_customer_context`,
+  # which phase 2 §2.10 line 358 currently restricts to UC-A / UC-FP /
+  # UC-K. The parallel Sprint 21 disposition on the systematic R-item
+  # proposes `R-phase2-uc-cdf-customer-context-policy-widen` to add
+  # UC-C / UC-D / UC-F to the allowlist; until that lands, a UC-D-
+  # primary cs_095 has an internal contract gap between the override-
+  # mandated UC and the phase-2-mandated tool allowlist. The bot's
+  # separate L1 no_stall hard fail (T1 "I'm looking into this for you"
+  # placeholder), duplicated greeting ("Hi Trish! Hi Trish"), and
+  # internal SF source_id leak are real bot bugs at `prompt_projection`
+  # / `semantic_planner` that this eval_spec override does NOT widen
+  # eval to accept (cs_095 still hard-fails composite 0.0 on L1
+  # no_stall in the 2026-05-05 run regardless of UC classification).
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008U5C9IAK
+    case_id_hint: cs_interactive_095
+    status: approved
+    source: Sprint 21 Wave A5/A6 L3 re-review (supersedes Wave A2.1 legacy UC-A migration)
+    reviewer: human semantic review (Sprint 21 L3 batch)
+    date: 2026-05-14
+    confidence: high
+    supporting_turn_numbers: [0, 1]
+    rationale: >-
+      The cs_095 user's form description ("I think I have the wrong email
+      address on my app account so am not getting messages to the app
+      and it's telling me I have no adverts.. I cant see where it can be
+      changed, can you help") is a UC-D account/email-recovery shape:
+      the dominant signal is wrong-email-on-account, and the "no
+      adverts showing" sub-symptom is a downstream consequence of the
+      email/account mismatch rather than a standalone UC-A Top-Ad
+      visibility query. PRD and Eval both classify this case as UC-D.
+      The bot's own behaviour on session 570Q5000008U5C9IAK confirms
+      the mis-classification: active_use_case=UC-A was stamped (per the
+      Wave A2.1 legacy override) but the user-facing T0 reply is
+      UC-D-flavored (the bot answered by giving steps to change the
+      contact email, citing internal SF source_id ka44J000000gKxqQAE).
+      Wave A2.1 was migrated_from_legacy: true with empty
+      supporting_turn_numbers — a low-evidence inherited classification
+      that predates PRD/Eval convergence on UC-D. This override flips
+      classification to UC-D primary (secondary [UC-A, UC-K]); the bot's
+      separate L1 no_stall (T1 PLACEHOLDER_WITHOUT_FOLLOWUP "I'm looking
+      into this for you"), duplicated greeting ("Hi Trish! Hi Trish"),
+      and internal SF source_id leak are real bot bugs at
+      `prompt_projection` / `semantic_planner` that this eval_spec
+      override does NOT widen eval to accept.
+    classification:
+      primary_uc: UC-D
+      secondary_ucs: [UC-A, UC-K]
+
+  # -----------------------------------------------------------------------
+  # cs_interactive_192 / 570Q5000008rbcjIAA
+  # Sprint 21 L3 disposition (2026-05-14, R-cs192-secondary-ucs-duplicate-uc-b).
+  # The L1-generated CaseSpec has `classification.primary_uc: UC-B` AND
+  # `classification.secondary_ucs: [UC-K, UC-D, UC-B]` — UC-B appears
+  # both as primary AND as a secondary. This is a generator quirk: the
+  # L1 rule extractor appended UC-B to secondary_ucs from a separate
+  # signal source without deduplicating against primary_uc. The
+  # disposition deduplicates secondary_ucs to [UC-K, UC-D]. Zero-
+  # scoring-impact correction: the L2 `correct_uc` check compares the
+  # bot's stamped UC to the union of primary and secondary, and the
+  # dedupe leaves that union unchanged. The bot's separate UC-B
+  # template-escalate failure on a resolvable giveaway question
+  # ("I want to give away free items. Can I do this on your site?") is
+  # a `prompt_projection` / `semantic_planner` bug captured by the
+  # Sprint 20 cs192 case family and is NOT affected by this override.
+  # -----------------------------------------------------------------------
+  - source_session_id: 570Q5000008rbcjIAA
+    case_id_hint: cs_interactive_192
+    status: approved
+    source: Sprint 21 Wave A5/A6 L3 batch disposition (R-cs192-secondary-ucs-duplicate-uc-b)
+    reviewer: human semantic review (Sprint 21 L3 batch)
+    date: 2026-05-14
+    confidence: high
+    supporting_turn_numbers: [0, 1]
+    rationale: >-
+      The L1-generated CaseSpec for cs_192 lists UC-B both as
+      `classification.primary_uc` and as a member of
+      `classification.secondary_ucs: [UC-K, UC-D, UC-B]` — a generator
+      quirk where the L1 rule extractor appended UC-B from a separate
+      signal source without deduplicating against primary_uc. The cs_192
+      transcript across turns 0 and 1 (form description "I want to give
+      away free items. Can I do this on your site? And if so then how
+      do I do it?" and follow-up "OK. What items are allowed?") shows no
+      UC-B-distinct-from-primary signal: UC-B appears once as the
+      primary UC and once as a generator-duplicate in secondary_ucs.
+      This override removes the duplicate UC-B from secondary_ucs,
+      leaving [UC-K, UC-D] as the actual secondary candidates.
+      Zero-scoring-impact correction (the L2 `correct_uc` check
+      compares the bot's stamped UC to the union of primary and
+      secondary, and the dedupe leaves that union unchanged). The bot's
+      separate UC-B template-escalate failure on this resolvable
+      giveaway question is a `prompt_projection` / `semantic_planner`
+      bug captured by the Sprint 20 cs192 case family and is NOT
+      affected by this override.
+    classification:
+      secondary_ucs: [UC-K, UC-D]
+
   - source_session_id: 570Q5000008TMmvIAG
     status: approved
     migrated_from_legacy: true
@@ -307,19 +503,6 @@ overrides:
     classification:
       primary_uc: UC-FP
       secondary_ucs: [UC-K]
-
-  - source_session_id: 570Q5000008U5C9IAK
-    status: approved
-    migrated_from_legacy: true
-    source: Wave A2.1 reclassification map
-    reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
-    date: 2026-04-30
-    confidence: high
-    supporting_turn_numbers: []
-    rationale: 'Wrong email, no adverts showing -- UC-A with UC-D / UC-K fallback.'
-    classification:
-      primary_uc: UC-A
-      secondary_ucs: [UC-D, UC-K]
 
   - source_session_id: 570Q5000008wmKbIAI
     status: approved
