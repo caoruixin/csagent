@@ -1,3 +1,24 @@
+---
+title: Phase 2 — Domain Realization Spec
+doc_tier: foundational
+status: current
+implementation_status: partial
+source_of_truth: this file
+last_reviewed: 2026-05-14
+review_cadence: every 3-5 sprints
+supersedes: []
+superseded_by: null
+notes: >
+  Maps the normative freeze onto the Gumtree CS domain (12 UCs + 3
+  OUT_OF_SCOPE + 4 handover-only Topic Subjects). The cross-UC tool
+  matrix at §2.10.1 is the source of truth for per-UC tool
+  allowlists; UC-local YAML annotations are local-context-only and
+  must defer to §2.10.1 for any cross-UC question.
+  Sprint 22 — reconciled UC-H-01 line 358 prose against §2.10.1
+  cross-UC matrix (UC-H-local annotation no longer enumerates other
+  UCs; cross-references §2.10.1).
+---
+
 # Phase 2 — Domain Realization Spec
 
 > **Version**: v9 (2026-05-01)
@@ -355,7 +376,7 @@ escalation_conditions:
   - user_expresses_strong_emotion
 outcome_class: escalate
 runtime_required:
-  - get_customer_context (限 UC-A/UC-FP/UC-K，对 UC-H 不可，因此仅靠 user_message 提问收集)
+  - get_customer_context (UC-H 不可用 — 见 §2.10.1 cross-UC allowlist；UC-H 仅靠 user_message 提问收集标识符)
   - create_case_controlled (UC-H 允许)
   - request_handover (UC-H 允许)
 tool_spec_mapping: UC-H
