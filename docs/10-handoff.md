@@ -6,6 +6,51 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
+Sprint 28 (Per-case trace dump for smoke harness — single-track,
+single-layer `infra` / eval-harness bundle shipping
+`R-per-case-trace-dump-for-smoke-harness` per `docs/action_bank.md:448`).
+**Dev pass complete 2026-05-15.** Option B (writer-side enrichment)
+chosen, mirroring the Sprint 25 precedent — all three R-item-named
+per-turn fields (`tool_calls`, `phase_plan`, `projection`) are
+already hydrated into `TraceCollector.collect(session_id)`'s
+`TurnTrace` records from the bot's `/v1/demo/sessions/{id}/trace`
+endpoint; the eval-harness read them but did not serialise them
+into `results.json`. The fourth R-item-named field, `LlmCallEvents`,
+is already shipped by Sprint 25 as `case_results[].llm_calls[]` and
+is not re-shipped this sprint. The dev edit: a new
+`_build_per_turn_trace(trace_data)` static helper in
+`eval_interactive/eval_interactive/batch/executor.py` (+62 LOC) plus
+one new additive list field `per_turn_trace` emitted on each of the
+four `case_result` writer paths (`_build_case_result` success-path
++ `_timeout_result` / `_error_result` / `_contract_violation_result`
+placeholder paths, each with `[]` for schema uniformity). The
+regression test file
+`eval_interactive/tests/test_executor_per_turn_trace_enrichment.py`
+ships 7 tests (mirroring Sprint 25's 8-test
+`test_executor_llm_calls_enrichment.py`), covering populated path /
+empty trace / missing `phase_plan` in projection / non-dict /
+non-list defensive fallbacks / backwards-compat byte-identity /
+JSON-serialisability / all three placeholder paths. Smoke rerun on
+2026-05-15 (`eval_interactive/results/20260514-181257/results.json`,
+14 cases) — 12 cases populate `per_turn_trace` with ≥ 1 entry; 2
+cases hit the defensive `[]` branch by design (`cs_interactive_001`
+bot-500 path, `cs_interactive_259` CONTRACT_VIOLATION path). Mean
+case-level `elapsed_ms` = 26437.64 ms vs Sprint 25 reference
+26139.43 ms vs Sprint 26 close 28846.64 ms — Sprint 28's run sits
+inside the run-to-run variance band, no overhead regression. Full
+detail in the 12-section archive at
+`docs/sprints/sprint-028-handoff.md`. Closure verdict TBD at sprint
+close — Codex per-PR Anti-Hardcode kernel should run (Sprint 28 is
+a code-shipping sprint, not a docs-only one); the dev's own §11.2
+self-walk arrives at `approve` (no semantic hardcode, no fence
+violation).
+
+---
+
+Previous phase (rolled forward to keep history readable; this block
+is the Sprint 27 phase narrative that the deliver-agent or human may
+demote / archive at Sprint 28 close):
+
 Sprint 27 (PhasePlan directive-shape probe — investigation-only,
 docs-only probe sprint, single deliverable: a 12-section decision
 handoff) closed on 2026-05-15 as the probe sprint triggered by the
