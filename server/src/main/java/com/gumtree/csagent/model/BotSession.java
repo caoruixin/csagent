@@ -76,6 +76,10 @@ public class BotSession {
     @Builder.Default
     private Integer runtimeErrorCount = 0;
 
+    @Column(name = "consecutive_deadline_count", nullable = false)
+    @Builder.Default
+    private Integer consecutiveDeadlineCount = 0;
+
     @Column(name = "last_action")
     private String lastAction;
 

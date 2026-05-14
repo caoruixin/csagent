@@ -680,6 +680,18 @@ public class PhaseEvaluator {
                 && session.getRuntimeErrorCount() > 0) {
             session.setRuntimeErrorCount(0);
         }
+        // Sprint 24 Track A: same shape, applied to the cross-turn slow-LLM
+        // placeholder loop. The DEADLINE_EXCEEDED branch's distinct
+        // honest-next-step message fires only on the *second* consecutive
+        // DEADLINE_EXCEEDED outcome; any non-deadline outcome (FINAL_ANSWER /
+        // CLARIFICATION_NEEDED / etc.) resets the counter so a later isolated
+        // deadline still gets the existing placeholder rather than the
+        // honest-next-step text.
+        if (session != null && outcome != TerminalOutcome.DEADLINE_EXCEEDED
+                && session.getConsecutiveDeadlineCount() != null
+                && session.getConsecutiveDeadlineCount() > 0) {
+            session.setConsecutiveDeadlineCount(0);
+        }
         // For INTAKE plans, FINAL_ANSWER means the LLM produced a no-tool-call
         // user_message — which in intake mode is a clarification question, not
         // a customer-facing final answer. Keep the session in RESOLVE so the
@@ -751,23 +763,57 @@ public class PhaseEvaluator {
                         "runtime_error_threshold",
                         "agent_error");
             }
-            case DEADLINE_EXCEEDED:
-            case LLM_UNAVAILABLE: {
-                // Sprint 8.1 §M2: an honest slow / unavailable response.
-                // We do NOT escalate — escalation here would be a fake
-                // business handover that hides the real infra failure.
-                // The session stays in the current phase with shouldEndChat=
-                // false so the user can retry on their next message. The
-                // K0 fallback gate detects these terminal outcomes too and
-                // refuses to stamp a synthetic UC.
+            case DEADLINE_EXCEEDED: {
+                // Sprint 8.1 §M2: an honest slow response. We do NOT escalate
+                // — escalation here would be a fake business handover that
+                // hides the real infra failure. The session stays in the
+                // current phase with shouldEndChat=false so the user can
+                // retry on their next message. The K0 fallback gate detects
+                // this terminal outcome too and refuses to stamp a synthetic
+                // UC.
+                //
+                // Sprint 24 Track A: cross-turn placeholder coalesce. Two
+                // consecutive DEADLINE_EXCEEDED outcomes used to emit
+                // byte-identical placeholder text on every deadline turn,
+                // which reads as a stuck loop and which the runtime
+                // loop-detector flags. Mirror the V12 runtime_error_count
+                // shape: increment a per-session counter (reset above on any
+                // non-deadline outcome); on the first consecutive deadline
+                // emit the existing placeholder; on the second emit a
+                // distinct honest next-step message naming the slowness and
+                // offering an actionable next step. Trigger is the
+                // event-shape (count of consecutive DEADLINE_EXCEEDED
+                // outcomes), NOT anything in the user's content. The
+                // transition tag remains agent_deadline_exceeded for both
+                // branches; the bot does NOT auto-call request_handover.
+                int deadlineCount = (session != null
+                        && session.getConsecutiveDeadlineCount() != null)
+                        ? session.getConsecutiveDeadlineCount() : 0;
+                deadlineCount += 1;
+                if (session != null) {
+                    session.setConsecutiveDeadlineCount(deadlineCount);
+                }
                 String slowStayPhase = fromPhase != null ? fromPhase : "DISCOVER";
-                String userMsg = (outcome == TerminalOutcome.DEADLINE_EXCEEDED)
+                String deadlineMsg = (deadlineCount < 2)
                         ? "Sorry, I'm a bit slow right now. Please try sending that again in a moment."
-                        : "Sorry, I'm having trouble reaching the assistant right now. "
-                                + "Please try again in a moment.";
-                String transitionTag = (outcome == TerminalOutcome.DEADLINE_EXCEEDED)
-                        ? "agent_deadline_exceeded" : "agent_llm_unavailable";
-                return new PhaseTransitionDecision(slowStayPhase, userMsg, null, transitionTag);
+                        : "I'm still having trouble responding in time. "
+                                + "If you'd like, I can connect you with a specialist, "
+                                + "or you can try again in a few minutes.";
+                return new PhaseTransitionDecision(slowStayPhase, deadlineMsg, null,
+                        "agent_deadline_exceeded");
+            }
+            case LLM_UNAVAILABLE: {
+                // Sprint 8.1 §M2: an honest unavailable response. Same
+                // posture as DEADLINE_EXCEEDED above (no fake handover, stay
+                // in current phase). Sprint 24 Track A is scoped to
+                // DEADLINE_EXCEEDED only; LLM_UNAVAILABLE is intentionally
+                // left unchanged (a possible future coalesce here belongs in
+                // its own R-item).
+                String slowStayPhase = fromPhase != null ? fromPhase : "DISCOVER";
+                String userMsg = "Sorry, I'm having trouble reaching the assistant right now. "
+                        + "Please try again in a moment.";
+                return new PhaseTransitionDecision(slowStayPhase, userMsg, null,
+                        "agent_llm_unavailable");
             }
             case USE_CASE_IDENTIFIED: {
                 // Sprint 8.1 §M3: deterministic DISCOVER → RESOLVE phase
