@@ -291,16 +291,38 @@ should not jump the line over the schema blocker.
 
 ## 12. Sprint review verdict
 
-Placeholder. Codex (or equivalent reviewer) will return the §4.2
-sprint-close header verdict after reviewing this handoff and the
-seven directive deliverables against `compact/sprint-022-review-prompt.md`.
-Expected verdict per the sprint objective: `pass` with the
-docs-only / scope-correction exemption named in the summary. The
-human + deliver agent will fill this section on close.
+Codex returned the §4.2 sprint-close header verdict on 2026-05-14
+against the seven Sprint 22 directive deliverables. Verbatim:
 
 ```
 ## Sprint Review Decision
-decision: <pass | fix_required | out_of_scope_review>
-blocking_count: <number>
-summary: <one paragraph>
+decision: pass
+blocking_count: 0
+summary: approve (exemption: docs-only - Sprint 15 / 16 / G1 precedent). Review scope `git diff HEAD^..HEAD` is limited to the seven Sprint 22 docs/governance deliverables; no runtime / prompt / eval / judge / override / case-family / FAQ / rubric surface was touched, so the section 4.1 nine-question walk is exempt. Packaging note: untracked deliver artefacts `docs/sprint_objective.md` and `compact/sprint-022-*-prompt.md` were observed in the working tree but are outside the reviewed commit and not blocking.
 ```
+
+All six scope-check gates passed (per
+`docs/sprints/sprint-022-codex-review.md`):
+
+- Gate 1: HEAD^..HEAD touches only the seven expected files.
+- Gate 2: phase 2 §2.10.1 byte-identical (no policy widening — only
+  the UC-H-local prose reconciliation).
+- Gate 3: notes-style correction blocks under the requested anchors;
+  original brief text unchanged.
+- Gate 4: both closed R-items cite §2.10.1 line 1098 + the two
+  corroborating policy surfaces (`docs/customer_service_tool_spec_v0_2.yaml`
+  line 260; `docs/current/customer_service_tool_spec_v0_3.md` line 60).
+- Gate 5: the new follow-on R-item layer hint is
+  `prompt_projection | semantic_planner` (not `product_policy`).
+- Gate 6: no override, rubric, judge, runtime, prompt, CaseSpec,
+  persona, FAQ, case-family, or brief-quotation edits.
+
+Packaging note resolution: the untracked deliver-agent artefacts
+flagged in Codex's summary (`docs/sprint_objective.md` +
+`compact/sprint-022-*-prompt.md`) are deliver-agent-owned files
+that accumulate outside the dev's commit by design (commit-at-end
+workflow). They are bundled into the close commit alongside the
+archive moves; this is not a scope-drift event. No A-with-packaging-
+note follow-up needed per the prior `feedback_out_of_scope_review_
+packaging_rollforward.md` convention (this case is even cleaner:
+the verdict was `pass` outright, not `out_of_scope_review`).
