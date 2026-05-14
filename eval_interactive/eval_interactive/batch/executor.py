@@ -258,8 +258,18 @@ class BatchExecutor:
                 case_spec=case_spec,
             )
 
+            # Sprint 25 (R-per-llm-call-latency-instrumentation): fetch the
+            # per-LLM-call log from the bot. The endpoint reads from the
+            # ``llm_call_log`` table that ``LlmCallLogger`` already
+            # populates on every chat/routing/rerank invocation; this is
+            # the writer-side enrichment surface (Option B). Best-effort —
+            # an endpoint failure must not fail the case.
+            llm_calls = self._fetch_llm_calls(
+                agent_client, session_result.session_id, case_spec.case_id
+            )
+
             case_result = self._build_case_result(
-                case_spec, session_result, trace_data, composite_score
+                case_spec, session_result, trace_data, composite_score, llm_calls
             )
 
             status = "PASS" if composite_score.case_passed and composite_score.composite >= 0.7 else "FAIL"
@@ -279,12 +289,35 @@ class BatchExecutor:
     # Serialisation helpers
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _fetch_llm_calls(
+        agent_client: AgentClient, session_id: str, case_id: str
+    ) -> list[dict]:
+        """Sprint 25: best-effort fetch of the per-LLM-call log.
+
+        Returns the raw ``LlmCallLog`` rows for ``session_id`` from the bot's
+        ``GET /v1/demo/sessions/{id}/llm-calls`` endpoint. Failures are
+        swallowed and logged — the eval contract still produces a result
+        for the case; the ``llm_calls`` field just stays empty.
+        """
+        if not session_id:
+            return []
+        try:
+            return agent_client.get_llm_calls(session_id)
+        except Exception as exc:  # noqa: BLE001 — best-effort enrichment
+            logger.warning(
+                "Sprint 25: failed to fetch llm_calls for case %s session %s: %s",
+                case_id, session_id, exc,
+            )
+            return []
+
     def _build_case_result(
         self,
         case_spec: CaseSpec,
         session_result: SessionResult,
         trace_data,
         composite_score: CompositeScore,
+        llm_calls: list[dict] | None = None,
     ) -> dict:
         """Serialize a single case's results to a dict for JSON output."""
         return {
@@ -333,6 +366,14 @@ class BatchExecutor:
             "contract_warnings": list(
                 getattr(trace_data, "contract_warnings", []) or []
             ),
+            # Sprint 25 (R-per-llm-call-latency-instrumentation): per-
+            # LLM-call timing rows from the bot's ``llm_call_log`` table
+            # (chat / routing / rerank), surfaced unchanged so downstream
+            # analysis can compute p50/p95 by ``call_type`` without
+            # conflating tool dispatch or persistence overhead. May be an
+            # empty list when the endpoint is unreachable; this is
+            # logged at fetch time and does not fail the case.
+            "llm_calls": list(llm_calls or []),
         }
 
     def _timeout_result(self, case_spec: CaseSpec) -> dict:
@@ -360,6 +401,7 @@ class BatchExecutor:
             "l3_results": [],
             "transcript": [],
             "status": "TIMEOUT",
+            "llm_calls": [],
         }
 
     def _error_result(
@@ -401,6 +443,7 @@ class BatchExecutor:
             "l3_results": [],
             "transcript": [],
             "status": "ERROR",
+            "llm_calls": [],
         }
 
     def _contract_violation_result(
@@ -459,6 +502,7 @@ class BatchExecutor:
                 "reason": exc.reason,
                 "available_keys": exc.available_keys,
             },
+            "llm_calls": [],
         }
 
     # ------------------------------------------------------------------

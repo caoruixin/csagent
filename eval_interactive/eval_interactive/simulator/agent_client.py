@@ -166,6 +166,25 @@ class AgentClient:
         response.raise_for_status()
         return response.json()
 
+    def get_llm_calls(self, session_id: str) -> list[dict]:
+        """Retrieve the per-LLM-call log for a session.
+
+        GET /v1/demo/sessions/{id}/llm-calls
+
+        Sprint 25 (R-per-llm-call-latency-instrumentation): surfaces the
+        per-LLM-call rows persisted by ``LlmCallLogger`` (one entry per
+        chat/routing/rerank invocation, with ``latency_ms``,
+        ``prompt_tokens``, ``completion_tokens``, ``success``) so the
+        eval-harness can attach per-LLM-call latency to ``results.json``.
+        The DB-backed endpoint already exists on the bot side
+        (``DemoInspectionController.getSessionLlmCalls``); the eval harness
+        is the consumer.
+        """
+        url = f"{self.base_url}/v1/demo/sessions/{session_id}/llm-calls"
+        response = self.client.get(url)
+        response.raise_for_status()
+        return response.json()
+
     def close(self) -> None:
         """Close the underlying HTTP client."""
         self.client.close()
