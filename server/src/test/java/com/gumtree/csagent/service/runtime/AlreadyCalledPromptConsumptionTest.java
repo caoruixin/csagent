@@ -1,3 +1,9 @@
+// Supporting coverage for Sprint 23 prompt teaching; not primary evidence for
+// behaviour reversal. The primary causal evidence is the cs_040 target rerun
+// at eval_interactive/results/20260514-080835/results.json (see Sprint 23
+// handoff §13.1 + "Fix iteration" section). This test asserts text anchors
+// and the absence of tool/UC branching only.
+
 package com.gumtree.csagent.service.runtime;
 
 import org.junit.jupiter.api.Test;
