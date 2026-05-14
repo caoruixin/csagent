@@ -99,6 +99,8 @@ cs_259 produces no new R-items. It reinforces existing ones across multiple brie
 
 1. **`R-generator-get-customer-context-policy-mismatch`** (cs_001 UC-C + cs_011 UC-D + now cs_259 UC-F). Three confirmed instances across three UCs. The "systematic generator-vs-policy mismatch" hypothesis from cs_011 is solid now.
 
+   > **Correction (Sprint 22, 2026-05-14):** the "systematic generator-vs-policy mismatch" hypothesis is invalidated. Phase 2 §2.10.1 line 1098 (the normative cross-UC matrix) explicitly permits `get_customer_context` for UC-F (corroborated by `docs/customer_service_tool_spec_v0_2.yaml` line 260 and `docs/current/customer_service_tool_spec_v0_3.md` line 60). Line 358 was UC-H-local prose. The CaseSpec generator was correct. The behavioural question is now `R-uc-cdf-get-customer-context-bot-actual-usage` (action_bank §5.2). `R-generator-get-customer-context-policy-mismatch` is closed; `R-phase2-uc-cdf-customer-context-policy-widen` is also closed.
+
 2. **`R-corpus-coverage-audit-per-uc`** (cs_095 UC-D + cs_192 UC-B + now cs_259 UC-F). Third UC where the bot's FAQ search comes up empty on a basic policy question. Per-UC corpus coverage audit is increasingly load-bearing for the eval-governance track.
 
 3. **`R-faqMissCount-threshold-and-timing-review`** (cs_095 first, cs_192 reinforced, cs_259 reinforced). cs_259 fits the "1 search + 1 user turn = faq_miss" shape exactly.

@@ -6,6 +6,49 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
+Sprint 22 (phase 2 line 358 reconciliation + R-item closure) closed
+on 2026-05-14 as a narrow docs-only scope-correction sprint. A
+Sprint 22 planning-turn premise-verification check discovered that
+the policy-mismatch premise Sprint 21 carried forward — that phase
+2 forbids `get_customer_context` for UC-C / UC-D / UC-F — was based
+on a misread of UC-H-local prose inside the UC-H-01 YAML block
+(phase 2 line 358) as the cross-UC rule. The normative cross-UC
+matrix at phase 2 §2.10.1 line 1098 already permits the tool for
+UC-C, UC-D, and UC-F (corroborated by
+`docs/customer_service_tool_spec_v0_2.yaml` line 260 and
+`docs/current/customer_service_tool_spec_v0_3.md` line 60). Sprint
+22 reconciled the misleading prose annotation in phase 2 (now
+defers to §2.10.1 for the cross-UC question; added minimal YAML
+front matter per `docs/current/doc_governance.md`), closed
+`R-generator-get-customer-context-policy-mismatch` (with a Sprint
+22 correction addendum on the Sprint 21 `status: done` text) and
+the routed-to `R-phase2-uc-cdf-customer-context-policy-widen` (as
+premise-invalidated), appended notes-style correction blocks to the
+three affected Failure Briefs (cs_001 / cs_011 / cs_259 — no
+rewrite, original brief content preserved), and opened a single
+follow-on R-item `R-uc-cdf-get-customer-context-bot-actual-usage`
+(layer hint `prompt_projection` or `semantic_planner`, NOT
+`product_policy`; disposition `proposed / deferred`) capturing the
+residual behavioural question: does the bot actually call the tool
+when account-state matters in UC-C / UC-D / UC-F? No runtime
+change, no policy widening, no CaseSpec / override / judge / prompt
+/ FAQ corpus / case-family edits, no Tier-0 candidacy. The Sprint
+22 handoff at `docs/sprints/sprint-022-handoff.md` records the
+seven-directive scope, the closed / opened R-items, and a rescoping
+of Sprint 21 §12.4's recommended-next-sprint suggestion (the
+widening sprint is no longer needed; Sprint 22's §10 names
+`R-case-spec-overrides-schema-scoring-extension` as the narrow
+high-leverage candidate, with Sprint 19 Track B Handover
+Orchestrator and the new behavioural R-item as alternatives).
+
+This sprint is `docs/current/iteration_governance.md` §7
+stanza-**EXEMPT** under the docs-only / config-governance exemption
+(precedent: Sprint 15, Sprint 16, Sprint 17, Sprint 18). No stanza
+is required and none was written. No semantic surface was touched,
+so the §4.1 Anti-Hardcode review verdict is `approve` with the
+exemption named.
+
+Preceding sprint:
 Sprint 21 (Wave A5/A6 L3 Review Batch — per-case + 1 systematic)
 closed on 2026-05-14 as a single-track semantic-touching sprint on
 the eval_spec surface. Sprint 21 processed the seven L3 R-items
