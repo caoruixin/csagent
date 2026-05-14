@@ -393,7 +393,7 @@ instance confirms the pattern) is recorded in
 
 | id | source briefs | description |
 |----|---------------|-------------|
-| R-generator-get-customer-context-policy-mismatch | cs_001 (UC-C) + cs_011 (UC-D) + cs_259 (UC-F) | CaseSpec generator includes `get_customer_context` in `expected_tool_sequence` regardless of phase 2 §2.10 line 358 UC-A/UC-FP/UC-K restriction. Wave A5/A6 priority. |
+| R-generator-get-customer-context-policy-mismatch | cs_001 (UC-C) + cs_011 (UC-D) + cs_259 (UC-F) | **status: done — Sprint 21 rejected as non-eval_spec (§3.2 Q7); reclassified to `product_policy` and routed to new R-phase2-uc-cdf-customer-context-policy-widen (phase 2 §2.10 line 358 widening). See `docs/sprints/sprint-021-handoff.md` §3.7 + §8.2.** |
 | R-l3-judge-form-context-trust-rubric | cs_038 (Paul) + cs_040 (Mo) + cs_192 (Rita) | L3 judge over-reaches by criticizing form-supplied `first_name` as "without confirmation". Rubric should account for `form_context.first_name` as a trustable signal. |
 | R-corpus-coverage-audit-per-uc | cs_095 (UC-D account/email) + cs_192 (UC-B free-items/giveaway) + cs_259 (UC-F payment) | Per-UC FAQ corpus coverage audit. Resolve-grade articles for common entry-point questions per UC. **No generator-synthesized articles** (only genuine help-center content). |
 | R-faqMissCount-threshold-and-timing-review | cs_095 + cs_192 + cs_259 | Two-part: (a) `>= 2` threshold given auto-search burns one; (b) threshold check timing vs form-description fallback. Config governance, not runtime semantic change. |
@@ -404,14 +404,14 @@ instance confirms the pattern) is recorded in
 | id | source brief | description |
 |----|--------------|-------------|
 | R-uc-b-customer-context-policy-review | cs_015 (Related observation) | Phase 2 §2.10 line 358 restricts `get_customer_context` to UC-A/UC-FP/UC-K. Should UC-B (Posting & Editing) be added? Tangential to cs_015's main failure but worth a separate product-policy review. |
-| R-cs001-escalation-trigger-l3-review | cs_001 | CaseSpec trigger `clarification_budget_exhausted` conflicts with `intake fields (none)`. Wave A5/A6 review. |
-| R-cs038-l3-review-intake-efficiency | cs_038 | Should intake completion at T2 be the correct `turn_efficiency` target? |
-| R-cs040-l3-review-intake-completion-semantics | cs_040 | Should `escalation_reason=intake_complete_for_uc_k` + `intake_fields_collected=0` be a hard outcome fail (not just an L3 quality issue)? |
+| R-cs001-escalation-trigger-l3-review | cs_001 | **status: done — Sprint 21 approved override (case_spec_overrides.yaml entry for source_session_id 570Q5000008kr6LIAQ); `expected.escalation_trigger` flipped `clarification_budget_exhausted` → `faq_miss_threshold_exceeded` with matching `bot_handling_pattern` rewrite. See `docs/sprints/sprint-021-handoff.md` §3.1.** |
+| R-cs038-l3-review-intake-efficiency | cs_038 | **status: deferred — Sprint 21 schema-blocked. The override schema does not currently support `scoring.*` overrides (e.g. moving the intake-efficiency check between `outcome_checks` and `hard_checks`); depends on `R-case-spec-overrides-schema-scoring-extension`. See `docs/sprints/sprint-021-handoff.md` §3.2.** |
+| R-cs040-l3-review-intake-completion-semantics | cs_040 | **status: deferred — Sprint 21 schema-blocked + Tier-0 candidate territory. Depends on `R-case-spec-overrides-schema-scoring-extension` (eval-spec path) OR `R-escalation-reason-runtime-evidence-contract-review` (runtime path). See `docs/sprints/sprint-021-handoff.md` §3.3.** |
 | R-persona-goal-summary-scope-clarity | cs_040 | **Conditional** — only open if G2 case-family work shows the same scope-broadening pattern on other personas. |
-| R-cs095-uc-classification-l3-rereview | cs_095 | PRD / Eval = UC-D vs CaseSpec override (Wave A2.1 legacy) = UC-A. Substantive mismatch. Wave A5/A6 L3 re-review. **Most impactful follow-up for cs_095.** |
+| R-cs095-uc-classification-l3-rereview | cs_095 | **status: done — Sprint 21 approved override (case_spec_overrides.yaml entry for source_session_id 570Q5000008U5C9IAK; supersedes the Wave A2.1 legacy UC-A pin, which is removed from the legacy block + header comment updated). UC primary flipped UC-A → UC-D; secondary [UC-D, UC-K] → [UC-A, UC-K]. Cascade rule satisfied in-direction (Sprint 20 cs_095 family unchanged; family was authored assuming UC-D primary). See `docs/sprints/sprint-021-handoff.md` §3.4 + §5.** |
 | R-l1-source-citation-quality-rubric | cs_095 | L1 `source_citation_present` accepts internal SF IDs (`ka44J000000gKxqQAE`). Tighten to require canonical_url OR article title. |
-| R-cs176-escalation-reason-l3-review | cs_176 | Is `user_requested` the optimal expected reason for UC-E refund demand, or should UC-E have a more specific reason? |
-| R-cs192-secondary-ucs-duplicate-uc-b | cs_192 | Low priority. CaseSpec lists UC-B both as primary and as `secondary_ucs`. Generator quirk. |
+| R-cs176-escalation-reason-l3-review | cs_176 | **status: done (rejected) — Sprint 21 rejected as non-eval_spec (§3.2 Q5); CaseSpec `user_requested` is correct (the user explicitly demanded refund); the bot chose the wrong escalation_reason family (`faq_miss_threshold_exceeded`). Reclassified to `semantic_planner`; remediation routed to new `R-cs176-semantic-planner-escalation-family-discrimination`. See `docs/sprints/sprint-021-handoff.md` §3.5 + §8.1.** |
+| R-cs192-secondary-ucs-duplicate-uc-b | cs_192 | **status: done — Sprint 21 approved override (case_spec_overrides.yaml entry for source_session_id 570Q5000008rbcjIAA); `secondary_ucs` deduped [UC-K, UC-D, UC-B] → [UC-K, UC-D]; primary stays UC-B. Zero-scoring-impact correction (the L2 `correct_uc` check uses union of primary + secondary; dedupe leaves union unchanged). See `docs/sprints/sprint-021-handoff.md` §3.6.** |
 
 **G2 input / future input**
 
@@ -525,7 +525,53 @@ pick the L3 review batch (Wave A5/A6 — `R-cs001-escalation-trigger-l3-review`,
 `R-cs192-secondary-ucs-duplicate-uc-b`, and the systematic
 `R-generator-get-customer-context-policy-mismatch`) as the natural
 follow-on. The cs095 Q2 sequencing concern names this batch as the
-prerequisite for any cs095-shape remediation.
+prerequisite for any cs095-shape remediation. (**Done — Sprint 21
+delivered the batch; see Sprint 21 surfaced backlog below.**)
+
+**Sprint 21 surfaced backlog**
+
+Sprint 21 (2026-05-14, closed after fix iteration) delivered seven
+L3 R-item dispositions across the Wave A5/A6 batch named above: 3
+approved overrides (cs_001, cs_095, cs_192) written to
+`eval_interactive/case_spec_overrides.yaml` (17 applied entries
+total; 0 pending); 2 rejected (cs_176, systematic
+`R-generator-get-customer-context-policy-mismatch`) with new
+remediation R-items proposed at the correct layer; 2 deferred
+(cs_038, cs_040) on the missing schema extension. The cascade rule
+held (no Sprint 20 case-family content touched). The §1.7 forbidden
+-line check ("widening eval spec to accept a genuine bot mistake")
+was applied per disposition; cs_176 is the explicit example of
+declining to widen an L1-correctly-hard-failed case. Codex fix
+re-review verdict `decision: fix_required, blocking_count: 3` on
+typographical-fidelity grounds only (5-character markdown emphasis
++ trailing-colon drops on brief-quote blocks); substantive
+dispositions confirmed sound per Codex's own non-blocking checks
+(override schema sane, no case-family edit, no judge-rubric edit,
+no semantic hardcode, cs_095 dimension-distinction byte-identical).
+Human accepted the evidence-package gap as close-eligible
+(classification: A-with-evidence-gap-acknowledgment); the gap is
+in documentation polish, not in any system behaviour or governance
+surface. See `docs/sprints/sprint-021-handoff.md` §12 + the close
+narrative in `docs/10-handoff.md` §1.
+
+| id | source | description |
+|----|--------|-------------|
+| R-phase2-uc-cdf-customer-context-policy-widen | Sprint 21 §3.7 systematic disposition (rejected) | `product_policy` layer. Phase 2 §2.10 line 358 widening to add UC-C, UC-D, UC-F to the `get_customer_context` allowlist (n=3 instances across cs_001 / cs_011 / cs_259, human-reviewed). Scope: `docs/foundational/phase2_domain_realization_spec.md` §2.10 line 358; downstream runtime tool-policy update in `server/` if any Java-side guard mirrors the allowlist. Confidence: high. Recommended for the next product-policy / phase-2 fold-back sprint. **Sprint 21 §12.4 names this the recommended next sprint** because it unblocks both §11 Q1 (cs_011 override wording inconsistency) and §11 Q2 (cs_095 UC-D-primary contract gap) on the eval-spec surface. |
+| R-cs176-semantic-planner-escalation-family-discrimination | Sprint 21 §3.5 cs_176 rejection | `semantic_planner` layer. The LLM must discriminate user-intent escalation families (`user_requested`) from bot-limit escalation families (`faq_miss_threshold_exceeded`) on UC-E refund / fulfillment-demand shapes. Soft-signal candidate: a projection slot naming evidence dimensions (FAQ-search-evidence-count, user-explicit-demand-detected); LLM owns the choice; **NO** keyword / regex / per-UC matrix on user content. Conditional follow-on: G3+ remediation sprint can pick up once `R-slow-llm-placeholder-coalesce` and `R-prompt-phase-plan-directive-followship` (Sprint 19 backlog blocking cs_011-shape remediation) are in motion. |
+| R-case-spec-overrides-schema-scoring-extension | Sprint 21 §3.2 (cs_038 deferral) + §3.3 (cs_040 deferral) | `infra` / eval harness. Extend the override schema at `eval_interactive/eval_interactive/case_spec/extractor.py:_CASE_OVERRIDE_EXPECTED_FIELDS` + `extractor.py:_normalise_expected_block` to permit `scoring.*` overrides per `source_session_id`, OR add new `Expected` dataclass fields (`intake_completion_turn_target`, `min_intake_fields_collected`, etc.) that scorer logic consumes. Unblocks the two deferred Sprint 21 R-items. Sprint 21 §11 Q4 records the path-choice sub-question. |
+| R-cs095-family-refresh-post-l3-reversal | Sprint 21 §3.4 + Sprint 20 §11 Q2 | eval governance, **contingent / DORMANT**. Triggered only if a future disposition reverses cs_095 UC primary back to UC-A (or to any non-UC-D primary). The Sprint 20-authored cs_095 family at `eval_interactive/case_specs/case_families/cs095_uc_classification_account_aware/` and `eval_interactive/case_specs_shadow/case_families/cs095_uc_classification_account_aware/` was authored assuming UC-D primary; reversal would require the family's expected fields to refresh. Currently DORMANT (Sprint 21 UC-D confirmation matches the family's authoring direction). |
+
+**Sprint 21 open questions (next-sprint sequencing, not blockers)**
+
+The Sprint 21 handoff §11 records five open questions for the human.
+Q1 (cs_011 override wording inconsistency) and Q2 (cs_095 UC-D-primary
+contract gap) are both addressed by the recommended next sprint
+`R-phase2-uc-cdf-customer-context-policy-widen`. Q3 (DORMANT-recording
+posture for `R-cs095-family-refresh-post-l3-reversal`) is captured
+above in the R-items table. Q4 (override-schema-extension scoping)
+is captured in `R-case-spec-overrides-schema-scoring-extension`. Q5
+(deferred-disposition follow-up cadence) is a sequencing concern,
+not a blocker.
 
 ## 6. Closed action index
 
@@ -557,6 +603,7 @@ prerequisite for any cs095-shape remediation.
 | Sprint 18 | G1 Human-led Failure Portfolio — 10 Failure Briefs at `docs/diagnostics/failure-briefs/` (9 smoke + 1 manual-probe); §5.2 G1 surfaced backlog with 18 R-items + 2 open observations | closed (docs-only governance; no Codex review per packaging-workflow option 2; no runtime change) | `docs/sprints/sprint-018-*` |
 | Sprint 19 | A + B parallel investigation — Track A smoke-regression diagnosis (`R-smoke-regression-investigation` → multi-shape root cause; 5/6 cases share slow-LLM placeholder loop, cs_066 UC-K state-loss); Track B orchestrator tool-call de-dup investigation (`R-runtime-orchestrator-tool-call-deduplication` reclassified `infra` → `semantic_planner`; remediation split into read-side soft signal + write-side HandoverOrchestrator); 7 new R-items surfaced (incl. promoted `R-prompt-phase-plan-directive-followship` per conditional-broadening rule, n=3) | closed (Codex pass; investigation-only sprint per Bundle-or-defer policy; proposal-only on both tracks; no bundled fixes) | `docs/sprints/sprint-019-*` |
 | Sprint 20 | G2 Interactive Case Family + Shadow Split (Track A) + `already_called` soft-signal slot (Track B) — Track A delivered 10 case families × (≥1 target + ≥2 neighbor + ≥2 negative + ≥2 shadow) = 70 CaseSpec-shaped entries + v0 shadow-split mechanism (directory boundary + custom-path-only loading + documented self-restraint); Track B delivered `already_called: [{tool, arguments_hash, at_step}]` projection slot in `ContextProjectionBuilder.build(...)` (observability-only, runtime non-enforcement). Required a narrow fix iteration after Codex first review `decision: fix_required, blocking_count: 2` (runtime non-enforcement test at `AgentRunLoopImpl.run` granularity + `_ACCESS_BOUNDARY.md` reconciliation). Codex fix re-review verdict `decision: out_of_scope_review, blocking_count: 1` on commit-boundary / packaging grounds only — both substantive findings closed cleanly per Codex's own evidence. | closed (substantive findings closed; packaging-only blocker rolled forward in close commit; full server suite 896 / 0 / 0 / 1) | `docs/sprints/sprint-020-*` |
+| Sprint 21 | Wave A5/A6 L3 Review Batch (per-case + 1 systematic) — single-track semantic-touching sprint on the eval_spec surface. Delivered 7 L3 dispositions: 3 approved overrides (cs_001 escalation_trigger flip + bot_handling_pattern rewrite; cs_192 secondary_ucs dedupe; cs_095 UC-A → UC-D classification flip, supersedes Wave A2.1 legacy entry) written to `eval_interactive/case_spec_overrides.yaml` (17 applied / 0 pending); 2 rejected (cs_176 reclassified eval_spec → `semantic_planner`; systematic `R-generator-get-customer-context-policy-mismatch` reclassified eval_spec → `product_policy`) with new remediation R-items routed; 2 deferred (cs_038, cs_040) on missing override-schema scoring extension. 4 new R-items proposed: `R-phase2-uc-cdf-customer-context-policy-widen`, `R-cs176-semantic-planner-escalation-family-discrimination`, `R-case-spec-overrides-schema-scoring-extension`, `R-cs095-family-refresh-post-l3-reversal` (DORMANT). Cascade rule held (no Sprint 20 case-family content touched). Required a narrow fix iteration after Codex first review `decision: fix_required, blocking_count: 3` (approved-override evidence-gap on cs_001 / cs_095 / cs_192 — Ground-truth chain quoted but not brief `What happened?` / `What should` fields). Fix iteration was paste-in evidence remediation only (six verbatim brief-quote blocks added at handoff lines ~280 / ~452 / ~608, two per approved override); no override re-litigation, no case-family edits, no runtime / prompt / judge / YAML changes; cs_095 dimension-distinction language preserved byte-identical. Codex fix re-review verdict `decision: fix_required, blocking_count: 3` on typographical-fidelity grounds only (dropped markdown emphasis `*way*` / `**account-state-aware investigation**` / `**...**` + one missing trailing colon on cs_001's quote). | closed (A-with-evidence-gap-acknowledgment; substantive dispositions confirmed sound per Codex's own non-blocking checks at `docs/sprints/sprint-021-codex-review.md` lines 71–74 — override schema sane, no case-family edit, no judge-rubric edit, no semantic hardcode, cs_095 dimension-distinction byte-identical; human accepted the typographical evidence-package gap as close-eligible 2026-05-14; no further re-review round dispatched) | `docs/sprints/sprint-021-*` |
 
 ## 7. Carry-over rule
 
