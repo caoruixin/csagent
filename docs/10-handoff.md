@@ -84,6 +84,54 @@ approved override with brief-quoted evidence (see Sprint 21 handoff
 Sprint 21 handoff §3.2, §3.3, §3.5, §3.7); cs_176 is the explicit
 example of declining to widen an L1-correctly-hard-failed case.
 
+Sprint 21 required a narrow fix iteration after Codex's first review
+returned `decision: fix_required, blocking_count: 3`. All three
+blockers were approved-override evidence-gap findings under the
+parent objective's §1.7 evidence-package gate: each of cs_001 /
+cs_095 / cs_192 had quoted Ground-truth chain only and not the
+brief's `What happened?` + `What should a good CS agent have done?`
+field bodies. The fix iteration was paste-in evidence remediation
+only (six verbatim brief-quote blocks added at
+`docs/sprints/sprint-021-handoff.md` lines ~280 / ~452 / ~608, two
+per approved override); no override re-litigation, no case-family
+edits, no runtime / prompt / judge / YAML changes. Cs_095's
+dimension-distinction language (separating the approved UC-D
+classification override from the brief's orthogonal `prompt_projection`
+/ `semantic_planner` failures the override does NOT widen eval to
+accept) was preserved byte-identical per the fix-iteration objective
+and Codex's own verification at
+`docs/sprints/sprint-021-codex-review.md:4`.
+
+Codex's Sprint 21 fix re-review returned `decision: fix_required,
+blocking_count: 3`. All three blockers are typographical-fidelity
+findings: dropped markdown emphasis (`*way*` on cs_001's
+"`What should`" quote, `**account-state-aware investigation**` on
+cs_095's, `**...**` on cs_192's) and one missing trailing colon in
+cs_001's quote. The substantive dispositions are correct per Codex's
+own non-blocking checks at `docs/sprints/sprint-021-codex-review.md`
+lines 71–74: override schema sane (17 applied / 0 pending / three
+Sprint 21 source session ids present), no case-family edit, no
+judge-rubric edit, no governance edit, no semantic hardcode, and the
+cs_095 dimension-distinction paragraph remains byte-identical to the
+pre-fix state. The human accepted the typographical gap as
+close-eligible on 2026-05-14: the gap is in evidence-package
+documentation polish (5-character markdown / punctuation deltas on
+quote blocks that were the entire point of the fix iteration), not
+in any system behaviour, override content, case-family edit, or
+governance surface. This sprint is classified
+**A-with-evidence-gap-acknowledgment** (distinct from Sprint 20's
+A-with-packaging-note, which was commit-boundary, and from B, which
+would be an in-scope substantive blocker); no further re-review
+round is required, and no remediation against the runtime, prompt,
+CaseSpec, judge, or eval harness is open. Lesson captured in deliver
+agent memory at
+`.claude/agent-memory/sprint-deliver-orchestrator/feedback_review_prompt_verbatim_disambiguation.md`
+and `feedback_close_over_fix_required_typographical.md`: future
+review prompts demanding source-quote fidelity must explicitly
+disambiguate byte-verbatim (markdown + punctuation preserved) vs.
+content-verbatim, and the close-over-fix_required-on-typographical-
+fidelity pattern is itself a documented classification.
+
 Preceding sprint (most recently closed, Codex pass):
 Sprint 20 (G2 Interactive Case Family + Shadow Split + Already-Called
 Soft Signal — parallel A + B) closed on 2026-05-13 after a narrow fix
