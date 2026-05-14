@@ -105,6 +105,7 @@ public class SessionManager {
                 .faqMissCount(0)
                 .repeatedActionCount(0)
                 .runtimeErrorCount(0)
+                .consecutiveDeadlineCount(0)
                 .articlesShown(new String[0])
                 .candidateUseCases(new String[0])
                 .promptVersion("v1.0.0")
