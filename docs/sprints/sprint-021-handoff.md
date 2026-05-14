@@ -270,15 +270,24 @@ the bot ran `search_knowledge` + 3 × `resolve_article` +
 **§1.7 self-check.** From the brief (line 14): *"The bot's actual
 `escalation_reason=faq_miss_threshold_exceeded` is more semantically
 accurate."* From the brief (line 16): *"The bot's outcome (escalate)
-IS correct."* The override aligns the CaseSpec's expected reason
-with the truthful phase 2 reason and the bot's actual correct
-behaviour on this specific dimension — the CaseSpec / generator was
-the artefact that needed adjustment, not the bot. This is NOT a §1.7
-widening to mask a bot mistake. The bot's separate L3-quality
-failure (turn-0 mechanical template, zero acknowledgment of "I am
-unable to receive messages on my account") is a `prompt_projection`
-/ `semantic_planner` bug captured by the Sprint 20 cs001 case family
-at `eval_interactive/case_specs/case_families/cs001_uc_c_template_escalate/`
+IS correct."* From the brief's `What happened?` field
+(`docs/diagnostics/failure-briefs/cs001-uc-c-template-escalate-on-faq-miss.md:18`):
+*"Behind the scenes the bot ran `search_knowledge` + 3×
+`resolve_article` + `request_handover` — tool work happened — but
+none was reflected in the user-facing message."* From the brief's
+`What should a good CS agent have done?` field
+(`docs/diagnostics/failure-briefs/cs001-uc-c-template-escalate-on-faq-miss.md:24`):
+*"Even when escalation is the right outcome, the way the agent
+escalates should respect what the user said"*. The override aligns
+the CaseSpec's expected reason with the truthful phase 2 reason and
+the bot's actual correct behaviour on this specific dimension — the
+CaseSpec / generator was the artefact that needed adjustment, not
+the bot. This is NOT a §1.7 widening to mask a bot mistake. The
+bot's separate L3-quality failure (turn-0 mechanical template, zero
+acknowledgment of "I am unable to receive messages on my account")
+is a `prompt_projection` / `semantic_planner` bug captured by the
+Sprint 20 cs001 case family at
+`eval_interactive/case_specs/case_families/cs001_uc_c_template_escalate/`
 and is NOT papered over by this override.
 
 **Artefact.** `case_spec_overrides.yaml` entry around line 333. See
@@ -431,13 +440,27 @@ documents.
 **§1.7 self-check.** From the brief (line 19): *"The bot stamped
 `active_use_case=UC-A` (matching the current override) but gave an
 answer that reads as UC-D (steps to change the contact email)."*
-The bot's USER-FACING CONTENT on UC-D-primary was correct (it
-answered the UC-D question by giving email-change steps); the bot's
-UC STAMP was wrong (stamped UC-A per the override but produced UC-D
-content). The override was the artefact that needed adjustment, NOT
-the bot's content choice on this dimension. This is the §5.4 /
-§1.7-clean path: the CaseSpec / override was wrong; the eval-spec
-correction aligns it with the bot's actually-correct UC-D answer.
+From the brief's `What happened?` field
+(`docs/diagnostics/failure-briefs/cs095-uc-classification-and-account-aware-path-skipped.md:27`):
+*"User entered via the Account Support form:
+`form_context.first_name="Trish"`, description "I think I have the
+wrong email address on my app account so am not getting messages to
+the app and it's telling me I have no adverts..  I cant see where
+it can be changed, can you help""*. From the brief's `What should a
+good CS agent have done?` field
+(`docs/diagnostics/failure-briefs/cs095-uc-classification-and-account-aware-path-skipped.md:50`):
+*"The capability gap is account-state-aware investigation for
+symptom sets where the user describes an account / login / sync /
+visibility problem that may stem from a wrong-account or wrong-email
+login state, rather than a generic policy or configuration
+question."* The bot's USER-FACING CONTENT on UC-D-primary was
+correct (it answered the UC-D question by giving email-change
+steps); the bot's UC STAMP was wrong (stamped UC-A per the override
+but produced UC-D content). The override was the artefact that
+needed adjustment, NOT the bot's content choice on this dimension.
+This is the §5.4 / §1.7-clean path: the CaseSpec / override was
+wrong; the eval-spec correction aligns it with the bot's
+actually-correct UC-D answer.
 
 The bot's separate L1 no_stall hard fail (T1 PLACEHOLDER_WITHOUT_FOLLOWUP
 "I'm looking into this for you"), duplicated greeting ("Hi Trish!
@@ -573,7 +596,19 @@ Can I do this on your site? And if so then how do I do it?" and
 follow-up "OK. What items are allowed?") shows no UC-B-distinct-from-
 primary signal anywhere.
 
-**§1.7 self-check.** Zero-scoring-impact correction: the L2
+**§1.7 self-check.** From the brief's `What happened?` field
+(`docs/diagnostics/failure-briefs/cs192-uc-b-mechanical-escalate-on-resolvable-giveaway-question.md:22`):
+*"User entered via the Ad Support form:
+`form_context.first_name="Rita"`, description "I want to give away
+free items.  Can I do this on your site?  And if so then how do I do
+it?", empty ad_id, persona `frustration_level: mild`,
+`drift_behavior: soft_shift`."* From the brief's `What should a good
+CS agent have done?` field
+(`docs/diagnostics/failure-briefs/cs192-uc-b-mechanical-escalate-on-resolvable-giveaway-question.md:41`):
+*"The capability gap is completing a real FAQ resolve attempt on a
+basic UC-B posting question, and either landing a resolve or
+admitting the gap honestly rather than masking it as "I'm having
+difficulty resolving this"."* Zero-scoring-impact correction: the L2
 `correct_uc` check compares the bot's stamped UC to the union of
 primary and secondary; the dedupe leaves that union unchanged. The
 bot's separate UC-B template-escalate failure on this resolvable
@@ -1172,3 +1207,133 @@ eval-harness-focused sprint after the phase 2 widening.
 sprint can pick up once `R-slow-llm-placeholder-coalesce` and
 `R-prompt-phase-plan-directive-followship` (the Sprint 19 backlog
 items currently blocking cs_011-shape remediation) are in motion.
+
+## Fix iteration
+
+Date: 2026-05-14
+
+### Trigger
+
+Codex returned `decision: fix_required` / `blocking_count: 3` on
+Sprint 21 commit `5cbb373` (header at `docs/codex-findings.md:1–4`).
+All three blocking findings are approved-override evidence-gap
+findings under the §1.7 evidence-package gate: each of cs_001,
+cs_095, cs_192 quoted Ground-truth chain only and did not quote the
+brief's `What happened?` and `What should a good CS agent have
+done?` field bodies. This fix iteration is paste-in evidence
+remediation. No override re-litigation, no case-family edits, no
+runtime / prompt / judge / YAML changes.
+
+### Findings closed
+
+- **Finding 1 — cs_001** (`docs/codex-findings.md:8–26`). Target
+  paragraph: §3.1 §1.7 self-check at `sprint-021-handoff.md:270`.
+  Override dimension: `expected.escalation_trigger` /
+  `expected.bot_handling_pattern`. Two verbatim quote blocks
+  inserted (see §"New brief-quote blocks" below). Existing
+  L3-quality-failure language ("`prompt_projection` /
+  `semantic_planner` bug captured by the Sprint 20 cs001 case
+  family ... NOT papered over by this override") is unchanged.
+
+- **Finding 2 — cs_095** (`docs/codex-findings.md:28–47`). Target
+  paragraph: §3.4 §1.7 self-check at `sprint-021-handoff.md:440`.
+  Override dimension: UC classification (UC-A → UC-D primary).
+  Two verbatim quote blocks inserted (see §"New brief-quote
+  blocks" below) — quotes pin the UC-D dimension only and do not
+  reach into the orthogonal failures.
+
+  **Dimension distinction preserved word-for-word.** The
+  second-paragraph dimension-distinction language at handoff
+  lines 465–473 is byte-identical to the pre-fix state: the "five
+  stacked failures on lines 38–48" reference, the "remain real
+  bot bugs at `prompt_projection` / `semantic_planner` that this
+  eval_spec override does NOT widen eval to accept" sentence,
+  and the "regardless of UC classification" hard-fail note are
+  all intact. Quote insertion was additive into the first
+  paragraph (after the line-19 ground-truth quote, before the
+  USER-FACING CONTENT analysis); no restructuring of the
+  dimension-distinction language was performed.
+
+- **Finding 3 — cs_192** (`docs/codex-findings.md:49–67`). Target
+  paragraph: §3.6 §1.7 self-check at `sprint-021-handoff.md:599`.
+  Override dimension: `classification.secondary_ucs` dedupe (UC-B
+  duplicate removed; primary stays UC-B). Two verbatim quote
+  blocks inserted (see §"New brief-quote blocks" below). Existing
+  zero-scoring-impact analysis and the "Sprint 20 cs192 case
+  family ... NOT affected by this override" language are
+  unchanged.
+
+### New brief-quote blocks (six total)
+
+The six insertions below are the verbatim quotes added in this fix
+iteration, reproduced here so a reader can see them without diffing
+the file. Each carries a `path:line` citation matching the cited
+heading line (the field body follows the heading immediately).
+
+**cs_001 — `What happened?` field**
+(`docs/diagnostics/failure-briefs/cs001-uc-c-template-escalate-on-faq-miss.md:18`):
+*"Behind the scenes the bot ran `search_knowledge` + 3×
+`resolve_article` + `request_handover` — tool work happened — but
+none was reflected in the user-facing message."*
+
+**cs_001 — `What should a good CS agent have done?` field**
+(`docs/diagnostics/failure-briefs/cs001-uc-c-template-escalate-on-faq-miss.md:24`):
+*"Even when escalation is the right outcome, the way the agent
+escalates should respect what the user said"*.
+
+**cs_095 — `What happened?` field**
+(`docs/diagnostics/failure-briefs/cs095-uc-classification-and-account-aware-path-skipped.md:27`):
+*"User entered via the Account Support form:
+`form_context.first_name="Trish"`, description "I think I have the
+wrong email address on my app account so am not getting messages to
+the app and it's telling me I have no adverts..  I cant see where
+it can be changed, can you help""*.
+
+**cs_095 — `What should a good CS agent have done?` field**
+(`docs/diagnostics/failure-briefs/cs095-uc-classification-and-account-aware-path-skipped.md:50`):
+*"The capability gap is account-state-aware investigation for
+symptom sets where the user describes an account / login / sync /
+visibility problem that may stem from a wrong-account or wrong-email
+login state, rather than a generic policy or configuration
+question."*
+
+**cs_192 — `What happened?` field**
+(`docs/diagnostics/failure-briefs/cs192-uc-b-mechanical-escalate-on-resolvable-giveaway-question.md:22`):
+*"User entered via the Ad Support form:
+`form_context.first_name="Rita"`, description "I want to give away
+free items.  Can I do this on your site?  And if so then how do I do
+it?", empty ad_id, persona `frustration_level: mild`,
+`drift_behavior: soft_shift`."*
+
+**cs_192 — `What should a good CS agent have done?` field**
+(`docs/diagnostics/failure-briefs/cs192-uc-b-mechanical-escalate-on-resolvable-giveaway-question.md:41`):
+*"The capability gap is completing a real FAQ resolve attempt on a
+basic UC-B posting question, and either landing a resolve or
+admitting the gap honestly rather than masking it as "I'm having
+difficulty resolving this"."*
+
+### Scope fence observed
+
+- `eval_interactive/case_spec_overrides.yaml` — NOT touched. The
+  substantive overrides for cs_001, cs_095, cs_192 remain at the
+  Codex-verified state (`applied: 17`, `pending: 0`, three Sprint
+  21 `source_session_id`s present per `docs/codex-findings.md:74`).
+- No case-family content edited under
+  `eval_interactive/case_specs/case_families/**` or
+  `eval_interactive/case_specs_shadow/case_families/**` (Sprint
+  21 cascade rule still in force).
+- No judge rubric edit at
+  `eval_interactive/eval_interactive/case_spec/llm_persona_reviewer.py`.
+- No edit to any other R-item disposition write-up (cs_038,
+  cs_040, cs_176, R-generator-get-customer-context-policy-mismatch
+  were not flagged blocking and remain untouched).
+- No edit to `docs/sprint_objective.md`, `docs/codex-findings.md`,
+  prompt files, server runtime, FAQ corpus, sprint archives,
+  governance docs, or foundational docs.
+
+The fix-iteration commit stages only
+`docs/sprints/sprint-021-handoff.md`. Deliver-agent-owned files in
+the working tree (`docs/sprint_objective.md` fix-iteration append,
+`compact/sprint-021-fix-*-prompt.md`, `compact/sprint-deliver-orchestrator.md`
+if present) are not staged per the commit-at-end packaging
+convention.
