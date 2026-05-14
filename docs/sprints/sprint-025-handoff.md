@@ -171,6 +171,9 @@ Extraction methodology (reproducible):
 
 ```python
 # Per-call extraction from results.json via the new llm_calls field
+# (chat). Source: eval_interactive/results/20260514-111724/results.json.
+# Aggregation window: per-LLM-call latencyMs filtered to callType=="chat"
+# and success==true, aggregated across all 14 cases.
 python3 -c '
 import json, statistics
 def q(xs, p):
@@ -181,39 +184,153 @@ chat = [c.get("latencyMs") for case in data["case_results"]
         for c in (case.get("llm_calls") or [])
         if c.get("callType") == "chat" and c.get("success")]
 print(f"n={len(chat)} p50={q(chat,0.5)} p95={q(chat,0.95)} max={max(chat)} mean={statistics.mean(chat):.0f}")'
+# Literal output (2026-05-14, re-verified during fix iteration):
+#   n=67 p50=3974 p95=9982 max=11547 mean=4737
+```
+
+The rerank row in the Sprint 25 smoke table below uses the sibling
+command — the only change is the `callType` filter (`"chat"` →
+`"rerank"`) on the list-comprehension `if` clause:
+
+```python
+# Per-call extraction from results.json via the new llm_calls field
+# (rerank). Source: eval_interactive/results/20260514-111724/results.json.
+# Aggregation window: per-LLM-call latencyMs filtered to
+# callType=="rerank" and success==true, aggregated across all 14 cases.
+python3 -c '
+import json, statistics
+def q(xs, p):
+    s = sorted(xs); i = int(round(p*(len(s)-1))); return s[i] if s else None
+with open("eval_interactive/results/20260514-111724/results.json") as f:
+    data = json.load(f)
+rerank = [c.get("latencyMs") for case in data["case_results"]
+          for c in (case.get("llm_calls") or [])
+          if c.get("callType") == "rerank" and c.get("success")]
+print(f"n={len(rerank)} p50={q(rerank,0.5)} p95={q(rerank,0.95)} max={max(rerank)} mean={statistics.mean(rerank):.0f}")'
+# Literal output (2026-05-14, re-verified during fix iteration):
+#   n=176 p50=690 p95=998 max=1755 mean=730
 ```
 
 Pre/post `f2d4cb2` DB query (the comparison ground truth before instrumentation existed in `results.json`):
 
+The 14 session_ids per smoke run are extracted from the smoke
+`results.json` with `jq`. Aggregation window: per-call rows in
+`llm_call_log` (`call_type`, `success`, `latency_ms`) for the union
+of all 14 session_ids per era. n-value derivation: `COUNT(*)`
+grouped by `call_type` within each era. Source paths and the
+`jq` commands:
+
+```bash
+# Pre-`f2d4cb2` smoke session_ids (14 sessions):
+jq -r '[.case_results[].session_id] | unique' \
+  eval_interactive/results/20260505-235231/results.json
+# Literal output (2026-05-14, re-verified during fix iteration):
+# [
+#   "23766a03-860c-41f7-8891-dd76797b246d",
+#   "2e6ed287-9da9-471b-ae4a-ffad2d7d498d",
+#   "498b2904-f577-48cf-9ba3-49dd05c20770",
+#   "4ac50c15-aaaf-4c8e-ae16-fa49f67e6e2c",
+#   "5a461df7-d578-44a2-816a-4bdcd29515db",
+#   "5b8e8adf-016f-4bbb-9e82-2a1cdf13709a",
+#   "63d632f3-487c-437b-a030-88261a647122",
+#   "69df9a41-2c5c-478f-b8d0-100adf4bdaa4",
+#   "6e93695c-b1f7-4810-b463-a776d6257bd9",
+#   "77aa40a6-2788-4430-9c2d-7f0ad9aefb40",
+#   "926175c6-de5d-44a9-a461-4aa8fe69d34a",
+#   "d17445e9-e866-4752-b7ef-086cc921f489",
+#   "e0f4b4bb-e8e7-41cd-9ed5-19b53320fb29",
+#   "f61c30b1-6047-4c6b-8ff1-fa35389b9215"
+# ]
+
+# Post-`f2d4cb2` smoke session_ids (14 sessions, one with empty
+# session_id — Sprint 24 §4.1 noted two post-`f2d4cb2` cases hit a
+# pre-bot-turn abort; the empty string is one of them, and the SQL
+# `session_id = ANY(...)` match is trivially empty for that row in
+# `llm_call_log`, so no chat / routing / rerank rows attribute to
+# it. The unique-array shape is preserved verbatim from `jq`):
+jq -r '[.case_results[].session_id] | unique' \
+  eval_interactive/results/20260510-134558/results.json
+# Literal output (2026-05-14, re-verified during fix iteration):
+# [
+#   "",
+#   "0d1e96f7-a676-489d-ae2d-195942d2cbed",
+#   "0e952d19-e32e-4b22-b243-d34d00d3bdd1",
+#   "13b73907-439a-4c16-812d-9c67e20188da",
+#   "6ecf46df-7d1c-4f7e-889e-61e18d081ff1",
+#   "88100651-5149-4c04-8fc2-39dfcb35a95c",
+#   "88cd45a8-ca5b-49c9-bb74-1f72532a578e",
+#   "97a566ee-f927-44cb-82b7-7e421dfcda27",
+#   "b2e17c51-2ff4-4dc2-92b1-dac742c4dc4f",
+#   "b4ac2323-8eda-4245-be6d-9a3faf535bea",
+#   "d5c8eac6-ef05-4ba3-bdf1-12b6c08ca036",
+#   "dbdd95be-1d2f-4536-abe4-90a7ed658b34",
+#   "dccb8b63-ebe0-4676-8340-bef22550d58c",
+#   "f3334ce8-a9cc-4313-a20f-1e85220396e5"
+# ]
+```
+
+The full pre/post DB query, self-contained, runnable end-to-end via
+`psql` against the local `csagent` DB (literal session-id arrays
+inlined; reader pastes and runs):
+
 ```bash
 PGPASSWORD=postgres psql -h localhost -U postgres -d csagent <<'SQL'
-SELECT 'pre' AS era, call_type,
+SELECT 'pre-f2d4cb2' AS era, call_type,
   COUNT(*) AS n,
-  percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) AS p50,
-  percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95,
-  MAX(latency_ms) AS max
+  percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms) AS p50_ms,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_ms,
+  MAX(latency_ms) AS max_ms
 FROM llm_call_log
-WHERE success AND session_id = ANY(
-  -- session_ids from eval_interactive/results/20260505-235231/results.json
-  ARRAY[<14 session_id values, extracted via jq>]
-)
+WHERE success
+  AND session_id = ANY(ARRAY[
+    '23766a03-860c-41f7-8891-dd76797b246d',
+    '2e6ed287-9da9-471b-ae4a-ffad2d7d498d',
+    '498b2904-f577-48cf-9ba3-49dd05c20770',
+    '4ac50c15-aaaf-4c8e-ae16-fa49f67e6e2c',
+    '5a461df7-d578-44a2-816a-4bdcd29515db',
+    '5b8e8adf-016f-4bbb-9e82-2a1cdf13709a',
+    '63d632f3-487c-437b-a030-88261a647122',
+    '69df9a41-2c5c-478f-b8d0-100adf4bdaa4',
+    '6e93695c-b1f7-4810-b463-a776d6257bd9',
+    '77aa40a6-2788-4430-9c2d-7f0ad9aefb40',
+    '926175c6-de5d-44a9-a461-4aa8fe69d34a',
+    'd17445e9-e866-4752-b7ef-086cc921f489',
+    'e0f4b4bb-e8e7-41cd-9ed5-19b53320fb29',
+    'f61c30b1-6047-4c6b-8ff1-fa35389b9215'
+  ])
 GROUP BY call_type
 UNION ALL
-SELECT 'post', call_type, COUNT(*),
+SELECT 'post-f2d4cb2', call_type, COUNT(*),
   percentile_cont(0.5)  WITHIN GROUP (ORDER BY latency_ms),
   percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms),
   MAX(latency_ms)
 FROM llm_call_log
-WHERE success AND session_id = ANY(
-  -- session_ids from eval_interactive/results/20260510-134558/results.json
-  ARRAY[<14 session_id values, extracted via jq>]
-)
+WHERE success
+  AND session_id = ANY(ARRAY[
+    '',
+    '0d1e96f7-a676-489d-ae2d-195942d2cbed',
+    '0e952d19-e32e-4b22-b243-d34d00d3bdd1',
+    '13b73907-439a-4c16-812d-9c67e20188da',
+    '6ecf46df-7d1c-4f7e-889e-61e18d081ff1',
+    '88100651-5149-4c04-8fc2-39dfcb35a95c',
+    '88cd45a8-ca5b-49c9-bb74-1f72532a578e',
+    '97a566ee-f927-44cb-82b7-7e421dfcda27',
+    'b2e17c51-2ff4-4dc2-92b1-dac742c4dc4f',
+    'b4ac2323-8eda-4245-be6d-9a3faf535bea',
+    'd5c8eac6-ef05-4ba3-bdf1-12b6c08ca036',
+    'dbdd95be-1d2f-4536-abe4-90a7ed658b34',
+    'dccb8b63-ebe0-4676-8340-bef22550d58c',
+    'f3334ce8-a9cc-4313-a20f-1e85220396e5'
+  ])
 GROUP BY call_type
 ORDER BY era, call_type;
 SQL
 ```
 
-Output of that query (extraction done by a `python3 + psql` driver script during this sprint; literal output reproduced):
+Output of that query (literal `psql` output, 2026-05-14, re-verified
+during fix iteration — the table below transposes the same five rows
+into a Markdown view; numbers round at the rendering layer, not at
+the SQL layer):
 
 | era | call_type | n | p50_ms | p95_ms | max_ms |
 |-----|-----------|--:|------:|------:|------:|
@@ -336,7 +453,7 @@ Per §4.1 verdict set, Sprint 25 should land at **`approve`** — no semantic ha
 | Target | Synthetic-baseline samples successful + percentiles produced. | 30 | PASS — n=30 successes, 0 failures; literal output: `min_ms=612 p50_ms=713 p95_ms=922 p99_ms=924 max_ms=924 mean_ms=745.9`. | stdout of `RUN_LLM_BASELINE=true mvn -pl server -Dtest=LlmSyntheticBaselineTest test`, 2026-05-14 19:14:53→19:15:17. |
 | Neighbor | `server/` JUnit suite green. | 902 | PARTIAL — 901 PASS / 1 FAIL (pre-existing `SystemPromptUserRequestedTiebreakerTest`, inherited from the unauthored `system_prompt.txt` working-tree mod; Sprint 24 §3.4 documented the same failure) / 2 SKIPPED. **Zero new regressions from Sprint 25 code.** | `mvn -pl server test` output, 2026-05-14 19:15:32→19:15:59. |
 | Neighbor | `eval_interactive/` pytest suite green. | 304 | PARTIAL — 299 PASS / 3 FAIL (pre-existing — `test_case_spec_overrides.py` and `test_corpus_lint.py`; verified against a clean stash that the same 3 fail without Sprint 25 changes) / 2 SKIPPED (assuming module-level skips; the deltas are the 8 new tests added by this sprint). **Zero new regressions from Sprint 25 code.** | `pytest eval_interactive/tests` runs before/after my changes — pre = 21/24 pass for the regression dir; post = 299/302 pass project-wide. |
-| Negative | Instrumentation overhead at the noise floor; no case `case_passed` flips because of instrumentation. | 14 | PASS — Sprint 25 smoke case-level mean `elapsed_ms` = **26139ms** vs Sprint 24 §4.1 post-`f2d4cb2` mean (sum / 14) = (23.3+84.9+31.6+92.3+77.7+8.6+28.1+41.1+64.4+20.0+120.0+73.9+0.0+74.9) / 14 ≈ **52.9s**. Sprint 25's run is **faster**, not slower — the per-case HTTP fetch for `/llm-calls` is below the noise floor. Pass-rate variance is run-to-run; the new code introduces no semantic decision. | per-case `elapsed_ms` in `results.json`; reproducible via `jq '.case_results[] \| .elapsed_ms' eval_interactive/results/20260514-111724/results.json`. |
+| Negative | Instrumentation overhead at the noise floor; no case `case_passed` flips because of instrumentation. | 14 | PASS — Sprint 25 smoke case-level mean `elapsed_ms` = **26139ms** vs Sprint 24 §4.1 post-`f2d4cb2` mean ≈ **52921ms** (≈ **52.9s**). Sprint 25's run is **faster**, not slower — the per-case HTTP fetch for `/llm-calls` is below the noise floor. Pass-rate variance is run-to-run; the new code introduces no semantic decision. | Sprint 25 source: `eval_interactive/results/20260514-111724/results.json` (`case_results[].elapsed_ms`, aggregation = arithmetic mean over the 14 cases). Sprint 24 source: `eval_interactive/results/20260510-134558/results.json` (same field; the 14 per-case values are also tabulated in `docs/sprints/sprint-024-handoff.md` §4.1). Reproducer (both means, executable as written): `jq '[.case_results[].elapsed_ms] \| add / length' eval_interactive/results/20260514-111724/results.json` (literal output 2026-05-14: `26139.428571428572`) and `jq '[.case_results[].elapsed_ms] \| add / length' eval_interactive/results/20260510-134558/results.json` (literal output 2026-05-14: `52921.642857142855`). |
 | Shadow | Held-out cases not visible to dev. | 0 | DEFERRED — shadow set is the G2 case-family deliverable; no shadow set exists today, mirroring `docs/sprint_objective.md` §9 and §11 declarations. | n/a. |
 
 ## 12. Sprint-objective-met check (per-bullet, against `docs/sprint_objective.md` §9)
@@ -348,5 +465,104 @@ Per §4.1 verdict set, Sprint 25 should land at **`approve`** — no semantic ha
 | Worked-example comparison cites methodology (which numbers from synthetic, which from smoke, exact extraction commands, delta-vs-pre or absolute). | **PASS** | §5.2 + §5.3. Comparison path = **delta vs pre-`f2d4cb2`** (verified DB has both eras, §5.1). Pre/post numbers from `psql -c ...` against `llm_call_log` joining on smoke session_ids; Sprint 25 numbers from `python3 -c ...` over the new `llm_calls` field in `results.json`; synthetic baseline numbers from `mvn test` stdout. |
 | Sprint 24 §10 Q1 methodology question answered. | **PASS** | §6 — DB-grounded per-call view is the new ground truth (§6.3); planning-turn citation source determined to be **unreconstructable** after walking four hypotheses (§6.4). |
 | The full `server/` test suite is green. | **PARTIAL** | 901 / 902 pass; 1 inherited pre-existing failure (`SystemPromptUserRequestedTiebreakerTest`, caused by the unauthored `system_prompt.txt` working-tree mod). **Zero new regressions from Sprint 25 code.** Sprint 24 §3.4 documented the same single failure. |
-| No measurable overhead regression introduced by instrumentation. | **PASS** | Sprint 25 smoke mean case `elapsed_ms` ≈ 26.1s vs Sprint 24 post-`f2d4cb2` mean ≈ 52.9s — Sprint 25 is *faster*, not slower. The per-case extra HTTP call to `/v1/demo/sessions/{id}/llm-calls` is post-session and below the noise floor. |
+| No measurable overhead regression introduced by instrumentation. | **PASS** | Sprint 25 smoke mean case `elapsed_ms` ≈ 26.1s vs Sprint 24 post-`f2d4cb2` mean ≈ 52.9s — Sprint 25 is *faster*, not slower. The per-case extra HTTP call to `/v1/demo/sessions/{id}/llm-calls` is post-session and below the noise floor. Numbers + commands: see §11 Negative row (Sprint 25 source `eval_interactive/results/20260514-111724/results.json` → 26139.4ms via `jq '[.case_results[].elapsed_ms] \| add / length' ...`; Sprint 24 source `eval_interactive/results/20260510-134558/results.json` → 52921.6ms via the same `jq` expression on the older artefact). |
 | closure_verdict | *(placeholder)* | Deliver agent fills this row on close per `.claude/agent-memory/sprint-deliver-orchestrator/feedback_handoff_verdict_section_delegation.md`. |
+
+## Fix iteration
+
+Codex sprint-close review at `docs/codex-findings.md` returned
+`decision: fix_required, blocking_count: 1` against the initial
+Sprint 25 commit `1b54b14`. Finding 1 (the only blocking item)
+was a reproducibility gap in the handoff text itself: the code
+under `eval_interactive/` and `server/` passed Codex's anti-hardcode
+kernel and hard-fence scan, and the smoke artefact
+`eval_interactive/results/20260514-111724/results.json` was
+verified to carry real per-call latency rows on every case — but
+the handoff cited several latency / percentile / sample-count /
+overhead claims without paired source path + executable extraction
+command, which is the very bar Sprint 25 baked.
+
+This fix iteration is a **handoff-edit-only** pass. No code file
+changed; no Sprint 25 code-commit (range `1541e00..1b54b14`) was
+touched; no other doc was edited; no number in the handoff was
+revised — only the recipes that produce the existing numbers were
+filled in.
+
+### Fix 1 — Self-contained pre/post DB driver (§5.2 lines 186–216 originally)
+
+Replaced the two `ARRAY[<14 session_id values, extracted via jq>]`
+placeholders with: (a) the literal `jq -r '[.case_results[].session_id] | unique'`
+commands that extract the session_ids from each smoke
+`results.json`, with the **literal output arrays inlined verbatim**
+in commented blocks; (b) a self-contained `psql ... <<'SQL' ... SQL`
+here-doc that hard-codes the 14 pre and 14 post session-id strings
+into two `session_id = ANY(ARRAY[...])` clauses — runnable
+end-to-end with one paste, no driver script needed. The
+"`python3 + psql` driver script during this sprint" wording was
+removed; the heredoc IS the driver. The five-row output table in
+§5.2 reproduces unchanged (chat pre n=47 / p50=4906 / p95=8427.6
+/ max=24674; rerank pre n=88 / p50=933.5 / p95=1246.0 / max=1434;
+routing pre n=4 / p50=7067 / p95=8581.85 / max=8621; chat post
+n=52 / p50=5778 / p95=11691.7 / max=19684; rerank post n=136 /
+p50=1027 / p95=1277 / max=1542 — all verified by re-executing
+the heredoc during this fix iteration).
+
+### Fix 2 — Rerank extraction command (§5.2 lines 172–184 / 226–231 originally)
+
+Added a sibling `python3 -c '...'` block immediately after the
+chat extractor, with the `callType` filter changed from `"chat"`
+to `"rerank"` (the only delta) and a corresponding aggregation-
+window comment. Literal output (n=176, p50=690, p95=998, max=1755,
+mean=730) committed inline; matches the existing handoff row
+exactly. The aggregation-window comment was also added to the
+chat extractor so both blocks read self-contained.
+
+### Fix 3 — Mean-computation + Sprint 24 source path (§11 line 339 / §12 line 351 originally)
+
+Replaced the raw-printer `jq '.case_results[] | .elapsed_ms ...'`
+(which only prints the 14 values) with an executable mean-
+computation `jq '[.case_results[].elapsed_ms] | add / length ...'`
+on **both** the Sprint 25 source path
+(`eval_interactive/results/20260514-111724/results.json`) and the
+Sprint 24 comparison source path
+(`eval_interactive/results/20260510-134558/results.json`, with a
+secondary citation to `docs/sprints/sprint-024-handoff.md` §4.1
+which tabulates the underlying 14 per-case values). Literal
+outputs committed inline: `26139.428571428572` (Sprint 25,
+matches the existing 26139ms claim) and `52921.642857142855`
+(Sprint 24, matches the existing ≈52.9s claim). The hand-
+expanded `(23.3+84.9+...+74.9) / 14` arithmetic at line 339 was
+removed; the `jq` mean is the source-of-truth recipe. The §12
+"No measurable overhead regression" row carries a pointer to the
+§11 Negative row so the two cells stay consistent.
+
+### Fix 4 — Derived deltas (§5.3 originally)
+
+No standalone command added — the three derived-delta bullets in
+§5.3 ("p95 widened pre→post-`f2d4cb2` 8.4s → 11.7s → +3.3s",
+"Sprint 25 smoke lands at p95=10.0s with 1.7s run-to-run gap",
+"synthetic baseline subtraction ≈9s") are arithmetic over the
+upstream §5.2 + §4.3 tables. With Fixes 1–3 in place the upstream
+tables now satisfy the reproducibility bar, and the deltas
+inherit. During this fix iteration the upstream numbers were
+re-extracted from the cited sources and matched the existing
+table cells; the deltas check out by arithmetic
+(8427.6 ms → 11691.7 ms = +3264.1 ms ≈ +3.3 s; 11691.7 ms −
+9982 ms = 1709.7 ms ≈ 1.7 s; 9982 ms − 922 ms = 9060 ms ≈ 9 s).
+No handoff number revised.
+
+### Fences honoured
+
+No code file under `eval_interactive/` or `server/` was edited;
+the Sprint 25 commit range `1541e00..1b54b14` stays final. No
+edits to any sprint archive other than `sprint-025-handoff.md`
+itself; no edits to `docs/codex-findings.md`,
+`docs/sprint_objective.md`, `docs/action_bank.md`, or any
+`docs/current/*` / `docs/foundational/*` doc; no Sprint 24-landed
+code touched; no Sprint 23 `system_prompt.txt` touched; no
+`AlreadyCalledPromptConsumptionTest.java` touched; no Tier-0
+change; no deadline-budget / model config / `prompt_projection`
+/ eval-spec edit. The fix-iteration `## Sprint 25 fix iteration`
+stanza in `docs/sprint_objective.md` (Codex finding-list +
+required-fix list, not authored by this dev agent) was the
+authoritative scope.
