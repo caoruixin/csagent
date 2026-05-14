@@ -1163,18 +1163,46 @@ close, mirroring the Sprint 19 / Sprint 20 / Sprint 21 / Sprint
 
 ## 12. Next recommended action
 
-**Verdict-section placeholder for human + deliver agent to fill
-on close.** Recommended verdict shape (mirroring Sprint 19 /
-Sprint 20 / Sprint 21 / Sprint 22 precedent):
+**Verdict at close (filled on archive by deliver agent + human, 2026-05-14).**
+The parent dev's first-pass Codex review (over commit `39cb1b9`) returned
+`decision: fix_required, blocking_count: 3` against the three Findings the
+parent objective named: missing root-cause matrix columns (Finding 1),
+inferred-vs-conclusive evidence on the Track A bundle (Finding 2), and
+regression evidence not reversing the target shape (Finding 3). That
+parent first-pass review lived only as untracked content at
+`docs/codex-findings.md` between commit `39cb1b9` and commit `19ce2ae` and
+was not separately archived under `docs/sprints/`; its Findings text is
+quoted verbatim in the fix-iteration §1208 reference and in the fix
+re-review's `closure_verdict` rows. A strict-evidence-gate fix iteration
+(commit `19ce2ae`) resolved the gate on the PASS branch by augmenting both
+root-cause matrices with the six observable columns + `unavailable: <cause>`
+cells (Finding 1 closes), running a real-LLM target rerun of
+`cs_interactive_040`
+(`eval_interactive/results/20260514-080835/results.json`) that shows the
+duplicate-`search_knowledge` shape reversed (3 → 1 sk; no back-to-back
+duplicates; Finding 2 closes), and relabelling the existing Java test as
+supporting coverage with a top-of-file comment + handoff naming the rerun
+as primary evidence (Finding 3 closes). The fix re-review at
+`docs/sprints/sprint-023-fix-codex-review.md` returned the final verdict:
 
 ```
-## Sprint Review Decision
-decision: pass | fix_required | out_of_scope_review
-blocking_count: <number>
-summary: <one paragraph naming what landed, what deferred, and
-        whether the bundle gate / hard fences / §1.7 forbidden
-        list were respected>
+## Sprint Review Decision (Sprint 23 fix re-review)
+decision: pass
+blocking_count: 0
+summary: PASS branch taken: the fix iteration keeps the parent Track A prompt-teaching bundle and supplies real-LLM target rerun evidence. Finding 1 closes because the Track A and Track B matrices now carry the required six observable columns per target, with unrecoverable trace fields explicitly marked `unavailable: <cause>`; Findings 2 and 3 close because `eval_interactive/results/20260514-080835/results.json` shows cs_040's duplicate `search_knowledge` shape reversed and the Java test is labelled supporting coverage only. The §4.1 anti-hardcode verdict is `approve`; the PASS action_bank disposition phrase `landed with target-reversal evidence` is verified. Packaging rollforward artefacts in the working tree (`compact/sprint-023-*.md`, `docs/sprint_objective.md`) are noted as deliver-agent context, not scope drift; the committed fix diff itself only changes the Sprint 23 handoff and a supporting-coverage test comment.
 ```
+
+The cs_014 rerun (`eval_interactive/results/20260514-081022/results.json`)
+is honestly reported as **partial** in §4 of the Fix iteration section
+(user-visible PASS via handover, but the 4-consecutive `search_knowledge`
+shape persists on the underlying tool sequence). The fix-iteration evidence
+gate required reversal on ≥1 Track A target; cs_040 satisfies it. The
+partial cs_014 result motivates the conditional follow-on
+`R-accumulated-tool-results-prompt-consumption` named in §11. No §1.7
+violation; no eval-spec edit; no deadline-budget widening; no model config
+change; no Tier-0 invariant; no semantic hardcode. The mocked-LLM
+hard fence is honored (§7: no new mocked-LLM integration test was written;
+the primary causal evidence is the real-LLM target rerun, not a mock).
 
 **Recommended next sprint candidate:**
 `R-slow-llm-placeholder-coalesce-honest-next-step` — the narrow

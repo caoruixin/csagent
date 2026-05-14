@@ -7,29 +7,20 @@ Branch: `design-v1-without-human-review`
 
 Current phase:
 Sprint 23 (repeated FAQ calls + LLM stall root-cause investigation —
-two-track investigation+bundle) closed on 2026-05-14. Sprint 23 is a
-semantic-touching sprint with the §7 stanza in multi-layer
-prospective per-track form (precedent: Sprint 19 A+B, Sprint 20
-A+B). UX-over-pass-rate framing per the human's reframe of
-2026-05-14. **Outcome: Track A bundles (narrow `prompt_projection`
-fix); Track B investigation-only.** The dev re-derived both target
-sets independently from
-`eval_interactive/results/20260510-134558/results.json` rather than
-inheriting any prior summary; the re-derivation found and reported
-two deviations from Sprint 19 §3.7's named 5-case list (cs_011 has
-zero placeholder emissions per §3.2's own walk in the same Sprint
-19 handoff — internally inconsistent; the dev prompt's separate
-"missed cs_066" claim is itself imprecise — cs_066 has zero
-placeholder emissions and a different `skill_state` shape per
-Sprint 19 §3.6). Track A's target set (cases with ≥2
-`search_knowledge` dispatches in one session) is six: cs_002,
-cs_014, cs_015, cs_040, cs_259, and the 2026-05-13 manual probe.
-Track B's target set, classified per objective §7.2, is: clean
-loops {cs_002, cs_014, cs_040}; emits+recovers {cs_015, cs_038,
-cs_259}; interleaved {cs_176}. Track A's bundle landed
-`R-already-called-prompt-consumption` as a principled teaching
+two-track investigation+bundle, semantic-touching) closed on
+2026-05-14 after one fix iteration on the **PASS branch**. Sprint 23
+opened on 2026-05-14 with a two-track scope: Track A bundles a narrow
+`prompt_projection` fix (`R-already-called-prompt-consumption`),
+Track B remains investigation-only on the strict bundle gate ("ONLY
+if root cause is purely user-facing repeated fallback messaging").
+UX-over-pass-rate framing per the human's reframe of 2026-05-14.
+**Final outcome: Track A bundle landed with target-reversal evidence;
+Track B investigation-only with the narrow UX-repair shape proposed
+as a follow-on R-item.** The parent dev commit (`39cb1b9`,
+"sprint 23: teach LLM about already_called slot so it stops
+re-emitting identical FAQ searches") landed the principled teaching
 paragraph in `server/src/main/resources/prompts/system_prompt.txt`
-between the Rules section and the DISCOVER phase guidance. The
+between the Rules section and the DISCOVER phase guidance; the
 paragraph names the Sprint 20 `already_called` projection slot,
 describes its content in observable terms (`arguments_hash`,
 `at_step`, cross-reference to `accumulated_tool_results`), tells
@@ -41,87 +32,160 @@ principled — no `search_knowledge` / `resolve_article` / UC-A
 through UC-K / UC-FP branching, asserted by the new regression
 test
 `AlreadyCalledPromptConsumptionTest.systemPrompt_teaching_doesNotBranchOnToolNameOrUseCase`.
-Track B's deeper cause (model latency / timeout config) is
-unverified in this sprint because per-turn LLM latency data is not
-in the results.json snapshot; the dev read the bundle gate
-("ONLY if root cause is purely user-facing repeated fallback
-messaging") strictly and deferred. The narrow Track B fix shape
-(session-scope `consecutiveDeadlineCount` + honest next-step on
-second consecutive deadline; mirrors V12 `runtime_error_count`)
-is proposed as the new R-item
-`R-slow-llm-placeholder-coalesce-honest-next-step` with a paired
-`R-llm-latency-budget-investigation` diagnostic R-item. **No
-deadline-budget widening; no model config change; no Tier-0
-invariant; no eval-spec edit; no semantic hardcode.** Server suite
-green: 898 / 0 / 0 / 1 (Sprint 20 baseline was 894 / 0 / 0 / 1;
-Sprints 21 / 22 added tests bringing the pre-Sprint-23 baseline to
-896; this sprint's +2 are both in the new test class). Three
-deliverable surfaces changed:
 
-- `server/src/main/resources/prompts/system_prompt.txt` — new
-  principled teaching paragraph for the `already_called` slot.
-  Inserted between the Rules section and the DISCOVER phase
-  guidance; 8 lines total. Names the slot, describes its three
-  fields (`arguments_hash`, `at_step`, implicit `tool`),
-  cross-references `accumulated_tool_results`, specifies the
-  reuse-the-prior-payload action when the planned call matches a
-  slot entry, leaves the re-emit decision to the LLM (soft
-  signal), and specifies the empty-array semantics.
+The parent dev's first-pass Codex review returned `decision:
+fix_required, blocking_count: 3` against three Findings: (1)
+missing root-cause matrix columns (six observable fields per
+target case were demanded — turn, raw LLM tool calls, dispatched
+calls, projection `already_called` contents,
+`accumulated_tool_results` contents, argument-hash / same-args
+status), (2) inferred-vs-conclusive evidence on the Track A
+bundle, and (3) regression evidence not reversing the target
+shape. The human authored a strict-evidence-gate fix-iteration
+objective: PASS branch required real-LLM target rerun showing
+shape reversal on ≥1 Track A target with explicit forbid of
+mocked-LLM-as-primary-evidence; DOWNGRADE branch required prompt
+revert + test delete + R-item re-open. The fix dev (commit
+`19ce2ae`, "sprint 23 fix: PASS — augment matrices, target rerun,
+landed with target-reversal evidence") took the PASS branch: it
+augmented both root-cause matrices with the six observable columns
+(`unavailable: <cause>` cells named the source-of-truth gaps in
+the 2026-05-10 `results.json` snapshot), ran a real-LLM target
+rerun of `cs_interactive_040` against the post-`39cb1b9` teaching
+prompt under the harness's normal configuration (DashScope
+`qwen-plus`), and produced
+`eval_interactive/results/20260514-080835/results.json`. The
+rerun shows the duplicate-`search_knowledge` shape reversed: the
+session-level tool sequence is now
+`['classify_use_case', 'search_knowledge', 'resolve_article', 'record_outcome']`
+(1 `search_knowledge`, no back-to-back duplicates) vs the
+original 2026-05-10 sequence
+`['search_knowledge', 'classify_use_case', 'search_knowledge', 'resolve_article', 'record_outcome', 'search_knowledge']`
+(3 `search_knowledge`, with turn 1's `[sk, sk]` back-to-back as
+the parent target). A second rerun of `cs_interactive_014`
+(`eval_interactive/results/20260514-081022/results.json`) is
+honestly reported in the fix iteration's §4 as **partial**: the
+case passed at composite 0.871 via handover (`stop=bot_ended`,
+`request_handover`), but the underlying 4-consecutive
+`search_knowledge` shape persists — the teaching helps the LLM
+exit the duplicate-call dead-end rather than fully suppress the
+duplicate emission on this case. The fix-iteration evidence gate
+required reversal on ≥1 target; cs_040 satisfies it. cs_014's
+partial result motivates the conditional follow-on
+`R-accumulated-tool-results-prompt-consumption` (§11). The fix
+re-review at `docs/sprints/sprint-023-fix-codex-review.md`
+returned `decision: pass, blocking_count: 0`: Finding 1 closes
+on the augmented matrices, Findings 2 and 3 close on the real-LLM
+target rerun + the test's supporting-coverage relabelling. The
+§4.1 anti-hardcode verdict is `approve`; the PASS action_bank
+disposition phrase `landed with target-reversal evidence` is
+verified.
+
+Track B (placeholder / stall) remained investigation-only. The
+proximate cause is conclusive (PhaseEvaluator lines 754–770 emit
+identical text on every `DEADLINE_EXCEEDED` outcome without
+session-scope state-tracking; consecutive deadlines therefore
+produce back-to-back identical bot messages, which the runtime
+loop-detector flags). The deeper cause (model latency / timeout
+config — Sprint 19 §3.7 hypothesis) is **unverified** because
+per-turn LLM latency data is not in the results.json snapshot.
+The dev read the strict bundle gate and deferred. The narrow
+Track B fix shape (session-scope `consecutiveDeadlineCount` +
+honest next-step on second consecutive deadline; mirrors V12
+`runtime_error_count`) is proposed as the new R-item
+`R-slow-llm-placeholder-coalesce-honest-next-step` with a
+paired `R-llm-latency-budget-investigation` diagnostic R-item.
+**No deadline-budget widening; no model config change; no
+Tier-0 invariant; no eval-spec edit; no semantic hardcode.**
+Server suite green: 898 / 0 / 0 / 1 (Sprint 20 baseline was
+894 / 0 / 0 / 1; Sprints 21 / 22 added tests bringing the
+pre-Sprint-23 baseline to 896; this sprint's +2 are both in the
+new `AlreadyCalledPromptConsumptionTest` class). The single
+`SystemPromptUserRequestedTiebreakerTest` failure observed
+locally is entirely attributable to a pre-existing uncommitted
+working-tree mod (the cosmetic `ACTIVE-UC TIEBREAKER (Sprint 6
+§G1)` header rename) that is NOT part of either commit `39cb1b9`
+or `19ce2ae`; the deliver agent surfaces it here for visibility
+but it is unrelated to Sprint 23. Files committed across the two
+Sprint 23 commits:
+
+- `server/src/main/resources/prompts/system_prompt.txt` (parent
+  commit `39cb1b9`) — new principled teaching paragraph for the
+  `already_called` slot. Inserted between the Rules section and
+  the DISCOVER phase guidance; 8 lines total. Names the slot,
+  describes its three fields (`arguments_hash`, `at_step`,
+  implicit `tool`), cross-references `accumulated_tool_results`,
+  specifies the reuse-the-prior-payload action when the planned
+  call matches a slot entry, leaves the re-emit decision to the
+  LLM (soft signal), and specifies the empty-array semantics.
 - `server/src/test/java/com/gumtree/csagent/service/runtime/AlreadyCalledPromptConsumptionTest.java`
-  (new) — 2 unit tests: (1) the teaching's principled-presence
-  test asserts the four anchors (`already_called`,
-  `arguments_hash`, `accumulated_tool_results`, soft-signal
-  ownership phrase); (2) the anti-hardcode test asserts a 1400-
-  character window around the `already_called` mention contains
-  no `search_knowledge`, no `resolve_article`, and no UC-id
-  string. Both pass.
-- `docs/sprints/sprint-023-handoff.md` (new) — 12-section sprint
-  handoff with the Context Pack, the per-track target-set
-  re-derivation and §3.2 walks, the cs_040 placeholder-vs-routing
-  fence, the per-track bundle decisions with the strict-bundle-
-  gate rationale on Track B, files changed, layer-classification
-  + 9-question anti-hardcode self-walks (PR-level verdict
-  `approve`), generalization-coverage table, sprint-objective-
-  met check (every hard fence and success metric walked
-  per-bullet), open questions (smoke rerun for empirical
-  reversal; Track B's next-sprint candidacy; n-ladder thresholds
-  for `R-prompt-phase-plan-directive-followship`; cs_040 routing
-  R-item disposition; standalone `accumulated_tool_results`
-  teaching), and §11 action-bank deltas + §12 verdict-section
-  placeholder for the deliver agent to fill on close.
-- `docs/10-handoff.md` (this file) — updated lead to Sprint 23;
-  Sprint 22 demoted to "Preceding sprint".
+  (parent commit `39cb1b9`) — 2 unit tests asserting teaching
+  presence + principled-shape anchors and the anti-hardcode
+  1400-character window. Both pass. **Relabelled as supporting
+  coverage** in the fix commit `19ce2ae` via a 6-line top-of-file
+  comment pointing at the cs_040 target rerun as primary
+  evidence. No logic change.
+- `docs/sprints/sprint-023-handoff.md` (parent commit `39cb1b9`
+  +1118 lines; fix commit `19ce2ae` +328 lines for the augmented
+  matrices in §3.2 / §4.2 + the new `## Fix iteration` section
+  with rerun command / results path / per-target reversal verdict
+  / §11 / §13.1 updates from PARTIAL → PASS / action_bank
+  disposition phrasing / mocked-LLM supporting-coverage note /
+  anti-hardcode self-walk + the §12 verdict block filled at
+  close).
+- `docs/sprints/sprint-023-objective.md` (close commit; copied
+  from the running `docs/sprint_objective.md` which carried the
+  parent objective + the strict-evidence-gate fix-iteration
+  append; running file removed).
+- `docs/sprints/sprint-023-fix-codex-review.md` (close commit;
+  copied from the running `docs/codex-findings.md` which carried
+  the fix re-review `decision: pass, blocking_count: 0`; running
+  file removed). The parent first-pass Codex review (`decision:
+  fix_required, blocking_count: 3`) was not separately archived
+  because it lived only as untracked content at the running
+  `docs/codex-findings.md` between the two commits; its Findings
+  text is quoted in the fix-iteration handoff section and in this
+  file's archive at `docs/sprints/sprint-023-fix-codex-review.md`
+  closure_verdict rows.
+- `docs/10-handoff.md` (this file) — updated lead to Sprint 23
+  close + PASS branch resolution; Sprint 22 demoted to "Preceding
+  sprint".
+- `docs/action_bank.md` (close commit) — Sprint 23 closed row
+  added to §6; `R-already-called-prompt-consumption`
+  disposition updated to "landed with target-reversal evidence"
+  per the parent and fix-iteration objective's hard phrasing
+  constraint; four new R-items added to §5.2
+  (`R-slow-llm-placeholder-coalesce-honest-next-step`,
+  `R-llm-latency-budget-investigation`,
+  `R-cs040-uc-k-topic-subject-routing`,
+  `R-accumulated-tool-results-prompt-consumption`).
 
-The Sprint 23 §11 action-bank deltas mark
-`R-already-called-prompt-consumption` as done (action_bank.md line
-484; was `proposed (Sprint 20 §12 + §11 open question 5)`) and
-propose four new R-items:
-`R-slow-llm-placeholder-coalesce-honest-next-step` (the deferred
-Track B narrow fix; `infra`),
-`R-llm-latency-budget-investigation` (paired diagnostic for the
-Sprint 19 §3.7 latency hypothesis; `infra`),
-`R-cs040-uc-k-topic-subject-routing` (cs_040's separate routing
-failure, `prompt_projection`; n=1 so opening is conditional on a
-second observation), and
-`R-accumulated-tool-results-prompt-consumption`
-(`prompt_projection`; conditional follow-on if Sprint 23's
-`already_called` teaching alone proves insufficient). Six
-deferred-by-design items from `docs/action_bank.md` §5.2 are
+Six deferred-by-design items from `docs/action_bank.md` §5.2 were
 explicitly named as out-of-Sprint-23-scope per the §9 hard fence.
-Two open questions for the human: (1) Track B's narrow UX-repair
-ship cadence (next sprint, in parallel with latency-data
-collection, or wait for latency data first); (2) smoke rerun
-ownership for the Track A empirical-reversal verification (deliver
-agent / human / next sprint).
+Two open questions for the human are recorded in the archived
+handoff §10: (1) Track B's narrow UX-repair ship cadence (next
+sprint, in parallel with latency-data collection, or wait for
+latency data first); (2) `R-prompt-phase-plan-directive-followship`
+n-ladder threshold readiness (n=2 ladder strengthened by Sprint 23
+manual-probe walk, still below the user's controlled-multi-shape-
+testing bar).
 
 This sprint is `docs/current/iteration_governance.md` §7
 stanza-REQUIRED (semantic-touching, two-track) and the multi-layer
-prospective stanza is in `docs/sprint_objective.md` §11.
-Generalization-coverage table per §5.1 in handoff §8 (target /
-neighbor / negative / shadow). The §4.1 Anti-Hardcode review
-verdict is `approve` per the dev's §7 self-walk (Track A is the
-canonical Sprint 19 §4.2 Layer 1 soft-signal-plus-teaching shape;
-Track B is investigation-only → no per-PR verdict surface).
+prospective stanza is in the archived
+`docs/sprints/sprint-023-objective.md` §11. Generalization-coverage
+table per §5.1 in handoff §8 (target / neighbor / negative /
+shadow). The §4.1 Anti-Hardcode review verdict is `approve` per
+both the dev's §7 self-walk and Codex's fix re-review non-blocking
+note (Track A is the canonical Sprint 19 §4.2 Layer 1 soft-signal-
+plus-teaching shape; Track B is investigation-only → no per-PR
+verdict surface). The mocked-LLM hard fence (the deliver agent's
+strict-evidence-gate directive: "a mocked LLM cannot reliably
+prove the prompt change causes the LLM to behave differently
+unless it simply bakes in the desired behavior") was honored: the
+primary causal evidence for Findings 2 + 3 closure is the cs_040
+real-LLM target rerun, not a mock; no new mocked-LLM integration
+test was written in the fix iteration.
 
 Preceding sprint:
 Sprint 22 (phase 2 line 358 reconciliation + R-item closure) closed
