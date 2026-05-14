@@ -6,6 +6,220 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
+Sprint 24 (Slow-LLM Placeholder Coalesce + Coarse Latency Proxy —
+two-track, semantic-touching on Track A; investigation-only on
+Track B) closed clean on 2026-05-14 with Codex `decision: pass,
+blocking_count: 0` on the first review pass (no fix iteration
+required). Classification: **A — Clean close**. UX-over-pass-rate
+framing per the human's 2026-05-14 reframe. Sprint 24 paired off
+Sprint 23 §11: Track A is the deterministic UX repair on the
+cross-turn slow-LLM placeholder loop surface; Track B is the
+honest coarse-proxy latency baseline with explicit no-per-call-claim
+and a follow-on instrumentation R-item proposed. The single dev
+commit (`e21b1b6`, "sprint 24 track A: cross-turn slow-LLM
+placeholder coalesce + honest next-step") ships the Track A bundle
+verbatim per the objective: new `consecutive_deadline_count`
+`@Column` + `@Builder.Default = 0` `Integer` field on `BotSession`
+(lines 79–81, mirroring V12 `runtime_error_count` shape);
+`SessionManager` builder init `.consecutiveDeadlineCount(0)` at
+line 108 (parallel to the `.runtimeErrorCount(0)` precedent);
+`PhaseEvaluator` reset hook in the outcome-dispatch prologue
+(lines 684–693, mirroring the existing ERROR reset with
+`DEADLINE_EXCEEDED` substituted for `ERROR`; resets only when
+session is non-null, outcome is non-deadline, and the counter is
+non-null and > 0); split `DEADLINE_EXCEEDED` / `LLM_UNAVAILABLE`
+case-block (`DEADLINE_EXCEEDED` increments the counter and
+threshold-gates between the existing placeholder *"Sorry, I'm a
+bit slow right now. Please try sending that again in a moment."*
+on the first consecutive deadline and a distinct honest next-step
+message *"I'm still having trouble responding in time. If you'd
+like, I can connect you with a specialist, or you can try again
+in a few minutes."* on the second; `LLM_UNAVAILABLE` branch
+preserved with its existing message and `agent_llm_unavailable`
+transition tag); single Flyway V13 migration
+(`V13__add_consecutive_deadline_count.sql`) adding the column to
+`bot_sessions`; behaviour-level regression suite
+`Sprint24DeadlinePlaceholderCoalesceTest` (3 methods asserting
+placeholder on the 1st consecutive deadline, distinct-next-step
+intent token + no auto-handover on the 2nd, and reset-to-placeholder
+after a non-deadline outcome between two deadlines). Both branches
+keep the transition tag `agent_deadline_exceeded`; neither
+auto-calls `request_handover` (the 2nd-deadline message offers a
+handover but the user owns the choice). The trigger is the
+*event-shape* count of consecutive `DEADLINE_EXCEEDED` outcomes,
+NOT a keyword / regex / if-else / enum on user content; the
+runtime owns timeout fallback emission deterministically (§1.4),
+no soft signal is projected to the LLM, no semantic hardcode is
+introduced. Track A's regression test passed (`mvn -pl server
+-Dtest=Sprint24DeadlinePlaceholderCoalesceTest test`: 3 tests, 0
+failures); full server suite ran 901 tests with 1 failure
+(`SystemPromptUserRequestedTiebreakerTest.systemPrompt_marksActiveUcTiebreakerExplicitly`),
+which is **pre-existing** and tied to the working-tree uncommitted
+edit on `server/src/main/resources/prompts/system_prompt.txt`
+(documented in Sprint 23 §9 with the same failure shape) — not
+authored by the Sprint 24 dev agent and not part of commit
+`e21b1b6`.
+
+Track B is investigation-only and lives entirely in the handoff.
+The dev session's coarse-proxy table extracted case-level
+`elapsed_ms` and `total_turns` from `case_results[]` in the two
+`results.json` files Sprint 19 §3.7 / Sprint 23 §4.2 named: pre
+`20260505-235231` n_cases=14 sum_turns=32 p50≈19.9s p95≈30.5s;
+post `20260510-134558` n_cases=14 sum_turns=42 p50≈41.1s
+p95≈92.3s — direction matches the planning-turn citation
+(post-`f2d4cb2` p95 widened), magnitude diverges substantially
+from the planning-turn numbers carried into the Sprint 24
+objective §2 (pre p50≈10.4s / p95≈24.6s; post p50≈10.5s /
+p95≈27.6s; n="105 + 27 case-turns"). The "105 + 27 case-turns" n
+value could not be reconstructed by the dev session from any
+reasonable extraction over `case_results[]` (case count 14+14,
+transcript entries 66+82, sum_turns 32+42, bot turns 34+40). The
+dev session reports both views honestly per the §6.2 fence #6
+("do not represent coarse proxy data as per-call latency
+evidence"; the fence cuts in both directions — overstating AND
+understating the divergence both violate the spirit of the
+fence). The §4.3 no-per-call-claim paragraph holds: per-LLM-call
+latency is NOT in `eval_interactive/results/*/results.json` at
+the per-turn granularity needed to verify the Sprint 19 §3.7
+hypothesis directly; case-level `elapsed_ms` conflates LLM
+round-trip + tool dispatch + persistence + retry overhead; the
+coarse proxy is a *signal*, not *evidence*. The §10 open
+question 1 surfaces the magnitude discrepancy as an **open
+methodology question for the follow-on
+`R-per-llm-call-latency-instrumentation` sprint**, which is the
+prerequisite to any future deadline-budget widening or
+model-revert decision. The Track B *conclusion* (per-call
+instrumentation is the prerequisite) is robust to the magnitude
+question — only the pre-instrumentation magnitude estimate
+depends on it.
+
+The Codex sprint-close review at
+`docs/sprints/sprint-024-codex-review.md` returned `decision:
+pass, blocking_count: 0` on the first pass with the §4.1 per-PR
+Anti-Hardcode verdict `approve` (all 9 questions answered: no
+keyword/regex/if-else/per-UC matrix, no Tier-0 invariant added,
+no LLM ownership shift, no soft-signal substitution path, no
+visible-eval encoding, no prompt edit, tool schema /
+capability / PII / grounding preserved, generalization coverage
+accepted under the Sprint 24 deviation with shadow deferred to
+G2, not temporary so no sunset plan needed). Codex's 8 Sprint
+24 checks all pass: Track A bundle present at cited line
+numbers; 2nd-deadline message names the issue and offers next
+steps; regression test asserts first placeholder + second
+distinct/non-empty/next-step intent + no auto-handover + reset
+behaviour; Track B shipped no runtime/eval/config code; the
+coarse-proxy table cites the objective's `24.6s -> 27.6s` p95
+signal; case-level `elapsed_ms` is signal not per-call
+evidence; the proposed `R-per-llm-call-latency-instrumentation`
+carries the prerequisite-flag; action-bank disposition is
+appropriate for Sprint 24 close; hard fences hold in the
+reviewed commit range (no deadline-budget widening, no model
+config change, no prompt projection work, no eval-spec work,
+no Tier-0 change, no coarse proxy represented as per-call
+evidence); out-of-scope surfaces (`ChatController.java:125`,
+`cs_040` UC-K routing) are untouched. Codex's two informational
+observations (non-blocking): (1) Track B magnitude discrepancy
+between planning-turn citation and dev-session independent
+extraction is correctly carried as a human open question for
+the follow-on instrumentation R-item, not a blocking Track B
+claim; (2) working-tree uncommitted files
+(`docs/sprint_objective.md`, `compact/sprint-024-*.md`,
+`csagent_system_design_review.md`,
+`server/src/main/resources/prompts/system_prompt.txt`) are
+deliver-agent-owned or pre-existing and are not scope drift
+under the packaging-rollforward rule
+(`feedback_out_of_scope_review_packaging_rollforward.md`).
+
+Files committed in the dev's single commit (`e21b1b6`):
+
+- `server/src/main/java/com/gumtree/csagent/model/BotSession.java`
+  — new `consecutive_deadline_count` `@Column` +
+  `@Builder.Default = 0` `Integer` field at lines 79–81.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/SessionManager.java`
+  — `.consecutiveDeadlineCount(0)` builder init at line 108.
+- `server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java`
+  — reset hook lines 684–693; split DEADLINE_EXCEEDED branch
+  lines 765–803 (counter increment + threshold-gated message);
+  LLM_UNAVAILABLE branch lines 804–817 preserved unchanged.
+- `server/src/main/resources/db/migration/V13__add_consecutive_deadline_count.sql`
+  — new Flyway migration mirroring V12 `runtime_error_count`
+  shape.
+- `server/src/test/java/com/gumtree/csagent/service/runtime/Sprint24DeadlinePlaceholderCoalesceTest.java`
+  — new behaviour-level regression suite (3 test methods).
+- `docs/sprints/sprint-024-handoff.md` — 12-section sprint
+  handoff (§12 verdict block filled at close per
+  `feedback_handoff_verdict_section_delegation.md`).
+
+Files added at close commit (deliver-agent close-out, not the
+dev's commit):
+
+- `docs/sprints/sprint-024-objective.md` — archive copy of the
+  running `docs/sprint_objective.md` (deliver-agent-owned;
+  untracked at session start; `mv` + `git add` per
+  `feedback_git_mv_uses_head_content.md`; running file removed).
+- `docs/sprints/sprint-024-codex-review.md` — archive copy of
+  the running `docs/codex-findings.md` (untracked at session
+  start; `cp` + `git add` archive + `rm` original per
+  `feedback_packaging_codex_findings_supersession.md`).
+- `docs/10-handoff.md` (this file) — updated lead to Sprint 24
+  close; Sprint 23 demoted to "Preceding sprint".
+- `docs/action_bank.md` — Sprint 24 closed row added to §6;
+  `R-slow-llm-placeholder-coalesce-honest-next-step` disposition
+  updated to "implemented (Sprint 24 Track A)" with the §11
+  disposition note; `R-llm-latency-budget-investigation`
+  disposition updated to "reframed-as-coarse-proxy +
+  per-call-instrumentation deferred to follow-on R-item";
+  NEW row `R-per-llm-call-latency-instrumentation` added to
+  §5.2 with the prerequisite-flag and disposition `proposed
+  (Sprint 24 §4.5; investigation-only this sprint;
+  instrumentation is a future sprint)`;
+  `R-cs040-uc-k-topic-subject-routing` unchanged.
+
+This sprint is `docs/current/iteration_governance.md` §7
+stanza-**REQUIRED** (semantic-touching, two-track) and the
+multi-layer prospective per-track stanza is in the archived
+`docs/sprints/sprint-024-objective.md` §7 (Track A target failure
+layer = `infra`; Track B target failure layer = `infra`
+diagnostic). Generalization-coverage table per §5.1 in handoff
+§8 (target / neighbor / negative / shadow; shadow deferred to
+G2 per the objective). The §4.1 Anti-Hardcode review verdict is
+`approve` per both the dev's §7 self-walk in handoff §7.1 and
+Codex's per-PR verdict in
+`docs/sprints/sprint-024-codex-review.md` §"4.1 Anti-Hardcode
+Kernel". Five Sprint 24 §10 open questions are recorded in the
+archived handoff: (1) Track B coarse-proxy magnitude divergence
+methodology — the planning-turn `≈3-second p95 widening` vs the
+dev-session `≈62-second p95 widening` should be reconciled by
+the follow-on `R-per-llm-call-latency-instrumentation` sprint
+which will name the comparison ground-truth method; (2)
+`LLM_UNAVAILABLE` coalesce deferral as a paired R-item (n=0
+evidence today, conditional opening per the
+controlled-multi-shape-testing bar); (3)
+`ChatController.java:125` legacy emission audit (n-ladder
+evidence — defensive R-item or fully covered by Track A?).
+
+The natural follow-on sprint per Sprint 24 handoff §12 is
+`R-per-llm-call-latency-instrumentation` (instrumentation
+sprint that produces real per-LLM-call latency data and the
+methodology to compare pre/post `f2d4cb2`). Per Sprint 24 §10
+question 1, the dev agent on that sprint should reconcile the
+§4.4 magnitude divergence with the human (which methodology
+anchors the comparison ground-truth). Alternative candidates
+on the action_bank §5.2 backlog include:
+`R-cs040-uc-k-topic-subject-routing` (Sprint 22-surfaced;
+Sprint 23 carried forward; Sprint 24 fence held);
+`R-handover-orchestrator-write-side` (Sprint 16 design freeze;
+`docs/release_gate.md` §1.1 P1-pre-cutover blocker);
+`R-prompt-phase-plan-directive-followship` (3-instance promoted;
+addresses bot off-policy answers);
+`R-uc-cdf-get-customer-context-bot-actual-usage` (Sprint 22
+surfaced behavioural question);
+`R-uc-k-intake-complete-case-id-binding` (Sprint 19 §3.6); and
+Sprint 24 handoff §10 open questions 2 (`LLM_UNAVAILABLE`
+coalesce paired R-item) and 3 (`ChatController.java:125`
+defensive R-item).
+
+Preceding sprint:
 Sprint 23 (repeated FAQ calls + LLM stall root-cause investigation —
 two-track investigation+bundle, semantic-touching) closed on
 2026-05-14 after one fix iteration on the **PASS branch**. Sprint 23
