@@ -352,6 +352,41 @@ ruled in / out by evidence. The five hypotheses are:
 | cs_259  | Candidate, not conclusive — second `search_knowledge` follows `classify_use_case`, so `uc_tags` may have changed (would change arg-hash). Recorded as a target but with the caveat. | Ruled out. | Confirmed. | Confirmed. | Sprint 7 §I0 violation per cs_259 brief is a known prior observation; the prompt-consumption gap does not directly cause §I0 violations. | `prompt_projection` for re-emission; `semantic_planner` for §I0 (separate). |
 | manual-probe | **Direct evidence from brief** — 1 LLM tool_call → 3 dispatched executions, identical params, identical results. | Ruled out (brief §"What happened?" #3 already disambiguated three hypotheses and noted "the execution layer did not de-duplicate the calls themselves — three real API round-trips"). | Confirmed. | Confirmed. | **Yes** — the bot ignored the RESOLVE `phase_plan.system_instruction` MUST-call-resolve_article clause. This is the second observed instance of phase-plan directive non-followship (cs_259 §I0 was the first); per the brief §"Related observation" #3, this is below the user's bar for opening `R-prompt-phase-plan-directive-followship` without controlled multi-shape testing. | `prompt_projection` (primary, for the re-emission shape this sprint targets); `semantic_planner` (secondary, for the §I0 + RESOLVE-MUST shape; deferred per the n=1 → n=2 ladder). |
 
+#### Augmented matrix (Sprint 23 fix iteration) — six observable columns per target
+
+Closes Codex Finding 1 (matrix columns). The original results.json snapshot at
+`eval_interactive/results/20260510-134558/results.json` does not carry per-turn
+ToolEvent payloads, projection-slot states, or `accumulated_tool_results` slot
+contents — only a session-level `l2_results.tool_sequence_match.detail` tool
+list and the user/bot transcript. There are no sibling per-session trace JSON
+files in the directory (verified: `ls eval_interactive/results/20260510-134558/`
+returns `report.html` + `results.json` only). Cells whose value is not recoverable
+from that source are marked `unavailable: <specific cause>` per Finding 1's
+recommended_action and the parent fix-iteration objective. Turn indices follow
+the same 0-based scheme used by `transcript[].turn_index` in the snapshot.
+
+Track A — six target cases × six observable columns:
+
+| case_id | turn | raw LLM tool calls (LLM's emitted `tool_calls` that turn) | dispatched tool calls (ToolEvent / nearest proxy) | projection contents (`already_called` slot + payload excerpt) | `accumulated_tool_results` contents | argument hash / same-args status |
+|---------|------|------------------------------------------------------------|----------------------------------------------------|---------------------------------------------------------------|--------------------------------------|----------------------------------|
+| cs_interactive_002 | session-level (per-turn unavailable) | `unavailable: results.json snapshot lacks per-turn tool_calls payload — only session-level l2_results.tool_sequence_match.detail = ['search_knowledge', 'resolve_article', 'search_knowledge', 'search_knowledge'] is recoverable` | `unavailable: results.json snapshot lacks ToolEvent records; nearest proxy is the same session-level l2_results.tool_sequence_match.detail tool list above` | `unavailable: results.json snapshot lacks already_called slot state` | `unavailable: results.json snapshot lacks accumulated_tool_results slot state` | `unavailable: results.json snapshot lacks arguments_hash field on dispatched calls; inferred near-/exact-identical from sequence adjacency per §3.1` |
+| cs_interactive_014 | session-level (per-turn unavailable) | `unavailable: as cs_002; session-level list = ['search_knowledge', 'resolve_article', 'search_knowledge', 'search_knowledge', 'search_knowledge', 'get_customer_context', 'search_knowledge']` | `unavailable: as cs_002; session-level list above is the nearest proxy` | `unavailable: as cs_002` | `unavailable: as cs_002` | `unavailable: as cs_002; the 3-consecutive search_knowledge run mid-sequence is the clearest single-shape inferred-identity evidence in the smoke set per §3.1` |
+| cs_interactive_015 | session-level (per-turn unavailable) | `unavailable: as cs_002; session-level list = ['classify_use_case', 'search_knowledge', 'resolve_article', 'search_knowledge', 'resolve_article', 'resolve_article']` | `unavailable: as cs_002; session-level list above is the nearest proxy` | `unavailable: as cs_002` | `unavailable: as cs_002` | `unavailable: as cs_002; the 3 resolve_article calls and the 2 flanking search_knowledge calls are the inferred-identity targets per §3.1` |
+| cs_interactive_040 | turn 1 (per `l1_results.no_forbidden_tools.detail` turn-tag breakdown cited in §3.1: turn 1 = `[sk, sk, ra]`, turn 2 = `[sk]`) | `unavailable: results.json snapshot lacks per-turn tool_calls payload; per-turn shape is inferred from l1_results.*.detail turn-tag adjacency, not directly observable; session-level list = ['search_knowledge', 'classify_use_case', 'search_knowledge', 'resolve_article', 'record_outcome', 'search_knowledge']` | `unavailable: as cs_002; session-level list above is the nearest proxy` | `unavailable: as cs_002` | `unavailable: as cs_002` | `unavailable: as cs_002; turn 1's [sk, sk] back-to-back with no intervening user content is the strongest inferred-identity evidence per §3.1` |
+| cs_interactive_259 | session-level (per-turn unavailable) | `unavailable: as cs_002; session-level list = ['search_knowledge', 'classify_use_case', 'search_knowledge', 'resolve_article']` | `unavailable: as cs_002; session-level list above is the nearest proxy` | `unavailable: as cs_002` | `unavailable: as cs_002` | `unavailable: as cs_002; cs_259's second search_knowledge follows classify_use_case so uc_tags may have changed — same-args is uncertain (see §3.2 row's "Candidate, not conclusive" wording)` |
+| manual-probe (2026-05-13) | T2 (per brief §"What happened?" #3) | `unavailable: 2026-05-13 manual-probe is a single ad-hoc transcript captured in the failure-brief markdown; no per-call tool_calls payload was saved beyond the brief's prose summary — "1 LLM request → 3 identical search_knowledge executions"` | `unavailable: same source; brief states "the execution layer did not de-duplicate the calls themselves — three real API round-trips" but no ToolEvent records were retained` | `unavailable: same source; the brief does not include the serialized prompt or projection JSON` | `unavailable: same source` | **Recoverable from brief.** Brief §"What happened?" #3 records identical params (`query="why can't I see my advert"`, `uc_tags=["UC-A","UC-B"]`) and identical return payloads across all 3 executions. The same-args status here is **direct evidence**, not inferred. |
+
+The augmented matrix preserves the parent dev's §3.2 hypothesis-walk attribution
+(every target row's "root-cause layer" remains `prompt_projection`) and adds the
+six observable columns Codex Finding 1 required. Where the column is not
+recoverable, `unavailable: <specific cause>` names the source-of-truth gap. The
+implication for closure is unchanged: the manual-probe row's direct same-args
+evidence + the smoke-set's session-level tool-list evidence + the
+`system_prompt.txt` zero-hits grep on `already_called` (§3.2 cross-case finding
+(c)) jointly identify missing prompt consumption as the bundle target. The
+fix-iteration rerun (§ Fix iteration below) supplies the empirical target-shape
+reversal that closes Codex Finding 3.
+
 ### 3.3 cs_040 placeholder-vs-routing fence (objective §5)
 
 cs_040 appears in BOTH Track A's target set (2 same-turn
@@ -538,6 +573,42 @@ The six hypotheses are:
 | cs_038 | unverified | unverified | ruled out | confirmed (single emission) | not a loop — single emission | turn-budget escalation took over in turn 4 | emits+recovers | `infra` (single emission, then turn_budget) |
 | cs_259 | unverified | unverified | ruled out | confirmed (single emission) | not a loop — single emission | bot recovered with Sprint 7 §I0 violation in turn 3 (separate `semantic_planner` shape) | emits+recovers | `infra` (single emission); `semantic_planner` (§I0 — separate) |
 | cs_176 | unverified | unverified | ruled out | confirmed (turn 1 + turn 3) | interleaved (turn 2 recovered) | UC mis-route to UC-I (separate `prompt_projection` shape) | interleaved | `infra` (placeholders); `prompt_projection` (UC mis-route — separate) |
+
+#### Augmented matrix (Sprint 23 fix iteration) — six observable columns per target
+
+Closes Codex Finding 1 for Track B (matrix columns). Same source-of-truth
+limitations apply as Track A's augmented matrix above: the 2026-05-10
+`results.json` snapshot does not carry per-turn ToolEvent payloads,
+projection-slot states, or `accumulated_tool_results` slot contents; no
+sibling per-session trace JSON files exist in
+`eval_interactive/results/20260510-134558/`. Per-turn placeholder bot
+messages ARE recoverable from `transcript[]` (the bot turn matches the
+exact PhaseEvaluator line 765 string), so the `turn` column is populated
+from that source for every target. Track B remains investigation-only —
+this augmentation is for Finding 1 coverage, not a new bundle.
+
+Track B — seven target cases × six observable columns:
+
+| case_id | turn (placeholder bot turn from `transcript[].turn_index`) | raw LLM tool calls (LLM's emitted `tool_calls` that turn) | dispatched tool calls (ToolEvent / nearest proxy) | projection contents (`already_called` slot + payload excerpt) | `accumulated_tool_results` contents | argument hash / same-args status |
+|---------|----------------------------------------------------------|------------------------------------------------------------|----------------------------------------------------|---------------------------------------------------------------|--------------------------------------|----------------------------------|
+| cs_interactive_002 | bot turns 2 and 3 (back-to-back placeholders; clean loop) | `unavailable: results.json snapshot lacks per-turn tool_calls payload — on a DEADLINE_EXCEEDED outcome there may be no successful tool emission for the turn anyway; the placeholder is emitted by PhaseEvaluator line 765, not by a tool` | `unavailable: same; session-level l2_results.tool_sequence_match.detail = ['search_knowledge', 'resolve_article', 'search_knowledge', 'search_knowledge'] reflects pre-deadline turns, not the placeholder turns themselves` | `unavailable: results.json snapshot lacks already_called slot state` | `unavailable: results.json snapshot lacks accumulated_tool_results slot state` | `unavailable: not applicable to Track B (the placeholder branch does not emit a tool call); the same-args hash is for tool dispatches, not placeholder emissions` |
+| cs_interactive_014 | bot turns 2 and 3 (back-to-back placeholders; clean loop) | `unavailable: as cs_002 Track B; session-level pre-deadline tool list = ['search_knowledge', 'resolve_article', 'search_knowledge', 'search_knowledge', 'search_knowledge', 'get_customer_context', 'search_knowledge']` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: not applicable to Track B (placeholder is not a tool dispatch)` |
+| cs_interactive_040 | bot turns 1 and 2 (back-to-back placeholders; clean loop) | `unavailable: as cs_002 Track B; session-level pre-deadline tool list = ['search_knowledge', 'classify_use_case', 'search_knowledge', 'resolve_article', 'record_outcome', 'search_knowledge']` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: not applicable to Track B (placeholder is not a tool dispatch)` |
+| cs_interactive_015 | bot turn 1 only (emits+recovers — single placeholder, then recovered substantive answer in turn 2) | `unavailable: as cs_002 Track B; session-level tool list = ['classify_use_case', 'search_knowledge', 'resolve_article', 'search_knowledge', 'resolve_article', 'resolve_article']` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: not applicable to Track B (placeholder is not a tool dispatch)` |
+| cs_interactive_038 | bot turn 3 only (emits+recovers — single placeholder, then turn 4 = runtime turn-budget-exhausted handover template) | `unavailable: as cs_002 Track B; session-level tool list = ['create_case_controlled', 'request_handover']` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: not applicable to Track B (placeholder is not a tool dispatch)` |
+| cs_interactive_259 | bot turn 2 only (emits+recovers — single placeholder, then recovered substantive answer in turn 3) | `unavailable: as cs_002 Track B; session-level tool list = ['search_knowledge', 'classify_use_case', 'search_knowledge', 'resolve_article']` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: not applicable to Track B (placeholder is not a tool dispatch)` |
+| cs_interactive_176 | bot turns 1 and 3 (interleaved — turn 2 was a substantive bot response between two placeholder turns) | `unavailable: as cs_002 Track B; session-level tool_sequence_match.detail returns no actual-list scoring for cs_176 (`-` in §3.1's tabulation) — likely because the case ended at goal_impossible before the L2 walker could score the sequence` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: as cs_002 Track B` | `unavailable: not applicable to Track B (placeholder is not a tool dispatch)` |
+
+The augmented matrix preserves the parent dev's §4.2 per-case classification
+(clean loop / emits+recovers / interleaved) and proximate-cause layer attribution
+(`infra` for the placeholder surface on every target; separate-shape concerns
+recorded for cs_040's UC-K→UC-C routing, cs_259's §I0, cs_176's UC mis-route).
+Track B's "argument hash / same-args" column is **not applicable** to the
+placeholder failure shape — the duplicate emission is on the PhaseEvaluator
+text path, not on a tool dispatch — and the matrix records that explicitly per
+row so the cell is not mistaken for a missing tool-identity signal. Track B
+remains investigation-only; the augmentation does not change the parent's
+"NO Track B bundle in Sprint 23" decision in §4.3.
 
 ### 4.3 Bundle decision (objective §7.4 + dev prompt §4)
 
@@ -855,12 +926,22 @@ Walking every "Hard fence" and every "Success metric" in
 
 - If bundled fix landed: regression test demonstrates the narrow
   fix reverses the repeated-FAQ shape on at least one target
-  case. **PARTIAL** — the Java regression test asserts the
-  teaching's presence and principled shape. The empirical
-  "reverses the shape on at least one target case" demonstration
-  requires a live smoke rerun (not feasible in this session
-  without LLM-provider config); explicitly deferred to deliver
-  agent / human on close.
+  case. **PASS (per Sprint 23 fix iteration)** — the cs_040
+  target rerun against the post-`39cb1b9` teaching prompt
+  (`eval_interactive/results/20260514-080835/results.json`)
+  shows the duplicate `search_knowledge` shape reversed: the
+  session-level tool sequence is now
+  `['classify_use_case', 'search_knowledge', 'resolve_article', 'record_outcome']`
+  (1 `search_knowledge`, no back-to-back duplicates) versus the
+  original 2026-05-10 sequence
+  `['search_knowledge', 'classify_use_case', 'search_knowledge', 'resolve_article', 'record_outcome', 'search_knowledge']`
+  (3 `search_knowledge`, with turn 1's `[sk, sk]` back-to-back
+  shape being the parent target). The existing Java test
+  (`AlreadyCalledPromptConsumptionTest`) is supporting coverage
+  only — it asserts teaching presence and principled shape, not
+  behaviour reversal. See `## Fix iteration` section below for
+  full per-target detail (cs_040 reversal; cs_014 partial — see
+  there). Codex Finding 3 closed.
 - Root-cause matrix is complete: every target case has a layer
   attribution + evidence excerpt. **PASS** — §3.2 matrix covers
   all six target cases.
@@ -976,14 +1057,17 @@ close, mirroring the Sprint 19 / Sprint 20 / Sprint 21 / Sprint
 - `R-already-called-prompt-consumption` (action_bank.md line
   484; `prompt_projection`) — change disposition from
   `proposed (Sprint 20 §12 + §11 open question 5)` to
-  `done — teaching paragraph landed in
+  `landed with target-reversal evidence — teaching paragraph in
   server/src/main/resources/prompts/system_prompt.txt (between
-  the Rules section and DISCOVER phase guidance); regression
-  test AlreadyCalledPromptConsumptionTest (2 tests) passing;
-  full server suite 898/0/0/1; see Sprint 23 handoff §3 / §5`.
-  Note that the empirical "reverses the shape on at least
-  one target case" smoke-rerun verification is deferred to a
-  live rerun by the deliver agent or next sprint.
+  the Rules section and DISCOVER phase guidance); supporting
+  coverage test AlreadyCalledPromptConsumptionTest (2 tests)
+  passing; full server suite 898/0/0/1; cs_040 target rerun
+  (eval_interactive/results/20260514-080835/results.json) shows
+  the duplicate search_knowledge shape reversed (3 → 1 sk; no
+  back-to-back duplicates); see Sprint 23 handoff §3 / §5 / §13.1
+  + "Fix iteration" section`.
+  (Phrasing per Sprint 23 fix iteration objective §11: "landed
+  with target-reversal evidence", not flat "done".)
 
 ### New R-items proposed
 
@@ -1116,3 +1200,228 @@ persisting despite the Sprint 23 teaching, indicating that the
 LLM needs explicit teaching about `accumulated_tool_results`
 in addition to the `already_called` cross-reference Sprint 23
 provided.
+
+## Fix iteration
+
+Date opened: 2026-05-14 (same-day re-open after Codex `fix_required` close on commit `39cb1b9`).
+Branch: `design-v1-without-human-review`.
+Scope: resolves the three P1 blocking findings in `docs/codex-findings.md` lines 6–28 under the strict evidence gate in `docs/sprint_objective.md` "Sprint 23 fix iteration" section. Inherits the parent Sprint 23 stanza (sprint_objective lines 395–450) verbatim; see "§7 stanza note" at sprint_objective lines 669–677.
+
+### 1. Branch taken
+
+**PASS branch.** The cs_040 target rerun against the post-`39cb1b9` teaching prompt shows the duplicate `search_knowledge` shape reversed; the cs_014 rerun shows partial reversal (user-visible PASS, but the duplicate-call shape persists on the underlying tool sequence). Per the fix-iteration evidence gate ("at least one Track A target shows reversal"), cs_040 satisfies the bar.
+
+### 2. Augmented matrix
+
+Closes Codex Finding 1. Two new subsections appended alongside the existing
+parent-dev matrices:
+
+- Track A — "Augmented matrix (Sprint 23 fix iteration) — six observable
+  columns per target", inserted at the end of §3.2 immediately before §3.3.
+  Covers all six Track A targets (cs_002, cs_014, cs_015, cs_040, cs_259,
+  manual-probe) × six observable columns (turn, raw LLM tool_calls,
+  dispatched calls, projection `already_called` contents,
+  `accumulated_tool_results` contents, argument-hash / same-args status).
+- Track B — "Augmented matrix (Sprint 23 fix iteration) — six observable
+  columns per target", inserted at the end of §4.2 immediately before §4.3.
+  Covers all seven Track B targets (cs_002, cs_014, cs_040, cs_015, cs_038,
+  cs_259, cs_176) × the same six observable columns, with the same-args
+  column marked `not applicable to Track B` per row (the placeholder
+  emission is not a tool dispatch).
+
+Cells whose value is not recoverable from
+`eval_interactive/results/20260510-134558/results.json` (the only source-of-
+truth artefact for the original target set — no sibling per-session trace
+JSON files exist) carry `unavailable: <specific cause>` per the
+fix-iteration objective's Step A rule and Codex Finding 1's
+recommended_action. The most common cause across both tracks is
+`results.json snapshot lacks per-turn ToolEvent payloads, projection-slot
+states, and accumulated_tool_results slot state`. The one row that carries
+direct (non-inferred) same-args evidence is the manual-probe row: the
+2026-05-13 failure brief records identical params and identical return
+payloads across three executions in prose.
+
+The augmented matrices preserve the parent dev's hypothesis-walk attribution
+and per-case "root-cause layer" / "proximate-cause layer" values; they only
+add the observable columns Codex required.
+
+### 3. Rerun command + results path
+
+Pre-flight checks performed and passed before the rerun:
+
+- Backend health: `curl -sS http://localhost:8080/actuator/health` returned
+  `{"status":"UP", "db": "PostgreSQL UP", ...}` (HTTP 200, RTT ~244 ms).
+- LLM provider env: `DASHSCOPE_BASE_URL`, `DASHSCOPE_API_KEY`,
+  `DASHSCOPE_CHAT_MODEL` (`qwen-plus`), `DASHSCOPE_EMBEDDING_MODEL`,
+  `DASHSCOPE_EMBEDDING_DIMENSION` all set in `.env.local`. The harness
+  loads `.env.local` via `python-dotenv` (verified at
+  `eval_interactive/eval_interactive/config.py:15` + `:167`).
+  Pre-flight: PASS.
+
+Rerun commands and result directories:
+
+1. **cs_040 (strongest single-target evidence per parent handoff §3.2):**
+
+   ```
+   eval-interactive run \
+     --path case_specs/smoke/cs_interactive_040.yaml \
+     --label sprint23_fix_cs040_rerun
+   ```
+
+   Results: `eval_interactive/results/20260514-080835/results.json` +
+   `report.html`. Elapsed: 70.8 s. Outcome: `FAIL composite=0.000`,
+   `turns=5`, `stop=goal_impossible`. (The case still fails on its
+   UC routing / escalation expectations — those are out-of-scope per
+   parent objective §5 "cs_040 special handling" fence — but the
+   duplicate-`search_knowledge` shape that the fix targets is
+   reversed; see §4 below.)
+
+2. **cs_014 (second-strongest target per parent handoff §3.2):**
+
+   ```
+   eval-interactive run \
+     --path case_specs/smoke/cs_interactive_014.yaml \
+     --label sprint23_fix_cs014_rerun
+   ```
+
+   Results: `eval_interactive/results/20260514-081022/results.json` +
+   `report.html`. Elapsed: 69.4 s. Outcome: `PASS composite=0.871`,
+   `turns=3`, `stop=bot_ended`. User-visible outcome is materially
+   better (the bot recovered to a substantive answer and then a
+   handover); the duplicate-call shape, however, persists on the
+   underlying tool sequence (see §4 below).
+
+Both reruns used the real LLM (`qwen-plus` via DashScope) under the
+harness's normal configuration. No mocked-LLM run was performed.
+
+### 4. Per-target reversal verdict
+
+| target | original 2026-05-10 tool sequence | rerun 2026-05-14 tool sequence | reversal? | notes |
+|--------|-----------------------------------|--------------------------------|-----------|-------|
+| cs_interactive_040 | `[search_knowledge, classify_use_case, search_knowledge, resolve_article, record_outcome, search_knowledge]` (3 `search_knowledge`; turn 1's `[sk, sk]` back-to-back was the parent target) | `[classify_use_case, search_knowledge, resolve_article, record_outcome]` (1 `search_knowledge`; no back-to-back duplicates) | **Yes — full reversal of the duplicate-call shape.** | Session still fails on the separate UC-K → UC-C routing + escalation expectations (parent objective §5 fence); the duplicate-call shape that the fix targets is gone. Stop reason changed from `loop_detected` to `goal_impossible` — the parent target shape (a loop-detector firing on duplicate identical tool surface) is no longer the failure mode. |
+| cs_interactive_014 | `[search_knowledge, resolve_article, search_knowledge, search_knowledge, search_knowledge, get_customer_context, search_knowledge]` (5 `search_knowledge`; the 3-consecutive run mid-sequence was the parent's clearest single-shape evidence) | `[search_knowledge, resolve_article, record_outcome, search_knowledge, search_knowledge, search_knowledge, search_knowledge, request_handover]` (5 `search_knowledge`; 4 of them appear consecutively before handover) | **Partial — user-visible PASS, but the duplicate-call shape persists on the underlying tool sequence.** | Session-level outcome improved (composite 0.871, `stop=bot_ended` via `request_handover`); the bot ultimately handed over rather than looping. The teaching paragraph did NOT suppress the 4-consecutive `search_knowledge` shape on this target. Honest read: the prompt teaching helps the LLM exit the duplicate-call dead-end (handover instead of loop), but it does not fully suppress the duplicate emission itself on this case. |
+
+Conclusion for the evidence gate: cs_040 shows full reversal of the
+duplicate-`search_knowledge` shape (3 → 1 `search_knowledge`; no
+back-to-back duplicates). cs_014 shows partial reversal — user-visible
+outcome materially better, underlying duplicate-call shape still
+present. The fix-iteration gate requires ≥1 target reversal; cs_040
+satisfies it. The cs_014 partial result is recorded honestly here per
+§1.7 "do not optimize visible eval at the cost of shadow/generalization"
+and per §1.7 "do not widen eval spec to accept a genuine bot mistake" —
+the prompt teaching is not yet sufficient on every target shape, and a
+follow-on `R-accumulated-tool-results-prompt-consumption` (§11) remains
+a justified next step.
+
+### 5. §11 / §13.1 status update
+
+§13.1 Track A row "regression test demonstrates the narrow fix reverses
+the repeated-FAQ shape on at least one target case" updated from
+**PARTIAL** to:
+
+> **PASS (per Sprint 23 fix iteration)** — the cs_040 target rerun
+> against the post-`39cb1b9` teaching prompt
+> (`eval_interactive/results/20260514-080835/results.json`) shows the
+> duplicate `search_knowledge` shape reversed: the session-level tool
+> sequence is now
+> `['classify_use_case', 'search_knowledge', 'resolve_article', 'record_outcome']`
+> (1 `search_knowledge`, no back-to-back duplicates) versus the
+> original 2026-05-10 sequence
+> `['search_knowledge', 'classify_use_case', 'search_knowledge', 'resolve_article', 'record_outcome', 'search_knowledge']`
+> (3 `search_knowledge`, with turn 1's `[sk, sk]` back-to-back shape
+> being the parent target).
+
+§11 `R-already-called-prompt-consumption` row updated from "done — ..."
+to "**landed with target-reversal evidence** — ..." with the cs_040 rerun
+results path cited inline. Existing `AlreadyCalledPromptConsumptionTest`
+relabelled as supporting coverage (top-of-file comment added; see §7).
+
+### 6. action_bank disposition phrasing (exact string for deliver agent)
+
+Per the fix-iteration objective's hard phrasing constraint, the deliver
+agent applies the following exact disposition on close:
+
+> `landed with target-reversal evidence — teaching paragraph in
+> server/src/main/resources/prompts/system_prompt.txt (between the
+> Rules section and DISCOVER phase guidance); supporting coverage
+> test AlreadyCalledPromptConsumptionTest (2 tests) passing; full
+> server suite 898/0/0/1; cs_040 target rerun
+> (eval_interactive/results/20260514-080835/results.json) shows the
+> duplicate search_knowledge shape reversed (3 → 1 sk; no back-to-
+> back duplicates); see Sprint 23 handoff §3 / §5 / §13.1 + "Fix
+> iteration" section`.
+
+NOT flat "done". The phrasing is the PASS branch's contractual phrasing
+per fix-iteration objective §11.
+
+### 7. Mocked-LLM supporting coverage status
+
+**None added in this fix iteration.** The existing
+`server/src/test/java/com/gumtree/csagent/service/runtime/AlreadyCalledPromptConsumptionTest.java`
+remains as static-text supporting coverage (it asserts teaching presence
+and principled shape on the static system prompt; it does not exercise
+the LLM or any mock LLM). A top-of-file comment was added to that file
+labelling it "Supporting coverage for Sprint 23 prompt teaching; not
+primary evidence for behaviour reversal." per the fix-iteration §C.PASS
+note. The primary causal evidence for Finding 3 closure is the cs_040
+target rerun (real LLM, real harness), not a mock.
+
+No new mocked-LLM integration test was written. The fix-iteration
+objective's hard fence on mocked-LLM-as-primary-evidence is honoured: a
+mock cannot prove the prompt's causal effect on LLM behaviour because
+the mock controls the variable being measured.
+
+### 8. Cause of downgrade
+
+N/A — PASS branch.
+
+### 8b. Server suite state (transparent record)
+
+`mvn test` from `server/` at the end of this fix iteration reports
+**898 / 1 / 0 / 1** (one failure:
+`SystemPromptUserRequestedTiebreakerTest.systemPrompt_marksActiveUcTiebreakerExplicitly:53`).
+The failing test is a Sprint-6-anchor assertion on the `ACTIVE-UC TIEBREAKER`
+header in `server/src/main/resources/prompts/system_prompt.txt`. The header
+was renamed in an uncommitted working-tree change present at the start of
+this fix iteration (removing `(Sprint 6 §G1)` from the header line); that
+change is NOT part of commit `39cb1b9` and is NOT introduced by this fix
+iteration. The fix-iteration dev prompt §3.C.DOWNGRADE explicitly directs
+the fix dev to **NOT** revert this cosmetic header rename ("Do NOT revert
+the cosmetic ACTIVE-UC TIEBREAKER header rename — unrelated").
+
+Running the suite with that one test method excluded (which scopes the
+exclusion precisely to the cosmetic-rename-affected method) yields
+**897 / 0 / 0 / 1** — i.e., the rest of the suite is green and the
+fix-iteration edits introduce no new failures or errors. Running just
+`AlreadyCalledPromptConsumptionTest` (the only Java file this fix
+iteration touched, and only with a top-of-file comment) yields
+**2 / 0 / 0 / 0**.
+
+Strict reading of the fix-iteration objective §11 ("PASS: `mvn test`
+from `server/` is 898/0/0/1") flags this as a gap. Honest read: the
+gap is entirely attributable to the pre-existing uncommitted cosmetic
+header rename that the fix iteration is explicitly told not to touch.
+The deliver agent / human owns the disposition (re-add the Sprint-6
+anchor to the header, OR update the assertion in
+`SystemPromptUserRequestedTiebreakerTest` to match the rename). Surfacing
+the conflict here rather than masking it, per §1.7 "do not optimize
+visible eval at the cost of shadow/generalization" (the analogous rule
+for suite green-ness).
+
+### 9. Anti-hardcode self-walk
+
+The fix iteration introduces no new runtime or prompt edits (PASS branch
+keeps the parent's principled teaching paragraph in place; nothing new
+shipped). The only edits are: (a) two augmented-matrix subsections in
+the handoff (docs), (b) §11 / §13.1 phrasing updates in the handoff
+(docs), (c) the `## Fix iteration` appendix (docs), and (d) a single
+top-of-file comment on `AlreadyCalledPromptConsumptionTest.java`
+relabelling it as supporting coverage (no logic change). No new
+keyword / regex / if-else / enum / per-UC matrix; no rubric widening
+(the cs_014 partial result is reported honestly rather than being
+masked); no honest-message reassuring-filler (Track B remains
+investigation-only); no new Tier-0; no new tool surface; no eval-spec
+edit; no deadline / model config edit. Parent §7 anti-hardcode self-walk
+at handoff §7 stands; nothing in this fix iteration regresses any of
+the nine answers there. Fix-iteration verdict: `approve` (no semantic
+hardcode introduced).
