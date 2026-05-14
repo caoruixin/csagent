@@ -6,6 +6,124 @@ Branch: `design-v1-without-human-review`
 ## 1. Current phase
 
 Current phase:
+Sprint 23 (repeated FAQ calls + LLM stall root-cause investigation —
+two-track investigation+bundle) closed on 2026-05-14. Sprint 23 is a
+semantic-touching sprint with the §7 stanza in multi-layer
+prospective per-track form (precedent: Sprint 19 A+B, Sprint 20
+A+B). UX-over-pass-rate framing per the human's reframe of
+2026-05-14. **Outcome: Track A bundles (narrow `prompt_projection`
+fix); Track B investigation-only.** The dev re-derived both target
+sets independently from
+`eval_interactive/results/20260510-134558/results.json` rather than
+inheriting any prior summary; the re-derivation found and reported
+two deviations from Sprint 19 §3.7's named 5-case list (cs_011 has
+zero placeholder emissions per §3.2's own walk in the same Sprint
+19 handoff — internally inconsistent; the dev prompt's separate
+"missed cs_066" claim is itself imprecise — cs_066 has zero
+placeholder emissions and a different `skill_state` shape per
+Sprint 19 §3.6). Track A's target set (cases with ≥2
+`search_knowledge` dispatches in one session) is six: cs_002,
+cs_014, cs_015, cs_040, cs_259, and the 2026-05-13 manual probe.
+Track B's target set, classified per objective §7.2, is: clean
+loops {cs_002, cs_014, cs_040}; emits+recovers {cs_015, cs_038,
+cs_259}; interleaved {cs_176}. Track A's bundle landed
+`R-already-called-prompt-consumption` as a principled teaching
+paragraph in `server/src/main/resources/prompts/system_prompt.txt`
+between the Rules section and the DISCOVER phase guidance. The
+paragraph names the Sprint 20 `already_called` projection slot,
+describes its content in observable terms (`arguments_hash`,
+`at_step`, cross-reference to `accumulated_tool_results`), tells
+the LLM to read the prior payload from `accumulated_tool_results`
+when its planned call matches a slot entry, and leaves the
+re-emit decision to the LLM as a soft signal ("you own the
+judgement"; "the slot does not block dispatch"). The teaching is
+principled — no `search_knowledge` / `resolve_article` / UC-A
+through UC-K / UC-FP branching, asserted by the new regression
+test
+`AlreadyCalledPromptConsumptionTest.systemPrompt_teaching_doesNotBranchOnToolNameOrUseCase`.
+Track B's deeper cause (model latency / timeout config) is
+unverified in this sprint because per-turn LLM latency data is not
+in the results.json snapshot; the dev read the bundle gate
+("ONLY if root cause is purely user-facing repeated fallback
+messaging") strictly and deferred. The narrow Track B fix shape
+(session-scope `consecutiveDeadlineCount` + honest next-step on
+second consecutive deadline; mirrors V12 `runtime_error_count`)
+is proposed as the new R-item
+`R-slow-llm-placeholder-coalesce-honest-next-step` with a paired
+`R-llm-latency-budget-investigation` diagnostic R-item. **No
+deadline-budget widening; no model config change; no Tier-0
+invariant; no eval-spec edit; no semantic hardcode.** Server suite
+green: 898 / 0 / 0 / 1 (Sprint 20 baseline was 894 / 0 / 0 / 1;
+Sprints 21 / 22 added tests bringing the pre-Sprint-23 baseline to
+896; this sprint's +2 are both in the new test class). Three
+deliverable surfaces changed:
+
+- `server/src/main/resources/prompts/system_prompt.txt` — new
+  principled teaching paragraph for the `already_called` slot.
+  Inserted between the Rules section and the DISCOVER phase
+  guidance; 8 lines total. Names the slot, describes its three
+  fields (`arguments_hash`, `at_step`, implicit `tool`),
+  cross-references `accumulated_tool_results`, specifies the
+  reuse-the-prior-payload action when the planned call matches a
+  slot entry, leaves the re-emit decision to the LLM (soft
+  signal), and specifies the empty-array semantics.
+- `server/src/test/java/com/gumtree/csagent/service/runtime/AlreadyCalledPromptConsumptionTest.java`
+  (new) — 2 unit tests: (1) the teaching's principled-presence
+  test asserts the four anchors (`already_called`,
+  `arguments_hash`, `accumulated_tool_results`, soft-signal
+  ownership phrase); (2) the anti-hardcode test asserts a 1400-
+  character window around the `already_called` mention contains
+  no `search_knowledge`, no `resolve_article`, and no UC-id
+  string. Both pass.
+- `docs/sprints/sprint-023-handoff.md` (new) — 12-section sprint
+  handoff with the Context Pack, the per-track target-set
+  re-derivation and §3.2 walks, the cs_040 placeholder-vs-routing
+  fence, the per-track bundle decisions with the strict-bundle-
+  gate rationale on Track B, files changed, layer-classification
+  + 9-question anti-hardcode self-walks (PR-level verdict
+  `approve`), generalization-coverage table, sprint-objective-
+  met check (every hard fence and success metric walked
+  per-bullet), open questions (smoke rerun for empirical
+  reversal; Track B's next-sprint candidacy; n-ladder thresholds
+  for `R-prompt-phase-plan-directive-followship`; cs_040 routing
+  R-item disposition; standalone `accumulated_tool_results`
+  teaching), and §11 action-bank deltas + §12 verdict-section
+  placeholder for the deliver agent to fill on close.
+- `docs/10-handoff.md` (this file) — updated lead to Sprint 23;
+  Sprint 22 demoted to "Preceding sprint".
+
+The Sprint 23 §11 action-bank deltas mark
+`R-already-called-prompt-consumption` as done (action_bank.md line
+484; was `proposed (Sprint 20 §12 + §11 open question 5)`) and
+propose four new R-items:
+`R-slow-llm-placeholder-coalesce-honest-next-step` (the deferred
+Track B narrow fix; `infra`),
+`R-llm-latency-budget-investigation` (paired diagnostic for the
+Sprint 19 §3.7 latency hypothesis; `infra`),
+`R-cs040-uc-k-topic-subject-routing` (cs_040's separate routing
+failure, `prompt_projection`; n=1 so opening is conditional on a
+second observation), and
+`R-accumulated-tool-results-prompt-consumption`
+(`prompt_projection`; conditional follow-on if Sprint 23's
+`already_called` teaching alone proves insufficient). Six
+deferred-by-design items from `docs/action_bank.md` §5.2 are
+explicitly named as out-of-Sprint-23-scope per the §9 hard fence.
+Two open questions for the human: (1) Track B's narrow UX-repair
+ship cadence (next sprint, in parallel with latency-data
+collection, or wait for latency data first); (2) smoke rerun
+ownership for the Track A empirical-reversal verification (deliver
+agent / human / next sprint).
+
+This sprint is `docs/current/iteration_governance.md` §7
+stanza-REQUIRED (semantic-touching, two-track) and the multi-layer
+prospective stanza is in `docs/sprint_objective.md` §11.
+Generalization-coverage table per §5.1 in handoff §8 (target /
+neighbor / negative / shadow). The §4.1 Anti-Hardcode review
+verdict is `approve` per the dev's §7 self-walk (Track A is the
+canonical Sprint 19 §4.2 Layer 1 soft-signal-plus-teaching shape;
+Track B is investigation-only → no per-PR verdict surface).
+
+Preceding sprint:
 Sprint 22 (phase 2 line 358 reconciliation + R-item closure) closed
 on 2026-05-14 as a narrow docs-only scope-correction sprint. A
 Sprint 22 planning-turn premise-verification check discovered that
