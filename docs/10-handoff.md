@@ -8,515 +8,317 @@ Branch: `design-v1-without-human-review`
 Current phase:
 Sprint 28 (Per-case trace dump for smoke harness — single-track,
 single-layer `infra` / eval-harness bundle shipping
-`R-per-case-trace-dump-for-smoke-harness` per `docs/action_bank.md:448`).
-**Dev pass complete 2026-05-15.** Option B (writer-side enrichment)
-chosen, mirroring the Sprint 25 precedent — all three R-item-named
-per-turn fields (`tool_calls`, `phase_plan`, `projection`) are
-already hydrated into `TraceCollector.collect(session_id)`'s
-`TurnTrace` records from the bot's `/v1/demo/sessions/{id}/trace`
-endpoint; the eval-harness read them but did not serialise them
-into `results.json`. The fourth R-item-named field, `LlmCallEvents`,
-is already shipped by Sprint 25 as `case_results[].llm_calls[]` and
-is not re-shipped this sprint. The dev edit: a new
+`R-per-case-trace-dump-for-smoke-harness` per
+`docs/action_bank.md:448`) closed on **2026-05-15** with Codex
+sprint-close review verdict **`decision: pass / blocking_count: 0`**
+on the first pass (no fix iteration required). Classification:
+**A — Clean close** (cleanest A in the run since Sprint 24; no
+packaging-rollforward needed, no Codex-skip applied).
+
+Option B (writer-side eval-harness enrichment) chosen per Sprint 25
+precedent. The planning-turn premise check established (and the dev
+session re-verified) that all four R-item-named fields are already
+hydrated into `TraceCollector.collect(session_id)`'s `TurnTrace`
+records from the bot's `/v1/demo/sessions/{id}/trace` endpoint; the
+eval-harness read them but did not serialise them into
+`results.json`. The dev edit: a new
 `_build_per_turn_trace(trace_data)` static helper in
 `eval_interactive/eval_interactive/batch/executor.py` (+62 LOC) plus
 one new additive list field `per_turn_trace` emitted on each of the
-four `case_result` writer paths (`_build_case_result` success-path
-+ `_timeout_result` / `_error_result` / `_contract_violation_result`
-placeholder paths, each with `[]` for schema uniformity). The
+four `case_result` writer paths (`_build_case_result` success-path +
+`_timeout_result` / `_error_result` / `_contract_violation_result`
+placeholder paths, each with `[]` for schema uniformity). New
 regression test file
 `eval_interactive/tests/test_executor_per_turn_trace_enrichment.py`
-ships 7 tests (mirroring Sprint 25's 8-test
-`test_executor_llm_calls_enrichment.py`), covering populated path /
+(7 tests, all pass) mirrors Sprint 25's 8-test
+`test_executor_llm_calls_enrichment.py` shape: populated path /
 empty trace / missing `phase_plan` in projection / non-dict /
 non-list defensive fallbacks / backwards-compat byte-identity /
 JSON-serialisability / all three placeholder paths. Smoke rerun on
 2026-05-15 (`eval_interactive/results/20260514-181257/results.json`,
 14 cases) — 12 cases populate `per_turn_trace` with ≥ 1 entry; 2
 cases hit the defensive `[]` branch by design (`cs_interactive_001`
-bot-500 path, `cs_interactive_259` CONTRACT_VIOLATION path). Mean
-case-level `elapsed_ms` = 26437.64 ms vs Sprint 25 reference
-26139.43 ms vs Sprint 26 close 28846.64 ms — Sprint 28's run sits
-inside the run-to-run variance band, no overhead regression. Full
-detail in the 12-section archive at
-`docs/sprints/sprint-028-handoff.md`. Closure verdict TBD at sprint
-close — Codex per-PR Anti-Hardcode kernel should run (Sprint 28 is
-a code-shipping sprint, not a docs-only one); the dev's own §11.2
-self-walk arrives at `approve` (no semantic hardcode, no fence
-violation).
+bot-500 path, `cs_interactive_259` CONTRACT_VIOLATION path; both
+expected and covered by tests). Mean case-level `elapsed_ms` =
+26437.64 ms vs Sprint 25 reference 26139.43 ms vs Sprint 26 close
+28846.64 ms — Sprint 28's run sits inside the run-to-run variance
+band, no overhead regression.
 
----
+**All four R-item-named axes shipped**:
 
-Previous phase (rolled forward to keep history readable; this block
-is the Sprint 27 phase narrative that the deliver-agent or human may
-demote / archive at Sprint 28 close):
+- `tool_calls` per bot turn → new `per_turn_trace[].tool_calls`
+- `phase_plan` per bot turn → new `per_turn_trace[].phase_plan`
+- `projection` per bot turn (including `intake_state`) → new
+  `per_turn_trace[].projection`
+- `LlmCallEvents` at case level → preserved via Sprint 25's existing
+  `case_results[].llm_calls[]` (NOT re-shipped this sprint to avoid
+  the opportunistic-field-duplication anti-pattern)
 
-Sprint 27 (PhasePlan directive-shape probe — investigation-only,
-docs-only probe sprint, single deliverable: a 12-section decision
-handoff) closed on 2026-05-15 as the probe sprint triggered by the
-Sprint 27 planning-turn premise check on
-`R-prompt-phase-plan-directive-followship`
-(`docs/action_bank.md:450`). The R-item was promoted in Sprint 19
-close on n=3 evidence (cs_259 + manual-probe + cs_011 T2). The
-premise check found the three cited instances fragment on the
-detection axis — only the manual-probe UC-A RESOLVE instance is
-fully event-shape detectable; cs_259 has a content-shape
-precondition (FAQ/payment-shaped user message); cs_011 T2's
-directive source is bot-content (the bot's own prior promise), not
-`phase_plan.systemInstruction`. Per the conditional-broadening rule
-(`docs/sprints/sprint-018-handoff.md` §8.8; n=1 evidence
-insufficient to ship structural action), Sprint 27 did NOT ship a
-slot, did NOT restructure `PhasePlan`, did NOT author probe
-scenarios — instead Sprint 27 enumerated the six
-`PhaseEvaluator.plan(...)` `.systemInstruction(...)` string literals
-(lines 411 / 458 / 485 / 517 / 564 / 616), classified the 21
-identified directives under a 4-question rubric (Q1 precondition
-shape / Q2 action shape / Q3 source / Q4 turn scope), surveyed two
-existing reference smoke runs
-(`eval_interactive/results/20260514-111724/results.json` and
-`…/20260514-114628/results.json`), and produced an evidence table
-+ a recommendation. The deliverable is the **decision document
-itself**; the recommendation is **(R2) targeted probe sprint
-follow-on** (full-handoff §6). Pattern captured in
-deliver-agent memory at
-`.claude/agent-memory/sprint-deliver-orchestrator/feedback_probe_sprint_shape_for_conditional_broadening.md`.
+**`R-per-case-trace-dump-for-smoke-harness`** at
+`docs/action_bank.md:448` is **CLOSED** by this Sprint 28 close
+commit. The disposition note records the closure with file-axis
+mapping; §6 closed-action index appends the Sprint 28 row.
 
-Classification: **A-with-Codex-skipped** — exactly mirroring the
-Sprint 26 variant first instance (`1f4a1db`). The close-out commit
-ships only docs (this `docs/10-handoff.md` §1 refresh + the
-Sprint 27 handoff archive + the Sprint 27 sprint-objective archive
-+ the line-450 action_bank entry update + the deliver-agent
-prompt rollforward), so the §4.1 Anti-Hardcode exemption clause —
-*"pure infra, docs-only, config-governance, and
-characterization-test PRs are not subject to this review. If the
-PR is purely one of those, return `approve` with a one-line note
-naming the exemption"* — applies. **The human applied the exemption
-directly on 2026-05-15** ("I think there's no need to review and we
-could push forward to the next step") in lieu of dispatching a
-Codex sprint-close round; the §4.1 verdict that would have been
-returned is `approve (exemption: docs-only investigation/probe
-sprint, no semantic surface touched)`, the same verdict the dev's
-own §8 anti-hardcode self-walk arrives at (9 questions answered,
-all docs-only-consistent). Distinct from Sprint 18 G1 (Codex-skip
-planned at sprint open as a packaging-workflow choice — no dev
-agent, no Codex round, deliver agent + human as
-authors-and-reviewers from the start) — Sprint 27's Codex-skip is
-**human-discretion at close, AFTER the dev landed on a docs-only
-outcome** (mirroring Sprint 26 exactly). Pattern documented at
-`.claude/agent-memory/sprint-deliver-orchestrator/feedback_close_with_codex_skipped_docs_only_outcome.md`.
+**This sprint unblocks Sprint 27's (R2) follow-on probe.**
+`R-prompt-phase-plan-directive-followship` at
+`docs/action_bank.md:450` had a gating dependency on this R-item
+(named three times in Sprint 27 handoff §6, §10, and §11); that
+gating is now removed. The directive-followship workstream
+(promoted on n=3 in Sprint 19 from cs_259 + manual-probe + cs_011
+T2 evidence; probed in Sprint 27 with recommendation (R2) targeted
+probe sprint) can now run with per-turn `phase_plan` + per-turn
+`projection.intake_state` evidence on authored CaseSpecs. The line
+450 R-item disposition is updated to reflect the gating removal but
+remains open (awaiting the (R2) probe sprint).
 
-Findings from the Sprint 27 probe (full handoff §5–6): of the 21
-directives identified across the six PhaseEvaluator branches, **4
-classify as `target`** (event-shape precondition AND event-shape
-action AND `phase_plan` source): **D485.2** (CLOSE
-record_outcome-if-not-already-recorded), **D517.2** (ESCALATE
-ensure-handover-called — tautology recap; ESCALATE is entered only
-after a successful `request_handover`, so the directive is
-structurally degenerate), **D564.7** (INTAKE intake-complete
-handover with structured `intake_complete_for_uc_*` args), **D616.2**
-(RESOLVE FAQ premature-escalation prohibition). The remaining 17
-classify as `content-shape-defer` (the shape contains at least one
-content-shape conjunct, breaking the soft-projection slot's
-event-shape detection axis). **Across both reference smoke runs the
-LLM emits ZERO `request_handover` and ZERO `record_outcome` tool
-calls** across 138 chat calls combined (Sprint 25 reference smoke
-67 chat calls + Sprint 26 close smoke 71 chat calls; literal
-extraction commands in handoff §5.x). Consequently both
-`observed_triggers` and `observed_non_fulfillments` are 0 for every
-target row — not because the directives are reliably followed but
-because the LLM never emits the terminal event-shape tools the
-target directives' required-action shape names, and because the
-present `results.json` shape lacks the per-turn `phase` transition
-trace + `intake_state` slot projection needed to confirm
-precondition firing (the §9.8 valid-finding path). (R1) requires
-n≥2 target directives with observed non-fulfillment; evidence is 0.
-(R3) requires structural incompatibility across enough branches;
-the population IS structurally compatible (4 of 21 target-shape).
-**(R2) is the recommendation** — the blocking issue is detection
-capability + insufficient case coverage of the target preconditions
-in existing smoke, not structural population shape.
+Codex review-pass evidence (`docs/sprints/sprint-028-codex-review.md`):
+§4.1 Anti-Hardcode verdict `approve` (exemption: pure infra /
+eval-harness writer-side serialization, no semantic surface
+touched). All 5 handoff reproducibility recipes re-extracted by
+Codex and returned the cited values verbatim. Backwards-compat
+verified: `added=['per_turn_trace']`, `removed=[]`; Sprint 25
+`llm_calls[]` 13-key shape preserved. Option B-only verified: no
+new bot endpoint, no new HTTP client method, no Java persistence,
+no Flyway migration, no DB schema change. Opportunistic-field
+check passed (only 3 R-item-named per-turn fields shipped;
+`LlmCallEvents` not duplicated). Test runs: new Sprint 28 tests
+`7 passed`; full Python `306 passed, 3 failed` (3 inherited from
+`test_case_spec_overrides.py` × 2 + `test_corpus_lint.py` × 1 per
+Sprint 25 §11); full Java `902 / 1 / 0 / 2` (1 inherited
+`SystemPromptUserRequestedTiebreakerTest` from the unauthored
+`system_prompt.txt` working-tree mod, same as Sprints 24/25/26/27).
 
-The (R2) follow-on probe sprint is **gated on
-`R-per-case-trace-dump-for-smoke-harness` (`docs/action_bank.md:448`)
-landing first**: without per-turn phase trace + `intake_state`
-projection in `results.json`, the precondition-fires axis cannot be
-confirmed even with authored cases. Once trace-dump lands, the
-follow-on probe sprint should author N≥3 CaseSpecs exercising the
-target directives' preconditions: 1–2 cases per target-able
-directive (D485.2 / D564.7 / D616.2; skipping D517.2 ESCALATE which
-is the tautology recap). If the follow-on probe surfaces ≥2 target
-directives with confirmed observed non-fulfillment, THAT sprint (or
-the next one after it) becomes the (R1) trigger for opening a
-structural `pending_directive_unfulfilled` projection slot.
+Sprint 28 handoff §7 surfaces a **proposed but NOT opened**
+follow-on R-item: `R-per-turn-phase-transition-dump-for-smoke-harness`
+— would extend `per_turn_trace[]` with `phase_before`, `phase_after`,
+`turn_index` so the Sprint 27 (R2) consumer's transition-confirmation
+step on D485.2 / D564.7 / D616.2 preconditions can read phase deltas
+without re-deriving them. **Named only by the dev, not opened**;
+human decides at next-sprint planning whether to (a) open it
+standalone, (b) fold it into the Sprint 27 (R2) probe sprint as a
+prerequisite, or (c) defer.
 
-**`R-prompt-phase-plan-directive-followship` at
-`docs/action_bank.md:450`** was **updated** with the Sprint 27 probe
-finding (recommendation (R2) + target-directive list +
-0-observed-non-fulfillment finding + trace-dump dependency + (R1)
-trigger requirement); it is **NOT closed**. R-item disposition
-becomes: open, awaiting (a) `R-per-case-trace-dump-for-smoke-harness`
-(`docs/action_bank.md:448`) landing first AND (b) a targeted (R2)
-probe sprint with confirmed observed non-fulfillment ≥ 2. Re-open
-trigger to revisit: the (R2) probe lands and either flips the
-disposition to (R1) (≥ 2 target directives unfulfilled → open
-structural slot sprint) or stays in (R2) (still <2; open further
-probe) OR explicit later human direction.
+Files committed in the single Sprint 28 dev commit `ca55d8e`
+("sprint 28: per-case trace dump surfaces into results.json",
+2026-05-15):
 
-Sprint 27 also names — but does **NOT open** in `docs/action_bank.md`
-— **six follow-on R-items** the (R2) probe sprint could surface
-later (handoff §7): `R-discover-weak-candidate-cue-soft-signal`
-(D411.3 + D411.4 — replace user-message-shape detection with an
-LLM-projected soft signal); `R-discover-classify-or-clarify-projection`
-(D411.1 + D411.2 — replace intent-clarity content precondition with
-a projected confidence signal); `R-confirm-sentiment-projection`
-(D458.1 + D458.2 — replace user-satisfaction content precondition
-with a projected sentiment signal, also reconciles the
-`'user_dissatisfied'` → `'service_degraded'` canonicalisation
-surface); `R-close-phase-completion-checklist-projection` (D485.2
-sibling — `record_outcome_recorded={true,false}` slot to make the
-"if not already recorded" precondition observable); `R-intake-
-instruction-decomposition` (D564.1 / D564.2 / D564.3 / D564.5 /
-D564.6 — decompose the INTAKE prose paragraph into per-clause
-fragments paired with structured projection slots); `R-resolve-faq-
-terminal-sequence-projection` (D616.1 — `terminal_sequence_position`
-slot for the SHOULD-sequence). These are **scope sketches only**;
-each would require its own §3.2 layer classification + §7 stanza
-walk before promotion to an opened R-item.
+- `eval_interactive/eval_interactive/batch/executor.py` (modified,
+  +62 LOC) — `_build_per_turn_trace` helper + 4 writer-path
+  emissions.
+- `eval_interactive/tests/test_executor_per_turn_trace_enrichment.py`
+  (NEW, 7 tests, all pass).
+- `docs/sprints/sprint-028-handoff.md` (NEW, 12-section archive
+  including the closure-verdict §12 placeholder authored by the dev
+  with explicit-delegation language per
+  `.claude/agent-memory/sprint-deliver-orchestrator/feedback_handoff_verdict_section_delegation.md`).
+- `docs/10-handoff.md` (parent-dev-commit modification to set Sprint
+  28 as "Current phase" and demote Sprint 27 to "Previous phase";
+  this close commit then refreshes the §1 lead to the close
+  summary above and demotes Sprint 27 to "Preceding sprint" full
+  paragraph).
 
-The Sprint 27 handoff §11 surfaces an **open governance question**
-worth flagging: directives D411.3 / D411.4 (Sprint 7 §I0 weak-
-candidate cue) have a **user-message-shape precondition** that
-matches FAQ-shaped / payment-shaped user message content. They live
-in the `phase_plan.systemInstruction` *text* today. The §1.7
-forbidden-list prohibits keyword/regex routing in *code*; "in the
-prompt, soft-matched by LLM" is arguably a different boundary. Is
-this a §1.7 violation in the current prompt, or is prompt-side
-soft-matching acceptable so long as the LLM owns the decision? The
-six §7 named follow-on `R-discover-weak-candidate-cue-soft-signal`
-would resolve by projecting a candidate-UC soft signal instead, but
-that's a downstream answer to an upstream governance question that
-deserves explicit framing. The remaining handoff §11 questions
-(Q3 D517.2 tautology rewording; Q4 `'user_dissatisfied'`
-non-canonical reason at D458.2; Q5 carry-forward acknowledgment of
-the premise-check finding) are sequencing/cleanup notes; they
-remain preserved in the archived handoff §11 for future-reader
-visibility without separate R-item opening.
+Files added at close commit (deliver-agent close-out, not part of
+the dev's commit):
 
-Files in the single Sprint 27 close commit (this commit;
-commit-at-end workflow — the dev session produced working-tree
-modifications that the deliver agent bundles into the close
-commit per
-`.claude/agent-memory/sprint-deliver-orchestrator/feedback_commit_at_end_bundles_deliver_artefacts.md`):
-
-- `docs/sprints/sprint-027-handoff.md` (NEW) — 12-section dev
-  handoff including filled `§12 closure_verdict` row (status =
-  PASS, classification = A-with-Codex-skipped, Codex outcome =
-  intentionally skipped per §4.1 exemption clause, R-item
-  disposition = updated not closed, date = 2026-05-15). §12 was
-  authored by the dev as an explicit-delegation placeholder per
-  `.claude/agent-memory/sprint-deliver-orchestrator/feedback_handoff_verdict_section_delegation.md`;
-  the deliver agent filled it at close.
-- `docs/sprints/sprint-027-objective.md` (NEW) — archive copy of
-  the running `docs/sprint_objective.md` carrying the Sprint 27
+- `docs/sprints/sprint-028-objective.md` — archive copy of the
+  running `docs/sprint_objective.md` carrying the Sprint 28
   objective. Deliver-agent-owned and untracked at session start;
   plain `mv` (no `git mv` HEAD-content risk per
   `.claude/agent-memory/sprint-deliver-orchestrator/feedback_git_mv_uses_head_content.md`
   because the source was never tracked). Front-matter updated at
   close (`doc_tier: sprint-archive`, `status: archived`,
-  `implementation_status: historical`,
-  `review_cadence: ad hoc`); the running file is removed by this
-  close commit.
-- `docs/action_bank.md` (MODIFIED) — `R-prompt-phase-plan-directive-
-  followship` row at line 450 carries the Sprint 27 probe finding
-  append (recommendation (R2), target-directive list, 0-observed-
-  non-fulfillment finding, trace-dump dependency, R-item NOT
-  closed).
-- `docs/10-handoff.md` (MODIFIED, this file) — Sprint 27 lead;
-  Sprint 26 demoted to "Preceding sprint" full paragraph; Sprint
-  25 demoted to "Earlier sprint" mini-paragraph; Sprint 24/23/22/
-  21/20/19/18/17/16 preserved as one-paragraph references.
-- `compact/sprint-027-dev-prompt.md`,
-  `compact/sprint-027-review-prompt.md` — deliver-agent-owned
+  `implementation_status: historical`, `review_cadence: ad hoc`);
+  the running file is removed by this close commit.
+- `docs/sprints/sprint-028-codex-review.md` — archive copy of
+  `docs/codex-findings.md` (untracked at top level prior to this
+  commit; staged as new file + deletion of the top-level file per
+  `.claude/agent-memory/sprint-deliver-orchestrator/feedback_packaging_codex_findings_supersession.md` —
+  delete+add supersession, not a rename).
+- `docs/action_bank.md` — line 448 `R-per-case-trace-dump-for-smoke-harness`
+  status flipped to `done (Sprint 28)` with disposition note;
+  line 450 `R-prompt-phase-plan-directive-followship` disposition
+  appended with the gating-removed note; §6 closed action index
+  appended Sprint 28 row.
+- `compact/sprint-028-dev-prompt.md`,
+  `compact/sprint-028-review-prompt.md` — deliver-agent-owned
   planning prompts authored during this sprint; rolled forward in
-  this close commit. (Note: `compact/sprint-027-review-prompt.md`
-  was authored but the human applied the §4.1 exemption clause
-  directly in lieu of dispatching it; the file ships as the
-  audit trail of the prompt that would have been used.)
-
-**No `docs/sprints/sprint-027-codex-review.md` archive exists**
-because Codex sprint-close review was intentionally not dispatched.
-Future readers looking at the Sprint 27 archive will find handoff
-+ objective only; the absence of a Codex-review archive is
-**intentional and documented here** (this paragraph), in §12 of the
-handoff (the closure_verdict row's Codex-outcome cell), and in the
-action_bank §6 closed-row that this close commit appends. Codex was
-last run for Sprint 25 fix re-review (commit `c8b8c85`); the
-sibling Sprint 25 Codex-review archive at
-`docs/sprints/sprint-025-fix-codex-review.md` is the last persisted
-Codex artefact in the repo.
+  this close commit per
+  `.claude/agent-memory/sprint-deliver-orchestrator/feedback_commit_at_end_bundles_deliver_artefacts.md`.
 
 This sprint is `docs/current/iteration_governance.md` §7
-stanza-**EXEMPT** under the docs-only investigation-and-probe
-exemption (precedent: Sprint 15 config-governance / Sprint 16
-docs-plus-characterization-tests / Sprint 17 G0 governance bundle /
-Sprint 18 G1 brief authoring / Sprint 22 phase-2 reconciliation /
-Sprint 26 latency-decision sprint). The exemption is declared
-verbatim in the archived `docs/sprints/sprint-027-objective.md`
-"Sprint class" section. The §4.1 Anti-Hardcode self-walk in handoff
-§8 answered the 9 questions and lands at `approve` with the
-docs-only exemption note; the human applied the verdict directly
-in lieu of dispatching Codex.
+stanza-**REQUIRED** with target layer `infra` per Sprint 28
+objective §6 (the archived `docs/sprints/sprint-028-objective.md`
+§6 carries the stanza verbatim: target layer `infra`,
+"This sprint adds no Tier-0 invariant", "No semantic hardcode
+introduced", generalization coverage = 14 target / 0 neighbor
+(eval-harness writer is single-surface) / 14 negative (all 14
+cases must preserve existing fields byte-identical) / 0 shadow
+(deferred — shadow set is the G2 case-family deliverable not yet
+existent)). The §4.1 Anti-Hardcode kernel ran externally; Codex
+returned `approve` with the exemption note.
 
-The natural follow-on sprint candidates after Sprint 27 are
-gated on Sprint 27's own (R2) recommendation: the prerequisite is
-**`R-per-case-trace-dump-for-smoke-harness`** at
-`docs/action_bank.md:448` landing first so the (R2) follow-on
-probe sprint can observe per-turn phase + `intake_state` projection
-data on authored CaseSpecs. Layer is likely `infra` / eval-harness
-per §3.2 Q1, with small scope (re-enable per-case JSON trace
-dumping under each `eval_interactive/results/<run-id>/`); precedent
-shape is Sprint 25 Track B (writer-side eval-harness enrichment).
-Alternative Sprint 28 picks if the human chooses not to gate on the
-trace-dump prerequisite right now: `R-uc-k-intake-complete-case-id-
-binding` (Sprint 19 §3.6; cs_066 UC-K state-loss; `skill_state`
-layer; deterministic bug fix, not gated on anything);
-`R-uc-cdf-get-customer-context-bot-actual-usage` (Sprint 22-surfaced
-behavioural question, investigation-only, n=2 evidence);
+The natural follow-on sprint candidate per Sprint 28's R-item
+closure + Sprint 27's (R2) recommendation is now the
+**Sprint 27 (R2) targeted probe sprint** — author N≥3 CaseSpecs
+exercising D485.2 (CLOSE record_outcome-if-not-already-recorded) /
+D564.7 (INTAKE intake-complete handover with structured args) /
+D616.2 (RESOLVE FAQ premature-escalation prohibition) preconditions
+using Sprint 28's per-turn `phase_plan` + `projection.intake_state`
+trace evidence. The directive-followship workstream has now chased
+this evidence path for 9 sprints (Sprint 18 G1 → Sprint 19
+3-instance promotion → Sprint 27 probe + (R2) recommendation →
+Sprint 28 trace dump unblocks → Sprint 29 (R2) probe), and letting
+the workstream complete is high-value. Alternative Sprint 29 picks
+on the action_bank §5.2 backlog include: open
+`R-per-turn-phase-transition-dump-for-smoke-harness` (handoff §7
+proposal — small `infra` increment that benefits the (R2) consumer,
+could be folded into the (R2) sprint as prerequisite OR run
+standalone); `R-uc-k-intake-complete-case-id-binding` (Sprint 19
+§3.6; cs_066 UC-K state-loss; `skill_state` layer; deterministic
+bug fix, not gated on anything; standing UX-leverage reframe
+alignment); `R-uc-cdf-get-customer-context-bot-actual-usage`
+(Sprint 22-surfaced behavioural question, investigation-only);
 `R-handover-orchestrator-write-side` (Sprint 16 design freeze;
 `docs/release_gate.md` §1.1 P1-pre-cutover blocker — awaits cutover
-trigger); or any of the 6 §7-named follow-on R-items Sprint 27
-proposed (note: opening `R-discover-weak-candidate-cue-soft-signal`
-specifically would address the §11 Q2 governance question if the
-human wants to surface that decision at the same time). The Sprint
-25 §7 open questions (Q2 / Q3 / Q4), the Sprint 26 §7
-n=0 / conditional opening, and the Sprint 27 §11 Q1–Q5 questions
-all continue to require human direction to open.
+trigger). The Sprint 25 §7 open questions (Q2 / Q3 / Q4), the
+Sprint 26 §7 conditional `R-pre-post-f2d4cb2-pass-rate-isolation`
+opening, the Sprint 27 §11 Q1–Q5 governance questions, and the
+Sprint 28 §7 follow-on R-item proposal all continue to require
+human direction to open.
 
-The Sprint 26 dev session re-verified the seven Sprint 26
-objective §3 premise checks against the live tree (handoff §3;
-all seven hold), extracted the decision-relevant per-call data
-from the Sprint 25 reference smoke (handoff §4.1 — 243/243 LLM
-calls succeeded, 0 failures, 0 `deadline_exceeded` / 0
-`read_timeout` / 0 retry-bailout; handoff §4.2 — max chat
-latency 11.547s vs the 30s `USER_FACING_LLM_DEADLINE_MS` budget
-= ~18s of headroom on the worst observed call, 0/67 chat calls
-exceeded even 15s; handoff §4.3 — zero placeholder + zero
-honest-next-step emissions across all 14 cases, the Sprint 24
-coalesce branch did not fire once on the reference smoke;
-handoff §4.5 — the pre-vs-post `f2d4cb2` 14-case-smoke
-pass-rate trajectory: 64 pre runs span 0/14 to 9/14, the three
-runs immediately preceding `f2d4cb2` averaged 57% — 7+8+9 of
-14; the four post runs averaged 23% — 3+4+4+2 of 14; gap ~35pp
-across the swap window), and walked the three-hypothesis
-attribution of the 4/14 pass-rate signal (handoff §5): (i)
-latency-driven REFUTED (no deadline exceedance, no placeholder
-emission); (ii) model-quality-driven PLAUSIBLE but CONFOUNDED
-with concurrent post-`f2d4cb2` prompt / corpus / override
-changes (Sprint 21 case-family L3 overrides, Sprint 23
-`system_prompt.txt` `already_called` teaching paragraph, the
-inherited unauthored `system_prompt.txt` working-tree mod
-between 2026-05-05 and 2026-05-14); (iii) run-to-run variance
-PARTIAL contributor — within-era spread ~14pp does not by
-itself explain the ~35pp mean shift across the swap. The
-combined reading per handoff §5.4: the 4/14 is a real signal,
-separate from the latency widening, that the Sprint 26
-decision window cannot fully attribute without controlled
-isolation — and Sprint 26's mandate explicitly forbids using
-the 4/14 to justify a model revert (`iteration_governance.md`
-§1.7 "post-`f2d4cb2` is worse therefore revert" forbidden-line).
+Pattern captured in deliver-agent memory: this is the cleanest
+first-pass A close in the run since Sprint 24. The Sprint 28
+review-pass was reinforced by the writer-side enrichment pattern
+established in Sprint 25 (Option B; mirroring exactly), the
+explicit-delegation handoff §12 placeholder convention from
+Sprint 22 (per
+`.claude/agent-memory/sprint-deliver-orchestrator/feedback_handoff_verdict_section_delegation.md`),
+and the reproducibility-recipe-as-handoff hygiene introduced by
+Sprint 25's fix iteration (per
+`.claude/agent-memory/sprint-deliver-orchestrator/feedback_deliver_agent_cited_numbers_must_be_reproducible.md`).
 
-Decision-rationale (handoff §6) walks all five
-`docs/sprint_objective.md` §5 dimensions. (A) widen budget
-rejected: zero deadline exceedance leaves no problem to widen
-against; widening cannot improve a problem that does not exist.
-(B) revert model rejected: collapses the +3.3s latency widening
-signal with the 4/14 pass-rate signal (§1.7 forbidden); would
-re-introduce the `engine_overloaded_error` posture that `f2d4cb2`
-named as the reason to swap; the 4/14 alone is not defensible
-attribution given hypothesis (ii) is confounded. (D) change
-retry / backoff rejected: zero retries fired on the reference
-smoke, so the constants would be re-tuning a path that does not
-execute. (E) other: no fifth surface surfaced; the pass-rate
-gap deserves its own controlled investigation, not an (E)
-bundled into the latency-decision sprint. Sprint 26 surfaces ONE
-follow-on conditional R-item:
-`R-pre-post-f2d4cb2-pass-rate-isolation` recorded at
-`docs/action_bank.md` §5.2 as `proposed; deferred` per **human
-direction 2026-05-15**, with re-open triggers named (additional
-post-`f2d4cb2` smokes confirming the ~35pp gap is stable OR
-explicit later human direction); a controlled rerun under the
-pre-`f2d4cb2` model + post-`f2d4cb2` prompt/corpus would isolate
-the model-attributable share. The entry stays in §5.2 as a
-tracked observation so future smoke-rate movement can re-trigger
-opening without re-discovering the gap.
-
-Files committed in the single Sprint 26 dev commit `8077d96`
-("sprint 26: latency decision (C) accept current latency",
-2026-05-15) — TBD on the commit hash; rename once known:
-- `docs/sprints/sprint-026-handoff.md` — 12-section handoff
-  (decision + rationale walk + premise re-verification + data
-  analysis + hypothesis walk + sprint-objective-met §12 table).
-- `docs/action_bank.md` — §5.2 append
-  `R-pre-post-f2d4cb2-pass-rate-isolation` (proposed; deferred
-  per human direction); §6 append Sprint 26 closed row.
-
-Files added at close commit (deliver-agent close-out, not the
-dev's commit):
-
-- `docs/sprints/sprint-026-objective.md` — archive copy of the
-  running `docs/sprint_objective.md` carrying the Sprint 26
-  objective; deliver-agent-owned, untracked at session start
-  (no fix iteration this sprint, so no
-  `feedback_git_mv_uses_head_content.md` risk); plain `mv` +
-  `git add` since git did not track the source. The running
-  file is removed by this close commit.
-- `docs/10-handoff.md` (this file) — updated lead to Sprint 26
-  close; Sprint 25 demoted to "Preceding sprint" full paragraph;
-  Sprint 24 demoted to "Earlier sprint" full paragraph; Sprint
-  23 demoted to "Earlier sprint" mini-paragraph; Sprint 22/21/
-  20/19/18/17/16 demoted to one-paragraph references.
-- `docs/action_bank.md` — Sprint 26 §6 closed row updated from
-  the dev-commit-time placeholder *"closed (decision (C)
-  Accept — no action; Codex sprint-close pending)"* to the
-  close-time verdict *"closed (decision (C) Accept — no action;
-  Codex review intentionally skipped per §4.1 exemption clause,
-  human-applied 2026-05-15; classification A-with-Codex-skipped
-  new variant)"*.
-- `compact/sprint-026-dev-prompt.md`,
-  `compact/sprint-026-review-prompt.md` — deliver-agent-owned
-  planning prompts authored during this sprint; rolled forward
-  in this close commit per
-  `feedback_commit_at_end_bundles_deliver_artefacts.md`.
-
-**No `docs/sprints/sprint-026-codex-review.md` archive exists**
-because Codex sprint-close review was intentionally not
-dispatched (human applied the §4.1 docs-only exemption clause
-directly). Future readers looking at the Sprint 26 archive will
-find handoff + objective only; the absence of a Codex-review
-archive is intentional and documented here + in §12 of the
-handoff + in the action_bank §6 close row.
-
-This sprint is `docs/current/iteration_governance.md` §7
-stanza-**REQUIRED with per-decision-outcome multi-layer
-prospective shape** per the Sprint 26 objective: the stanza in
-the archived `docs/sprints/sprint-026-objective.md` §11 enumerates
-the layer that would have been targeted under each of (A) / (B) /
-(C) / (D) / (E); decision (C) collapses to "no layer change,
-no Tier-0, no semantic hardcode" post-hoc per handoff §9. The
-§4.1 Anti-Hardcode self-walk in handoff §10 answered the 9
-questions and lands at `approve` (no semantic-touching code
-change ships); Codex did not run the verdict externally per the
-exemption-skip decision above.
-
-The natural follow-on sprint candidates per Sprint 26 handoff
-§7 / action_bank §5.2 + the standing UX-leverage reframe (the
-agent's standing latency observation chain is now closed; the
-next sprint can focus on substantive behavioural improvements):
-**`R-prompt-phase-plan-directive-followship`** (Sprint 19
-3-instance promoted; `prompt_projection`; semantic-touching; §7
-stanza required) is the natural "back to bot behavior" pick.
-Alternatives on the action_bank §5.2 backlog include:
-`R-uc-cdf-get-customer-context-bot-actual-usage` (Sprint
-22-surfaced behavioural question, investigation-only);
-`R-uc-k-intake-complete-case-id-binding` (Sprint 19 §3.6;
-cs_066 lost case_id state); `R-handover-orchestrator-write-side`
-(Sprint 16 design freeze; `docs/release_gate.md` §1.1
-P1-pre-cutover blocker — awaits cutover trigger). The Sprint 25
-§7 open questions (Q2 / Q3 / Q4) and the Sprint 26 §7
-n=0 / conditional opening continue to require human direction
-to open.
+---
 
 Preceding sprint:
-Sprint 26 (Latency decision sprint — consumes Sprint 25's
-per-LLM-call latency instrumentation) closed on 2026-05-15
-(commit `1f4a1db`) as the investigation+decision sprint that
-walked the (A) widen deadline budget / (B) revert pre-`f2d4cb2`
-model / (C) accept current latency / (D) change retry-backoff /
-(E) other option space against the Sprint 25 reference smoke
-(`eval_interactive/results/20260514-111724/results.json`) and
-the worked-example pre/post-`f2d4cb2` DB-grounded comparison at
-`docs/sprints/sprint-025-handoff.md` §5.2. Decision:
+Sprint 27 (PhasePlan directive-shape probe — investigation-only
+docs-only probe sprint, single deliverable: a 12-section decision
+handoff) closed on 2026-05-15 (commit `8a7703a`) as the probe
+sprint triggered by the planning-turn premise check on
+`R-prompt-phase-plan-directive-followship`
+(`docs/action_bank.md:450`, Sprint 19 close 3-instance promotion).
+Premise check found detection-axis fragmentation across the three
+cited instances (cs_259 / manual-probe / cs_011 T2): only the
+manual-probe UC-A RESOLVE instance is fully event-shape detectable;
+cs_259 has a content-shape precondition; cs_011 T2's directive
+source is bot-content (not `phase_plan.systemInstruction`). Per
+the `docs/sprints/sprint-018-handoff.md` §8.8 conditional-broadening
+rule (n=1 evidence insufficient to ship structural action),
+Sprint 27 did NOT ship a slot, did NOT restructure `PhasePlan`,
+did NOT author probe scenarios — Sprint 27 enumerated the six
+`PhaseEvaluator.plan(...)` `.systemInstruction(...)` string
+literals (lines 411 / 458 / 485 / 517 / 564 / 616), classified the
+21 identified directives under a 4-question rubric (precondition
+shape / action shape / source / turn scope), surveyed two existing
+reference smoke runs (`eval_interactive/results/20260514-111724/results.json`
+Sprint 25 reference + `…/20260514-114628/results.json` Sprint 26
+close), and produced an evidence table + recommendation from a
+closed set (R1 / R2 / R3). Findings: 4 of 21 directives classify
+as `target` (event-shape precondition AND event-shape action AND
+`phase_plan` source) — D485.2 (CLOSE record_outcome-if-not-
+already-recorded), D517.2 (ESCALATE tautology recap), D564.7
+(INTAKE intake-complete handover), D616.2 (RESOLVE FAQ premature-
+escalation prohibition); the remaining 17 are `content-shape-defer`.
+Across both reference smokes the LLM emits ZERO `request_handover`
+and ZERO `record_outcome` tool calls (138 chat calls combined);
+`observed_triggers=0` and `observed_non_fulfillments=0` for every
+target row (§9.8 valid-finding: insufficient detection capability
++ insufficient case coverage). (R1) requires n≥2 target directives
+with observed non-fulfillment; evidence is 0. (R3) requires
+structural incompatibility; population IS structurally compatible
+(4 of 21 target-shape). **Recommendation: (R2) targeted probe
+sprint follow-on** — author N≥3 CaseSpecs exercising D485.2 /
+D564.7 / D616.2 preconditions (skipping D517.2 tautology). The
+(R2) follow-on was **gated on `R-per-case-trace-dump-for-smoke-
+harness` (`docs/action_bank.md:448`) landing first** — Sprint 28
+above closes that gating. **`R-prompt-phase-plan-directive-
+followship` at `docs/action_bank.md:450` was UPDATED with the
+probe finding but NOT closed**; disposition becomes "open, awaiting
+(R2) probe sprint with confirmed observed non-fulfillment ≥ 2".
+Sprint 27 also names — but does NOT open — 6 follow-on R-items
+(handoff §7: `R-discover-weak-candidate-cue-soft-signal`,
+`R-discover-classify-or-clarify-projection`,
+`R-confirm-sentiment-projection`,
+`R-close-phase-completion-checklist-projection`,
+`R-intake-instruction-decomposition`,
+`R-resolve-faq-terminal-sequence-projection`). Open governance
+question surfaced (handoff §11 Q2): does
+`phase_plan.systemInstruction` text containing user-message-shape
+detection (D411.3 / D411.4) constitute a §1.7 boundary case
+(prompt-side soft-matching vs code-side keyword/regex)? Sprint 27
+ships ZERO code, config, prompt, eval-spec, judge, CaseSpec,
+override, Tier-0 edit. Single deliverable: 12-section
+`docs/sprints/sprint-027-handoff.md`. Closure verdict: PASS
+(Codex review intentionally skipped per §4.1 exemption clause for
+docs-only investigation/probe sprints, human-applied 2026-05-15;
+the §4.1 verdict that would have been returned is `approve
+(exemption: docs-only investigation/probe sprint)`).
+Classification **A-with-Codex-skipped** — second instance of the
+pattern (Sprint 26 was the first). Pattern captured in deliver-
+agent memory at
+`.claude/agent-memory/sprint-deliver-orchestrator/feedback_close_with_codex_skipped_docs_only_outcome.md`
++ the probe-sprint-shape memory at
+`.claude/agent-memory/sprint-deliver-orchestrator/feedback_probe_sprint_shape_for_conditional_broadening.md`.
+No `docs/sprints/sprint-027-codex-review.md` archive exists
+(intentional). Full handoff: `docs/sprints/sprint-027-handoff.md`.
+
+Earlier sprint (Codex skipped, docs-only outcome — first instance):
+Sprint 26 (Latency decision sprint — consumes Sprint 25's per-LLM-
+call latency instrumentation) closed on 2026-05-15 (commit
+`1f4a1db`) as the investigation+decision sprint that walked the
+(A) widen deadline budget / (B) revert pre-`f2d4cb2` model /
+(C) accept current latency / (D) change retry-backoff / (E) other
+option space against the Sprint 25 reference smoke. Decision:
 **(C) Accept current latency.** Classification:
 **A-with-Codex-skipped (new variant — first instance)** — Codex
-review intentionally skipped per `docs/current/iteration_governance.md`
-§4.1 exemption clause for docs-only PRs, human-applied 2026-05-15.
-The Sprint 26 dev session re-verified all seven Sprint 26
-objective §3 premise checks (handoff §3; all hold), extracted
-the decision-relevant per-call data from the Sprint 25 reference
-smoke (handoff §4 — 243/243 LLM-call successes / 0 deadline
-exceedance / max chat latency 11.547s vs 30s budget = ~18s
-headroom on the worst observed call), walked the three-hypothesis
-attribution of the separate 4/14 pass-rate signal (latency
-REFUTED; model-quality PLAUSIBLE-but-CONFOUNDED with concurrent
-prompt / corpus / override changes; run-to-run variance PARTIAL),
-and rejected (A) (zero deadline exceedance leaves no problem to
-widen), (B) (collapses +3.3s and 4/14 signals per §1.7
-forbidden, would re-introduce `engine_overloaded_error` posture
-`f2d4cb2` swapped out), (D) (zero retries fired on the reference
-smoke), (E) (no fifth surface surfaced). Sprint 26 surfaced ONE
-follow-on conditional R-item:
-`R-pre-post-f2d4cb2-pass-rate-isolation` recorded at
-`docs/action_bank.md` §5.2 as `proposed; deferred` per human
-direction 2026-05-15, with re-open triggers named. Sprint 26
-shipped zero code, zero config, zero instrumentation, zero
-Sprint 24-landed or Sprint 25-landed code touched, zero
-eval-spec / case-family / prompt edits, zero Tier-0 invariant,
-zero rubric widening — the decision document
-(`docs/sprints/sprint-026-handoff.md` 12 sections) WAS the
-deliverable. Files at close commit: `docs/sprints/sprint-026-
-handoff.md` (parent dev commit landed), `docs/sprints/sprint-026-
-objective.md` (deliver-agent close-out archive), `docs/action_bank.md`
-(§5.2 conditional R-item entry + §6 closed-row), `docs/10-handoff.md`
-(prior Sprint 26 lead, now superseded by Sprint 27 above), and
-`compact/sprint-026-*-prompt.md` (rolled forward). No
-`docs/sprints/sprint-026-codex-review.md` archive exists by
-design. The natural follow-on Sprint 26 named was
-`R-prompt-phase-plan-directive-followship` (Sprint 19 3-instance
-promoted, `prompt_projection`, semantic-touching) — that became
-Sprint 27 above (which probed it and recommended (R2) targeted
-probe follow-on, gated on `R-per-case-trace-dump-for-smoke-
-harness` landing first). Pattern documented at
-`.claude/agent-memory/sprint-deliver-orchestrator/feedback_close_with_codex_skipped_docs_only_outcome.md`.
-Full handoff: `docs/sprints/sprint-026-handoff.md`.
+review intentionally skipped per `iteration_governance.md` §4.1
+exemption clause for docs-only PRs, human-applied 2026-05-15. The
+Sprint 26 dev session re-verified all seven Sprint 26 objective
+§3 premise checks (handoff §3; all hold), extracted the decision-
+relevant per-call data from the Sprint 25 reference smoke (243/243
+LLM-call successes / 0 deadline exceedance / max chat latency
+11.547s vs 30s budget), walked the three-hypothesis attribution of
+the separate 4/14 pass-rate signal (latency REFUTED; model-quality
+PLAUSIBLE-but-CONFOUNDED with concurrent prompt / corpus /
+override changes; run-to-run variance PARTIAL), and rejected (A) /
+(B) / (D) / (E). Surfaced ONE follow-on conditional R-item:
+`R-pre-post-f2d4cb2-pass-rate-isolation` recorded at `§5.2` as
+`proposed; deferred` per human direction 2026-05-15. Sprint 26
+shipped zero code / config / instrumentation / Sprint 24-landed
+or Sprint 25-landed code touched / eval-spec / case-family /
+prompt / Tier-0 / rubric edit. Full handoff:
+`docs/sprints/sprint-026-handoff.md`.
 
 Earlier sprint (Codex fix re-review pass, single-track infra/eval-harness):
 Sprint 25 (Per-LLM-call latency instrumentation — single-track
 `R-per-llm-call-latency-instrumentation`, `infra` / eval-harness)
 closed on 2026-05-14 after one narrow handoff-edit-only fix
 iteration on parent handoff's reproducibility hygiene.
-Classification: **A — Clean close** (Codex fix re-review
-`decision: pass, blocking_count: 0` against fix commit `c8b8c85`).
-Track A — Option B (writer-side eval-harness enrichment) chosen:
-surfaces existing `LlmCallLogger`-emitted timing into each
-`case_results[]` entry on `results.json` via new `llm_calls` field
-populated from `GET /v1/demo/sessions/{id}/llm-calls`. Parent
-commit `1b54b14` landed `agent_client.py.get_llm_calls`,
-`executor.py._fetch_llm_calls` + `_build_case_result` extension +
-schema-uniform placeholders on timeout/error/contract-violation
-builders, an 8-test regression file
-(`test_executor_llm_calls_enrichment.py`), and an opt-in JUnit
-synthetic baseline (`LlmSyntheticBaselineTest`, n=30 samples, p95
-922ms, 0 failures). No `LlmInvocationService.invokeChat` /
-deadline-budget / model-config / `prompt_projection` / eval-spec /
-Tier-0 edit. Worked-example pre/post-`f2d4cb2` comparison in
-handoff §5.2 (executable extraction recipes): pre chat p95 8.4s →
-post chat p95 11.7s (+3.3s widening); synthetic baseline subtraction
-~9s of additional LLM compute on the larger production context.
-Sprint 24 §10 Q1 methodology question answered (unreconstructable
-per §6.4 four-hypothesis walk; DB-grounded per-call view is the
-new per-LLM-call ground truth). Fix iteration was handoff-edit-only
-(commit `c8b8c85`): replaced ARRAY[…] placeholders with literal
-`jq` extractors + inlined outputs + self-contained `psql ... SQL`
-heredoc, added rerank `python3 -c` extractor, replaced raw-printer
-`jq` with executable mean-computation, confirmed §5.3 derived
-deltas hold. All four gaps closed per Codex re-extraction at
-`docs/sprints/sprint-025-fix-codex-review.md`. The fix commit did
-NOT bundle deliver-agent files (clean fix). Lessons captured at
-`.claude/agent-memory/sprint-deliver-orchestrator/feedback_deliver_agent_cited_numbers_must_be_reproducible.md`.
-Sprint 25 ships zero decision-action; the latency decision belongs
-to Sprint 26 above. Full handoff:
+Classification: **A — Clean close** (Codex fix re-review `pass /
+blocking_count: 0` against fix commit `c8b8c85`). Track A —
+Option B (writer-side eval-harness enrichment) chosen: surfaces
+existing `LlmCallLogger`-emitted timing into each `case_results[]`
+entry on `results.json` via new `llm_calls` field populated from
+`GET /v1/demo/sessions/{id}/llm-calls`. Parent commit `1b54b14`;
+worked-example pre/post-`f2d4cb2` chat p95 8.4s → 11.7s
+(+3.3s widening). Fix iteration was handoff-edit-only (commit
+`c8b8c85`): replaced `ARRAY[…]` placeholders with literal `jq`
+extractors + executable mean-computation. Sprint 25 ships zero
+decision-action; the latency decision belongs to Sprint 26. The
+writer-side enrichment pattern Sprint 25 established is the
+precedent Sprint 28 above mirrored exactly. Full handoff:
 `docs/sprints/sprint-025-handoff.md`. Fix Codex archive:
-`docs/sprints/sprint-025-fix-codex-review.md`.
+`docs/sprints/sprint-025-fix-codex-review.md`. Lessons in
+`.claude/agent-memory/sprint-deliver-orchestrator/feedback_deliver_agent_cited_numbers_must_be_reproducible.md`.
 
 Earlier sprint (Codex pass, no fix iteration required):
 Sprint 24 (Slow-LLM Placeholder Coalesce + Coarse Latency Proxy —
