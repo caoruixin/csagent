@@ -1,0 +1,72 @@
+case_id: cs_interactive_137
+source_session_id: 570Q5000008kwQzIAI
+source_dataset: escalation
+form_context:
+  first_name: Nicole
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: My messages to requests do not get delivered, I used two different browsers and the app to test this. I also
+    deleted the cache but this did not solve the issue.
+persona:
+  user_goal_summary: 'The user needs to fix an issue where Gumtree messages she sends are not actually delivered despite showing
+    as sent, affecting communication with buyers. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - No, I just received messages from people asking for me to reply even though I have, and now I have tested this and tried
+    sending messages to my husband via gumtree but they all did not go through
+  - Nobody replied to any of my messages, but a few send reminders (2 listings in total) and I tested a third which also did
+    not work
+  - did you get it?
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
+  escalation_trigger: user_distress
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

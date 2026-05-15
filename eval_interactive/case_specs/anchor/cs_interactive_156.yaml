@@ -1,0 +1,66 @@
+case_id: cs_interactive_156
+source_session_id: 570Q5000008qnmPIAQ
+source_dataset: escalation
+form_context:
+  first_name: Tracy
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Hello I’m having trouble changing my email address on my account. I no longer have access to [EMAIL]
+persona:
+  user_goal_summary: 'User wants to access email messages for their items for sale and transfer their active ads from the
+    currently accessible account (davi05) to their desired account (daviesnineteenseventy) because they cannot change the
+    login email. Drift: soft_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - How can I get email messages for items I have for sale then pls
+  - This is not helpful at all :(
+  - Are you able to transfer my items for sale to my daviesnineteenseventy account
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

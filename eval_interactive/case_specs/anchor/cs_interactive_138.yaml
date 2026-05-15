@@ -1,0 +1,68 @@
+case_id: cs_interactive_138
+source_session_id: 570Q5000008tdAbIAI
+source_dataset: escalation
+form_context:
+  first_name: gerard
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: What Email address can I use to make a request
+persona:
+  user_goal_summary: 'User wants to consolidate two Gumtree accounts and have ad replies sent to their active email address,
+    avoiding having to delete the app. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Tell me the Gumtree Email address where I can outline a problem
+  - After a chat yesterday, it appears that I have two Gumtree accounts. One uses [EMAIL] and the other is gleck30@gmail .com
+    The former address has not been in use for over ten years. My recently placed ad has received messages which were not
+    sent to my email address. Is it possible for you to
+  - simply sort out ONE account using the [EMAIL] and ensure that any ad messages will be duplicated by Email. I would prefer
+    to continue with Gumtree instead of deleting the entire App..
+  hidden_facts:
+  - fact: The user's old Gumtree account uses the email [EMAIL] and has not been used for over ten years.
+    disclose_when: when asked about the old account or email address
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,67 @@
+case_id: cs_interactive_182
+source_session_id: 570Q50000090NNdIAM
+source_dataset: golden
+form_context:
+  first_name: Gregg
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Hello, I not receiving messages from potential buyers.  I'm not sure if they are getting messages either.  I
+    get message from Gumtree saying you have unread messaged and I'm expecting them but nothing showing in my messages.  Pls
+    advise asap.
+persona:
+  user_goal_summary: 'User wants to understand why Gumtree email says they have unread messages when the app shows no replies,
+    and why sent messages from 3 days ago are marked as delivered but unread. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - I've already been on live chat with one of your colleagues today and he said to restart my phone and check app for updates
+    but I have done that and no difference. I have also tried opening in web browser and again showing no replies from customers
+    interested in my items being sold
+  - Ok just seems odd they both haven't replied or read message and Gumtree saying I have unread messages but if all ok from
+    what you can see then must be
+  - I sent 3 days ago
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

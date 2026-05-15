@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008fOplIAE
+case_id_hint: cs_interactive_230
+llm_model: deepseek-v4-pro
+prompt_hash: 314781adc4451767970956ae582690afd9c4c01f3ba12479bd838600cb454075
+generated_at: '2026-04-30T20:55:41.167035+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim transcripts capturing the core issue (review left for Tan, item details). User goal
+  summary updated to reflect actual intent (removal, not just display issue). Hidden facts added from transcript for relevant
+  bot queries.
+rule_draft:
+  seed_messages:
+  - Today after 2pm I left the feedback, it was only feedback I left
+  - Name of the buyer is Tan
+  - He bought baby / toddler toys
+  user_goal_summary: 'User reports Ratings & Reviews: Hi, I submitted review today to Tan but it does not show. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Today after 2pm I left the feedback, it was only feedback I left
+  - Name of the buyer is Tan
+  - He bought baby / toddler toys
+  user_goal_summary: 'User wants to remove a buyer feedback review she left for Tan earlier today, because the transaction
+    ultimately went well. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The listing Ad ID is 1502819921.
+    disclose_when: When the bot requests the Ad ID or listing details.
+accepted_value:
+  seed_messages:
+  - Today after 2pm I left the feedback, it was only feedback I left
+  - Name of the buyer is Tan
+  - He bought baby / toddler toys
+  user_goal_summary: 'User wants to remove a buyer feedback review she left for Tan earlier today, because the transaction
+    ultimately went well. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The listing Ad ID is 1502819921.
+    disclose_when: When the bot requests the Ad ID or listing details.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user is the seller, not the buyer.'''

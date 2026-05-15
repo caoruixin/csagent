@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008gkeXIAQ
+case_id_hint: row_348
+llm_model: deepseek-v4-pro
+prompt_hash: d5f8f9116ce37dd8c6c8d47e7158c566b34b037b75da258ba63bbef5691bb10f
+generated_at: '2026-04-30T20:28:45.030985+00:00'
+llm_confidence: high
+llm_rationale: Replaced 'Not sure' with 'My account has been cancelled' to better reflect the user's issue. Improved user_goal_summary
+  to be specific about the login problem and desire to regain access. All seed messages are verbatim from visitor turns and
+  describe the actual problem.
+rule_draft:
+  seed_messages:
+  - I can log into my account
+  - Not sure
+  - It's says that ive been logged out and to contact customer service
+  user_goal_summary: 'User reports Account Support: Im. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I can log into my account
+  - It's says that ive been logged out and to contact customer service
+  - My account has been cancelled
+  user_goal_summary: 'User wants to regain access to their Gumtree account. They can log in but then get a message saying
+    they''ve been logged out and to contact customer service. They''ve tried password change and suspect account may be cancelled.
+    Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I can log into my account
+  - It's says that ive been logged out and to contact customer service
+  - My account has been cancelled
+  user_goal_summary: 'User wants to regain access to their Gumtree account. They can log in but then get a message saying
+    they''ve been logged out and to contact customer service. They''ve tried password change and suspect account may be cancelled.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

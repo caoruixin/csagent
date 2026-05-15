@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008EinlIAC
+case_id_hint: row_322
+llm_model: deepseek-v4-pro
+prompt_hash: 36edea87728a0bb2d65377eca952f9ea5fa96eb9fc7b8f0051e5f9350d8cf4ac
+generated_at: '2026-04-30T19:59:06.682671+00:00'
+llm_confidence: high
+llm_rationale: Removed the closing 'Ok, thank you' from seed_messages as it does not describe the issue. Kept the two visitor
+  turns that articulate the problem and the contact inquiry. Updated user_goal_summary to a factual sentence under 280 characters.
+  Added hidden_facts grounded in the transcript (item clarification and payment method).
+rule_draft:
+  seed_messages:
+  - Hi, I haven received my money yet. The item was delivered on 26 Nov
+  - Ok, thank you
+  - Will they join the chat, via email, phone call?
+  user_goal_summary: 'User reports Payments. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi, I haven received my money yet. The item was delivered on 26 Nov
+  - Will they join the chat, via email, phone call?
+  user_goal_summary: 'User has not received payment for a black dinner suit sold via Gumtree Pay & Ship, delivered on 26 Nov,
+    and asks how the payments team will contact her. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi, I haven received my money yet. The item was delivered on 26 Nov
+  - Will they join the chat, via email, phone call?
+  user_goal_summary: 'User has not received payment for a black dinner suit sold via Gumtree Pay & Ship, delivered on 26 Nov,
+    and asks how the payments team will contact her. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The item is a black dinner suit.'''
+- 'unsupported_hidden_fact_dropped: "The transaction was made through Gumtree''s Pay & Ship option."'

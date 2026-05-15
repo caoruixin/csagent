@@ -1,0 +1,73 @@
+case_id: cs_interactive_207
+source_session_id: 570Q5000008XMjVIAW
+source_dataset: badcase
+form_context:
+  first_name: Laura
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: My ad has disappeared after paying for the ad to go live
+persona:
+  user_goal_summary: 'The user wants help recovering access to her paid ad for a budgie and cage, which disappeared from her
+    account. She insists the ad confirmation went to laura.stokoe@gmail.com and that she only has one Gumtree account. Drift:
+    soft_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - The ad which disappeared is for a budgie and cage, only posted 2 days ago. Which I paid for
+  - You have not asked me which account I want to use moving forward because I only have one account!!!!!!
+  - I ALSO TOLD YOU THAT IS HOW I KNOW IT IS LINKED TO THAT EMAIL ADDRESS. YOU ARE NOT LISTENING TO A WORD I HAVE SAID
+  hidden_facts:
+  - fact: The ad ID for the budgie and cage is 1507786350.
+    disclose_when: when the bot asks for the ad ID or reference number
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
+  escalation_trigger: clarification_budget_exhausted
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

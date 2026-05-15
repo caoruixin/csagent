@@ -1,0 +1,62 @@
+source_session_id: 570Q5000008P2mpIAC
+case_id_hint: row_218
+llm_model: deepseek-v4-pro
+prompt_hash: 1360276ee77316a85e89684fe6dbdeb322cfc435a924459428bf343f68bb8920
+generated_at: '2026-04-30T19:28:26.490118+00:00'
+llm_confidence: high
+llm_rationale: 'The original rule draft''s second seed message was a long, truncated copy of the WhatsApp conversation, which
+  is not entirely present in the supplied transcript. Replaced with two distinct, verbatim visitor turns that convey key details:
+  the payment method and the delay. The user_goal_summary was made specific to the user''s desire to report the scam and get
+  guidance on next steps. Added a hidden fact with the payment details from the transcript.'
+rule_draft:
+  seed_messages:
+  - Thanks got scammed by callum on my messages
+  - '[28/11, 17:56] Harmik: Hi its Harmik [28/11, 17:56] Harmik: In regards the dual controls [28/11, 18:23] Callum: Hi mate,
+    how are you? [28/11, 18:24] Callum: I''ll send details over just now and post tomorrow,I ha e also hand written you instructions
+    for fitment to your 207 aswell. [28/11, 18:25] Callum: Name: Callum Clark Bank: Monzo Bank Account number: 83367413 Sort
+    code: 04-00-03 [28/11, 18:25] Callum: Total amount due is £59.35. [28/11, 19:13] Harmik: Ok thank you [28/11, 19:14] Harmik:
+    Thanks mate [28/11, 19:26] Callum: Give me a message on here once it''s through mate, I''ll post it before 1pm tomorrow.
+    Should be with you Monday [28/11, 19:28] Harmik: Will do Thanks [29/11, 09:29] Harmik: Payment made. [29/11, 13:12] Harmik:
+    Can let me know when you posted the dual controls please [29/11, 13:19] Callum: I''ll call you back my friend [01/12,
+    13:26] Harmik: Hiya mate did you manage to send the parcel today ? [01/12, 13:35] Callum: I''ll call you back [01/12,
+    13:36] Harmik: Hi callum will be in work soon. If i dont answer just call please Thanks [01/12, 13:38] Harmik: Just text
+    🙄 I meant [01/12, 17:05] Harmik: Hi Callum is the car part been sent? Thanks [01/12, 18:52] Harmik: Please reply [01/12,
+    19:11] Callum: Hi mate. Not posted today. Post tomorrow, been soo busy up untill right this second. Will messge you tomorrow
+    lunch time.. [02/12, 07:30] Harmik: Ok thank you [02/12, 18:37] Harmik: Mate seriously are you actually gonna send me
+    the stuff ? Its been 3 days since I paid [02/12, 18:40] Harmik: You were gonna text me today ? [02/12, 18:42] Callum:
+    Call you back. Yes posted today. [02/12, 18:42] Harmik: Cheers thanks [02/12, 18:43] Harmik: You have reference number?
+    Thank you [03/12, 12:59] Harmik: You have a reference number? [03/12, 12:59] Harmik: When can i expect the parcel ? [04/12,
+    16:05] Harmik: Why you not answering my calls ? [04/12, 16:06] Harmik: If you send the parcel on Tuesday? I would have
+    got it by now [05/12, 09:54] Callum: I''m away on a training course in. Germany this week mate. My mum has posted your
+    parcel, but has not given me a tracking number. But I can assure you your parcel is on its way. [05/12, 09:55] Harmik:
+    Ok thanks. Will let you know when I have received the parcel [08/12, 14:41] Harmik: I havnt received the parcel. Can you
+    please tell me whats happening? [08/12, 14:44] Harmik: Thanks for scamming me mate [08/12, 14:54] Callum: No scam. I''m
+    still in Germany. I''ll phone my mum tonight and see what''s going on. [09/12, 16:57] Harmik: Did you speak to your mum
+    ? [11/12, 14:19] Harmik: Hi what''s happening with the parcel ?'
+  - Gumtree got nothing to do with it ?
+  user_goal_summary: 'User reports Delivery: Fraud victim. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Thanks got scammed by callum on my messages
+  - Made the payment into his monzo bank from my natwest account
+  - Nearly 2 weeks now and havnt got the parcel yet
+  user_goal_summary: 'User wants to report a scam where they paid £59.35 to a seller named Callum for car parts on Gumtree
+    and never received them, and wants to know what to do next. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user paid £59.35 to Callum Clark via bank transfer to Monzo account 83367413, sort code 04-00-03.
+    disclose_when: When asked about payment details or the seller's information.
+accepted_value:
+  seed_messages:
+  - Thanks got scammed by callum on my messages
+  - Made the payment into his monzo bank from my natwest account
+  - Nearly 2 weeks now and havnt got the parcel yet
+  user_goal_summary: 'User wants to report a scam where they paid £59.35 to a seller named Callum for car parts on Gumtree
+    and never received them, and wants to know what to do next. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user paid £59.35 to Callum Clark via bank transfer to Monzo account 83367413, sort code 04-00-03.
+    disclose_when: When asked about payment details or the seller's information.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

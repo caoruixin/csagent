@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008uyhdIAA
+case_id_hint: row_143
+llm_model: deepseek-v4-pro
+prompt_hash: 6f7240efcc9b4d85b97a307974a6cc8472df97737190e194d227ac384069bcc7
+generated_at: '2026-04-30T19:03:29.592544+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns that clearly state the issue (seq 5, 6) and a request for alternative
+  (seq 16). The original draft included a closing phrase, so replaced with more relevant ones. The user goal is specific and
+  within character limit. Hidden fact is grounded in agent's explanation of the policy change, which the user may not have
+  explicit knowledge of.
+rule_draft:
+  seed_messages:
+  - I am not receiving customer messages on my email?
+  - Understood and out
+  - Thanks for claryfying. Is there another way around it?
+  user_goal_summary: 'User reports Account Support: Chairs. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I am not receiving customer messages on my email?
+  - I have added another email address on my account but still messages arent being received
+  - Or can you redirect messages ?
+  user_goal_summary: 'User is not receiving customer messages to their account email, wants to use a different email or have
+    messages redirected. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User's account has a contact email address that differs from the login email, but it is no longer functional due
+      to platform changes.
+    disclose_when: when bot asks about the specific email addresses on the account
+accepted_value:
+  seed_messages:
+  - I am not receiving customer messages on my email?
+  - I have added another email address on my account but still messages arent being received
+  - Or can you redirect messages ?
+  user_goal_summary: 'User is not receiving customer messages to their account email, wants to use a different email or have
+    messages redirected. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User's account has a contact email address that differs from the login email, but it is no longer functional due
+      to platform changes.
+    disclose_when: when bot asks about the specific email addresses on the account
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

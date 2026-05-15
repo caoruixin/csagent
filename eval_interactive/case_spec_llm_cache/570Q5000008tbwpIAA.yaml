@@ -1,0 +1,47 @@
+source_session_id: 570Q5000008tbwpIAA
+case_id_hint: row_90
+llm_model: deepseek-v4-pro
+prompt_hash: df442d6a1a14f057bee39183907cf2f332eeb4fbf2c2b27a698f91da302c7305
+generated_at: '2026-04-30T13:27:28.210115+00:00'
+llm_confidence: high
+llm_rationale: Replaced the closing acknowledgment 'That's all' with a more informative turn detailing the scammer's name
+  and payment amounts. Updated user goal to explicitly state the desire for ad removal and key scam details. Added hidden
+  facts about the ad ID and CCTV evidence, both firmly grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - I reported an add a few days ago as it’s recently been active again. This person claimed to be fully insured but he ruined
+    my floors cost me a lot of money. He’s not insured so the add is fraudulent
+  - That’s all
+  - His add still saying he is fully insured
+  user_goal_summary: 'User reports Ad Support: This person scammed me. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I reported an add a few days ago as it’s recently been active again. This person claimed to be fully insured but he ruined
+    my floors cost me a lot of money. He’s not insured so the add is fraudulent
+  - His add still saying he is fully insured
+  - Bradley Davidson is his name. £130 to lay the floors and £120 was the cost of the floors
+  user_goal_summary: 'User wants the fraudulent ad (ID 1480135182) for a floor layer removed. She reported it days ago, but
+    it''s still active. The scammer ruined her floors, charged £250, and falsely claimed to be insured. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The scammer's ad ID is 1480135182.
+    disclose_when: When asked for ad identification.
+  - fact: The user has CCTV footage of the flooring being damaged.
+    disclose_when: When asked for evidence or further details.
+accepted_value:
+  seed_messages:
+  - I reported an add a few days ago as it’s recently been active again. This person claimed to be fully insured but he ruined
+    my floors cost me a lot of money. He’s not insured so the add is fraudulent
+  - His add still saying he is fully insured
+  - Bradley Davidson is his name. £130 to lay the floors and £120 was the cost of the floors
+  user_goal_summary: 'User wants the fraudulent ad (ID 1480135182) for a floor layer removed. She reported it days ago, but
+    it''s still active. The scammer ruined her floors, charged £250, and falsely claimed to be insured. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The scammer's ad ID is 1480135182.
+    disclose_when: When asked for ad identification.
+  - fact: The user has CCTV footage of the flooring being damaged.
+    disclose_when: When asked for evidence or further details.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

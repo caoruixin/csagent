@@ -1,0 +1,66 @@
+case_id: cs_interactive_268
+source_session_id: 570Q5000008aTLRIA2
+source_dataset: golden
+form_context:
+  first_name: Tony
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: He man replica sword- not sharp or a real weapon
+persona:
+  user_goal_summary: 'The user wants to confirm that their listing of a replica sword (a prop, not a weapon) is permitted
+    on the platform. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - I posted an item to sell on here a while ago and I just need to make sure it's OK with you
+  - It's a replica sword that is a prop and for display, not an actual weapon
+  hidden_facts:
+  - fact: The ad ID is 1508009125.
+    disclose_when: when asked for the ad ID or listing details
+  - fact: The ad is associated with a different email account than the one used to contact support.
+    disclose_when: when the agent mentions inability to find the ad or email mismatch
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-B
+  - UC-K
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

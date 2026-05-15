@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008WpyrIAC
+case_id_hint: row_166
+llm_model: deepseek-v4-pro
+prompt_hash: 75ced10fdf2d2e3806701188e003723ce3618935557b363e5f5d72cf90fdb5b7
+generated_at: '2026-04-30T19:09:01.315195+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed_messages are verbatim visitor turns that capture the core issue (ad removal, password change).
+  I added hidden facts based on explicit details from the transcript. The user goal summary now reflects the user's actual
+  request rather than the generic UNKNOWN placeholder, and stays within the character limit.
+rule_draft:
+  seed_messages:
+  - I need to make my ad live
+  - Yes, they asked me to change my password, and I did
+  - AD IS REMOVED
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I need to make my ad live
+  - Yes, they asked me to change my password, and I did
+  - AD IS REMOVED
+  user_goal_summary: 'User wants to make their ad (ID 1507639333) live again after it was removed for the second time; they
+    have already complied with password change request. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Ad ID is 1507639333.
+    disclose_when: when asked for ad details
+accepted_value:
+  seed_messages:
+  - I need to make my ad live
+  - Yes, they asked me to change my password, and I did
+  - AD IS REMOVED
+  user_goal_summary: 'User wants to make their ad (ID 1507639333) live again after it was removed for the second time; they
+    have already complied with password change request. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Ad ID is 1507639333.
+    disclose_when: when asked for ad details
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User already changed their password as requested.'''

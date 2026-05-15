@@ -1,0 +1,73 @@
+case_id: cs_interactive_317
+source_session_id: 570Q5000008yDgvIAE
+source_dataset: badcase
+form_context:
+  first_name: Amy
+  email: customer@example.com
+  topic_subject: Ratings & Reviews
+  ad_id: ''
+  description: I’ve received bad review score from someone who wasn’t a buyer. They say I was unresponsive but you can see
+    that I did reply, and then I sold the item to someone else and deleted the ad. I had no further contact from this person
+    so pls delete their neg
+persona:
+  user_goal_summary: 'User wants removal of a negative review left by a non-buyer, citing proof in messages that she responded
+    and sold to someone else. After denial due to 30-day limit, she escalates as a policy complaint. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - But you have proof I responded and proof I sold the items to another buyer through my messages I don’t see why a 30 day
+    window matters. My messages are still there
+  - Then can you escalate it into a complaint regarding your policies please. I don’t see why 30 days or 58 days changes anything
+  - I can understand if this was many months ago but all the information is on my account in my messages
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason out_of_scope.
+  escalation_trigger: out_of_scope
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

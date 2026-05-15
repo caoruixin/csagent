@@ -1,0 +1,70 @@
+case_id: cs_interactive_255
+source_session_id: 570Q5000008rKnBIAU
+source_dataset: golden
+form_context:
+  first_name: Ria
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Persian kittens for sale
+persona:
+  user_goal_summary: 'User paid twice to post an ad for Persian kittens; it was rejected due to multiple accounts. They want
+    to find out which other accounts they have and get the ad posted. Drift: soft_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi I have paid twice now to put my add up and apparently it doesn’t meet the rules but I have followed them all can you
+    help me to sort this
+  - What account? I am very confused
+  - Ok I have a separate email that I don’t use anymore maybe that has an old account how will I find out what other accounts
+    I have linked? Or are they all linked to my email?
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

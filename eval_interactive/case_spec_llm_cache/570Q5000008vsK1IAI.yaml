@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008vsK1IAI
+case_id_hint: row_359
+llm_model: deepseek-v4-pro
+prompt_hash: 54a9f4b6bea4b72e3d8b1ac0de7169e1b1f783b4cc90f4616b9cc565fbf254aa
+generated_at: '2026-04-30T20:30:31.529649+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim issue-bearing quotes from the transcript. Original summary was too generic; updated
+  to reflect the user's specific goal. Added a hidden fact grounded in the transcript (the ad reference number provided by
+  the user).
+rule_draft:
+  seed_messages:
+  - I cannot access my sd?
+  - I've manage to repost it ...thanks for no help really.
+  - My details tell me nothing
+  user_goal_summary: 'User reports Account Support: Cars other. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I cannot access my sd?
+  - I've manage to repost it ...thanks for no help really.
+  - My details tell me nothing
+  user_goal_summary: 'User wants to locate his active car ad after editing it, because it shows no active ads in his account
+    or on the website, and understand why it''s missing. Drift: soft_shift.'
+  hidden_facts:
+  - fact: User's ad reference number is 1504340230.
+    disclose_when: when asked for the ad ID or reference number
+accepted_value:
+  seed_messages:
+  - I cannot access my sd?
+  - I've manage to repost it ...thanks for no help really.
+  - My details tell me nothing
+  user_goal_summary: 'User wants to locate his active car ad after editing it, because it shows no active ads in his account
+    or on the website, and understand why it''s missing. Drift: soft_shift.'
+  hidden_facts:
+  - fact: User's ad reference number is 1504340230.
+    disclose_when: when asked for the ad ID or reference number
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

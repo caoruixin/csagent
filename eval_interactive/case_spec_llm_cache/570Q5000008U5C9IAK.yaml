@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008U5C9IAK
+case_id_hint: row_95
+llm_model: deepseek-v4-pro
+prompt_hash: 432b2a6d80d9fd77a610716264e67dc2aa5b2bc21ce05fc18b04844a0730c8c0
+generated_at: '2026-04-30T13:29:14.626823+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim and issue-relevant. Updated user_goal_summary to be more precise and under 280 characters.
+  Added a hidden fact from the agent-provided profile link.
+rule_draft:
+  seed_messages:
+  - Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before
+  - No I will try that. Thank you
+  - Thanks I'll try that. And then will it stay as that address for next time?
+  user_goal_summary: 'User reports Account Support: I think I have the wrong email address on my app account so am not getting
+    messages to the app and it''s telling me I have no adverts.. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before
+  - No I will try that. Thank you
+  - Thanks I'll try that. And then will it stay as that address for next time?
+  user_goal_summary: 'The user wants to change the email address associated with their app account to the one they use on
+    the computer, so they can see their live ads and receive messages on the app. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user's account profile with live ads is located at https://www.gumtree.com/profile/account/20709352fbc0a3c3eadf8a799b11fb76
+    disclose_when: when the bot asks for account details or profile link to verify identity
+accepted_value:
+  seed_messages:
+  - Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before
+  - No I will try that. Thank you
+  - Thanks I'll try that. And then will it stay as that address for next time?
+  user_goal_summary: 'The user wants to change the email address associated with their app account to the one they use on
+    the computer, so they can see their live ads and receive messages on the app. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user's account profile with live ads is located at https://www.gumtree.com/profile/account/20709352fbc0a3c3eadf8a799b11fb76
+    disclose_when: when the bot asks for account details or profile link to verify identity
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

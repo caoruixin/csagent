@@ -1,0 +1,69 @@
+case_id: cs_interactive_017
+source_session_id: 570Q5000008pEh3IAE
+source_dataset: badcase
+form_context:
+  first_name: Mark
+  email: customer@example.com
+  topic_subject: Ratings & Reviews
+  ad_id: ''
+  description: Hi, hope you are well m I just noticed that someone has given me bad feedback for finding out that I had just
+    sold a bicycle. And it was not available. Can this be removed? Many thanks Mark 133 days ago. Buyer user id SYRO
+persona:
+  user_goal_summary: 'User wants a 1-star feedback removed because a buyer left negative feedback after finding the bicycle
+    was already sold when they tried to purchase. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - He was very angry it was not for sale anymore. I had literally just sold it
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason out_of_scope.
+  escalation_trigger: out_of_scope
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

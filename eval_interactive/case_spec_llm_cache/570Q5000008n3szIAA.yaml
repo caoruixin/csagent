@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008n3szIAA
+case_id_hint: row_99
+llm_model: deepseek-v4-pro
+prompt_hash: 4c71da78b7590bbc803c8d11900e38b20fb24397e6b64a5d3df7aa3cb3f2dd23
+generated_at: '2026-04-30T13:29:57.661807+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns at seq 4, 35, 45. User goal summary refined to specifically describe
+  request for transcript with police report context. Hidden facts are directly supported by seq 21 and 29.
+rule_draft:
+  seed_messages:
+  - I had a chat a couple of weeks ago about a seller called Ben, I was expecting the transcript to be emailed to me, but
+    never saw anything
+  - Just frustrating. I thought I'd asked for the copy of the chat with your agent to be emailed to me.
+  - I await your email from GDPR dept
+  user_goal_summary: 'User reports Account Support: Last chat transcript please. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I had a chat a couple of weeks ago about a seller called Ben, I was expecting the transcript to be emailed to me, but
+    never saw anything
+  - Just frustrating. I thought I'd asked for the copy of the chat with your agent to be emailed to me.
+  - I await your email from GDPR dept
+  user_goal_summary: 'User wants to obtain a transcript of a previous chat with an agent about a scam seller named Ben, including
+    reference numbers and details needed to file a police report. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I had a chat a couple of weeks ago about a seller called Ben, I was expecting the transcript to be emailed to me, but
+    never saw anything
+  - Just frustrating. I thought I'd asked for the copy of the chat with your agent to be emailed to me.
+  - I await your email from GDPR dept
+  user_goal_summary: 'User wants to obtain a transcript of a previous chat with an agent about a scam seller named Ben, including
+    reference numbers and details needed to file a police report. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The visitor was scammed out of £166.40 by a seller named Ben on Gumtree.'''
+- 'unsupported_hidden_fact_dropped: ''The visitor also lost £95 to another fraudulent seller.'''

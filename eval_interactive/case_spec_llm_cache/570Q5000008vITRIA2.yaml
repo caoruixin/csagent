@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008vITRIA2
+case_id_hint: row_168
+llm_model: deepseek-v4-pro
+prompt_hash: 0ec1e4c8c9e80f7c6b5361909430f61e46407406f3d5fc7b7fab39be15fd0597
+generated_at: '2026-04-30T19:10:15.025833+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from the two key user messages describing the issue. User goal summary captures
+  the expressed desire to understand the account status and identify the account manager, with drift type appended. No hidden
+  facts are materially supported by the transcript beyond user-provided contact info, which is not a hidden fact.
+rule_draft:
+  seed_messages:
+  - I want to come of the site deleted it but still on it why
+  - Who is the account manager
+  user_goal_summary: 'User reports Account Support: Why is my account still on when I have deleted it. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I want to come of the site deleted it but still on it why
+  - Who is the account manager
+  user_goal_summary: 'User wants to know why their account remains active after they attempted to delete it and needs to identify
+    their account manager to resolve the issue. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I want to come of the site deleted it but still on it why
+  - Who is the account manager
+  user_goal_summary: 'User wants to know why their account remains active after they attempted to delete it and needs to identify
+    their account manager to resolve the issue. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

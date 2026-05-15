@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008hVjtIAE
+case_id_hint: row_74
+llm_model: deepseek-v4-pro
+prompt_hash: c91b7d6e850d80c70a41caeac92449038cf66fa2e8a466a4539b7c81491d5869
+generated_at: '2026-04-30T13:21:08.314708+00:00'
+llm_confidence: high
+llm_rationale: Improved seed_messages by removing a non-issue-bearing thanks turn, keeping two turns that directly express
+  the user's concerns. Refined user_goal_summary to be specific and under 280 characters, adding drift appendix. No hidden_facts
+  added because all relevant facts are already disclosed in the transcript.
+rule_draft:
+  seed_messages:
+  - Yes business and then I was asked for my bank details but I am worried that I may be scammed as not sure if the details
+    given are safe
+  - That is kind yes please
+  - Oh I am sorry I posted before and someone messaged me saying I was deceiving them because I hadn't posted under business
+  user_goal_summary: 'User reports Account Support: I would like to check as I have given my bank details that I am now set
+    up . Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Yes business and then I was asked for my bank details but I am worried that I may be scammed as not sure if the details
+    given are safe
+  - Oh I am sorry I posted before and someone messaged me saying I was deceiving them because I hadn't posted under business
+  user_goal_summary: 'To verify that her bank details are safe after being asked for them for a business account, and to clarify
+    if she needs a business account after someone accused her of deceiving buyers by posting under personal. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Yes business and then I was asked for my bank details but I am worried that I may be scammed as not sure if the details
+    given are safe
+  - Oh I am sorry I posted before and someone messaged me saying I was deceiving them because I hadn't posted under business
+  user_goal_summary: 'To verify that her bank details are safe after being asked for them for a business account, and to clarify
+    if she needs a business account after someone accused her of deceiving buyers by posting under personal. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

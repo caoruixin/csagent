@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008syVdIAI
+case_id_hint: cs_interactive_088
+llm_model: deepseek-v4-pro
+prompt_hash: 3f53986a1b5d76433b6807bbeb50f7d105d14734cd9c645c4854c0fea0ec02a2
+generated_at: '2026-04-30T20:42:22.149059+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue-bearing seed message with a directly relevant complaint from the transcript; kept two other
+  good issue quotes; summarized user goal succinctly based on explicit requests.
+rule_draft:
+  seed_messages:
+  - Hi, ok, thanks.
+  - They say I cancelled an offer, that is a lie!
+  - No, I prefer you remove this fraudulent and harassing review
+  user_goal_summary: 'User reports Ratings & Reviews: Hi, I received a 1 star resting and negative feedback from a member,
+    but I never sold them anything, so they shouldn’t have been able to rate me at all; please could you delete their rating
+    and feedback, thanks. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - 'It is fraudulent: to leave a review they should have bought the item, but they didn’t. So they clearly lied to be able
+    to leave it.'
+  - No, I prefer you remove this fraudulent and harassing review
+  - They say I cancelled an offer, that is a lie!
+  user_goal_summary: 'The user wants a 1-star review and negative feedback removed because they never sold anything to the
+    reviewer, so the review is fraudulent. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - 'It is fraudulent: to leave a review they should have bought the item, but they didn’t. So they clearly lied to be able
+    to leave it.'
+  - No, I prefer you remove this fraudulent and harassing review
+  - They say I cancelled an offer, that is a lie!
+  user_goal_summary: 'The user wants a 1-star review and negative feedback removed because they never sold anything to the
+    reviewer, so the review is fraudulent. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

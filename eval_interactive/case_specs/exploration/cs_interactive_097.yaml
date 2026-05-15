@@ -1,0 +1,73 @@
+case_id: cs_interactive_097
+source_session_id: 570Q5000008w5YzIAI
+source_dataset: drift_control
+form_context:
+  first_name: Ola
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I paid a deposit of £150 to the seller with an agreement that he will post the phone to me and I will pay the
+    balance of £150 after receiving the phone. I have been asking the seller to refund my £150 since he's refusing to post
+    the post phone to me.
+persona:
+  user_goal_summary: 'User needs Gumtree to help recover a £150 deposit from a seller who hasn''t sent the phone, and requests
+    resending of the support email asking for screenshots because they didn''t receive it. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I already brought this issue to the attention of one of your colleagues who promised to escalate the matter and get back
+    to me via email. I have still not heard from gumtree while the seller still holds on to my £150.
+  - I'm not sure that I received this email.
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-B
+  - UC-C
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (registered_email, ad_id_or_order_reference, brief_description), and hand over with reason payment_dispute_detected.
+  escalation_trigger: payment_dispute_detected
+  risk_level: high
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

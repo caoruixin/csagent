@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008bFgDIAU
+case_id_hint: row_243
+llm_model: deepseek-v4-pro
+prompt_hash: 4d38db2c3920eab6d0d5e13a2ceb8518a38f616b2d6b3a857072b50e6ac6cb60
+generated_at: '2026-04-30T19:39:04.175807+00:00'
+llm_confidence: high
+llm_rationale: The seed messages are directly from the transcript and describe the core issue. The user goal summary captures
+  the user's specific concern, and hidden facts are grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - i paid for this ad id 1508016323
+  - this was the best pacakge i bought but still i am not on front page
+  - are you there
+  user_goal_summary: 'User reports Account Support: it is in regards to an ad. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - i paid for this ad id 1508016323
+  - this was the best pacakge i bought but still i am not on front page
+  - there is one company doing same services there are hundred of adds coming on front pages
+  user_goal_summary: 'User wants their paid ad (ID 1508016323) to appear on the front page as they believe was promised, because
+    they see many ads from a competitor there. Drift: none.'
+  hidden_facts:
+  - fact: The user purchased the best package for ad ID 1508016323.
+    disclose_when: when the bot asks about the ad details or package.
+accepted_value:
+  seed_messages:
+  - i paid for this ad id 1508016323
+  - this was the best pacakge i bought but still i am not on front page
+  - there is one company doing same services there are hundred of adds coming on front pages
+  user_goal_summary: 'User wants their paid ad (ID 1508016323) to appear on the front page as they believe was promised, because
+    they see many ads from a competitor there. Drift: none.'
+  hidden_facts:
+  - fact: The user purchased the best package for ad ID 1508016323.
+    disclose_when: when the bot asks about the ad details or package.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''A competing company has many ads appearing on the front page.'''

@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008LvbNIAS
+case_id_hint: row_202
+llm_model: deepseek-v4-pro
+prompt_hash: 45bb5abe67b0d5970bb725ec188a26f5372c56fd6c9e45e17808b66575e571d4
+generated_at: '2026-04-30T19:22:25.495259+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim quotes from the visitor's turns that express the core issue. The user goal is clearly
+  to get the account sorted after a delay with no response; the transcript provides direct support. Hidden facts are drawn
+  from agent statement (email sent) and user statement (replied but not sorted). No key decisions are made on outcomes or
+  bot actions.
+rule_draft:
+  seed_messages:
+  - I contacted you last week about my account and still no response this is annoying
+  - I did to the hotmail and it's still not been sorted
+  - No just sort my account so I can use
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I contacted you last week about my account and still no response this is annoying
+  - I did to the hotmail and it's still not been sorted
+  - No just sort my account so I can use
+  user_goal_summary: 'User wants their Gumtree account issue resolved immediately after no response to last week''s report;
+    they say they replied to verification email but it''s still not sorted. Drift: soft_shift.'
+  hidden_facts:
+  - fact: An account verification email was sent to the user's Gmail address on 25/11/2025.
+    disclose_when: when the bot asks about the verification email or account status
+accepted_value:
+  seed_messages:
+  - I contacted you last week about my account and still no response this is annoying
+  - I did to the hotmail and it's still not been sorted
+  - No just sort my account so I can use
+  user_goal_summary: 'User wants their Gumtree account issue resolved immediately after no response to last week''s report;
+    they say they replied to verification email but it''s still not sorted. Drift: soft_shift.'
+  hidden_facts:
+  - fact: An account verification email was sent to the user's Gmail address on 25/11/2025.
+    disclose_when: when the bot asks about the verification email or account status
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user claims they replied to the email (mentioning ''hotmail''), but the issue remains
+  unresolved."'

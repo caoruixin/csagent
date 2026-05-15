@@ -1,0 +1,27 @@
+source_session_id: 570Q5000008caqfIAA
+case_id_hint: row_244
+llm_model: deepseek-v4-pro
+prompt_hash: e51d31e29aa72cac907ebe62379ef09e1a9ad49836bf8f146a1ff587c726d689
+generated_at: '2026-04-30T19:37:45.379880+00:00'
+llm_confidence: high
+llm_rationale: The seed_message is a verbatim visitor turn describing the issue. The updated user_goal_summary more precisely
+  reflects the user's intent. No hidden facts could be grounded in the transcript without invention.
+rule_draft:
+  seed_messages:
+  - Put the wrong sale price for dog.
+  user_goal_summary: 'User reports Account Support: Need to change ad. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Put the wrong sale price for dog.
+  user_goal_summary: 'Correct the sale price on a dog ad because the wrong price was listed. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Put the wrong sale price for dog.
+  user_goal_summary: 'Correct the sale price on a dog ad because the wrong price was listed. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

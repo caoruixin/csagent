@@ -1,0 +1,70 @@
+case_id: cs_interactive_174
+source_session_id: 570Q5000008sDmrIAE
+source_dataset: drift_control
+form_context:
+  first_name: John
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: This ad says i have 55 replies but i cant find a single one
+persona:
+  user_goal_summary: 'User wants to view the 55 replies indicated on their ad listing and resolve the issue of not seeing
+    any messages when clicking on replies. Later, after following agent''s advice, they become locked out and need help regaining
+    account access. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - It says 55 replies and when i click on it no replies come up
+  - First of all I am not using an app and never said I was full stop secondly what on earth is contact email and login email
+    I have no idea what you're talking about
+  - I will leave it like that for now. Do you save these conversations?
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

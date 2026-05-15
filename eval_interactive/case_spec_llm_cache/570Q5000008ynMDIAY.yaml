@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008ynMDIAY
+case_id_hint: row_83
+llm_model: deepseek-v4-pro
+prompt_hash: 5adbd38141f727d29245502d722fd2fe7d0886651d03b99f3d2685a245c45251
+generated_at: '2026-04-30T13:23:38.589540+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and clearly express the user's issues. User goal summary refined
+  to focus on review removal request. Hidden fact added from agent's disclosure about 30-day policy to support simulator behavior.
+rule_draft:
+  seed_messages:
+  - I was just speaking to yourself and you closed the chat without giving me the chance to respond
+  - we can’t even view the review
+  - it is a disgrace you allow false reviews on your platform
+  user_goal_summary: 'User reports Account Support: Customer service member was very rude. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I was just speaking to yourself and you closed the chat without giving me the chance to respond
+  - we can’t even view the review
+  - it is a disgrace you allow false reviews on your platform
+  user_goal_summary: 'User requests removal of a one-star false review left by a non-customer that is affecting their business;
+    they are unable to view the review and will leave platform if not resolved. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I was just speaking to yourself and you closed the chat without giving me the chance to respond
+  - we can’t even view the review
+  - it is a disgrace you allow false reviews on your platform
+  user_goal_summary: 'User requests removal of a one-star false review left by a non-customer that is affecting their business;
+    they are unable to view the review and will leave platform if not resolved. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The one-star review was left more than 30 days ago and thus falls outside Gumtree''s
+  dispute window."'

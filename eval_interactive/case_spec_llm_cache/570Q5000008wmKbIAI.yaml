@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008wmKbIAI
+case_id_hint: row_130
+llm_model: deepseek-v4-pro
+prompt_hash: 4422b55d10ea7fb48eb2c62d76edb8d7a6d48587cf2787d9e80100730c6c23fd
+generated_at: '2026-04-30T13:39:35.659153+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced ''Well thank you'' (a closing remark) with a more issue-descriptive quote. All seed messages are
+  verbatim visitor turns that clearly communicate the core problem and the broken promise. The user_goal_summary was refined
+  to concisely capture the user''s specific desire: publishing the draft ad without payment due to the trader label dispute.
+  Hidden facts are grounded in the transcript and help the simulator reveal context during interaction.'
+rule_draft:
+  seed_messages:
+  - Why did the last person end the chat
+  - I don't understand why you didn't do this about 20 mins ago
+  - Well thank you
+  user_goal_summary: 'User reports Account Support: Hiya my account says it Trade when I try and sell my car. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - My ad says I'm a trader but I'm not and trying to sell a car
+  - It's in my drafts
+  - And the last customer service agent said I wouldn't have to pay now your saying it can't be done.
+  user_goal_summary: 'User wants the advertisement for selling his car, currently in drafts, to be published without a payment
+    as a private seller, despite the account being labeled as a trader from a previous ad. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - My ad says I'm a trader but I'm not and trying to sell a car
+  - It's in my drafts
+  - And the last customer service agent said I wouldn't have to pay now your saying it can't be done.
+  user_goal_summary: 'User wants the advertisement for selling his car, currently in drafts, to be published without a payment
+    as a private seller, despite the account being labeled as a trader from a previous ad. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The advertisement for the car is currently in draft status and not yet live.'''
+- 'unsupported_hidden_fact_dropped: ''A previous customer service agent assured the user that the issue would be sorted without
+  any payment.'''

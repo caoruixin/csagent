@@ -1,0 +1,67 @@
+case_id: cs_interactive_023
+source_session_id: 570Q5000008hVf3IAE
+source_dataset: badcase
+form_context:
+  first_name: jonathan
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: if i update my add will it be my third or will i have one left
+persona:
+  user_goal_summary: 'User wants to repost a puppy ad and needs clarification on whether it counts as a third ad against a
+    limit of 3, or if they can post another litter without violating the rules. Drift: soft_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - my puppy ad has run out and i would like to repost it but am i only aloud 3 ads is this classed as my third or can i post
+    another litter thanks
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-D
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
+  escalation_trigger: clarification_budget_exhausted
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

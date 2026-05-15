@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008WDITIA4
+case_id_hint: row_360
+llm_model: deepseek-v4-pro
+prompt_hash: 8b0094e3465adc4821efc68a7b4a35e7a9746b4ff183894bdc3d4abd891ca189
+generated_at: '2026-04-30T20:31:13.920610+00:00'
+llm_confidence: high
+llm_rationale: Replaced the thank-you seed message with a more issue-specific turn expressing confusion about charges. Updated
+  user_goal_summary to precisely describe the user's intent regarding charge explanations and stopping automatic payments.
+  Added grounded hidden_facts about the actual number of ads and payment dates.
+rule_draft:
+  seed_messages:
+  - I was charged £3.75 and £2.25 twice yesterday for my 2 framed horse prints that I put on Gumtree for sale and 2 more payments
+    from meta platform for £1.50 & £2.00
+  - Yes that's it thank you.
+  - 3 live ads in thought I have only 2 the 2 horse racing framed prints.
+  user_goal_summary: 'User reports Account Support: Need to speak to someone about advertising charges please. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I was charged £3.75 and £2.25 twice yesterday for my 2 framed horse prints that I put on Gumtree for sale and 2 more payments
+    from meta platform for £1.50 & £2.00
+  - So I thought I was paying for 14 days for each Framed print so I am wanting to know why these other payment being taken
+    out and what are they for.
+  - 3 live ads in thought I have only 2 the 2 horse racing framed prints.
+  user_goal_summary: 'User wants an explanation for multiple charges on their account: £3.75, two £2.25, and Meta platform
+    payments £1.50 and £2.00. They believed payments were one-off and wants to ensure no further automatic charges. Drift:
+    soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I was charged £3.75 and £2.25 twice yesterday for my 2 framed horse prints that I put on Gumtree for sale and 2 more payments
+    from meta platform for £1.50 & £2.00
+  - So I thought I was paying for 14 days for each Framed print so I am wanting to know why these other payment being taken
+    out and what are they for.
+  - 3 live ads in thought I have only 2 the 2 horse racing framed prints.
+  user_goal_summary: 'User wants an explanation for multiple charges on their account: £3.75, two £2.25, and Meta platform
+    payments £1.50 and £2.00. They believed payments were one-off and wants to ensure no further automatic charges. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user has three live ads: two for ''Desert Orchid'' and one for ''We Three Kings''."'
+- 'unsupported_hidden_fact_dropped: ''The payments were made on December 20 and 21.'''

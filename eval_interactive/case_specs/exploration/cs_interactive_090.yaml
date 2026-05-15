@@ -1,0 +1,78 @@
+case_id: cs_interactive_090
+source_session_id: 570Q5000008tbwpIAA
+source_dataset: badcase
+form_context:
+  first_name: Louise
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: This person scammed me. I have reported the add but it’s not been taken down.
+persona:
+  user_goal_summary: 'User wants the fraudulent ad (ID 1480135182) for a floor layer removed. She reported it days ago, but
+    it''s still active. The scammer ruined her floors, charged £250, and falsely claimed to be insured. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I reported an add a few days ago as it’s recently been active again. This person claimed to be fully insured but he ruined
+    my floors cost me a lot of money. He’s not insured so the add is fraudulent
+  - His add still saying he is fully insured
+  - Bradley Davidson is his name. £130 to lay the floors and £120 was the cost of the floors
+  hidden_facts:
+  - fact: The scammer's ad ID is 1480135182.
+    disclose_when: When asked for ad identification.
+  - fact: The user has CCTV footage of the flooring being damaged.
+    disclose_when: When asked for evidence or further details.
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-FP
+  - UC-K
+  - UC-C
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (report_target, report_type, description), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason trust_safety_required.
+  escalation_trigger: trust_safety_required
+  risk_level: critical
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

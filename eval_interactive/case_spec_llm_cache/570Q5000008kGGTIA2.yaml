@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008kGGTIA2
+case_id_hint: row_50
+llm_model: deepseek-v4-pro
+prompt_hash: 743485ae8d7842d714d2699f33503f2275f306c51d37862badc0faf64a85502e
+generated_at: '2026-04-30T13:15:03.181884+00:00'
+llm_confidence: high
+llm_rationale: Replaced 'are you still there?' with a direct question about the issue (turn 13) to focus seed messages on
+  the problem. Refined user_goal_summary to explicitly state the user's desire for an explanation and a non-disruptive fix.
+  Added a hidden fact about losing a sale to provide context for frustration and urgency.
+rule_draft:
+  seed_messages:
+  - my messages are being sent to an old email address. Not the address which is registered for my account. And i lost a slae
+    because of that
+  - that is the best advice you can give me?
+  - are you still there?
+  user_goal_summary: 'User reports Account Support: I lost a sale because my message was sent to wrong email. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - my messages are being sent to an old email address. Not the address which is registered for my account. And i lost a slae
+    because of that
+  - that is the best advice you can give me?
+  - can you tell me why the emails are now going to my old address?
+  user_goal_summary: 'User seeks explanation and fix for email delivery to old address instead of new primary, without deleting
+    account. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - my messages are being sent to an old email address. Not the address which is registered for my account. And i lost a slae
+    because of that
+  - that is the best advice you can give me?
+  - can you tell me why the emails are now going to my old address?
+  user_goal_summary: 'User seeks explanation and fix for email delivery to old address instead of new primary, without deleting
+    account. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user lost a sale because a message was sent to the old email address.'''

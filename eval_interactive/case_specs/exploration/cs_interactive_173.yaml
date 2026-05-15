@@ -1,0 +1,76 @@
+case_id: cs_interactive_173
+source_session_id: 570Q5000008kJHZIA2
+source_dataset: drift_control
+form_context:
+  first_name: Ellis
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: This is panda she's an old English bulldog,  3.5 years old she's had 1 litter and hasn't been spayed yet ,
+    she's a leggier type girl strong fit and healthy as you can see in the pics , she's a super clean breather too can walk
+    until you stop , she's lived
+persona:
+  user_goal_summary: 'The user wants a refund for a Gumtree ad that was approved and then removed after being active for only
+    about 20 minutes, and wants to know if reposting a similar ad is allowed before the refund is processed. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - I would like my add reposted or a refund as it was only active for around 20 minutes . Thank you
+  - Why does it need a specialist team can you explain why . The add was approved then removed . My payment was still taken
+    .
+  - Just issue the refund . Thanks
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-H
+  secondary_ucs:
+  - UC-I
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (ad_id_or_listing_url, registered_email), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason appeal_requires_human.
+  escalation_trigger: appeal_requires_human
+  risk_level: high
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

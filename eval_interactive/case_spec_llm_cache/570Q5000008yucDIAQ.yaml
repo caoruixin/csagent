@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008yucDIAQ
+case_id_hint: row_325
+llm_model: deepseek-v4-pro
+prompt_hash: 1ac21a9a74e738a23bb985c43ce135ea742e896d4c0d5aa82cc94afbaf0eea21
+generated_at: '2026-04-30T20:00:32.792286+00:00'
+llm_confidence: high
+llm_rationale: Replaced the sign-off seed message with a frustration/escalation turn from seq 10 to better represent the user's
+  issue. Updated user_goal_summary to be specific and added hidden facts from the transcript.
+rule_draft:
+  seed_messages:
+  - Hi, I’m looking to ensure my full account is deleted . I’m having issues with the process and need it actioned asap please
+    .
+  - No thanks, have a nice evening .
+  - Do you have a reference number ? I would like to ensure this happens and the correct information is captured.
+  user_goal_summary: 'User reports Account Support: Delete account in full. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi, I’m looking to ensure my full account is deleted . I’m having issues with the process and need it actioned asap please
+    .
+  - I have tried many times a few months ago. I don’t understand why it’s so difficult. I’ve never had this issue with other
+    companies or apps etc to delete my own account. Please can you escalate this .
+  - Do you have a reference number ? I would like to ensure this happens and the correct information is captured.
+  user_goal_summary: 'User wants their Gumtree account fully deleted and insists on speaking with a manager because previous
+    deletion attempts via the app were unsuccessful. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user was given reference number 00400918 for the current request.
+    disclose_when: when asked for a reference number or confirmation details.
+accepted_value:
+  seed_messages:
+  - Hi, I’m looking to ensure my full account is deleted . I’m having issues with the process and need it actioned asap please
+    .
+  - I have tried many times a few months ago. I don’t understand why it’s so difficult. I’ve never had this issue with other
+    companies or apps etc to delete my own account. Please can you escalate this .
+  - Do you have a reference number ? I would like to ensure this happens and the correct information is captured.
+  user_goal_summary: 'User wants their Gumtree account fully deleted and insists on speaking with a manager because previous
+    deletion attempts via the app were unsuccessful. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user was given reference number 00400918 for the current request.
+    disclose_when: when asked for a reference number or confirmation details.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has already submitted two account deletion requests previously.'''

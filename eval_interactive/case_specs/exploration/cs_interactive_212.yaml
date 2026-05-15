@@ -1,0 +1,76 @@
+case_id: cs_interactive_212
+source_session_id: 570Q5000008kN3RIAU
+source_dataset: badcase
+form_context:
+  first_name: Way
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: please connect me to Thato
+persona:
+  user_goal_summary: 'The user wants to know why his Gumtree account was blocked, confirm he will get a refund for a paid
+    ad, and speak to the business team to set up a business account after his contact form submissions went unanswered. Drift:
+    hard_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - but please I want to know the reason at least
+  - and will I get my paid ad money back in 3 to 5 days ? as I received email that they will refund it
+  - Yes I already filled this form twice but there is no response from your business team is there any place I can talk to
+    them ?
+  hidden_facts:
+  - fact: The payment was cancelled on Gumtree's side and will reflect back to the user's account in 3-5 days.
+    disclose_when: When the bot asks about refund status.
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-H
+  - UC-K
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (registered_email, ad_id_or_order_reference, brief_description), and hand over with reason user_requested.
+  escalation_trigger: user_requested
+  risk_level: high
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

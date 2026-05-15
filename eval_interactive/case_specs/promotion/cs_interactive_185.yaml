@@ -1,0 +1,66 @@
+case_id: cs_interactive_185
+source_session_id: 570Q5000008dwQvIAI
+source_dataset: golden
+form_context:
+  first_name: Trevor
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: You told me to clear cookies but I don’t get More tools when I click on the 4 dots
+persona:
+  user_goal_summary: 'User wants to access his Gumtree account. He cannot clear cookies because clicking the 4 dots does not
+    show ''More tools'' as expected. He had [EMAIL] but Microsoft blocked it, now using [EMAIL]. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - Gumtree told me to clear cookies by clicking on the 4 dots when I should get More Tools but I don’t get more tools
+  - Trying to get access to my account
+  - I had [EMAIL] but Microsoft blocked it so I am now using [EMAIL]
+  hidden_facts:
+  - fact: The user has two live ads posted on their Gumtree account.
+    disclose_when: when the bot asks about account activity or ad status
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-H
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

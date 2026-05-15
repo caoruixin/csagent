@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008NV89IAG
+case_id_hint: row_187
+llm_model: deepseek-v4-pro
+prompt_hash: 79aceaf727444146c00b2fede420355311c071edc077f39c3d32e2c2376a37e5
+generated_at: '2026-04-30T19:17:00.539414+00:00'
+llm_confidence: high
+llm_rationale: Replaced 'Thankyou' (acknowledgment) with a substantive visitor turn describing the login issue (seq 7). Updated
+  user goal summary to accurately capture the complaint and login problem. Added a hidden fact about the specific error message
+  from seq 8. All seed messages are verbatim from visitor turns.
+rule_draft:
+  seed_messages:
+  - I was rudely dsicomnwcyed form my previous agent called Narran m
+  - Thankyou
+  - This has been going on for a month and need to have this looked into
+  user_goal_summary: 'User reports UNKNOWN. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I was rudely dsicomnwcyed form my previous agent called Narran m
+  - So I get a pw reset email and once I update my pw it says pw updated. When I go to login it says pw or email incorrect
+  - This has been going on for a month and need to have this looked into
+  user_goal_summary: 'User wants to complain about a rude disconnection by previous agent and resolve persistent login issues
+    with password reset and email link recognition. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I was rudely dsicomnwcyed form my previous agent called Narran m
+  - So I get a pw reset email and once I update my pw it says pw updated. When I go to login it says pw or email incorrect
+  - This has been going on for a month and need to have this looked into
+  user_goal_summary: 'User wants to complain about a rude disconnection by previous agent and resolve persistent login issues
+    with password reset and email link recognition. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user also gets an ''email ink not recognised'' error."'

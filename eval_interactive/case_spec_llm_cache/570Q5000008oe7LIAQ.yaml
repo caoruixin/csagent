@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008oe7LIAQ
+case_id_hint: row_163
+llm_model: deepseek-v4-pro
+prompt_hash: efdb240f4311eae745e8b59f826d6d94d3fe734e231955c28afd705473270bb5
+generated_at: '2026-04-30T19:08:33.481730+00:00'
+llm_confidence: high
+llm_rationale: Seed messages accurately capture the user's core complaint and closing sentiment. The user_goal_summary was
+  revised to describe the specific desired outcome (ad reinstatement) rather than repeating the form topic. A relevant hidden
+  fact from the transcript was added to provide context about prior deletions.
+rule_draft:
+  seed_messages:
+  - You have deleted my ad. I wanted to list it
+  - Thank you hopefully ad will go live soon
+  - Ok obviously problems at your end thank you
+  user_goal_summary: 'User reports Ad Support: Stainless steel kitchen unit handles. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - You have deleted my ad. I wanted to list it
+  - Thank you hopefully ad will go live soon
+  - Ok obviously problems at your end thank you
+  user_goal_summary: 'User wants her Gumtree ad for stainless steel kitchen unit handles, which was deleted, to be reinstated
+    and go live. Drift: hard_shift.'
+  hidden_facts:
+  - fact: This is the second time today an advert of mine has been deleted. The other one was sorted while I was in the chat.
+    disclose_when: When the agent asks about the issue or expresses confusion.
+accepted_value:
+  seed_messages:
+  - You have deleted my ad. I wanted to list it
+  - Thank you hopefully ad will go live soon
+  - Ok obviously problems at your end thank you
+  user_goal_summary: 'User wants her Gumtree ad for stainless steel kitchen unit handles, which was deleted, to be reinstated
+    and go live. Drift: hard_shift.'
+  hidden_facts:
+  - fact: This is the second time today an advert of mine has been deleted. The other one was sorted while I was in the chat.
+    disclose_when: When the agent asks about the issue or expresses confusion.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

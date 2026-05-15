@@ -1,0 +1,41 @@
+run_metadata:
+  timestamp: '2026-04-30T06:10:37.167698+00:00'
+  model: deepseek-v4-pro
+  prompt_template_sha256: 61617a17cfd68a14ef0a7496724c2141e0896b6e0b92c34394668f858e9c0364
+  sessions_audited: 1
+  calls_made: 0
+  calls_skipped_no_transcript: []
+  dry_run: true
+summary:
+  seed_messages_changed: 0
+  user_goal_summary_changed: 0
+  hidden_facts_changed: 0
+  confidence_distribution: {}
+  validation_status_distribution:
+    dry_run: 1
+sessions:
+- source_session_id: 570Q5000008hx9tIAA
+  case_id_hint: cs_interactive_012
+  primary_uc: UC-FP
+  source_dataset: badcase
+  spec_path: eval_interactive/case_specs/anchor/cs_interactive_012.yaml
+  prompt_hash: 5444ac582f9c9cc5a9052bcbce7d5e2ffc7142ccc14cc91cef7a2e04c481813b
+  rule_draft:
+    seed_messages:
+    - Hi Jason
+    - Thank you and happy new year
+    - Ok pls look in to this as soon as possible pls
+    user_goal_summary: 'User reports Ad Support: Kitten. Drift: soft_shift.'
+    hidden_facts: []
+  llm_proposal: null
+  llm_confidence: ''
+  llm_rationale: ''
+  validation_status: dry_run
+  validation_notes:
+  - 'dry_run: no DeepSeek call made'
+  diff_summary:
+    seed_messages_changed: false
+    user_goal_summary_changed: false
+    hidden_facts_changed: false
+  error: null
+  skipped_reason: null

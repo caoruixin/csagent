@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008uR8zIAE
+case_id_hint: row_349
+llm_model: deepseek-v4-pro
+prompt_hash: e93b006d597fd76647d7511f78ad18d7f1403e748ec1280f5a0cdf041c18b4a6
+generated_at: '2026-04-30T20:28:07.587040+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim issue-bearing visitor statements from the transcript. User goal summary is factual
+  and specific to the user's reported problem. No hidden facts are identifiable from the transcript beyond what is already
+  stated.
+rule_draft:
+  seed_messages:
+  - Your password reset system is not recognising the link from your reset email
+  - I'm using the app on a mobile
+  user_goal_summary: 'User reports Account Support: Password Reset not working on website or mobile app. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Your password reset system is not recognising the link from your reset email
+  - I'm using the app on a mobile
+  user_goal_summary: 'User wants to reset their Gumtree password but the reset link from the email is not being recognized
+    by the system, especially when using the mobile app. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Your password reset system is not recognising the link from your reset email
+  - I'm using the app on a mobile
+  user_goal_summary: 'User wants to reset their Gumtree password but the reset link from the email is not being recognized
+    by the system, especially when using the mobile app. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

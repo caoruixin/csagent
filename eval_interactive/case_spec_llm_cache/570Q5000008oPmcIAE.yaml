@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008oPmcIAE
+case_id_hint: row_31
+llm_model: deepseek-v4-pro
+prompt_hash: 04930227eb584f77a72eaa2a0b03f30aac31604af09e607c73886d04a8ce61dc
+generated_at: '2026-04-30T13:08:23.562359+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed_messages are verbatim issue-bearing visitor turns and adequately capture the user's problem.
+  The user_goal_summary is improved to reflect the specific request.
+rule_draft:
+  seed_messages:
+  - I posted 2 ads why have they been remy
+  - Ok will wait for the email
+  - Ok will your email me
+  user_goal_summary: 'User reports Ad Support: Hi. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I posted 2 ads why have they been remy
+  - Ok will wait for the email
+  - Ok will your email me
+  user_goal_summary: 'User wants to know why her two ads for toys were removed, and expects account restriction to be lifted
+    and to be contacted via email. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I posted 2 ads why have they been remy
+  - Ok will wait for the email
+  - Ok will your email me
+  user_goal_summary: 'User wants to know why her two ads for toys were removed, and expects account restriction to be lifted
+    and to be contacted via email. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

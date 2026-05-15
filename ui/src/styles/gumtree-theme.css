@@ -1,0 +1,145 @@
+:root {
+  --color-primary: #0D475C;
+  --color-cta: #5CE00B;
+  --color-cta-hover: #4BC009;
+  --color-text: #000;
+  --color-text-secondary: #3C3241;
+  --color-text-muted: #635B67;
+  --color-bg: #FFF;
+  --color-bg-secondary: #F1F1F1;
+  --color-border: #E0E0E0;
+  --font-family: "Readex Pro", -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius: 8px;
+  --shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-family);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+input,
+textarea,
+select {
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-primary);
+}
+
+/* ── Button styles ── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #0a3a4d;
+}
+
+.btn-cta {
+  background: var(--color-cta);
+  color: #000;
+  font-weight: 600;
+}
+
+.btn-cta:hover {
+  background: var(--color-cta-hover);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.btn-outline:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.btn-ghost:hover {
+  background: var(--color-bg-secondary);
+}
+
+/* ── Scrollbar ── */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}

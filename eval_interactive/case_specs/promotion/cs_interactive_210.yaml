@@ -1,0 +1,74 @@
+case_id: cs_interactive_210
+source_session_id: 570Q5000008by5UIAQ
+source_dataset: badcase
+form_context:
+  first_name: Mel
+  email: customer@example.com
+  topic_subject: Ratings & Reviews
+  ad_id: ''
+  description: Would like to complain about a recent incorrect review
+persona:
+  user_goal_summary: 'The user wants Gumtree to investigate and remove a negative review left on 4th December by a seller
+    named Sean, who didn''t respond with an address, so the ''not turning up'' review is inaccurate. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - 4th December
+  - Feel this will put buyers off
+  - This is the second time this has happen seems quite unfair as I recently had a buyer not turning up after I waited in
+    all day, but never left them a bad review
+  hidden_facts:
+  - fact: This is the second time the user has received an unfair review; previously a buyer didn't show up but the user didn't
+      leave a bad review.
+    disclose_when: when asked about past experiences or the fairness of the review
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-H
+  - UC-K
+  - UC-F
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason out_of_scope.
+  escalation_trigger: out_of_scope
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

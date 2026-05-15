@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008uNuzIAE
+case_id_hint: row_205
+llm_model: deepseek-v4-pro
+prompt_hash: eb86888b5ec6463b4bd4f53b711ff1ed0ebbdddc9bcecb0c372d45bd18d3e8f9
+generated_at: '2026-04-30T19:23:01.264755+00:00'
+llm_confidence: high
+llm_rationale: Rule draft seed messages were weak; replaced with more substantive quotes. User goal summary made specific.
+  Hidden facts added based on transcript details.
+rule_draft:
+  seed_messages:
+  - Neither
+  - Not sure which is linked to my account
+  - Il just find another seller.
+  user_goal_summary: 'User reports Replies & Messaging: Not receiving my messages. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I messaged this particular seller a few months back regarding this particular ad, she didn’t respond so I eventually gave
+    up but she has more recently posted another item that I want to buy as well but she’s not responding on that either
+  - 26th July last year was my original message. Is there any way of you prompting a nudge?
+  user_goal_summary: 'User messaged a seller about two items but got no response. Wants to know if messages were sent, if
+    they can be nudged to respond, and will find another seller if not resolved. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I messaged this particular seller a few months back regarding this particular ad, she didn’t respond so I eventually gave
+    up but she has more recently posted another item that I want to buy as well but she’s not responding on that either
+  - 26th July last year was my original message. Is there any way of you prompting a nudge?
+  user_goal_summary: 'User messaged a seller about two items but got no response. Wants to know if messages were sent, if
+    they can be nudged to respond, and will find another seller if not resolved. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s original message to this seller was sent on July 26th of last year."'
+- 'unsupported_hidden_fact_dropped: ''The user has provided two email addresses and is unsure which one is linked to their
+  account.'''

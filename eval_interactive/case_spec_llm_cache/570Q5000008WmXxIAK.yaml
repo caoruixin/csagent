@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008WmXxIAK
+case_id_hint: cs_interactive_015
+llm_model: deepseek-v4-pro
+prompt_hash: 7650794cef10343d133cfe0479c0c2323c100d32f8e72d9505e6d5e64fdb2f8c
+generated_at: '2026-04-30T21:59:47.627628+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are verbatim visitor turns expressing the core issue. The user goal summary clarifies the
+  user's intent to edit the ad due to specific reasons. One hidden fact provides ad title context.
+rule_draft:
+  seed_messages:
+  - ok so how do I change it?
+  - so I can't just change it?
+  - you mean my ankles in the image???
+  user_goal_summary: 'User reports Ad Support: Hi - can you tell me what happened to my ad?. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - ok so how do I change it?
+  - so I can't just change it?
+  - you mean my ankles in the image???
+  user_goal_summary: 'The user wants to edit their rejected Gumtree ad because it was flagged for containing ''men only''
+    text and visible body parts, specifically their ankles. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The ad title was 'Male Massage and Waxing, by a Male'.
+    disclose_when: if the bot asks for details about the ad
+accepted_value:
+  seed_messages:
+  - ok so how do I change it?
+  - so I can't just change it?
+  - you mean my ankles in the image???
+  user_goal_summary: 'The user wants to edit their rejected Gumtree ad because it was flagged for containing ''men only''
+    text and visible body parts, specifically their ankles. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The ad title was 'Male Massage and Waxing, by a Male'.
+    disclose_when: if the bot asks for details about the ad
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

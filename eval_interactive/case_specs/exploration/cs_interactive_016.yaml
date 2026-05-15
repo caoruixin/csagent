@@ -1,0 +1,74 @@
+case_id: cs_interactive_016
+source_session_id: 570Q5000008bSlVIAU
+source_dataset: badcase
+form_context:
+  first_name: Katerina
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Track my history
+persona:
+  user_goal_summary: 'User wants to retrieve an old Gumtree bike listing from around 2021 to find the brand after the bike
+    was stolen. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hello,Lerato.I would like to find an old transaction, from a bike I bought few years ago.Is that possible?Thanks
+  - I m not sure which one I used in the past.They are both mine
+  - My bike is stolen and I am not quite sure about the brand. I had bought it from Gumtree, so I believe the details I need
+    are shown in the advertisement
+  hidden_facts:
+  - fact: The bike transaction occurred around 2021.
+    disclose_when: when asked about the date or timeframe of the purchase
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-C
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (report_target, report_type, description), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason trust_safety_required.
+  escalation_trigger: trust_safety_required
+  risk_level: critical
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

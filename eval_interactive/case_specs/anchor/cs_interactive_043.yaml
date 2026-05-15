@@ -1,0 +1,71 @@
+case_id: cs_interactive_043
+source_session_id: 570Q5000008WJ2vIAG
+source_dataset: intake_tool_contract
+form_context:
+  first_name: John
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Something is definitely not right with the website. I tend to have a quick look in my local area (Stirling)
+    and usually there are between 2000 and 3000 ads. Today there are more than 35,000 and some are NOWHERE near Stirling
+persona:
+  user_goal_summary: 'User wants the search for ''for sale and Stirling'' to return the usual ~2,500 local results, not 35,000
+    with far-away ads, and wants a follow-up email option after troubleshooting. Drift: none.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: none
+  seed_messages:
+  - I can do that but it seems strange that one moment I get a sensible answer (this morning) and the next time I look the
+    response to the url results in ten times as many results with the filter clearly not working as expected…
+  - That is a much smaller number than I usually see - but less than the 35k I got half an hour ago!
+  hidden_facts:
+  - fact: The user is using a phone and may need to clear all browsing history and cache, which could disrupt the chat session.
+    disclose_when: when the bot suggests clearing cache and the user expresses concern about losing the chat
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason intake_complete_for_uc_k.
+  escalation_trigger: intake_complete_for_uc_k
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

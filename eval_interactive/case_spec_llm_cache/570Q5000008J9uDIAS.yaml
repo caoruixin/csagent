@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008J9uDIAS
+case_id_hint: row_323
+llm_model: deepseek-v4-pro
+prompt_hash: 6a6dc5cf01053293ebad7912c2007ff0fda0c6f851ae45a6ef65970eb36cc876
+generated_at: '2026-04-30T20:00:01.466624+00:00'
+llm_confidence: high
+llm_rationale: 'The rule draft seed messages were greetings and sign-offs. Replaced with three verbatim visitor turns stating
+  the core issues: defunct email, account restriction, and request to close and open new. User goal summary captures the user''s
+  intent succinctly. Hidden facts are grounded in transcript details about the email and restriction.'
+rule_draft:
+  seed_messages:
+  - Hi Candice. I need your help.
+  - Thanks ☺️
+  - Have a great rest of your day
+  user_goal_summary: 'User reports Help. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - The trouble is the email address associated with the account is no longer active and I know I can’t change it
+  - The previous agent said there was a restriction on my account
+  - Could you just close this account and I open a new one?
+  user_goal_summary: 'User wants to close their old restricted Gumtree account (with a defunct email) and open a new one to
+    message sellers and buy a bed. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The email associated with the old account is no longer active and cannot be changed.
+    disclose_when: when the bot asks about the old account email or why the user wants to close it
+accepted_value:
+  seed_messages:
+  - The trouble is the email address associated with the account is no longer active and I know I can’t change it
+  - The previous agent said there was a restriction on my account
+  - Could you just close this account and I open a new one?
+  user_goal_summary: 'User wants to close their old restricted Gumtree account (with a defunct email) and open a new one to
+    message sellers and buy a bed. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The email associated with the old account is no longer active and cannot be changed.
+    disclose_when: when the bot asks about the old account email or why the user wants to close it
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The old account is restricted, so messages sent from it are not delivered.'''

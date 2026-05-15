@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008kj8nIAA
+case_id_hint: row_196
+llm_model: deepseek-v4-pro
+prompt_hash: 734c10506e7b9001523d578c8fe3f57a335da2927e8276a72ada9d13ad94006b
+generated_at: '2026-04-30T19:20:22.435344+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing statement with a stronger issue statement from the transcript. Added a verified hidden fact
+  from the transcript. The original draft had a non-issue seed message.
+rule_draft:
+  seed_messages:
+  - Good morning, the above ID is just one of many for which I always leave a review, good or bad, my issue is that NONE of
+    the reviews I leave are published against the buyer or potential buyer's account
+  - I will monitor things, have a good day.
+  - I will monitor this, how long doe it take to have a buyers reives left updated?
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Good morning, the above ID is just one of many for which I always leave a review, good or bad, my issue is that NONE of
+    the reviews I leave are published against the buyer or potential buyer's account
+  - Noooooooooo, my issue is that all and any reviews that I leave are never applied to that buyer or messer
+  - I will monitor this, how long doe it take to have a buyers reives left updated?
+  user_goal_summary: 'User wants reviews they leave for buyers on Gumtree to be displayed on the buyers'' profiles, but currently
+    none of their reviews appear. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User left a 1-star review for buyer Biyon on ad 1505285308.
+    disclose_when: when the agent asks for specific ad ID, buyer name, or review details
+accepted_value:
+  seed_messages:
+  - Good morning, the above ID is just one of many for which I always leave a review, good or bad, my issue is that NONE of
+    the reviews I leave are published against the buyer or potential buyer's account
+  - Noooooooooo, my issue is that all and any reviews that I leave are never applied to that buyer or messer
+  - I will monitor this, how long doe it take to have a buyers reives left updated?
+  user_goal_summary: 'User wants reviews they leave for buyers on Gumtree to be displayed on the buyers'' profiles, but currently
+    none of their reviews appear. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User left a 1-star review for buyer Biyon on ad 1505285308.
+    disclose_when: when the agent asks for specific ad ID, buyer name, or review details
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

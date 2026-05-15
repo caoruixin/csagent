@@ -1,0 +1,69 @@
+case_id: cs_interactive_256
+source_session_id: 570Q5000008cma5IAA
+source_dataset: golden
+form_context:
+  first_name: Amir Parviz
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: When I go to "double room for rent kilburn"  I do not see my ad listed.  I have not been getting responses
+    over the past 2 weeks and I am wondering why I do not see my ad when I search for it?
+persona:
+  user_goal_summary: 'The user wants to find his own ad (ID 1506986492) when searching ''double room for rent Kilburn'' on
+    Gumtree, and to understand why he hasn''t received responses in two weeks. Drift: soft_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - 'My Ad ID: 1506986492, I can''t find my ad when I click on "double room for rent Kilburn"'
+  - No replies in past 2 weeks.
+  - I can see my ad when I go to manage my ads. I just can't see my ad when I go to gumtree and search for "double room for
+    rent kilburn"
+  hidden_facts:
+  - fact: The user priced the double room at the lower end of £1150-1250 pcm because ChatGPT suggested it based on location
+      and room details.
+    disclose_when: when the agent asks about the rental price or why the ad may not be attracting interest.
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,14 @@
+{
+  "ad_id": "AD-1002",
+  "title": "Rare Vintage Watch Collection",
+  "category": "Jewellery & Watches",
+  "status": "REMOVED",
+  "seller_email": "jane.suspended@example.com",
+  "created_date": "2025-11-20",
+  "price": 2500.00,
+  "currency": "GBP",
+  "views": 89,
+  "replies": 3,
+  "removal_reason": "policy_violation",
+  "removed_at": "2025-11-22T14:30:00Z"
+}

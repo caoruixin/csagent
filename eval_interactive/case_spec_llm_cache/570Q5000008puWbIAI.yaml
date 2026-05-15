@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008puWbIAI
+case_id_hint: row_297
+llm_model: deepseek-v4-pro
+prompt_hash: 54f41c5f0a2bce07b054600d21218463b7cd1c5f8010f88a825bd9aaa19dbf0f
+generated_at: '2026-04-30T19:52:07.587903+00:00'
+llm_confidence: high
+llm_rationale: Replaced the single-word 'Oh' seed with a more informative visitor turn 'Doesn’t say seen on my end' which
+  directly expresses the core issue. Refined user_goal_summary to be a concise factual statement under 280 characters. No
+  hidden facts needed as all key information is already in seed messages or explicit in the transcript.
+rule_draft:
+  seed_messages:
+  - Oh I don’t know what it is it’s for the Dogue de Bordeaux that’s £350 in market deeping in Cambridgeshire
+  - Oh
+  - Okay so what can I do now as very interested
+  user_goal_summary: 'User reports Account Support: Been trying to get hold of a seller regarding a dog for sale it says he’s
+    bee active but my messages have not been read. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Oh I don’t know what it is it’s for the Dogue de Bordeaux that’s £350 in market deeping in Cambridgeshire
+  - Doesn’t say seen on my end
+  - Okay so what can I do now as very interested
+  user_goal_summary: 'User wants to contact the seller of a Dogue de Bordeaux dog ad in Market Deeping, Cambridgeshire listed
+    for £350, because their messages are not marked as ''seen'' despite the seller being active. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Oh I don’t know what it is it’s for the Dogue de Bordeaux that’s £350 in market deeping in Cambridgeshire
+  - Doesn’t say seen on my end
+  - Okay so what can I do now as very interested
+  user_goal_summary: 'User wants to contact the seller of a Dogue de Bordeaux dog ad in Market Deeping, Cambridgeshire listed
+    for £350, because their messages are not marked as ''seen'' despite the seller being active. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

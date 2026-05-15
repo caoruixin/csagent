@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008uy1iIAA
+case_id_hint: row_246
+llm_model: deepseek-v4-pro
+prompt_hash: a54c82d57ccfe22654f03bc9d0bbd36726a4b6aec6ba42127b38ecfc318c0f32
+generated_at: '2026-04-30T19:39:03.841632+00:00'
+llm_confidence: high
+llm_rationale: Seed messages accurately capture the user's core issue from the transcript. The user_goal_summary has been
+  rewritten to be a concise, factual statement of the user's desire. A hidden fact about the father-in-law arrangement is
+  supported by the transcript and can be disclosed if relevant.
+rule_draft:
+  seed_messages:
+  - Hi Jason, is it possible to change my location for the series of adverts I am currently positing? For example, whilst
+    my home address is Blandford, Dorset the items are actually at my father-in-law's address which is Bournemouth, Dorset.
+  - Understood, but according to your earlier statement that means I cannot post with the correct location i.e. Bournemouth.
+    Is this correct or can I change it somehow?
+  - Okay, I missed the fact that you could enter the location when posting the ad. Thanks for your help.
+  user_goal_summary: 'User reports Account Support: Dual Rise and Recline Armchair. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi Jason, is it possible to change my location for the series of adverts I am currently positing? For example, whilst
+    my home address is Blandford, Dorset the items are actually at my father-in-law's address which is Bournemouth, Dorset.
+  - Understood, but according to your earlier statement that means I cannot post with the correct location i.e. Bournemouth.
+    Is this correct or can I change it somehow?
+  - Okay, I missed the fact that you could enter the location when posting the ad. Thanks for your help.
+  user_goal_summary: 'User wants to change location on current ads from Blandford to Bournemouth, or learn to post ads in
+    Bournemouth using his same account without duplicating across locations. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi Jason, is it possible to change my location for the series of adverts I am currently positing? For example, whilst
+    my home address is Blandford, Dorset the items are actually at my father-in-law's address which is Bournemouth, Dorset.
+  - Understood, but according to your earlier statement that means I cannot post with the correct location i.e. Bournemouth.
+    Is this correct or can I change it somehow?
+  - Okay, I missed the fact that you could enter the location when posting the ad. Thanks for your help.
+  user_goal_summary: 'User wants to change location on current ads from Blandford to Bournemouth, or learn to post ads in
+    Bournemouth using his same account without duplicating across locations. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User is posting on behalf of his father-in-law and will monitor the account for him.'''

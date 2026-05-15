@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008qgjJIAQ
+case_id_hint: cs_interactive_019
+llm_model: deepseek-v4-pro
+prompt_hash: 99fb26c11548530d3f5bfbb54ca88cce737ddb82414af0fc54cdc58c073673d0
+generated_at: '2026-04-30T10:51:57.204985+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from the transcript and capture the user's issue. The user goal summary was expanded
+  to clearly state the problem and desired outcome. Added two relevant hidden facts from the transcript to enable richer simulation.
+rule_draft:
+  seed_messages:
+  - Hi, i reported yesterday that the laptop i am selling. The person has received the laptop and is not giving me my money,
+    instead its part of a scam.
+  - Ye got it. Just waiting for the email
+  - I am just hoping to either get paid or get the laptop back. I will repond to the email as soon as I receive it
+  user_goal_summary: 'User reports Payments: Asus laptop not paid for. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi, i reported yesterday that the laptop i am selling. The person has received the laptop and is not giving me my money,
+    instead its part of a scam.
+  - Ye got it. Just waiting for the email
+  - I am just hoping to either get paid or get the laptop back. I will repond to the email as soon as I receive it
+  user_goal_summary: 'User reported a buyer on Gumtree received the laptop but did not pay, and the case was closed by reportfraud.police.com.
+    User wants to either get paid or get the laptop back. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user already reported the incident to reportfraud.police.com, but they closed the case without investigating.
+    disclose_when: when the bot suggests reporting to police or asks about previous reports
+accepted_value:
+  seed_messages:
+  - Hi, i reported yesterday that the laptop i am selling. The person has received the laptop and is not giving me my money,
+    instead its part of a scam.
+  - Ye got it. Just waiting for the email
+  - I am just hoping to either get paid or get the laptop back. I will repond to the email as soon as I receive it
+  user_goal_summary: 'User reported a buyer on Gumtree received the laptop but did not pay, and the case was closed by reportfraud.police.com.
+    User wants to either get paid or get the laptop back. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user already reported the incident to reportfraud.police.com, but they closed the case without investigating.
+    disclose_when: when the bot suggests reporting to police or asks about previous reports
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The buyer''s name is Mathew and the communication on Gumtree occurred 6 days ago."'

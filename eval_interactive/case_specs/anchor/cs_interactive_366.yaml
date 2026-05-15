@@ -1,0 +1,71 @@
+case_id: cs_interactive_366
+source_session_id: 570Q5000008fpLJIAY
+source_dataset: badcase
+form_context:
+  first_name: Robert
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Whay has my phone contact been taken off my ad? Can't reinstate it by trying to edit ad.
+persona:
+  user_goal_summary: 'User wants the option to list their phone number restored and a safe way to arrange item collection
+    without phone numbers. Drift: soft_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - 'Well here''s some feedback: getting quite a lot of views and no responses so I would say not a successful trial. There
+    appears to have been no warning or announcement of that by the way?'
+  - Utterly, utterly stupid.
+  - What? How on earth are you supposed to arrange collection/pick up of items safely?
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_requested.
+  escalation_trigger: user_requested
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008VLjVIAW
+case_id_hint: row_272
+llm_model: deepseek-v4-pro
+prompt_hash: 07fbc39c1a541b5d0fb3f19fe3d2392c32927f7ddbdc1764c31f200e000a0c6b
+generated_at: '2026-04-30T19:44:57.566252+00:00'
+llm_confidence: high
+llm_rationale: Improved seed_messages to directly capture the user's issue with delivery errors, using verbatim quotes from
+  transcript. Updated user_goal_summary to be specific and factual. Added hidden_facts based on error details and spam folder
+  mention.
+rule_draft:
+  seed_messages:
+  - Will do give me a minute
+  - Thank you for checking
+  - No the error message came later to my email in the spam folder
+  user_goal_summary: 'User reports Replies & Messaging: None of my replies to my messages are coming. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Yours has come through but when i replied back to some people yestetday it came up with delivery error and did not gobthrough
+  - It said error 550:5.7.1
+  - It said relaying denied
+  user_goal_summary: 'User wants to understand why their replies to messages result in delivery error 550:5.7.1 (relaying
+    denied) and to get their replies working again. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Yours has come through but when i replied back to some people yestetday it came up with delivery error and did not gobthrough
+  - It said error 550:5.7.1
+  - It said relaying denied
+  user_goal_summary: 'User wants to understand why their replies to messages result in delivery error 550:5.7.1 (relaying
+    denied) and to get their replies working again. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The delivery error code was 550:5.7.1 and it said relaying denied.'''
+- 'unsupported_hidden_fact_dropped: "The error notification from the failed reply went to the user''s email spam folder."'

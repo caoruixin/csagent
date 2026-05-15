@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008k56XIAQ
+case_id_hint: row_51
+llm_model: deepseek-v4-pro
+prompt_hash: 58ceaf74cf91825c4676599e890bf00ae78731838bcbbf18b1283b4c72e6bb39
+generated_at: '2026-04-30T13:15:56.698388+00:00'
+llm_confidence: high
+llm_rationale: Seed messages were replaced to reflect the three core issues (review, iPad app, account consolidation) using
+  direct quotes from the transcript. The user_goal_summary succinctly states these goals in 206 characters. Hidden facts about
+  the review confusion and dual-account login are directly supported by the conversation.
+rule_draft:
+  seed_messages:
+  - Yes sorry couldn’t find ad number
+  - Shall I just change contact email back to tiscali that would be easier
+  - Bye … you to!
+  user_goal_summary: 'User reports Account Support: Bronx wardrobe. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I tried to place a good review for the buyer of this wardrobe but link goes to messages and nothing there to place a review?
+  - The other thing is on my iPad I can’t bring up sold/unsold items,
+  - How do I go about making sure Google account the only one
+  user_goal_summary: 'User wants to leave a positive review for the buyer of a wardrobe, resolve issues with seeing sold/unsold
+    items on the iPad app, and consolidate two accounts to use only the Google email. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I tried to place a good review for the buyer of this wardrobe but link goes to messages and nothing there to place a review?
+  - The other thing is on my iPad I can’t bring up sold/unsold items,
+  - How do I go about making sure Google account the only one
+  user_goal_summary: 'User wants to leave a positive review for the buyer of a wardrobe, resolve issues with seeing sold/unsold
+    items on the iPad app, and consolidate two accounts to use only the Google email. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "Angela''s attempted review was not submitted; the rating she saw was actually the seller''s
+  review of her."'
+- 'unsupported_hidden_fact_dropped: ''Angela is logged into her @tiscali.co.uk account on the iPad and @googlemail.com account
+  on the phone, causing inconsistent visibility of sold/unsold items.'''

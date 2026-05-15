@@ -1,0 +1,67 @@
+case_id: cs_interactive_208
+source_session_id: 570Q5000008kjFGIAY
+source_dataset: badcase
+form_context:
+  first_name: Frank
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Can u plz kindly connect me with Monisha
+persona:
+  user_goal_summary: 'User wants to speak with Monisha to complain about accounts posting duplicate spam ads, and wants the
+    platform to take action against them. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hi can u plz connect me with Monisha thanks
+  - Hi Monisha I have a thing that I want to complain against some accounts posting free duplicate spam ads I report them
+    even tell the agents asswell no one is taking any action can u plz look in to this
+  hidden_facts:
+  - fact: 'The user is reporting three Gumtree profile accounts: https://www.gumtree.com/profile/account/d4e73920db9cda3f80996bf644155f7d,
+      https://www.gumtree.com/profile/account/3046e0a00de405a8d43da7f5cb1f93cc, https://www.gumtree.com/profile/account/732f885b90b13af165d36bb2cf25a6de'
+    disclose_when: when the agent asks for the ad IDs or account details
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-H
+  - UC-D
+  - UC-B
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

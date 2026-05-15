@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008iy8jIAA
+case_id_hint: row_159
+llm_model: deepseek-v4-pro
+prompt_hash: 2748f2c743ed3c5b50fdd68e12213348dad37b41ccba9af767b81942a0b326a0
+generated_at: '2026-04-30T19:08:00.431277+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced closing/acknowledgement turns with issue-bearing visitor lines from the transcript. The new seed
+  messages directly describe the user''s problem: being the landlord, the ad not appearing, and the payment reference. The
+  user_goal_summary succinctly states the user''s desired outcome. Added a hidden fact (Order ID) that can be disclosed when
+  the bot asks for ad or payment details.'
+rule_draft:
+  seed_messages:
+  - I am the landlord
+  - Ok thanks
+  - Hello are you there
+  user_goal_summary: 'User reports Account Support: Hi I posted a single room for rent at and £2.99 but my ad is not seen
+    on your website please advise. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - I am the landlord
+  - my add not seen on your website posted today
+  - Order ID 503333648
+  user_goal_summary: 'User wants their paid ad (Order ID 503333648) for a room at £2.99 to appear on Gumtree. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User's PayPal Order ID for the ad is 503333648
+    disclose_when: When the bot asks for ad ID, transaction ID, or proof of payment.
+accepted_value:
+  seed_messages:
+  - I am the landlord
+  - my add not seen on your website posted today
+  - Order ID 503333648
+  user_goal_summary: 'User wants their paid ad (Order ID 503333648) for a room at £2.99 to appear on Gumtree. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User's PayPal Order ID for the ad is 503333648
+    disclose_when: When the bot asks for ad ID, transaction ID, or proof of payment.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

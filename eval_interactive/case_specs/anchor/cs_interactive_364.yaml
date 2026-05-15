@@ -1,0 +1,77 @@
+case_id: cs_interactive_364
+source_session_id: 570Q5000008pyjtIAA
+source_dataset: badcase
+form_context:
+  first_name: Stefan
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Ad not bumped up as paid for
+persona:
+  user_goal_summary: 'The user paid to bump up their ad and expects it to appear second in the search results (most relevant
+    sort) because only one other ad was bumped up today; they want the paid bump to effectively raise their ad''s position.
+    Drift: soft_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi there, I paid to bump up my ad this morning and since then only one other person's ad has been bumped up so my ad should
+    be second in the listing not way down
+  - As only one other ad has been refreshed/bumped up today i reasonably expect it to now be second on the listing - otherwise
+    what have I paid for? It's now no higher than before it was bumped up but, to reiterate, only one persons ad has been
+    updated since
+  - I expect to get whats been paid for, simple as that.
+  hidden_facts:
+  - fact: The user historically observed that bump-ups put their ad at the top of the most relevant list, which is not happening
+      this time.
+    disclose_when: the bot questions the user's expectation that the ad should appear second
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-K
+  - UC-B
+  - UC-C
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
+  escalation_trigger: clarification_budget_exhausted
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

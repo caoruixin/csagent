@@ -1,0 +1,41 @@
+source_session_id: 570Q50000091ATCIA2
+case_id_hint: cs_interactive_316
+llm_model: deepseek-v4-pro
+prompt_hash: 87d6eac6581cdb5f26f3f4cc9199b2144239306e978905054e85a1cfcf60f396
+generated_at: '2026-04-30T20:57:53.427751+00:00'
+llm_confidence: high
+llm_rationale: Replaced non-issue-bearing seed messages with visitor turns that express the issue and desire for callback.
+  Added hidden facts for account number and manager name from the transcript. User goal summary clarified.
+rule_draft:
+  seed_messages:
+  - i have been trying to call gumtree for over a year now
+  - no thank you very much for your time
+  - it is of the utmost importance
+  user_goal_summary: 'User reports Account Support: I would like to cancel our monthly payments to gumtree as we no longer
+    have any need for the service. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - i have been trying to call gumtree for over a year now
+  - i can give my account number if you would like
+  - please do ensure that i receive a call regarding this matter
+  user_goal_summary: 'The user wants to cancel their monthly payments to Gumtree because they no longer need the service.
+    Drift: soft_shift.'
+  hidden_facts:
+  - fact: Account number is GT0067295264
+    disclose_when: bot asks for account details
+accepted_value:
+  seed_messages:
+  - i have been trying to call gumtree for over a year now
+  - i can give my account number if you would like
+  - please do ensure that i receive a call regarding this matter
+  user_goal_summary: 'The user wants to cancel their monthly payments to Gumtree because they no longer need the service.
+    Drift: soft_shift.'
+  hidden_facts:
+  - fact: Account number is GT0067295264
+    disclose_when: bot asks for account details
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''Account manager name is Ayaz Ratansi'''

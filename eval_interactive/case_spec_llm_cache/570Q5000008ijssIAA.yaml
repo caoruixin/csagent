@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008ijssIAA
+case_id_hint: row_154
+llm_model: deepseek-v4-pro
+prompt_hash: 07936f28fc860b4a443c3066fd161fba50b529befd499033c6a1da5b9f4b55f3
+generated_at: '2026-04-30T19:08:04.144700+00:00'
+llm_confidence: high
+llm_rationale: Replaced the thank-you seed message with an issue-bearing turn about the missing price field to align with
+  the hard shift. Updated the user goal summary to concisely capture all three user intents (account recovery, account deletion,
+  listing fix) without bot-side language. Added hidden facts grounded in the transcript for email and unknown Apple ID.
+rule_draft:
+  seed_messages:
+  - I can’t get in to my account, when I reset password it fails saying there is a problem and try later. I logged on using
+    Apple but that just opened a new account
+  - '[EMAIL]. Not sure about the Apple ID, it was all automated'
+  - Thanks for your help 👍
+  user_goal_summary: 'User reports Account Support: Unable to access my account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I can’t get in to my account, when I reset password it fails saying there is a problem and try later. I logged on using
+    Apple but that just opened a new account
+  - '[EMAIL]. Not sure about the Apple ID, it was all automated'
+  - When posting and add there seems nowhere to put the price in
+  user_goal_summary: 'User wants to regain access to their original account after password reset fails, delete a duplicate
+    account created via Apple, and fix a listing issue where price field is missing in Household category. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I can’t get in to my account, when I reset password it fails saying there is a problem and try later. I logged on using
+    Apple but that just opened a new account
+  - '[EMAIL]. Not sure about the Apple ID, it was all automated'
+  - When posting and add there seems nowhere to put the price in
+  user_goal_summary: 'User wants to regain access to their original account after password reset fails, delete a duplicate
+    account created via Apple, and fix a listing issue where price field is missing in Household category. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s email address is [EMAIL]."'
+- 'unsupported_hidden_fact_dropped: ''The user does not know the Apple ID for the accidentally created account.'''

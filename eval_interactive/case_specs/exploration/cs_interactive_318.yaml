@@ -1,0 +1,77 @@
+case_id: cs_interactive_318
+source_session_id: 570Q5000008zcDRIAY
+source_dataset: badcase
+form_context:
+  first_name: Brian
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: Faulty product
+persona:
+  user_goal_summary: 'The user bought a TV from a private seller on the platform. The listing described a 65" TV, but it was
+    actually 55", with a broken backlight and missing buttons. The seller refused a refund. The user wants to know his rights
+    and options to address this. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I bought a TV from a guy. His discretion was incorrect. He stated it was a 65" , it was 55". He stated the brightness
+    needed turned up. Wrong, the back light is broken. Basically he sold me a non working product. What are my rights or what
+    can I do. I contacted him and he said, no refunds.
+  - I've basically bought a lump of useless plastic for £60 lol
+  - He said it can be operated from buttons on the bottom. The buttons have been removed too
+  hidden_facts:
+  - fact: The ad ID is 1508767543.
+    disclose_when: when the bot asks for the ad ID or listing details
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (registered_email, ad_id_or_order_reference, brief_description), and hand over with reason payment_dispute_detected.
+  escalation_trigger: payment_dispute_detected
+  risk_level: high
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

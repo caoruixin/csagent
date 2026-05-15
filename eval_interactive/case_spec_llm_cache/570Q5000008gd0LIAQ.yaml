@@ -1,0 +1,34 @@
+source_session_id: 570Q5000008gd0LIAQ
+case_id_hint: row_338
+llm_model: deepseek-v4-pro
+prompt_hash: 41db352060d8b8900ce134117c93498b95d95838d9215ec435a91c7b95997df7
+generated_at: '2026-04-30T20:25:10.679341+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns describing the core issue. user_goal_summary updated to reflect the
+  actual problem from the form description and transcript. Added one hidden fact about the payment date, grounded in the form
+  description.
+rule_draft:
+  seed_messages:
+  - Mail box, app, web
+  - Where is my existing massages?
+  user_goal_summary: 'User reports Account Support: Hi there. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Mail box, app, web
+  - Where is my existing massages?
+  user_goal_summary: 'User paid for an ad on 11/12/2025 but cannot access their ad, messages, or reply to received messages
+    on the platform. They want to regain access and reply. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Mail box, app, web
+  - Where is my existing massages?
+  user_goal_summary: 'User paid for an ad on 11/12/2025 but cannot access their ad, messages, or reply to received messages
+    on the platform. They want to regain access and reply. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User paid for an ad on November 12, 2025.'''

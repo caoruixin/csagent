@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008L6DtIAK
+case_id_hint: row_222
+llm_model: deepseek-v4-pro
+prompt_hash: 4bfcf1544454ac4fdf1c4655bd3350b24c71e0189af74a294ed072f1ea30eba6
+generated_at: '2026-04-30T19:27:44.119596+00:00'
+llm_confidence: high
+llm_rationale: Rule draft had only greeting/closing seed messages; replaced with verbatim issue statements from the transcript.
+  Updated user_goal_summary to reflect scam report and threat. Added hidden facts about scammer's identity and payment details.
+rule_draft:
+  seed_messages:
+  - Hi nurran
+  - Ditto
+  - 👌
+  user_goal_summary: 'User reports Scammed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - Ive been dcammed nuraan
+  - Hes from hull hes name is andy everything is in the conversation £90 cash i gave him for a jigsaw & dewalt drill i tried
+    conversing about the matter he blocked me, i have reported it via my app.
+  - Are you abke to tell him im going to report him to the police, i dont want it to escalate to that point but.....
+  user_goal_summary: 'User reports being scammed out of £90 cash for a jigsaw and drill on Gumtree, wants the scammer to be
+    informed of a police report threat, and requests to know if the scammer has been blocked or notified. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Ive been dcammed nuraan
+  - Hes from hull hes name is andy everything is in the conversation £90 cash i gave him for a jigsaw & dewalt drill i tried
+    conversing about the matter he blocked me, i have reported it via my app.
+  - Are you abke to tell him im going to report him to the police, i dont want it to escalate to that point but.....
+  user_goal_summary: 'User reports being scammed out of £90 cash for a jigsaw and drill on Gumtree, wants the scammer to be
+    informed of a police report threat, and requests to know if the scammer has been blocked or notified. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The scammer''s name is Andy and he is from Hull."'
+- 'unsupported_hidden_fact_dropped: ''The user paid £90 cash for a jigsaw and Dewalt drill.'''

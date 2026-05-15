@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008sDmrIAE
+case_id_hint: row_174
+llm_model: deepseek-v4-pro
+prompt_hash: 7d5758b9f9ed07e0a20ce809f92234547b00f81930b32a3d2ed76ea9d032eb46
+generated_at: '2026-04-30T19:12:52.813345+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages in the rule draft are verbatim visitor turns that capture the core issue (reply counter discrepancy
+  and confusion over app/email). The user_goal_summary was expanded to reflect the full drift from viewing replies to account
+  lockout, staying within 280 characters. No hidden facts are added as the transcript does not contain undisclosed personal
+  details that would be useful for the simulator.
+rule_draft:
+  seed_messages:
+  - It says 55 replies and when i click on it no replies come up
+  - First of all I am not using an app and never said I was full stop secondly what on earth is contact email and login email
+    I have no idea what you're talking about
+  - I will leave it like that for now. Do you save these conversations?
+  user_goal_summary: 'User reports Replies & Messaging: This ad says i have 55 replies but i cant find a single one. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It says 55 replies and when i click on it no replies come up
+  - First of all I am not using an app and never said I was full stop secondly what on earth is contact email and login email
+    I have no idea what you're talking about
+  - I will leave it like that for now. Do you save these conversations?
+  user_goal_summary: 'User wants to view the 55 replies indicated on their ad listing and resolve the issue of not seeing
+    any messages when clicking on replies. Later, after following agent''s advice, they become locked out and need help regaining
+    account access. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It says 55 replies and when i click on it no replies come up
+  - First of all I am not using an app and never said I was full stop secondly what on earth is contact email and login email
+    I have no idea what you're talking about
+  - I will leave it like that for now. Do you save these conversations?
+  user_goal_summary: 'User wants to view the 55 replies indicated on their ad listing and resolve the issue of not seeing
+    any messages when clicking on replies. Later, after following agent''s advice, they become locked out and need help regaining
+    account access. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008rbEXIAY
+case_id_hint: row_62
+llm_model: deepseek-v4-pro
+prompt_hash: af2efac7c0608ca929a846da7503aa957777ba4f38bf0d440b113704c4d04c46
+generated_at: '2026-04-30T13:18:02.735795+00:00'
+llm_confidence: high
+llm_rationale: Removed the seed message that was a thanks (not issue-bearing) and kept the two that describe the actual problem.
+  Refined goal summary to focus on the user’s desire to ensure notifications work for future ads, staying under 280 characters.
+  No hidden facts added because the transcript does not reveal non-public details suitable for controlled disclosure.
+rule_draft:
+  seed_messages:
+  - Hi i have no adds at the moment i was just about to post one, but the last time i did i never got email notifications
+  - Ok thats great, thanks
+  - Yes there is no message in my junk or inbox
+  user_goal_summary: 'User reports Ad Support: I dont receive an email to tell me i have received a response to my add. Drift:
+    soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi i have no adds at the moment i was just about to post one, but the last time i did i never got email notifications
+  - Yes there is no message in my junk or inbox
+  user_goal_summary: 'User plans to post an ad on Gumtree but previously did not receive email notifications for ad responses;
+    they want to verify that notifications will work for future ads. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi i have no adds at the moment i was just about to post one, but the last time i did i never got email notifications
+  - Yes there is no message in my junk or inbox
+  user_goal_summary: 'User plans to post an ad on Gumtree but previously did not receive email notifications for ad responses;
+    they want to verify that notifications will work for future ads. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

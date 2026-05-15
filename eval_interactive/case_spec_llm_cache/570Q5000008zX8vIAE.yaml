@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008zX8vIAE
+case_id_hint: row_248
+llm_model: deepseek-v4-pro
+prompt_hash: 30da2cc9c25baa9736084e0b56cf51c9c04937dd85582db4ea7a22d66f8d592f
+generated_at: '2026-04-30T19:39:57.202716+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns that describe the core issues (phone number use, refund request, inability
+  to see ad). Summary captures both problems accurately. Hidden facts (ad ID and category mismatch) are derived from the transcript
+  and can be disclosed appropriately.
+rule_draft:
+  seed_messages:
+  - No i usd phone number
+  - Ok will do ive still got 2 more problem ive over payed 2 times for urgent which i didn,t need so can please have refund
+  - Yes going to post new add thank you very much jason
+  user_goal_summary: 'User reports Account Support: Cant see my add. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - No i usd phone number
+  - Ok will do ive still got 2 more problem ive over payed 2 times for urgent which i didn,t need so can please have refund
+  - Cant see it live
+  user_goal_summary: 'User cannot see their active moped ad in search results due to category mismatch and requests a refund
+    for two overpaid urgent fee charges. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad ID is 1509234155
+    disclose_when: bot asks for ad ID or ad details
+  - fact: The ad is listed under Motors - Other Vehicles, causing it to not appear in searches under Motorbikes & scooters
+    disclose_when: bot asks about search visibility or category issue
+accepted_value:
+  seed_messages:
+  - No i usd phone number
+  - Ok will do ive still got 2 more problem ive over payed 2 times for urgent which i didn,t need so can please have refund
+  - Cant see it live
+  user_goal_summary: 'User cannot see their active moped ad in search results due to category mismatch and requests a refund
+    for two overpaid urgent fee charges. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad ID is 1509234155
+    disclose_when: bot asks for ad ID or ad details
+  - fact: The ad is listed under Motors - Other Vehicles, causing it to not appear in searches under Motorbikes & scooters
+    disclose_when: bot asks about search visibility or category issue
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

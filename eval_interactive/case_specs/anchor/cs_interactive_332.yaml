@@ -1,0 +1,69 @@
+case_id: cs_interactive_332
+source_session_id: 570Q5000008afT3IAI
+source_dataset: golden
+form_context:
+  first_name: Karen
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Posted an ad, it was confirmed,  I logged in. No ad
+persona:
+  user_goal_summary: 'She wants help locating her ad that she cannot find after posting and receiving confirmation. Drift:
+    soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Where do I find that if I can't find my ad?
+  hidden_facts:
+  - fact: She received an email confirmation for the ad, which contains the ad ID.
+    disclose_when: when the agent asks for the ad ID or email confirmation
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-B
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

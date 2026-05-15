@@ -1,0 +1,13 @@
+name: full-regression
+description: Full regression (601 sessions)
+max-sessions: 601
+datasets:
+  - golden_dataset
+  - badcase_bank
+  - escalation_dataset
+  - handover_dataset
+  - drift_control_dataset
+  - intake_tool_contract_dataset
+  - clarification_dataset
+session-selection: all
+timeout-per-session-seconds: 60

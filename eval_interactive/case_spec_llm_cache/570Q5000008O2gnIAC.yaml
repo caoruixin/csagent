@@ -1,0 +1,34 @@
+source_session_id: 570Q5000008O2gnIAC
+case_id_hint: row_321
+llm_model: deepseek-v4-pro
+prompt_hash: 0f1e951e1900081650c487c3d0c98b4bc9501305aa210b0fcf560e7d15483a0c
+generated_at: '2026-04-30T19:58:18.792425+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are directly from visitor turns describing the issue. User goal summary captures the explicit
+  refund request. Hidden fact about temporary hold is revealed by agent in transcript and relevant to the issue.
+rule_draft:
+  seed_messages:
+  - My add is not showing and I have paid twice buy mistake. £19 AND £21 pounds
+  - Yes i have paid twice because I thought that's why it was not showing my add could I have a refund please
+  - Thanks have a lovely day take care 🙂
+  user_goal_summary: 'User reports Account Support: My ad. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - My add is not showing and I have paid twice buy mistake. £19 AND £21 pounds
+  - Yes i have paid twice because I thought that's why it was not showing my add could I have a refund please
+  user_goal_summary: 'The user wants a refund for the duplicate payment of £19 and £21 they made by mistake because their
+    ad was not showing. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - My add is not showing and I have paid twice buy mistake. £19 AND £21 pounds
+  - Yes i have paid twice because I thought that's why it was not showing my add could I have a refund please
+  user_goal_summary: 'The user wants a refund for the duplicate payment of £19 and £21 they made by mistake because their
+    ad was not showing. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "There is a temporary hold on the user''s account."'

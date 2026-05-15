@@ -1,0 +1,63 @@
+case_id: cs_interactive_343
+source_session_id: 570Q5000008qew1IAA
+source_dataset: golden
+form_context:
+  first_name: Patricia
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: one digit missing from the applicants phone number
+persona:
+  user_goal_summary: 'The user wants to obtain the correct 11-digit mobile phone number for applicant Conor Thompson because
+    the number in the job listing was missing one digit. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Applicant is Conor Thompson his email is [EMAIL] I have emailed him but no responce. the mobile number sent has only 10
+    digits instead of 11 are you able to get me the correct phone no
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  - UC-B
+  - UC-J
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

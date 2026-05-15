@@ -1,0 +1,63 @@
+case_id: cs_interactive_184
+source_session_id: 570Q5000008G3WnIAK
+source_dataset: golden
+form_context:
+  first_name: R
+  email: customer@example.com
+  topic_subject: UNKNOWN
+  ad_id: ''
+  description: ''
+persona:
+  user_goal_summary: 'User wants to ensure their ads are visible and that they can receive messages and replies, suspecting
+    a visibility or message access issue. Drift: none.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - My adds are not attracting any interest at all and no replies to other adds either
+  - messages
+  - l don’t think my adds are visible and something wrong with access to
+  hidden_facts:
+  - fact: The user's ads are visible on the site.
+    disclose_when: when bot asks about ad visibility or confirms status
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

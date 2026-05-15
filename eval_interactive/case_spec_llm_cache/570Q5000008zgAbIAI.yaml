@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008zgAbIAI
+case_id_hint: row_203
+llm_model: deepseek-v4-pro
+prompt_hash: 57c4dfe85193f454c7642333908cf2522f755b02408d9fc79e4d0070a1faa327
+generated_at: '2026-04-30T19:22:03.252552+00:00'
+llm_confidence: high
+llm_rationale: Improved seed_messages by replacing the acknowledgment turn with a specific mis-selling detail. Added hidden
+  facts from user's stated issues. Refined user goal summary to be factual and concise.
+rule_draft:
+  seed_messages:
+  - Hi Carmen, I have been missold a car on gumtree how do I report this?
+  - Car was purchased via telephone and we paid cash.
+  - Ah ok send the email it says ok
+  user_goal_summary: 'User reports Ad Support: CORSA 1.4 PETROL NEW MOT NO ADVISORS HEATED SEATS | in Paisley, Renfrewshire
+    | Gumtree CORSA 1.4 PETROL NEW MOT NO ADVISORS HEATED SEATS | in Paisley, Renfrewshire | Gumtree. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi Carmen, I have been missold a car on gumtree how do I report this?
+  - The car was not advertised with category s damage therefore not fully disclosed before I bought it
+  - Car was purchased via telephone and we paid cash.
+  user_goal_summary: 'User wants to report being missold a car on Gumtree; the seller did not disclose Category S damage and
+    a mechanical issue, and the ad has been removed. Purchase was via phone, paid cash. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi Carmen, I have been missold a car on gumtree how do I report this?
+  - The car was not advertised with category s damage therefore not fully disclosed before I bought it
+  - Car was purchased via telephone and we paid cash.
+  user_goal_summary: 'User wants to report being missold a car on Gumtree; the seller did not disclose Category S damage and
+    a mechanical issue, and the ad has been removed. Purchase was via phone, paid cash. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The car had Category S damage that was not disclosed.'''
+- 'unsupported_hidden_fact_dropped: ''There is an undisclosed mechanical issue.'''

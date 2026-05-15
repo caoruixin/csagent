@@ -1,0 +1,77 @@
+case_id: cs_interactive_232
+source_session_id: 570Q5000008Lqi9IAC
+source_dataset: escalation
+form_context:
+  first_name: Luke
+  email: customer@example.com
+  topic_subject: Payments
+  ad_id: ''
+  description: ''
+persona:
+  user_goal_summary: 'User paid for featured ad and bump-ups but ad not showing in correct category; wants it working or full
+    refunds. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - I've bumped my ad up for it to only be on the 1st page for less then a day. Now I've paid for it to be featured for 17
+    days but it isn't showing?
+  - This is idiotic featuring it only based on the phones model
+  - Separating them into brands makes it more difficult to sell
+  hidden_facts:
+  - fact: The ad is for a Poco X6 Pro Plus phone and was posted in the Mobile Phones > Xiaomi category, but it does not appear
+      in general mobile phone searches.
+    disclose_when: when troubleshooting the ad visibility
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-I
+  - UC-B
+  - UC-A
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (report_target, report_type, description), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason user_requested.
+  escalation_trigger: user_requested
+  risk_level: critical
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

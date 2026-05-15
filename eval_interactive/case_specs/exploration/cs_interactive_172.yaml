@@ -1,0 +1,75 @@
+case_id: cs_interactive_172
+source_session_id: 570Q5000008k3uMIAQ
+source_dataset: badcase
+form_context:
+  first_name: Jordan
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Review
+persona:
+  user_goal_summary: 'User wants a 1-star review removed because it was left by a scammer and harms their selling ability.
+    Told it can''t be disputed, they request complaint form and threaten to delete account. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hello, I have just seen the 1 star review I have on my profile. This review came from a scammer. He advertised an item
+    and I he sent bank details that did not match his name and had no images of the item, all were taken from online and I
+    reported the matter to Gmtree but he has left a 1 star review on my profile which has negatively impacted my ability to
+    sell items
+  - Do you have an email address for an official complaint form to be filled out
+  - Ok I’ll delete my account then and go else where if that’s how gumtree treats genuine folk reporting scammers and fraudsters
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-G
+  secondary_ucs:
+  - UC-J
+  - UC-H
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (request_type, registered_email), and hand over with reason gdpr_intake.
+  escalation_trigger: gdpr_intake
+  risk_level: high
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

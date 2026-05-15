@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008xH0DIAU
+case_id_hint: row_167
+llm_model: deepseek-v4-pro
+prompt_hash: bc3c5a8d160721371d731acc8b9600966d9860654d364021cce879fac2b3698c
+generated_at: '2026-04-30T19:09:56.075051+00:00'
+llm_confidence: medium
+llm_rationale: Replaced two seed messages that were simple acknowledgements/sign-offs with visitor turns that provide more
+  issue detail (seq4 and seq6). Updated user goal summary to be specific about the login recovery and email domain issue.
+  Added one hidden fact about the email domain change, grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Hi Jason, i've used GT for a number of years but not of late,, tried to log in using my old stuff, but says wrong PW,
+    ? click the link to change PW but the email never arrives? so thinking I'll start again with a new account it wont let
+    me saying I already have an account, help?
+  - signing out to do that, bye
+  - ok, thanks
+  user_goal_summary: 'User reports Account Support: Log in. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi Jason, i've used GT for a number of years but not of late,, tried to log in using my old stuff, but says wrong PW,
+    ? click the link to change PW but the email never arrives? so thinking I'll start again with a new account it wont let
+    me saying I already have an account, help?
+  - was @btopenworld.com but that changed to btinternet.com?
+  - I'm not using the app, my pc, you recognise my current emaill addy because you state I already have an account with you,
+    but no rest email arrives?
+  user_goal_summary: 'User wants to recover access to their Gumtree account, which uses an email that may have changed from
+    @btopenworld.com to @btinternet.com, and is not receiving password reset emails. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi Jason, i've used GT for a number of years but not of late,, tried to log in using my old stuff, but says wrong PW,
+    ? click the link to change PW but the email never arrives? so thinking I'll start again with a new account it wont let
+    me saying I already have an account, help?
+  - signing out to do that, bye
+  - ok, thanks
+  user_goal_summary: 'User reports Account Support: Log in. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: rule_fallback_low_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s original email domain was @btopenworld.com, which changed to @btinternet.com."'

@@ -1,0 +1,66 @@
+case_id: cs_interactive_214
+source_session_id: 570Q5000008hKEzIAM
+source_dataset: badcase
+form_context:
+  first_name: Liam
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: WILL NOT LET ME PUT MY PHONE NUMBER ON ANY NEW ad'S
+persona:
+  user_goal_summary: 'The user wants to display a phone number in their ads, not use messaging. They demand the site stop
+    the email-only trial and restore the old phone option. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - I do not want to be contacted by message I want Phone.
+  - I won't use messaging service .
+  - can I put my number in the AD, or will it get rejected?
+  hidden_facts:
+  - fact: The site's trial removes phone number display; including a phone number in the ad text will likely get the ad rejected.
+    disclose_when: when the bot asks about the policy or why the user cannot use phone numbers
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-B
+  - UC-J
+  - UC-K
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

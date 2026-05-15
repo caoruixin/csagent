@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008TPw5IAG
+case_id_hint: row_38
+llm_model: deepseek-v4-pro
+prompt_hash: 51e1917d323020fce163d434884e4661399f5b89158a03dc8187505524ef2f09
+generated_at: '2026-04-30T13:11:07.835493+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from the transcript and capture the core issue. Summary is specific and under 280
+  characters. Hidden facts are directly supported by transcript turns (seq15).
+rule_draft:
+  seed_messages:
+  - There a scamer on gumtree
+  - I paid for a parkside impact wrench £40 and no item
+  - She has 18 item on gumtree I've contacted my bank and they said yes it a fraudulent transaction they seen it before
+  user_goal_summary: 'User reports Report a Safety Issue: Parkside impact wrench and more item. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - There a scamer on gumtree
+  - I paid for a parkside impact wrench £40 and no item
+  - She has 18 item on gumtree I've contacted my bank and they said yes it a fraudulent transaction they seen it before
+  user_goal_summary: 'User wants action on a Gumtree scam: paid £40 for an impact wrench, never received. Seller Diane has
+    18 items; bank confirmed fraud. User has attempted to email details. Drift: none.'
+  hidden_facts:
+  - fact: User has pictures of the item and there is a warning on Facebook about the scammer Diane.
+    disclose_when: if asked for evidence or additional details
+accepted_value:
+  seed_messages:
+  - There a scamer on gumtree
+  - I paid for a parkside impact wrench £40 and no item
+  - She has 18 item on gumtree I've contacted my bank and they said yes it a fraudulent transaction they seen it before
+  user_goal_summary: 'User wants action on a Gumtree scam: paid £40 for an impact wrench, never received. Seller Diane has
+    18 items; bank confirmed fraud. User has attempted to email details. Drift: none.'
+  hidden_facts:
+  - fact: User has pictures of the item and there is a warning on Facebook about the scammer Diane.
+    disclose_when: if asked for evidence or additional details
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User tried to email but it did not work (goes nowhere).'''

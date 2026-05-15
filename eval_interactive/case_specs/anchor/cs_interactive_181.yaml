@@ -1,0 +1,78 @@
+case_id: cs_interactive_181
+source_session_id: 570Q5000008iJLhIAM
+source_dataset: golden
+form_context:
+  first_name: Andrew
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Enquiry
+persona:
+  user_goal_summary: 'User sold an item and buyer wants to collect. After a change removed phone numbers from listings, user
+    is unsure if sharing address via Gumtree message is allowed or blocked, and wants help page updated to reflect changes.
+    Drift: soft_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - An change removing phone numbers from the platform has been implemented. However, other articles state that one should
+    not divulge address telephone number or email. I had a potential buyer interested in an add. Who requested to collect
+    on Sunday. While I haven't given the address as yet. I replied to say. Come Sunday, if still available you are more than
+    welcome to collect. My question is. If the buyer messages again in Sunday. If I cannot divulge a telephone number, email
+    or address, how is buyer and seller meant to complete?
+  - If a change like the one implemented has taken place. The help/selling page should have been updated on the same day to
+    reflect this. As it is the first place that users would go to for a source of help. To do that would have taken minutes
+    to do. While In know this is not your fault. I feel that this will generate lots of contact from people asking the same
+    questions and feeling frustrated. However, on that note. I must thank you for your kindness and patience and taking your
+    valuable time to courteously reply to my questions. It has been appreciated.
+  - And would gumtree block an address given for collection.
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  - UC-B
+  - UC-F
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

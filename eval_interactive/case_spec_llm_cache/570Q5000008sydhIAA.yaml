@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008sydhIAA
+case_id_hint: row_144
+llm_model: deepseek-v4-pro
+prompt_hash: aed2a2b5f7e2941ef5a34e6ddaa4b3fbd6923c5722e8f2960c4d7a0e432bcad9
+generated_at: '2026-04-30T19:04:17.655033+00:00'
+llm_confidence: high
+llm_rationale: Kept original seed messages as they are issue-bearing and verbatim. Improved user_goal_summary to be concise
+  and accurate. Added hidden_facts grounded in transcript.
+rule_draft:
+  seed_messages:
+  - It just says David at the top ?
+  - '[EMAIL], thank you !'
+  - Your chat will not let me copy and paste the message . It is from someone called Jordan
+  user_goal_summary: 'User reports Account Support: I have received an email message of someone wanting to buy the item when
+    I try to reply it takes me straight to theadd but does not let me reply and according to the app there are no messages
+    for me . Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It just says David at the top ?
+  - '[EMAIL], thank you !'
+  - Your chat will not let me copy and paste the message . It is from someone called Jordan
+  user_goal_summary: 'User wants help replying to a potential buyer''s message; email notification received but app shows
+    no messages and reply fails. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It just says David at the top ?
+  - '[EMAIL], thank you !'
+  - Your chat will not let me copy and paste the message . It is from someone called Jordan
+  user_goal_summary: 'User wants help replying to a potential buyer''s message; email notification received but app shows
+    no messages and reply fails. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s account shows only ''David'' at the top, without full email address."'
+- 'unsupported_hidden_fact_dropped: ''The message the user wants to reply to is from someone named Jordan.'''

@@ -1,0 +1,73 @@
+case_id: cs_interactive_123
+source_session_id: 570Q5000008fJRtIAM
+source_dataset: handover
+form_context:
+  first_name: NAT
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: hoodie
+persona:
+  user_goal_summary: 'User wants Gumtree to stop sending emails chasing dispatch of a Nike hoodie (order #13755068) that has
+    already been posted and collected. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - You keep e mailing me to post this item but it has been posted today ?
+  - Ive posted it for delivery and you are chasing me to desapatch it
+  hidden_facts:
+  - fact: Order number is 13755068.
+    disclose_when: Bot asks for order number.
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-H
+  - UC-B
+  - UC-F
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (registered_email, ad_id_or_order_reference, brief_description), and hand over with reason payment_dispute_detected.
+  escalation_trigger: payment_dispute_detected
+  risk_level: high
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

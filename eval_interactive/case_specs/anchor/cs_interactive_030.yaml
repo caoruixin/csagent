@@ -1,0 +1,66 @@
+case_id: cs_interactive_030
+source_session_id: 570Q5000008uDdtIAE
+source_dataset: badcase
+form_context:
+  first_name: Leo
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Hey Gumtree Team Not receiving messages
+persona:
+  user_goal_summary: 'User wants to fix the problem where his replies to customer messages are not being delivered, causing
+    customers not to get back to him. Drift: none.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - Do you have an acount can you text on my advert
+  - when i reply back to customers for a message they are not recieving that messages
+  - due to which they never get back to me
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_requested.
+  escalation_trigger: user_requested
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

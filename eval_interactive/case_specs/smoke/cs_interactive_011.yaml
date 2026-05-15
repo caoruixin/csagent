@@ -1,0 +1,76 @@
+case_id: cs_interactive_011
+source_session_id: 570Q5000008NWIjIAO
+source_dataset: badcase
+form_context:
+  first_name: Wasim
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Login issue
+persona:
+  user_goal_summary: 'User wants to resolve login issues: password reset link not working, leading to continued incorrect
+    password/email error. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Your be the third agent today to try n resolve the issue im having. I’ve clearly explained to the previous to agents that
+    I am unable to log into my account. When I try to login it says pw or email incorrect. I then get a pw reset link sent
+    to my email. I use this link to reset my pw using upper n lower case with number n special character . Minimum of 8 characters.
+    I then press update and nothing happens . I then press again and it says the link is not recognised. I then get a email
+    saying ow updated. I then go back to login and it says pw or email incorrect correct.
+  - Is that defo my login email Jason ?
+  - How do I do that ?
+  hidden_facts:
+  - fact: User's trading name is Fair Deal Vehicles Ltd.
+    disclose_when: When asked for business details or identity.
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded
+    once FAQ search has no useful article for the password-reset-loop the user reports.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

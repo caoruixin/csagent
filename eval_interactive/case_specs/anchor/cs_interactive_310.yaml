@@ -1,0 +1,69 @@
+case_id: cs_interactive_310
+source_session_id: 570Q5000008pNVpIAM
+source_dataset: golden
+form_context:
+  first_name: Morena
+  email: customer@example.com
+  topic_subject: UNKNOWN
+  ad_id: ''
+  description: ''
+persona:
+  user_goal_summary: 'User cannot log in because password reset email is not being received. They need access to respond to
+    ad inquiries. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Please send me a password reset to [EMAIL]. It won’t let me in and I’m not receiving the reset email
+  - No email received again
+  - Oh my god. What a faff
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

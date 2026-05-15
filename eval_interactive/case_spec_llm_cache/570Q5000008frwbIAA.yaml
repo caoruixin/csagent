@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008frwbIAA
+case_id_hint: row_295
+llm_model: deepseek-v4-pro
+prompt_hash: 8cf9867f739fe51a95f7f112bf9ffbbb62a5efa252e623cd856f06dac0993283
+generated_at: '2026-04-30T19:51:42.034122+00:00'
+llm_confidence: high
+llm_rationale: Replaced sign-off and acknowledgment seed messages with visitor turns that detail the specific ad and the user's
+  confusion about posting. Updated goal summary to be factual and within character limit. Added hidden facts from agent instruction
+  and user's clarification about browser-only occurrence.
+rule_draft:
+  seed_messages:
+  - There is an ad for a room in portswood and the messages are on my name but it’s not my ad
+  - I’ll do now bye
+  - Ok thank you
+  user_goal_summary: 'User reports Report a Safety Issue: Not my ar but the message in my name. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - There is an ad for a room in portswood and the messages are on my name but it’s not my ad
+  - Cellar room with no windows
+  - So it looks like I have posted it but I have not
+  user_goal_summary: 'User sees an ad for a cellar room with no windows in Portswood that he didn''t post, but his name appears
+    in the messages, making it look like his ad. He wants to know why and if his account is compromised. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The agent said to forward a screenshot to [EMAIL] if the problem appears on the browser.
+    disclose_when: when the user is asked to provide evidence or troubleshoot browser vs app
+accepted_value:
+  seed_messages:
+  - There is an ad for a room in portswood and the messages are on my name but it’s not my ad
+  - Cellar room with no windows
+  - So it looks like I have posted it but I have not
+  user_goal_summary: 'User sees an ad for a cellar room with no windows in Portswood that he didn''t post, but his name appears
+    in the messages, making it look like his ad. He wants to know why and if his account is compromised. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The agent said to forward a screenshot to [EMAIL] if the problem appears on the browser.
+    disclose_when: when the user is asked to provide evidence or troubleshoot browser vs app
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user insists the name issue occurred when he only had a browser, not just on the
+  mobile app.'''

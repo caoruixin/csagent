@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008mcZRIAY
+case_id_hint: row_367
+llm_model: deepseek-v4-pro
+prompt_hash: ab48ad9e6a12e244814fdeca5485b4a89e867780d3b5f5042bbe7991d3fe265b
+generated_at: '2026-04-30T20:32:43.505559+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from the transcript and capture the user's core issues. The summary is updated to
+  accurately reflect the user's goal based on their statements. Hidden facts are grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Hi I don’t seem to get any phone calls as I think my phone number is not showing
+  - I have paid so much money for the add it’s not worth it if I am not getting any business
+  - It takes longer to respond and reply here texts , easier to connect directly
+  user_goal_summary: 'User reports Ad Support: Swedish massage by rose. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi I don’t seem to get any phone calls as I think my phone number is not showing
+  - I have paid so much money for the add it’s not worth it if I am not getting any business
+  - It takes longer to respond and reply here texts , easier to connect directly
+  user_goal_summary: 'User wants their phone number displayed on their ad so they can receive direct phone calls, and feels
+    the ad is not worth the money without this feature. They prefer faster direct communication over messaging. Drift: soft_shift.'
+  hidden_facts:
+  - fact: They believe spending money on ads is not worth it if they cannot receive direct phone calls.
+    disclose_when: when discussing the value of the ad
+accepted_value:
+  seed_messages:
+  - Hi I don’t seem to get any phone calls as I think my phone number is not showing
+  - I have paid so much money for the add it’s not worth it if I am not getting any business
+  - It takes longer to respond and reply here texts , easier to connect directly
+  user_goal_summary: 'User wants their phone number displayed on their ad so they can receive direct phone calls, and feels
+    the ad is not worth the money without this feature. They prefer faster direct communication over messaging. Drift: soft_shift.'
+  hidden_facts:
+  - fact: They believe spending money on ads is not worth it if they cannot receive direct phone calls.
+    disclose_when: when discussing the value of the ad
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''They have another ad that still displays a phone number and works for receiving calls.'''

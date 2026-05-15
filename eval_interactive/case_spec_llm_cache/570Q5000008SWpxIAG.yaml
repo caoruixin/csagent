@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008SWpxIAG
+case_id_hint: row_75
+llm_model: deepseek-v4-pro
+prompt_hash: df70b489e8cc3f3e4d2852971cccca49f9f02baacb0f5662f363f0f66e8cdca1
+generated_at: '2026-04-30T13:20:42.007392+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are exact quotes from visitor turns capturing the core issues (failed payment, unresponsive manager,
+  business impact). The user_goal_summary was rewritten to be a specific, factual description of what the user wants without
+  bot instructions. Hidden facts were added based on transcript details to support realism.
+rule_draft:
+  seed_messages:
+  - my account is not working with premium as the direct debit didn't work
+  - please dont tell me you will ask account manager to reach out as hes clearly not available and I been 4 days out of business
+  - and my account manager is not answering via email, phone or WhatsApp at all for 4 days now
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - my account is not working with premium as the direct debit didn't work
+  - please dont tell me you will ask account manager to reach out as hes clearly not available and I been 4 days out of business
+  - and my account manager is not answering via email, phone or WhatsApp at all for 4 days now
+  user_goal_summary: 'The user wants to restore their premium service after a failed direct debit and requires immediate help
+    because their account manager has been unreachable for 4 days, causing business disruption. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - my account is not working with premium as the direct debit didn't work
+  - please dont tell me you will ask account manager to reach out as hes clearly not available and I been 4 days out of business
+  - and my account manager is not answering via email, phone or WhatsApp at all for 4 days now
+  user_goal_summary: 'The user wants to restore their premium service after a failed direct debit and requires immediate help
+    because their account manager has been unreachable for 4 days, causing business disruption. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The direct debit payment for the premium service failed.'''
+- 'unsupported_hidden_fact_dropped: ''The account manager has been unresponsive via email, phone, and WhatsApp for four days.'''

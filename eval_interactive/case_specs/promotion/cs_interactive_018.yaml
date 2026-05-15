@@ -1,0 +1,75 @@
+case_id: cs_interactive_018
+source_session_id: 570Q5000008t1riIAA
+source_dataset: badcase
+form_context:
+  first_name: Simon
+  email: customer@example.com
+  topic_subject: Ratings & Reviews
+  ad_id: ''
+  description: Evidence for removal of false review
+persona:
+  user_goal_summary: 'User wants a false review removed and wants agent to investigate by reading the message thread with
+    user ''Only'' that proves the reviewer gave false item details. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Hello I’m writing to request the removal of a false review against my username. I never receive negative reviews and on
+    ebay I have 100% positive reviews from over 500 transactions. I always make sure I’m polite and courteous. I can give
+    you evidence as to why this particular reviewer is using false information.
+  - No, looking forward to your email on that, and your response about the false review. Thanks
+  - Yes please
+  hidden_facts:
+  - fact: The user purchased a mattress from 'Only', and the seller provided false information about the item's size and brand,
+      but the user completed the purchase and was polite throughout.
+    disclose_when: when asked for evidence or details about the false review.
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-C
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason out_of_scope.
+  escalation_trigger: out_of_scope
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - lookup_customer_account
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

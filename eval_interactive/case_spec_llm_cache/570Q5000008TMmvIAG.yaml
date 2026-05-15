@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008TMmvIAG
+case_id_hint: cs_interactive_055
+llm_model: deepseek-v4-pro
+prompt_hash: d076e7208bfa26f1ba1c6dda614efbe66084c32bb48ecf0353fea88ba31fd6d0
+generated_at: '2026-04-30T09:10:55.525831+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns that clearly describe the issue. The summary was updated to be
+  more specific with actual details from the transcript. A hidden fact was added from the transcript.
+rule_draft:
+  seed_messages:
+  - Hi ive just creates and posted and paid £1.9@ for better coverage for 7 days and its saying i have no ada
+  - So when will my ad be live im not happy
+  - Ive paid for the advertising of my ad too
+  user_goal_summary: 'User reports Ad Support: Darts board full set up. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi ive just creates and posted and paid £1.9@ for better coverage for 7 days and its saying i have no ada
+  - So when will my ad be live im not happy
+  - Ive paid for the advertising of my ad too
+  user_goal_summary: 'User paid £1.90 for 7-day ad coverage for a ''Darts board full set up'' and wants the ad to be live,
+    but there is a temporary hold and the ad is not showing. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Ad ID is 1507672616
+    disclose_when: when the agent asks for the ad ID or any identifier
+accepted_value:
+  seed_messages:
+  - Hi ive just creates and posted and paid £1.9@ for better coverage for 7 days and its saying i have no ada
+  - So when will my ad be live im not happy
+  - Ive paid for the advertising of my ad too
+  user_goal_summary: 'User paid £1.90 for 7-day ad coverage for a ''Darts board full set up'' and wants the ad to be live,
+    but there is a temporary hold and the ad is not showing. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Ad ID is 1507672616
+    disclose_when: when the agent asks for the ad ID or any identifier
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

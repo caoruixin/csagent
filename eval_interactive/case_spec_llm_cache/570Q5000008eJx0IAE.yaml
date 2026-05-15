@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008eJx0IAE
+case_id_hint: row_117
+llm_model: deepseek-v4-pro
+prompt_hash: c7d2250e7f4c67bd0d7dc054c97547e8e5291775f640ef7be6a3e33ebc1b81be
+generated_at: '2026-04-30T13:35:14.630344+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting/thanks seed messages with issue-bearing turns (seq 6, 7, 15) directly from the transcript.
+  Refined user_goal_summary to capture the specific ask about ad removal and rephrasing help. Added a hidden fact about the
+  alternate email, grounded in seq 19-20.
+rule_draft:
+  seed_messages:
+  - Hello Bulelwa I hope you are well
+  - I also have two spare rooms in my house, and I'm looking to rent them out to earn a bit of extra money. So I advertised
+    one of these rooms online on gumtree today, and it was removed straight away with no explanation.
+  - Thank you for trying to get it resolved because I don’t understand what the issue is
+  user_goal_summary: 'User reports Account Support: Help with advert. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I also have two spare rooms in my house, and I'm looking to rent them out to earn a bit of extra money. So I advertised
+    one of these rooms online on gumtree today, and it was removed straight away with no explanation.
+  - I live in the house, I'm not an agent, I just want to rent these rooms out. I wondered if maybe there is something I said
+    wrong in the advert, or if you can advise me on how to reword it better so that this doesn't happen.
+  - I would like to understand the exact reason why it was removed automatically without being manually reviewed.
+  user_goal_summary: 'User wants to understand why their Gumtree ad for renting a room in their house was removed immediately
+    without explanation, and to get advice on how to reword it to avoid the same issue. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I also have two spare rooms in my house, and I'm looking to rent them out to earn a bit of extra money. So I advertised
+    one of these rooms online on gumtree today, and it was removed straight away with no explanation.
+  - I live in the house, I'm not an agent, I just want to rent these rooms out. I wondered if maybe there is something I said
+    wrong in the advert, or if you can advise me on how to reword it better so that this doesn't happen.
+  - I would like to understand the exact reason why it was removed automatically without being manually reviewed.
+  user_goal_summary: 'User wants to understand why their Gumtree ad for renting a room in their house was removed immediately
+    without explanation, and to get advice on how to reword it to avoid the same issue. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has provided an alternate email address because the one tied to their Gumtree
+  account is currently locked.'''

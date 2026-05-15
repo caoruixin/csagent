@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008kJr3IAE
+case_id_hint: row_262
+llm_model: deepseek-v4-pro
+prompt_hash: e16c938479ab8318e96f3dac56ec4579abc8c1d86d8b16b1d4a6493be0afe5f3
+generated_at: '2026-04-30T19:41:48.662510+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed_messages accurately capture the user's core complaints and are verbatim from the transcript.
+  The summary is updated to reflect the specific ad type and the user's desire for activation and clarification. Hidden facts
+  are added based on transcript evidence to simulate realistic disclosure.
+rule_draft:
+  seed_messages:
+  - I want my add active
+  - Two days go I post my add. But not working
+  - But gumtree not send me any email and ID
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I want my add active
+  - Two days go I post my add. But not working
+  - But gumtree not send me any email and ID
+  user_goal_summary: 'Get their ad for deep tissue massage active and understand why it isn''t working; they haven''t received
+    any confirmation email or ad ID. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I want my add active
+  - Two days go I post my add. But not working
+  - But gumtree not send me any email and ID
+  user_goal_summary: 'Get their ad for deep tissue massage active and understand why it isn''t working; they haven''t received
+    any confirmation email or ad ID. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The ad is for deep tissue massage.'''
+- 'unsupported_hidden_fact_dropped: "No payment has been taken from the user''s account."'

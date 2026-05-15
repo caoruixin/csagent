@@ -1,0 +1,75 @@
+case_id: cs_interactive_040
+source_session_id: 570Q5000008pMbOIAU
+source_dataset: intake_tool_contract
+form_context:
+  first_name: Mo
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: My ad isn't allowing customers to send requests. There is a flaw on the app
+persona:
+  user_goal_summary: 'User wants the request-quote button fixed so customers can contact them, as they''re paying for the
+    ad. Drift: none.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - There seems to be issues with my ad
+  - When a customer tries to request quote it doesn't work
+  - Can you tell me what am I supposed to do if I'm paying for this service but the customers cannot reach me
+  hidden_facts:
+  - fact: Case number 00394953 has been opened for this issue.
+    disclose_when: When asked about case reference.
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason intake_complete_for_uc_k.
+  escalation_trigger: intake_complete_for_uc_k
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  - tool_sequence_match
+  - case_id_present
+  - turn_efficiency
+  - issue_preservation
+
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

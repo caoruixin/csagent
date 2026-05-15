@@ -1,10 +1,27 @@
+# SUPERSEDED — historical V1 tool spec.
+# The current tool contract (agent-visible vs runtime-only types, argument
+# names, enum values, allowed-UC matrix) lives in
+# docs/current/customer_service_tool_spec_v0_3.md, sourced from the live
+# server/src/main/resources/config/tool-policy.yaml and the Java tool
+# implementations under server/src/main/java/com/gumtree/csagent/service/tools/.
+# This YAML is preserved for history; do not edit the body. Treat any
+# specific field, enum, or allowed/disallowed entry below as historical
+# until verified against current code/config.
+#
+# doc_tier: archived
+# status: superseded
+# implementation_status: historical
+# runtime_contract: false
+# superseded_by: docs/current/customer_service_tool_spec_v0_3.md
+# last_reviewed: 2026-05-10
+
 schema_version: '0.2'
 spec_type: customer_service_agent_tool_spec
 project:
   name: Gumtree Customer Service Live Chat Bot
   channel: salesforce_enhanced_chat_web
   phase: V1
-  updated: '2026-04-17'
+  updated: '2026-04-21'
   changelog_from_v0_1:
     - concrete_api_mapping_from_platform_api_reference
     - prechat_form_integration
@@ -13,6 +30,8 @@ project:
     - fixed_script_library_runtime_capability
     - allowed_disallowed_matrix_fixes
     - enriched_output_schemas
+    - parent_topic_subject_per_uc_and_handover_only_topic_subjects
+    - uc_c_messaging_diagnostic_tool_matrix_fix_and_new_get_message_moderation_context
 
 principles:
   tool_surface_strategy: small_and_strong
@@ -22,18 +41,38 @@ principles:
   sensitive_write_actions: human_only_or_phase2
 
 use_cases:
-  - UC-A
-  - UC-B
-  - UC-C
-  - UC-D
-  - UC-E
-  - UC-F
-  - UC-FP
-  - UC-G
-  - UC-H
-  - UC-I
-  - UC-J
-  - UC-K
+  - id: UC-A
+    parent_topic_subject: Ad Support
+  - id: UC-B
+    parent_topic_subject: Ad Support
+  - id: UC-C
+    parent_topic_subject: Replies or Messaging
+  - id: UC-D
+    parent_topic_subject: Account Support
+  - id: UC-E
+    parent_topic_subject: Technical Support
+  - id: UC-F
+    parent_topic_subject: Payments
+  - id: UC-FP
+    parent_topic_subject: Ad Support
+  - id: UC-G
+    parent_topic_subject: Delete My Account or Data
+  - id: UC-H
+    parent_topic_subject: Ad Support
+  - id: UC-I
+    parent_topic_subject: Payments
+  - id: UC-J
+    parent_topic_subject: Report a Safety Issue
+  - id: UC-K
+    parent_topic_subject: Technical Support
+
+# Topic Subjects without V1 UC coverage (handover-only):
+# - Delivery
+# - Pro Contract
+# - Account Manager Support
+# - Ratings Reviews
+# These are routed to fixed_script_library out_of_scope templates + request_handover.
+# See phase2_domain_realization_spec.md §2.11 for routing strategy.
 
 # ============================================================
 # AGENT-VISIBLE TOOLS (5)
@@ -433,6 +472,7 @@ tools:
             - service_degraded
             - turn_budget_exhausted
             - tool_scope_blocked
+            - runtime_error_threshold  # added by phase0 §0.6 deviation 2026-05-01 (smoke remediation Fix 3); kept here so YAML enum stays in sync with eval_interactive/eval_interactive/case_spec/schema.py and runtime canonical 23-value set (codex 2026-05-04 round 5 §P1).
         case_id:
           type: string
         is_business_hours:
@@ -615,7 +655,7 @@ tools:
     purpose: >
       Lookup customer account state using email, phone, or account_id.
       Called internally by get_customer_context.
-    allowed_use_cases: [UC-D, UC-FP, UC-K]
+    allowed_use_cases: [UC-C, UC-D, UC-FP, UC-K]  # v0.2.1: added UC-C (messaging diagnostic needs account restriction check)
     disallowed_use_cases: [UC-G, UC-I, UC-J]
     input_schema:
       type: object
@@ -694,7 +734,7 @@ tools:
       Lookup listing/ad state including moderation status and review reason.
       Called internally by get_customer_context. Now also invokes
       get_moderation_review_context for UC-A/UC-FP.
-    allowed_use_cases: [UC-A, UC-FP, UC-K]
+    allowed_use_cases: [UC-A, UC-C, UC-FP, UC-K]  # v0.2.1: added UC-C (messaging diagnostic needs ad status check)
     disallowed_use_cases: [UC-G, UC-I, UC-J]
     input_schema:
       type: object
@@ -832,11 +872,81 @@ tools:
       must_return_safe_summary_only: true
       must_map_reason_to_public_policy: true
 
+  # ---- 10. get_message_moderation_context (NEW in v0.2.1) ----
+  - tool_name: get_message_moderation_context
+    display_name: Get Message Moderation Context
+    visibility: runtime_only
+    phase: V1
+    tool_class: trusted_read
+    risk_tier: medium
+    purpose: >
+      Check whether a user's recent messages have been blocked or flagged
+      by platform message moderation. Provides grounded factual basis for
+      UC-C messaging diagnostic: distinguish "messages delivered normally,
+      waiting for seller reply" vs "messages blocked by moderation filters".
+      Called internally by get_customer_context when active_use_case = UC-C.
+    allowed_use_cases: [UC-C]
+    disallowed_use_cases: [UC-A, UC-B, UC-D, UC-E, UC-F, UC-FP, UC-G, UC-H, UC-I, UC-J, UC-K]
+    motivation: >
+      UC-C "can't receive replies" is a common support scenario (case 570Q5000008oMIVIA2).
+      Human agents check account restrictions + ad status + message moderation history.
+      Without message moderation check, Bot has a diagnostic blind spot — it can confirm
+      account and ad are fine but cannot rule out message-level blocks.
+      message-moderation-history API exists as read-only search queries.
+    input_schema:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          description: "User email (from form_context)"
+        conversation_id:
+          type: string
+          description: "Optional — specific conversation if user provides ad_id"
+        lookback_days:
+          type: integer
+          default: 7
+          description: "How many days back to search"
+    output_schema:
+      type: object
+      properties:
+        has_blocked_messages:
+          type: boolean
+        blocked_count:
+          type: integer
+          description: "Number of blocked messages in lookback period"
+        latest_block_reason:
+          type: string
+          description: "Moderation reason for most recent blocked message"
+        moderation_decision:
+          type: string
+          enum: [VALID, BLOCKED, PENDING, UNKNOWN]
+        safe_summary:
+          type: string
+          description: "Redacted summary for context projection"
+    concrete_api_call_chain:
+      - step: 1
+        endpoint: POST /history/moderation/search
+        service: message-moderation-history
+        purpose: search for blocked messages by user email
+        filter_example: "field=EMAIL, value={email}; field=STATUS, operator=EQ, value=BLOCKED"
+      - step: 2
+        endpoint: POST /history/moderation/search
+        service: message-moderation-history
+        purpose: optional — search by specific conversation
+        filter_example: "field=CONVERSATION_ID, value={conversation_id}"
+    runtime_policy:
+      agent_direct_invocation_allowed: false
+      used_by: [get_customer_context]
+      must_minimize_pii: true
+      must_return_safe_summary_only: true
+      retry_on_failure: true
+
 # ============================================================
 # HUMAN-ONLY TOOLS (2, unchanged)
 # ============================================================
 
-  # ---- 10. moderation_enforcement_action ----
+  # ---- 11. moderation_enforcement_action ----
   - tool_name: moderation_enforcement_action
     display_name: Moderation Enforcement Action
     visibility: human_only
@@ -873,7 +983,7 @@ tools:
       bot_direct_invocation_allowed: false
       requires_human_authorization: true
 
-  # ---- 11. send_followup_email_or_async_update ----
+  # ---- 12. send_followup_email_or_async_update ----
   - tool_name: send_followup_email_or_async_update
     display_name: Send Follow-up Email or Async Update
     visibility: human_only

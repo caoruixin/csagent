@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008sV8fIAE
+case_id_hint: row_115
+llm_model: deepseek-v4-pro
+prompt_hash: d57ec5642c17c5fd34c5b84c87be772b0c131e3206e4d8825597bc303e4dc36f
+generated_at: '2026-04-30T13:34:30.948994+00:00'
+llm_confidence: high
+llm_rationale: The original seed_messages included a sign-off ('Alright, Thank You!') which does not describe the issue. Replaced
+  with 'make it live please' from seq12, which directly states the user's core request. Updated user_goal_summary to reflect
+  the user's clear preference for restoring the ad without a refund, as clarified in seq13. Added hidden facts for ad ID (provided
+  in seq6) and account block (revealed by agent but known to user) to support information disclosure when prompted.
+rule_draft:
+  seed_messages:
+  - please help me
+  - i don't need any refund
+  - Alright, Thank You!
+  user_goal_summary: 'User reports Ad Support: MY business add got deleted, can you please make it live or refund my deposit.
+    Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - please help me
+  - make it live please
+  - i don't need any refund
+  user_goal_summary: 'User''s business ad was deleted and account blocked. They want the ad made live again, not a refund.
+    Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's ad ID is 1508995437.
+    disclose_when: When asked for their ad ID or reference number.
+accepted_value:
+  seed_messages:
+  - please help me
+  - make it live please
+  - i don't need any refund
+  user_goal_summary: 'User''s business ad was deleted and account blocked. They want the ad made live again, not a refund.
+    Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's ad ID is 1508995437.
+    disclose_when: When asked for their ad ID or reference number.
+  verbosity: terse
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s account is blocked."'

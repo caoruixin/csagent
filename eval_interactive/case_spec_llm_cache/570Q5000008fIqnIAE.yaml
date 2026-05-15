@@ -1,0 +1,50 @@
+source_session_id: 570Q5000008fIqnIAE
+case_id_hint: row_37
+llm_model: deepseek-v4-pro
+prompt_hash: 2b657c6fc47fd25612015669c37dba7235385bd27323240f0249aa0b29434060
+generated_at: '2026-04-30T13:10:06.981119+00:00'
+llm_confidence: high
+llm_rationale: The third original seed message was a thank-you/closing; replaced with a visitor turn that describes the specific
+  issue (exhaust misrepresentation). The user_goal_summary was rewritten to reflect the actual goal without bot-side instructions,
+  and hidden facts were added based on payment/date details from the transcript.
+rule_draft:
+  seed_messages:
+  - Hello, I was told false information about the condition of a car I bought on gumtree, what can I do about this? I have
+    already reported the seller
+  - 'I''m not sure how to find the ad ID. The title is: Ford KA, hatchback, 2013, manual, 1242 (cc), 3 doors'
+  - Thank you, my email address is [EMAIL]
+  user_goal_summary: 'User reports Ad Support: Was told fold information as to the condition of a car I purchased. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hello, I was told false information about the condition of a car I bought on gumtree, what can I do about this? I have
+    already reported the seller
+  - 'I''m not sure how to find the ad ID. The title is: Ford KA, hatchback, 2013, manual, 1242 (cc), 3 doors'
+  - I was told the exhaust was replaced but after taking it to a garage they told me it hadn't been and I have to pay for
+    a new exhaus
+  user_goal_summary: 'User reports being misled about a car''s condition on Gumtree; the exhaust was claimed replaced but
+    was not, requiring payment for a new exhaust. User wants the platform to take action against the seller. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User paid £2300 via bank transfer for the vehicle.
+    disclose_when: when asked about payment method and amount
+  - fact: The transaction occurred on 20/12/2025, and the ad has been deleted.
+    disclose_when: when asked about transaction date or ad status
+accepted_value:
+  seed_messages:
+  - Hello, I was told false information about the condition of a car I bought on gumtree, what can I do about this? I have
+    already reported the seller
+  - 'I''m not sure how to find the ad ID. The title is: Ford KA, hatchback, 2013, manual, 1242 (cc), 3 doors'
+  - I was told the exhaust was replaced but after taking it to a garage they told me it hadn't been and I have to pay for
+    a new exhaus
+  user_goal_summary: 'User reports being misled about a car''s condition on Gumtree; the exhaust was claimed replaced but
+    was not, requiring payment for a new exhaust. User wants the platform to take action against the seller. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User paid £2300 via bank transfer for the vehicle.
+    disclose_when: when asked about payment method and amount
+  - fact: The transaction occurred on 20/12/2025, and the ad has been deleted.
+    disclose_when: when asked about transaction date or ad status
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

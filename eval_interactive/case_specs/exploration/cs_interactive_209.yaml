@@ -1,0 +1,79 @@
+case_id: cs_interactive_209
+source_session_id: 570Q5000008vFCDIA2
+source_dataset: badcase
+form_context:
+  first_name: Jean
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: What description
+persona:
+  user_goal_summary: 'The user wants to understand how delivery and payment work for a sold item on Gumtree, specifically
+    how to receive funds and verify the payment, amid concerns about scams. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - Never used the app for sold items needing delivery, how does it work, how do I know if payment has been made etc
+  - Ok, well my ad came up with the delivery available, so must be ok. Do I get an e-mail with the Evri label, how is the
+    payment sent to me ? Via pay Pal or?….
+  - never heard of mangopay, how does it work I access this. Or is a link sent via gumtree. My buyer has said his payment
+    has gone through, now don’t know what to do?. Safety scams & all that..
+  hidden_facts:
+  - fact: The sold item is a Rucksack North face “Borealis”, order number 13778268.
+    disclose_when: when asked about the specific item or order details
+  - fact: The user has never heard of Mangopay and is concerned about payment safety and scams.
+    disclose_when: when asked about payment concerns or familiarity with Gumtree's payment process
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-I
+  - UC-H
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (report_target, report_type, description), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason trust_safety_required.
+  escalation_trigger: trust_safety_required
+  risk_level: critical
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

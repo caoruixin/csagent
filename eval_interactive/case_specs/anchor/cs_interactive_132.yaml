@@ -1,0 +1,68 @@
+case_id: cs_interactive_132
+source_session_id: 570Q5000008q19tIAA
+source_dataset: escalation
+form_context:
+  first_name: Stefan
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Complaint
+persona:
+  user_goal_summary: 'User wants to complain about rude agent Candice (who cut off chat after failing to help) and get his
+    original tech issue resolved quickly as a loyal 10+ year customer. Drift: none.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - I want to make a complaint about Candice - a rude and impolite Gumtree
+  - I certainly won't tolerate Candice telling me to "take care" before cutting off the chat, having failed yo
+  - Hoping it can be resolved ASAP, especially as a customer for over 10 years. Thanks
+  hidden_facts:
+  - fact: The user has been a loyal Gumtree customer for over 10 years.
+    disclose_when: when discussing the urgency of the resolution or the user's frustration
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
+  escalation_trigger: clarification_budget_exhausted
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

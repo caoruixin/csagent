@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008ftWzIAI
+case_id_hint: row_312
+llm_model: deepseek-v4-pro
+prompt_hash: 5e2ada82bde4260dff1ce606ceda25f9a71ddff41b53b35ece294ac50975d454
+generated_at: '2026-04-30T19:56:20.299755+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and accurately describe the issue. User goal summary updated
+  to reflect the actual outcome (account deletion). Hidden fact derived from transcript about unrecognized email.
+rule_draft:
+  seed_messages:
+  - Hi, i need to change the email address on my account but both email addresses are locked and cant be changed, one of them
+    i dont even recognise. it id not the login email address but the contact address
+  - '[EMAIL] is fine. Many thanks'
+  - what email address will i get the confirmation of deletion?
+  user_goal_summary: 'User reports Account Support: Change email address. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi, i need to change the email address on my account but both email addresses are locked and cant be changed, one of them
+    i dont even recognise. it id not the login email address but the contact address
+  - '[EMAIL] is fine. Many thanks'
+  - what email address will i get the confirmation of deletion?
+  user_goal_summary: 'The user wants to delete their Gumtree account because both contact email addresses are locked and cannot
+    be changed, and one contact email is unrecognized. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi, i need to change the email address on my account but both email addresses are locked and cant be changed, one of them
+    i dont even recognise. it id not the login email address but the contact address
+  - '[EMAIL] is fine. Many thanks'
+  - what email address will i get the confirmation of deletion?
+  user_goal_summary: 'The user wants to delete their Gumtree account because both contact email addresses are locked and cannot
+    be changed, and one contact email is unrecognized. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user has a contact email on their account that they do not recognize, possibly ''moonfield''."'

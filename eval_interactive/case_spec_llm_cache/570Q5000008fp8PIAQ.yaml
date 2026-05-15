@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008fp8PIAQ
+case_id_hint: row_86
+llm_model: deepseek-v4-pro
+prompt_hash: 392ab8afa2753d17f6f02189a45b4a674487abf4fe0fe81a9bace9ef937bab7c
+generated_at: '2026-04-30T13:24:43.949622+00:00'
+llm_confidence: high
+llm_rationale: Replaced sign-off seed message with an issue-bearing visitor turn from seq4. Drafted goal summary from transcript
+  details. Extracted two hidden facts supported by seq8.
+rule_draft:
+  seed_messages:
+  - You have taken away the call option from adverts not good
+  - Shane really goodbye
+  - From today my partially blind client can’t use your platform no more as there is no phone option but thanks for taking
+    our complaint
+  user_goal_summary: 'User reports Account Support: Why can’t I put my telephone number on my ad. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - You have taken away the call option from adverts not good
+  - I will be deleting my account then I prefer call option as a blind person
+  - From today my partially blind client can’t use your platform no more as there is no phone option but thanks for taking
+    our complaint
+  user_goal_summary: 'User, a carer for a partially blind client, insists Gumtree restore the phone call option for listings,
+    as blind and disabled users rely on calls and cannot use email. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - You have taken away the call option from adverts not good
+  - I will be deleting my account then I prefer call option as a blind person
+  - From today my partially blind client can’t use your platform no more as there is no phone option but thanks for taking
+    our complaint
+  user_goal_summary: 'User, a carer for a partially blind client, insists Gumtree restore the phone call option for listings,
+    as blind and disabled users rely on calls and cannot use email. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User is a carer for a partially blind client.'''
+- 'unsupported_hidden_fact_dropped: ''User has been using Gumtree for 13 years.'''

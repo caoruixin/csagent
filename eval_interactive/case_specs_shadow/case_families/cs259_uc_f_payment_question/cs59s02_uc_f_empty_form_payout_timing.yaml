@@ -1,0 +1,67 @@
+case_id: cs59s02_uc_f_empty_form_payout_timing
+source_session_id: synthetic-sprint20-cs259-shadow-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Bao
+  email: customer@example.com
+  topic_subject: ''
+  ad_id: ''
+  description: ''
+persona:
+  user_goal_summary: User opens with empty form. First message is FAQ-shaped UC-F payout-timing question ("how long does it take to get paid after a sale?"). §I0 applies; bot must search + classify + RESOLVE. Drift - none.
+  frustration_level: none
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - how long does it take to get paid after a sale?
+  - thanks
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-F
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Recognise the empty-form + FAQ-shaped UC-F payout-timing question triggers Sprint 7 §I0; run search_knowledge, classify_use_case to UC-F, transition to RESOLVE, run resolve_article + record_outcome, produce a grounded answer on payout timing from the knowledge base. Do NOT request_handover with faq_miss_threshold_exceeded after one user turn.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - classify_use_case
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

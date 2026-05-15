@@ -1,0 +1,71 @@
+case_id: cs_interactive_295
+source_session_id: 570Q5000008frwbIAA
+source_dataset: golden
+form_context:
+  first_name: William
+  email: customer@example.com
+  topic_subject: Report a Safety Issue
+  ad_id: ''
+  description: Not my ar but the message in my name
+persona:
+  user_goal_summary: 'User sees an ad for a cellar room with no windows in Portswood that he didn''t post, but his name appears
+    in the messages, making it look like his ad. He wants to know why and if his account is compromised. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - There is an ad for a room in portswood and the messages are on my name but it’s not my ad
+  - Cellar room with no windows
+  - So it looks like I have posted it but I have not
+  hidden_facts:
+  - fact: The agent said to forward a screenshot to [EMAIL] if the problem appears on the browser.
+    disclose_when: when the user is asked to provide evidence or troubleshoot browser vs app
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

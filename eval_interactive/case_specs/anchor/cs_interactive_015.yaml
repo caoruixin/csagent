@@ -1,0 +1,66 @@
+case_id: cs_interactive_015
+source_session_id: 570Q5000008WmXxIAK
+source_dataset: badcase
+form_context:
+  first_name: Adam
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Hi - can you tell me what happened to my ad?
+persona:
+  user_goal_summary: 'The user wants to edit their rejected Gumtree ad because it was flagged for containing ''men only''
+    text and visible body parts, specifically their ankles. Drift: soft_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - ok so how do I change it?
+  - so I can't just change it?
+  - you mean my ankles in the image???
+  hidden_facts:
+  - fact: The ad title was 'Male Massage and Waxing, by a Male'.
+    disclose_when: if the bot asks for details about the ad
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-B
+  - UC-K
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Retrieve safe customer/listing/moderation context, explain why the ad was removed or flagged, clarify
+    whether the user can edit/repost/change it, and escalate only if the reason cannot be produced, the user requests review/restoration/human
+    support, or a human-only action is required.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

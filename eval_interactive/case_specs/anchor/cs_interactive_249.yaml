@@ -1,0 +1,75 @@
+case_id: cs_interactive_249
+source_session_id: 570Q5000008IwKHIA0
+source_dataset: golden
+form_context:
+  first_name: Ahmed
+  email: customer@example.com
+  topic_subject: Issue with Paid Job Ad Expiring Immediately
+  ad_id: ''
+  description: ''
+persona:
+  user_goal_summary: 'User paid for a 30-Day Booster Package, but his job advert expired immediately. He wants the ad reinstated
+    with the full 30-day duration and his phone number (07397 576230) added to the ad so applicants can contact him, plus
+    edit access. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Issue with Paid Job Ad Expiring Immediately
+  - I need urgent help.please I paid for a 30-Day Booster Package, but my job advert expired immediately due to a system issue.
+    I did not intend to expire the ad, and I have just paid for it today. Please restore my advert or reactivate it, as I
+    should still have 30 days remaining.
+  - 'Also, I need to add my phone number to the advert so applicants can contact me directly. Please enable the phone number
+    display or allow me to edit this section when you restore the ad. My phone number is: 07397 576230.'
+  hidden_facts:
+  - fact: The user paid for a 30-Day Booster Package on the same day.
+    disclose_when: When asked about the payment or booster details.
+  - fact: The user's phone number is 07397 576230.
+    disclose_when: When asked for contact phone number or to add phone number to ad.
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

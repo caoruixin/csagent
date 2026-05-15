@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008ZmLKIA0
+case_id_hint: row_361
+llm_model: deepseek-v4-pro
+prompt_hash: e89ccddbaa51e8ac0435d9097606bd82f4e9ecfed38bfe8ac0898c09e0abf954
+generated_at: '2026-04-30T20:31:57.146631+00:00'
+llm_confidence: high
+llm_rationale: Replaced the closing/thanks seed message with an issue-describing turn. Updated user_goal_summary to be specific
+  and actionable. Added hidden_facts based on agent's discovery about wrong category and user's item.
+rule_draft:
+  seed_messages:
+  - Is gumtree not free to post for sale anymore?
+  - Ive not added features and still not giving options to post
+  - Ill try thanks never had issue before
+  user_goal_summary: 'User reports Account Support: Is gumtree not free to post anymore ?. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Is gumtree not free to post for sale anymore?
+  - Ive not added features and still not giving options to post
+  - It's a mobile phone but low sale price so not want to pay to post ?
+  user_goal_summary: 'User wants to post a mobile phone ad for free but is being prompted to pay despite not selecting any
+    features. They need help posting in the correct free category. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Your ad was posted in the Services category, not the For Sale category.
+    disclose_when: when agent investigates why you are being charged
+accepted_value:
+  seed_messages:
+  - Is gumtree not free to post for sale anymore?
+  - Ive not added features and still not giving options to post
+  - It's a mobile phone but low sale price so not want to pay to post ?
+  user_goal_summary: 'User wants to post a mobile phone ad for free but is being prompted to pay despite not selecting any
+    features. They need help posting in the correct free category. Drift: soft_shift.'
+  hidden_facts:
+  - fact: Your ad was posted in the Services category, not the For Sale category.
+    disclose_when: when agent investigates why you are being charged
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''You are trying to sell a mobile phone at a low price.'''

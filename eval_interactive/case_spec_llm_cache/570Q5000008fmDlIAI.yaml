@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008fmDlIAI
+case_id_hint: row_101
+llm_model: deepseek-v4-pro
+prompt_hash: 00826ac7414e9895e2d873d6155f314320fd8bd8d54d76918fe62666dcf05646
+generated_at: '2026-04-30T13:29:55.926282+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and accurately capture the issue. User goal summary expanded
+  to specifically describe the user's request. No additional hidden facts are present in the transcript beyond what is already
+  stated.
+rule_draft:
+  seed_messages:
+  - Good morning, I sold an item on Gumtree and posted it through Evri. The parcel seems to be lost. My question is, am I
+    as the seller liable to refund the purchase? I did tell the buyer that I will use Standard delivery only, before he bought
+    it. Maybe you can tell me what the right thing is to do.
+  - The id is 1507513803, thank you!
+  - The package was not received. I sent it on 14/12 and still shows it is with Evri
+  user_goal_summary: 'User reports Delivery: Parcel lost. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Good morning, I sold an item on Gumtree and posted it through Evri. The parcel seems to be lost. My question is, am I
+    as the seller liable to refund the purchase? I did tell the buyer that I will use Standard delivery only, before he bought
+    it. Maybe you can tell me what the right thing is to do.
+  - The id is 1507513803, thank you!
+  - The package was not received. I sent it on 14/12 and still shows it is with Evri
+  user_goal_summary: 'User is a seller on Gumtree who shipped an item via Evri, and it got lost. They want to know if they
+    must refund the buyer, and what steps to take. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Good morning, I sold an item on Gumtree and posted it through Evri. The parcel seems to be lost. My question is, am I
+    as the seller liable to refund the purchase? I did tell the buyer that I will use Standard delivery only, before he bought
+    it. Maybe you can tell me what the right thing is to do.
+  - The id is 1507513803, thank you!
+  - The package was not received. I sent it on 14/12 and still shows it is with Evri
+  user_goal_summary: 'User is a seller on Gumtree who shipped an item via Evri, and it got lost. They want to know if they
+    must refund the buyer, and what steps to take. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

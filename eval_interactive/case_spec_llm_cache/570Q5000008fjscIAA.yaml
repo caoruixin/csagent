@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008fjscIAA
+case_id_hint: row_242
+llm_model: deepseek-v4-pro
+prompt_hash: 1f9f200469be02a84042d331c1f55c5064fa32e6f6cc3e4dabbd12f0bac7fee5
+generated_at: '2026-04-30T19:37:08.362710+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and describe the core issue. User goal refined to specific need.
+  Hidden fact derived from transcript context.
+rule_draft:
+  seed_messages:
+  - The option to use " Phone Only " is not there when I try to list an addI am away from my computer all day.
+  - Please cotacting me by email on [EMAIL] Thanks for your help, Thierry
+  - Is this a recent change to contact details?
+  user_goal_summary: 'User reports Account Support: I can''t seem to use "Phone Only" on contact details when placing an add.
+    Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - The option to use " Phone Only " is not there when I try to list an addI am away from my computer all day.
+  - Please cotacting me by email on [EMAIL] Thanks for your help, Thierry
+  - Is this a recent change to contact details?
+  user_goal_summary: 'The user wants to post a new Gumtree ad and select the ''Phone Only'' contact option, but the email
+    deselection checkbox is missing from the contact details interface. Drift: soft_shift.'
+  hidden_facts:
+  - fact: I am away from my computer all day, so email is not convenient.
+    disclose_when: when bot asks about the reason for preferring phone-only contact or the urgency
+accepted_value:
+  seed_messages:
+  - The option to use " Phone Only " is not there when I try to list an addI am away from my computer all day.
+  - Please cotacting me by email on [EMAIL] Thanks for your help, Thierry
+  - Is this a recent change to contact details?
+  user_goal_summary: 'The user wants to post a new Gumtree ad and select the ''Phone Only'' contact option, but the email
+    deselection checkbox is missing from the contact details interface. Drift: soft_shift.'
+  hidden_facts:
+  - fact: I am away from my computer all day, so email is not convenient.
+    disclose_when: when bot asks about the reason for preferring phone-only contact or the urgency
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

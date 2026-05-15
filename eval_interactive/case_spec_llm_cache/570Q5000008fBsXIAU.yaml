@@ -1,0 +1,32 @@
+source_session_id: 570Q5000008fBsXIAU
+case_id_hint: cs_interactive_066
+llm_model: deepseek-v4-pro
+prompt_hash: cf42f5637ed34671169cf182a515ab7fc72a859e649b7035624f99ec05109005
+generated_at: '2026-05-04T21:40:17.028283+00:00'
+llm_confidence: medium
+llm_rationale: Removed non-issue-bearing acknowledgment from seed_messages, keeping only the account-providing turn. Updated
+  summary to be concise and correct typo. No hidden facts identifiable from transcript.
+rule_draft:
+  seed_messages:
+  - Should be [EMAIL]
+  - Ok thank you
+  user_goal_summary: 'User reports Account Support: Why am I not getting the option to add my phone number as a point of contact
+    when listening an item any more. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - Should be [EMAIL]
+  user_goal_summary: 'User wants to know why the option to add a phone number as a point of contact is missing when listing
+    an item. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Should be [EMAIL]
+  - Ok thank you
+  user_goal_summary: 'User reports Account Support: Why am I not getting the option to add my phone number as a point of contact
+    when listening an item any more. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+acceptance_reason: rule_fallback_low_confidence
+validation_notes: []

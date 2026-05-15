@@ -1,0 +1,71 @@
+case_id: cs_interactive_042
+source_session_id: 570Q5000008fHI1IAM
+source_dataset: intake_tool_contract
+form_context:
+  first_name: Behnam
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: the ad doesnt show my phone number. it only shows email address
+persona:
+  user_goal_summary: 'The user wants their Gumtree ad listings to display their phone number as before, but currently only
+    the email is shown. Drift: minor_drift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: minor
+  seed_messages:
+  - No I don't see that anymore
+  - I always had my number and my email but now it's only email
+  - it wasnt like this before
+  hidden_facts:
+  - fact: User's three ad IDs are 1508254078, 1508254101, and 1508254130.
+    disclose_when: When the bot asks for ad IDs or more details about the affected listings.
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs:
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason user_distress.
+  escalation_trigger: user_distress
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

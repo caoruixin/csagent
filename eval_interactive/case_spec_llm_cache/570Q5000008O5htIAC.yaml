@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008O5htIAC
+case_id_hint: cs_interactive_007
+llm_model: deepseek-v4-pro
+prompt_hash: 09b2731a199278f367e1026d604b11f4609e93399b6aa12ed4297236fc2b5c7e
+generated_at: '2026-04-30T10:35:00.485455+00:00'
+llm_confidence: high
+llm_rationale: Draft seed_messages included 'Thx', which is a closing pleasantry. Replaced it with the user's refund request
+  from turn 19. Updated user_goal_summary to succinctly state the user's actual goal. No hidden facts added, as the transcript
+  surfaces all actionable details during the chat.
+rule_draft:
+  seed_messages:
+  - The ad id is [EMAIL]
+  - I have 2 pending payment at my bank accoumt, i just promote once and i dont know why there is two payment
+  - Thx
+  user_goal_summary: 'User reports Payments: Hi, i just promote my ad with top ad $9.99,but it appear my bank account have
+    2 pending payment which is 11 dec10.10 same time, can you help me to solve it, it may charge me twice, thx. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - The ad id is [EMAIL]
+  - I have 2 pending payment at my bank accoumt, i just promote once and i dont know why there is two payment
+  - If the payment go tru,.pls help to.make.refind for.me
+  user_goal_summary: 'User wants to resolve duplicate charge after promoting a Guinea pig ad for $9.99. They saw two pending
+    payments on their bank account and want the extra one refunded and an explanation. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - The ad id is [EMAIL]
+  - I have 2 pending payment at my bank accoumt, i just promote once and i dont know why there is two payment
+  - If the payment go tru,.pls help to.make.refind for.me
+  user_goal_summary: 'User wants to resolve duplicate charge after promoting a Guinea pig ad for $9.99. They saw two pending
+    payments on their bank account and want the extra one refunded and an explanation. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008afT3IAI
+case_id_hint: row_332
+llm_model: deepseek-v4-pro
+prompt_hash: 5e6c0222dfccb8948a517a62cf95e13dd0cb6d42087080b3e0a0138adbddde82
+generated_at: '2026-04-30T20:01:09.643940+00:00'
+llm_confidence: high
+llm_rationale: The seed message is a direct verbatim issue-bearing visitor turn from the transcript. User goal is clearly
+  about locating a missing ad. Hidden fact about confirmation email is grounded in agent's mention.
+rule_draft:
+  seed_messages:
+  - Where do I find that if I can't find my ad?
+  user_goal_summary: 'User reports Technical Support: Posted an ad, it was confirmed, I logged in. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Where do I find that if I can't find my ad?
+  user_goal_summary: 'She wants help locating her ad that she cannot find after posting and receiving confirmation. Drift:
+    soft_shift.'
+  hidden_facts:
+  - fact: She received an email confirmation for the ad, which contains the ad ID.
+    disclose_when: when the agent asks for the ad ID or email confirmation
+accepted_value:
+  seed_messages:
+  - Where do I find that if I can't find my ad?
+  user_goal_summary: 'She wants help locating her ad that she cannot find after posting and receiving confirmation. Drift:
+    soft_shift.'
+  hidden_facts:
+  - fact: She received an email confirmation for the ad, which contains the ad ID.
+    disclose_when: when the agent asks for the ad ID or email confirmation
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

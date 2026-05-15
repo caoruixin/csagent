@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008t4zFIAQ
+case_id_hint: row_39
+llm_model: deepseek-v4-pro
+prompt_hash: 5dfaa5aa75cc429cf675bc31d2250945b44402e40369eef9b015848f691f4731
+generated_at: '2026-04-30T13:12:05.246881+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting and non-issue seed messages with verbatim issue-bearing turns from the transcript. Updated
+  user goal to reflect the specific request to approve the warning ad. Added hidden facts about evidence derived from the
+  transcript to enhance simulation fidelity.
+rule_draft:
+  seed_messages:
+  - Hi Monisha
+  - I posted an ad to warn other Gumtree users, it's "under review", it would help me and others if the ad is allowed so people
+    know what she looks like and the serial numbers of her counterfeit notes, so they do not fall foul of her crimes too.
+    https://www.gumtree.com/p/freebies/beware-of-this-fraudster-michelle-who-pays-with-counterfeit-notes/1509035262
+  - OK, thank you, I will be reporting her crimes to the police and action fraud.
+  user_goal_summary: 'User reports Report a Safety Issue: Fraudster going by the name ''Michelle'' paying for items with counterfeit
+    notes. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I posted an ad to warn other Gumtree users, it's "under review", it would help me and others if the ad is allowed so people
+    know what she looks like and the serial numbers of her counterfeit notes, so they do not fall foul of her crimes too.
+    https://www.gumtree.com/p/freebies/beware-of-this-fraudster-michelle-who-pays-with-counterfeit-notes/1509035262
+  - £50, 1x genuine £10 note and 2x counterfeit £20 notes, both with the serial DK92 639731
+  - 'The fraudster''s profile is: https://www.gumtree.com/profile/account/d6fe299c4bf1cd9515043884ab055c06'
+  user_goal_summary: 'User wants his warning ad about a counterfeit note fraudster to be approved so others can see the fraudster''s
+    appearance and note serial numbers to avoid being scammed. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I posted an ad to warn other Gumtree users, it's "under review", it would help me and others if the ad is allowed so people
+    know what she looks like and the serial numbers of her counterfeit notes, so they do not fall foul of her crimes too.
+    https://www.gumtree.com/p/freebies/beware-of-this-fraudster-michelle-who-pays-with-counterfeit-notes/1509035262
+  - £50, 1x genuine £10 note and 2x counterfeit £20 notes, both with the serial DK92 639731
+  - 'The fraudster''s profile is: https://www.gumtree.com/profile/account/d6fe299c4bf1cd9515043884ab055c06'
+  user_goal_summary: 'User wants his warning ad about a counterfeit note fraudster to be approved so others can see the fraudster''s
+    appearance and note serial numbers to avoid being scammed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''I have doorbell footage of the fraudster handing over the counterfeit notes.'''
+- 'unsupported_hidden_fact_dropped: ''I am awaiting additional CCTV footage from the police.'''

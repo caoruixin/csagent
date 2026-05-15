@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008fpLJIAY
+case_id_hint: row_366
+llm_model: deepseek-v4-pro
+prompt_hash: d8c3031ef6698b6ac8167a0b8c213366c5c41b3ee374e3d9a5164cf31d2ed149
+generated_at: '2026-04-30T20:33:53.562646+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns that express the core issue. User goal summary rewritten to describe
+  the user's actual desires based on the transcript. No hidden facts are needed as all relevant information is already disclosed.
+rule_draft:
+  seed_messages:
+  - 'Well here''s some feedback: getting quite a lot of views and no responses so I would say not a successful trial. There
+    appears to have been no warning or announcement of that by the way?'
+  - Utterly, utterly stupid.
+  - What? How on earth are you supposed to arrange collection/pick up of items safely?
+  user_goal_summary: 'User reports Technical Support: Whay has my phone contact been taken off my ad?. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - 'Well here''s some feedback: getting quite a lot of views and no responses so I would say not a successful trial. There
+    appears to have been no warning or announcement of that by the way?'
+  - Utterly, utterly stupid.
+  - What? How on earth are you supposed to arrange collection/pick up of items safely?
+  user_goal_summary: 'User wants the option to list their phone number restored and a safe way to arrange item collection
+    without phone numbers. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - 'Well here''s some feedback: getting quite a lot of views and no responses so I would say not a successful trial. There
+    appears to have been no warning or announcement of that by the way?'
+  - Utterly, utterly stupid.
+  - What? How on earth are you supposed to arrange collection/pick up of items safely?
+  user_goal_summary: 'User wants the option to list their phone number restored and a safe way to arrange item collection
+    without phone numbers. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

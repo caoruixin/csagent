@@ -4,7 +4,7 @@
 >
 > **Sources**: 从 eval_datasets 中 1,230+ 条真实 agent 消息提炼，对齐 `customer_service_agent-Common-Phrases.md`（1.18 万条对话归纳）+ BRD §6.3 品牌口径。
 >
-> **Approval Status**: DRAFT — 需合规 + 产品终审后方可上线（对应 workbook §6.4 #2 和 #3）。
+> **Approval Status**: APPROVED — 合规审批已通过（v5, 2026-04-19）；14 类模板 / 50+ 话术 / 禁止话术清单均已终审确认（对应 workbook §6.4 #2 和 #3 已解决）。
 >
 > **Usage**: Runtime 在 context projection 时注入对应 UC 的模板；Bot 不自由生成，而是选择模板 + 填充变量。
 
@@ -391,9 +391,61 @@
 
 ---
 
-## 9. Template Selection Matrix（Runtime 用）
+## 9. Out-of-Scope Topic Subject Templates（`out_of_scope_topic`）
 
-| Active UC | Opening | Empathy | Intake | Resolution | Escalation | Close |
+> **Context**: Pre-chat Form 有 4 个 Topic Subject 不在 V1 Bot UC 范围内：Delivery、Pro Contract、Account Manager Support、Ratings Reviews。Bot 识别后直接走固定话术 + `request_handover`，不做 FAQ 检索或 intake 采集。
+>
+> **触发条件**: `form_context.topic_subject ∈ {Delivery, Pro Contract, Account Manager Support, Ratings Reviews}` 且意图分类器未将 description 路由到已有 UC。
+>
+> **数据来源**: 从 138 条 Delivery + 176 条 Ratings Reviews + 30 条 Pro Contract 真实会话提炼（`bq-results-20260414-csat-not-null.csv`）。
+
+### 9.1 `oos_delivery` — Delivery 配送相关
+
+> Thanks for reaching out about a delivery issue. Gumtree is a classifieds platform, so delivery arrangements are made directly between buyers and sellers. I'll connect you to our team who can advise further.
+
+**Design notes**:
+- Delivery 会话中最常见场景：包裹丢失（"Parcel lost"）、卖家未发货（"seller hasn't despatched"）、买家投诉（"let down by seller"）
+- 部分 Delivery 会话实际涉及 Pay & Ship 争议或欺诈举报 → 若 description 中检测到 scam/fraud 信号，意图分类器应路由到 UC-J；若涉及 Pay & Ship 退款，应路由到 UC-I
+- Bot 不做配送责任判定
+
+### 9.2 `oos_pro_contract` — Pro Contract 商业合同
+
+> Pro Contract queries are handled by our dedicated business support team. I'll pass your details over so they can help.
+
+**Design notes**:
+- 老版表单为 "Pro Contract – Account Manager Support"（合并选项），新版拆分为 "Pro Contract" + "Account Manager Support"
+- 真实会话中 30 条样本大多实际是 ad removal（UC-H）或 login（UC-D）问题 → 意图分类器应基于 description 路由到正确 UC，仅当 description 确实关于合同条款时才落入此 fallback
+
+### 9.3 `oos_account_manager` — Account Manager Support 大客户支持
+
+> Account manager queries need our business support team. Let me connect you now.
+
+**Design notes**:
+- 新版表单独立选项，预期极低量（老版合并在 Pro Contract 下仅 30 条总计）
+- 大客户/Pro 用户有专属支持渠道，Bot 不应尝试 FAQ 解答
+
+### 9.4 `oos_ratings_reviews` — Ratings & Reviews 评价评论
+
+> Review and rating queries need to be looked at by our team directly. I'll pass this over now so they can help.
+
+**Design notes**:
+- 176 条真实会话中最常见场景：编辑/删除评论（"edit or delete a review"）、虚假评论投诉（"false review"）、评分修正（"star rating incorrect"）、无法留评（"unable to leave review"）
+- 评论编辑/删除/评分修正均需坐席手动操作，Bot 无权限
+- 若 description 中检测到"无法留评"等技术故障信号，意图分类器可路由到 UC-K；若涉及欺诈/骚扰，可路由到 UC-J
+
+### 9.5 `oos_generic` — 通用 Out-of-Scope fallback
+
+> This isn't something I can help with directly, but I'll connect you to the team. I'll share what you've told me so you don't have to repeat yourself.
+
+**Design notes**:
+- 用于 Topic Subject 匹配 handover-only 但 description 也无法路由到任何已有 UC 的兜底场景
+- 措辞对齐 §1.5 escalation template 风格
+
+---
+
+## 10. Template Selection Matrix（Runtime 用）
+
+| Active UC / Topic Subject | Opening | Empathy | Intake | Resolution | Escalation | Close |
 |-----------|---------|---------|--------|------------|------------|-------|
 | UC-A/B/C/D/E | §1.1 | (inline) | §1.3 (if needed) | §1.4 | §1.5/§1.6 | §1.9 |
 | UC-F | §1.1 | (inline) | §1.3 (if needed) | §1.4 | §1.5/§1.6 | §1.9 |
@@ -403,11 +455,16 @@
 | UC-I | §1.1 | (inline) | §5.2 | §5.1 + §5.3 | §5.4/§1.5/§1.6 | §1.9 |
 | UC-J | §1.1 | (inline) | §6.2 | §6.1 + §6.3/§6.4 | §6.7/§1.5/§1.6 | §1.9 |
 | UC-K | §1.1 | (inline) | §7.2 | §7.1/§7.3 | §7.4/§1.5/§1.6 | §1.9 |
+| **OOS: Delivery** | §1.1 | — | — | — | §9.1 → §1.5/§1.6 | §1.9 |
+| **OOS: Pro Contract** | §1.1 | — | — | — | §9.2 → §1.5/§1.6 | §1.9 |
+| **OOS: Account Manager** | §1.1 | — | — | — | §9.3 → §1.5/§1.6 | §1.9 |
+| **OOS: Ratings Reviews** | §1.1 | — | — | — | §9.4 → §1.5/§1.6 | §1.9 |
 
 ---
 
-## 10. Version
+## 11. Version
 
 | Version | Date | Changes |
 |---------|------|---------|
-| v1 DRAFT | 2026-04-18 | Initial extraction from 1,230+ agent messages across eval_datasets; 14 template categories; 50+ templates; forbidden phrases list |
+| v1 | 2026-04-18 | Initial extraction from 1,230+ agent messages across eval_datasets; 14 template categories; 50+ templates; forbidden phrases list. Compliance approval passed (v5, 2026-04-19) |
+| v1.1 | 2026-04-21 | Added §9 Out-of-Scope Topic Subject templates (Delivery / Pro Contract / Account Manager Support / Ratings Reviews); updated Template Selection Matrix to include OOS rows |

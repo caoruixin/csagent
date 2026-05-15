@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008maHVIAY
+case_id_hint: row_104
+llm_model: deepseek-v4-pro
+prompt_hash: 613b1a76d73075e0e2c3e92786428f723d3c704bfa518773e4975b2f7d0cd0d8
+generated_at: '2026-04-30T13:30:42.776586+00:00'
+llm_confidence: high
+llm_rationale: Replaced seed_messages with issue-bearing visitor turns from transcript; updated user_goal_summary to clearly
+  state user goal; added one hidden fact based on transcript evidence.
+rule_draft:
+  seed_messages:
+  - Thank you , [EMAIL]
+  - Well please let me know asap as ive paid money too list it and I expect it too be up advertised for the full period i
+    paid for
+  - So where do I stand
+  user_goal_summary: 'User reports Account Support: Hi, ive just paid too put my car up for sale and its in my inactive ads
+    section , have you removed it???. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - As i just paid too list my car and its been removed?????
+  - Well please let me know asap as ive paid money too list it and I expect it too be up advertised for the full period i
+    paid for
+  - So where do I stand
+  user_goal_summary: 'User wants their car ad, which they paid to list, to be made active and remain advertised for the full
+    paid period. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - As i just paid too list my car and its been removed?????
+  - Well please let me know asap as ive paid money too list it and I expect it too be up advertised for the full period i
+    paid for
+  - So where do I stand
+  user_goal_summary: 'User wants their car ad, which they paid to list, to be made active and remain advertised for the full
+    paid period. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user paid to list their car on Gumtree and the ad was then placed in the inactive
+  section.'''

@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008hHozIAE
+case_id_hint: row_100
+llm_model: deepseek-v4-pro
+prompt_hash: a9e786b3a228490e8b6343db109ac8b50d0668ed09a4d7831b19d2d8e7b571ac
+generated_at: '2026-04-30T13:30:16.924353+00:00'
+llm_confidence: high
+llm_rationale: All seed_messages are verbatim from visitor turns describing the issue. user_goal_summary refined to specific
+  factual need. hidden_facts added from transcript.
+rule_draft:
+  seed_messages:
+  - It has happened recently. It concerns the account I have which is registered under the email address [EMAIL] . I am receiving
+    marketing emails from you to that address but I am not receiving emails as I try to change my forgotten password.
+  - Can I download this conversation?
+  - I have used a device which doesn't have the app on it. The resets have still failed due to no reset email arriving.
+  user_goal_summary: 'User reports Technical Support: I have lost access to my account. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - It has happened recently. It concerns the account I have which is registered under the email address [EMAIL] . I am receiving
+    marketing emails from you to that address but I am not receiving emails as I try to change my forgotten password.
+  - Can I download this conversation?
+  - I have used a device which doesn't have the app on it. The resets have still failed due to no reset email arriving.
+  user_goal_summary: 'Wants to reset forgotten password but no reset email arrives despite trying multiple devices and browsers;
+    also wants to download chat transcript. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user has the mobile app installed on their phone.
+    disclose_when: when asked about app installation
+accepted_value:
+  seed_messages:
+  - It has happened recently. It concerns the account I have which is registered under the email address [EMAIL] . I am receiving
+    marketing emails from you to that address but I am not receiving emails as I try to change my forgotten password.
+  - Can I download this conversation?
+  - I have used a device which doesn't have the app on it. The resets have still failed due to no reset email arriving.
+  user_goal_summary: 'Wants to reset forgotten password but no reset email arrives despite trying multiple devices and browsers;
+    also wants to download chat transcript. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user has the mobile app installed on their phone.
+    disclose_when: when asked about app installation
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user tried password resets on the phone app and two different browsers, but never
+  after uninstalling the app.'''

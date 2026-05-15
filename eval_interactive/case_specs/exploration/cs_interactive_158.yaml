@@ -1,0 +1,74 @@
+case_id: cs_interactive_158
+source_session_id: 570Q5000008dEg1IAE
+source_dataset: escalation
+form_context:
+  first_name: Regan
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Not sure why my advert has been removed immediately after posting? It says I’ll be emailed why but I have not
+    received anything to explain
+persona:
+  user_goal_summary: 'User wants to know why their recently posted advert was removed and why their account was restricted,
+    and they have not received an email explanation. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - Why has my account been restricted?
+  - Ridiculous, can’t see any reason why this would be the case
+  - I’ve posted adverts a number of times a few years ago
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-H
+  secondary_ucs:
+  - UC-FP
+  - UC-D
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (ad_id_or_listing_url, registered_email), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason appeal_requires_human.
+  escalation_trigger: appeal_requires_human
+  risk_level: high
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008i0yzIAA
+case_id_hint: row_113
+llm_model: deepseek-v4-pro
+prompt_hash: 7261af9b309226715b6ddd7dd8197f20d8abcb1134a0236c98c122f21105efde
+generated_at: '2026-04-30T13:33:44.102877+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed_messages are verbatim quotes from visitor turns that clearly express the core issue. The
+  user_goal_summary was generic and not goal-oriented; it has been refined to reflect the user's actual objectives. Hidden
+  facts are directly supported by the transcript.
+rule_draft:
+  seed_messages:
+  - YOU KEEP REMOVING MY ADDS THIS IS DISGUSTING BEHAVIOUR NO VILATION ARE BEEN DONE
+  - well how can i keep my email address up to date if you stop use [EMAIL] was removed 2016
+  - plus in the uk its against the law to stop people from updating there email address
+  user_goal_summary: 'User reports Account Support: 60 LG TV. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - YOU KEEP REMOVING MY ADDS THIS IS DISGUSTING BEHAVIOUR NO VILATION ARE BEEN DONE
+  - well how can i keep my email address up to date if you stop use [EMAIL] was removed 2016
+  - plus in the uk its against the law to stop people from updating there email address
+  user_goal_summary: 'The user wants Gumtree to remove the hold on their account, allow them to post ads for a 60 LG TV, and
+    update their registered email address. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - YOU KEEP REMOVING MY ADDS THIS IS DISGUSTING BEHAVIOUR NO VILATION ARE BEEN DONE
+  - well how can i keep my email address up to date if you stop use [EMAIL] was removed 2016
+  - plus in the uk its against the law to stop people from updating there email address
+  user_goal_summary: 'The user wants Gumtree to remove the hold on their account, allow them to post ads for a 60 LG TV, and
+    update their registered email address. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user is trying to sell a 60-inch LG TV but their account is on hold.'''
+- 'unsupported_hidden_fact_dropped: "The user''s primary email is ymall@aol.com."'

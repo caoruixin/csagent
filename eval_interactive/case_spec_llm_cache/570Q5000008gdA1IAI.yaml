@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008gdA1IAI
+case_id_hint: row_215
+llm_model: deepseek-v4-pro
+prompt_hash: c93a2041dcace34307b92a9beda3a8c0a100f39d41e5db2b2e5a4e5d6c110f4d
+generated_at: '2026-04-30T19:26:06.289807+00:00'
+llm_confidence: high
+llm_rationale: Replaced original seed messages with visitor turns that describe the actual issue (only wanted bump up, mistaken
+  double payment, recent timing). User goal summary updated to be more specific about the desire for a refund. Added hidden
+  facts about ad ID and payment timing from the transcript.
+rule_draft:
+  seed_messages:
+  - Where can I find the number
+  - Phone number please
+  - Complaints department please
+  user_goal_summary: 'User reports Account Support: I just paid to Boost my ad but I think I paid twice. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I just want the bump up
+  - I thought it was just paying for the bump up please cancel
+  - It was like 30 mins ago
+  user_goal_summary: 'The user wants a refund for the mistaken homepage spotlight payment because they only intended to pay
+    for the bump up. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's ad ID is 1507950107.
+    disclose_when: when asked for ad ID or reference number
+accepted_value:
+  seed_messages:
+  - I just want the bump up
+  - I thought it was just paying for the bump up please cancel
+  - It was like 30 mins ago
+  user_goal_summary: 'The user wants a refund for the mistaken homepage spotlight payment because they only intended to pay
+    for the bump up. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's ad ID is 1507950107.
+    disclose_when: when asked for ad ID or reference number
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The payment was made approximately 30 minutes prior to contacting support.'''

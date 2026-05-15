@@ -1,0 +1,38 @@
+source_session_id: 570Q50000090VmbIAE
+case_id_hint: row_110
+llm_model: deepseek-v4-pro
+prompt_hash: 8d52976238cabeb430d9100909cd80f75da3a73f3bb9fe4e2488d868c7e274f4
+generated_at: '2026-04-30T13:32:51.955957+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting/sign-off seed messages with actual issue-bearing turns from the transcript (seq 4 and 12).
+  Updated user_goal_summary to reflect the specific issue and added relevant hidden facts grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Hi Courtney I was disconnected from previous chat
+  - All the best
+  - What's the problem? its my phone I have full paper work from Apple
+  user_goal_summary: 'User reports Account Support: Iphone 15 pro max. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - My add was removed, I dont know why?
+  - What's the problem? its my phone I have full paper work from Apple
+  user_goal_summary: 'User wants to understand why their Gumtree ad was removed and to get it reinstated; they have full Apple
+    paperwork for the iPhone they were selling and were disconnected from a previous chat. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's reference number from a previous interaction is 1509362225.
+    disclose_when: When asked for a reference number or to help locate the case.
+accepted_value:
+  seed_messages:
+  - My add was removed, I dont know why?
+  - What's the problem? its my phone I have full paper work from Apple
+  user_goal_summary: 'User wants to understand why their Gumtree ad was removed and to get it reinstated; they have full Apple
+    paperwork for the iPhone they were selling and were disconnected from a previous chat. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user's reference number from a previous interaction is 1509362225.
+    disclose_when: When asked for a reference number or to help locate the case.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user has full Apple paperwork for the iPhone 15 Pro Max.'''

@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008QWinIAG
+case_id_hint: row_340
+llm_model: deepseek-v4-pro
+prompt_hash: 6a3c08f9673ec7923c899b944babef4a8fb6a3943bb925b29c912ba49f0db7cb
+generated_at: '2026-04-30T20:26:20.144466+00:00'
+llm_confidence: high
+llm_rationale: The seed message 'How do I do this' is a verbatim visitor turn expressing the need for instructions. The user
+  goal summary is refined to focus on the specific instructions she wants, fitting within the character limit. Hidden facts
+  are derived from the pre-chat description and the agent's statement in the transcript.
+rule_draft:
+  seed_messages:
+  - How do I do this
+  user_goal_summary: 'User reports Account Support: Got an e-mail someone has sent a message about my ad but I caant et into
+    messages on my gumtree. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: terse
+llm_proposal:
+  seed_messages:
+  - How do I do this
+  user_goal_summary: 'She wants to know how to delete the Gumtree app, clear cache and cookies, and redownload it so she can
+    access a message about her ad. Drift: soft_shift.'
+  hidden_facts:
+  - fact: She has an inquiry at 14/12/2025 at 19:00 about her ad.
+    disclose_when: when the bot asks for specifics or timing
+accepted_value:
+  seed_messages:
+  - How do I do this
+  user_goal_summary: 'She wants to know how to delete the Gumtree app, clear cache and cookies, and redownload it so she can
+    access a message about her ad. Drift: soft_shift.'
+  hidden_facts:
+  - fact: She has an inquiry at 14/12/2025 at 19:00 about her ad.
+    disclose_when: when the bot asks for specifics or timing
+  verbosity: terse
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''She received an email about a message on her ad but cannot access her Gumtree messages.'''

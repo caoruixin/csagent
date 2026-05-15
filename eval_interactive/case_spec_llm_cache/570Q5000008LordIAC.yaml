@@ -1,0 +1,46 @@
+source_session_id: 570Q5000008LordIAC
+case_id_hint: row_121
+llm_model: deepseek-v4-pro
+prompt_hash: 521379723d2db5e4b7b72d1b53523bca5b3e219a0adba951db1338ac97607625
+generated_at: '2026-04-30T13:35:44.654523+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and capture the core issue. User goal summary refined to specific
+  desires. Hidden facts added from transcript details.
+rule_draft:
+  seed_messages:
+  - Hi, I placed an ad a few weeks ago and paid £7.99 - I was not aware it was a subscription and was just charged another
+    £7.99 - please note I have had no enquiries so was a bit frustrated to be charged again. I have deleted the ad, please
+    can you confirm if I will be refunded for the most recent charge?
+  - So what does this mean please?
+  - Your auto renewal has been cancelled
+  user_goal_summary: 'User reports Help. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hi, I placed an ad a few weeks ago and paid £7.99 - I was not aware it was a subscription and was just charged another
+    £7.99 - please note I have had no enquiries so was a bit frustrated to be charged again. I have deleted the ad, please
+    can you confirm if I will be refunded for the most recent charge?
+  - So what does this mean please?
+  - Your auto renewal has been cancelled
+  user_goal_summary: 'User wants a refund for the second £7.99 charge, cancellation of auto-renewal, and explanation for why
+    they were charged again after deleting the ad. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user received an email confirming 'Your auto renewal has been cancelled'.
+    disclose_when: When asked about the auto-renewal status or if the user mentions the email.
+accepted_value:
+  seed_messages:
+  - Hi, I placed an ad a few weeks ago and paid £7.99 - I was not aware it was a subscription and was just charged another
+    £7.99 - please note I have had no enquiries so was a bit frustrated to be charged again. I have deleted the ad, please
+    can you confirm if I will be refunded for the most recent charge?
+  - So what does this mean please?
+  - Your auto renewal has been cancelled
+  user_goal_summary: 'User wants a refund for the second £7.99 charge, cancellation of auto-renewal, and explanation for why
+    they were charged again after deleting the ad. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user received an email confirming 'Your auto renewal has been cancelled'.
+    disclose_when: When asked about the auto-renewal status or if the user mentions the email.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user forwarded that email to the address provided by the agent.'''

@@ -1,0 +1,66 @@
+case_id: cs76n02_uc_e_fulfillment_demand
+source_session_id: synthetic-sprint20-cs176-neighbor-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Aiden
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: I paid for 30 days Top Ad and only got 12. Either fix it or give me the days back.
+persona:
+  user_goal_summary: User is demanding either fulfillment (the missing 18 days of Top Ad) or a remediation; the escalation reason must be user_requested (user_intent), not faq_miss. Drift - none.
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - I have the receipt, it says 30 days
+  - what's it going to be?
+  hidden_facts:
+  - fact: The user has a screenshot of the order confirmation showing 30 days.
+    disclose_when: if the bot asks for proof of the order
+  will_request_human_if: from the first turn
+expected:
+  outcome_class: escalate
+  primary_uc: UC-E
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the explicit fulfillment-or-refund demand, restate the user's expectation back, run policy-mandated tools (request_handover, record_outcome), hand over with reason user_requested within 1-2 turns. Do NOT stamp faq_miss_threshold_exceeded.
+  escalation_trigger: user_requested
+  risk_level: medium
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 6
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - escalation_timing
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

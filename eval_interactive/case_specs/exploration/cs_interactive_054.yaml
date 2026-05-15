@@ -1,0 +1,89 @@
+case_id: cs_interactive_054
+source_session_id: 570Q5000008mLwpIAE
+source_dataset: handover
+form_context:
+  first_name: saif
+  email: customer@example.com
+  topic_subject: UNKNOWN
+  ad_id: ''
+  description: ''
+persona:
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - ive been trying to get in touch with someone responsible who can listen to my concern
+  - Dear Gumtree Advertising Team, I am writing this with genuine regret and a great deal of anxiety, and I would like to
+    sincerely apologise for having to make this request. When I agreed to the six-month advertising contract, I truly believed
+    it would bring a reasonable and timely flow of relevant leads. I entered into the agreement with hope and good faith,
+    trusting that the initial grace period before the first payment would allow enough time for leads and conversions to start
+    coming through. Unfortunately, that has not happened. I have not received a single relevant or quality lead, and the £420
+    payment that has now been taken from my account has impacted me far more deeply than I ever expected. At this moment,
+    I am left with just £42 in my bank account, and I am struggling to manage even basic expenses. I want to stress that I
+    am not writing this to complain or place blame. I understand that advertising does not guarantee results, and I fully
+    accept responsibility for signing up. However, the reality is that I simply cannot afford to continue paying for advertising
+    that is not generating any meaningful enquiries or conversions. The financial strain has been overwhelming and honestly
+    quite distressing. I was truly relying on the expectation that the first six weeks would begin to produce leads that could
+    help cover the cost of the advertising. Sadly, that has not been the case, and continuing the contract is something I
+    genuinely cannot sustain. I am very sorry to ask for special consideration, but I am humbly and politely requesting that
+    the contract be cancelled. This request comes from a place of necessity rather than dissatisfaction. If required, I am
+    more than willing to share my bank statement as proof of my financial situation. I would be deeply grateful if you could
+    review my circumstances with compassion and understanding. Any flexibility or support you could offer would mean a great
+    deal to me, and I would truly appreciate your kindness in this matter. Thank you very much for taking the time to read
+    this. I sincerely apologise for any inconvenience this causes and appreciate your consideration more than I can express.
+    Kind regards, Saif
+  - not Muse or Tom as i have had a very bad experienced with both of them after i signed a contract 2 months ago,
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs:
+  - UC-H
+  - UC-K
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (registered_email, ad_id_or_order_reference, brief_description), and hand over with reason user_requested.
+  escalation_trigger: user_requested
+  risk_level: high
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

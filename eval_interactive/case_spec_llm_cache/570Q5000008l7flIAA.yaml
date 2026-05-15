@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008l7flIAA
+case_id_hint: cs_interactive_064
+llm_model: deepseek-v4-pro
+prompt_hash: 51c0771ebb637cbe7990f535aa504b3d5fba2da9a5e91d5f3e8502b080a16983
+generated_at: '2026-04-30T09:10:55.526946+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from transcript and capture the core issue. User goal summary succinctly describes
+  the user's desire. No hidden facts are apparent from the transcript beyond what's already stated.
+rule_draft:
+  seed_messages:
+  - Hi I posted 3 ads yesterday I've had 9 replies but have not had a message or email to let me know.
+  - Just received it
+  - I advertised a Volvo 10 ton bottle jack and had 6 replies on the stats but had nothing. [EMAIL]
+  user_goal_summary: 'User reports Ad Support: Not receiving replies. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi I posted 3 ads yesterday I've had 9 replies but have not had a message or email to let me know.
+  - Just received it
+  - I advertised a Volvo 10 ton bottle jack and had 6 replies on the stats but had nothing. [EMAIL]
+  user_goal_summary: 'User wants to receive messages and email notifications for replies to their posted ads. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi I posted 3 ads yesterday I've had 9 replies but have not had a message or email to let me know.
+  - Just received it
+  - I advertised a Volvo 10 ton bottle jack and had 6 replies on the stats but had nothing. [EMAIL]
+  user_goal_summary: 'User wants to receive messages and email notifications for replies to their posted ads. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

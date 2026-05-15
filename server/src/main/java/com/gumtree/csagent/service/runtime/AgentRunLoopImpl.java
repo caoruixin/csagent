@@ -1,0 +1,787 @@
+package com.gumtree.csagent.service.runtime;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gumtree.csagent.model.AgentRunResult;
+import com.gumtree.csagent.model.BotSession;
+import com.gumtree.csagent.model.BotTurn;
+import com.gumtree.csagent.model.LlmCallEvent;
+import com.gumtree.csagent.model.LlmResponse;
+import com.gumtree.csagent.model.ParsedAction;
+import com.gumtree.csagent.model.PhasePlan;
+import com.gumtree.csagent.model.ToolCall;
+import com.gumtree.csagent.model.ToolEvent;
+import com.gumtree.csagent.service.llm.LlmDeadlineExceededException;
+import com.gumtree.csagent.service.llm.LlmUnavailableException;
+import com.gumtree.csagent.service.tools.ToolDispatcher;
+import com.gumtree.csagent.service.tools.ToolResult;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Default {@link AgentRunLoop} implementation. Per Phase 3 §3.3.3 and Phase 4
+ * §D16.B.2, the loop:
+ *
+ * <ol>
+ *   <li>Builds a plan-aware projection (PhasePlan + accumulated tool results)</li>
+ *   <li>Invokes the LLM</li>
+ *   <li>Records an {@link LlmCallEvent} with a globally-monotonic sequence index</li>
+ *   <li>Parses the response for {@code tool_calls} / {@code user_message}</li>
+ *   <li>If no tool calls: returns {@link AgentRunResult#finalAnswer}</li>
+ *   <li>If tool calls: validates each against {@link PhasePlan#allowedTools()},
+ *       dispatches via {@link ToolDispatcher}, accumulates results, and loops</li>
+ * </ol>
+ *
+ * <p>Special cases:
+ * <ul>
+ *   <li>{@code request_handover} short-circuits to {@link AgentRunResult#escalate}</li>
+ *   <li>parser failure: treat raw response content as final user message</li>
+ *   <li>LLM exception: caught upstream by {@link LlmInvocationService} which
+ *       returns a safe-escalation response, so the parser sees a handover and
+ *       the loop terminates normally. As an additional safety net we still
+ *       catch any leaked exception and return {@link AgentRunResult#error}.</li>
+ *   <li>Tool dispatch exception: caught here and recorded as a failed
+ *       {@link ToolEvent}; loop continues so the LLM can react.</li>
+ *   <li>Loop hits {@link PhasePlan#maxToolSteps()} without termination:
+ *       returns {@link AgentRunResult#maxSteps}</li>
+ * </ul>
+ *
+ * <p>Sequence numbers are monotonic across {@link LlmCallEvent} and
+ * {@link ToolEvent} so trace UIs can replay the loop in order.
+ */
+@Slf4j
+@Service
+public class AgentRunLoopImpl implements AgentRunLoop {
+
+    private static final String HANDOVER_TOOL = "request_handover";
+    private static final String SEARCH_TOOL = "search_knowledge";
+    private static final String RESOLVE_TOOL = "resolve_article";
+    private static final String RECORD_OUTCOME_TOOL = "record_outcome";
+
+    /**
+     * Sprint 11 §M1 — record-outcome guard reject reason. Surfaced in
+     * {@code accumulated_tool_results.record_outcome.error} when the LLM
+     * tries to {@code record_outcome(outcome_class=resolve)} during a
+     * RESOLVE / FAQ plan before the deterministic terminal condition is
+     * satisfied (the user has not confirmed and the close phase has not
+     * been reached). The bot stays in RESOLVE so the next user turn can
+     * confirm or refine.
+     */
+    static final String PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON =
+            "progressive_resolve_record_outcome_premature";
+    /**
+     * Sprint 8.1 §M3 — DISCOVER classification phase boundary. When the
+     * LLM successfully calls this tool inside a DISCOVER plan and
+     * {@link com.gumtree.csagent.service.tools.ClassifyUseCaseTool}
+     * commits a non-blank {@code activeUseCase} on the session, the loop
+     * returns {@link com.gumtree.csagent.model.TerminalOutcome#USE_CASE_IDENTIFIED}
+     * immediately rather than continuing to {@code maxToolSteps} (which
+     * the legacy mapper would mis-map to ESCALATE).
+     */
+    private static final String CLASSIFY_USE_CASE_TOOL = "classify_use_case";
+    private static final String DISCOVER_PHASE = "DISCOVER";
+
+    /**
+     * Sprint 6 §G2 — S1 FAQ-grounded-resolve guard.
+     *
+     * <p>Refuses {@code request_handover(faq_miss_threshold_exceeded)} when
+     * {@code search_knowledge} already produced viable evidence
+     * ({@code faq_miss=false} with at least one hit) AND
+     * {@code resolve_article} has not yet been attempted in the current
+     * agent run. Anchors cs_192 (search-not-yet-run / uncited-answer
+     * shape, indirectly via the prompt nudge) and cs_259 (search-ran-
+     * but-resolve-did-not-complete shape, directly via this predicate).
+     *
+     * <p>The guard fires only on FAQ-path UCs in RESOLVE; intake,
+     * DISCOVER, CONFIRM, CLOSE, and ESCALATE are unaffected. If the
+     * search returned no viable hit (faq_miss=true) the
+     * {@code faq_miss_threshold_exceeded} handover is allowed through.
+     */
+    private static final Set<String> FAQ_PATH_UCS = Set.of(
+            "UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP"
+    );
+
+    private static final String FAQ_MISS_REASON = "faq_miss_threshold_exceeded";
+    static final String S1_GUARD_REJECT_REASON =
+            "s1_resolve_required_before_faq_miss_handover";
+
+    /**
+     * Sprint 7 §I2 — intake-complete guard reject reason. Surfaced in
+     * {@code accumulated_tool_results.request_handover.error} when the LLM
+     * calls {@code request_handover(intake_complete_for_uc_X)} for an
+     * intake UC before all required fields have actually been collected.
+     */
+    static final String INTAKE_COMPLETE_GUARD_REJECT_REASON =
+            "intake_required_fields_missing_for_intake_complete";
+
+    private final LlmInvocationService llmInvocation;
+    private final ToolDispatcher toolDispatcher;
+    private final ContextProjectionBuilder contextProjectionBuilder;
+    private final ActionParser actionParser;
+    private final ObjectMapper objectMapper;
+
+    public AgentRunLoopImpl(LlmInvocationService llmInvocation,
+                            ToolDispatcher toolDispatcher,
+                            ContextProjectionBuilder contextProjectionBuilder,
+                            ActionParser actionParser,
+                            ObjectMapper objectMapper) {
+        this.llmInvocation = llmInvocation;
+        this.toolDispatcher = toolDispatcher;
+        this.contextProjectionBuilder = contextProjectionBuilder;
+        this.actionParser = actionParser;
+        this.objectMapper = objectMapper;
+    }
+
+    @Override
+    public AgentRunResult run(PhasePlan plan,
+                              BotSession session,
+                              String userMessage,
+                              List<BotTurn> history) {
+        if (plan == null) {
+            log.error("AgentRunLoop.run called with null plan; returning error");
+            return AgentRunResult.error("plan_required");
+        }
+
+        List<LlmCallEvent> llmEvents = new ArrayList<>();
+        List<ToolEvent> toolEvents = new ArrayList<>();
+        Map<String, Object> accumulatedToolResults = new LinkedHashMap<>();
+        int sequence = 0;
+        String lastProjection = null;
+        String lastLlmRawResponse = null;
+
+        int maxSteps = Math.max(1, plan.maxToolSteps());
+
+        // Sprint 7.1 §J0 — persist partial intake fields from the current
+        // user turn + form context BEFORE the first projection so the
+        // intake_state surface reflects what the user has already supplied.
+        // Without this merge, ContextProjectionBuilder would only see fields
+        // the LLM persisted via request_handover.arguments.intake_fields,
+        // and a normal clarification turn would leave the projection
+        // showing every required field as still-remaining (cs066 stall
+        // shape). Runs once per user turn since userMessage / formContext
+        // are stable across loop iterations.
+        mergePartialIntakeFromContext(session, plan, userMessage);
+
+        for (int step = 0; step < maxSteps; step++) {
+            // 1. Build plan-aware projection.
+            //
+            // Sprint 20 Track B (R-prompt-projection-already-called-soft-
+            // signal): pass the per-run toolEvents list to the projection
+            // builder so it can surface an `already_called` slot listing
+            // every successful prior tool dispatch in this run. Slot is
+            // observability-only; no short-circuit on dispatch (see
+            // Sprint 19 §4.2 + Sprint 20 objective §"Defer (Track B)").
+            String projection;
+            try {
+                projection = contextProjectionBuilder.build(
+                        session, history, plan, userMessage, accumulatedToolResults,
+                        toolEvents);
+            } catch (Exception ex) {
+                log.error("AgentRunLoop projection build failed at step {}: {}",
+                        step, ex.getMessage(), ex);
+                return AgentRunResult.error("projection_failed: " + ex.getMessage());
+            }
+            lastProjection = projection;
+
+            // 2. Invoke LLM. Sprint 8.1 §M2: deadline / infra failures now
+            //    surface as typed exceptions (LlmInvocationService no longer
+            //    converts them into a synthetic SAFE_ESCALATION_RESPONSE).
+            //    Catch each one and return a TerminalOutcome that the K0
+            //    fallback gate can recognise as "no real LLM work happened" —
+            //    accumulated llmEvents / toolEvents are preserved so the
+            //    trace still reflects what ran before the failure.
+            long t0 = System.currentTimeMillis();
+            LlmResponse response;
+            try {
+                response = llmInvocation.invokeChat(projection, userMessage,
+                        session.getSessionId(), session.getTotalBotTurns());
+            } catch (LlmDeadlineExceededException ex) {
+                log.warn("AgentRunLoop llm deadline exceeded at step {}: {}", step, ex.getMessage());
+                return AgentRunResult.deadlineExceeded(
+                        "llm_deadline_exceeded: " + ex.getMessage(),
+                        llmEvents, toolEvents, lastProjection);
+            } catch (LlmUnavailableException ex) {
+                log.error("AgentRunLoop llm unavailable at step {} (failure_class={}): {}",
+                        step, ex.getFailureClass(), ex.getMessage());
+                return AgentRunResult.llmUnavailable(
+                        "llm_unavailable: failure_class=" + ex.getFailureClass()
+                                + " " + ex.getMessage(),
+                        llmEvents, toolEvents, lastProjection);
+            } catch (Exception ex) {
+                log.error("AgentRunLoop llm invocation failed at step {}: {}",
+                        step, ex.getMessage(), ex);
+                return AgentRunResult.error("llm_invocation_failed: " + ex.getMessage());
+            }
+            long latency = System.currentTimeMillis() - t0;
+            lastLlmRawResponse = response == null ? null : response.getContent();
+
+            // 3. Record LlmCallEvent with monotonic sequence index
+            LlmCallEvent base = LlmCallEvent.of(step, response, latency);
+            llmEvents.add(new LlmCallEvent(
+                    sequence++, step, base.model(), base.promptTokens(),
+                    base.completionTokens(), base.latencyMs(), base.responseSummary()));
+
+            // 4. Parse the response
+            String content = response == null ? null : response.getContent();
+            ParsedAction action;
+            try {
+                action = actionParser.parse(content);
+            } catch (Exception ex) {
+                log.warn("AgentRunLoop parse failure at step {}: {} — treating raw content as final user_message",
+                        step, ex.getMessage());
+                String fallbackMessage = (content == null || content.isBlank())
+                        ? "I'm having trouble processing your request."
+                        : content;
+                return AgentRunResult.finalAnswer(fallbackMessage, llmEvents, toolEvents,
+                        lastProjection, lastLlmRawResponse);
+            }
+
+            if (action == null) {
+                log.warn("AgentRunLoop parser returned null at step {}; treating raw content as final answer",
+                        step);
+                String fallbackMessage = (content == null || content.isBlank())
+                        ? "I'm having trouble processing your request."
+                        : content;
+                return AgentRunResult.finalAnswer(fallbackMessage, llmEvents, toolEvents,
+                        lastProjection, lastLlmRawResponse);
+            }
+
+            List<ToolCall> calls = action.getToolCalls();
+            String userMsg = action.getUserMessage();
+
+            // 5. No tool calls -> final user message (or clarification).
+            // Sprint 8.1 follow-up (2026-05-06): distinguish clarifying
+            // questions from real final answers so the phase mapper does
+            // not eagerly transition RESOLVE → CONFIRM → CLOSE while the
+            // bot is still asking the user for required details. The LLM
+            // routinely emits no-tool-call clarifications like "Can you
+            // confirm the ad ID?" which previously surfaced as
+            // FINAL_ANSWER and chained RESOLVE → CONFIRM (turn N) →
+            // CLOSE (turn N+1) — ending the chat mid-conversation. The
+            // existing PhaseEvaluator.isClarificationTurn helper detects
+            // the shape ("?"-suffix or clarifying phrase + no tool
+            // calls); we use the same predicate here so the AgentRunLoop
+            // and PhaseEvaluator agree on what counts as a clarification.
+            if (calls == null || calls.isEmpty()) {
+                String finalText = (userMsg == null || userMsg.isBlank())
+                        ? "I'm looking into this for you."
+                        : userMsg;
+                if (isClarificationMessage(finalText)) {
+                    return AgentRunResult.clarification(finalText, llmEvents, toolEvents,
+                            lastProjection, lastLlmRawResponse);
+                }
+                return AgentRunResult.finalAnswer(finalText, llmEvents, toolEvents,
+                        lastProjection, lastLlmRawResponse);
+            }
+
+            // 6. Dispatch each tool call
+            boolean handoverRequested = false;
+            String handoverReason = null;
+            for (ToolCall call : calls) {
+                String toolName = call == null ? null : call.getName();
+                if (toolName == null || toolName.isBlank()) {
+                    log.warn("AgentRunLoop received tool_call with no name at step {}", step);
+                    continue;
+                }
+
+                // 6a. Validate against PhasePlan.allowedTools whitelist
+                ToolResult validation = toolDispatcher.validateAgainstPlan(plan, toolName);
+                if (validation == null || !validation.isSuccess()) {
+                    String reason = validation == null
+                            ? "tool_not_in_plan"
+                            : validation.getErrorMessage();
+                    ToolEvent base2 = ToolEvent.rejected(step, call, reason);
+                    toolEvents.add(new ToolEvent(
+                            sequence++, step, base2.toolName(), base2.arguments(),
+                            base2.success(), base2.resultData(), base2.errorMessage(),
+                            base2.latencyMs()));
+                    continue;
+                }
+
+                // 6a''. Sprint 7 §I2 — intake-complete guard. Refuse
+                // request_handover(intake_complete_for_uc_X) when the
+                // session's intake_fields are not yet complete for the
+                // active UC. The LLM may also supply fields under
+                // arguments.intake_fields; merge those into
+                // session.intakeFields BEFORE evaluating the guard so a
+                // single complete handover call is allowed through.
+                if (HANDOVER_TOOL.equals(toolName)
+                        && IntakeFieldsRegistry.isIntakeUseCase(plan.useCase())) {
+                    persistInlineIntakeFields(session, call);
+                    if (shouldRejectIncompleteIntakeHandover(plan, call, session)) {
+                        Map<String, String> collected = IntakeFieldsRegistry.parseCollectedFields(
+                                objectMapper, session.getIntakeFields());
+                        List<String> missing = IntakeFieldsRegistry.fieldsRemaining(
+                                plan.useCase(), collected);
+                        log.warn(
+                                "AgentRunLoop intake-complete guard rejected request_handover for "
+                                        + "intake UC '{}' at step {}: required fields missing={}",
+                                plan.useCase(), step, missing);
+                        ToolEvent rejected = ToolEvent.rejected(step, call,
+                                INTAKE_COMPLETE_GUARD_REJECT_REASON);
+                        toolEvents.add(new ToolEvent(
+                                sequence++, step, rejected.toolName(), rejected.arguments(),
+                                rejected.success(), rejected.resultData(), rejected.errorMessage(),
+                                rejected.latencyMs()));
+                        Map<String, Object> guardWrap = new LinkedHashMap<>();
+                        guardWrap.put("error", INTAKE_COMPLETE_GUARD_REJECT_REASON);
+                        guardWrap.put("missing_fields", missing);
+                        guardWrap.put("hint",
+                                "Ask the user for the missing intake fields above, then call "
+                                        + "request_handover with arguments.intake_fields populated.");
+                        accumulatedToolResults.put(HANDOVER_TOOL, guardWrap);
+                        continue;
+                    }
+                }
+
+                // 6a''. Sprint 11 §M1 — record-outcome guard. Refuse
+                // record_outcome(outcome_class=resolve) on a RESOLVE / FAQ
+                // plan when the deterministic terminal condition has not
+                // been satisfied (the session is not in CONFIRM / CLOSE
+                // and the user has not explicitly confirmed). Without
+                // this guard, a single grounded RESOLVE answer can chain
+                // into record_outcome(resolve) on the same turn,
+                // collapsing same-UC progressive resolve ("Here is how
+                // to find your ad; send the advert ID if you want me to
+                // check it") into a hard close. Other outcome classes
+                // (escalate, abandon) and CONFIRM / CLOSE plans pass
+                // through unchanged.
+                if (RECORD_OUTCOME_TOOL.equals(toolName)
+                        && shouldRejectPrematureResolveOutcome(plan, session, call)) {
+                    log.warn(
+                            "AgentRunLoop progressive-resolve guard rejected record_outcome(resolve) "
+                                    + "for FAQ-path UC '{}' at step {}: deterministic terminal condition "
+                                    + "not satisfied (phase={}, no prior CONFIRM round).",
+                            plan.useCase(), step,
+                            session == null ? "?" : session.getCurrentPhase());
+                    ToolEvent rejected = ToolEvent.rejected(step, call,
+                            PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON);
+                    toolEvents.add(new ToolEvent(
+                            sequence++, step, rejected.toolName(), rejected.arguments(),
+                            rejected.success(), rejected.resultData(), rejected.errorMessage(),
+                            rejected.latencyMs()));
+                    Map<String, Object> guardWrap = new LinkedHashMap<>();
+                    guardWrap.put("error", PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON);
+                    guardWrap.put("hint",
+                            "Stay in RESOLVE and wait for the user to confirm the answer or "
+                                    + "supply more detail before recording a resolve outcome.");
+                    accumulatedToolResults.put(RECORD_OUTCOME_TOOL, guardWrap);
+                    // Sprint 12 §N0 — stamp the guard result on the
+                    // session so the kernel post-loop emits a
+                    // RECORD_OUTCOME_GUARD trace event and the projection
+                    // surfaces the canonical {@code
+                    // record_outcome_guard_result} field. Sticky across
+                    // the loop iterations: the first rejection wins so a
+                    // later allowed call does not erase the audit
+                    // signal (downstream readers can still see the
+                    // accumulated tool events).
+                    if (session != null && (session.getRecordOutcomeGuardResult() == null
+                            || session.getRecordOutcomeGuardResult().isBlank()
+                            || "none".equals(session.getRecordOutcomeGuardResult()))) {
+                        session.setRecordOutcomeGuardResult(
+                                "rejected:" + PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON);
+                    }
+                    continue;
+                }
+                // Sprint 12 §N0 — observability: record_outcome calls that
+                // pass the guard mark the session so the post-loop
+                // RECORD_OUTCOME_GUARD event captures the allowed branch
+                // for trace fidelity. A later rejection in the same loop
+                // overwrites this back to rejected via the branch above.
+                if (RECORD_OUTCOME_TOOL.equals(toolName) && session != null
+                        && (session.getRecordOutcomeGuardResult() == null
+                                || session.getRecordOutcomeGuardResult().isBlank()
+                                || "none".equals(session.getRecordOutcomeGuardResult()))) {
+                    session.setRecordOutcomeGuardResult("allowed");
+                }
+
+                // 6a'. Sprint 6 §G2 — S1 FAQ-grounded-resolve guard.
+                // Refuse request_handover(faq_miss_threshold_exceeded) when
+                // search_knowledge already returned viable evidence and
+                // resolve_article has not yet been attempted. The LLM is
+                // nudged toward calling resolve_article on the next loop
+                // iteration. Other handover reasons (user_requested,
+                // user_distress, out_of_scope, real Tier-2 reasons) pass
+                // through unchanged.
+                if (HANDOVER_TOOL.equals(toolName)
+                        && shouldRejectFaqMissHandover(plan, call, accumulatedToolResults)) {
+                    log.warn(
+                            "AgentRunLoop S1 guard rejected request_handover(faq_miss_threshold_exceeded) "
+                                    + "for FAQ-path UC '{}' at step {}: search_knowledge has viable evidence "
+                                    + "but resolve_article has not been attempted yet.",
+                            plan.useCase(), step);
+                    ToolEvent rejected = ToolEvent.rejected(step, call, S1_GUARD_REJECT_REASON);
+                    toolEvents.add(new ToolEvent(
+                            sequence++, step, rejected.toolName(), rejected.arguments(),
+                            rejected.success(), rejected.resultData(), rejected.errorMessage(),
+                            rejected.latencyMs()));
+                    // Surface the rejection in accumulated_tool_results so the
+                    // next LLM iteration sees the gap and can call resolve_article.
+                    Map<String, Object> guardWrap = new LinkedHashMap<>();
+                    guardWrap.put("error", S1_GUARD_REJECT_REASON);
+                    guardWrap.put("hint",
+                            "Call resolve_article for the top search_knowledge hit before "
+                                    + "escalating with faq_miss_threshold_exceeded.");
+                    accumulatedToolResults.put(HANDOVER_TOOL, guardWrap);
+                    continue;
+                }
+
+                // 6b. Dispatch and record event
+                long tt = System.currentTimeMillis();
+                ToolResult result;
+                try {
+                    result = toolDispatcher.dispatch(toolName, session, call.getArguments());
+                } catch (Exception ex) {
+                    log.warn("AgentRunLoop tool dispatch failed for '{}' at step {}: {}",
+                            toolName, step, ex.getMessage());
+                    ToolEvent failed = new ToolEvent(
+                            sequence++, step, toolName, call.getArguments(),
+                            false, null, "tool_dispatch_exception: " + ex.getMessage(),
+                            System.currentTimeMillis() - tt);
+                    toolEvents.add(failed);
+                    continue;
+                }
+                long toolLatency = System.currentTimeMillis() - tt;
+                ToolEvent base2 = ToolEvent.of(step, call, result, toolLatency);
+                toolEvents.add(new ToolEvent(
+                        sequence++, step, base2.toolName(), base2.arguments(),
+                        base2.success(), base2.resultData(), base2.errorMessage(),
+                        base2.latencyMs()));
+
+                // Sprint 12 §N0 — stamp terminal-evidence summary on the
+                // session as soon as a record_outcome dispatch lands so
+                // every run-loop exit path (final answer, escalate,
+                // max_steps, error) leaves the trace evidence consistent.
+                // The kernel post-loop helpers
+                // ({@code emitResolveDispositionEvent},
+                // {@code emitRecordOutcomeGuardEvent}) read these slots,
+                // and the projection surfaces them under
+                // {@code terminal_evidence}.
+                if (RECORD_OUTCOME_TOOL.equals(toolName) && session != null) {
+                    session.setRecordOutcomeAttempted(Boolean.TRUE);
+                    if (result != null && result.isSuccess()) {
+                        session.setRecordOutcomeSucceeded(Boolean.TRUE);
+                    } else if (session.getRecordOutcomeSucceeded() == null) {
+                        session.setRecordOutcomeSucceeded(Boolean.FALSE);
+                    }
+                }
+
+                // 6c. Accumulate result so the next iteration sees it.
+                if (result != null && result.isSuccess()) {
+                    accumulatedToolResults.put(toolName, result.getData());
+                } else if (result != null) {
+                    Map<String, Object> errorWrap = new LinkedHashMap<>();
+                    errorWrap.put("error", result.getErrorMessage());
+                    accumulatedToolResults.put(toolName, errorWrap);
+                }
+
+                // 6d. Handover short-circuits the loop only when the
+                // dispatch actually SUCCEEDED. Sprint 9 §O1 — terminal-state
+                // honesty: a failed request_handover (e.g. malformed payload,
+                // SalesforceService failure) must not be treated as a
+                // successful terminal escalation; the error is surfaced in
+                // accumulated_tool_results above so the LLM can retry within
+                // the remaining maxToolSteps. If the loop later hits MAX_STEPS
+                // without a successful handover, PhaseEvaluator maps that to
+                // ESCALATE/turn_budget_exhausted via the canonical mapping —
+                // no synthetic success is ever stamped here.
+                if (HANDOVER_TOOL.equals(toolName)
+                        && result != null && result.isSuccess()) {
+                    handoverRequested = true;
+                    handoverReason = extractHandoverReason(call);
+                }
+
+                // 6e. Sprint 8.1 §M3 — DISCOVER deterministic phase
+                // boundary. When classify_use_case successfully commits a
+                // non-blank active_use_case on a DISCOVER plan, return
+                // USE_CASE_IDENTIFIED immediately. ControlKernel performs
+                // a single bounded same-turn replan into RESOLVE for the
+                // newly committed UC instead of letting the loop run out
+                // its remaining DISCOVER steps (which the legacy mapper
+                // mis-maps to ESCALATE / faq_miss_threshold_exceeded even
+                // when search_knowledge returned hits and classify
+                // succeeded).
+                if (CLASSIFY_USE_CASE_TOOL.equals(toolName)
+                        && DISCOVER_PHASE.equalsIgnoreCase(plan.phase())
+                        && result != null && result.isSuccess()
+                        && session != null
+                        && session.getActiveUseCase() != null
+                        && !session.getActiveUseCase().isBlank()) {
+                    log.info(
+                            "AgentRunLoop §M3: classify_use_case committed active_use_case={} "
+                                    + "on DISCOVER plan; returning USE_CASE_IDENTIFIED for same-turn "
+                                    + "replan into RESOLVE",
+                            session.getActiveUseCase());
+                    return AgentRunResult.useCaseIdentified(
+                            session.getActiveUseCase(),
+                            llmEvents, toolEvents,
+                            lastProjection, lastLlmRawResponse);
+                }
+            }
+
+            if (handoverRequested) {
+                // AgentRunResult.escalate stores escalationReason; the
+                // PhaseEvaluator.interpretRunResult mapping applies the
+                // customer-facing escalation template. The LLM's userMsg, if
+                // any, is captured in the last LlmCallEvent.responseSummary.
+                return AgentRunResult.escalate(handoverReason, llmEvents, toolEvents,
+                        lastProjection, lastLlmRawResponse);
+            }
+        }
+
+        // Loop exhausted. Sprint 8.2 §M0b — preserve the last LLM raw
+        // response on MAX_STEPS so the trace UI does not falsely render
+        // "no LLM call for this turn" when multiple successful LLM calls
+        // happened before the loop hit maxToolSteps. Terminal outcome and
+        // PhaseEvaluator MAX_STEPS mapping are unchanged.
+        log.warn("AgentRunLoop hit max_tool_steps={} without terminal outcome", maxSteps);
+        return AgentRunResult.maxSteps(llmEvents, toolEvents, lastProjection, lastLlmRawResponse);
+    }
+
+    /**
+     * Sprint 7.1 §J0 — merge partial intake field values supplied by the
+     * current user turn (and seeded by the form context) into
+     * {@link BotSession#getIntakeFields()} so the next
+     * {@code intake_state} projection reflects them. No-op for non-intake
+     * UCs and for UCs the {@link IntakeFieldExtractor} has no heuristics
+     * for. Never overwrites a field already present in the session — the
+     * LLM-supplied {@code intake_fields} (via
+     * {@link #persistInlineIntakeFields}) always win.
+     */
+    void mergePartialIntakeFromContext(BotSession session, PhasePlan plan, String userMessage) {
+        if (session == null || plan == null) return;
+        String uc = plan.useCase();
+        if (!IntakeFieldsRegistry.isIntakeUseCase(uc)) return;
+        if (!IntakeFieldExtractor.handlesUc(uc)) return;
+
+        Map<String, String> existing = IntakeFieldsRegistry.parseCollectedFields(
+                objectMapper, session.getIntakeFields());
+        Map<String, String> merged = IntakeFieldExtractor.mergeForUc(
+                uc, existing, userMessage, session.getFormContext(), objectMapper);
+        if (merged == existing || merged.equals(existing)) {
+            return;
+        }
+        try {
+            session.setIntakeFields(objectMapper.writeValueAsString(merged));
+            log.debug("AgentRunLoop merged partial intake fields for UC {}: collected={}",
+                    uc, merged.keySet());
+        } catch (Exception ex) {
+            log.warn("AgentRunLoop failed to persist partial intake_fields: {}", ex.getMessage());
+        }
+    }
+
+    /**
+     * Sprint 7 §I2 — persist the LLM-supplied {@code intake_fields} payload
+     * (when present on a {@code request_handover} call) back to
+     * {@link BotSession#getIntakeFields()} so subsequent turns and the
+     * {@link IntakeFieldsRegistry#intakeComplete} predicate can see the
+     * collected values. Field names are normalised to canonical form via
+     * {@link IntakeFieldsRegistry#canonicalFieldName}; only non-blank
+     * values are merged. Tolerant — never throws on malformed input.
+     */
+    void persistInlineIntakeFields(BotSession session, ToolCall call) {
+        if (session == null || call == null || call.getArguments() == null) {
+            return;
+        }
+        Object raw = call.getArguments().get("intake_fields");
+        if (!(raw instanceof Map<?, ?> rawMap) || rawMap.isEmpty()) {
+            return;
+        }
+        Map<String, String> existing = IntakeFieldsRegistry.parseCollectedFields(
+                objectMapper, session.getIntakeFields());
+        @SuppressWarnings("unchecked")
+        Map<String, ?> incoming = (Map<String, ?>) rawMap;
+        Map<String, String> merged = IntakeFieldsRegistry.mergeFields(existing, incoming);
+        if (merged.equals(existing)) {
+            return;
+        }
+        try {
+            session.setIntakeFields(objectMapper.writeValueAsString(merged));
+        } catch (Exception ex) {
+            log.warn("AgentRunLoop failed to persist inline intake_fields: {}", ex.getMessage());
+        }
+    }
+
+    /**
+     * Sprint 7 §I2 — intake-complete guard predicate.
+     *
+     * <p>Returns true iff:
+     * <ol>
+     *   <li>The plan is RESOLVE on an intake-path UC (UC-G/H/I/J/K).</li>
+     *   <li>The handover call's escalation_reason is the canonical
+     *       {@code intake_complete_for_uc_<g|h|i|j|k>} for the active UC.</li>
+     *   <li>{@link IntakeFieldsRegistry#intakeComplete(String, Map)} is
+     *       false against the merged session.intakeFields (i.e. at least
+     *       one canonical required field is still missing or blank).</li>
+     * </ol>
+     *
+     * <p>Other handover reasons (user_requested, user_distress,
+     * incomplete_intake, out_of_scope, real Tier-2 reasons) pass through
+     * unchanged.
+     */
+    static boolean shouldRejectIncompleteIntakeHandover(PhasePlan plan,
+                                                        ToolCall call,
+                                                        BotSession session) {
+        if (plan == null || !"RESOLVE".equals(plan.phase())) {
+            return false;
+        }
+        String activeUc = plan.useCase();
+        if (!IntakeFieldsRegistry.isIntakeUseCase(activeUc)) {
+            return false;
+        }
+        if (call == null || call.getArguments() == null) {
+            return false;
+        }
+        Object reasonObj = call.getArguments().get("escalation_reason");
+        String reason = reasonObj == null ? null : reasonObj.toString();
+        if (reason == null) return false;
+        String expected = "intake_complete_for_uc_" + activeUc.substring(activeUc.length() - 1)
+                .toLowerCase(java.util.Locale.ENGLISH);
+        if (!expected.equals(reason)) {
+            return false;
+        }
+        Map<String, String> collected = sessionCollected(session);
+        return !IntakeFieldsRegistry.intakeComplete(activeUc, collected);
+    }
+
+    private static Map<String, String> sessionCollected(BotSession session) {
+        if (session == null) return Collections.emptyMap();
+        // Static helper duplicates the parse logic; the test path constructs
+        // its own ObjectMapper, so the predicate must remain static.
+        try {
+            ObjectMapper m = new ObjectMapper();
+            return IntakeFieldsRegistry.parseCollectedFields(m, session.getIntakeFields());
+        } catch (Exception ex) {
+            return Collections.emptyMap();
+        }
+    }
+
+    private String extractHandoverReason(ToolCall call) {
+        if (call == null || call.getArguments() == null) return null;
+        Object reason = call.getArguments().get("escalation_reason");
+        return reason == null ? null : reason.toString();
+    }
+
+    /**
+     * Sprint 6 §G2 — S1 FAQ-grounded-resolve predicate.
+     *
+     * <p>Returns true iff:
+     * <ol>
+     *   <li>The plan is RESOLVE on a FAQ-path UC (UC-A / UC-B / UC-C /
+     *       UC-D / UC-E / UC-F / UC-FP).</li>
+     *   <li>The handover call's escalation_reason is
+     *       {@code faq_miss_threshold_exceeded}.</li>
+     *   <li>{@code accumulated_tool_results.search_knowledge} contains a
+     *       viable hit (faq_miss=false AND at least one hit).</li>
+     *   <li>{@code accumulated_tool_results.resolve_article} is empty.</li>
+     * </ol>
+     *
+     * <p>If any condition is unmet, the handover passes through. In
+     * particular, when search_knowledge returned no viable hit
+     * (faq_miss=true), the LLM is allowed to escalate with
+     * faq_miss_threshold_exceeded.
+     */
+    static boolean shouldRejectFaqMissHandover(
+            PhasePlan plan,
+            ToolCall call,
+            Map<String, Object> accumulatedToolResults) {
+        if (plan == null || !"RESOLVE".equals(plan.phase())) {
+            return false;
+        }
+        if (plan.useCase() == null || !FAQ_PATH_UCS.contains(plan.useCase())) {
+            return false;
+        }
+        if (call == null || call.getArguments() == null) {
+            return false;
+        }
+        Object reasonObj = call.getArguments().get("escalation_reason");
+        String reason = reasonObj == null ? null : reasonObj.toString();
+        if (!FAQ_MISS_REASON.equals(reason)) {
+            return false;
+        }
+        if (accumulatedToolResults == null) {
+            return false;
+        }
+        // Already resolved? Allow through.
+        Object resolveData = accumulatedToolResults.get(RESOLVE_TOOL);
+        if (resolveData != null && !(resolveData instanceof Map<?, ?> rm && rm.containsKey("error"))) {
+            return false;
+        }
+        // Search not yet run? Allow through (the cs_192 prompt nudge owns
+        // search-before-answer; this guard only catches the cs_259 shape).
+        Object searchData = accumulatedToolResults.get(SEARCH_TOOL);
+        if (!(searchData instanceof Map<?, ?> searchMap)) {
+            return false;
+        }
+        if (searchMap.containsKey("error")) {
+            return false;
+        }
+        Object faqMiss = searchMap.get("faq_miss");
+        if (Boolean.TRUE.equals(faqMiss)) {
+            return false;
+        }
+        Object hits = searchMap.get("hits");
+        if (!(hits instanceof List<?> hitList) || hitList.isEmpty()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Sprint 11 §M1 — record-outcome guard predicate. True when the LLM
+     * is calling {@code record_outcome(outcome_class=resolve)} on a
+     * RESOLVE / FAQ plan but the deterministic terminal condition has
+     * not been satisfied (the session is not in CONFIRM / CLOSE and the
+     * progressive-resolve checkpoint has not yet earned a hard
+     * confirm). Other outcome classes pass through; CONFIRM / CLOSE
+     * plans pass through (the normal close-out).
+     */
+    static boolean shouldRejectPrematureResolveOutcome(PhasePlan plan,
+                                                        com.gumtree.csagent.model.BotSession session,
+                                                        ToolCall call) {
+        if (plan == null || call == null || call.getArguments() == null) {
+            return false;
+        }
+        Object outcomeObj = call.getArguments().get("outcome_class");
+        if (outcomeObj == null) {
+            outcomeObj = call.getArguments().get("outcome");
+        }
+        String outcomeClass = outcomeObj == null ? null : outcomeObj.toString();
+        String currentPhase = session == null ? null : session.getCurrentPhase();
+        return ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
+                plan, currentPhase, outcomeClass);
+    }
+
+    /**
+     * Sprint 8.1 follow-up — heuristic clarification detection on a
+     * no-tool-calls user_message. Mirrors the existing
+     * {@link PhaseEvaluator#isClarificationTurn(com.gumtree.csagent.model.ParsedAction)}
+     * predicate (kept duplicated here so the AgentRunLoop does not
+     * depend on PhaseEvaluator). True when the message ends with
+     * {@code '?'} or contains a recognised clarifying phrase
+     * ("could you", "can you tell", "what is", "which", "do you have").
+     *
+     * <p>When this returns {@code true}, the loop emits
+     * {@link com.gumtree.csagent.model.TerminalOutcome#CLARIFICATION_NEEDED}
+     * so {@link PhaseEvaluator#interpretRunResult} keeps the session in
+     * the current phase rather than chaining RESOLVE → CONFIRM → CLOSE
+     * mid-conversation.
+     */
+    static boolean isClarificationMessage(String userMessage) {
+        if (userMessage == null || userMessage.isBlank()) return false;
+        String trimmed = userMessage.trim();
+        if (trimmed.endsWith("?")) return true;
+        String lower = trimmed.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("could you")
+                || lower.contains("can you tell")
+                || lower.contains("what is")
+                || lower.contains("which")
+                || lower.contains("do you have");
+    }
+}

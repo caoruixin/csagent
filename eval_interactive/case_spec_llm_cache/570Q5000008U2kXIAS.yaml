@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008U2kXIAS
+case_id_hint: row_291
+llm_model: deepseek-v4-pro
+prompt_hash: 45116a14038e8fb2e3290683b843d0b429f18f8c134be5a730e4c509ae33b727
+generated_at: '2026-04-30T19:49:18.291906+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim visitor turns describing the issue. User goal summary is specific and factual. No
+  hidden facts are evident from the transcript.
+rule_draft:
+  seed_messages:
+  - It show I’ve got 3 messages then when I go to messages it says “something went wrong “ error code 500
+  - Can’t see other messages I have replied to yours
+  - Yes it says hi in the emails
+  user_goal_summary: 'User reports Account Support: Cannot get messages. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - It show I’ve got 3 messages then when I go to messages it says “something went wrong “ error code 500
+  - Can’t see other messages I have replied to yours
+  - Yes it says hi in the emails
+  user_goal_summary: 'User gets error code 500 when trying to view messages on Gumtree and cannot see messages despite email
+    notifications. Wants the error resolved to access messages. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - It show I’ve got 3 messages then when I go to messages it says “something went wrong “ error code 500
+  - Can’t see other messages I have replied to yours
+  - Yes it says hi in the emails
+  user_goal_summary: 'User gets error code 500 when trying to view messages on Gumtree and cannot see messages despite email
+    notifications. Wants the error resolved to access messages. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

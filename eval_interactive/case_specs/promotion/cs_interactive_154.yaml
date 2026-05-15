@@ -1,0 +1,72 @@
+case_id: cs_interactive_154
+source_session_id: 570Q5000008ijssIAA
+source_dataset: escalation
+form_context:
+  first_name: Sherron
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Unable to access my account
+persona:
+  user_goal_summary: 'User wants to regain access to their original account after password reset fails, delete a duplicate
+    account created via Apple, and fix a listing issue where price field is missing in Household category. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - I can’t get in to my account, when I reset password it fails saying there is a problem and try later. I logged on using
+    Apple but that just opened a new account
+  - '[EMAIL]. Not sure about the Apple ID, it was all automated'
+  - When posting and add there seems nowhere to put the price in
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
+  escalation_trigger: clarification_budget_exhausted
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

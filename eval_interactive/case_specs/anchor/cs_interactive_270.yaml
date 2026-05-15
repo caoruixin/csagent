@@ -1,0 +1,66 @@
+case_id: cs_interactive_270
+source_session_id: 570Q5000008oMIVIA2
+source_dataset: golden
+form_context:
+  first_name: Tony
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Issue trying get replies
+persona:
+  user_goal_summary: 'User wants to understand why he is not receiving replies to messages he sends on Gumtree ads, and to
+    check if his account has restrictions causing the problem. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Can tell me why when messge ads dont get any reply's
+  - Ad my account any restrictions is that why
+  - Just wounder if 2 tick means reading it
+  hidden_facts:
+  - fact: 'The user is trying to get replies about a Bose speaker ad (ad ID: 1506959247), and wants to know if it''s still
+      available, lowest price, and if they can swap numbers.'
+    disclose_when: When the bot asks about the specific ad or the content of the messages.
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-D
+  - UC-K
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008fyDJIAY
+case_id_hint: row_247
+llm_model: deepseek-v4-pro
+prompt_hash: c70a2025b2fafe903ca0fb77545a39df62744054bdd4c4313db5914071b1f552
+generated_at: '2026-04-30T19:39:02.545038+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from the transcript and capture the user's core complaint. The user_goal_summary
+  concisely describes the user's desired outcome without bot-side instructions. Hidden facts are grounded in the agent's explanation
+  of a known issue with no ETA.
+rule_draft:
+  seed_messages:
+  - What does that mean. Where should phone number be
+  - So.....there is no point posting for the time being. When will I know when functioning correctly and where will the phone
+    number be allowed to be placed?
+  user_goal_summary: 'User reports Account Support: How do buyers contact me....no phone number on add. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - What does that mean. Where should phone number be
+  - So.....there is no point posting for the time being. When will I know when functioning correctly and where will the phone
+    number be allowed to be placed?
+  user_goal_summary: 'User wants to add a phone number to their ad for buyer contact, and asks when the missing functionality
+    will be restored and where the phone number will appear. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - What does that mean. Where should phone number be
+  - So.....there is no point posting for the time being. When will I know when functioning correctly and where will the phone
+    number be allowed to be placed?
+  user_goal_summary: 'User wants to add a phone number to their ad for buyer contact, and asks when the missing functionality
+    will be restored and where the phone number will appear. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The phone number field is temporarily unavailable due to a known technical issue; no
+  estimated time for resolution.'''

@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008ZIgbIAG
+case_id_hint: row_47
+llm_model: deepseek-v4-pro
+prompt_hash: 156f5760d6987f221dff418b7ac1c52caf70452fa62cc9a3134dbd7f281555fa
+generated_at: '2026-04-30T13:12:52.502491+00:00'
+llm_confidence: high
+llm_rationale: Replaced greeting/closing seed messages with substantive visitor turns describing the account block and history.
+  Summarized user goal based on transcript statements. No hidden facts identifiable.
+rule_draft:
+  seed_messages:
+  - Having problems posting again
+  - Have a nice weekend
+  - Much appreciated
+  user_goal_summary: 'User reports Account Support: Ad not posted. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Having problems posting again
+  - Had this issue before, and customer support said it was because i had not used account in a while and unblocked it
+  - Ive not used it in a while
+  user_goal_summary: 'User''s account is blocked and they cannot post ads. They want the account unblocked, similar to a previous
+    issue caused by inactivity. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Having problems posting again
+  - Had this issue before, and customer support said it was because i had not used account in a while and unblocked it
+  - Ive not used it in a while
+  user_goal_summary: 'User''s account is blocked and they cannot post ads. They want the account unblocked, similar to a previous
+    issue caused by inactivity. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

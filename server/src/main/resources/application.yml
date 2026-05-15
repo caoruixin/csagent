@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: csagent
+  profiles:
+    active: local
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# D16 agent run loop feature flag.
+# D16.E (current default): all 6 phases routed through AgentRunLoop. The
+# legacy phase methods in PhaseEvaluator (evaluateDiscover/resolveFaq/
+# resolveIntake/evaluateConfirm/etc.) are retained as a flag-disabled
+# rollback target — clear or remove individual route keys to revert that
+# phase to the legacy executor.
+agent:
+  run-loop:
+    enabled-phases: [RESOLVE_FAQ, RESOLVE_INTAKE, DISCOVER, CONFIRM, CLOSE, ESCALATE]
+    max-tool-steps-default: 4
+
+# Sprint 15 §M2 — knowledge retrieval / answer-gate / rerank thresholds.
+# Defaults match the previously hardcoded constants in
+# KnowledgeSearchService and RerankService exactly. Sprint 15 explicitly
+# does NOT tune these values; future tuning becomes an auditable config
+# diff rather than a hidden Java edit. Validation happens in
+# KnowledgeRetrievalProperties.validate() at startup.
+knowledge:
+  retrieval:
+    ann-limit: 20
+    retrieval-gate-threshold: 0.3
+    answer-gate-threshold: 3.5
+    rerank-candidates: 8
+    top-results: 3
+    rerank-fallback-score: 2.5

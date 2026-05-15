@@ -1,0 +1,68 @@
+case_id: cs15n02_uc_fp_understand_removal
+source_session_id: synthetic-sprint20-cs015-neighbor-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Daniel
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Hi - why was my ad removed?
+persona:
+  user_goal_summary: User wants to know the specific policy reason their ad was removed and how to re-post a compliant version. Drift - none.
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - so what was wrong with it?
+  - and can I just put it back up if I change that part?
+  hidden_facts:
+  - fact: The ad was a used car listing where the description mentioned cash-only payment.
+    disclose_when: if the bot asks for the listing details
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-B
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Retrieve safe customer/listing/moderation context, explain the policy reason for removal in user-facing language, point the user to the relevant community standards article, clarify the edit-and-repost path, and escalate only on explicit appeal or human-support request.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

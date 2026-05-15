@@ -1,0 +1,62 @@
+case_id: cs_interactive_064
+source_session_id: 570Q5000008l7flIAA
+source_dataset: golden
+form_context:
+  first_name: JOHN
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Not receiving replies
+persona:
+  user_goal_summary: 'User wants to receive messages and email notifications for replies to their posted ads. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi I posted 3 ads yesterday I've had 9 replies but have not had a message or email to let me know.
+  - Just received it
+  - I advertised a Volvo 10 ton bottle jack and had 6 replies on the stats but had nothing. [EMAIL]
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-B
+  - UC-K
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

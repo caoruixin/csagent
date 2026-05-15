@@ -1,0 +1,74 @@
+case_id: cs_interactive_093
+source_session_id: 570Q5000008eU7dIAE
+source_dataset: drift_control
+form_context:
+  first_name: Adam
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: My ads always get removed. I don't know what is wrong with them.
+persona:
+  user_goal_summary: 'User wants their removed ad to be reinstated and to understand why it was automatically blocked. Drift:
+    hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - It won't let me view the ad it just goes straight to removed
+  - It doesn't allow me to even see an add id. It's there but greyed out. Won't let me see any info about it.
+  hidden_facts:
+  - fact: The account was automatically blocked by the system.
+    disclose_when: when the user asks why their ads were removed or the agent explains the issue.
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-H
+  secondary_ucs:
+  - UC-FP
+  - UC-D
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (ad_id_or_listing_url, registered_email), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason appeal_requires_human.
+  escalation_trigger: appeal_requires_human
+  risk_level: high
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

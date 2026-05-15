@@ -1,0 +1,69 @@
+case_id: cs_interactive_055
+source_session_id: 570Q5000008TMmvIAG
+source_dataset: escalation
+form_context:
+  first_name: John
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Darts board full set up
+persona:
+  user_goal_summary: 'User paid £1.90 for 7-day ad coverage for a ''Darts board full set up'' and wants the ad to be live,
+    but there is a temporary hold and the ad is not showing. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi ive just creates and posted and paid £1.9@ for better coverage for 7 days and its saying i have no ada
+  - So when will my ad be live im not happy
+  - Ive paid for the advertising of my ad too
+  hidden_facts:
+  - fact: Ad ID is 1507672616
+    disclose_when: when the agent asks for the ad ID or any identifier
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
+  escalation_trigger: user_distress
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

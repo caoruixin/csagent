@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008p5qfIAA
+case_id_hint: row_320
+llm_model: deepseek-v4-pro
+prompt_hash: 431a42502948fe2d4e4f9b67c3f147fbd59d9aedb0e9c2839cde43c96e6378c6
+generated_at: '2026-04-30T19:58:51.378305+00:00'
+llm_confidence: high
+llm_rationale: Replaced the agent turn in seed_messages with actual visitor turns that capture the user's confusion and core
+  request. Updated user_goal_summary to reflect the specific context (first-time seller, unaware of default delivery). Added
+  hidden_facts grounded in transcript (order number, delivery default).
+rule_draft:
+  seed_messages:
+  - One of my item was sold on 15th. Buyer has paid for it but this is my first selling experience with gumtree.
+  - Okay so you would get paid once the item has been delivered to the buyer. The buyer would confirm everything is okay and
+    then that would be released to your method of payment
+  - How would I get paid after I sell the item
+  user_goal_summary: 'User reports Payments: Item sold. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - One of my item was sold on 15th. Buyer has paid for it but this is my first selling experience with gumtree.
+  - I didnt know there was delievy option in my account
+  - How would I get paid after I sell the item
+  user_goal_summary: 'User wants to understand how to get paid after selling an item, especially as a first-time seller who
+    didn''t know delivery was enabled by default. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Order number is 13765468
+    disclose_when: when asked for order number or identifier
+accepted_value:
+  seed_messages:
+  - One of my item was sold on 15th. Buyer has paid for it but this is my first selling experience with gumtree.
+  - I didnt know there was delievy option in my account
+  - How would I get paid after I sell the item
+  user_goal_summary: 'User wants to understand how to get paid after selling an item, especially as a first-time seller who
+    didn''t know delivery was enabled by default. Drift: hard_shift.'
+  hidden_facts:
+  - fact: Order number is 13765468
+    disclose_when: when asked for order number or identifier
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user did not manually enable delivery; it was on by default'''

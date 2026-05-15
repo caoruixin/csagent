@@ -1,0 +1,51 @@
+source_session_id: 570Q5000008rhv5IAA
+case_id_hint: row_358
+llm_model: deepseek-v4-pro
+prompt_hash: 665e9430f499216101cec5094e82443702385e0ba6ad373726c3d734fed046db
+generated_at: '2026-04-30T20:30:29.464127+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns (seq 3, 6, 9) that directly describe the issue. The original
+  third seed was a closing, so replaced with a relevant turn. User goal summary accurately reflects what the user wants to
+  accomplish. Hidden facts are grounded in transcript details (ad ID from seq 14, logos from seq 4) that the user disclosed
+  later.
+rule_draft:
+  seed_messages:
+  - Hello I have a car advert on here. Today I had a message that said someone was interested. It asked me to click on a link
+    and log into something which I didn't. The message has now disappeared. Was it spam ???
+  - I think so. I wasn't at home so I didn't have much time to look or think. I opened the link which then asked me to log
+    in. That's when I got suspicious and came out of it. The message or notification has now gone I can't find it. Do you
+    know what it was
+  - And you thanks 👍
+  user_goal_summary: 'User reports Technical Support: Car sale. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Hello I have a car advert on here. Today I had a message that said someone was interested. It asked me to click on a link
+    and log into something which I didn't. The message has now disappeared. Was it spam ???
+  - I think so. I wasn't at home so I didn't have much time to look or think. I opened the link which then asked me to log
+    in. That's when I got suspicious and came out of it. The message or notification has now gone I can't find it. Do you
+    know what it was
+  - Ok I can't see anything on my page. If people are interested do they have the phone number visible
+  user_goal_summary: 'User wants to know if a suspicious message about their car ad was spam, why it disappeared, and whether
+    interested buyers can see their phone number. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'Ad ID: 1508873706'
+    disclose_when: when asked for ad reference or to look up the ad
+accepted_value:
+  seed_messages:
+  - Hello I have a car advert on here. Today I had a message that said someone was interested. It asked me to click on a link
+    and log into something which I didn't. The message has now disappeared. Was it spam ???
+  - I think so. I wasn't at home so I didn't have much time to look or think. I opened the link which then asked me to log
+    in. That's when I got suspicious and came out of it. The message or notification has now gone I can't find it. Do you
+    know what it was
+  - Ok I can't see anything on my page. If people are interested do they have the phone number visible
+  user_goal_summary: 'User wants to know if a suspicious message about their car ad was spam, why it disappeared, and whether
+    interested buyers can see their phone number. Drift: soft_shift.'
+  hidden_facts:
+  - fact: 'Ad ID: 1508873706'
+    disclose_when: when asked for ad reference or to look up the ad
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The suspicious link led to a page with Gumtree logos'''

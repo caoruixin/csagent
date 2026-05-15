@@ -1,0 +1,46 @@
+source_session_id: 570Q5000008kN3RIAU
+case_id_hint: row_212
+llm_model: deepseek-v4-pro
+prompt_hash: c7d9615e6a288d355385ce9824ba9d5fb4040ee6945bf62ec2ac66b2127ea21f
+generated_at: '2026-04-30T19:24:42.750693+00:00'
+llm_confidence: high
+llm_rationale: The rule draft incorrectly used agent/bot messages as seed_messages. Replaced with user's actual issue-bearing
+  turns from the transcript. Updated goal summary to reflect true user objectives and added hidden facts supported by transcript.
+rule_draft:
+  seed_messages:
+  - Hello, my name is Thato. Thanks so much for reaching out! Please allow me a moment to review your request so I can find
+    the best solution for you.
+  - I am not sure but truth be told you should have done the right thing from tthe beginning
+  - Please enjoy the rest of your evening
+  user_goal_summary: 'User reports Account Support: please connect me to Thato. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - but please I want to know the reason at least
+  - and will I get my paid ad money back in 3 to 5 days ? as I received email that they will refund it
+  - Yes I already filled this form twice but there is no response from your business team is there any place I can talk to
+    them ?
+  user_goal_summary: 'The user wants to know why his Gumtree account was blocked, confirm he will get a refund for a paid
+    ad, and speak to the business team to set up a business account after his contact form submissions went unanswered. Drift:
+    hard_shift.'
+  hidden_facts:
+  - fact: The payment was cancelled on Gumtree's side and will reflect back to the user's account in 3-5 days.
+    disclose_when: When the bot asks about refund status.
+accepted_value:
+  seed_messages:
+  - but please I want to know the reason at least
+  - and will I get my paid ad money back in 3 to 5 days ? as I received email that they will refund it
+  - Yes I already filled this form twice but there is no response from your business team is there any place I can talk to
+    them ?
+  user_goal_summary: 'The user wants to know why his Gumtree account was blocked, confirm he will get a refund for a paid
+    ad, and speak to the business team to set up a business account after his contact form submissions went unanswered. Drift:
+    hard_shift.'
+  hidden_facts:
+  - fact: The payment was cancelled on Gumtree's side and will reflect back to the user's account in 3-5 days.
+    disclose_when: When the bot asks about refund status.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user received an email confirming the account will remain blocked, but no reason
+  was provided.'''

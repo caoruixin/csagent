@@ -1,0 +1,71 @@
+case_id: cs_interactive_143
+source_session_id: 570Q5000008uyhdIAA
+source_dataset: escalation
+form_context:
+  first_name: Shahzad
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Chairs
+persona:
+  user_goal_summary: 'User is not receiving customer messages to their account email, wants to use a different email or have
+    messages redirected. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - I am not receiving customer messages on my email?
+  - I have added another email address on my account but still messages arent being received
+  - Or can you redirect messages ?
+  hidden_facts:
+  - fact: User's account has a contact email address that differs from the login email, but it is no longer functional due
+      to platform changes.
+    disclose_when: when bot asks about the specific email addresses on the account
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-D
+  - UC-J
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
+  escalation_trigger: clarification_budget_exhausted
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

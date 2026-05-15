@@ -1,0 +1,211 @@
+reviews:
+  - case_id: cs_interactive_001
+    source_session_id: 570Q5000008kr6LIAQ
+    source_dataset: badcase
+    review_status: ok
+    recommended_primary_uc: UC-C
+    recommended_secondary_ucs: [UC-D]
+    recommended_outcome_class: escalate
+    recommended_should_escalate: true
+    recommended_escalation_trigger: clarification_budget_exhausted
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome]
+    recommended_bot_handling_pattern: "Run account/message FAQ diagnostics, then hand over after unresolved email/account confusion remains."
+    supporting_turn_numbers: [12, 13, 18, 19]
+    rationale: "HR, selected transcript, generated YAML, and audit align: unresolved two-email confusion is followed by agent investigation."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_002
+    source_session_id: 570Q5000008vyxJIAQ
+    source_dataset: badcase
+    review_status: ok
+    recommended_primary_uc: UC-C
+    recommended_secondary_ucs: [UC-D, UC-K]
+    recommended_outcome_class: escalate
+    recommended_should_escalate: true
+    recommended_escalation_trigger: user_distress
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome]
+    recommended_bot_handling_pattern: "Provide grounded notification troubleshooting, then hand over when the workaround is rejected and distress is clear."
+    supporting_turn_numbers: [7, 9, 14, 19, 20]
+    rationale: "The transcript includes explicit escalation and user frustration about notifications and unwanted spam/marketing communication."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_004
+    source_session_id: 570Q50000090OefIAE
+    source_dataset: badcase
+    review_status: ok
+    recommended_primary_uc: UC-D
+    recommended_secondary_ucs: [UC-A]
+    recommended_outcome_class: resolve
+    recommended_should_escalate: false
+    recommended_escalation_trigger: null
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, record_outcome]
+    recommended_bot_handling_pattern: "Use safe account/listing context and provide grounded sign-out/sign-in guidance for the correct account; do not hand over."
+    supporting_turn_numbers: [19, 20, 21, 22, 24]
+    rationale: "HR, transcript, audit, and final generated YAML align on contained UC-D account/login resolution without escalation."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_011
+    source_session_id: 570Q5000008NWIjIAO
+    source_dataset: badcase
+    review_status: ok
+    recommended_primary_uc: UC-D
+    recommended_secondary_ucs: [UC-K]
+    recommended_outcome_class: escalate
+    recommended_should_escalate: true
+    recommended_escalation_trigger: user_requested
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome]
+    recommended_bot_handling_pattern: "Use account/login guidance and context, then hand over when repeated login failures and business-account support needs remain."
+    supporting_turn_numbers: [3, 5, 6, 23, 24, 25, 27]
+    rationale: "HR, selected transcript, generated YAML, and audit align: the user asks for phone support, has unresolved login failures, and is routed to the business team."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_012
+    source_session_id: 570Q5000008hx9tIAA
+    source_dataset: badcase
+    review_status: needs_override
+    recommended_primary_uc: UC-FP
+    recommended_secondary_ucs: [UC-K]
+    recommended_outcome_class: resolve
+    recommended_should_escalate: false
+    recommended_escalation_trigger: null
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, record_outcome]
+    recommended_bot_handling_pattern: "Retrieve safe account/listing/moderation context and explain the kitten ad deletion reason with policy-grounded next steps; escalate only if the explanation cannot be produced or is rejected."
+    supporting_turn_numbers: [5, 6, 8, 10, 12, 14]
+    rationale: "The late phone/human request is a failure-path signal after the user has not received a concrete deletion reason. The reviewed target is resolve-first UC-FP behaviour, preserved through an approved case-level override."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_014
+    source_session_id: 570Q5000008u9gjIAA
+    source_dataset: badcase
+    review_status: ok
+    recommended_primary_uc: UC-C
+    recommended_secondary_ucs: [UC-K, UC-D]
+    recommended_outcome_class: escalate
+    recommended_should_escalate: true
+    recommended_escalation_trigger: user_distress
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome]
+    recommended_bot_handling_pattern: "Run messaging/account diagnostics and hand over when the contact-email explanation is rejected with clear dissatisfaction."
+    supporting_turn_numbers: [6, 7, 9, 11, 15, 17, 19]
+    rationale: "HR, selected transcript, generated YAML, and audit align: the user reports messaging/contact-email issues and expresses user distress after the self-serve explanation."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_015
+    source_session_id: 570Q5000008WmXxIAK
+    source_dataset: badcase
+    review_status: needs_override
+    recommended_primary_uc: UC-FP
+    recommended_secondary_ucs: [UC-B, UC-K]
+    recommended_outcome_class: resolve
+    recommended_should_escalate: false
+    recommended_escalation_trigger: null
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, record_outcome]
+    recommended_bot_handling_pattern: "Retrieve safe customer/listing/moderation context, explain why the ad was removed or flagged, clarify whether the user can edit/repost/change it, and escalate only if the reason cannot be produced, the user requests review/restoration/human support, or a human-only action is required."
+    supporting_turn_numbers: [5, 6, 7, 8, 9, 11, 13]
+    rationale: "Wave A6 re-review supersedes the Wave A2.1 UC-K legacy pin. Phase 2 §2.2:282 places 'why was my ad deleted?' + reposting under UC-FP; the human agent in turns 5-7 already gave the policy reasons (men only wording, body parts in image, ad title flagged), and the user's 'how do I change it?' is the canonical UC-FP edit-and-repost ask. The late escalation in turn 11 is failure-path evidence (the human punted), not the desired golden behavior. Persona's frustration_level=mild + empty will_request_human_if also do not ground the previous user_distress trigger. Mirrors cs_interactive_012's resolve-first override."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_036
+    source_session_id: 570Q5000008hOYjIAM
+    source_dataset: intake_tool_contract
+    review_status: ok
+    recommended_primary_uc: UC-I
+    recommended_secondary_ucs: []
+    recommended_outcome_class: escalate
+    recommended_should_escalate: true
+    recommended_escalation_trigger: payment_dispute_detected
+    recommended_expected_tool_sequence: [request_handover, record_outcome]
+    recommended_bot_handling_pattern: "Use dispute intake/disclaimer and hand over for delivery refund/payment dispute."
+    supporting_turn_numbers: [4, 11, 12, 15, 19, 20, 22]
+    rationale: "HR, transcript, generated YAML, and audit align on specialist escalation for a refund/payment dispute."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_038
+    source_session_id: 570Q5000008TPw5IAG
+    source_dataset: intake_tool_contract
+    review_status: ok
+    recommended_primary_uc: UC-J
+    recommended_secondary_ucs: []
+    recommended_outcome_class: escalate
+    recommended_should_escalate: true
+    recommended_escalation_trigger: trust_safety_required
+    recommended_expected_tool_sequence: [create_case_controlled, request_handover, record_outcome]
+    recommended_bot_handling_pattern: "Collect Trust & Safety scam report intake, create a controlled case, and hand over."
+    supporting_turn_numbers: [4, 6, 8, 12, 15, 20, 21]
+    rationale: "Fraud/scam report evidence matches HR, YAML, and mandatory UC-J escalation policy."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_040
+    source_session_id: 570Q5000008pMbOIAU
+    source_dataset: intake_tool_contract
+    review_status: ok
+    recommended_primary_uc: UC-K
+    recommended_secondary_ucs: []
+    recommended_outcome_class: escalate
+    recommended_should_escalate: true
+    recommended_escalation_trigger: intake_complete_for_uc_k
+    recommended_expected_tool_sequence: [get_customer_context, create_case_controlled, request_handover, record_outcome]
+    recommended_bot_handling_pattern: "Use customer/listing context, collect technical intake, create a controlled case, and hand over after reproducing the defect."
+    supporting_turn_numbers: [7, 8, 12, 13, 14, 17, 18]
+    rationale: "The transcript shows a reproduced request-button defect, case creation, escalation, and case reference; generated YAML matches the Wave A5 pin."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_066
+    source_session_id: 570Q5000008fBsXIAU
+    source_dataset: badcase
+    review_status: ok
+    recommended_primary_uc: UC-E
+    recommended_secondary_ucs: [UC-B]
+    recommended_outcome_class: escalate
+    recommended_should_escalate: true
+    recommended_escalation_trigger: clarification_budget_exhausted
+    recommended_expected_tool_sequence: [search_knowledge, resolve_article, request_handover, record_outcome]
+    recommended_bot_handling_pattern: "Provide product/contact-option guidance, gather minimal context, and hand over when clarification remains insufficient."
+    supporting_turn_numbers: [2, 3, 5, 7, 9, 10]
+    rationale: "The transcript has product feature/contact-option context plus specialist escalation, aligning HR, YAML, and audit."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_095
+    source_session_id: 570Q5000008U5C9IAK
+    source_dataset: drift_control
+    review_status: ok
+    recommended_primary_uc: UC-A
+    recommended_secondary_ucs: [UC-D, UC-K]
+    recommended_outcome_class: resolve
+    recommended_should_escalate: false
+    recommended_escalation_trigger: null
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, record_outcome]
+    recommended_bot_handling_pattern: "Use safe account/listing context to explain the correct account/email and provide sign-out/sign-in guidance; do not hand over."
+    supporting_turn_numbers: [6, 7, 9, 10, 12, 13, 16, 17]
+    rationale: "The UC-A reclassification is defensible, and HR, transcript, audit, and final generated YAML align on account/email guidance resolving without escalation."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_192
+    source_session_id: 570Q5000008rbcjIAA
+    source_dataset: golden
+    review_status: ok
+    recommended_primary_uc: UC-B
+    recommended_secondary_ucs: [UC-K, UC-D, UC-B]
+    recommended_outcome_class: resolve
+    recommended_should_escalate: false
+    recommended_escalation_trigger: null
+    recommended_expected_tool_sequence: [search_knowledge, resolve_article, record_outcome]
+    recommended_bot_handling_pattern: "Provide grounded posting/freebies guidance and record resolved outcome."
+    supporting_turn_numbers: [2, 3, 5, 7, 10, 12, 23, 26, 27]
+    rationale: "The user asks how to post free items and gets answer guidance, account confirmation, and photo guidance; HR and YAML align."
+    confidence: high
+    requires_policy_change: false
+  - case_id: cs_interactive_259
+    source_session_id: 570Q5000008OqaLIAS
+    source_dataset: golden
+    review_status: ok
+    recommended_primary_uc: UC-F
+    recommended_secondary_ucs: []
+    recommended_outcome_class: resolve
+    recommended_should_escalate: false
+    recommended_escalation_trigger: null
+    recommended_expected_tool_sequence: [get_customer_context, search_knowledge, resolve_article, record_outcome]
+    recommended_bot_handling_pattern: "Provide grounded Gumtree payment/delivery guidance and record resolved outcome."
+    supporting_turn_numbers: [4, 6, 8, 9]
+    rationale: "The transcript asks how sellers receive payment and receives self-serve delivery/payment guidance, aligning HR and YAML resolve."
+    confidence: high
+    requires_policy_change: false

@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008ehhZIAQ
+case_id_hint: row_280
+llm_model: deepseek-v4-pro
+prompt_hash: 799063037f625e507c64cf3de928df710d86d0c6ec1d6933c267892beeb4530d
+generated_at: '2026-04-30T19:47:22.321591+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns and capture the core issue. User goal summary refined based on
+  transcript specifics. Hidden facts are directly supported by visitor statements.
+rule_draft:
+  seed_messages:
+  - I was told to get in touch as l have been having problems with your app it has a broken link and it is affecting me why
+    is this please
+  - due to this others too have had this happen it’s all on trust piolet
+  - deleted my gumtree account
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I was told to get in touch as l have been having problems with your app it has a broken link and it is affecting me why
+    is this please
+  - due to this others too have had this happen it’s all on trust piolet
+  - deleted my gumtree account
+  user_goal_summary: 'User wants Gumtree to acknowledge and explain a malware/broken link issue in the app that prevented
+    them from receiving messages for ads, led to account deletion, and is under investigation by Apple. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I was told to get in touch as l have been having problems with your app it has a broken link and it is affecting me why
+    is this please
+  - due to this others too have had this happen it’s all on trust piolet
+  - deleted my gumtree account
+  user_goal_summary: 'User wants Gumtree to acknowledge and explain a malware/broken link issue in the app that prevented
+    them from receiving messages for ads, led to account deletion, and is under investigation by Apple. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''Apple identified malware on the Gumtree app during a screenshare and is now investigating.'''
+- 'unsupported_hidden_fact_dropped: ''User has screenshots of over 100 missed replies to their ads.'''

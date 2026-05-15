@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008ZR0jIAG
+case_id_hint: row_278
+llm_model: deepseek-v4-pro
+prompt_hash: 5dafdb1bff0dfd5240ba6424b91439da08ba84141b99eb51173f05781cfeb7b8
+generated_at: '2026-04-30T19:46:32.769730+00:00'
+llm_confidence: high
+llm_rationale: Replaced the closing 'OK. Thank you very much.' with an earlier, issue-bearing visitor turn to better represent
+  the user's problem. Reworded the user goal summary to focus on what the user wants without bot-side instructions. Added
+  one hidden fact derived from the transcript about the login mix-up.
+rule_draft:
+  seed_messages:
+  - Yes, I am logged in online and have opened the message section but there is no message there.
+  - So I am now logged on but I can't access the message.
+  - OK. Thank you very much.
+  user_goal_summary: 'User reports Replies & Messaging: I have received an email saying I have a message but when I press
+    the ''Reply to message'' button there is no message in my account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Yes, I am logged in online and have opened the message section but there is no message there.
+  - So I am now logged on but I can't access the message.
+  - Yes, then I went to my account but the message is not there.
+  user_goal_summary: 'I want to access and reply to a message I was notified about via email, but I cannot find the message
+    in my Gumtree account. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Yes, I am logged in online and have opened the message section but there is no message there.
+  - So I am now logged on but I can't access the message.
+  - Yes, then I went to my account but the message is not there.
+  user_goal_summary: 'I want to access and reply to a message I was notified about via email, but I cannot find the message
+    in my Gumtree account. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user was logged into Gumtree using an incorrect email address (hotmail.co.uk instead
+  of gmail.com).'''

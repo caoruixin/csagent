@@ -1,0 +1,70 @@
+case_id: cs_interactive_139
+source_session_id: 570Q5000008SajtIAC
+source_dataset: escalation
+form_context:
+  first_name: Noman
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Account issues
+persona:
+  user_goal_summary: 'User wants to know why their old account stopped sending messages after a Gumtree update, and whether
+    their newly created account has any restrictions that would prevent sending messages. They want any hold or restriction
+    removed so they can message landlords. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - sir i am facing issue i made a login id on gumtree and send message to landlords but did no get replies then i chat with
+    suppot he said your id is can't send messges this all happened after gumtree update
+  - Sir is there any restriction with my new account also please clear
+  - this one i've not send any message yet to anyone from this
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
+  escalation_trigger: user_distress
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,39 @@
+source_session_id: 570Q5000008fkdNIAQ
+case_id_hint: row_116
+llm_model: deepseek-v4-pro
+prompt_hash: df8c50a75a5bbf94ae98c58dde7f601215bfec9721b223b6abd3cb4134b151ab
+generated_at: '2026-04-30T13:34:18.893924+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from key visitor turns capturing the core problem. User goal summary is rewritten
+  to be specific and user-focused. No hidden facts added as the transcript provides nothing beyond what's already in the seed
+  messages.
+rule_draft:
+  seed_messages:
+  - Basically, when I view my ad, the call and messages function is in Grey and Customer cannot contact me directly via telephone
+    call or Messages on my mobile, so what is the reason
+  - It’s I’m possible For other two account holders We’re unable to make a call
+  - When wil this be looked at? On a timely basis , Later today once I provide all info?
+  user_goal_summary: 'User reports Ad Support: Phone contact details. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Basically, when I view my ad, the call and messages function is in Grey and Customer cannot contact me directly via telephone
+    call or Messages on my mobile, so what is the reason
+  - It’s I’m possible For other two account holders We’re unable to make a call
+  - When wil this be looked at? On a timely basis , Later today once I provide all info?
+  user_goal_summary: 'User wants their ad''s call and message functions to work so customers can phone them, and wants the
+    issue investigated and resolved promptly. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Basically, when I view my ad, the call and messages function is in Grey and Customer cannot contact me directly via telephone
+    call or Messages on my mobile, so what is the reason
+  - It’s I’m possible For other two account holders We’re unable to make a call
+  - When wil this be looked at? On a timely basis , Later today once I provide all info?
+  user_goal_summary: 'User wants their ad''s call and message functions to work so customers can phone them, and wants the
+    issue investigated and resolved promptly. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

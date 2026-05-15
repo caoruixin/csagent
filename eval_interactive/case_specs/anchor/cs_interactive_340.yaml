@@ -1,0 +1,62 @@
+case_id: cs_interactive_340
+source_session_id: 570Q5000008QWinIAG
+source_dataset: golden
+form_context:
+  first_name: Muriel
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Got an e-mail someone has sent a message about my ad but I caant et into messages on my gumtree
+persona:
+  user_goal_summary: 'She wants to know how to delete the Gumtree app, clear cache and cookies, and redownload it so she can
+    access a message about her ad. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: terse
+  drift_behavior: soft_shift
+  seed_messages:
+  - How do I do this
+  hidden_facts:
+  - fact: She has an inquiry at 14/12/2025 at 19:00 about her ad.
+    disclose_when: when the bot asks for specifics or timing
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-D
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

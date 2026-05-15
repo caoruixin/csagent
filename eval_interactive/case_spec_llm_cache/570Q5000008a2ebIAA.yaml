@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008a2ebIAA
+case_id_hint: row_254
+llm_model: deepseek-v4-pro
+prompt_hash: 16a00495c9bbbf1c7ad1cd1552287722d48d19a0de0c7d82846cd26fae5877b2
+generated_at: '2026-04-30T19:40:44.025142+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are verbatim from visitor turns describing the issue. The summary captures the user's goal
+  precisely. Hidden facts are grounded in the transcript.
+rule_draft:
+  seed_messages:
+  - Why was if account banned?
+  - please help me unbanned if account after ill paid for ad posting..
+  - please help me unbanned id my account reactive it?
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Why was if account banned?
+  - please help me unbanned if account after ill paid for ad posting..
+  - please help me unbanned id my account reactive it?
+  user_goal_summary: 'User wants their Gumtree account unbanned and reactivated after it was restricted for policy violations;
+    they mention having paid for ad posting. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Why was if account banned?
+  - please help me unbanned if account after ill paid for ad posting..
+  - please help me unbanned id my account reactive it?
+  user_goal_summary: 'User wants their Gumtree account unbanned and reactivated after it was restricted for policy violations;
+    they mention having paid for ad posting. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s account identifier is an email address."'
+- 'unsupported_hidden_fact_dropped: ''The user received a prior email about the account restriction and the policy violations.'''

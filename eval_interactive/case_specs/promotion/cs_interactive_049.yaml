@@ -1,0 +1,71 @@
+case_id: cs_interactive_049
+source_session_id: 570Q5000008uTXNIA2
+source_dataset: intake_tool_contract
+form_context:
+  first_name: Sara
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Hi, I can’t neither post and neither editing my ads
+persona:
+  user_goal_summary: 'User cannot post or edit ads; encounters an endless loading sign in the app, despite reinstalling multiple
+    times. They want a solution to resolve the app loading issue. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - There’s a loading sign that never ends
+  - So what can I do for the app
+  - I already tried to delete and reinstall the app a lot of times
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs:
+  - UC-H
+  - UC-D
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason intake_complete_for_uc_k.
+  escalation_trigger: intake_complete_for_uc_k
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

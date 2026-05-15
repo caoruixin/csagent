@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008zYjJIAU
+case_id_hint: cs_interactive_022
+llm_model: deepseek-v4-pro
+prompt_hash: 9f5af6c68f931f7b35ed00d53b8397b1e852ebeb7cd94a6b49187d48c560cc88
+generated_at: '2026-04-30T10:55:23.648766+00:00'
+llm_confidence: high
+llm_rationale: 'Original seed_messages included greeting and closing. Replaced with three task-specific visitor turns that
+  clearly express the user''s issue: payment with reference, request to update account, and request for confirmation. user_goal_summary
+  accurately reflects the user''s stated requests. No hidden_facts added as transcript does not contain actionable undisclosed
+  facts beyond the already provided name and email (email redacted).'
+rule_draft:
+  seed_messages:
+  - Hi Monisha
+  - I paid my invoice for my gumtree ads package. I put reference "Hassan Manzoor"
+  - you too take care
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I paid my invoice for my gumtree ads package. I put reference "Hassan Manzoor"
+  - Can you please update that in my account. Thanks
+  - Will this be udpated, and will i get confirmation email?
+  user_goal_summary: 'User paid an invoice for a Gumtree ads package, using the reference ''Hassan Manzoor'', and wants the
+    payment updated on their account and a confirmation email sent. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I paid my invoice for my gumtree ads package. I put reference "Hassan Manzoor"
+  - Can you please update that in my account. Thanks
+  - Will this be udpated, and will i get confirmation email?
+  user_goal_summary: 'User paid an invoice for a Gumtree ads package, using the reference ''Hassan Manzoor'', and wants the
+    payment updated on their account and a confirmation email sent. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008q1D7IAI
+case_id_hint: row_153
+llm_model: deepseek-v4-pro
+prompt_hash: 31e74759389b70622984ebc352a22900216ac6026882324bb858733a1067036f
+generated_at: '2026-04-30T19:06:39.152161+00:00'
+llm_confidence: high
+llm_rationale: Replaced closing remark 'ok thank you' with issue-bearing turn 'it says reset failed 6 times now' to better
+  represent the repeated failure. Updated goal summary to specific factual statement based on transcript. Added two hidden
+  facts grounded in the user's statements.
+rule_draft:
+  seed_messages:
+  - you cancelled the link mprovided before I could create a new pass word
+  - confusing.
+  - ok thank you
+  user_goal_summary: 'User reports Account Support: password failed. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - you cancelled the link mprovided before I could create a new pass word
+  - confusing.
+  - it says reset failed 6 times now
+  user_goal_summary: 'User wants to reset their expired Gumtree account password. They attempted reset six times, failed,
+    and are confused by verification. Only uses desktop. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - you cancelled the link mprovided before I could create a new pass word
+  - confusing.
+  - it says reset failed 6 times now
+  user_goal_summary: 'User wants to reset their expired Gumtree account password. They attempted reset six times, failed,
+    and are confused by verification. Only uses desktop. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''Account expired in July.'''
+- 'unsupported_hidden_fact_dropped: ''User only uses a desktop computer, not a mobile device.'''

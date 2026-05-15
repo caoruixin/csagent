@@ -1,0 +1,33 @@
+source_session_id: 570Q5000008qew1IAA
+case_id_hint: row_343
+llm_model: deepseek-v4-pro
+prompt_hash: 3356be50bef688350c043c9cd04e1108989bbb8e44b3987226314e62ead4f197
+generated_at: '2026-04-30T20:26:54.181368+00:00'
+llm_confidence: high
+llm_rationale: The single visitor turn in the transcript contains the entire issue statement, which is exactly the seed message
+  from the rule draft. The user_goal_summary was refined to be specific about the user wanting the correct phone number, within
+  the 280-character limit.
+rule_draft:
+  seed_messages:
+  - Applicant is Conor Thompson his email is [EMAIL] I have emailed him but no responce. the mobile number sent has only 10
+    digits instead of 11 are you able to get me the correct phone no
+  user_goal_summary: 'User reports Ad Support: one digit missing from the applicants phone number. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Applicant is Conor Thompson his email is [EMAIL] I have emailed him but no responce. the mobile number sent has only 10
+    digits instead of 11 are you able to get me the correct phone no
+  user_goal_summary: 'The user wants to obtain the correct 11-digit mobile phone number for applicant Conor Thompson because
+    the number in the job listing was missing one digit. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Applicant is Conor Thompson his email is [EMAIL] I have emailed him but no responce. the mobile number sent has only 10
+    digits instead of 11 are you able to get me the correct phone no
+  user_goal_summary: 'The user wants to obtain the correct 11-digit mobile phone number for applicant Conor Thompson because
+    the number in the job listing was missing one digit. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

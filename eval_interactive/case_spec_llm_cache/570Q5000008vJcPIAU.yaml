@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008vJcPIAU
+case_id_hint: row_293
+llm_model: deepseek-v4-pro
+prompt_hash: a374217a50845dcbf6fad3429f5f5c272f835f4a23aafaf5a00ec0dc37ecc10c
+generated_at: '2026-04-30T19:49:49.932542+00:00'
+llm_confidence: high
+llm_rationale: All seed messages appear verbatim in visitor turns that detail the issue. The updated summary captures the
+  user's specific complaint without bot instructions. No undisclosed facts in the transcript warrant hidden_facts.
+rule_draft:
+  seed_messages:
+  - Keep getting on hotmail I have messages on gumtree tree but there’s nothing there
+  - No iv only one account
+  - Mobile app
+  user_goal_summary: 'User reports Account Support: Missing texts. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Keep getting on hotmail I have messages on gumtree tree but there’s nothing there
+  - No iv only one account
+  - Mobile app
+  user_goal_summary: 'User receives Hotmail notifications about new Gumtree messages but sees nothing in the mobile app; claims
+    only one account exists. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Keep getting on hotmail I have messages on gumtree tree but there’s nothing there
+  - No iv only one account
+  - Mobile app
+  user_goal_summary: 'User receives Hotmail notifications about new Gumtree messages but sees nothing in the mobile app; claims
+    only one account exists. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

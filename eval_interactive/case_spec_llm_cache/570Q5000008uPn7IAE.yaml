@@ -1,0 +1,40 @@
+source_session_id: 570Q5000008uPn7IAE
+case_id_hint: row_152
+llm_model: deepseek-v4-pro
+prompt_hash: d40e997d11973ecfdb1e1dd67b1edec9ca7980f60161c59f6d1475075b35c7b8
+generated_at: '2026-04-30T19:05:33.814951+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns that capture the core issue. User goal summary rewritten to be
+  a clear, factual statement of what the user wants (account deletion and consolidation) without bot directions. No hidden
+  facts are needed as the transcript doesn't contain undisclosed but relevant verifiable information.
+rule_draft:
+  seed_messages:
+  - can you delete the account with the gmx.com and leave just the gmail please, it's very confusing and currently nothing
+    works
+  - I went through the link sent to me to open a new account
+  - there is nothing in my gmail emai
+  user_goal_summary: 'User reports Account Support: thank for trying to help, I only have one email adderss, I am trying to
+    register but it tells me my emails already exists. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - can you delete the account with the gmx.com and leave just the gmail please, it's very confusing and currently nothing
+    works
+  - I went through the link sent to me to open a new account
+  - there is nothing in my gmail emai
+  user_goal_summary: 'I want to delete my Gumtree account registered with a gmx.com email and keep only my gmail.com account,
+    because the confusion is preventing me from posting ads. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - can you delete the account with the gmx.com and leave just the gmail please, it's very confusing and currently nothing
+    works
+  - I went through the link sent to me to open a new account
+  - there is nothing in my gmail emai
+  user_goal_summary: 'I want to delete my Gumtree account registered with a gmx.com email and keep only my gmail.com account,
+    because the confusion is preventing me from posting ads. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

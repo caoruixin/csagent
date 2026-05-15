@@ -1,0 +1,67 @@
+case_id: cs_interactive_053
+source_session_id: 570Q5000008zPZZIA2
+source_dataset: handover
+form_context:
+  first_name: Amer
+  email: customer@example.com
+  topic_subject: UNKNOWN
+  ad_id: ''
+  description: ''
+persona:
+  user_goal_summary: 'The user wants a manager to call them at 07954141262 to resolve failed contact methods, unreachable
+    account manager, and paid service issues. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi - this is quite urgent.
+  - It's like beyond a joke, that all the various options actually don't work and we've paid for a year of service
+  - Unlike the rest of Gumtree ;-)
+  hidden_facts: []
+  will_request_human_if: bot cannot resolve after 2 attempts
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_requested.
+  escalation_trigger: user_requested
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

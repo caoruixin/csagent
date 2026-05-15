@@ -1,0 +1,38 @@
+source_session_id: 570Q50000090OefIAE
+case_id_hint: cs_interactive_004
+llm_model: deepseek-v4-pro
+prompt_hash: cbaa27c6aeaa9d23c4887a2e1a44b6d1acfa7e95bfa175a5db68cc4e46f5ef35
+generated_at: '2026-04-30T10:29:46.733237+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are verbatim visitor turns that clearly express the core issue. The user goal summary is
+  refined to a factual description of what the user wants, well within 280 characters. A hidden fact grounded in the transcript
+  captures the multi-account situation.
+rule_draft:
+  seed_messages:
+  - Yes. Icannot see my ad after logging in. It says I have no live ads
+  - I cannot see my add after logging recently posted
+  - yes [EMAIL]
+  user_goal_summary: 'User reports Account Support: Brattsound 3 gun safe cabinet. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Yes. Icannot see my ad after logging in. It says I have no live ads
+  - I cannot see my add after logging recently posted
+  - yes [EMAIL]
+  user_goal_summary: 'User wants to find his live ad for a Brattsound 3 gun safe cabinet after seeing ''no live ads'' when
+    logged in. Drift: minor_drift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Yes. Icannot see my ad after logging in. It says I have no live ads
+  - I cannot see my add after logging recently posted
+  - yes [EMAIL]
+  user_goal_summary: 'User wants to find his live ad for a Brattsound 3 gun safe cabinet after seeing ''no live ads'' when
+    logged in. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The Gumtree ad for a Brattsound 3 gun safe cabinet is live under a different email account
+  (username ''tonyproctor92'')."'

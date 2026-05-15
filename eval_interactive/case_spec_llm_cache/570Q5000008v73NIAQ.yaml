@@ -1,0 +1,35 @@
+source_session_id: 570Q5000008v73NIAQ
+case_id_hint: row_279
+llm_model: deepseek-v4-pro
+prompt_hash: b66f97e6fc2969453799ea3ed31eae6f9375617faf96415b0abdf33a6db16268
+generated_at: '2026-04-30T19:46:04.237097+00:00'
+llm_confidence: high
+llm_rationale: All three seed_messages are verbatim visitor turns that describe the core issue. user_goal_summary was generic;
+  replaced with specific factual goal. No hidden facts warranted from the transcript.
+rule_draft:
+  seed_messages:
+  - Unable to complete my Ad also change my bank details
+  - My bank account is no longer with Trustee Savings Bank
+  - No error messages
+  user_goal_summary: 'User reports Technical Support: complete Ad. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Unable to complete my Ad also change my bank details
+  - My bank account is no longer with Trustee Savings Bank
+  - No error messages
+  user_goal_summary: 'The user wants to successfully post a selling ad for a sofa bed and update their bank account details,
+    as their old bank is now closed. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Unable to complete my Ad also change my bank details
+  - My bank account is no longer with Trustee Savings Bank
+  - No error messages
+  user_goal_summary: 'The user wants to successfully post a selling ad for a sofa bed and update their bank account details,
+    as their old bank is now closed. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

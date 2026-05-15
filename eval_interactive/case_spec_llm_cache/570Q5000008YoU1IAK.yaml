@@ -1,0 +1,42 @@
+source_session_id: 570Q5000008YoU1IAK
+case_id_hint: row_314
+llm_model: deepseek-v4-pro
+prompt_hash: c6647bd45689cbc937f6b23393a7d7417d37856379eb6d03866f24149d442721
+generated_at: '2026-04-30T19:56:21.511798+00:00'
+llm_confidence: high
+llm_rationale: All seed messages are verbatim visitor turns from the transcript and accurately represent the core issue. The
+  user goal summary is refined to describe the specific search location problem. Hidden facts are supported by transcript
+  sequences 7 and 39.
+rule_draft:
+  seed_messages:
+  - Of I enter 'Blackheath' in the location for example it doesn't show anything other than surrounding areas. I know there
+    is always item for sale in Blackheath. Same for 'Welling', 'Bexlyheath', etc.
+  - Yits not working for me other than from your links.
+  - I think it might be the radius but it's not something I've changed. Thanks for your help.
+  user_goal_summary: 'User reports Technical Support: The location isn''t working correctly. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Of I enter 'Blackheath' in the location for example it doesn't show anything other than surrounding areas. I know there
+    is always item for sale in Blackheath. Same for 'Welling', 'Bexlyheath', etc.
+  - Yits not working for me other than from your links.
+  - I think it might be the radius but it's not something I've changed. Thanks for your help.
+  user_goal_summary: 'User wants the location search on Gumtree to show items for Blackheath, Welling, Bexleyheath rather
+    than thousands of distant listings like Dagenham. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Of I enter 'Blackheath' in the location for example it doesn't show anything other than surrounding areas. I know there
+    is always item for sale in Blackheath. Same for 'Welling', 'Bexlyheath', etc.
+  - Yits not working for me other than from your links.
+  - I think it might be the radius but it's not something I've changed. Thanks for your help.
+  user_goal_summary: 'User wants the location search on Gumtree to show items for Blackheath, Welling, Bexleyheath rather
+    than thousands of distant listings like Dagenham. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User previously logged a support ticket months ago but received no follow-up.'''
+- 'unsupported_hidden_fact_dropped: ''User suspects the search radius is causing the problem but claims not to have changed
+  it.'''

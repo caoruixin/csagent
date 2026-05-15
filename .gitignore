@@ -1,8 +1,14 @@
 # OS artifacts
 .DS_Store
 
+# Local environment files
+.env.local
+
 # Data files (large CSVs, Excel, filtered output)
 data/
+
+# claude env files
+.claude/
 
 # Python
 __pycache__/
@@ -10,6 +16,14 @@ __pycache__/
 
 # Compiled class file
 *.class
+
+# Maven build output (codex 2026-05-03 round 3 §1.7 / §5.8 — never commit)
+target/
+*.jar.original
+
+# Eval run artifacts — regenerated per run; keep the directory via .gitkeep
+eval_interactive/results/*
+!eval_interactive/results/.gitkeep
 
 # Log file
 *.log
@@ -32,3 +46,4 @@ __pycache__/
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+

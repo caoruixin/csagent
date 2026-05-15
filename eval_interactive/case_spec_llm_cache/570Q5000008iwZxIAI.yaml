@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008iwZxIAI
+case_id_hint: row_250
+llm_model: deepseek-v4-pro
+prompt_hash: da632408fe2d98420b9bcf8624d1c92860de4814878ec649d478b5dca3f1962e
+generated_at: '2026-04-30T19:39:51.570327+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced the closing-seed_message (''Okay thank you'') with a visitor turn expressing frustration about the
+  hold, which better captures the user''s core complaint. The user''s goal is clear from the transcript: they want the hold
+  lifted so they can sell. Hidden facts are directly supported by the transcript.'
+rule_draft:
+  seed_messages:
+  - Hi I just uploaded my advert. Edit it with the mother and the kittens please Restain the advert many thanks
+  - Okay thank you
+  - We’ve added the kittens mother to the picture can you please remove this issue because we are trying to sell the kittens
+  user_goal_summary: 'User reports Account Support: 5 British kittens for sale. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi I just uploaded my advert. Edit it with the mother and the kittens please Restain the advert many thanks
+  - Why is the advertisement getting on hold 2 tme now this has never happened before with my Advert .
+  - We’ve added the kittens mother to the picture can you please remove this issue because we are trying to sell the kittens
+  user_goal_summary: 'The user wants the hold on their advertisement for 5 British kittens removed so they can sell the kittens,
+    after adding the mother to the picture. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The advertisement is for 5 British kittens for sale.
+    disclose_when: when the bot asks for details about the advertisement
+accepted_value:
+  seed_messages:
+  - Hi I just uploaded my advert. Edit it with the mother and the kittens please Restain the advert many thanks
+  - Why is the advertisement getting on hold 2 tme now this has never happened before with my Advert .
+  - We’ve added the kittens mother to the picture can you please remove this issue because we are trying to sell the kittens
+  user_goal_summary: 'The user wants the hold on their advertisement for 5 British kittens removed so they can sell the kittens,
+    after adding the mother to the picture. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The advertisement is for 5 British kittens for sale.
+    disclose_when: when the bot asks for details about the advertisement
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user added the mother cat to the picture to comply with requirements.'''

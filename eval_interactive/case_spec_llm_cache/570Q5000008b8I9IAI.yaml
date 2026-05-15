@@ -1,0 +1,44 @@
+source_session_id: 570Q5000008b8I9IAI
+case_id_hint: row_45
+llm_model: deepseek-v4-pro
+prompt_hash: 7c0926ace955f180c5a6ee633189ce90cda5f4605731478b78142d012f86194d
+generated_at: '2026-04-30T13:12:27.595761+00:00'
+llm_confidence: high
+llm_rationale: Rule draft seed_messages are verbatim visitor turns capturing the core issue. The user_goal_summary is refined
+  to clearly state the user's desire for explanation and reinstatement, mentioning the missing email. Hidden facts add actionable
+  specifics from the transcript.
+rule_draft:
+  seed_messages:
+  - '1508024733'
+  - I have been trying to put this ad up since yesterday as I am moving soon. This really isn’t quick enough for me if I’m
+    honest. Gumtree has said that an email with an explanation has been sent but I have received nothing
+  - There were three things I tried to put up
+  user_goal_summary: 'User reports Ad Support: My ads have been taken down for no explwnatoon. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - '1508024733'
+  - I have been trying to put this ad up since yesterday as I am moving soon. This really isn’t quick enough for me if I’m
+    honest. Gumtree has said that an email with an explanation has been sent but I have received nothing
+  - There were three things I tried to put up
+  user_goal_summary: 'User wants to understand why three ads were removed from Gumtree, and to have them reinstated, as they
+    are moving soon and need to sell items quickly. They did not receive the promised explanation email. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'Ad IDs: 1508024733, 1508024942, 1508030611'
+    disclose_when: when asked for ad IDs or specifics about the removed ads
+accepted_value:
+  seed_messages:
+  - '1508024733'
+  - I have been trying to put this ad up since yesterday as I am moving soon. This really isn’t quick enough for me if I’m
+    honest. Gumtree has said that an email with an explanation has been sent but I have received nothing
+  - There were three things I tried to put up
+  user_goal_summary: 'User wants to understand why three ads were removed from Gumtree, and to have them reinstated, as they
+    are moving soon and need to sell items quickly. They did not receive the promised explanation email. Drift: hard_shift.'
+  hidden_facts:
+  - fact: 'Ad IDs: 1508024733, 1508024942, 1508030611'
+    disclose_when: when asked for ad IDs or specifics about the removed ads
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has not received any email explanation, despite being told one was sent'''

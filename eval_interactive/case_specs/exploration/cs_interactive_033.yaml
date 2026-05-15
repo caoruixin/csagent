@@ -1,0 +1,75 @@
+case_id: cs_interactive_033
+source_session_id: 570Q5000008xTasIAE
+source_dataset: intake_tool_contract
+form_context:
+  first_name: kylie
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: i was just talking to someone about my account and it got cut off
+persona:
+  user_goal_summary: 'User reports Account Support: i was just talking to someone about my account and it got cut off. Drift:
+    hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - hi i was just talking to someone and the chat got cut off i basically had an account with gumtree but the tablet i was
+    logged in on got broke and i lost all my details but i gave him the ad ID to take down the advert so i can put the advert
+    on my new account and he said you may have some problems so contact us when you make the new advert
+  - same to you enjoy the rest of your day bye thanks again
+  - It is only a pleasure and take care!
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-H
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (ad_id_or_listing_url, registered_email), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason appeal_requires_human.
+  escalation_trigger: appeal_requires_human
+  risk_level: high
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

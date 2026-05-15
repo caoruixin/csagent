@@ -1,0 +1,75 @@
+case_id: cs_interactive_216
+source_session_id: 570Q5000008eVzlIAE
+source_dataset: badcase
+form_context:
+  first_name: Hasan
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Bogus review
+persona:
+  user_goal_summary: 'User wants a fraudulent negative review removed from their Gumtree account. They claim they haven''t
+    sold anything and fear it''s a scam. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - Someone left a negative review, i dont know how or why and I can't get rid of it. Can you help?
+  - Who done it? Because I dont recall selling anything!!
+  - Oh man...its clearly fraudulent.
+  hidden_facts:
+  - fact: A negative review was left on the user's account in 2024.
+    disclose_when: when asked about the review details or when the user inquires about the negative review
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-H
+  - UC-FP
+  - UC-I
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (report_target, report_type, description), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason trust_safety_required.
+  escalation_trigger: trust_safety_required
+  risk_level: critical
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,74 @@
+case_id: cs_interactive_306
+source_session_id: 570Q5000008q90zIAA
+source_dataset: golden
+form_context:
+  first_name: Damian
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Hi I've been locked out of my account, google created a new account accidently when i was trying to log in.
+persona:
+  user_goal_summary: 'User wants to log into Gumtree account but is blocked by Link11 Web Application Security error when
+    using registered email. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - It wont let me use my saved password or email
+  - Yes but my contact email is google
+  - Request Blocked An error has occurred Your request was blocked by Link11 Web Application Security. If you believe this
+    is the result of an error, contact the administrator of my.gumtree.com.
+  hidden_facts:
+  - fact: The user receives a 'Request Blocked' error with Link11 WAF, ID 64cfae26c1c15d78d992563249246169, Status Code 471
+      when trying to log in with their registered talktalk email.
+    disclose_when: When asked what error occurs or what happens when attempting to sign in.
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs:
+  - UC-H
+  - UC-K
+  should_escalate: true
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded.
+  escalation_trigger: faq_miss_threshold_exceeded
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

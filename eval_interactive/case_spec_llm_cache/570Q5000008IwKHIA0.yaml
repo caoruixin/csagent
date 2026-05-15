@@ -1,0 +1,54 @@
+source_session_id: 570Q5000008IwKHIA0
+case_id_hint: row_249
+llm_model: deepseek-v4-pro
+prompt_hash: 584da2d3c8e53fcf27a5f9a96ed002914bf15b9f32b9cc855f095697952f6cbb
+generated_at: '2026-04-30T19:38:52.061822+00:00'
+llm_confidence: high
+llm_rationale: Replaced generic greeting and closing seed messages with actual issue-bearing visitor turns from the transcript
+  (seq2, seq5, seq10). Updated user_goal_summary to a concise, factual description of the user's two requests. Added grounded
+  hidden_facts for payment timing and phone number.
+rule_draft:
+  seed_messages:
+  - Hi there
+  - I need urgent help.please I paid for a 30-Day Booster Package, but my job advert expired immediately due to a system issue.
+    I did not intend to expire the ad, and I have just paid for it today. Please restore my advert or reactivate it, as I
+    should still have 30 days remaining.
+  - All good thanks
+  user_goal_summary: 'User reports Issue with Paid Job Ad Expiring Immediately. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - Issue with Paid Job Ad Expiring Immediately
+  - I need urgent help.please I paid for a 30-Day Booster Package, but my job advert expired immediately due to a system issue.
+    I did not intend to expire the ad, and I have just paid for it today. Please restore my advert or reactivate it, as I
+    should still have 30 days remaining.
+  - 'Also, I need to add my phone number to the advert so applicants can contact me directly. Please enable the phone number
+    display or allow me to edit this section when you restore the ad. My phone number is: 07397 576230.'
+  user_goal_summary: 'User paid for a 30-Day Booster Package, but his job advert expired immediately. He wants the ad reinstated
+    with the full 30-day duration and his phone number (07397 576230) added to the ad so applicants can contact him, plus
+    edit access. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user paid for a 30-Day Booster Package on the same day.
+    disclose_when: When asked about the payment or booster details.
+  - fact: The user's phone number is 07397 576230.
+    disclose_when: When asked for contact phone number or to add phone number to ad.
+accepted_value:
+  seed_messages:
+  - Issue with Paid Job Ad Expiring Immediately
+  - I need urgent help.please I paid for a 30-Day Booster Package, but my job advert expired immediately due to a system issue.
+    I did not intend to expire the ad, and I have just paid for it today. Please restore my advert or reactivate it, as I
+    should still have 30 days remaining.
+  - 'Also, I need to add my phone number to the advert so applicants can contact me directly. Please enable the phone number
+    display or allow me to edit this section when you restore the ad. My phone number is: 07397 576230.'
+  user_goal_summary: 'User paid for a 30-Day Booster Package, but his job advert expired immediately. He wants the ad reinstated
+    with the full 30-day duration and his phone number (07397 576230) added to the ad so applicants can contact him, plus
+    edit access. Drift: soft_shift.'
+  hidden_facts:
+  - fact: The user paid for a 30-Day Booster Package on the same day.
+    disclose_when: When asked about the payment or booster details.
+  - fact: The user's phone number is 07397 576230.
+    disclose_when: When asked for contact phone number or to add phone number to ad.
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

@@ -1,0 +1,54 @@
+source_session_id: 570Q5000008NOD7IAO
+case_id_hint: row_211
+llm_model: deepseek-v4-pro
+prompt_hash: 8645bee50de2aa009d41ea6f21917d18860e512ba78bb34ae80ac23fd32e69dc
+generated_at: '2026-04-30T19:25:35.800820+00:00'
+llm_confidence: high
+llm_rationale: The seed_messages are directly extracted from the transcript and capture the user's primary grievance and clarifying
+  questions. The user_goal_summary accurately reflects the user's desire for immediate account deletion and frustration with
+  the process. Hidden facts are based on explicit statements in the transcript.
+rule_draft:
+  seed_messages:
+  - I have been trying to delete my account since 13/11/25 as I no longer use it. Nearly a month on; I’ve had 2 emails asking
+    me to clarify details however I am unable to confirm payments, posts, ID numbers. I have replied to this on both occasions,
+    to which I have been ignored. I’ve emailed and contacted on the chat numerous times which I get told my case will be escalated;
+    but I receive no reply. What is going on? Why can’t you delete my account? Only one email should be on an account so that
+    should clarify which to remove.
+  - I’ll await a reply
+  - Is it 30 days Monday to Friday?
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: verbose
+llm_proposal:
+  seed_messages:
+  - I have been trying to delete my account since 13/11/25 as I no longer use it. Nearly a month on; I’ve had 2 emails asking
+    me to clarify details however I am unable to confirm payments, posts, ID numbers. I have replied to this on both occasions,
+    to which I have been ignored. I’ve emailed and contacted on the chat numerous times which I get told my case will be escalated;
+    but I receive no reply. What is going on? Why can’t you delete my account? Only one email should be on an account so that
+    should clarify which to remove.
+  - I’ll await a reply
+  - Is it 30 days Monday to Friday?
+  user_goal_summary: 'The user wants their account deleted immediately because they''ve been waiting since November 13, 2025,
+    and are unable to verify identity. They are frustrated with ignored escalations. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user is unable to confirm payments, posts, or ID numbers for account verification.
+    disclose_when: when asked for identity verification or account details
+accepted_value:
+  seed_messages:
+  - I have been trying to delete my account since 13/11/25 as I no longer use it. Nearly a month on; I’ve had 2 emails asking
+    me to clarify details however I am unable to confirm payments, posts, ID numbers. I have replied to this on both occasions,
+    to which I have been ignored. I’ve emailed and contacted on the chat numerous times which I get told my case will be escalated;
+    but I receive no reply. What is going on? Why can’t you delete my account? Only one email should be on an account so that
+    should clarify which to remove.
+  - I’ll await a reply
+  - Is it 30 days Monday to Friday?
+  user_goal_summary: 'The user wants their account deleted immediately because they''ve been waiting since November 13, 2025,
+    and are unable to verify identity. They are frustrated with ignored escalations. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user is unable to confirm payments, posts, or ID numbers for account verification.
+    disclose_when: when asked for identity verification or account details
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s complaint email to the first email address bounced with error ''Email-to-Case:
+  Error(s) encountered while processing''."'

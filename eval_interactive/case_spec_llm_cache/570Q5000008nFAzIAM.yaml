@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008nFAzIAM
+case_id_hint: row_302
+llm_model: deepseek-v4-pro
+prompt_hash: fc9d4f31596750d3219c21385fe552a06d3aed53e196a1d439b2a56776755e33
+generated_at: '2026-04-30T19:53:13.887279+00:00'
+llm_confidence: high
+llm_rationale: The rule draft included a greeting ('Hello Jason') which is not issue-bearing. Replaced seed_messages with
+  two substantive visitor turns that describe the actual issue. User_goal_summary rewritten to be specific and factual based
+  on the transcript. Added hidden_facts to provide simulator context about the divorce/phone situation and the car ads, all
+  grounded in transcript.
+rule_draft:
+  seed_messages:
+  - Hello Jason
+  - I am divorcing, and my phone is at the police station. I saved my password on the phone, but can't access it, now.
+  - I don't know my password
+  user_goal_summary: 'User reports Account Support: Change account contact. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I am divorcing, and my phone is at the police station. I saved my password on the phone, but can't access it, now.
+  - I don't know my password
+  user_goal_summary: 'User wants to change the phone number and email address on his account, and regain access to his account
+    after losing his phone and forgetting his password. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user is divorcing and his phone is at the police station; he saved his password on that phone and now can't
+      access it.
+    disclose_when: When asked about why he cannot access his password or phone.
+  - fact: The user has a Mini and a Toyota for sale on Gumtree and needs to update contact details for potential buyers.
+    disclose_when: When asked about the urgency or reason for updating contact information.
+accepted_value:
+  seed_messages:
+  - I am divorcing, and my phone is at the police station. I saved my password on the phone, but can't access it, now.
+  - I don't know my password
+  user_goal_summary: 'User wants to change the phone number and email address on his account, and regain access to his account
+    after losing his phone and forgetting his password. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The user is divorcing and his phone is at the police station; he saved his password on that phone and now can't
+      access it.
+    disclose_when: When asked about why he cannot access his password or phone.
+  - fact: The user has a Mini and a Toyota for sale on Gumtree and needs to update contact details for potential buyers.
+    disclose_when: When asked about the urgency or reason for updating contact information.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

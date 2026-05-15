@@ -1,0 +1,72 @@
+case_id: cs_interactive_250
+source_session_id: 570Q5000008iwZxIAI
+source_dataset: golden
+form_context:
+  first_name: Harry
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: 5 British kittens for sale
+persona:
+  user_goal_summary: 'The user wants the hold on their advertisement for 5 British kittens removed so they can sell the kittens,
+    after adding the mother to the picture. Drift: soft_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi I just uploaded my advert. Edit it with the mother and the kittens please Restain the advert many thanks
+  - Why is the advertisement getting on hold 2 tme now this has never happened before with my Advert .
+  - We’ve added the kittens mother to the picture can you please remove this issue because we are trying to sell the kittens
+  hidden_facts:
+  - fact: The advertisement is for 5 British kittens for sale.
+    disclose_when: when the bot asks for details about the advertisement
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs:
+  - UC-FP
+  - UC-B
+  should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason intake_complete_for_uc_k.
+  escalation_trigger: intake_complete_for_uc_k
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

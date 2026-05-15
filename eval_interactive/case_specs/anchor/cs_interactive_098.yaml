@@ -1,0 +1,73 @@
+case_id: cs_interactive_098
+source_session_id: 570Q5000008f6fyIAA
+source_dataset: drift_control
+form_context:
+  first_name: Jed
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: Problem uploading photos
+persona:
+  user_goal_summary: 'I want the photo upload issue on my ad fixed so I can repost it, and I want the 7-day Boost timeline
+    restarted since I couldn''t use it due to the bug. Drift: minor_drift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: minor
+  seed_messages:
+  - Hi, i was given an email address to send some screenshots before and after I uploaded them but I haven't had no response
+    and I would like to get it sorted ASAP please
+  - I'm not sure what troubleshooting is sorry
+  - I've tried editing and uploading 3 times and taken the pics straight from the app but none of them work
+  hidden_facts:
+  - fact: I have two email addresses, but I can't access one of them right now.
+    disclose_when: when asked for an alternative contact email
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs:
+  - UC-B
+  - UC-FP
+  should_escalate: true
+  allow_bot_resolution: partial
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (platform, repro_steps_or_error_message), run
+    policy-mandated tools (get_customer_context, create_case_controlled, request_handover, record_outcome), create a controlled
+    case where permitted, and hand over with reason intake_complete_for_uc_k.
+  escalation_trigger: intake_complete_for_uc_k
+  risk_level: medium
+  expected_tool_sequence:
+  - get_customer_context
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

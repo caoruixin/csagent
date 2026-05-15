@@ -1,0 +1,45 @@
+source_session_id: 570Q5000008f6fyIAA
+case_id_hint: row_98
+llm_model: deepseek-v4-pro
+prompt_hash: 4e5fffda39846049420e7f896186b868ea1d96d185c18a77089cbfad79aad503
+generated_at: '2026-04-30T13:29:47.739659+00:00'
+llm_confidence: high
+llm_rationale: 'Replaced closing ''OK thanks'' with a turn that describes the core issue (failed upload attempts). Updated
+  user_goal_summary to match explicit user goals: fix photo upload and restart the 7-day Boost period. Added hidden_facts
+  grounded in transcript about inaccessible email and chat minimization reluctance.'
+rule_draft:
+  seed_messages:
+  - Hi, i was given an email address to send some screenshots before and after I uploaded them but I haven't had no response
+    and I would like to get it sorted ASAP please
+  - I'm not sure what troubleshooting is sorry
+  - OK thanks
+  user_goal_summary: 'User reports Technical Support: Problem uploading photos. Drift: minor_drift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi, i was given an email address to send some screenshots before and after I uploaded them but I haven't had no response
+    and I would like to get it sorted ASAP please
+  - I'm not sure what troubleshooting is sorry
+  - I've tried editing and uploading 3 times and taken the pics straight from the app but none of them work
+  user_goal_summary: 'I want the photo upload issue on my ad fixed so I can repost it, and I want the 7-day Boost timeline
+    restarted since I couldn''t use it due to the bug. Drift: minor_drift.'
+  hidden_facts:
+  - fact: I have two email addresses, but I can't access one of them right now.
+    disclose_when: when asked for an alternative contact email
+accepted_value:
+  seed_messages:
+  - Hi, i was given an email address to send some screenshots before and after I uploaded them but I haven't had no response
+    and I would like to get it sorted ASAP please
+  - I'm not sure what troubleshooting is sorry
+  - I've tried editing and uploading 3 times and taken the pics straight from the app but none of them work
+  user_goal_summary: 'I want the photo upload issue on my ad fixed so I can repost it, and I want the 7-day Boost timeline
+    restarted since I couldn''t use it due to the bug. Drift: minor_drift.'
+  hidden_facts:
+  - fact: I have two email addresses, but I can't access one of them right now.
+    disclose_when: when asked for an alternative contact email
+  verbosity: verbose
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "I''m reluctant to minimize the chat to perform troubleshooting because last time the
+  agent ended the chat when I did that."'

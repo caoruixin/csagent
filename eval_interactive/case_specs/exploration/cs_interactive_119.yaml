@@ -1,0 +1,75 @@
+case_id: cs_interactive_119
+source_session_id: 570Q5000008iDL7IAM
+source_dataset: handover
+form_context:
+  first_name: Paul
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I've forgotten my Gumtree password & lost access to the email account associated with my Gumtree account. I
+    can't do a "forgotten password" process because I can't access my emails. Can I change my email address from [EMAIL] to
+    [EMAIL]?
+persona:
+  user_goal_summary: 'User wants to deactivate their old Gumtree account that they cannot access due to forgotten password
+    and lost email access. They have already created a new account but need the old one deactivated without logging in. Drift:
+    hard_shift.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I have created a new account. How will I be able to deactivate the other account without logging in though?
+  - Thanks. It's [EMAIL]. I can still access my old emails if it helps to verify me but I just can't send or receive any new
+    emails.
+  - It's not a spam issue - something's gone wrong with the setup of my email account, nothing has been able to go in or out
+    in about a month now.
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-G
+  secondary_ucs:
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (request_handover, record_outcome), collect required
+    intake fields (request_type, registered_email), and hand over with reason gdpr_intake.
+  escalation_trigger: gdpr_intake
+  risk_level: high
+  expected_tool_sequence:
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

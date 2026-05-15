@@ -1,0 +1,73 @@
+case_id: cs_interactive_032
+source_session_id: 570Q5000008Wf3RIAS
+source_dataset: intake_tool_contract
+form_context:
+  first_name: Terence
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Ad removed
+persona:
+  user_goal_summary: 'User wants his ad (ID 1507847487) reinstated after removal; he fixed it to meet guidelines and needs
+    it live to reach interested contacts. Drift: hard_shift.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: hard_shift
+  seed_messages:
+  - my ad was removed 1507847487
+  - I adjusted the ad to make it correct
+  - ideally I just need to get the ad live
+  hidden_facts:
+  - fact: The user's ad ID is 1507847487
+    disclose_when: when bot asks for ad ID
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-H
+  secondary_ucs:
+  - UC-FP
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (ad_id_or_listing_url, registered_email), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason appeal_requires_human.
+  escalation_trigger: appeal_requires_human
+  risk_level: high
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

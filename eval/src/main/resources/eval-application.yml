@@ -1,0 +1,14 @@
+eval:
+  bot-base-url: http://localhost:8080
+  suite: ${eval.suite:smoke}
+  report-dir: target/eval-reports
+  dataset-dir: ../data/eval_datasets
+  annotation-file: ../data/human_review_annotations_2026-04-22_golden.csv
+  llm-base-url: ${LLM_BASE_URL:http://localhost:11434}
+  llm-model: ${LLM_MODEL:gpt-4o-mini}
+
+spring:
+  main:
+    web-application-type: none
+  config:
+    import: optional:classpath:eval-application-local.yml

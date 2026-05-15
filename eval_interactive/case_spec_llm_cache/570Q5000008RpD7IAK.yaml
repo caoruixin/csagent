@@ -1,0 +1,36 @@
+source_session_id: 570Q5000008RpD7IAK
+case_id_hint: row_292
+llm_model: deepseek-v4-pro
+prompt_hash: f363a53949cc7f1788ff1fd5fdde4403f34b3f7e60c4eab05fd425c253154a2a
+generated_at: '2026-04-30T19:50:58.924479+00:00'
+llm_confidence: high
+llm_rationale: 'The first two seed messages directly describe the issue: receiving an error 500 when trying to read a new
+  message, and the message missing from the home screen. The third seed was a non-issue fragment and was dropped. The user
+  goal is clear from the transcript. One hidden fact is supported by a visitor turn stating they already checked out and logged
+  back in. No other hidden facts are evident without inventing details.'
+rule_draft:
+  seed_messages:
+  - Hi just received a message on my account but when I try and go on it’s saying error 500
+  - normally be on home screen and nothing on there
+  - That would
+  user_goal_summary: 'User reports UNKNOWN. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Hi just received a message on my account but when I try and go on it’s saying error 500
+  - normally be on home screen and nothing on there
+  user_goal_summary: 'User wants to read a new message on their account but encounters an error 500 when attempting to do
+    so, and the message notification is missing from the home screen. Drift: soft_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Hi just received a message on my account but when I try and go on it’s saying error 500
+  - normally be on home screen and nothing on there
+  user_goal_summary: 'User wants to read a new message on their account but encounters an error 500 when attempting to do
+    so, and the message notification is missing from the home screen. Drift: soft_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''User has already attempted logging out and back in to resolve the issue.'''

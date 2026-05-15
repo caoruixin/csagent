@@ -1,0 +1,68 @@
+case_id: cs_interactive_246
+source_session_id: 570Q5000008uy1iIAA
+source_dataset: golden
+form_context:
+  first_name: Steve
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Dual Rise and Recline Armchair
+persona:
+  user_goal_summary: 'User wants to change location on current ads from Blandford to Bournemouth, or learn to post ads in
+    Bournemouth using his same account without duplicating across locations. Drift: soft_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: soft_shift
+  seed_messages:
+  - Hi Jason, is it possible to change my location for the series of adverts I am currently positing? For example, whilst
+    my home address is Blandford, Dorset the items are actually at my father-in-law's address which is Bournemouth, Dorset.
+  - Understood, but according to your earlier statement that means I cannot post with the correct location i.e. Bournemouth.
+    Is this correct or can I change it somehow?
+  - Okay, I missed the fact that you could enter the location when posting the ad. Thanks for your help.
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-B
+  secondary_ucs:
+  - UC-K
+  - UC-D
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (search_knowledge, resolve_article, record_outcome),
+    and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

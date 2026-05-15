@@ -1,0 +1,38 @@
+source_session_id: 570Q5000008NOeXIAW
+case_id_hint: row_76
+llm_model: deepseek-v4-pro
+prompt_hash: 2b12741136a406a6b3022bf051d35462f5f177bbdfa3d9de404fcaab04fc5365
+generated_at: '2026-04-30T13:22:36.590353+00:00'
+llm_confidence: high
+llm_rationale: Replaced the closing seed message with a more issue-centric visitor turn from seq 26. The user goal summary
+  is now specific and factual. Added hidden facts based on transcript details.
+rule_draft:
+  seed_messages:
+  - hi i was chatting with courtney but my internet went down
+  - thats why i cant access it even though i had the log in details
+  - ok thank you for your help
+  user_goal_summary: 'User reports UNKNOWN. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - hi i was chatting with courtney but my internet went down
+  - thats why i cant access it even though i had the log in details
+  - can i not just repost my oriinal add
+  user_goal_summary: 'User wants to repost their original expired ad for a beauty spa, but they are locked out of their old
+    email and ended up with duplicate accounts after a chat disconnection. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - hi i was chatting with courtney but my internet went down
+  - thats why i cant access it even though i had the log in details
+  - can i not just repost my oriinal add
+  user_goal_summary: 'User wants to repost their original expired ad for a beauty spa, but they are locked out of their old
+    email and ended up with duplicate accounts after a chat disconnection. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user looks after the ad for their manager and the account uses a Gmail address.'''
+- 'unsupported_hidden_fact_dropped: ''The new ad was posted to an inaccessible Hotmail account, which has been inactive for
+  over 4 years.'''

@@ -1,0 +1,9 @@
+{
+  "review_id": "REV-002",
+  "ad_id": "AD-1005",
+  "review_type": "MANUAL",
+  "decision": "REMOVED",
+  "reason_code": "PROHIBITED_CONTENT",
+  "reason_display": "Your ad was removed because it contained content that is not allowed on our platform, including items that violate our prohibited items policy.",
+  "reviewed_at": "2025-12-16T08:45:00Z"
+}

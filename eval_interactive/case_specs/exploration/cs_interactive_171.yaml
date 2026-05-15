@@ -1,0 +1,75 @@
+case_id: cs_interactive_171
+source_session_id: 570Q5000008gTqbIAE
+source_dataset: badcase
+form_context:
+  first_name: Danny
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Not happy you've taken call setting away from add
+persona:
+  user_goal_summary: 'The user demands the phone call feature on ads be restored, arguing it helps sales and email is equally
+    susceptible to fraud; they threaten to close account and encourage others to leave. Drift: hard_shift.'
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: hard_shift
+  seed_messages:
+  - I'm just letting you know I'm not happy that you've taken the call feature away from me putting add in I will no longer
+    use your service no more that's terrible nothing to fo with safety
+  - If they don't your going to lose a lot of users I will never use gumtree thanks goodbye
+  - You've just list a user and I will be encouraging online also for other people to stop using gumtree ebay started this
+    to a few years ago and now they've lost lots of users sill move on your part
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs:
+  - UC-K
+  - UC-C
+  - UC-D
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the issue, collect required intake fields (report_target, report_type, description), run
+    policy-mandated tools (create_case_controlled, request_handover, record_outcome), create a controlled case where permitted,
+    and hand over with reason trust_safety_required.
+  escalation_trigger: trust_safety_required
+  risk_level: critical
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_customer_account
+  - lookup_listing_or_ad
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -1,0 +1,32 @@
+source_session_id: 570Q5000008kwlxIAA
+case_id_hint: row_264
+llm_model: deepseek-v4-pro
+prompt_hash: 9e21788b30bec3b3b088d9c411a52c4b0bf0c57417edd05067ce409eaaf5af34
+generated_at: '2026-04-30T19:42:23.300832+00:00'
+llm_confidence: high
+llm_rationale: Seed messages are verbatim from visitor turns 3 and 7, accurately capturing the issue. The user summary reflects
+  the core concern from the transcript. No hidden facts are evident.
+rule_draft:
+  seed_messages:
+  - Drum kit in Glasgow £20 won't reply to messages sent does this thing work????
+  - It's been two days
+  user_goal_summary: 'User reports Replies & Messaging: Get no replies contacting adds. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Drum kit in Glasgow £20 won't reply to messages sent does this thing work????
+  - It's been two days
+  user_goal_summary: 'The user wants to know why they haven''t received any replies to their ad for a drum kit in Glasgow
+    after two days, and to confirm if the messaging system works. Drift: none.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - Drum kit in Glasgow £20 won't reply to messages sent does this thing work????
+  - It's been two days
+  user_goal_summary: 'The user wants to know why they haven''t received any replies to their ad for a drum kit in Glasgow
+    after two days, and to confirm if the messaging system works. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes: []

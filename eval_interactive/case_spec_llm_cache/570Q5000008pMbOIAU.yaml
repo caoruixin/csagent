@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008pMbOIAU
+case_id_hint: row_40
+llm_model: deepseek-v4-pro
+prompt_hash: 3ca6057eaa780117581073623d42742c164b948e3f4f6f03c3430534c4e293ff
+generated_at: '2026-04-30T13:11:18.705987+00:00'
+llm_confidence: high
+llm_rationale: The transcript clearly contains multiple visitor turns describing the core issue (button not working, customers
+  cannot reach, paying for service). Original seed messages included vague and non-issue statements; replaced with verbatim
+  issue-bearing turns. Summary simplified to user goal. Hidden facts derived from agent confirmation and case number.
+rule_draft:
+  seed_messages:
+  - There seems to be issues with my ad
+  - Ok thank you
+  - Is there a case reference
+  user_goal_summary: 'User reports Account Support: My ad isn''t allowing customers to send requests. Drift: none.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - There seems to be issues with my ad
+  - When a customer tries to request quote it doesn't work
+  - Can you tell me what am I supposed to do if I'm paying for this service but the customers cannot reach me
+  user_goal_summary: 'User wants the request-quote button fixed so customers can contact them, as they''re paying for the
+    ad. Drift: none.'
+  hidden_facts:
+  - fact: Case number 00394953 has been opened for this issue.
+    disclose_when: When asked about case reference.
+accepted_value:
+  seed_messages:
+  - There seems to be issues with my ad
+  - When a customer tries to request quote it doesn't work
+  - Can you tell me what am I supposed to do if I'm paying for this service but the customers cannot reach me
+  user_goal_summary: 'User wants the request-quote button fixed so customers can contact them, as they''re paying for the
+    ad. Drift: none.'
+  hidden_facts:
+  - fact: Case number 00394953 has been opened for this issue.
+    disclose_when: When asked about case reference.
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The request-quote button loads a form but customers cannot submit it.'''

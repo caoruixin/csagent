@@ -1,0 +1,9 @@
+name: smoke
+description: Quick PR gate check (75 sessions)
+max-sessions: 75
+datasets:
+  - golden_dataset
+  - badcase_bank
+  - escalation_dataset
+session-selection: stratified_sample
+timeout-per-session-seconds: 30

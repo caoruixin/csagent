@@ -1,0 +1,41 @@
+source_session_id: 570Q5000008VrMoIAK
+case_id_hint: row_118
+llm_model: deepseek-v4-pro
+prompt_hash: 193141fed0f1b335020d5e99c103d529372808c1898ff498dfce1e469089ced4
+generated_at: '2026-04-30T13:35:33.924656+00:00'
+llm_confidence: high
+llm_rationale: Rule draft seed messages already capture the user's issue verbatim from the transcript. The summary is refined
+  to be more specific, mentioning the 'no DSS' and multi-account reasons for removal and the user's desire for reinstatement
+  and guidance. Hidden facts are extracted from user statements about ad content and account IDs.
+rule_draft:
+  seed_messages:
+  - I had issues with my ad
+  - ok it’s been confusing
+  - hopefully we can get this resolved
+  user_goal_summary: 'User reports Ad Support: Ad removed. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I had issues with my ad
+  - ok it’s been confusing
+  - hopefully we can get this resolved
+  user_goal_summary: 'User''s property ad removed due to ''no DSS'' and multi-account; wants reinstatement with main email
+    and rule guidance. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User has multiple accounts, including one with ID 1507828578.
+    disclose_when: when asked about account details or conflicts
+accepted_value:
+  seed_messages:
+  - I had issues with my ad
+  - ok it’s been confusing
+  - hopefully we can get this resolved
+  user_goal_summary: 'User''s property ad removed due to ''no DSS'' and multi-account; wants reinstatement with main email
+    and rule guidance. Drift: hard_shift.'
+  hidden_facts:
+  - fact: User has multiple accounts, including one with ID 1507828578.
+    disclose_when: when asked about account details or conflicts
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "User initially included ''no DSS'' in the ad description."'

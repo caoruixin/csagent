@@ -1,0 +1,64 @@
+case_id: cs_interactive_300
+source_session_id: 570Q5000008XSs9IAG
+source_dataset: golden
+form_context:
+  first_name: david
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: deactivate my account
+persona:
+  user_goal_summary: 'User wants to find his bike ad but other accounts keep appearing when he tries to view his listings,
+    including one under a name he doesn''t recognize (Darren White). He wants these other accounts to stop interfering and
+    to locate his ad. Drift: none.'
+  frustration_level: high
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - i have got to find out that there are a fwe accounts related to me
+  - Iput it in my name David denton
+  - yes & i do not recall putting that name on my account. i have placed an add for a bike & i can not find it
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-D
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - lookup_listing_or_ad
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

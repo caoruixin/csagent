@@ -1,0 +1,37 @@
+source_session_id: 570Q5000008kmRdIAI
+case_id_hint: cs_interactive_328
+llm_model: deepseek-v4-pro
+prompt_hash: 0ac7b2377547211b98a086a25d887c738636fa2b7498f199d694f731b29a2127
+generated_at: '2026-04-30T21:01:22.403365+00:00'
+llm_confidence: high
+llm_rationale: 'Transcript clearly shows two distinct issues: feedback deletion and reposting payment prompt. Seed messages
+  from visitor turns are verbatim and issue-focused. Hidden facts are directly supported by the agent''s confirmations.'
+rule_draft:
+  seed_messages:
+  - I left feedback for a buyer, item collected this morning. Am I able to change or delete it ?
+  - You too 🌺
+  - Thank you again ;)
+  user_goal_summary: 'User reports Ratings & Reviews: Feedback left for buyer. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - I left feedback for a buyer, item collected this morning. Am I able to change or delete it ?
+  - Actually yes - could I ask why when I want to repost ads I am always asked to pay . If I don’t pay it won’t relist ?
+  - Could you repost the pet items for me then or should I create new ads ?
+  user_goal_summary: 'User wants to delete a review left for a buyer after item collection, then asks about being charged
+    for reposting pet accessory ads and requests help reposting them. Drift: hard_shift.'
+  hidden_facts: []
+accepted_value:
+  seed_messages:
+  - I left feedback for a buyer, item collected this morning. Am I able to change or delete it ?
+  - Actually yes - could I ask why when I want to repost ads I am always asked to pay . If I don’t pay it won’t relist ?
+  - Could you repost the pet items for me then or should I create new ads ?
+  user_goal_summary: 'User wants to delete a review left for a buyer after item collection, then asks about being charged
+    for reposting pet accessory ads and requests help reposting them. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The review was for the item ''Long handle dustpan & brush''."'
+- 'unsupported_hidden_fact_dropped: ''The pet items that needed reposting were pet steps, carrier, and cooling mat.'''

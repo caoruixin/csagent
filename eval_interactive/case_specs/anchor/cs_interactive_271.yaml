@@ -1,0 +1,63 @@
+case_id: cs_interactive_271
+source_session_id: 570Q5000008hJArIAM
+source_dataset: golden
+form_context:
+  first_name: Georgina
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Kittens
+persona:
+  user_goal_summary: 'User wants to contact the seller (Peter) of a white male kitten (ad ID 1508014393) because he hasn''t
+    replied to messages. She wants to know if there is another way to reach him. Drift: none.'
+  frustration_level: high
+  verbosity: verbose
+  drift_behavior: none
+  seed_messages:
+  - I've been trying to contact a person called Peter about a white male kitten but I can't get any response at all
+  - Glad you can see i even messaged off my hubby phone to but just cant seem to get a reply and I am very interested in giving
+    the kitten a very good life my son has fallen in love with the picture and he lives animals I just didn't know if there
+    was any other way of contacting him
+  - Oh I don't know ive messaged a few times, it said online yesterday but he never replied
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
+    record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 15
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

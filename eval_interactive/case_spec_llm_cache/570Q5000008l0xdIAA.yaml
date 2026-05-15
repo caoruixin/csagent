@@ -1,0 +1,43 @@
+source_session_id: 570Q5000008l0xdIAA
+case_id_hint: row_84
+llm_model: deepseek-v4-pro
+prompt_hash: 6fcb90d7c8b094aa52b8bbd918687f316af19b83d42bb7ed08399c65bb9698f9
+generated_at: '2026-04-30T13:25:34.248041+00:00'
+llm_confidence: high
+llm_rationale: The seed messages are verbatim visitor turns that directly express the core issue. The user goal summary concisely
+  captures the user's desired outcome (ad confirmation, banner removal) based on the transcript. Hidden facts are grounded
+  in the transcript details (ad ID, item, payment timing) and can be disclosed when relevant. No bot-side instructions are
+  included.
+rule_draft:
+  seed_messages:
+  - Is my add live please as l have not had a conformation either thank you
+  - SEE THIS I PAID TO HAVE IT ON THE FRONT PAGE JUST THIS AFTERNOON
+  - PLEASE EMAIL ME AS SOON AS POSSIBLE AND REMOVE THIS OFFENDING MESSAGE
+  user_goal_summary: 'User reports Account Support: My add appears to have a banner at the bottom why is this please. Drift:
+    hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - Is my add live please as l have not had a conformation either thank you
+  - SEE THIS I PAID TO HAVE IT ON THE FRONT PAGE JUST THIS AFTERNOON
+  - PLEASE EMAIL ME AS SOON AS POSSIBLE AND REMOVE THIS OFFENDING MESSAGE
+  user_goal_summary: 'User wants confirmation that their ad (ID 1508570107) is live and wants a fraud warning banner removed,
+    as they paid for front page placement. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad ID is 1508570107 and it is for a mobility recliner chair.
+    disclose_when: when asked for ad ID or ad details
+accepted_value:
+  seed_messages:
+  - Is my add live please as l have not had a conformation either thank you
+  - SEE THIS I PAID TO HAVE IT ON THE FRONT PAGE JUST THIS AFTERNOON
+  - PLEASE EMAIL ME AS SOON AS POSSIBLE AND REMOVE THIS OFFENDING MESSAGE
+  user_goal_summary: 'User wants confirmation that their ad (ID 1508570107) is live and wants a fraud warning banner removed,
+    as they paid for front page placement. Drift: hard_shift.'
+  hidden_facts:
+  - fact: The ad ID is 1508570107 and it is for a mobility recliner chair.
+    disclose_when: when asked for ad ID or ad details
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: ''The user paid for front page placement this afternoon.'''

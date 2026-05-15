@@ -1,0 +1,46 @@
+source_session_id: 570Q5000008by5UIAQ
+case_id_hint: cs_interactive_210
+llm_model: deepseek-v4-pro
+prompt_hash: f544600bb050b877730bd58a45f9680b1492172339093938d2db0e180cd32222
+generated_at: '2026-04-30T20:54:21.931199+00:00'
+llm_confidence: high
+llm_rationale: The rule draft seed messages already capture key user turns verbatim and describe the issue well. The user
+  goal summary is refined to be more specific and factual, and hidden facts are added based on transcript details.
+rule_draft:
+  seed_messages:
+  - 4th December
+  - Feel this will put buyers off
+  - This is the second time this has happen seems quite unfair as I recently had a buyer not turning up after I waited in
+    all day, but never left them a bad review
+  user_goal_summary: 'User reports Ratings & Reviews: Would like to complain about a recent incorrect review. Drift: hard_shift.'
+  hidden_facts: []
+  verbosity: normal
+llm_proposal:
+  seed_messages:
+  - 4th December
+  - Feel this will put buyers off
+  - This is the second time this has happen seems quite unfair as I recently had a buyer not turning up after I waited in
+    all day, but never left them a bad review
+  user_goal_summary: 'The user wants Gumtree to investigate and remove a negative review left on 4th December by a seller
+    named Sean, who didn''t respond with an address, so the ''not turning up'' review is inaccurate. Drift: hard_shift.'
+  hidden_facts:
+  - fact: This is the second time the user has received an unfair review; previously a buyer didn't show up but the user didn't
+      leave a bad review.
+    disclose_when: when asked about past experiences or the fairness of the review
+accepted_value:
+  seed_messages:
+  - 4th December
+  - Feel this will put buyers off
+  - This is the second time this has happen seems quite unfair as I recently had a buyer not turning up after I waited in
+    all day, but never left them a bad review
+  user_goal_summary: 'The user wants Gumtree to investigate and remove a negative review left on 4th December by a seller
+    named Sean, who didn''t respond with an address, so the ''not turning up'' review is inaccurate. Drift: hard_shift.'
+  hidden_facts:
+  - fact: This is the second time the user has received an unfair review; previously a buyer didn't show up but the user didn't
+      leave a bad review.
+    disclose_when: when asked about past experiences or the fairness of the review
+  verbosity: normal
+acceptance_reason: auto_accept_high_confidence
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The seller named Sean did not respond to the user''s messages and did not provide a pickup
+  address."'
