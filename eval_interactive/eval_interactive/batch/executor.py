@@ -311,6 +311,55 @@ class BatchExecutor:
             )
             return []
 
+    @staticmethod
+    def _build_per_turn_trace(trace_data) -> list[dict]:
+        """Sprint 28 (R-per-case-trace-dump-for-smoke-harness): per-turn
+        trace dump for the smoke harness.
+
+        Serialises the three R-item-named per-turn fields from the already-
+        collected ``trace_data.turns`` (each a ``TurnTrace`` populated by
+        ``TraceCollector`` from the bot's
+        ``GET /v1/demo/sessions/{id}/trace`` endpoint, which itself reads
+        the ``bot_turns`` table V2 ``tool_calls`` + ``projected_context``
+        JSONB columns):
+
+        - ``tool_calls`` — verbatim from ``TurnTrace.tool_calls`` (already
+          a list of dicts; ``TraceCollector`` parses the JSONB column).
+        - ``phase_plan`` — the ``phase_plan`` sub-object inside the
+          per-turn projection (populated by ``ContextProjectionBuilder``
+          when a ``PhasePlan`` is present; ``None`` otherwise).
+        - ``projection`` — the full per-turn projected_context dict (which
+          also re-contains ``phase_plan`` — the duplication is intentional
+          so consumers can read either path).
+
+        The fourth R-item-named field, ``LlmCallEvents``, is **already**
+        carried on each case result by the Sprint 25
+        ``case_results[].llm_calls[]`` enrichment; Sprint 28 does not
+        re-ship that axis.
+
+        Defensive: returns ``[]`` when ``trace_data`` has no turns or the
+        per-turn fields are missing / malformed, so the schema stays
+        uniform across populated / placeholder / error paths.
+        """
+        turns = getattr(trace_data, "turns", None) or []
+        out: list[dict] = []
+        for turn in turns:
+            projection = getattr(turn, "projected_context", None)
+            if not isinstance(projection, dict):
+                projection = {}
+            phase_plan = projection.get("phase_plan")
+            tool_calls = getattr(turn, "tool_calls", None)
+            if not isinstance(tool_calls, list):
+                tool_calls = []
+            out.append(
+                {
+                    "tool_calls": list(tool_calls),
+                    "phase_plan": phase_plan,
+                    "projection": dict(projection),
+                }
+            )
+        return out
+
     def _build_case_result(
         self,
         case_spec: CaseSpec,
@@ -374,6 +423,16 @@ class BatchExecutor:
             # empty list when the endpoint is unreachable; this is
             # logged at fetch time and does not fail the case.
             "llm_calls": list(llm_calls or []),
+            # Sprint 28 (R-per-case-trace-dump-for-smoke-harness): per-
+            # turn trace dump — one entry per bot turn carrying
+            # ``tool_calls`` + ``phase_plan`` + full per-turn
+            # ``projection``. Sourced from the already-collected
+            # ``trace_data.turns[]`` (TraceCollector hydrates from the
+            # bot's ``/v1/demo/sessions/{id}/trace`` endpoint, which
+            # reads the V2 ``bot_turns`` JSONB columns). The fourth
+            # R-item-named field, ``LlmCallEvents``, is already shipped
+            # at case level via ``llm_calls`` above — not re-shipped.
+            "per_turn_trace": self._build_per_turn_trace(trace_data),
         }
 
     def _timeout_result(self, case_spec: CaseSpec) -> dict:
@@ -402,6 +461,7 @@ class BatchExecutor:
             "transcript": [],
             "status": "TIMEOUT",
             "llm_calls": [],
+            "per_turn_trace": [],
         }
 
     def _error_result(
@@ -444,6 +504,7 @@ class BatchExecutor:
             "transcript": [],
             "status": "ERROR",
             "llm_calls": [],
+            "per_turn_trace": [],
         }
 
     def _contract_violation_result(
@@ -503,6 +564,7 @@ class BatchExecutor:
                 "available_keys": exc.available_keys,
             },
             "llm_calls": [],
+            "per_turn_trace": [],
         }
 
     # ------------------------------------------------------------------
