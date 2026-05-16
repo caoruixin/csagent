@@ -1,11 +1,84 @@
 # Current Handoff
 
-Date: 2026-05-15
-Branch: `design-v1-without-human-review`
+Date: 2026-05-16
+Branch: `refactor/remove-the-shackles`
 
 ## 1. Current phase
 
 Current phase:
+Sprint 30 (Alternate-UC signal data-source design — investigation-only
+docs-only architectural-design sprint, single deliverable: one new
+design proposal doc at `docs/proposals/alternate_uc_signal_data_source_design.md`
+plus one R-item registration `R-alternate-uc-signal-data-source` at
+`docs/action_bank.md`) in **prep state** as of **2026-05-16**.
+Authorized by the deliver-agent + human (option D1) per the
+Sprint 17–23 + Triggered roadmap delivery-status investigation and
+the `iteration_governance.md` §7.2 worked-example premise-gap finding
+(`docs/sprint_objective.md` §4 — `RuntimeIntentClassifier.classify()`
+returns one `predictedUseCase` with no alternates list at
+`server/src/main/java/com/gumtree/csagent/service/runtime/RuntimeIntentClassifier.java:160–269`;
+`IntentClassification` has no alternates field;
+`BotSession.candidateUseCases` collapses to `[activeUc]` after first
+reroute per `ControlKernel.java:686`). Sprint 30 produces one
+design doc naming the chosen data source from at least three
+candidates (extending `RuntimeIntentClassifier`, per-turn
+`UseCaseRouter`, new `AlternateUseCaseSurveyor`, extending
+`DriftResult`, or other), with code-paths-to-touch table sized for
+Sprint 31 to consume verbatim. Sprint 30 is **exempt** from the §7
+semantic-touching stanza per `docs/current/iteration_governance.md`
+§7 (docs-only). Codex review is **optional** at close per the §4.1
+docs-only exemption (Sprint 16 / 22 / 26 / 27 precedent). The
+chosen design's actual implementation is **Sprint 31** scope, not
+Sprint 30.
+
+Deliver-agent close-out for Sprint 29 (the (R2) probe follow-on that
+just closed) bundled into Sprint 30 prep on **2026-05-16**: the
+Sprint 29 objective archived from `docs/sprint_objective.md` to
+`docs/sprints/sprint-029-objective.md` with frontmatter updated to
+`doc_tier: sprint-archive / status: archived /
+implementation_status: historical / superseded_by:
+docs/sprint_objective.md`; the new Sprint 30 objective written at
+`docs/sprint_objective.md`; `compact/sprint-030-dev-prompt.md` +
+`compact/sprint-030-review-prompt.md` authored by the deliver-agent
+for the Sprint 30 dev / review sessions. `docs/action_bank.md` line
+450 disposition update (the Sprint 29 (R2) probe finding) was
+already appended during Sprint 29 close; no additional Sprint
+30-prep edit to line 450 is needed.
+
+---
+
+Preceding sprint:
+Sprint 29 (R-prompt-phase-plan-directive-followship (R2) probe
+follow-on — two-track semantic-touching sprint with `eval_spec`
+Track A CaseSpec authoring + `infra` Track B (c) phase-derivation
+verification, in-flight downgrade clause on Track B per
+`feedback_corpus_undecidable_premise_check.md`) closed on
+**2026-05-15** with the in-flight downgrade clause firing (Track B
+Q2 = NO, no `CONFIRM → CLOSE` turn pair observable in Track A's
+authored corpus). Track A landed 4 hand-authored CaseSpecs under
+`eval_interactive/case_specs/case_families/sprint29_directive_probe/`
+exercising D485.2 / D564.7 / D616.2 preconditions; smoke ran at
+`eval_interactive/results/20260514-225419/results.json`. D564.7
+followed (1/1); D616.2 violated (1/1; `cs29d616_uc_c` escalated
+with `user_distress` instead of producing a grounded RESOLVE
+answer); D485.2 undecidable on Track A's corpus (user-simulator
+`goal_achieved` early-stop at `eval_interactive/eval_interactive/simulator/session_runner.py:224`
+pre-empts the bot's CONFIRM phase plan + a `record_outcome` infra
+error on `cs29d485_uc_c`). Track B's in-flight downgrade named (but
+did not open) `R-per-turn-phase-transition-dump-for-smoke-harness`
+as a proposed follow-on R-item. `R-prompt-phase-plan-directive-followship`
+at `docs/action_bank.md:450` was updated with the Sprint 29 finding
+(D616.2 n=1 violation; (R1) structural-sprint trigger requires
+n ≥ 2 confirmed non-fulfillments and Sprint 29 contributes 1) but
+**NOT closed**. Sprint 29 ships zero `server/` / `eval_interactive/`
+infra code edits; zero `system_prompt.txt` edits; zero edits to
+existing Sprint 20 case families. Closure verdict pending Codex
+review per Sprint 29 sprint-close convention. Full handoff:
+`docs/sprints/sprint-029-handoff.md`.
+
+---
+
+Earlier sprint:
 Sprint 28 (Per-case trace dump for smoke harness — single-track,
 single-layer `infra` / eval-harness bundle shipping
 `R-per-case-trace-dump-for-smoke-harness` per

@@ -1,0 +1,66 @@
+case_id: cs29d485_uc_b_delete_ad_resolution
+source_session_id: synthetic-sprint29-d485-2-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Priya
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: I posted an ad last week and now I want to take it down but can't find where the delete option is.
+persona:
+  user_goal_summary: User posted an ad and has decided to take it down, but cannot locate the delete option in their account. Routine UC-B posting / editing help question; FAQ-resolvable from the "How to Delete an Ad" knowledge article. Once the bot points the user at where the delete option lives, the user is satisfied and signals confirmation, so the conversation should pass through CONFIRM into CLOSE. Drift - none.
+  frustration_level: none
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - "I posted an ad for a sofa last week and I want to take it down now, where is the delete button?"
+  - "great, found it, that's exactly what I needed - thanks"
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-B
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the user's deletion question, run policy-mandated tools (search_knowledge, resolve_article, record_outcome), produce a grounded answer pointing to where the delete-an-ad option lives in the user's account, then on the user's confirmation move through CONFIRM to CLOSE. The session reaches CLOSE phase; record_outcome should be called at most once across RESOLVE / CONFIRM / CLOSE per the D485.2 if-not-already-recorded gate.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness
