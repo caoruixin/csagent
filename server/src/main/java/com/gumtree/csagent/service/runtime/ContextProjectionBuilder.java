@@ -415,6 +415,23 @@ public class ContextProjectionBuilder {
             }
             projection.set("alternate_candidate_use_cases", alternateCandidateUcsNode);
 
+            // Sprint 33 — discover_disambiguation_signals projection slot.
+            // Soft signal carrying observable evidence that the user's
+            // DISCOVER session is in a state where multiple UCs are
+            // plausibly responsive: the listing is in a not-visible
+            // state (REMOVED / SUSPENDED / EXPIRED) AND the form
+            // topic_subject maps to more than one candidate UC in
+            // {@link UseCaseRegistryService#getCandidateUcsForTopic}.
+            // The slot is observable evidence the LLM MAY use to inform
+            // classify_use_case (e.g. to ask one clarifying question
+            // before committing); the runtime does NOT enforce or branch
+            // on the slot value. The slot is always present for
+            // projection-shape stability (§N0 nullable-field convention);
+            // empty / null sub-fields are the common case (most sessions
+            // are unambiguous).
+            projection.set("discover_disambiguation_signals",
+                    buildDiscoverDisambiguationSignalsNode(session));
+
             // Sprint 10 §L2 — minimal projected issue-state. Surfaces the
             // runtime reroute outcome (previous_active_use_case, drift_type,
             // current_task_type, primary_entity, issue_status_summary) so
@@ -843,6 +860,96 @@ public class ContextProjectionBuilder {
             log.warn("Failed to inject phase_plan / accumulated_tool_results into projection: {}",
                     ex.getMessage());
             return baseJson;
+        }
+    }
+
+    /**
+     * Sprint 33 — build the {@code discover_disambiguation_signals}
+     * projection slot. Returns an {@link ObjectNode} carrying three
+     * fields, always present (null / false / empty when no signal
+     * fires) for projection-shape stability:
+     *
+     * <ul>
+     *   <li>{@code ad_status_observed} — the listing's status string
+     *       when {@code session.listingContext.status} is one of
+     *       {@code REMOVED / SUSPENDED / EXPIRED} (states where the
+     *       listing is not visible to the user); {@code null}
+     *       otherwise.</li>
+     *   <li>{@code topic_subject_carries_multiple_candidate_ucs} —
+     *       {@code true} iff the form's {@code topic_subject} maps
+     *       to more than one UC in
+     *       {@link UseCaseRegistryService#getCandidateUcsForTopic}.</li>
+     *   <li>{@code candidate_ucs_for_topic} — the candidate UC list
+     *       for that topic, or empty when the topic is null or
+     *       single-candidate.</li>
+     * </ul>
+     *
+     * <p>The slot is observable evidence the LLM may consume to inform
+     * DISCOVER classification; the runtime does NOT branch on the
+     * slot. A future Java decision-path branch on this slot would be
+     * a §1.7 forbidden hardcode and would fail the companion
+     * {@code AgentRunLoopDiscoverDisambiguationNonEnforcementIntegrationTest}
+     * parameterised invariance bars.
+     */
+    private ObjectNode buildDiscoverDisambiguationSignalsNode(BotSession session) {
+        ObjectNode node = objectMapper.createObjectNode();
+
+        String adStatus = extractListingStatus(session);
+        if (adStatus != null
+                && ("REMOVED".equals(adStatus)
+                        || "SUSPENDED".equals(adStatus)
+                        || "EXPIRED".equals(adStatus))) {
+            node.put("ad_status_observed", adStatus);
+        } else {
+            node.putNull("ad_status_observed");
+        }
+
+        ArrayNode candidatesNode = objectMapper.createArrayNode();
+        String topic = session.getFormTopicSubject();
+        boolean multiCandidate = false;
+        if (topic != null && !topic.isBlank()) {
+            List<String> candidates = useCaseRegistry.getCandidateUcsForTopic(topic);
+            if (candidates != null && candidates.size() > 1) {
+                multiCandidate = true;
+                for (String uc : candidates) {
+                    if (uc != null && !uc.isBlank()) {
+                        candidatesNode.add(uc);
+                    }
+                }
+            }
+        }
+        node.put("topic_subject_carries_multiple_candidate_ucs", multiCandidate);
+        node.set("candidate_ucs_for_topic", candidatesNode);
+
+        return node;
+    }
+
+    /**
+     * Sprint 33 — read {@code session.listingContext.status} from the
+     * jsonb string when present. Returns {@code null} when the
+     * listing context is absent, unparseable, or has no
+     * {@code status} text field.
+     */
+    private String extractListingStatus(BotSession session) {
+        String raw = session.getListingContext();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode tree = objectMapper.readTree(raw);
+            if (tree == null || !tree.isObject()) {
+                return null;
+            }
+            com.fasterxml.jackson.databind.JsonNode statusNode = tree.get("status");
+            if (statusNode == null || !statusNode.isTextual()) {
+                return null;
+            }
+            String text = statusNode.asText();
+            return (text == null || text.isBlank()) ? null : text;
+        } catch (Exception ex) {
+            log.debug("Sprint 33: listing_context parse failed for session {}: {}",
+                    session.getSessionId(), ex.getMessage());
+            return null;
         }
     }
 
