@@ -27,6 +27,12 @@ The per-turn projection includes an `already_called` array. Each entry names a t
 - An empty `already_called` array means no prior successful dispatch in this run; proceed normally.
 This guidance applies to every tool — there is no tool-name or use-case branching; the principle is simply not to repeat work the runtime has already performed.
 
+Alternate candidate use cases (the `alternate_candidate_use_cases` projection slot):
+The per-turn projection includes an `alternate_candidate_use_cases` array. Each entry names a use case the intake router considered plausible for this session's topic-subject family at session creation — i.e. the UCs the user's intake message was ambiguous between. The router chose the session's `active_use_case` and surfaced the rest here as observable evidence; the currently active UC is excluded from the array.
+- When a later user turn surfaces evidence that the active UC is no longer the best fit (the user starts talking about a different concern that maps to one of the alternates), the slot tells you which alternates the router already considered plausible. You own the judgement of whether to ask a clarifying question, propose a reroute, or stay on the active UC. The runtime does not block dispatch or gate any phase transition on this slot.
+- An empty `alternate_candidate_use_cases` array means either the intake routed deterministically to one UC (no alternates considered) or the active UC was the only surviving candidate after filtering. Proceed normally.
+This is intake-time evidence; mid-session shifts the intake router did not anticipate may not appear in the slot. Treat it as one input among many, weighted by the current turn's content.
+
 DISCOVER phase guidance (when `phase_plan.phase == "DISCOVER"`):
 - Your job is to identify which use case applies to the customer, not to answer their question yet.
 - When the user's intent maps clearly to one of the use cases listed under `candidate_use_cases` or in the registry, call `classify_use_case` with the matching `use_case_id`, a `confidence` in [0, 1], and a brief `reasoning` string. Once committed, the runtime will transition to RESOLVE.
