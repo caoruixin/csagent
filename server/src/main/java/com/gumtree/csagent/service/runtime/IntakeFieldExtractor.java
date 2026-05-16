@@ -22,17 +22,32 @@ import java.util.regex.Pattern;
  * pairs. The split keeps the registry pure (no NLP) and the extractor
  * narrowly scoped to the UCs anchored by the targeted regression set.
  *
- * <p>Initial UC scope:
+ * <p>UC scope:
  * <ul>
  *   <li>UC-K (Technical Issue Intake) — {@code platform} +
- *       {@code repro_steps_or_error_message}, anchored on cs066.</li>
+ *       {@code repro_steps_or_error_message}, anchored on cs066.
+ *       User-text mining (via {@link #PLATFORM_TOKEN_PATTERN} +
+ *       {@link #REGRESSION_MARKER_PATTERN}).</li>
+ *   <li>UC-G / UC-H / UC-I / UC-J (Sprint 34) — pure FORM-CONTEXT
+ *       field-mapping plumbing. For each canonical required field that
+ *       has a form_context source-of-truth in
+ *       {@link FormContextIngestionService} (first_name / email /
+ *       topic_subject / description / optional ad_id), seed the
+ *       canonical name onto {@code session.intakeFields} so the next
+ *       projection's {@code intake_state.fields_collected} reflects
+ *       what the form already supplied. No regex on user-typed text;
+ *       the LLM still owns capture of any inline user-supplied
+ *       intake_fields via
+ *       {@code AgentRunLoopImpl.persistInlineIntakeFields}.</li>
  * </ul>
  *
- * <p>Other intake UCs (UC-G/H/I/J) currently rely on the LLM to provide
- * fields via {@code request_handover.arguments.intake_fields}, which the
- * existing {@code AgentRunLoopImpl.persistInlineIntakeFields} hook
- * persists. They can be added here later if a targeted blocker shows the
- * partial-intake gap on those UCs too.
+ * <p>UC-I is wired as a deliberate no-op today: the canonical required
+ * fields ({@code transaction_reference}, {@code dispute_reason}) have no
+ * corresponding form_context source-of-truth in
+ * {@link FormContextIngestionService}. The branch exists for symmetry
+ * with the other intake UCs so a future sprint that adds a
+ * transaction-reference form field can extend the branch without
+ * re-touching the dispatch structure.
  */
 public final class IntakeFieldExtractor {
 
@@ -94,6 +109,14 @@ public final class IntakeFieldExtractor {
         if ("UC-K".equals(uc)) {
             extractUcKFields(extracted, userMessage,
                     extractFormDescription(formContextJson, objectMapper));
+        } else if ("UC-H".equals(uc)) {
+            extractUcHFields(extracted, formContextJson, objectMapper);
+        } else if ("UC-G".equals(uc)) {
+            extractUcGFields(extracted, formContextJson, objectMapper);
+        } else if ("UC-J".equals(uc)) {
+            extractUcJFields(extracted, formContextJson, objectMapper);
+        } else if ("UC-I".equals(uc)) {
+            extractUcIFields(extracted, formContextJson, objectMapper);
         }
         return extracted;
     }
@@ -125,6 +148,87 @@ public final class IntakeFieldExtractor {
         if (repro != null) {
             out.put("repro_steps_or_error_message", repro);
         }
+    }
+
+    /**
+     * Sprint 34 — UC-H (Ad Removal Appeal) form-context field mapping.
+     * Reads {@code form_context.ad_id} → canonical
+     * {@code ad_id_or_listing_url} and {@code form_context.email} →
+     * canonical {@code registered_email} per the alias entries already
+     * defined in {@link IntakeFieldsRegistry#FIELD_ALIASES} (lines
+     * 87-89). The third required field
+     * ({@code stated_reason_or_context}) has no form_context source —
+     * the LLM owns capturing it from the conversation via
+     * {@code request_handover.arguments.intake_fields}.
+     */
+    private static void extractUcHFields(Map<String, String> out,
+                                         String formContextJson,
+                                         ObjectMapper objectMapper) {
+        String adId = extractFormContextField(formContextJson, "ad_id", objectMapper);
+        if (adId != null) {
+            out.put("ad_id_or_listing_url", adId);
+        }
+        String email = extractFormContextField(formContextJson, "email", objectMapper);
+        if (email != null) {
+            out.put("registered_email", email);
+        }
+    }
+
+    /**
+     * Sprint 34 — UC-G (GDPR / data-action intake) form-context field
+     * mapping. Reads {@code form_context.email} → canonical
+     * {@code registered_email}. The {@code data_request_type} field has
+     * no form_context source — it surfaces from the user-driven
+     * conversation via the LLM's inline intake_fields path.
+     */
+    private static void extractUcGFields(Map<String, String> out,
+                                         String formContextJson,
+                                         ObjectMapper objectMapper) {
+        String email = extractFormContextField(formContextJson, "email", objectMapper);
+        if (email != null) {
+            out.put("registered_email", email);
+        }
+    }
+
+    /**
+     * Sprint 34 — UC-J (Trust & Safety report intake) form-context field
+     * mapping. Reads {@code form_context.description} → canonical
+     * {@code description} (canonical name and form-context key
+     * coincide). The other required fields ({@code report_target} +
+     * {@code report_type}) have no form_context source.
+     */
+    private static void extractUcJFields(Map<String, String> out,
+                                         String formContextJson,
+                                         ObjectMapper objectMapper) {
+        String description = extractFormContextField(formContextJson, "description", objectMapper);
+        if (description != null) {
+            out.put("description", description);
+        }
+    }
+
+    /**
+     * Sprint 34 — UC-I (Refund / payment-dispute intake) form-context
+     * field mapping. Deliberate no-op today: the canonical required
+     * fields ({@code transaction_reference}, {@code dispute_reason})
+     * have no source-of-truth in
+     * {@link FormContextIngestionService}'s form_context shape
+     * (first_name / email / topic_subject / description / optional
+     * ad_id). The branch exists for structural symmetry with the other
+     * intake UCs — a future sprint that adds a transaction-reference
+     * form field can extend this method without re-touching the
+     * dispatch in {@link #extractFromTurn}. Surfaced as Sprint 34 OQ in
+     * the handoff.
+     */
+    private static void extractUcIFields(Map<String, String> out,
+                                         String formContextJson,
+                                         ObjectMapper objectMapper) {
+        // No-op: no form_context source for transaction_reference /
+        // dispute_reason. Reads form_context only to keep the method
+        // signature uniform with the other UC helpers; result is unused.
+        if (formContextJson == null) {
+            return;
+        }
+        // Intentionally empty body — see Javadoc.
     }
 
     /**
@@ -183,6 +287,35 @@ public final class IntakeFieldExtractor {
     }
 
     /**
+     * Sprint 34 — generalised form_context field reader. Pulls
+     * {@code fieldName} out of {@code session.formContext} JSONB and
+     * returns the trimmed string value, or {@code null} on missing /
+     * blank / parse failure. Mirrors {@link #extractFormDescription}
+     * but accepts an arbitrary field name (e.g. {@code "ad_id"},
+     * {@code "email"}) so the per-UC helpers can read form-context
+     * source-of-truth fields without each duplicating the parse +
+     * null-handling pattern. Tolerant — never throws on malformed JSON.
+     */
+    static String extractFormContextField(String formContextJson,
+                                          String fieldName,
+                                          ObjectMapper objectMapper) {
+        if (formContextJson == null || formContextJson.isBlank()
+                || objectMapper == null || fieldName == null || fieldName.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(formContextJson);
+            if (root == null || !root.isObject()) return null;
+            JsonNode node = root.get(fieldName);
+            if (node == null || node.isNull()) return null;
+            String text = node.isValueNode() ? node.asText("") : node.toString();
+            return (text == null || text.isBlank()) ? null : text;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /**
      * Convenience helper used by the run loop: extract canonical fields
      * for {@code uc} from {@code userMessage} + {@code session.formContext},
      * merge them into the existing collected map, and return the result.
@@ -213,12 +346,18 @@ public final class IntakeFieldExtractor {
     }
 
     /**
-     * @return the lowercase canonical UC IDs for which this extractor has
-     *         per-UC heuristics. Useful for tests and for the run loop's
-     *         "is this worth invoking?" check.
+     * @return true iff this extractor has per-UC heuristics or
+     *         form-context plumbing for {@code uc}. Useful for tests
+     *         and for the run loop's "is this worth invoking?" check.
+     *         UC-I returns {@code true} despite the helper being a
+     *         no-op today (per the Javadoc on
+     *         {@link #extractUcIFields}) so the dispatch surface
+     *         covers every {@link IntakeFieldsRegistry} intake UC.
      */
     public static boolean handlesUc(String uc) {
-        return "UC-K".equals(uc);
+        return "UC-G".equals(uc) || "UC-H".equals(uc)
+                || "UC-I".equals(uc) || "UC-J".equals(uc)
+                || "UC-K".equals(uc);
     }
 
     @SuppressWarnings("unused") // kept for symmetry with existing registry helpers
