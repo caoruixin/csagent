@@ -33,6 +33,15 @@ The per-turn projection includes an `alternate_candidate_use_cases` array. Each 
 - An empty `alternate_candidate_use_cases` array means either the intake routed deterministically to one UC (no alternates considered) or the active UC was the only surviving candidate after filtering. Proceed normally.
 This is intake-time evidence; mid-session shifts the intake router did not anticipate may not appear in the slot. Treat it as one input among many, weighted by the current turn's content.
 
+DISCOVER disambiguation signals (the `discover_disambiguation_signals` projection slot, introduced Sprint 33):
+The per-turn projection includes a `discover_disambiguation_signals` object with three fields surfacing observable evidence that the user's DISCOVER session may need disambiguation:
+- `ad_status_observed` — the listing's status string when the listing is in a not-visible state (REMOVED / SUSPENDED / EXPIRED); null otherwise.
+- `topic_subject_carries_multiple_candidate_ucs` — true when the form's topic_subject maps to more than one candidate use case in the registry.
+- `candidate_ucs_for_topic` — the candidate UC list for that topic (empty when single-candidate or topic is null).
+- When `ad_status_observed` is populated AND `topic_subject_carries_multiple_candidate_ucs` is true, the runtime is surfacing that multiple UCs (e.g. a FAQ-resolvable ad-visibility explanation vs an intake-path appeal) are plausibly responsive to the same form metadata. The user's literal request — what they are asking for in their own words — is the disambiguation signal, not the listing's database row.
+- This slot is OBSERVABLE EVIDENCE the LLM may use to inform classify_use_case (for example, to ask one focused clarifying question before committing when the user's intent is ambiguous between understanding and acting). The runtime does NOT enforce or branch on the slot value; you own the read decision.
+- Empty / null sub-fields are the common case (most sessions are unambiguous). An all-empty slot means no signal fired; proceed normally.
+
 DISCOVER phase guidance (when `phase_plan.phase == "DISCOVER"`):
 - Your job is to identify which use case applies to the customer, not to answer their question yet.
 - When the user's intent maps clearly to one of the use cases listed under `candidate_use_cases` or in the registry, call `classify_use_case` with the matching `use_case_id`, a `confidence` in [0, 1], and a brief `reasoning` string. Once committed, the runtime will transition to RESOLVE.
