@@ -1,0 +1,67 @@
+case_id: cs32n02_uc_a_uc_b_drift
+source_session_id: synthetic-sprint32-neighbor-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Rohan
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Hi, my ad is not showing many views and I also have a posting question I wanted to ask about.
+persona:
+  user_goal_summary: User opens with a visibility complaint shape (UC-A) on the Ad Support form. On turn 2 the user surfaces a distinct UC-B concern — a generic posting / policy question about whether they can list the same item across multiple categories. The Sprint 31 alternate_candidate_use_cases projection slot is observably populated with UC-B on the cs_interactive_192-shaped intake (alts=["UC-A","UC-B","UC-FP"] per the Sprint 31 reference smoke). The bot is expected to recognise the topic shift to UC-B and either reroute or ask a focused clarifying question. Drift - soft_shift.
+  frustration_level: none
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - "I bumped my listing yesterday but I am still not seeing many views, is there something I should be doing?"
+  - "while I have you — can I list the same item in two different categories at once, or does Gumtree have a rule against that?"
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-B
+  secondary_ucs:
+  - UC-A
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: On turn 1 the bot acknowledges the visibility complaint (UC-A) and may begin gathering UC-A context. On turn 2 the user pivots to a generic UC-B posting-policy question (multiple-categories rule). The bot is expected to recognise the topic shift — observable via the alternate_candidate_use_cases projection slot if it carries UC-B on the AMBIGUOUS-intake path, or via the user's plain-language drift signal — and either reroute active_use_case to UC-B and run the UC-B FAQ-resolve flow (search_knowledge, resolve_article, record_outcome) or ask one focused clarifying question and route accordingly. The bot must not silently stamp active_use_case=UC-A through the drift and answer the multi-category question as a UC-A follow-up.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 12
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

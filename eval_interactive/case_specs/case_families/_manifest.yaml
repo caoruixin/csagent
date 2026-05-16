@@ -198,3 +198,32 @@ families:
       returns viable hits; the bot must resolve, not escalate. Negatives
       are UC-A cases where escalation IS correct (truly no viable hit;
       explicit user_requested).
+
+  - family_id: sprint32_alternate_uc
+    source_brief: docs/diagnostics/failure-briefs/sprint32-uc-a-uc-c-alternate-uc-readiness.md
+    primary_layer: eval_spec
+    secondary_layer: prompt_projection
+    l3_override_status: NONE (Sprint 32 hand-authored family; no L3 triage)
+    target_case_ids: [cs32t01_uc_a_uc_c_drift]
+    target_case_path: eval_interactive/case_specs/case_families/sprint32_alternate_uc/cs32t01_uc_a_uc_c_drift.yaml
+    neighbor_case_ids: [cs32n01_uc_a_uc_fp_drift, cs32n02_uc_a_uc_b_drift]
+    negative_case_ids: [cs32g01_uc_a_deepens_no_drift, cs32g02_uc_a_explicit_stay]
+    shadow_case_ids: "[REDACTED -- see case_specs_shadow/_manifest.yaml]"
+    notes: >-
+      Validates the Sprint 31 alternate_candidate_use_cases projection
+      slot end-to-end on the §7.2 worked-example shape. Target is the
+      UC-A↔UC-C topic-shift case (promotes the
+      `docs/current/iteration_governance.md` §7.2 hypothetical brief
+      into a real failure-brief). Neighbors are UC-A↔UC-FP (grounded
+      in cs_interactive_015 alternates=["UC-A","UC-FP","UC-H"]) and
+      UC-A↔UC-B (grounded in cs_interactive_192 alternates=
+      ["UC-A","UC-B","UC-FP"]); both UC pairs are observably emitted
+      by the intake router in the Sprint 31 reference smoke
+      (eval_interactive/results/20260516-024934/results.json).
+      Negatives prove the LLM can observe a populated alternates slot
+      and still stay in the active UC when the user does not drift
+      (load-bearing for §1.7 non-enforcement at the eval-surface
+      layer; Sprint 31 fix-iteration #2 strengthened T8 covers the
+      runtime-side proof in
+      AgentRunLoopAlternateCandidateUseCasesNonEnforcementIntegrationTest).
+      Authored 2026-05-16.
