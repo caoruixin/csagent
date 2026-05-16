@@ -1,0 +1,75 @@
+case_id: probe_account_support_cross_topic_uc_c_drift_with_login_bias
+source_session_id: probe-probe_account_support_cross_topic_uc_c_drift_with_login_bias
+source_dataset: sprint35_option_beta_coverage_probe
+
+probe_metadata:
+  probe_dimension_topic_subject: "Account Support"
+  probe_dimension_description_shape: "cross-topic-drift"
+  probe_expected_routing: "ROUTED{UC-D} (ACCOUNT_LOGIN_BIAS fires first; MESSAGING_BIAS later in order)"
+  probe_purpose: |
+    Cross-topic drift on Account Support with TWO B2 bias triggers in one description. Tests bias-regex ORDER: ACCOUNT_LOGIN_BIAS_PATTERN runs before MESSAGING_BIAS_PATTERN, so UC-D wins. UC-C NOT surfaced.
+
+probe_observation_recipe: |
+  Extract from results/<timestamp>/results.json at
+  case_results[case_id=probe_account_support_cross_topic_uc_c_drift_with_login_bias]:
+    - per_turn_trace[0].active_use_case  -> matrix routed-UC cell
+    - per_turn_trace[0].projection.alternate_candidate_use_cases
+      -> matrix alternates list (Option β surface contents)
+    - per_turn_trace[0].projection.candidate_use_cases
+      -> the candidate set the router considered (cross-reference)
+  AMBIGUOUS path is inferred when alternate_candidate_use_cases is
+  non-empty (Sprint 31 ContextProjectionBuilder.java:407-416 only
+  populates this slot when session.intakeAmbiguousCandidates was
+  captured by the AMBIGUOUS branch of routeNonBlocking).
+  ROUTED path is inferred when alternate_candidate_use_cases is
+  empty AND active_use_case is set on turn 0.
+
+form_context:
+  first_name: ProbeUser
+  email: probe@example.com
+  topic_subject: "Account Support"
+  ad_id: ""
+  description: "I am locked out of my account and on top of that my messages are not arriving from buyers either"
+
+persona:
+  user_goal_summary: |
+    Sprint 35 probe instrument; not a regression gate. The persona
+    text is deliberately neutral so the probe measures the
+    deterministic routing surface (UseCaseRouter + projection
+    builder) rather than persona-driven LLM behaviour. The seed
+    message is the form description; the followup confirms intent
+    so the harness can capture turn 0 routing + one bot response.
+  frustration_level: none
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+    - "I am locked out of my account and on top of that my messages are not arriving from buyers either"
+    - "Yes please go ahead and help me with this."
+  hidden_facts: []
+  will_request_human_if: ""
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-D
+  secondary_ucs: [UC-C]
+  should_escalate: false
+  allow_bot_resolution: "true"
+  bot_handling_pattern: |
+    Sprint 35 probe instrument; expected behaviour fields are
+    documentary only. The probe measures what the deterministic
+    intake router and projection builder produce on turn 0; bot
+    handling beyond turn 0 is observed for the matrix but not
+    scored. See docs/diagnostics/option_beta_coverage_matrix.md
+    for the analysis surface.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence: []
+  forbidden_tools: []
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 2
+
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

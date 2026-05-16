@@ -1,0 +1,75 @@
+case_id: probe_payments_ambiguous_soft
+source_session_id: probe-probe_payments_ambiguous_soft
+source_dataset: sprint35_option_beta_coverage_probe
+
+probe_metadata:
+  probe_dimension_topic_subject: "Payments"
+  probe_dimension_description_shape: "ambiguous-soft"
+  probe_expected_routing: "AMBIGUOUS{UC-F, UC-I} (no bias match)"
+  probe_purpose: |
+    Soft ambiguity on Payments; baseline for the second multi-candidate weak-prior topic.
+
+probe_observation_recipe: |
+  Extract from results/<timestamp>/results.json at
+  case_results[case_id=probe_payments_ambiguous_soft]:
+    - per_turn_trace[0].active_use_case  -> matrix routed-UC cell
+    - per_turn_trace[0].projection.alternate_candidate_use_cases
+      -> matrix alternates list (Option β surface contents)
+    - per_turn_trace[0].projection.candidate_use_cases
+      -> the candidate set the router considered (cross-reference)
+  AMBIGUOUS path is inferred when alternate_candidate_use_cases is
+  non-empty (Sprint 31 ContextProjectionBuilder.java:407-416 only
+  populates this slot when session.intakeAmbiguousCandidates was
+  captured by the AMBIGUOUS branch of routeNonBlocking).
+  ROUTED path is inferred when alternate_candidate_use_cases is
+  empty AND active_use_case is set on turn 0.
+
+form_context:
+  first_name: ProbeUser
+  email: probe@example.com
+  topic_subject: "Payments"
+  ad_id: ""
+  description: "Something is wrong with my payment situation and I am not sure what to do"
+
+persona:
+  user_goal_summary: |
+    Sprint 35 probe instrument; not a regression gate. The persona
+    text is deliberately neutral so the probe measures the
+    deterministic routing surface (UseCaseRouter + projection
+    builder) rather than persona-driven LLM behaviour. The seed
+    message is the form description; the followup confirms intent
+    so the harness can capture turn 0 routing + one bot response.
+  frustration_level: none
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+    - "Something is wrong with my payment situation and I am not sure what to do"
+    - "Yes please go ahead and help me with this."
+  hidden_facts: []
+  will_request_human_if: ""
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-F
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: "true"
+  bot_handling_pattern: |
+    Sprint 35 probe instrument; expected behaviour fields are
+    documentary only. The probe measures what the deterministic
+    intake router and projection builder produce on turn 0; bot
+    handling beyond turn 0 is observed for the matrix but not
+    scored. See docs/diagnostics/option_beta_coverage_matrix.md
+    for the analysis surface.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence: []
+  forbidden_tools: []
+  grounding_mode: faq_source_backed
+  answer_must_not_contain: []
+  max_turns: 2
+
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []
