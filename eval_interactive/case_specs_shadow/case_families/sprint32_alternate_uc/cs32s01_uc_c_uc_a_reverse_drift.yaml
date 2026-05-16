@@ -1,0 +1,68 @@
+case_id: cs32s01_uc_c_uc_a_reverse_drift
+source_session_id: synthetic-sprint32-shadow-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Yuki
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: Hi, I am not receiving some buyer replies and my listing also seems off.
+persona:
+  user_goal_summary: Shadow case — reverse-direction drift from the target. User opens on the Replies & Messaging form with a UC-C complaint (missing buyer replies) but on turn 2 surfaces a UC-A visibility concern (paid listing not being seen). Tests whether the LLM reads the alternate_candidate_use_cases soft signal when the active UC is UC-C and an alternate is UC-A (the opposite slot-population direction from the visible target cs32t01). Held out from the dev agent per the access boundary at `eval_interactive/case_specs_shadow/_ACCESS_BOUNDARY.md`. Drift - soft_shift.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - "Some of the messages I should be getting from buyers are just not showing up in my inbox, can you help me figure out what is wrong?"
+  - "also — I paid for a Top Ad on the same listing and I do not think the promotion is doing anything, can you also look at that?"
+  hidden_facts:
+  - fact: The user can see their own sent replies in the inbox view but the incoming replies from one specific buyer never appear.
+    disclose_when: if the bot asks where the user is seeing the missing messages or for further detail
+  will_request_human_if: the bot ignores the visibility concern on turn 2 and continues to answer only the messaging issue
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs:
+  - UC-C
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: On turn 1 the bot acknowledges the UC-C messaging concern and may begin gathering UC-C context. On turn 2 the user surfaces the UC-A visibility issue. The bot is expected to recognise the topic shift — observable via the alternate_candidate_use_cases projection slot if it carries UC-A on the AMBIGUOUS-intake path, or via the user's plain-language drift signal — and either reroute active_use_case to UC-A and run the UC-A FAQ-resolve flow (search_knowledge, resolve_article, record_outcome) or ask one focused clarifying question and route accordingly. The bot must not silently stamp active_use_case=UC-C through the drift and answer the visibility question as a UC-C follow-up.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 12
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

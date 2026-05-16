@@ -1,0 +1,65 @@
+case_id: cs32g01_uc_a_deepens_no_drift
+source_session_id: synthetic-sprint32-negative-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Stephen
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Hi, my paid listing is not getting any attention and I want to understand what is going on.
+persona:
+  user_goal_summary: User opens with a visibility complaint shape (UC-A) on the Ad Support form. The form-context shape is the same AMBIGUOUS-intake shape that populates alternate_candidate_use_cases on turn 0; the user is expected to be observable as a multi-candidate intake. On turn 2 the user does NOT drift to a different UC — instead the user deepens on the SAME UC-A concern with a follow-up question about Top Ad pricing and how to downgrade the paid promotion. The bot must stay in UC-A. The case is the load-bearing eval-side proof that the LLM can observe the populated alternate_candidate_use_cases slot and still ignore it when the user clearly does not drift. The Sprint 31 fix-iteration #2 strengthened T8 covers the runtime-side non-enforcement proof; this CaseSpec covers the LLM-behaviour non-enforcement proof. Drift - none.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - "I have been running a paid listing for a week and the views are still very low — what is going on?"
+  - "ok that makes sense — actually while we are at it, can I downgrade the Top Ad to a cheaper promotion tier without losing the listing?"
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: On turn 1 the bot acknowledges the UC-A visibility complaint and runs policy-mandated tools (search_knowledge, resolve_article, record_outcome) for the listing-visibility / Top Ad surface, producing a grounded answer. On turn 2 the user deepens on the SAME UC-A surface (Top Ad pricing / downgrade). The bot must continue inside the UC-A frame, treating the Top Ad downgrade question as a UC-A follow-up. Even if the alternate_candidate_use_cases projection slot is populated with neighboring UCs on the AMBIGUOUS-intake path, the LLM is expected to read the soft signal and IGNORE it because the user has not actually drifted. The bot must not flip active_use_case to any alternate UC on this case shape.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 10
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

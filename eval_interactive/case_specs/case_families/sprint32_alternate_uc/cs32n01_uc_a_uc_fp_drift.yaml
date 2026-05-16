@@ -1,0 +1,68 @@
+case_id: cs32n01_uc_a_uc_fp_drift
+source_session_id: synthetic-sprint32-neighbor-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Nadia
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Hi, I think my listing is not getting much attention and I want to understand why.
+persona:
+  user_goal_summary: User opens with a visibility complaint shape (UC-A) on the Ad Support form. On turn 2 the user surfaces a distinct UC-FP concern — they later notice the ad has actually been removed and want to understand the removal reason and whether the listing can be edited and reposted. The Sprint 31 alternate_candidate_use_cases projection slot is observably populated with UC-FP on the cs_interactive_015-shaped intake (alts=["UC-A","UC-FP","UC-H"] per the Sprint 31 reference smoke). The bot is expected to recognise the topic shift to UC-FP and either reroute or ask a focused clarifying question. Drift - soft_shift.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - "I paid to bump my listing but it does not seem to be doing anything, can you take a look?"
+  - "actually I just realised the ad is gone entirely — was it taken down? can you tell me why and whether I can re-list it?"
+  hidden_facts:
+  - fact: The listing was a used set of kitchenware; the user does not know what policy reason might apply.
+    disclose_when: if the bot asks for details about the listing or for a possible policy reason
+  will_request_human_if: the bot ignores the takedown question on turn 2 and continues to answer only the visibility question
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs:
+  - UC-A
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: On turn 1 the bot acknowledges the visibility complaint (UC-A) and may begin gathering UC-A context. On turn 2 the user reveals the ad has been removed (UC-FP removal-explanation shape). The bot is expected to recognise the topic shift — observable via the alternate_candidate_use_cases projection slot if it carries UC-FP on the AMBIGUOUS-intake path, or via the user's plain-language drift signal — and either reroute active_use_case to UC-FP and run the UC-FP context-then-explain flow (get_customer_context, search_knowledge, resolve_article, record_outcome) or ask one focused clarifying question and route accordingly. The bot must not silently stamp active_use_case=UC-A through the drift and answer the takedown question as a UC-A follow-up. Escalation is only correct on the listed UC-FP triggers (user_requested, explicit appeal demand, faq_miss_threshold_exceeded after a valid resolve attempt); the seed messages here do not fire any of those.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 12
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

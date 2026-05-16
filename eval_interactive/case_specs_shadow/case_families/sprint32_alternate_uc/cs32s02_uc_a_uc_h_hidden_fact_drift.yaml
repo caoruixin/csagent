@@ -1,0 +1,69 @@
+case_id: cs32s02_uc_a_uc_h_hidden_fact_drift
+source_session_id: synthetic-sprint32-shadow-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Maria
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: My listing is not getting views and I want to understand the cause.
+persona:
+  user_goal_summary: Shadow case — drift via hidden-fact reveal rather than explicit turn-2 plain-language drift. User opens with a UC-A visibility complaint on the Ad Support form (the same AMBIGUOUS-intake shape as the visible target). On turn 2 the user reveals (via the hidden_fact mechanic) that the ad was actually removed by Gumtree moderation rather than simply hidden — flipping the issue to UC-H (Ad removal / appeal). Tests whether the LLM reads the alternate_candidate_use_cases soft signal when the drift is surfaced indirectly (the user is volunteering ground-truth state, not explicitly switching topic). Held out from the dev agent per the access boundary at `eval_interactive/case_specs_shadow/_ACCESS_BOUNDARY.md`. Drift - soft_shift.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - "My listing has been up for a while but it does not seem to be getting any views, what should I check?"
+  - "actually wait — I just noticed there is an email from Gumtree saying the ad was removed, that is probably what happened. What does that mean and what can I do?"
+  hidden_facts:
+  - fact: The user received a removal-notification email from Gumtree the previous day but did not connect it to the visibility complaint until partway through the conversation.
+    disclose_when: at turn 2, alongside the seed message that mentions the removal email
+  will_request_human_if: the bot insists on continuing to answer the visibility question after the user has revealed the ad was removed
+expected:
+  outcome_class: resolve
+  primary_uc: UC-H
+  secondary_ucs:
+  - UC-A
+  - UC-FP
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: On turn 1 the bot acknowledges the UC-A visibility complaint and may begin gathering UC-A context. On turn 2 the user reveals the ad was actually removed by moderation. The bot is expected to recognise the surfaced state and reroute active_use_case to UC-H (or UC-FP if the UC routing maps the removal-explanation shape to UC-FP) and run the appropriate context-then-explain flow. The bot must not continue to stamp UC-A through the drift and treat the removal disclosure as a UC-A follow-up. The alternate_candidate_use_cases projection slot is the soft signal predicting the alternate read; the LLM owns whether to act on it.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 12
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

@@ -76,3 +76,9 @@ families:
       - csmp_s01_uc_a_search_hits_with_ad_id_mismatch
       - csmp_s02_uc_a_search_hits_user_pivots_to_followup
     notes: Shadow probes RESOLVE MUST-call-resolve_article compliance under (a) a form-vs-listing ad_id mismatch (same shape as the brief's real probe) and (b) a multi-turn follow-up where the bot must sustain past the first grounded answer.
+
+  - family_id: sprint32_alternate_uc
+    shadow_case_ids:
+      - cs32s01_uc_c_uc_a_reverse_drift
+      - cs32s02_uc_a_uc_h_hidden_fact_drift
+    notes: Shadow probes the Sprint 31 alternate_candidate_use_cases projection slot on two shapes the dev did not exercise in the visible target/neighbor/negative split. cs32s01 is the reverse-direction drift (UC-C→UC-A instead of UC-A→UC-C) testing whether the LLM reads the soft signal when the alternate is UC-A; cs32s02 is a hidden-fact-reveal drift (user surfaces UC-H/UC-FP-shaped ground-truth state on turn 2 rather than explicitly switching topic) testing whether the LLM reroutes on indirect drift signals. Held out from the dev agent per case_specs_shadow/_ACCESS_BOUNDARY.md; dev authored 2026-05-16 but did NOT execute.
