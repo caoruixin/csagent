@@ -6,48 +6,93 @@ Branch: `refactor/remove-the-shackles`
 ## 1. Current phase
 
 Current phase:
-Sprint 30 (Alternate-UC signal data-source design — investigation-only
-docs-only architectural-design sprint, single deliverable: one new
-design proposal doc at `docs/proposals/alternate_uc_signal_data_source_design.md`
-plus one R-item registration `R-alternate-uc-signal-data-source` at
-`docs/action_bank.md`) in **prep state** as of **2026-05-16**.
-Authorized by the deliver-agent + human (option D1) per the
-Sprint 17–23 + Triggered roadmap delivery-status investigation and
-the `iteration_governance.md` §7.2 worked-example premise-gap finding
-(`docs/sprint_objective.md` §4 — `RuntimeIntentClassifier.classify()`
-returns one `predictedUseCase` with no alternates list at
-`server/src/main/java/com/gumtree/csagent/service/runtime/RuntimeIntentClassifier.java:160–269`;
-`IntentClassification` has no alternates field;
-`BotSession.candidateUseCases` collapses to `[activeUc]` after first
-reroute per `ControlKernel.java:686`). Sprint 30 produces one
-design doc naming the chosen data source from at least three
-candidates (extending `RuntimeIntentClassifier`, per-turn
-`UseCaseRouter`, new `AlternateUseCaseSurveyor`, extending
-`DriftResult`, or other), with code-paths-to-touch table sized for
-Sprint 31 to consume verbatim. Sprint 30 is **exempt** from the §7
-semantic-touching stanza per `docs/current/iteration_governance.md`
-§7 (docs-only). Codex review is **optional** at close per the §4.1
-docs-only exemption (Sprint 16 / 22 / 26 / 27 precedent). The
-chosen design's actual implementation is **Sprint 31** scope, not
-Sprint 30.
-
-Deliver-agent close-out for Sprint 29 (the (R2) probe follow-on that
-just closed) bundled into Sprint 30 prep on **2026-05-16**: the
-Sprint 29 objective archived from `docs/sprint_objective.md` to
-`docs/sprints/sprint-029-objective.md` with frontmatter updated to
-`doc_tier: sprint-archive / status: archived /
-implementation_status: historical / superseded_by:
-docs/sprint_objective.md`; the new Sprint 30 objective written at
-`docs/sprint_objective.md`; `compact/sprint-030-dev-prompt.md` +
-`compact/sprint-030-review-prompt.md` authored by the deliver-agent
-for the Sprint 30 dev / review sessions. `docs/action_bank.md` line
-450 disposition update (the Sprint 29 (R2) probe finding) was
-already appended during Sprint 29 close; no additional Sprint
-30-prep edit to line 450 is needed.
+Sprint 31 (alternate_candidate_use_cases projection slot — Option β
+implementation, single-track semantic-touching sprint, layer
+`prompt_projection` per `iteration_governance.md` §3.2 Q3, §7 stanza
+filled) closed on **2026-05-16** as **PASS path A**
+(deliver-agent + human applied; full closure rationale in
+`docs/sprints/sprint-031-handoff.md` §12). Two commits on
+`refactor/remove-the-shackles`: `2c1fd41` (Sprint 31 dev ship) and
+`de47635` (§13 fix-iteration append). Sprint 31 ships the runtime
+implementation of the Option β design frozen at
+`docs/proposals/alternate_uc_signal_data_source_design.md`:
+captures the existing `RoutingResult.AMBIGUOUS` candidate list that
+`SessionManager.java:185–189` previously **discarded** (now
+preserved), persists it on a new
+`BotSession.intakeAmbiguousCandidates: String[]` field with the
+Flyway V14 migration at
+`server/src/main/resources/db/migration/V14__intake_ambiguous_candidates.sql`,
+projects per-turn as `alternate_candidate_use_cases` (minus the
+active UC) adjacent to the existing `candidate_use_cases` slot at
+`ContextProjectionBuilder.java:380–415`, plus a sibling teaching
+paragraph in `server/src/main/resources/prompts/system_prompt.txt`
+adjacent to the `already_called` paragraph (lines 23–28). Plus two
+new regression-test files: 9-test
+`server/src/test/java/com/gumtree/csagent/service/runtime/IntakeAmbiguousCandidatesProjectionTest.java`
+(mirror of Sprint 20 `AlreadyCalledProjectionTest`) + 1-test
+non-enforcement integration test at
+`server/src/test/java/com/gumtree/csagent/integration/AgentRunLoopAlternateCandidateUseCasesNonEnforcementIntegrationTest.java`
+(mirror of Sprint 20 `AgentRunLoopAlreadyCalledNonEnforcementIntegrationTest`).
+All five OQ1–OQ5 pre-picks adhered to (OQ1 = null on ROUTED;
+OQ2 = sibling teaching placement; OQ3 = normal fold-back cadence;
+OQ4 = case-family authoring deferred to Sprint 31+1; OQ5 = no
+sequencing dependency with `R-uc-cdf-get-customer-context-bot-actual-usage`).
+Java test bar: 10/10 new Sprint 31 tests PASS; full server suite
+912 / 1-inherited / 0 / 2 (zero new regressions; the inherited
+`SystemPromptUserRequestedTiebreakerTest` failure persists from
+the Sprint 24-era unauthored `system_prompt.txt:60` mod
+unchanged). New slot observable on **4 AMBIGUOUS-intake cases**
+(`cs_interactive_015 / 040 / 176 / 192`) carrying non-empty
+`alternate_candidate_use_cases` arrays in rerun #1's
+`per_turn_trace[].projection` at
+`eval_interactive/results/20260516-024934/results.json`. §10 smoke
+acceptance bar shows a composite/outcome/judge floor regression vs
+Sprint 28 reference (`eval_interactive/results/20260514-181257/results.json`);
+the §13 fix iteration (three smoke reruns across rerun #1 / #2 / #3
+on differing bot instances) disambiguated this as **external LLM
+provider drift** (mean elapsed_ms +84% vs Sprint 28 reference with
+zero Sprint 31 latency-config / model / retry change). Both
+falsifiable internal hypotheses — cold-start race (§7.1(a) per
+dev handoff) and system_prompt teaching paragraph (§13.3) — were
+REJECTED by the fix iteration. Codex review is REQUIRED at close
+(semantic-touching, no §4.1 exemption); deliver-agent / human
+dispatch Codex against commits `2c1fd41` + `de47635`. Two
+follow-on R-items registered in `docs/action_bank.md`:
+**`R-llm-provider-latency-drift-2026-05-16`** (`infra` /
+observability — characterize the +84% latency widening per §13.7;
+recommended next deliver decision) and the named-but-not-opened
+`R-sprint-31-case-family-authoring` (`eval_spec` — CaseSpec
+authoring for the §7.2 UC-A↔UC-C target / neighbor / negative /
+shadow split, deferred per OQ4 pre-pick).
 
 ---
 
 Preceding sprint:
+Sprint 30 (Alternate-UC signal data-source design — investigation-
+only docs-only architectural-design sprint, single deliverable: one
+new design proposal doc at `docs/proposals/alternate_uc_signal_data_source_design.md`
+plus one R-item registration `R-alternate-uc-signal-data-source` at
+`docs/action_bank.md`) closed on **2026-05-16**. Classification
+**A-with-Codex-skipped** — third instance of the pattern (Sprint 26
+first, Sprint 27 second). Codex intentionally skipped per §4.1
+docs-only exemption (human-applied 2026-05-16); no
+`docs/sprints/sprint-030-codex-review.md` archive exists (intentional).
+The §4.1 verdict that would have been returned is `approve
+(exemption: docs-only design freeze; no semantic surface touched)`.
+The Sprint 30 dev session re-verified all 5 §4 premise items from
+the Sprint 30 objective at HEAD `df8b8cd` with no drift, surfaced
+the load-bearing Sprint 31 premise (the AMBIGUOUS-branch discard
+at `SessionManager.java:185–189`), evaluated 5 candidate options
+(α through ε), and recommended **Option β** with explicit
+Constitution citation. Sprint 31 inherited the design freeze
+verbatim via its `docs/sprint_objective.md` §6 file table and
+shipped the runtime change on commit `2c1fd41`. Full handoff:
+`docs/sprints/sprint-030-handoff.md` + design freeze:
+`docs/proposals/alternate_uc_signal_data_source_design.md`.
+
+---
+
+Earlier sprint:
 Sprint 29 (R-prompt-phase-plan-directive-followship (R2) probe
 follow-on — two-track semantic-touching sprint with `eval_spec`
 Track A CaseSpec authoring + `infra` Track B (c) phase-derivation
