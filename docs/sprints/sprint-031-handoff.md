@@ -2,7 +2,7 @@
 title: Sprint 31 handoff — alternate_candidate_use_cases projection slot (Option β implementation)
 doc_tier: sprint-archive
 status: current
-implementation_status: partial
+implementation_status: implemented
 source_of_truth: this file
 last_reviewed: 2026-05-16
 review_cadence: per sprint
@@ -11,15 +11,21 @@ superseded_by: null
 notes: >
   Sprint 31 ships the Option β runtime + prompt change frozen in
   `docs/proposals/alternate_uc_signal_data_source_design.md` (Sprint
-  30 close, 2026-05-16). Code lands and the new
+  30 close, 2026-05-16). Code lands; the new
   `alternate_candidate_use_cases` projection slot is verified at the
-  unit + integration test layers AND in the live smoke `per_turn_trace[]`.
-  However, the §10 smoke acceptance check surfaced a regression on the
-  composite-score / outcome / judge floors vs the Sprint 28 reference,
-  with one previously-stable case (cs_interactive_029) flipping to
-  `contract_violation`. Per Sprint 31 dev prompt §9.3, the dev STOPPED
-  rather than silently working around. Closure verdict (§12) deferred
-  to the human + deliver-agent.
+  unit + integration test layers AND in the live smoke
+  `per_turn_trace[].projection` on 4 AMBIGUOUS-intake cases. Two
+  commits on `refactor/remove-the-shackles`: `2c1fd41` (dev ship)
+  and `de47635` (fix-iteration §13 append). The §10 smoke acceptance
+  bar's composite/outcome/judge floor gap (mean_composite 0.1299 →
+  0.0617 vs Sprint 28 reference) is attributed to external LLM
+  provider drift (mean elapsed_ms widened +84% across three reruns
+  with zero Sprint 31 latency-relevant code or config change; cold-
+  start race and prompt-teaching hypotheses both REJECTED by the
+  §13 fix iteration). Closure verdict (§12): **PASS path A**,
+  human-applied 2026-05-16; follow-on R-item
+  `R-llm-provider-latency-drift-2026-05-16` opened for the latency
+  characterization.
 ---
 
 # Sprint 31 handoff — alternate_candidate_use_cases projection slot (Option β)
@@ -1026,20 +1032,23 @@ grounding / wrong-containment / over-escalation floors vs Sprint
 slot-presence check on AMBIGUOUS-intake cases PASSES (4 cases
 carry non-empty alternates per §5.4).
 
-## 12. Closure verdict placeholder (deliver-agent owned)
+## 12. Closure verdict (filled at sprint close; deliver-agent + human owned)
 
 | field | value |
 |---|---|
-| status | **TBD by deliver-agent** — see §7.1 for the three candidate dispositions (fix iteration with rerun / investigation-only handoff / defer closure). The dev's recommendation is **(a) fix iteration with a second smoke rerun on a warm bot to disambiguate cs_interactive_029's regression**; the cold-start race hypothesis is the cheapest to disambiguate. |
-| classification | TBD by deliver-agent. |
-| Codex outcome | Pending — Sprint 31 is semantic-touching (`prompt_projection` + prompt edit); Codex review is REQUIRED per `docs/sprint_objective.md` §10 (not exempt). |
-| R-item disposition | `R-alternate-uc-signal-data-source` — proposed transition **to `done (Sprint 31)`** pending closure verdict; the disposition flip is deliver-agent-owned. The follow-on `R-cs029-contract-violation-after-sprint-31-restart` (or equivalent name) is proposed in §7.1 if the deliver-agent picks the investigation-only path. |
-| date | TBD by deliver-agent at sprint close. |
+| status | **PASS — path A** (per §13.7 dev recommendation; human-applied 2026-05-16). Sprint 31 ships the runtime change correctly; the new `alternate_candidate_use_cases` slot is observable on AMBIGUOUS-intake projection per design (4 cases in rerun #1's `per_turn_trace[].projection`); Java test bar PASSES (10/10 Sprint 31 tests + 912/1-inherited/0/2 full server suite). The §10 smoke acceptance gap (mean_composite 0.1299 → 0.0617 vs Sprint 28 reference) is **dominated by external LLM provider drift** (mean elapsed_ms widened +84% across three reruns with zero Sprint 31 latency-relevant code or config change; the two falsifiable internal hypotheses — cold-start race + system_prompt teaching paragraph — were both REJECTED by the §13 fix iteration). The system_prompt teaching paragraph has been restored to commit `2c1fd41` state. |
+| classification | **A-with-fix-iteration-investigation** — Sprint 31 ships on the original `2c1fd41` commit; the `de47635` fix-iteration commit appended §13 hypothesis-test evidence + restored prompt teaching but added no code. Distinct from Sprint 23 / 25's B-fix-iteration-on-code, Sprint 26 / 27 / 30's A-with-Codex-skipped, and Sprint 28's A-clean-close. The pattern is closest to Sprint 20's A-with-evidence-packaging-note: a clean ship plus an investigation that disambiguated the smoke gap. |
+| Codex outcome | **Pending review** — Sprint 31 is semantic-touching (`prompt_projection` + prompt edit); Codex review is REQUIRED per `docs/sprint_objective.md` §10 (not exempt). The §4.1 nine-question kernel applies; the expected verdict is `approve` (no semantic hardcode introduced; soft-signal posture verified by the unit + integration test; teaching paragraph is principled with no tool-name / per-UC branching — verified at §4.6 + §8). The deliver-agent / human dispatch Codex against commits `2c1fd41` + `de47635` at sprint close. |
+| R-item disposition | **`R-alternate-uc-signal-data-source`** at `docs/action_bank.md` flipped from `proposal (Sprint 30 design freeze; Sprint 31 implements)` to **`done (Sprint 31)`** in this close commit. **New R-item opened:** `R-llm-provider-latency-drift-2026-05-16` (`infra` / observability layer) per §13.7 — characterize the mean smoke `elapsed_ms` widening (+84% vs Sprint 28) across Sprint 31's three reruns on the same bot codebase. Scope: A/B Sprint 31 reruns' `LlmCallEvents[]` per-call latency against the Sprint 28 reference (`eval_interactive/results/20260514-181257/results.json`) on a fresh DB to disambiguate provider drift vs accumulated state. Path A explicitly does NOT block Sprint 31 close on the latency investigation. **Out-of-scope follow-on (named but NOT opened):** `R-sprint-31-case-family-authoring` per OQ4 pre-pick — Sprint 31+1 case-family sprint authoring target / neighbor / negative / shadow CaseSpecs for the §7.2 UC-A↔UC-C worked-example shape; deliver-agent decides Sprint 31+1 scope. |
+| follow-on sprint sequencing | The deliver-agent has two natural next-sprint options: (a) **`R-llm-provider-latency-drift-2026-05-16` diagnostic sprint** — `infra` / observability characterization of the smoke latency widening (does not block any feature work); (b) **Sprint 31+1 case-family-authoring sprint** — `eval_spec` corpus authoring for the §7.2 UC-A↔UC-C target / neighbor / negative / shadow split. The two are disjoint (different layers, different surfaces) and can run in parallel or sequence per deliver-agent decision. Sprint 31 itself imposes no sequencing constraint. |
+| date | 2026-05-16 |
 
-Per `feedback_handoff_verdict_section_delegation.md`: the dev does
-NOT fill the closure verdict; the human + deliver-agent own it.
-The dev hands off with the §11 evidence and the §7 open questions
-laid out.
+Per `feedback_handoff_verdict_section_delegation.md`: the dev did
+NOT fill the closure verdict during the dev session; the human +
+deliver-agent owned the close decision. Path A was chosen by the
+human after reviewing the §13 fix-iteration evidence; this §12
+captures the close state and the deliver-agent's action_bank
+flip + follow-on R-item registration.
 
 ---
 
