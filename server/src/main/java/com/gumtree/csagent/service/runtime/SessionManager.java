@@ -183,6 +183,18 @@ public class SessionManager {
                 }
             }
             case AMBIGUOUS -> {
+                // Sprint 31 — Option β: preserve the intake-time alternate-UC
+                // snapshot the router considered plausible for this
+                // topic-subject family. Until Sprint 31 this list was
+                // discarded; the slot is now persisted onto the session and
+                // surfaced as the per-turn `alternate_candidate_use_cases`
+                // projection soft signal. The LLM owns whether to act on it;
+                // the runtime does NOT branch on the value.
+                List<String> ambiguousCandidates = routingResult.ambiguousCandidates();
+                session.setIntakeAmbiguousCandidates(
+                        ambiguousCandidates == null
+                                ? null
+                                : ambiguousCandidates.toArray(new String[0]));
                 // Move to DISCOVER to disambiguate
                 session.setCurrentPhase("DISCOVER");
                 greeting = buildAmbiguousGreeting(firstName, topicSubject);

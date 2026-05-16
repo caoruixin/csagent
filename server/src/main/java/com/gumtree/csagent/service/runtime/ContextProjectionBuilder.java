@@ -393,6 +393,28 @@ public class ContextProjectionBuilder {
             }
             projection.set("candidate_use_cases", candidateUcsNode);
 
+            // Sprint 31 — Option β alternate_candidate_use_cases projection
+            // slot. Soft signal carrying the UCs the intake router considered
+            // plausible for the session's topic-subject family when
+            // RoutingResult.AMBIGUOUS fired at session creation, minus the
+            // currently active UC. Empty array signals either (a) the intake
+            // routed deterministically to a single UC (no alternates
+            // considered) or (b) the active UC is the only surviving
+            // candidate after filtering. The slot is always present for
+            // projection-shape stability (§N0 nullable-field convention).
+            // The runtime does NOT branch on this value; the LLM owns
+            // whether to act on it.
+            ArrayNode alternateCandidateUcsNode = objectMapper.createArrayNode();
+            String activeUcForAlternate = session.getActiveUseCase();
+            if (session.getIntakeAmbiguousCandidates() != null) {
+                for (String uc : session.getIntakeAmbiguousCandidates()) {
+                    if (uc != null && !uc.isBlank() && !uc.equals(activeUcForAlternate)) {
+                        alternateCandidateUcsNode.add(uc);
+                    }
+                }
+            }
+            projection.set("alternate_candidate_use_cases", alternateCandidateUcsNode);
+
             // Sprint 10 §L2 — minimal projected issue-state. Surfaces the
             // runtime reroute outcome (previous_active_use_case, drift_type,
             // current_task_type, primary_entity, issue_status_summary) so

@@ -53,6 +53,22 @@ public class BotSession {
     @Column(name = "candidate_use_cases", columnDefinition = "text[]")
     private String[] candidateUseCases;
 
+    /**
+     * Sprint 31 — intake-time snapshot of the alternate use cases the
+     * {@link com.gumtree.csagent.service.runtime.UseCaseRouter}
+     * considered plausible for the session's topic-subject family
+     * when {@code RoutingResult.AMBIGUOUS} fired at session creation.
+     * Captured by {@code SessionManager.createSession}'s AMBIGUOUS
+     * branch; null on the ROUTED / OUT_OF_SCOPE paths. Surfaced by
+     * {@code ContextProjectionBuilder} as the
+     * {@code alternate_candidate_use_cases} per-turn projection slot
+     * (minus the active UC). Soft signal; the runtime does NOT branch
+     * on this value.
+     */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "intake_ambiguous_candidates", columnDefinition = "text[]")
+    private String[] intakeAmbiguousCandidates;
+
     @Column(name = "intent_confidence", precision = 4, scale = 2)
     private BigDecimal intentConfidence;
 
