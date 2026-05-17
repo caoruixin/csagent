@@ -1,0 +1,17 @@
+{
+  "case_id": "CASE-SEED-008",
+  "use_case_id": "UC-J",
+  "subject": "Harassment in messaging - abusive buyer",
+  "description": "A buyer has been sending me abusive and threatening messages about a listing. I feel unsafe and want to report this behaviour.",
+  "contact_email": "carol.blocked@example.com",
+  "ad_id": "AD-2002",
+  "status": "New",
+  "queue_name": "Trust_Safety_Queue",
+  "intake_fields": {
+    "report_type": "harassment",
+    "conversation_id": "CONV-005",
+    "reported_user_id": "USR-098",
+    "urgency": "high",
+    "financial_loss": false
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "ad_id": "AD-2006",
+  "title": "Suspicious Electronics Lot - 50 Phones",
+  "category": "Electronics > Phones",
+  "status": "REMOVED",
+  "seller_email": "scammer.fake@example.com",
+  "created_date": "2026-05-01",
+  "posted_date": "2026-05-01",
+  "price": 99.00,
+  "currency": "GBP",
+  "location": "London",
+  "views": 200,
+  "replies": 15,
+  "is_featured": false,
+  "removal_reason": "scam_suspect",
+  "removed_at": "2026-05-02T08:30:00Z"
+}

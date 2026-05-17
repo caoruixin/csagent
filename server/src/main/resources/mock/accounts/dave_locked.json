@@ -1,0 +1,18 @@
+{
+  "user_id": "USR-013",
+  "email": "dave.locked@example.com",
+  "display_name": "Dave L.",
+  "account_status": "LOCKED",
+  "account_type": "PERSONAL",
+  "registration_date": "2023-11-05",
+  "creation_date": "2023-11-05",
+  "total_ads_posted": 22,
+  "total_ads_count": 22,
+  "active_ads": 0,
+  "active_ads_count": 0,
+  "warnings": 0,
+  "is_known_good": true,
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": true
+}

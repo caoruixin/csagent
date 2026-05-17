@@ -1,0 +1,17 @@
+{
+  "ad_id": "AD-2001",
+  "title": "Vintage Leather Sofa - Must Go",
+  "category": "Home & Garden > Furniture",
+  "status": "REMOVED",
+  "seller_email": "alice.removed@example.com",
+  "created_date": "2026-04-10",
+  "posted_date": "2026-04-10",
+  "price": 450.00,
+  "currency": "GBP",
+  "location": "Bristol",
+  "views": 67,
+  "replies": 5,
+  "is_featured": false,
+  "removal_reason": "prohibited_item",
+  "removed_at": "2026-04-12T11:20:00Z"
+}

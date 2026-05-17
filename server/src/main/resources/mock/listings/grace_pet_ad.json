@@ -1,0 +1,17 @@
+{
+  "ad_id": "AD-2004",
+  "title": "Adorable Golden Retriever Puppies",
+  "category": "Pets > Dogs",
+  "status": "REMOVED",
+  "seller_email": "grace.pets@example.com",
+  "created_date": "2026-04-20",
+  "posted_date": "2026-04-20",
+  "price": 800.00,
+  "currency": "GBP",
+  "location": "Oxford",
+  "views": 310,
+  "replies": 35,
+  "is_featured": false,
+  "removal_reason": "pet_limit_exceeded",
+  "removed_at": "2026-04-22T09:00:00Z"
+}

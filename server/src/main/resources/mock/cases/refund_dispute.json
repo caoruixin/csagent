@@ -1,0 +1,16 @@
+{
+  "case_id": "CASE-SEED-004",
+  "use_case_id": "UC-I",
+  "subject": "Request refund for featured ad promotion",
+  "description": "I paid for a featured ad promotion but the ad was not displayed as featured. I would like a full refund of the promotion fee.",
+  "contact_email": "iris.refund@example.com",
+  "ad_id": "AD-2005",
+  "status": "New",
+  "queue_name": "Payments_Queue",
+  "intake_fields": {
+    "payment_method": "credit_card",
+    "transaction_amount": 4.99,
+    "transaction_date": "2026-04-25",
+    "refund_reason": "service_not_delivered"
+  }
+}

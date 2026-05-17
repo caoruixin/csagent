@@ -1,0 +1,18 @@
+{
+  "case_id": "CASE-SEED-006",
+  "use_case_id": "UC-K",
+  "subject": "App crashes when trying to post a new ad",
+  "description": "Every time I try to post a new ad on the Gumtree mobile app, it crashes on the photo upload step. I have tried reinstalling the app but the issue persists.",
+  "contact_email": "karen.techbug@example.com",
+  "ad_id": null,
+  "status": "New",
+  "queue_name": "Technical_Support_Queue",
+  "intake_fields": {
+    "issue_type": "app_crash",
+    "platform": "iOS",
+    "app_version": "6.2.1",
+    "device_model": "iPhone 14",
+    "os_version": "17.4",
+    "steps_to_reproduce": "Open app > Tap Post Ad > Select category > Upload photo > App crashes"
+  }
+}

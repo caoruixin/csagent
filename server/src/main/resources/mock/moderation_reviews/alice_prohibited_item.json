@@ -1,0 +1,9 @@
+{
+  "review_id": "REV-010",
+  "ad_id": "AD-2001",
+  "review_type": "MANUAL",
+  "decision": "REMOVED",
+  "reason_code": "PROHIBITED_ITEM",
+  "reason_display": "Your ad was removed because it contained a prohibited item that is not allowed on Gumtree.",
+  "reviewed_at": "2026-04-12T11:20:00Z"
+}

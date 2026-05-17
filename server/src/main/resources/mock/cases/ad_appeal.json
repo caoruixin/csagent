@@ -1,0 +1,16 @@
+{
+  "case_id": "CASE-SEED-007",
+  "use_case_id": "UC-H",
+  "subject": "Appeal: Ad wrongly removed for prohibited content",
+  "description": "My ad for a vintage leather sofa was removed claiming it contained a prohibited item. This is a legitimate furniture listing and I believe it was incorrectly flagged.",
+  "contact_email": "alice.removed@example.com",
+  "ad_id": "AD-2001",
+  "status": "New",
+  "queue_name": "Ad_Support_Queue",
+  "intake_fields": {
+    "ad_id": "AD-2001",
+    "removal_reason_shown": "prohibited_item",
+    "user_agrees_with_removal": false,
+    "appeal_reason": "This is a standard furniture item, not a prohibited product."
+  }
+}

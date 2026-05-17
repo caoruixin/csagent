@@ -1,0 +1,19 @@
+{
+  "ad_id": "AD-2005",
+  "title": "Concert Tickets - Front Row (2x)",
+  "category": "Tickets & Events",
+  "status": "LIVE",
+  "seller_email": "iris.refund@example.com",
+  "created_date": "2026-04-25",
+  "posted_date": "2026-04-25",
+  "price": 150.00,
+  "currency": "GBP",
+  "location": "Glasgow",
+  "views": 95,
+  "replies": 7,
+  "is_featured": true,
+  "payment_status": "PAID",
+  "promotion_type": "FEATURED",
+  "promotion_amount": 4.99,
+  "promotion_currency": "GBP"
+}
