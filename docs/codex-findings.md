@@ -2,21 +2,26 @@
 
 _Awaiting next per-sub-sprint or milestone-shared Codex review._
 
-The previous live findings (Sprint 36 per-sub-sprint Codex review,
+The previous live findings (Sprint 37 per-sub-sprint Codex review,
 `decision: pass / blocking_count: 0`, completed 2026-05-17) have
-been archived to `docs/sprints/sprint-036-codex-review.md` per the
-deliver-agent supersession pattern.
+been archived to `docs/sprints/sprint-037-codex-review.md` per the
+deliver-agent supersession pattern
+(`feedback_packaging_codex_findings_supersession.md`).
 
-The next Codex review for M2-Skill is **Sprint 37 per-sub-sprint
+The next Codex review for NEW M2 is **Sprint 38 per-sub-sprint
 Codex review** at sub-sprint close, per `iteration_governance.md`
-§4.3 trigger #3 (Runtime-owned grounding floor surface — narrow S1
-citation predicate added per `docs/milestone_objective.md` §6 #4
-human authorization).
+§4.3 trigger #3 (new architectural surface — SkillRegistry mediates
+between LLM prompt context and tool dispatch; Codex verifies
+behavioural equivalence pre/post-migration on the 4 simpler phase
+Skills DISCOVER + CONFIRM + ESCALATE + TERMINAL).
 
-Scope: against the Sprint 37 commit (S1 `Resolve.FAQ.GroundedAnswer`
-implementation per the Sprint 36 design freeze D3). Review prompt
-drafted by deliver-agent at `compact/sprint-037-review-prompt.md`
-at sub-sprint close.
+Scope: against the Sprint 38 commit (SkillRegistry core +
+`SkillLoader` + `Skill` data class + `skill/discover_triage.yaml`,
+`skill/confirm.yaml`, `skill/escalate.yaml`, `skill/terminal.yaml`
++ `PhaseEvaluator.java` migration of the 4 simpler phase branches
+to SkillRegistry-driven composition). Review prompt drafted by
+deliver-agent at `compact/sprint-038-review-prompt.md` at
+sub-sprint close.
 
 The §4.2 sprint-close header convention applies:
 
