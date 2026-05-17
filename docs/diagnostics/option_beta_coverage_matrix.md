@@ -440,6 +440,84 @@ text below is a draft for that decision.)
 The deliver-agent may rewrite the description for `action_bank.md`
 register conventions; the text above captures the substance.
 
+## 6.5 Close decision update (2026-05-17)
+
+The dev session's §5/§6 recommendations above are preserved as the
+analysis-time reasoning. At Sprint 35 close (deliver-agent + human
+2026-05-17), both recommendations were **revisited** and the actual
+close decisions diverged. This addendum documents what shipped, so
+the analysis-time recommendation and the close-time decision are
+both traceable.
+
+**Decision on §5 recommendation (a) — re-anchor §7.2.**
+
+**CONSIDERED AND DROPPED on constitution-discipline review.** The
+§7.2 worked example exists to teach the stanza-shape (Target /
+Tier-0 / Semantic hardcode / Generalization coverage); whether the
+specific UC pair is currently coverable under Option β is a
+current-implementation-limit question that belongs in the
+optimization backlog (`docs/action_bank.md`), not in a governance-
+tier doc. The original UC-A↔UC-C illustration stays as a principled
+teaching example. Editing `docs/current/iteration_governance.md` to
+chase a current-implementation observation would entangle governance
+with implementation state and create governance-doc churn each time
+implementation diverges from any specific example.
+
+The discipline review surfaced a memory file at
+`.claude/agent-memory/sprint-deliver-orchestrator/feedback_constitution_discipline_vs_planning_anticipation.md`
+("Planning anticipation does not override constitution-discipline
+review at execution time"). The M1 plan §3 Sprint 35 row had
+planning-anticipated this fold-back; the planning anticipation does
+not automatically authorize the edit content when the actual edit
+references current-state findings + R-item IDs.
+
+**Decision on §6 recommendation (b) — open `R-option-gamma-alternate-uc-surveyor-design`.**
+
+**REFRAMED as `R-loosen-topic-uc-binding-llm-owned-drift`** in
+`docs/action_bank.md` §5.2 ("Sprint 35 surfaced R-item"
+subsection). The reframe was motivated by the human's architectural
+direction (2026-05-17): the right fix is a **constraint-removal /
+architecture-alignment** R-item, NOT a new Java component. The
+opened R-item explicitly REJECTS three framings the §6 draft above
+named or implied:
+
+1. New live `AlternateUseCaseSurveyor` deterministic Java
+   component (γ.2 in §6 above) — rejected per Constitution §1.7
+   anti-hardcode discipline (re-introduces the topic-binding
+   structural gate in a new shape).
+2. Per-UC if-else / regex / enum-expansion rules for cross-topic
+   drift — rejected per Constitution §1.5 iteration rule.
+3. Collapsing `topic_subject` from the runtime entirely — rejected
+   (preserve as a prefill / fast-classification prior; the cage is
+   the issue, not the field).
+
+The opened R-item leaves three design directions sketched
+(documented in `docs/action_bank.md` §5.2) for a research-agent
+investigation round to refine at M2 candidate planning. The γ.1
+direction from §6 above (a soft-signal projection extension) is the
+closest pre-image of one of the opened R-item's design directions.
+
+**M1 close decision (Decision A from M1 close cycle).** Codex M1
+review (`docs/codex-findings.md`) Finding 2 flagged this doc's §5
++ §6 recommendations as stale relative to the action_bank close
+decisions. This §6.5 addendum is the deliver-agent + human
+disposition: Decision B-2a — append addendum preserving dev
+analysis-time reasoning + document the close-decision divergence.
+Sprint 35 dev's §5/§6 above remain intact as the analysis-time
+record.
+
+**Reader guidance.** When reading this doc:
+
+- §3 (raw matrix) + §4 (observations) are the durable diagnostic
+  output. These remain authoritative.
+- §5 (recommendation) + §6 (R-item draft text) capture the dev's
+  analysis-time reasoning. These are historical — the close
+  decision is captured in §6.5 above and in `docs/action_bank.md`
+  §5.2.
+- The deliver-agent + human close decision SUPERSEDES §5 + §6.
+  Follow the action_bank R-item flips for the authoritative current
+  state.
+
 ## 7. Lifecycle
 
 This document is the Sprint 35 diagnostic output. It is referenced

@@ -72,7 +72,7 @@ COMPLIANCE / ACCOUNT:
 - Identity verification needed before any further action → `identity_verification_required`.
 - Payment dispute / chargeback / billing issue → `payment_dispute_detected`.
 
-ACTIVE-UC TIEBREAKER (Sprint 6 §G1):
+ACTIVE-UC TIEBREAKER:
 Before picking ANY Tier-2 policy reason (`payment_dispute_detected`, `appeal_requires_human`, `incorrect_deletion_appeal`, `account_compliance`, `trust_safety_required`, `gdpr_intake`, `identity_verification_required`, `service_degraded`), check whether the user has explicitly asked for human help in this session. Explicit human-help cues include: "talk to / speak to / connect me with a person/agent/human", "give me a phone number", "give me a number to call", "call me / callback", "I want a manager", "transfer me to a human". If any such cue is present, you MUST pick `escalation_reason=user_requested` regardless of payment-keyword phrasing, refund language, frustration phrasing, or the active use case. `user_requested` is priority 1 in the resolver and beats every Tier-2 policy reason. Do NOT substitute `faq_miss_threshold_exceeded`, `intake_complete_for_uc_k`, `service_degraded`, or `payment_dispute_detected` for `user_requested` when the user has explicitly requested a human — these are NOT family-match against `user_requested`.
 
 GENUINE TIER-2 ESCAPE HATCH (do NOT suppress these):

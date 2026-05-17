@@ -59,7 +59,7 @@ class OpenAiCompatibleLlmClientRetryTest {
 
     private OpenAiCompatibleLlmClient newClient() {
         return new OpenAiCompatibleLlmClient(
-                "kimi", "sk-test-key", "http://127.0.0.1:" + port, "kimi-k2.6", objectMapper);
+                "kimi", "sk-test-key", "http://127.0.0.1:" + port, "kimi-k2.6", false, objectMapper);
     }
 
     private LlmRequest sampleRequest() {
@@ -187,7 +187,7 @@ class OpenAiCompatibleLlmClientRetryTest {
         });
 
         OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(
-                "kimi", "", "http://127.0.0.1:" + port, "kimi-k2.6", objectMapper);
+                "kimi", "", "http://127.0.0.1:" + port, "kimi-k2.6", false, objectMapper);
         LlmRequest req = sampleRequest();
 
         Exception ex = assertThrows(Exception.class, () -> client.chat(req));

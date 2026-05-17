@@ -613,14 +613,14 @@ runs the commit per `feedback_commit_at_end_bundles_deliver_artefacts.md`.
 
 ## 12. Closure verdict (filled at sprint close; deliver-agent owned)
 
-Per `feedback_handoff_verdict_section_delegation.md`, this section is
-filled by the deliver agent at sprint close, not by the dev agent.
-Placeholder:
+Per `feedback_handoff_verdict_section_delegation.md`, this section
+was filled by the deliver agent at sprint close on **2026-05-16**.
 
 | field | value |
 |-------|-------|
-| status | *(deliver-agent fills at close)* |
-| classification | *(deliver-agent fills at close — A / A-with-* / B / C variants per the Sprint 26 / Sprint 27 / Sprint 28 close precedent)* |
-| Codex outcome | *(deliver-agent fills at close — likely "intentionally skipped per §4.1 docs-only exemption clause" per Sprint 26 / 27 precedent; human discretion)* |
-| R-item disposition applied | `R-alternate-uc-signal-data-source` opens as `proposal (Sprint 30 design freeze; Sprint 31 implements)`. Re-open trigger: Sprint 31 lands the chosen design + smoke rerun observes the new `alternate_candidate_use_cases` slot in `case_results[].per_turn_trace[].projection`; OR explicit later human direction to revisit. |
-| date | 2026-05-16 (dev work date; close date filled at close) |
+| status | **CLOSED** |
+| classification | **A-with-Codex-skipped** — third instance of the pattern (Sprint 26 first, Sprint 27 second). Single deliverable (design doc + R-item registration + handoff) landed clean on the first dev pass; zero STOP conditions hit; hard fences held (3 files staged, all under `docs/`, zero `server/` or `eval_interactive/` touched). |
+| Codex outcome | **Intentionally skipped per §4.1 docs-only exemption clause** (Sprint 16 / 22 / 26 / 27 precedent). Human-applied 2026-05-16. The §4.1 verdict that would have been returned is `approve (exemption: docs-only design freeze; no semantic surface touched)`. No `docs/sprints/sprint-030-codex-review.md` archive will exist (intentional). |
+| R-item disposition applied | `R-alternate-uc-signal-data-source` opened at `docs/action_bank.md` (Sprint 20 surfaced-backlog section append) as `proposal (Sprint 30 design freeze; Sprint 31 implements)`. Sprint 30 chose **Option β** — capture `RoutingResult.AMBIGUOUS` candidates at intake on a new `BotSession.intakeAmbiguousCandidates: String[]` field; project as `alternate_candidate_use_cases` minus active UC. Layer: `prompt_projection` per `iteration_governance.md` §3.2 Q3. Re-open trigger: Sprint 31 lands the chosen design + observed traces show the intake-time snapshot is insufficient for mid-session UC shifts the intake router did not anticipate (per §4 honest-acknowledgement); OR later human direction to revisit. |
+| Open questions disposition | The 5 open questions in design-doc §8 are deferred to Sprint 31 planning. The deliver-agent's Sprint 31 objective draft pre-picks defaults (OQ1 = (a) simple null-on-ROUTED, OQ2 = (a) sibling to `already_called`, OQ3 = normal 3–5-sprint cadence, OQ4 = ship Sprint 31 alone, OQ5 = Sprint 31 ships first) per the design-doc recommendation pattern; human reviews/pushes back at Sprint 31 objective review. |
+| date | 2026-05-16 (dev work + close on same day; investigation-only docs-only sprint, no Codex cycle, no fix iteration) |

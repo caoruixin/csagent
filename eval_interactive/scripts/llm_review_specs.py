@@ -20,7 +20,7 @@ Pipeline per session:
        and ``source_session_id``. Skip cleanly if no transcript turns are
        found.
     3. Build the prompt via ``llm_persona_reviewer.render_user_prompt``.
-    4. Call DeepSeek (model from ``--model``, default deepseek-v4-pro)
+    4. Call DeepSeek (model from ``DEFAULT_DEEPSEEK_MODEL`` / ``DEEPSEEK_MODEL`` env)
        with temperature=0 and ``response_format={"type":"json_object"}``.
        Retry on 5xx / network errors with exponential backoff (max 3
        retries).
@@ -100,7 +100,9 @@ from eval_interactive.case_spec.llm_persona_reviewer import (  # noqa: E402
 
 LOG = logging.getLogger("llm_review_specs")
 
-DEEPSEEK_ENDPOINT = "https://api.deepseek.com/v1/chat/completions"
+DEEPSEEK_ENDPOINT = (
+    os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1") + "/chat/completions"
+)
 DEEPSEEK_MODEL = DEFAULT_DEEPSEEK_MODEL  # back-compat alias
 
 CASE_SET_DIRS = ("anchor", "promotion", "exploration", "smoke")

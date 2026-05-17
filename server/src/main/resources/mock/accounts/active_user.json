@@ -3,10 +3,16 @@
   "email": "john.doe@example.com",
   "display_name": "John D.",
   "account_status": "ACTIVE",
+  "account_type": "PERSONAL",
   "registration_date": "2023-01-15",
+  "creation_date": "2023-01-15",
   "total_ads_posted": 12,
+  "total_ads_count": 12,
   "active_ads": 3,
+  "active_ads_count": 3,
   "warnings": 0,
   "is_known_good": true,
-  "is_blacklisted": false
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": true
 }

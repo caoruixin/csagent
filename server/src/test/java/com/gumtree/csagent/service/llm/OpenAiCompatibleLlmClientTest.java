@@ -31,6 +31,7 @@ class OpenAiCompatibleLlmClientTest {
         LlmProperties props = new LlmProperties();
         props.getKimi().setApiKey("test-kimi-key");
         props.getKimi().setBaseUrl("https://api.moonshot.ai/v1");
+        props.getKimi().setModel("kimi-k2.6");
         props.getDashscope().setApiKey("test-dashscope-key");
 
         OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(props, objectMapper);

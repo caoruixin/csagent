@@ -23,9 +23,9 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 
 /**
- * Generic OpenAI-compatible chat-completion client. The same class wires either
- * Kimi (primary) or DeepSeek (fallback); the active provider is chosen by the
- * Spring config that constructs the bean (see {@link com.gumtree.csagent.config.LlmClientConfig}).
+ * Generic OpenAI-compatible chat-completion client. Production wiring constructs
+ * one instance per provider (DeepSeek primary, Kimi fallback); thinking / temperature
+ * behaviour is controlled by {@code LlmProperties} (see {@link com.gumtree.csagent.config.LlmClientConfig}).
  */
 public class OpenAiCompatibleLlmClient implements LlmClient {
 
@@ -35,15 +35,17 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
     private final String apiKey;
     private final String baseUrl;
     private final String model;
+    private final boolean thinkingEnabled;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
     public OpenAiCompatibleLlmClient(String providerLabel, String apiKey, String baseUrl,
-                                     String model, ObjectMapper objectMapper) {
+                                     String model, boolean thinkingEnabled, ObjectMapper objectMapper) {
         this.providerLabel = providerLabel;
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
         this.model = model;
+        this.thinkingEnabled = thinkingEnabled;
         // Sprint 8 §A: fail fast — kill the slow tail well below the
         // user-facing budget so a fallback attempt fits in the same request.
         //
@@ -64,23 +66,36 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
 
     /**
      * @deprecated Legacy constructor preserved for test-source backward compatibility only.
-     *             Production wiring uses the explicit (providerLabel, apiKey, baseUrl, model, objectMapper)
+     *             Production wiring uses the explicit
+     *             {@code (providerLabel, apiKey, baseUrl, model, thinkingEnabled, objectMapper)}
      *             constructor via {@code LlmClientConfig}. This shim picks Kimi if its key is set,
-     *             else DashScope — matching the pre-Step-4 behaviour of the deleted in-method fallback.
+     *             else DashScope. When Kimi is not selected, the model name falls back to the
+     *             configured DeepSeek model when non-blank; otherwise empty (dashscope
+     *             {@code chat-model} was removed from config).
+     *             {@code thinkingEnabled} is always {@code false} for this path.
      */
     @Deprecated
     public OpenAiCompatibleLlmClient(LlmProperties llmProperties, ObjectMapper objectMapper) {
         this(
-            (llmProperties.getKimi().getApiKey() != null && !llmProperties.getKimi().getApiKey().isBlank())
-                ? "kimi" : "dashscope",
-            (llmProperties.getKimi().getApiKey() != null && !llmProperties.getKimi().getApiKey().isBlank())
-                ? llmProperties.getKimi().getApiKey() : llmProperties.getDashscope().getApiKey(),
-            (llmProperties.getKimi().getApiKey() != null && !llmProperties.getKimi().getApiKey().isBlank())
-                ? llmProperties.getKimi().getBaseUrl() : llmProperties.getDashscope().getBaseUrl(),
-            (llmProperties.getKimi().getApiKey() != null && !llmProperties.getKimi().getApiKey().isBlank())
-                ? llmProperties.getKimi().getModel() : llmProperties.getDashscope().getChatModel(),
-            objectMapper
+                (llmProperties.getKimi().getApiKey() != null
+                        && !llmProperties.getKimi().getApiKey().isBlank()) ? "kimi" : "dashscope",
+                (llmProperties.getKimi().getApiKey() != null
+                        && !llmProperties.getKimi().getApiKey().isBlank())
+                        ? llmProperties.getKimi().getApiKey() : llmProperties.getDashscope().getApiKey(),
+                (llmProperties.getKimi().getApiKey() != null
+                        && !llmProperties.getKimi().getApiKey().isBlank())
+                        ? llmProperties.getKimi().getBaseUrl() : llmProperties.getDashscope().getBaseUrl(),
+                (llmProperties.getKimi().getApiKey() != null
+                        && !llmProperties.getKimi().getApiKey().isBlank())
+                        ? llmProperties.getKimi().getModel()
+                        : legacyDashscopeBranchModel(llmProperties.getDeepseek().getModel()),
+                false,
+                objectMapper
         );
+    }
+
+    private static String legacyDashscopeBranchModel(String deepseekModel) {
+        return (deepseekModel != null && !deepseekModel.isBlank()) ? deepseekModel : "";
     }
 
     /**
@@ -349,16 +364,12 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", model);
 
-        boolean isKimiK2 = model != null && model.startsWith("kimi-k2");
-        if (isKimiK2) {
-            // K2.6/K2.5 enforce fixed temperature values; skip it and let the API use its default.
-            // Disable thinking for structured output scenarios (JSON actions, routing, reranking).
+        if (!thinkingEnabled) {
             ObjectNode thinking = objectMapper.createObjectNode();
             thinking.put("type", "disabled");
             body.set("thinking", thinking);
-        } else {
-            body.put("temperature", request.getTemperature());
         }
+        body.put("temperature", request.getTemperature());
 
         body.put("max_tokens", request.getMaxTokens());
 

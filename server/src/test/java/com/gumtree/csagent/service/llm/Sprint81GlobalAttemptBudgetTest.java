@@ -67,10 +67,10 @@ class Sprint81GlobalAttemptBudgetTest {
     private FallbackLlmClient newChain() {
         OpenAiCompatibleLlmClient primary = new OpenAiCompatibleLlmClient(
                 "deepseek", "sk-test", "http://127.0.0.1:" + primaryPort,
-                "deepseek-v4-flash", objectMapper);
+                "deepseek-v4-flash", false, objectMapper);
         OpenAiCompatibleLlmClient fallback = new OpenAiCompatibleLlmClient(
                 "kimi", "sk-test", "http://127.0.0.1:" + fallbackPort,
-                "kimi-k2.6", objectMapper);
+                "kimi-k2.6", false, objectMapper);
         return new FallbackLlmClient(primary, fallback, "deepseek", "kimi");
     }
 

@@ -5,10 +5,13 @@
   "status": "REMOVED",
   "seller_email": "blocked.user@example.com",
   "created_date": "2025-11-15",
+  "posted_date": "2025-11-15",
   "price": 750.00,
   "currency": "GBP",
+  "location": "Leeds",
   "views": 45,
   "replies": 1,
+  "is_featured": false,
   "removal_reason": "multiple_accounts",
   "removed_at": "2025-11-16T09:15:00Z"
 }

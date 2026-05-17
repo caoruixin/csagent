@@ -10,7 +10,7 @@ import org.springframework.web.client.HttpStatusCodeException;
  * Non-transient failures (auth, malformed request, parse errors) are re-thrown without
  * engaging the fallback to avoid masking real bugs and burning the fallback quota.
  *
- * Per phase3 §3.8.5: primary=Kimi 2.6, fallback=DeepSeek v4 pro.
+ * Per phase3 §3.8.5 (current wiring): primary=DeepSeek, fallback=Kimi.
  */
 @Slf4j
 public class FallbackLlmClient implements LlmClient {

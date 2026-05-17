@@ -12,12 +12,10 @@ import org.springframework.context.annotation.Primary;
 /**
  * Wires the chat-completion LLM bean graph.
  *
- * <p>Sprint 8.1 follow-up #2 (2026-05-06): primary / fallback ORDER SWAPPED.
- * DeepSeek v4 flash is now the primary chat-completion provider (per user
- * direction: kimi-k2.6 hits intermittent {@code engine_overloaded_error} and
- * downgrading to a smaller moonshot-v1-* tier surfaced new instruction-
- * following gaps). Kimi (kimi-k2.6) stays as the fallback so we still have a
- * "smarter" backup on rare primary 5xx / 429 / network blips.
+ * <p>DeepSeek is the primary chat-completion provider; Kimi is the fallback.
+ * Moonshot "thinking" mode for each provider is controlled solely by
+ * {@code llm.*.thinking-enabled} / {@code *_THINKING_ENABLED} (see {@link LlmProperties}) —
+ * not by model-name heuristics in the client.
  *
  * <p>Per phase3 §3.8.5 / §3.9.1, fallback engages only on transient primary
  * failures (5xx / 429 / network errors); non-transient errors (auth, 4xx,
@@ -28,23 +26,23 @@ import org.springframework.context.annotation.Primary;
 public class LlmClientConfig {
 
     /**
-     * Kimi (model from {@code KIMI_MODEL}, default kimi-k2.6) — FALLBACK
-     * chat-completion provider after Sprint 8.1 follow-up #2.
+     * Kimi — FALLBACK chat-completion provider (model and thinking from {@code llm.kimi} / env).
      */
     @Bean(name = "kimiLlmClient")
     public OpenAiCompatibleLlmClient kimiLlmClient(LlmProperties props, ObjectMapper objectMapper) {
         LlmProperties.KimiProperties k = props.getKimi();
-        return new OpenAiCompatibleLlmClient("kimi", k.getApiKey(), k.getBaseUrl(), k.getModel(), objectMapper);
+        return new OpenAiCompatibleLlmClient("kimi", k.getApiKey(), k.getBaseUrl(),
+                k.getModel(), k.isThinkingEnabled(), objectMapper);
     }
 
     /**
-     * DeepSeek (model from {@code DEEPSEEK_MODEL}, default deepseek-v4-flash) —
-     * PRIMARY chat-completion provider after Sprint 8.1 follow-up #2.
+     * DeepSeek — PRIMARY chat-completion provider (model and thinking from {@code llm.deepseek} / env).
      */
     @Bean(name = "deepseekLlmClient")
     public OpenAiCompatibleLlmClient deepseekLlmClient(LlmProperties props, ObjectMapper objectMapper) {
         LlmProperties.DeepSeekProperties d = props.getDeepseek();
-        return new OpenAiCompatibleLlmClient("deepseek", d.getApiKey(), d.getBaseUrl(), d.getModel(), objectMapper);
+        return new OpenAiCompatibleLlmClient("deepseek", d.getApiKey(), d.getBaseUrl(),
+                d.getModel(), d.isThinkingEnabled(), objectMapper);
     }
 
     /**

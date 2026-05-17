@@ -51,6 +51,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import os
 import re
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
@@ -1950,7 +1951,7 @@ def extract_case_specs(
     llm_cache_dir: str | Path = LLM_REVIEWER_DEFAULT_CACHE_DIR,
     llm_offline: bool = False,
     llm_refresh_sessions: frozenset[str] | set[str] | tuple[str, ...] | list[str] = (),
-    llm_model: str = "deepseek-v4-pro",
+    llm_model: str = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash"),
     llm_reviewer: LlmPersonaReviewer | None = None,
     strict_overrides: bool = False,
 ) -> list[CaseSpec]:

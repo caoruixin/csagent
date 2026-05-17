@@ -1036,11 +1036,11 @@ carry non-empty alternates per §5.4).
 
 | field | value |
 |---|---|
-| status | **PASS — path A** (per §13.7 dev recommendation; human-applied 2026-05-16). Sprint 31 ships the runtime change correctly; the new `alternate_candidate_use_cases` slot is observable on AMBIGUOUS-intake projection per design (4 cases in rerun #1's `per_turn_trace[].projection`); Java test bar PASSES (10/10 Sprint 31 tests + 912/1-inherited/0/2 full server suite). The §10 smoke acceptance gap (mean_composite 0.1299 → 0.0617 vs Sprint 28 reference) is **dominated by external LLM provider drift** (mean elapsed_ms widened +84% across three reruns with zero Sprint 31 latency-relevant code or config change; the two falsifiable internal hypotheses — cold-start race + system_prompt teaching paragraph — were both REJECTED by the §13 fix iteration). The system_prompt teaching paragraph has been restored to commit `2c1fd41` state. |
-| classification | **A-with-fix-iteration-investigation** — Sprint 31 ships on the original `2c1fd41` commit; the `de47635` fix-iteration commit appended §13 hypothesis-test evidence + restored prompt teaching but added no code. Distinct from Sprint 23 / 25's B-fix-iteration-on-code, Sprint 26 / 27 / 30's A-with-Codex-skipped, and Sprint 28's A-clean-close. The pattern is closest to Sprint 20's A-with-evidence-packaging-note: a clean ship plus an investigation that disambiguated the smoke gap. |
-| Codex outcome | **Pending review** — Sprint 31 is semantic-touching (`prompt_projection` + prompt edit); Codex review is REQUIRED per `docs/sprint_objective.md` §10 (not exempt). The §4.1 nine-question kernel applies; the expected verdict is `approve` (no semantic hardcode introduced; soft-signal posture verified by the unit + integration test; teaching paragraph is principled with no tool-name / per-UC branching — verified at §4.6 + §8). The deliver-agent / human dispatch Codex against commits `2c1fd41` + `de47635` at sprint close. |
-| R-item disposition | **`R-alternate-uc-signal-data-source`** at `docs/action_bank.md` flipped from `proposal (Sprint 30 design freeze; Sprint 31 implements)` to **`done (Sprint 31)`** in this close commit. **New R-item opened:** `R-llm-provider-latency-drift-2026-05-16` (`infra` / observability layer) per §13.7 — characterize the mean smoke `elapsed_ms` widening (+84% vs Sprint 28) across Sprint 31's three reruns on the same bot codebase. Scope: A/B Sprint 31 reruns' `LlmCallEvents[]` per-call latency against the Sprint 28 reference (`eval_interactive/results/20260514-181257/results.json`) on a fresh DB to disambiguate provider drift vs accumulated state. Path A explicitly does NOT block Sprint 31 close on the latency investigation. **Out-of-scope follow-on (named but NOT opened):** `R-sprint-31-case-family-authoring` per OQ4 pre-pick — Sprint 31+1 case-family sprint authoring target / neighbor / negative / shadow CaseSpecs for the §7.2 UC-A↔UC-C worked-example shape; deliver-agent decides Sprint 31+1 scope. |
-| follow-on sprint sequencing | The deliver-agent has two natural next-sprint options: (a) **`R-llm-provider-latency-drift-2026-05-16` diagnostic sprint** — `infra` / observability characterization of the smoke latency widening (does not block any feature work); (b) **Sprint 31+1 case-family-authoring sprint** — `eval_spec` corpus authoring for the §7.2 UC-A↔UC-C target / neighbor / negative / shadow split. The two are disjoint (different layers, different surfaces) and can run in parallel or sequence per deliver-agent decision. Sprint 31 itself imposes no sequencing constraint. |
+| status | **PASS — chained close (path A + fix-iteration #2)** (deliver-agent + human applied 2026-05-16). Sprint 31 ships the runtime change correctly; the new `alternate_candidate_use_cases` slot is observable on AMBIGUOUS-intake projection per design (4 cases in rerun #1's `per_turn_trace[].projection`); Java test bar PASSES (10/10 Sprint 31 tests + 912/1-inherited/0/2 full server suite on commits `2c1fd41 + de47635`; strengthened to 917/1-inherited/0/2 after fix-iteration #2 commit `8d3e73b` added 5 new T8 variants). The §10 smoke acceptance gap (mean_composite 0.1299 → 0.0617 vs Sprint 28 reference) is **dominated by external LLM provider drift** (mean elapsed_ms widened +84% across three reruns with zero Sprint 31 latency-relevant code or config change; the two falsifiable internal hypotheses — cold-start race + system_prompt teaching paragraph — were both REJECTED by the §13 fix iteration). The system_prompt teaching paragraph remains at commit `2c1fd41` state. Post-close Codex review at commits `2c1fd41 + de47635 + 8908775` returned `fix_required / 2`; deliver-agent + human classified Finding 1 (smoke regression) as **out_of_scope_review** carried by `R-llm-provider-latency-drift-2026-05-16` (rigorous §13 disambiguation per Constitution §1.6 "Eval is evidence, not authority"), and Finding 2 (T8 too weak to demonstrate non-enforcement) as **fix_required (targeted P1)**. Fix-iteration #2 commit `8d3e73b` (2026-05-16, dedicated handoff `docs/sprints/sprint-031-fix-handoff.md`) strengthened T8 across 6 parameterized variants × 5 invariance bars; Codex re-review against `8908775..8d3e73b` returned **`pass / blocking_count: 0`** (Finding 2 closed; Finding 1 confirmed OOSR carry). See §14 for the fix-iteration #2 closure summary. |
+| classification | **A-with-fix-iteration-investigation + A-with-fix-iteration-#2 (chained close; first instance of the pattern)**. The §13 fix-iteration #1 commit `de47635` appended hypothesis-test evidence + restored prompt teaching but added no code (the A-with-fix-iteration-investigation half). The post-Codex fix-iteration #2 commit `8d3e73b` strengthened the T8 non-enforcement integration test from 1 happy-path scenario to 6 parameterized variants × 5 invariance bars (the A-with-fix-iteration-#2 half; targeted P1 fix). Distinct from Sprint 23 / 25's B-fix-iteration-on-code (those edited production code), Sprint 26 / 27 / 30's A-with-Codex-skipped (those skipped Codex entirely), and Sprint 28's A-clean-close (single-pass). The pattern is closest to Sprint 20's A-with-evidence-packaging-note plus a layered targeted-test strengthening; future close-classification taxonomy should name the chained pattern as a distinct A variant. |
+| Codex outcome | **Initial review: `fix_required / blocking_count: 2`** at commits `2c1fd41 + de47635 + 8908775` (review scope `3812153..8908775`). Findings: (1) smoke acceptance floor regressed vs Sprint 28 reference (BLOCKING per Codex); (2) T8 non-enforcement integration test too weak (BLOCKING per Codex). Anti-Hardcode Kernel verdict: `approve` (no semantic hardcode in committed code or prompt). Hard-Fence Verification: all forbidden surfaces untouched. **Re-review post fix-iteration #2: `pass / blocking_count: 0`** at commits `8908775..8d3e73b`. Finding 2 closed by `8d3e73b` (T8 strengthened to 6 parameterised variants with 5 invariance bars each; mental check passed — a hypothetical `if alternate_candidate_use_cases.contains("UC-C")` branch would trip ≥3 bars on V4/V5). Finding 1 explicitly accepted by Codex re-review as the deliver-agent-classified OOSR carry by `R-llm-provider-latency-drift-2026-05-16`. Full chronological review archive at `docs/sprints/sprint-031-codex-review.md` (supersession-pattern packaging: fix-iteration #2 PASS on top, original `fix_required/2` below). |
+| R-item disposition | **`R-alternate-uc-signal-data-source`** at `docs/action_bank.md` flipped from `proposal (Sprint 30 design freeze; Sprint 31 implements)` to **`done (Sprint 31; commits 2c1fd41 + de47635 + 8d3e73b; Codex re-review pass / 0 after fix-iteration #2)`**. The fix-iteration #2 commit added the strengthened T8 (6 variants × 5 invariance bars) closing Codex Finding 2; no production code change beyond the original `2c1fd41` ship. **R-item opened:** `R-llm-provider-latency-drift-2026-05-16` (`infra` / observability layer) per §13.7 — characterize the mean smoke `elapsed_ms` widening (+84% vs Sprint 28) across Sprint 31's three reruns on the same bot codebase. Scope: A/B Sprint 31 reruns' `LlmCallEvents[]` per-call latency against the Sprint 28 reference (`eval_interactive/results/20260514-181257/results.json`) on a fresh DB to disambiguate provider drift vs accumulated state. Carries Codex Finding 1 OOSR classification. Sprint 31 close explicitly does NOT block on the latency investigation. **Sprint 31+1 follow-on (deliver-agent + human pick 2026-05-16):** Sprint 31+1 = case-family authoring sprint per OQ4 pre-pick — `eval_spec` layer; target / neighbor / negative / shadow CaseSpecs for the §7.2 UC-A↔UC-C worked-example shape; validates the new slot end-to-end. `R-llm-provider-latency-drift-2026-05-16` remains the second natural candidate but is deferred behind the case-family-authoring sprint per the deliver-agent's planning round. |
+| follow-on sprint sequencing | The deliver-agent + human picked **(b) Sprint 31+1 case-family-authoring sprint** at the 2026-05-16 Sprint 31 close planning round. Rationale: validates the new slot end-to-end (Sprint 31 shipped Java-only regression coverage per OQ4 pre-pick deferral) and rounds out the §7.2 worked-example shape on the eval surface. **(a) `R-llm-provider-latency-drift-2026-05-16` diagnostic sprint** is the second natural candidate (`infra` / observability characterization of the smoke latency widening) — deferred behind Sprint 31+1; remains a queued candidate for Sprint 31+2 or whichever planning round the deliver-agent + human next opens an investigation slot. The two are disjoint (different layers, different surfaces); the case-family-authoring sprint does NOT block on the latency diagnostic and vice versa. |
 | date | 2026-05-16 |
 
 Per `feedback_handoff_verdict_section_delegation.md`: the dev did
@@ -1315,3 +1315,118 @@ deliver-agent-owned.
 
 The fix-iteration commit will stage only `docs/sprints/sprint-031-handoff.md`
 (the §13 append). All other files remain deliver-agent-owned.
+
+---
+
+## 14. Fix-iteration #2 closure (post-Codex)
+
+Date: 2026-05-16
+Triggering commit: `8908775` (Sprint 31 close packaging)
+Triggering review: Codex sprint-close at `docs/codex-findings.md` lines
+17–56 (`fix_required / blocking_count: 2`)
+Dedicated handoff: `docs/sprints/sprint-031-fix-handoff.md`
+Closure commit: `8d3e73b` ("sprint 31 fix-iteration #2: strengthen T8
+non-enforcement test (parameterized across 6 slot variants)")
+Codex re-review: `docs/codex-findings.md` lines 1–14 (`pass /
+blocking_count: 0`)
+
+### 14.1 What this section does NOT duplicate
+
+This §14 is a pointer + integration narrative only. The full
+implementation walkthrough, premise re-verification, mental check,
+test-count math, and §4.1 anti-hardcode self-walk for fix-iteration
+#2 live in `docs/sprints/sprint-031-fix-handoff.md` and are NOT
+re-stated here. The §13 fix-iteration #1 narrative (the three smoke
+reruns and external-drift attribution) is also NOT touched — it
+remains the disambiguation record for Finding 1's OOSR classification.
+
+### 14.2 Classification of the two Codex findings (deliver-agent + human, 2026-05-16)
+
+- **Finding 1 (smoke acceptance floor regression vs Sprint 28
+  reference, `docs/codex-findings.md` line 32) → `out_of_scope_review`**.
+  The §13 fix-iteration #1 already disambiguated this with three
+  back-to-back smoke reruns + a controlled prompt revert/restore.
+  Both falsifiable internal hypotheses (H1 cold-start race, H2
+  system_prompt teaching paragraph) were REJECTED. H3 (external LLM
+  provider drift) has strong corroborating signal (mean elapsed_ms
+  widened +84% across reruns with zero Sprint 31 latency-relevant
+  code or config change). Constitution §1.6 ("Eval is evidence, not
+  authority"): a regression provably not caused by the sprint's
+  changes does not fire the close gate. Carried forward by
+  `R-llm-provider-latency-drift-2026-05-16`. Precedent:
+  `feedback_out_of_scope_review_packaging_rollforward.md`.
+
+- **Finding 2 (T8 non-enforcement integration test too weak,
+  `docs/codex-findings.md` line 34) → `fix_required` (targeted P1)**.
+  Codex is correct that the original T8 was too weak to prove
+  invariance across slot values. The fix is bounded (~one test file,
+  no production code) and structurally captures the soft-signal
+  non-enforcement guarantee. Single-track fix-iteration scoped to
+  parameterise T8 across ≥ 4 slot-value variants and assert
+  invariance bars (TerminalOutcome, llm-call count, zero tool
+  dispatch, final-message identity).
+
+### 14.3 Fix-iteration #2 commit summary
+
+Commit `8d3e73b` (`docs/sprints/sprint-031-fix-handoff.md` §6):
+exactly one file edited —
+`server/src/test/java/com/gumtree/csagent/integration/AgentRunLoopAlternateCandidateUseCasesNonEnforcementIntegrationTest.java`
+— converted from one happy-path `@Test` to a `@ParameterizedTest +
+@MethodSource("slotVariants")` covering six variants (V1 null, V2
+empty, V3 single-matching-active, V4 single-alternate, V5
+multi-element, V6 unrelated-UCs-only) × five invariance bars
+(projection slot, TerminalOutcome, invokeChat count,
+`verifyNoInteractions(toolDispatcher)`, final user-message text).
+
+Plus the dedicated handoff file
+`docs/sprints/sprint-031-fix-handoff.md` (~394 lines, 8 sections).
+
+Targeted run: `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
+Full server suite: 917 / 1-inherited / 0 / 2 (the +5 net vs the
+Sprint 31 close baseline of 912 matches the strengthening: original
+1 `@Test` → 6 parameterised variants).
+
+### 14.4 Codex re-review verdict
+
+`docs/codex-findings.md` lines 1–14 (the new top-of-file block,
+written by Codex on the re-review against `8908775..8d3e73b`):
+**`decision: pass / blocking_count: 0`**.
+
+Codex's mental check (lines 12–13): "a hypothetical
+`AgentRunLoopImpl` branch on non-null / non-empty
+`session.getIntakeAmbiguousCandidates()` would diverge on at least
+V4/V5/V6 (and on V3 for length-only checks) via outcome, LLM-call
+count, tool-dispatch, or final-message assertions, so the
+strengthened test would catch the regression Finding 2 required it
+to catch."
+
+Scope-discipline gate passed (line 9): "the commit touches exactly
+the single test file and the new `docs/sprints/sprint-031-fix-handoff.md`;
+no `server/src/main/**`, prompt, CaseSpec, action-bank, or main
+Sprint 31 handoff file is touched."
+
+§4.1 per-PR Anti-Hardcode kernel verdict (line 14): **`approve`** —
+"pure test-strengthening + handoff commit; no production semantic
+surface is touched, no eval-text / CaseSpec id is encoded into
+runtime, and tool / capability / PII / grounding floors are
+preserved."
+
+Finding 1 explicitly carried forward by Codex (line 4): "Finding 1
+remains accepted as out_of_scope_review: the fix-iteration #2
+commit contains no production, prompt, latency/provider, smoke,
+config, or eval-surface mitigation and leaves that investigation
+carried by `R-llm-provider-latency-drift-2026-05-16`."
+
+### 14.5 Sprint 31 final closure verdict
+
+**PASS** — chained close (path A + fix-iteration #2). Sprint 31 is
+fully closed. Carry items for future planning:
+
+- `R-llm-provider-latency-drift-2026-05-16` (`infra` /
+  observability) — open in `docs/action_bank.md`. Diagnostic sprint
+  scope pre-fleshed in `docs/sprints/sprint-031-handoff.md` §12 R-item
+  row.
+- Sprint 31+1 = case-family-authoring sprint per OQ4 pre-pick +
+  2026-05-16 deliver-agent + human pick. Objective drafted in
+  `docs/sprint_objective.md` (post-close) for human review.
+

@@ -31,24 +31,33 @@ public class GetCustomerContextTool implements Tool {
     public ToolResult execute(BotSession session, Map<String, Object> parameters) {
         Map<String, Object> data = new LinkedHashMap<>();
 
-        // Get account by email from session or parameters
         String email = (String) parameters.get("email");
         if (email != null && !email.isBlank()) {
             Map<String, Object> account = gumtreeApiService.getAccountByEmail(email);
-            data.put("account", sanitizeAccount(account));
+            if (account == null || account.isEmpty()) {
+                data.put("account_found", false);
+            } else {
+                data.put("account_found", true);
+                data.put("account", sanitizeAccount(account));
+            }
         }
 
-        // Get listing if ad_id is present
         String adId = (String) parameters.get("ad_id");
         if (adId != null && !adId.isBlank()) {
             Map<String, Object> listing = gumtreeApiService.getListingByAdId(adId);
-            data.put("listing", sanitizeListing(listing));
+            if (listing == null || listing.isEmpty()) {
+                data.put("listing_found", false);
+            } else {
+                data.put("listing_found", true);
+                data.put("listing", sanitizeListing(listing));
 
-            // Also get moderation review if the listing status indicates removal
-            String listingStatus = listing != null ? (String) listing.get("status") : null;
-            if ("removed".equalsIgnoreCase(listingStatus) || "moderated".equalsIgnoreCase(listingStatus)) {
-                Map<String, Object> modReview = gumtreeApiService.getModerationReview(adId);
-                data.put("moderation_review", modReview);
+                String listingStatus = (String) listing.get("status");
+                if ("removed".equalsIgnoreCase(listingStatus) || "moderated".equalsIgnoreCase(listingStatus)) {
+                    Map<String, Object> modReview = gumtreeApiService.getModerationReview(adId);
+                    if (modReview != null && !modReview.isEmpty()) {
+                        data.put("moderation_review", modReview);
+                    }
+                }
             }
         }
 

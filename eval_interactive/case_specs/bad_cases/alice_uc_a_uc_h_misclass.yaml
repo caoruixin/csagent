@@ -1,0 +1,157 @@
+case_id: alice_uc_a_uc_h_misclass
+source_session_id: synthetic-bad-case-alice-uc-a-uc-h-2026-05-16
+source_dataset: bad_case_authored
+
+bad_case_metadata:
+  surfaced_by: human (Alice mock session via real-LLM run; reported in deliver-agent investigation 2026-05-16)
+  surfaced_date: 2026-05-16
+  original_session_id: 3772e56b-caa7-4e0a-84fc-75a26ffbe2b2
+  failure_shape: |
+    UC-A user (listing visibility / "why was my ad removed") gets
+    mis-classified to UC-H (Ad Removal Appeal) at DISCOVER phase
+    based on listing_context.status=REMOVED + "can't see advert"
+    signal reading. Once committed to UC-H, the runtime collapses
+    allowedTools to [request_handover] only (PhaseEvaluator.java:30
+    INTAKE_UCS lock-in). UC-H requires stated_reason_or_context
+    field, but the user's actual answer is "I don't know, that's
+    what I want to find out". Bot enters a 7-turn dead loop asking
+    the same intake question; request_handover(intake_complete_for_uc_h)
+    correctly rejected by guard because fields_collected is empty
+    (IntakeFieldExtractor.java:21-35 only implements UC-K, never
+    pre-fills UC-H from form_context.ad_id + form_context.email
+    aliases). 0 progress, 0 useful tool calls, escalation impossible
+    until the LLM gives up and produces a non-canonical request.
+  layers_involved: prompt_projection (DISCOVER systemInstruction lacks UC-A vs UC-H disambiguation); skill_state (IntakeFieldExtractor UC-K-only); java_guard (INTAKE_UCS hard lock-in with no escape); semantic_planner (LLM commits to UC-H without observing alternates slot effectively)
+  related_dimensions: D1 (mis-classification), D2 (intake prefill gap), D3 (INTAKE lock-in escape), D4 (stated_reason circularity)
+  related_r_items:
+    - R-option-beta-coverage-gap-uc-a-uc-c-shape (Sprint 32; same architectural class — soft signal cannot rescue a wrong-UC commitment in an INTAKE-locked path)
+    - R-llm-provider-latency-drift-2026-05-16 (Sprint 31; unrelated to root cause but observed in the Alice session)
+
+closure_criterion: |
+  Bot reaches one of these end-states without entering a multi-turn
+  dead loop (defined as ≥ 3 consecutive turns asking the same
+  intake field with no progress on collecting it):
+
+  (a) Bot routes the conversation to UC-A handling (FAQ-path for
+      ad visibility questions), runs search_knowledge / resolve_article
+      to retrieve the removal-reason FAQ surface, and answers the
+      user's actual question (why was the ad removed, where to see
+      it, how to appeal if applicable).
+
+  (b) Bot asks ONE focused clarifying question on turn 2 (e.g., "Do
+      you want to know the reason the ad was removed, or do you
+      want to appeal the removal?") and routes per user's answer.
+
+  (c) Bot acknowledges UC-H but at any turn recognizes the user
+      cannot supply stated_reason_or_context and gracefully escalates
+      with reason=user_requested or reason=ambiguous_intent (NOT
+      reason=intake_complete_for_uc_h, which would be a lie about
+      collected fields).
+
+  FAIL conditions: bot enters > 6 turns AND ends with non-canonical
+  request_handover or runs out of budget without progress; bot
+  fabricates an answer about why the ad was removed (factual hard-
+  fence violation per §5 Eval Acceptance Rules grounding floor);
+  bot calls request_handover(intake_complete_for_uc_h) when
+  fields_collected is empty (lying about state).
+
+form_context:
+  first_name: Alice
+  email: alice.removed@example.com
+  topic_subject: Ad Support
+  ad_id: AD-2001
+  description: |
+    I can't see my advert anymore. It was up yesterday but today
+    when I search for it I can't find it.
+
+persona:
+  user_goal_summary: |
+    User has a listing (AD-2001) that has been removed by the
+    platform. The user wants to understand WHY it was removed and
+    how to find or restore it. The user does NOT know the removal
+    reason (this is exactly what they want the bot to tell them).
+    The user is mildly frustrated but cooperative. The user will
+    NOT make up a "stated reason" to satisfy an intake script
+    because they genuinely don't know.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I can't see my advert anymore. It was up yesterday but today when I search for it I can't find it. Can you help me figure out what happened?"
+    - "I don't know why it might have been removed - that's actually what I'm trying to find out. Can you check why?"
+    - "I really just want to know what happened to the ad. I'm not sure if I need to appeal anything yet, I just want to understand."
+  hidden_facts:
+    - fact: User has been posting ads on the platform for about a year without issues. This is the first removal. The user does not know about the platform's content policies in any detail.
+      disclose_when: if the bot asks whether the user has had prior removals or whether the user is familiar with the listing policies
+    - fact: User can still log into the account and see other ads in their account view; the issue is specifically that AD-2001 doesn't appear in search results. The user's account is not locked or suspended.
+      disclose_when: if the bot asks whether the user can access their account or whether other ads are visible
+  will_request_human_if: the bot enters a multi-turn loop asking the user to explain why the ad was removed when the user has already said they don't know
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs:
+    - UC-FP
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: |
+    The bot SHOULD recognize on turn 1 or turn 2 that the user's
+    question is fundamentally "why was my ad removed" (a UC-A
+    visibility / ad-status question with FAQ-resolvable answer
+    paths via the removal-reason FAQ surface) rather than "I want
+    to appeal the removal" (UC-H intake-only path). The bot can
+    either route to UC-A directly OR ask one focused clarifying
+    question ("Do you want to know the reason it was removed, or do
+    you want to appeal?"). Once UC-A is established, the bot runs
+    search_knowledge + resolve_article to retrieve the removal-
+    reason FAQ surface (typical reasons: policy violation, paid-
+    listing expiration, image quality, duplicate listing, etc.) and
+    produces a grounded answer naming the available reasons + the
+    listing-status check method + the appeal path if applicable.
+    The bot does NOT lock into UC-H intake on listing_context.status=REMOVED
+    alone; the user's stated need is the disambiguation signal, not
+    the listing's database row.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+    - classify_use_case
+    - get_customer_context
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - create_case_controlled
+    - get_message_moderation_context
+    - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+    - I have unblocked your ad
+    - I have restored your listing
+    - I've sent you an email
+    - I can restore/delete/ban this directly
+    - I'll resolve this for you
+    - Your ad was removed because [SPECIFIC REASON THAT IS NOT GROUNDED IN FAQ]
+  max_turns: 8
+
+scoring:
+  hard_checks:
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - resolution_achieved
+    - answer_accuracy
+    - tool_sequence_match
+    - turn_efficiency
+    - issue_preservation
+  llm_judge_dimensions:
+    - groundedness
+    - relevance
+    - tone_appropriateness

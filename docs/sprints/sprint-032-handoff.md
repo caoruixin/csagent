@@ -899,5 +899,149 @@ line by line.
 
 ## 12. Closure verdict (filled at sprint close; deliver-agent + human owned)
 
-[FILLED BY DELIVER-AGENT + HUMAN AT SPRINT CLOSE per
-`feedback_handoff_verdict_section_delegation.md`]
+| field | value |
+|---|---|
+| status | **PASS — A-with-investigation-finding** (deliver-agent + human applied 2026-05-16). Sprint 32 ships the §6 file table per `_ACCESS_BOUNDARY.md:91` convention (10+ new files: source brief + 5 visible CaseSpecs + 2 shadow CaseSpecs + 1 local manifest + 2 manifest appends + handoff). The family loads cleanly (visible = 5 specs; shadow = 2 specs via `load_case_specs('case_specs_shadow/case_families/sprint32_alternate_uc')`). Java suite stayed at 917 / 1-inherited / 0 / 2 baseline (zero Sprint 32 Java change). 14-case smoke rerun showed no production-code-attributable regression (`passed_cases=3`, `mean_composite_score=0.1974` — same shape as Sprint 31 reference with the §13 external-drift caveat applying). Sprint 32 family rerun produced `results.json` with all 5 cases reaching a terminal outcome on the dev's run; Codex re-run hit DeepSeek timeouts on 3 of 5 (further evidence for `R-llm-provider-latency-drift-2026-05-16`). **Codex sprint-close review returned `fix_required / blocking_count: 2`**; deliver-agent + human classified Finding 1 as `out_of_scope_review` (deliver-agent objective had wrong shadow path; dev correctly followed `_ACCESS_BOUNDARY.md:91`) and Finding 2 as **in-flight downgrade to investigation finding** (Sprint 29 precedent per `feedback_corpus_undecidable_premise_check.md`). Sprint 32 is classified `A-with-investigation-finding`; the family stays as-is (it IS the empirical evidence that disproves a Sprint 30 design prediction). See §13 for the findings classification narrative. |
+| classification | **A-with-investigation-finding (first instance of this pattern on the `eval_spec` layer)**. Distinct from Sprint 29's in-flight downgrade (which downgraded an `infra` track to investigation); Sprint 32 downgrades an `eval_spec` validation-attempt to investigation when the empirical case-family run disproves a load-bearing design prediction. The family stays committed (it IS the evidence). Sprint 32 does NOT take a fix-iteration on the dev side; the architectural finding goes into a new R-item that a future milestone consumes. |
+| Codex outcome | **`fix_required / blocking_count: 2`** at commit range `8d3e73b..c9edb37`. Findings: (1) shadow-path scope mismatch (Codex itself flagged the objective vs `_ACCESS_BOUNDARY.md:91` conflict); (2) target case's observed alternates list does NOT contain UC-C, neighbor #2 is ROUTED not AMBIGUOUS — the family does not reliably validate the worked-example soft-signal shape end-to-end. Anti-Hardcode Kernel: pass (Q1-Q9 all pass or N/A; no semantic hardcode in eval surface). Hard-Fence: scope surfaces fail only on the shadow path naming; all other fences pass. Schema reproducibility: pass on the corrected path. Full chronological review archived at `docs/sprints/sprint-032-codex-review.md` (supersession-pattern packaging). |
+| Findings classification | **Finding 1 → `out_of_scope_review`** (deliver-agent owns the fix; deliver-agent's `docs/sprint_objective.md` shadow path was inconsistent with `_ACCESS_BOUNDARY.md:91`; dev correctly followed the source-of-truth doc; deliver-agent corrected `docs/sprint_objective.md` post-facto in this same close cycle — see git diff for the path-fix edits). **Finding 2 → in-flight downgrade to investigation finding**, new R-item registered: `R-option-beta-coverage-gap-uc-a-uc-c-shape` (`docs/action_bank.md`). The Sprint 30 design doc predicted the §7.2 UC-A↔UC-C shape would fall within Option β's intake-AMBIGUOUS coverage ("shared 'Replies & Messaging' topic family", per `docs/proposals/alternate_uc_signal_data_source_design.md` §3.5 honest acknowledgement). Sprint 32's empirical evidence — target case's intake-AMBIGUOUS alternates do NOT contain UC-C — falsifies this prediction. The §7.2 shape requires a different mechanism (Option γ live surveyor, Option ε structured-reflection, or a re-evaluation of which UC pair is the right worked-example anchor). See §13 for the architectural narrative. |
+| R-item disposition | **`R-alternate-uc-signal-shadow-caseset` (informally named in Sprint 31 §7.4)** → **`done (Sprint 32; commit `c9edb37`; A-with-investigation-finding; family ships per `_ACCESS_BOUNDARY.md:91` convention; target case does not exercise UC-C alternate per Finding 2 → in-flight downgrade)`**. The Sprint 31 OQ4 deferral is closed by Sprint 32 substance (case family authored) but the worked-example end-to-end validation remains open (carried forward by the new R-item below). **NEW R-item:** `R-option-beta-coverage-gap-uc-a-uc-c-shape` (`eval_spec` / `prompt_projection`; **proposed** for next-milestone consumption) — characterize which UC pairs / topic-subject families produce AMBIGUOUS intake with both candidates simultaneously, vs which route ROUTED at intake and need a different mechanism. Scope: empirical UC-pair coverage table from a comprehensive intake-router probe; design decision tree (Option γ surveyor vs Option ε structured reflection vs §7.2 worked-example re-anchoring). **Sprint 31's `R-llm-provider-latency-drift-2026-05-16`** stays proposed; Sprint 32 re-rerun's contract violations on 3 of 5 family cases adds n+1 evidence (still pre-trigger-threshold for diagnostic sprint). |
+| follow-on sprint sequencing | Sprint 32 closes the Sprint 31 OQ4 case-family deferral with an honest investigation finding. **Next direction:** the deliver-agent + human at 2026-05-16 elected to upgrade governance to a **milestone framework** (M1 = DISCOVER + Intake) rather than continuing single-feature sprints. The next active milestone is M1, which absorbs (a) the Alice bad case D1-D5 dimensions per the deliver-agent's investigation report 2026-05-16, (b) the unshipped Sprint 18/20/23 architectural pieces from the original roadmap, and (c) the new `R-option-beta-coverage-gap-uc-a-uc-c-shape` finding. M1's first sub-sprint is **Sprint 33** (DISCOVER UC-A vs UC-FP vs UC-H soft-signal projection + DISCOVER systemInstruction disambiguation guidance + system_prompt teaching paragraph). See `docs/milestone_objective.md` for the M1 contract and `docs/sprint_objective.md` for the Sprint 33 sub-sprint contract. |
+| date | 2026-05-16 |
+
+Per `feedback_handoff_verdict_section_delegation.md`: the dev did
+NOT fill the closure verdict during the dev session; the human +
+deliver-agent owned the close decision. The investigation-finding
+classification follows the Sprint 29 in-flight downgrade precedent
+per `feedback_corpus_undecidable_premise_check.md` — Sprint 32 ships
+the family as evidence, surfaces the architectural finding as a new
+R-item, and does NOT trigger a dev fix-iteration.
+
+---
+
+## 13. Findings classification + architectural finding
+
+### 13.1 Finding 1 → `out_of_scope_review` (deliver-agent-owned fix)
+
+Codex flagged: the dev placed shadow CaseSpecs at
+`eval_interactive/case_specs_shadow/case_families/sprint32_alternate_uc/`
+(per `eval_interactive/case_specs_shadow/_ACCESS_BOUNDARY.md:91`
+convention "New shadow CaseSpecs go under
+`case_specs_shadow/case_families/<family_id>/`"). The Sprint 32
+objective (`docs/sprint_objective.md` §6 + §3) wrote the path as
+`eval_interactive/case_specs_shadow/sprint32_alternate_uc/`
+(without `case_families/`).
+
+Codex itself acknowledged the objective vs access-boundary conflict
+(`docs/codex-findings.md` Finding 1 last sentence: "I recognize that
+`eval_interactive/case_specs_shadow/_ACCESS_BOUNDARY.md:91`
+documents `case_specs_shadow/case_families/<family_id>/`; that
+means the objective/review contract and access-boundary convention
+conflict, but under the supplied scope-discipline gate this is
+still a blocking close mismatch.").
+
+**Classification rationale:** `out_of_scope_review` per
+`feedback_out_of_scope_review_packaging_rollforward.md`. The dev
+followed the source-of-truth doc (`_ACCESS_BOUNDARY.md` is the
+canonical shadow-class governance doc; the deliver-agent's objective
+copy of the path was a packaging error). The fix is on the
+deliver-agent's `docs/sprint_objective.md`, NOT on the dev's
+committed YAML files. The deliver-agent applied the four-place
+path-fix to `docs/sprint_objective.md` in this same close cycle
+(lines 87, 193, 194, 195). The committed shadow files at
+`case_specs_shadow/case_families/sprint32_alternate_uc/` stay.
+
+Precedent: Sprint 20 fix-iteration's `out_of_scope_review` with
+packaging-only blocker rolled forward; the substance closes cleanly,
+the packaging artefact gets the post-facto fix.
+
+### 13.2 Finding 2 → in-flight downgrade to investigation finding
+
+Codex flagged: the target case `cs32t01_uc_a_uc_c_drift` has
+observed alternates `['UC-A', 'UC-FP', 'UC-H']` (UC-C absent);
+neighbor #2 `cs32n02_uc_a_uc_b_drift` has empty alternates and was
+documented by the dev as ROUTED not AMBIGUOUS. The family does not
+reliably validate the §7.2 UC-A↔UC-C worked-example soft-signal
+shape end-to-end because the LLM never observes UC-C in the
+projection on the target case.
+
+**The deeper finding:** Sprint 30's Option β design (frozen at
+`docs/proposals/alternate_uc_signal_data_source_design.md` §3.5)
+**predicted** the §7.2 UC-A↔UC-C shape would fall within intake-
+AMBIGUOUS coverage on the "shared 'Replies & Messaging' topic
+family". Sprint 32's empirical evidence **disproves this
+prediction**: the topics the dev tested do not produce AMBIGUOUS
+intake with both UC-A and UC-C in the candidate list. The intake
+router classifies these topics ROUTED to one or the other, not
+AMBIGUOUS to a list including both.
+
+**Classification rationale:** in-flight downgrade per
+`feedback_corpus_undecidable_premise_check.md`. Sprint 29's Track B
+was downgraded to investigation when the empirical evidence
+disproved a Track B premise (Q2 = NO, no `CONFIRM → CLOSE` turn
+pair observable). Sprint 32 follows the same pattern on the
+`eval_spec` layer: the family ships as evidence; the architectural
+finding becomes a new R-item; the dev does NOT take a fix-iteration.
+
+**NEW R-item:** `R-option-beta-coverage-gap-uc-a-uc-c-shape`
+(layer: `eval_spec` / `prompt_projection`; proposed for next-
+milestone consumption). Scope:
+
+1. Empirically characterize which `topic_subject` form values, and
+   in what combinations with `description` content, produce
+   intake-AMBIGUOUS routing with both UC-A and UC-C in the
+   candidate list (or both UC-A and UC-D, etc., for the broader
+   worked-example shape per `iteration_governance.md` §7.2).
+2. Investigate whether the §7.2 worked-example anchor should be
+   re-named to a UC pair that DOES fall within Option β's coverage
+   (e.g., UC-A↔UC-FP per Sprint 32 neighbor #1 evidence:
+   `cs32n01_uc_a_uc_fp_drift` did exercise the populated-slot
+   shape; the alternates list contained UC-FP).
+3. OR investigate whether a different soft-signal source (Option γ
+   live AlternateUseCaseSurveyor, Option ε LLM structured
+   reflection) is required to surface the post-routing UC-A↔UC-C
+   drift shape that intake AMBIGUOUS cannot anticipate.
+
+The R-item is consumed by a future milestone (likely M1 sub-sprint
+or M2). Sprint 32 does not pre-decide which.
+
+### 13.3 What Sprint 32 DID validate (positive findings tucked inside Finding 2)
+
+Codex's own re-extraction (`docs/codex-findings.md` Schema And
+Reproducibility Checks) confirms:
+
+- **Neighbor #1** `cs32n01_uc_a_uc_fp_drift`: observed alternates
+  `['UC-A', 'UC-FP', 'UC-H']` — DOES exercise the populated-slot
+  shape. UC-FP is in the alternates; the LLM can read it.
+- **Both negative cases** `cs32g01_uc_a_deepens_no_drift` and
+  `cs32g02_uc_a_explicit_stay`: observed populated alternates
+  (negative #1: `['UC-B', 'UC-FP', 'UC-H']`; negative #2:
+  `['UC-A', 'UC-FP', 'UC-H']`) AND the LLM stayed in the active
+  UC. This validates §1.7 non-enforcement at the LLM-behaviour
+  level — the LLM observes the slot and chooses to ignore it when
+  the user clearly stays in the active UC. This is the load-bearing
+  §1.7 evidence the Sprint 31 fix-iteration #2 strengthened T8 only
+  proved at the runtime level; Sprint 32 negatives extend the proof
+  to the LLM-behavior level.
+- **Backwards-compat schema** preserved on all 5 cases; loader
+  works on the corrected shadow path; manifest appends are pure
+  EOF appends with no edits to existing entries.
+
+These positive findings are the substance of why Sprint 32 closes
+PASS (with investigation finding) rather than blocking.
+
+### 13.4 Inputs to the next milestone (M1)
+
+Sprint 32's investigation finding + the existing R-item backlog
+flow into Milestone M1 (DISCOVER + Intake) per the deliver-agent +
+human 2026-05-16 governance upgrade decision. M1's first sub-sprint
+(Sprint 33) addresses the Alice bad case D1 dimension (DISCOVER UC
+disambiguation guidance) which is upstream of the worked-example
+validation problem Sprint 32 surfaced: if the LLM correctly chooses
+UC-A vs UC-H at DISCOVER, the alternate-slot's post-routing
+limitation matters less, because the routing decision itself is
+better.
+
+The `R-option-beta-coverage-gap-uc-a-uc-c-shape` R-item is queued
+for M1 sub-sprint 2 or 3 consumption per the M1 milestone-objective
+document.
