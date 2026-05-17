@@ -1,13 +1,13 @@
 ---
-title: Skill Foundation Design — Hybrid framing (envelope + Runtime-floor predicate); UC-switching wide continuity invariants
+title: Skill Foundation Design — Hybrid framing (envelope + Runtime-floor predicate); UC-switching wide continuity invariants [SUPERSEDED 2026-05-17]
 doc_tier: proposal
-status: proposal
-implementation_status: not_started
-source_of_truth: this file
+status: superseded
+implementation_status: superseded_mid_flight (only Sprint 36 freeze shipped; downstream Sprints 37+ per OLD framing never implemented)
+source_of_truth: docs/proposals/skill_registry_design.md (NEW Sprint 37 design freeze per NEW M2)
 last_reviewed: 2026-05-17
-review_cadence: per milestone
+review_cadence: archived; no future review
 supersedes: [docs/proposals/skill_orchestration_candidates.md]
-superseded_by: null
+superseded_by: docs/proposals/skill_registry_design.md
 notes: >
   Sprint 36 (M2-Skill sub-sprint 1) design-freeze output. Refines
   the Sprint 5 (F2) skill orchestration proposal into a hybrid
@@ -15,22 +15,88 @@ notes: >
   recommended order via prompt; terminal predicate via Java guard
   for Runtime-owned floor ONLY. Six sub-decisions D1-D6 covered.
   Carries the human authorization (verbatim quote) on the S1
-  citation predicate scope per `docs/milestone_objective.md` §6 #4.
-  Walks the §4.1 nine-question anti-hardcode kernel against the
-  proposed design pre-implementation. §8 surfaces a Tier-0
-  candidate question for human-review escalation per M2-Skill §10
-  stop condition #1.
+  citation predicate scope per OLD `docs/milestones/M2-Skill_objective.md`
+  §6 #4 (carried forward into NEW M2 §6 #4 verbatim).
+
+  SUPERSEDED MID-FLIGHT 2026-05-17 (see "Why superseded" section
+  below). This freeze's "minimum-surface incrementalism" framing
+  (reuse existing PhasePlan + new system_prompt.txt teaching
+  paragraph + new predicate adjacent to existing shouldRejectXxx
+  family) was wholesale rejected by the human in favor of a
+  first-class Skill Registry abstraction with retroactive
+  externalization. Body retained as historical reasoning archive
+  per `doc_governance.md` "Future proposals" supersede-not-delete
+  rule (the alternative-considered reasoning here informs why NEW
+  M2 took the bigger step).
 ---
 
-# Skill Foundation Design — Hybrid framing
+# Skill Foundation Design — Hybrid framing [SUPERSEDED 2026-05-17]
 
-> This document is the architectural decision doc that Sprints 37
+## Why superseded (2026-05-17)
+
+This doc was the architectural decision doc that Sprints 37 (S1 implementation), 38 (S2 implementation), and 39 (UC-switching wide continuity implementation) under OLD M2-Skill framing rode on. **It was wholesale superseded mid-flight on 2026-05-17 by `docs/proposals/skill_registry_design.md` (NEW Sprint 37 design freeze) per human direction.**
+
+**What this freeze decided (and got superseded for)**: minimum-surface incrementalism — reuse existing PhasePlan; add new teaching paragraph to `system_prompt.txt` adjacent to Sprint 23/31/33 paragraphs; add new Java predicate to `AgentRunLoopImpl.java` adjacent to existing Sprint 6/7/11 `shouldRejectXxx` family; no new Skill data model class, no new SkillRegistry, no externalized YAML/JSON Skill definitions. The freeze argued (§1, §3) that this was the "natural extension" within current PhasePlan framework without "core refactor".
+
+**Why the human rejected the minimum-surface framing**: this freeze, despite naming itself "Skill Foundation", actually PRESERVED the scattered Zhang-Sanfeng pattern that NEW M2 was supposed to fix. Sprint 23 teaching paragraph + Sprint 31 paragraph + Sprint 33 paragraph + would-be Sprint 37 paragraph would continue to accumulate side-by-side in `system_prompt.txt`. Sprint 6 predicate + Sprint 7 predicate + Sprint 11 predicate + would-be Sprint 37 predicate would continue to accumulate side-by-side in `AgentRunLoopImpl.java`. "Skill" in this freeze was just a label for "another paragraph plus another adjacent predicate" — there was no extracted abstraction. The human's M2 architectural intent was always "extract scattered content into a Skill abstraction" (research-agent proposal); this freeze inverted that intent by choosing the minimum-surface path.
+
+**What NEW M2 does instead** (per `docs/milestone_objective.md` NEW M2 + `docs/proposals/skill_registry_design.md` Sprint 37 NEW freeze):
+
+- Skill is a first-class externalized definition (YAML/JSON file under `server/src/main/resources/skills/`).
+- New `SkillRegistry` Java class loads + indexes Skill files at boot.
+- `PhaseEvaluator.java` becomes a Skill Selector (`skillRegistry.select(phase, useCase) → Skill`).
+- All 6 phase content (currently hardcoded as `systemInstruction` / `groundingInstruction` / `escalationPolicy` Java strings in PhaseEvaluator) retroactively migrated into Skill YAMLs.
+- All Sprint 23/31/33 teaching paragraphs in `system_prompt.txt` retroactively migrated into corresponding Skill `procedure` / `guardrails` blocks; `system_prompt.txt` shrinks to an orchestration shell.
+- All Sprint 6/7/11 Java predicates in `AgentRunLoopImpl.java` retroactively migrated into Skill `guardrails` enforced via a unified Skill terminal-predicate dispatcher.
+- S1 (`Resolve.FAQ.GroundedAnswer`) citation predicate ships as a `guardrails.must_cite_source` declaration in `resolve_faq_grounded_answer.yaml`, NOT as a standalone Java method in AgentRunLoopImpl. The §6 #4 verbatim human authorization on bounded inversion of `D-hard-citation-gate` is CARRIED FORWARD into NEW M2 verbatim.
+- S2 (`Resolve.Intake.CollectAndHandover`) intake-completeness predicate ships as a `guardrails.intake_complete_required` declaration in `resolve_intake_collect_and_handover.yaml`.
+- UC switch + state preservation ships at NEW Sprint 41 with a session-level state-bus + per-Skill `state_inheritance` declaration designed coherently with the Skill abstraction (not as a separate add-on).
+
+**Carry-forward into NEW M2 from this freeze**:
+
+- §6 #4 verbatim human authorization on S1 `must_cite_source` bounded inversion of `D-hard-citation-gate` (preserved verbatim in NEW M2 §6 #4 and in NEW Sprint 37 contract).
+- All hard fences on `RuntimeIntentClassifier` / `IntentClassification` / `DriftResult` / `DriftDetector` / `UseCaseRouter` / `ClassifyUseCaseTool` (M3-D deferred).
+- All hard fences on `escalation_reason` enum widening (`D-new-escalation-reason-enum` deferred to M3-A).
+- All hard fences on `INTAKE_UCS` edit (M3-B Single Handover Orchestrator deferred unless cutover pressure).
+- All hard fences on `D-full-issue-ledger` (hard-deferred; requires explicit new-objective approval).
+- All hard fences on existing case families + shadow case families (cascade fence carried from M1).
+- The Sprint 36 §1.3 MATERIAL FINDING about Sprint 11 §M1 `shouldRejectPrematureResolveOutcome` precedent (informs NEW Sprint 37 design decision (g) on predicate migration mapping).
+- The §4.1 nine-question kernel walk pattern (NEW Sprint 37 walks the same 9 questions on the NEW Skill Registry abstraction design).
+
+**What stays valid in this doc as architectural reasoning archive**:
+
+- §1 Purpose + relation to upstream — the framing of "Skill = parametrized PhasePlan" carries over.
+- §3 (D2) predicate shape decision — informs NEW Sprint 39 implementation choices on Skill guardrails dispatcher.
+- §4 (D3) S1 trigger condition decision — informs NEW S1 `must_cite_source` Skill guardrail scope.
+- §6 (D5) UC-switching invariant matrix sketch — informs NEW Sprint 41 design decision (i) state_inheritance semantics.
+- §7 §4.1 walk-through pattern — informs NEW Sprint 37 (j) walk methodology.
+
+**What is NO LONGER binding in this doc**:
+
+- D1 ("reuse existing PhasePlan; no new PhasePlan field or skill_envelope projection slot") — NEW M2 introduces new Skill data class, SkillRegistry, SkillLoader, and (in Sprint 41) prior_use_case_carry projection slot.
+- D4 ("envelope teaching as new system_prompt.txt paragraph") — NEW M2 migrates teaching INTO Skill YAML; system_prompt.txt shrinks to orchestration shell.
+- D6 ("Sprint 37 ships citation predicate adjacent to Sprint 11 §M1 in AgentRunLoopImpl") — NEW M2 Sprint 39 ships citation predicate as Skill `guardrails.must_cite_source` declaration enforced by unified Skill terminal-predicate dispatcher, NOT as adjacent Java method.
+
+The reasoning chain in §1-§8 below is preserved verbatim as historical record. Read it alongside NEW `docs/proposals/skill_registry_design.md` to understand what was rejected and why.
+
+---
+
+# Original Sprint 36 design freeze content below (preserved verbatim 2026-05-17; do NOT edit)
+
+> This document was the architectural decision doc that Sprints 37
 > (S1 implementation), 38 (S2 implementation), and 39 (UC-switching
-> wide continuity implementation) ride on. It supersedes the Sprint
-> 5 (F2) proposal at `docs/proposals/skill_orchestration_candidates.md`
-> (status: superseded; body retained as upstream reasoning archive
-> per `doc_governance.md`). The Sprint 5 (F2) reasoning is not
-> deleted; this freeze refines it.
+> wide continuity implementation) under OLD M2-Skill framing rode on.
+> It supersedes the Sprint 5 (F2) proposal at
+> `docs/proposals/skill_orchestration_candidates.md` (status:
+> superseded; body retained as upstream reasoning archive per
+> `doc_governance.md`). The Sprint 5 (F2) reasoning is not deleted;
+> this freeze refines it.
+>
+> **[2026-05-17 supersession addendum]**: Note this document was
+> itself superseded mid-flight on 2026-05-17 by
+> `docs/proposals/skill_registry_design.md` (NEW Sprint 37 design
+> freeze per NEW M2). See "Why superseded" section above for
+> rationale. The reasoning below is preserved as historical record.
 
 ## 1. Purpose + relation to upstream
 

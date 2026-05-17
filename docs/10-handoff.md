@@ -1,15 +1,109 @@
 # Current Handoff
 
-Date: 2026-05-16
+Date: 2026-05-17
 Branch: `refactor/remove-the-shackles`
 
 ## 1. Current phase
 
 Current phase:
+**Milestone M2 — Skill Registry Abstraction + Wholesale Retroactive Externalization (LLM-led, Policy-bounded)** (NEW M2 framing; **supersedes OLD M2-Skill mid-flight 2026-05-17** per human direction — OLD framing's minimum-surface incrementalism preserved the scattered Zhang-Sanfeng pattern that M2 was supposed to fix; NEW M2 promotes Skill to first-class abstraction with externalized YAML/JSON definitions + SkillRegistry + retroactive migration of ALL 6 phase content + Sprint 23/31/33 teaching paragraphs + Sprint 6/7/11 predicates). **State: NEW M2 milestone_objective drafted + approved 2026-05-17; NEW Sprint 37 design freeze contract drafted + approved 2026-05-17; deliver-agent housekeeping bundle staged (OLD M2-Skill archived at `docs/milestones/M2-Skill_objective.md` status superseded; OLD Sprint 36 freeze doc at `docs/proposals/skill_foundation_design.md` superseded in-place via supersede pattern; action_bank updated). Pending: human commit of deliver-agent bundle, then Sprint 37 dev session launch (Claude Code via `compact/sprint-037-dev-prompt.md`).** `docs/milestone_objective.md` carries NEW M2 contract (5 sub-sprints: S37 design freeze → S38 SkillRegistry core + 4 simpler phase Skills → S39 RESOLVE_FAQ + RESOLVE_INTAKE + Sprint 6/7/11 predicate migration + S1/S2 new predicates + unified dispatcher → S40 teaching extraction from system_prompt.txt → S41 UC switch + state preservation). `docs/sprint_objective.md` carries NEW Sprint 37 = Skill Registry + state-across-Skill design freeze contract (docs-only, NO server/ code; produces docs/proposals/skill_registry_design.md with 10 design decisions a-j locked; PROSPECTIVE §7 stanza covering Sprints 38/39/40/41; Codex per-sub-sprint review at S37 close per §4.3 trigger #1 Tier-0 candidate + #2 §1.7 boundary discussion). **NEW M2 acceptance bar recalibrated 2026-05-17 per human direction**: bad-case suite (Alice) + interactive eval composite_score are OBSERVATION only (NOT hard gate) — architecture-focused milestone, eval unstable, single-case sparsity, Skill design itself should be flexible rather than gated on specific case PASS; primary gate = functional review + Java tests + Sprint 37 freeze decisions honored across implementation sub-sprints (S38-S41). **M2-Skill scope (per `docs/milestone_objective.md`):** 5 sub-sprints across two tracks — Track A (anchor, 4 sub-sprints): **Sprint 36** Skill foundation + UC-switching continuity design freeze (`eval_spec` / governance per §3.2 Q6; CLOSED PASS 2026-05-17, commit `ed71031`; produced `docs/proposals/skill_foundation_design.md` ~750 lines / 8 sections / 6 sub-decisions D1-D6 + §4.1 walk + Tier-0 candidate write-ups) + **Sprint 37** S1 (`Resolve.FAQ.GroundedAnswer`) implementation (`prompt_projection` + `semantic_planner` + Runtime grounding floor per §1.4; NEW citation predicate in `RecordOutcomeTool` adjacent to existing Sprint 11 §M1 `shouldRejectPrematureResolveOutcome` per Sprint 36 §1.3 material finding; predicate scope BOUNDED per verbatim human authorization §6 #4 — RESOLVE_FAQ + `record_outcome(class=resolve)` + `source_id` citation present; anchored on Alice multi-trace closure-criterion (a) PASS with zero fabrication-condition triggers) + **Sprint 38** S2 (`Resolve.Intake.CollectAndHandover`) implementation (MUCH LIGHTER than original Sprint 5 F2 framing per Sprint 36 §1.3 material finding — predicate logic ALREADY ships as Sprint 7 §I2 `shouldRejectIncompleteIntakeHandover`; Sprint 38 ships envelope teaching in `system_prompt.txt` + optional reframing) + **Sprint 39** UC-switching wide continuity state implementation (`skill_state` + `prompt_projection`; 5×5 invariant matrix per Sprint 36 D5 freeze — principle-level + registry-driven intersection via `IntakeFieldsRegistry.canonicalFieldName` + `requiredFieldsFor`, NOT per-UC-pair branch; introduces NEW `prior_use_case_carry` soft-signal projection slot per Sprint 31/33 precedent); Track C (parallel, 1 sub-sprint): **Sprint 40** per-LLM-call latency characterization (consumes `R-llm-provider-latency-drift-2026-05-16`; pure `infra`; unchanged from prior M2 draft). **M2-Skill hard fences (per `docs/milestone_objective.md` §6, 19 items):** §6 #1 no per-UC-branch if-else in any skill body (YAML, Java, or prompt) per Constitution §1.7; §6 #2 Skill terminal predicate is Java guard ONLY for Runtime-owned floor per §1.4 (grounding-citation, capability, safety, PII, idempotency); §6 #3 Skill recommended order is soft prompt guidance, NOT hard enforcement; §6 #4 HARD FENCE INVERSION on `D-hard-citation-gate` (bounded Skill-bounded exception per verbatim human authorization 2026-05-17; predicate fires ONLY on RESOLVE_FAQ + `record_outcome(class=resolve)` + `source_id` citation presence; generic gate deferral preserved); §6 #5 no `RuntimeIntentClassifier.java` / `IntentClassification.java` / `DriftResult.java` / `DriftDetector.java` / `UseCaseRouter.java` / `ClassifyUseCaseTool.java` touch (M3-D `R-loosen-topic-uc-binding-llm-owned-drift` deferred to M3+); §6 #6 no edit to `PhaseEvaluator.INTAKE_UCS` (M3-B `D-single-handover-orchestrator` deferred to M3 unless Salesforce cutover calendar pressure); §6 #7 no `escalation_reason` enum widening at `PhaseEvaluator.java:39-63` (`D-new-escalation-reason-enum` deferral preserved; M3-A sibling rationale/confidence fields deferred to M3); §6 #8 no Tier-0 invariant without explicit human-review escalation (Sprint 36 surfaced two Tier-0 candidates OQ 7.1 + 7.2; both DEFER confirmed by deliver-agent + human + Codex; re-evaluate at M2 close); §6 #9-#10 no edits to existing case families / shadow case families (cascade fence carried from M1); §6 #12 no `iteration_governance.md` edit during M2 (constitution-discipline preserved per `feedback_constitution_discipline_vs_planning_anticipation.md`); §6 #17 no mocked-LLM as primary evidence per `feedback_mocked_llm_cannot_prove_prompt_causal_change.md`; §6 #18 no Skill prescribes LLM customer-facing language (LLM-owned per §1.3); §6 #19 no Skill hard-encodes per-step argument values (LLM-owned per §1.3). **M2-Skill acceptance bar:** Alice bad-case closure-criterion (a) PASS across at least 3 fresh real-LLM traces with **zero fabrication-condition triggers** via Sprint 37 S1 grounding-floor predicate enforcement (LLM cannot persist `record_outcome(class=resolve)` on a fabricated answer because the citation check fails). **Codex review plan:** per-sub-sprint for all semantic-touching sub-sprints (36 done, 37/38/39 upcoming) + milestone-shared cumulative architectural-posture check at M2 close. Sprint 36 per-sub-sprint Codex review fired per §4.3 trigger #1 (Tier-0 candidates surfaced; DEFER confirmed) + trigger #2 (§1.7 boundary discussion on hybrid framing); verdict `pass / 0` on first pass. **Sprint 36 close residual-risk note (Codex §10 deferred / non-blocking):** S1 predicate is minimum citation-presence floor only; intentionally does NOT judge citation relevance or factual content quality. If Sprint 37 traces still fabricate while carrying a `source_id`, that's a new Sprint 37/M2-close evidence item for human/Codex review, NOT a reason to broaden Sprint 36's frozen scope silently.
+
+---
+
+Preceding milestone:
+**Milestone M1 — DISCOVER + Intake** (closed PASS 2026-05-17 per `docs/milestones/M1_objective.md` §12 closure verdict; archive). Classification **A-with-Codex-finding-OOSR-classification + deliver-agent-finding-2-fix-in-close** (first milestone-shared close under the §8 framework, 2026-05-16 governance upgrade
+to milestone framework per `iteration_governance.md` §8 — 3-5
+coordinated sub-sprints per milestone, milestone-shared Codex
+review at close, smoke composite_score demoted to observation per
+§5.5, curated bad-case suite at `eval_interactive/case_specs/bad_cases/`
+as new primary acceptance gate). M1 shipped three sub-sprints
+(Sprint 33 `prompt_projection` commit `8a22aa6`; Sprint 34
+`skill_state` commit `e532f0d`; Sprint 35 `eval_spec` commit
+`eb65e2b`) across cumulative range `c9edb37..eb65e2b`. Java baseline
+preserved 932 → 983 (+51 new tests; UC-K regression guard preserved
+through M1). Codex milestone-shared review (`docs/sprints/M1-codex-review.md`)
+returned `fix_required / blocking_count: 2`. Deliver-agent + human
+classification at M1 close 2026-05-17: **Finding 1** (Alice
+grounding fabrication on Codex independent rerun; layer =
+`semantic_planner` per Codex triage) reclassified as
+**`out_of_scope_review`** per M1 §6 hard fence #1 (semantic_planner
+work is M1-out-of-scope by construction); opened new R-item
+`R-grounding-discipline-iterative-search-fabrication` as
+high-priority M2 anchor. **Finding 2** (Sprint 35 matrix §5/§6
+stale vs close decisions) resolved at M1 close via deliver-agent
+commit appending "Close decision update (2026-05-17)" addendum to
+`docs/diagnostics/option_beta_coverage_matrix.md` per Decision
+B-2a. **Constitution-discipline §7.2 revert** at Sprint 35 close —
+planning-anticipated §7.2 worked-example re-anchor was *considered
+and dropped* (governance teaches principles; current-implementation
+limits belong in the optimization backlog); captured in
+`.claude/agent-memory/sprint-deliver-orchestrator/feedback_constitution_discipline_vs_planning_anticipation.md`.
+Sprint 36 (conditional INTAKE-locked reroute investigation per M1
+§3 row) **deferred** — the conditional trigger ("Sprint 33+34 do
+NOT sufficiently close Alice") did NOT fire. **M2 candidate
+selection** per Decision C 2026-05-17 cross-validated by two
+parallel research-agents: M2 = M2-A ∪ M2-E.option-3 (grounding
+discipline + escalation honesty + customer-honesty); M2-C
+parallel-track instrumentation; M2-B orchestrator → M3 unless
+Salesforce cutover calendar pressure surfaces; M2-D Topic↔UC
+binding loosening → deferred to M3+. M1 final classification:
+**A-with-Codex-finding-OOSR-classification + deliver-agent-finding-2-fix-in-close**
+(first milestone-shared close under the §8 framework; first
+instance of this milestone-close classification pattern). M1
+objective archived at `docs/milestones/M1_objective.md` (with §12
+closure verdict appended); §6.5 closed-milestone index row added
+to `docs/action_bank.md`.
+
+---
+
+Preceding sub-sprint:
+**Sprint 36 (OLD M2-Skill sub-sprint 1) — Skill foundation design freeze** closed PASS 2026-05-17 (commit `ed71031`; Codex per-sub-sprint review `decision: pass / blocking_count: 0` on first pass). Produced `docs/proposals/skill_foundation_design.md` (~1100 lines / 8 sections / 6 sub-decisions D1-D6 + §4.1 walk + Tier-0 candidate write-ups) under minimum-surface incrementalism framing (reuse PhasePlan + new system_prompt.txt teaching paragraph + new predicate adjacent to existing shouldRejectXxx family). **OLD M2-Skill (which Sprint 36 shipped under) was wholesale superseded mid-flight on 2026-05-17 per human direction** — the minimum-surface freeze preserved the scattered Zhang-Sanfeng pattern that NEW M2 was supposed to fix. Sprint 36 commit + archive stay immutable per `doc_governance.md` sprint-archive rule; the Sprint 36 freeze doc (`docs/proposals/skill_foundation_design.md`) is superseded in-place via supersede pattern (status: superseded + superseded_by: `docs/proposals/skill_registry_design.md` to be authored by NEW Sprint 37 dev); the OLD M2-Skill milestone_objective is archived at `docs/milestones/M2-Skill_objective.md` (status: superseded; supersession-mid-flight). §6 #4 verbatim human authorization on S1 `must_cite_source` bounded inversion of `D-hard-citation-gate` CARRIED FORWARD into NEW M2 §6 #4. Sprint 36 §1.3 MATERIAL FINDING about Sprint 11 §M1 `shouldRejectPrematureResolveOutcome` precedent informs NEW Sprint 37 design decision (g) on predicate migration mapping. Full handoff: `docs/sprints/sprint-036-handoff.md` (53.4K, 12 sections); Codex archive: `docs/sprints/sprint-036-codex-review.md`.
+
+---
+
+Earlier sprint:
+Sprint 32 (alternate_candidate_use_cases case family — Sprint 31
+OQ4 deferral implementation, single-track semantic-touching sprint,
+layer `eval_spec` per §3.2 Q6) closed on **2026-05-16** as
+**PASS — A-with-investigation-finding** (first instance of this
+pattern on the `eval_spec` layer; Sprint 29 in-flight downgrade
+precedent applied). Dev commit `c9edb37` shipped 10+ files: source
+brief at `docs/diagnostics/failure-briefs/sprint32-uc-a-uc-c-alternate-uc-readiness.md`
++ 5 visible CaseSpecs at `eval_interactive/case_specs/case_families/sprint32_alternate_uc/`
++ 2 shadow CaseSpecs at `eval_interactive/case_specs_shadow/case_families/sprint32_alternate_uc/`
+(per `_ACCESS_BOUNDARY.md:91` convention) + 1 local manifest + 2
+manifest appends + dev handoff. Java baseline preserved
+(917 / 1-inherited / 0 / 2; zero Sprint 32 Java change). 14-case
+smoke rerun showed no production-code-attributable regression.
+**Codex sprint-close returned `fix_required / blocking_count: 2`**
+at commit range `8d3e73b..c9edb37`. Deliver-agent + human classified
+Finding 1 (shadow path scope mismatch) as **`out_of_scope_review`**
+— deliver-agent objective `docs/sprint_objective.md` had wrong
+shadow path; dev correctly followed `_ACCESS_BOUNDARY.md:91`;
+deliver-agent corrected objective post-facto in close cycle.
+Finding 2 (target case observed alternates lack UC-C; neighbor #2
+ROUTED not AMBIGUOUS — Sprint 30 Option β coverage prediction of
+§7.2 worked-example shape empirically falsified) classified as
+**in-flight downgrade to investigation finding**, new R-item
+`R-option-beta-coverage-gap-uc-a-uc-c-shape` registered (`eval_spec`
+/ `prompt_projection`; proposed; consumed by M1 sub-sprint 2 or 3).
+Positive findings tucked inside Finding 2: neighbor #1 DID exercise
+populated-slot shape (alternates contained UC-FP); both negative
+cases observed populated alternates AND LLM stayed in active UC —
+validates §1.7 non-enforcement at LLM-behaviour level (Sprint 31
+fix-iteration #2 T8 proved at runtime level; Sprint 32 negatives
+extend the proof to LLM-behavior level). Full handoff: `docs/sprints/sprint-032-handoff.md`
+(13 sections including the §13 findings-classification narrative);
+Codex archive: `docs/sprints/sprint-032-codex-review.md`.
+
+---
+
+Earlier earlier sprint:
 Sprint 31 (alternate_candidate_use_cases projection slot — Option β
 implementation, single-track semantic-touching sprint, layer
 `prompt_projection` per `iteration_governance.md` §3.2 Q3, §7 stanza
-filled) closed on **2026-05-16** as **PASS path A**
+filled) closed on **2026-05-16** as **PASS — chained close (path A
++ fix-iteration #2)**
 (deliver-agent + human applied; full closure rationale in
 `docs/sprints/sprint-031-handoff.md` §12). Two commits on
 `refactor/remove-the-shackles`: `2c1fd41` (Sprint 31 dev ship) and
@@ -54,20 +148,31 @@ provider drift** (mean elapsed_ms +84% vs Sprint 28 reference with
 zero Sprint 31 latency-config / model / retry change). Both
 falsifiable internal hypotheses — cold-start race (§7.1(a) per
 dev handoff) and system_prompt teaching paragraph (§13.3) — were
-REJECTED by the fix iteration. Codex review is REQUIRED at close
-(semantic-touching, no §4.1 exemption); deliver-agent / human
-dispatch Codex against commits `2c1fd41` + `de47635`. Two
-follow-on R-items registered in `docs/action_bank.md`:
+REJECTED by the fix iteration. Codex sprint-close review COMPLETED:
+**initial verdict `fix_required / blocking_count: 2`** at
+`8908775` (Finding 1 smoke regression, Finding 2 T8 too weak);
+deliver-agent + human classified Finding 1 as `out_of_scope_review`
+(carried by `R-llm-provider-latency-drift-2026-05-16` per
+Constitution §1.6) and Finding 2 as `fix_required (targeted P1)`.
+**Fix-iteration #2** at commit **`8d3e73b`** strengthened T8 from 1
+happy-path scenario to 6 parameterised variants × 5 invariance bars;
+dedicated handoff at `docs/sprints/sprint-031-fix-handoff.md`. **Codex
+re-review verdict `pass / blocking_count: 0`** at `8908775..8d3e73b`
+(Finding 2 closed; Finding 1 confirmed OOSR carry). Full chronological
+review archive at `docs/sprints/sprint-031-codex-review.md`. Final
+classification: **A-with-fix-iteration-investigation +
+A-with-fix-iteration-#2 (chained close; first instance of the pattern)**.
+Follow-on R-items in `docs/action_bank.md`:
 **`R-llm-provider-latency-drift-2026-05-16`** (`infra` /
 observability — characterize the +84% latency widening per §13.7;
-recommended next deliver decision) and the named-but-not-opened
-`R-sprint-31-case-family-authoring` (`eval_spec` — CaseSpec
-authoring for the §7.2 UC-A↔UC-C target / neighbor / negative /
-shadow split, deferred per OQ4 pre-pick).
+deferred behind Sprint 31+1 per 2026-05-16 planning pick) and
+**Sprint 31+1 case-family-authoring sprint** (`eval_spec` — picked
+as next current sprint per OQ4 pre-pick + 2026-05-16 deliver-agent +
+human decision).
 
 ---
 
-Preceding sprint:
+Earlier sprint:
 Sprint 30 (Alternate-UC signal data-source design — investigation-
 only docs-only architectural-design sprint, single deliverable: one
 new design proposal doc at `docs/proposals/alternate_uc_signal_data_source_design.md`
