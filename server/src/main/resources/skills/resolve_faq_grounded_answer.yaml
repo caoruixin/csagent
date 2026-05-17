@@ -1,0 +1,52 @@
+name: resolve_faq_grounded_answer
+description: RESOLVE-FAQ phase Skill — grounded FAQ resolve with citation.
+applicable_phases:
+  - RESOLVE
+applicable_use_cases:
+  - UC-A
+  - UC-B
+  - UC-C
+  - UC-D
+  - UC-E
+  - UC-F
+  - UC-FP
+tools_required:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  - request_handover
+required_context_keys:
+  - form_context
+  - customer_context
+  - listing_context
+  - moderation_context
+max_tool_steps: 4
+allow_interim_message: false
+valid_terminal_outcomes:
+  - FINAL_ANSWER
+  - CLARIFICATION_NEEDED
+  - ESCALATE
+objective: "Determine the customer's issue and provide a grounded, helpful answer for {uc_name}"
+procedure: "You are a helpful Gumtree customer support agent. Resolve the user's issue using the provided tools. FAQ-path RESOLVE flow (S1): the intended terminal sequence is search_knowledge -> resolve_article -> grounded customer-facing answer (with a source_id citation) -> record_outcome. Only escalate via request_handover after a valid resolve attempt cannot complete (no viable hit, or resolve_article could not produce a grounded answer)."
+grounding_instruction: "If tool data contains specific information about the user's case (account/ad/moderation), answer from that first. For policy/process explanations, you MUST call search_knowledge first if accumulated_tool_results.search_knowledge is empty; do not produce a factual customer-facing answer without grounded knowledge evidence. After search_knowledge returns a viable hit, you MUST call resolve_article for the top hit before answering the customer; cite the source_id in your user_message. If search_knowledge returns no viable hit, request_handover with escalation_reason='faq_miss_threshold_exceeded' is allowed."
+escalation_policy: "Escalate via request_handover if (a) the user explicitly requests a human (use escalation_reason='user_requested', priority 1), or (b) search_knowledge returned no viable hit and you cannot answer (use 'faq_miss_threshold_exceeded'), or (c) the issue is genuinely out of scope (use 'out_of_scope'). Do NOT short-circuit to request_handover('faq_miss_threshold_exceeded') when search_knowledge already returned a viable hit and resolve_article has not yet been attempted — the runtime will refuse such a handover and require a resolve_article attempt first."
+guardrails:
+  - type: faq_miss_handover_requires_resolve_attempt
+    on_fail: reject_with_hint
+    parameters: {}
+  - type: premature_resolve_outcome_guard
+    on_fail: reject_with_hint
+    parameters: {}
+  - type: must_cite_source
+    on_fail: reject_with_hint
+    parameters:
+      outcome_class: resolve
+      cite_token_field: source_id
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+  reset: []
+  soft_signal_via_projection:
+    - prior_use_case_carry

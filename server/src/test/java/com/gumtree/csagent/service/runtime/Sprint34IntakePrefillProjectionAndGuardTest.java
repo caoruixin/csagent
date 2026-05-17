@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.model.ToolCall;
+import com.gumtree.csagent.service.runtime.skill.DispatchContext;
+import com.gumtree.csagent.service.runtime.skill.RejectVerdict;
+import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.ToolPolicyEnforcer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -127,7 +132,7 @@ class Sprint34IntakePrefillProjectionAndGuardTest {
                 objectMapper, session.getIntakeFields());
         assertTrue(IntakeFieldsRegistry.intakeComplete("UC-H", collected),
                 "intake_complete(UC-H) must flip true once all three required fields are present");
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(
+        assertFalse(dispatcherRejectsIntakeIncomplete(
                 intakePlan("UC-H"), inlineCall, session),
                 "guard must allow the handover once stated_reason has also been supplied");
     }
@@ -149,7 +154,7 @@ class Sprint34IntakePrefillProjectionAndGuardTest {
 
         ToolCall prematureCall = new ToolCall("request_handover",
                 Map.of("escalation_reason", "intake_complete_for_uc_h"));
-        assertTrue(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(
+        assertTrue(dispatcherRejectsIntakeIncomplete(
                 intakePlan("UC-H"), prematureCall, session),
                 "guard must still reject intake_complete_for_uc_h when "
                         + "stated_reason_or_context is unsupplied");
@@ -164,7 +169,7 @@ class Sprint34IntakePrefillProjectionAndGuardTest {
 
         ToolCall escape = new ToolCall("request_handover",
                 Map.of("escalation_reason", "user_requested"));
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(
+        assertFalse(dispatcherRejectsIntakeIncomplete(
                 intakePlan("UC-H"), escape, session),
                 "user_requested escape path must pass through regardless of "
                         + "intake completeness — Alice closure-criterion (c) shape");
@@ -212,7 +217,7 @@ class Sprint34IntakePrefillProjectionAndGuardTest {
         Map<String, String> collected = IntakeFieldsRegistry.parseCollectedFields(
                 objectMapper, session.getIntakeFields());
         assertTrue(IntakeFieldsRegistry.intakeComplete("UC-G", collected));
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(
+        assertFalse(dispatcherRejectsIntakeIncomplete(
                 intakePlan("UC-G"), inlineCall, session));
     }
 
@@ -260,7 +265,7 @@ class Sprint34IntakePrefillProjectionAndGuardTest {
         Map<String, String> collected = IntakeFieldsRegistry.parseCollectedFields(
                 objectMapper, session.getIntakeFields());
         assertTrue(IntakeFieldsRegistry.intakeComplete("UC-J", collected));
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(
+        assertFalse(dispatcherRejectsIntakeIncomplete(
                 intakePlan("UC-J"), inlineCall, session));
     }
 
@@ -303,7 +308,7 @@ class Sprint34IntakePrefillProjectionAndGuardTest {
 
         ToolCall prematureCall = new ToolCall("request_handover",
                 Map.of("escalation_reason", "intake_complete_for_uc_i"));
-        assertTrue(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(
+        assertTrue(dispatcherRejectsIntakeIncomplete(
                 intakePlan("UC-I"), prematureCall, session),
                 "intake-complete guard must still reject UC-I handover when "
                         + "no required fields are collected");
@@ -399,5 +404,28 @@ class Sprint34IntakePrefillProjectionAndGuardTest {
         when(useCaseRegistry.getUseCase(uc)).thenReturn(def);
         when(toolPolicyEnforcer.getVisibleToolsForUc(uc))
                 .thenReturn(List.of("request_handover"));
+    }
+
+    /**
+     * Sprint 39 — invoke the unified SkillGuardrailDispatcher per the
+     * Sprint 37 freeze §8.2.2 migration of Sprint 7 §I2
+     * shouldRejectIncompleteIntakeHandover. The dispatcher's
+     * intake_complete_required handler delegates required-fields check to
+     * {@link IntakeFieldsRegistry} exactly as the legacy static predicate
+     * did, preserving the Sprint 34 contract bit-for-bit.
+     */
+    private boolean dispatcherRejectsIntakeIncomplete(PhasePlan plan,
+                                                      ToolCall call,
+                                                      BotSession session) {
+        SkillGuardrailDispatcher dispatcher = SkillTestFixtures.productionDispatcher();
+        DispatchContext ctx = new DispatchContext(
+                plan, session, Map.of(), null, Optional.empty());
+        Optional<RejectVerdict> verdict = dispatcher.checkBeforeDispatch(plan, call, ctx);
+        if (verdict.isEmpty()) return false;
+        assertEquals(SkillGuardrailDispatcher.INTAKE_INCOMPLETE_REJECT_REASON,
+                verdict.get().predicateName(),
+                "intake_complete_required guardrail must use the canonical Sprint 7 §I2 "
+                        + "reject-reason label");
+        return true;
     }
 }

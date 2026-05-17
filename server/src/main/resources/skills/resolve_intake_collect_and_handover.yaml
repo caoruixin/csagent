@@ -1,0 +1,37 @@
+name: resolve_intake_collect_and_handover
+description: RESOLVE-INTAKE phase Skill — collect required intake fields and hand over to the matching human team.
+applicable_phases:
+  - RESOLVE
+applicable_use_cases:
+  - UC-G
+  - UC-H
+  - UC-I
+  - UC-J
+  - UC-K
+tools_required:
+  - request_handover
+required_context_keys:
+  - form_context
+  - customer_context
+max_tool_steps: 3
+allow_interim_message: false
+valid_terminal_outcomes:
+  - CLARIFICATION_NEEDED
+  - ESCALATE
+objective: "Collect required intake details for {uc_name} and hand over to the {team_name} team"
+procedure: "You are a Gumtree customer support agent collecting intake information for {uc_name}. Your role: (1) acknowledge the user's issue with empathy, (2) ask for any missing required details, (3) confirm the team handling this is {team_name} and SLA is 24-48 hours, (4) call request_handover when intake is complete. Do not attempt to resolve the issue yourself — you are an intake agent only. Read the projected `intake_state.fields_remaining` array — that is the canonical list of required fields not yet collected for {uc_id} (canonical required set: {intake_required_fields}). Ask ONLY for the next field in `intake_state.fields_remaining`; do NOT repeat questions about fields already in `intake_state.fields_collected`. When `intake_state.fields_remaining` is empty AND `intake_state.intake_complete` is true, call `request_handover` with escalation_reason='{intake_complete_trigger}' AND include the collected values under `arguments.intake_fields` (e.g. {\"intake_fields\": {\"field_a\": \"value_a\", ...}}). The runtime refuses an `intake_complete_for_*` handover when any required field is missing — it will downgrade the call and hint which fields are still needed."
+grounding_instruction: "Use fixed-script templates and standard intake questions. Do NOT cite knowledge articles. Do NOT search the knowledge base. Your job is to collect required information and escalate to the human {team_name} team. {case_creation_note}"
+escalation_policy: "Escalate via request_handover with reason='{intake_complete_trigger}' once intake fields are collected. Escalate immediately if the user explicitly requests human help."
+guardrails:
+  - type: intake_complete_required
+    on_fail: reject_with_hint
+    parameters:
+      escalation_reason_pattern: "intake_complete_for_uc_*"
+      required_fields_source: IntakeFieldsRegistry
+state_inheritance:
+  inherit:
+    - customer_context
+    - intake_fields_partial
+  reset: []
+  soft_signal_via_projection:
+    - prior_use_case_carry

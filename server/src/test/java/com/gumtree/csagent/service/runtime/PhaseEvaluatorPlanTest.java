@@ -338,7 +338,11 @@ class PhaseEvaluatorPlanTest {
 
     @Test
     void plan_unknownUcInRegistry_returnsNull() {
-        when(useCaseRegistry.getUseCase("UC-X")).thenReturn(null);
+        // Sprint 39 — post-migration, plan() no longer calls
+        // useCaseRegistry.getUseCase() directly for the RESOLVE branch
+        // (composition flows through SkillRegistry.select). UC-X is not
+        // in either RESOLVE Skill's applicable_use_cases, so the registry
+        // returns Optional.empty() and plan returns null.
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-X"), "msg", List.of());
         assertNull(plan);
     }

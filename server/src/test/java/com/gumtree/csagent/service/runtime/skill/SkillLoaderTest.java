@@ -19,9 +19,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Sprint 38 unit coverage for {@link SkillLoader} per Sprint 37 freeze §3.3
  * (loader semantics) + §2.2 (schema validation contract).
  *
- * <p>{@link #loadAll_productionSkills_loadsFourSkills()} verifies the 4
- * Sprint 38 production YAML files under {@code src/main/resources/skills/}
- * parse cleanly. The remaining tests build minimal in-memory YAML streams
+ * <p>{@link #loadAll_productionSkills_loadsAllSkills()} verifies the 6
+ * production YAML files under {@code src/main/resources/skills/} parse
+ * cleanly (Sprint 38's 4 simpler phase Skills + Sprint 39's 2 RESOLVE
+ * Skills). The remaining tests build minimal in-memory YAML streams
  * and verify fail-fast behaviour for each schema violation.
  *
  * <p>Sprint 38 fix iteration #1 (Codex Blocking Finding 1) adds 5 negative
@@ -47,16 +48,22 @@ class SkillLoaderTest {
     }
 
     @Test
-    void loadAll_productionSkills_loadsFourSkills() {
+    void loadAll_productionSkills_loadsAllSkills() {
         List<Skill> skills = loader.loadAll();
-        assertEquals(4, skills.size(),
-                "Sprint 38 ships 4 Skill YAMLs (DISCOVER + CONFIRM + ESCALATE + TERMINAL/CLOSE)");
+        assertEquals(6, skills.size(),
+                "Post-Sprint-39: 6 production Skill YAMLs (Sprint 38's "
+                        + "DISCOVER + CONFIRM + ESCALATE + TERMINAL/CLOSE plus Sprint 39's "
+                        + "RESOLVE-FAQ + RESOLVE-INTAKE)");
 
         List<String> names = skills.stream().map(Skill::name).toList();
         assertTrue(names.contains("discover_triage"));
         assertTrue(names.contains("confirm"));
         assertTrue(names.contains("escalate"));
         assertTrue(names.contains("terminal"));
+        assertTrue(names.contains("resolve_faq_grounded_answer"),
+                "Sprint 39 ships resolve_faq_grounded_answer.yaml");
+        assertTrue(names.contains("resolve_intake_collect_and_handover"),
+                "Sprint 39 ships resolve_intake_collect_and_handover.yaml");
 
         Skill discover = skills.stream()
                 .filter(s -> "discover_triage".equals(s.name())).findFirst().orElseThrow();
@@ -72,6 +79,28 @@ class SkillLoaderTest {
                 .filter(s -> "terminal".equals(s.name())).findFirst().orElseThrow();
         assertEquals(List.of("CLOSE"), terminal.applicablePhases(),
                 "OQ-7.1 default: keep CLOSE phase enum; file name terminal.yaml carries the M3+ intent");
+
+        // Sprint 39 — verify the 2 RESOLVE Skills carry their expected guardrails.
+        Skill resolveFaq = skills.stream()
+                .filter(s -> "resolve_faq_grounded_answer".equals(s.name()))
+                .findFirst().orElseThrow();
+        assertEquals(3, resolveFaq.guardrails().size(),
+                "RESOLVE-FAQ Skill ships 3 guardrails per Sprint 37 freeze §6.2.6: "
+                        + "faq_miss_handover_requires_resolve_attempt + "
+                        + "premature_resolve_outcome_guard + must_cite_source");
+        assertEquals(List.of("UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP"),
+                resolveFaq.applicableUseCases());
+
+        Skill resolveIntake = skills.stream()
+                .filter(s -> "resolve_intake_collect_and_handover".equals(s.name()))
+                .findFirst().orElseThrow();
+        assertEquals(1, resolveIntake.guardrails().size(),
+                "RESOLVE-INTAKE Skill ships 1 guardrail per Sprint 37 freeze §6.2.5: "
+                        + "intake_complete_required");
+        assertEquals("intake_complete_required",
+                resolveIntake.guardrails().get(0).type());
+        assertEquals(List.of("UC-G", "UC-H", "UC-I", "UC-J", "UC-K"),
+                resolveIntake.applicableUseCases());
     }
 
     @Test
