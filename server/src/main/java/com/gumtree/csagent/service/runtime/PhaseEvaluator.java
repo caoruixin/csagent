@@ -194,60 +194,14 @@ public class PhaseEvaluator {
         return "turn_budget_exhausted";
     }
 
-    /**
-     * Build the INTAKE system instruction for a given UC. Mirrors the legacy
-     * {@code resolveIntake} prompt pattern: acknowledge with empathy, collect
-     * any missing required details, hand over to the named team, and (for
-     * UC-H/J/K) create a tracking case before handover.
-     *
-     * <p>Sprint 7 §I2 — references the {@code intake_state} projection slot
-     * so the LLM can see which required fields have already been collected
-     * and which are still missing, ask only for the next missing field, and
-     * provide the collected values back to the runtime via
-     * {@code request_handover.arguments.intake_fields} when intake is
-     * complete.
-     */
-    private String buildIntakeSystemInstruction(String uc,
-                                                UseCaseRegistryService.UseCaseDefinition ucDef) {
-        String teamName = UC_TEAM_NAME.getOrDefault(uc, "specialist");
-        String slaHours = DEFAULT_SLA_HOURS;
-        StringBuilder sb = new StringBuilder();
-        sb.append("You are a Gumtree customer support agent collecting intake information for ");
-        sb.append(ucDef.name()).append(". ");
-        sb.append("Your role: (1) acknowledge the user's issue with empathy, ");
-        sb.append("(2) ask for any missing required details, ");
-        sb.append("(3) confirm the team handling this is ").append(teamName)
-                .append(" and SLA is ").append(slaHours).append(" hours, ");
-        sb.append("(4) call request_handover when intake is complete.");
-        // Codex 1.8: case creation is a runtime-only side effect; do NOT instruct
-        // the LLM to order it. The runtime creates the tracking case
-        // deterministically before handover for UC-H/J/K.
-        sb.append(" Do not attempt to resolve the issue yourself — you are an intake agent only.");
-
-        // Sprint 7 §I2 — intake_state cue. Reference the projected
-        // intake_state slot so the LLM stops re-deriving the missing-field
-        // set every turn (cs_066 r2 turn-budget variance shape).
-        List<String> required = IntakeFieldsRegistry.requiredFieldsFor(uc);
-        if (!required.isEmpty()) {
-            sb.append(" Read the projected `intake_state.fields_remaining` array")
-                    .append(" — that is the canonical list of required fields not yet")
-                    .append(" collected for ").append(uc).append(" (canonical required set: ")
-                    .append(required).append("). Ask ONLY for the next field in")
-                    .append(" `intake_state.fields_remaining`; do NOT repeat questions about")
-                    .append(" fields already in `intake_state.fields_collected`. When")
-                    .append(" `intake_state.fields_remaining` is empty AND")
-                    .append(" `intake_state.intake_complete` is true, call")
-                    .append(" `request_handover` with escalation_reason='")
-                    .append(intakeCompleteTrigger(uc))
-                    .append("' AND include the collected values under")
-                    .append(" `arguments.intake_fields` (e.g.")
-                    .append(" {\"intake_fields\": {\"field_a\": \"value_a\", ...}}). The")
-                    .append(" runtime refuses an `intake_complete_for_*` handover when any")
-                    .append(" required field is missing — it will downgrade the call and")
-                    .append(" hint which fields are still needed.");
-        }
-        return sb.toString();
-    }
+    // Sprint 39 — the legacy buildIntakeSystemInstruction(uc, ucDef) helper
+    // is removed; its content is now externalized in
+    // server/src/main/resources/skills/resolve_intake_collect_and_handover.yaml
+    // (procedure field) and the per-UC substitutions are performed by
+    // substitutePlaceholders(...) below per Sprint 37 freeze §6.2.5.
+    // DEFAULT_SLA_HOURS is a hardcoded "24-48" in the Skill YAML procedure;
+    // it is intentionally NOT a substitution placeholder because no per-UC
+    // variation exists.
 
     private final UseCaseRegistryService useCaseRegistry;
     private final KnowledgeSearchService knowledgeSearchService;
@@ -395,139 +349,25 @@ public class PhaseEvaluator {
         String phase = session.getCurrentPhase();
         String activeUc = session.getActiveUseCase();
 
-        // NEW M2 Sprint 38: SkillRegistry-driven composition for the 4 simpler
-        // phases (DISCOVER, CONFIRM, CLOSE, ESCALATE) per design doc §4.1.
-        // The 2 RESOLVE phases (FAQ + INTAKE) stay on the legacy Java-string
-        // branch below until Sprint 39 migrates them; SkillRegistry.select(...)
-        // returns Optional.empty() for those tuples and execution falls through.
+        // Sprint 39 (NEW M2): SkillRegistry-driven composition for ALL 6
+        // phases per Sprint 37 freeze decisions (e §6.2.5 + §6.2.6) and
+        // (c §4.1). The 4 simpler Sprint 38 Skills (DISCOVER + CONFIRM +
+        // CLOSE + ESCALATE) carry guardrails: [] and no template
+        // placeholders; the 2 Sprint 39 RESOLVE Skills (FAQ + INTAKE) carry
+        // guardrails enforced by SkillGuardrailDispatcher and template
+        // placeholders substituted by composeSkillPhasePlan(...).
         if (skillRegistry != null) {
             Optional<Skill> selected = skillRegistry.select(phase, activeUc);
             if (selected.isPresent()) {
                 return composeSkillPhasePlan(selected.get(), phase, activeUc);
             }
         }
-
-        if (!"RESOLVE".equals(phase)) {
-            // Unrecognized phase — fall back to legacy path.
-            return null;
-        }
-        if (activeUc == null || activeUc.isBlank()) {
-            return null;
-        }
-        if (INTAKE_UCS.contains(activeUc)) {
-            // D16.C: INTAKE branch.
-            UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
-            if (ucDef == null) {
-                return null;
-            }
-            String teamName = UC_TEAM_NAME.getOrDefault(activeUc, "specialist");
-
-            // Codex 1.8: case creation is runtime-only (tool_spec
-            // visibility: runtime_only). The deterministic
-            // PhaseEvaluator.createCaseIfAllowed / ControlKernel.createCaseIfNeeded
-            // hooks already create UC-H/J/K cases before handover, so the LLM
-            // must never be permitted to call create_case_controlled. Both UCs
-            // and UC-G/I therefore expose only request_handover here.
-            boolean needsCase = Set.of("UC-H", "UC-J", "UC-K").contains(activeUc);
-            List<String> tools = List.of("request_handover");
-
-            return PhasePlan.builder()
-                    .phase("RESOLVE")
-                    .useCase(activeUc)
-                    .objective("Collect required intake details for " + ucDef.name()
-                            + " and hand over to the " + teamName + " team")
-                    .allowedTools(tools)
-                    .requiredContextKeys(Set.of("form_context", "customer_context"))
-                    .maxToolSteps(3)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(
-                            TerminalOutcome.CLARIFICATION_NEEDED,
-                            TerminalOutcome.ESCALATE))
-                    .systemInstruction(buildIntakeSystemInstruction(activeUc, ucDef))
-                    .groundingInstruction(
-                            "Use fixed-script templates and standard intake questions. "
-                                    + "Do NOT cite knowledge articles. Do NOT search the knowledge base. "
-                                    + "Your job is to collect required information and escalate to the human "
-                                    + teamName + " team. "
-                                    + (needsCase
-                                            ? "A tracking case will be created automatically by the runtime when you escalate; "
-                                              + "you do not need to call any case-creation tool yourself."
-                                            : ""))
-                    .escalationPolicy(
-                            "Escalate via request_handover with reason='" + intakeCompleteTrigger(activeUc) + "' "
-                                    + "once intake fields are collected. "
-                                    + "Escalate immediately if the user explicitly requests human help.")
-                    .build();
-        }
-
-        // RESOLVE / FAQ branch.
-        UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
-        if (ucDef == null) {
-            return null;
-        }
-        // Skip plan if path is explicitly INTAKE (defense in depth — INTAKE_UCS
-        // already covers UC-G/H/I/J/K).
-        if ("INTAKE".equals(ucDef.path())) {
-            return null;
-        }
-
-        // Sprint 6 §G2 — S1 FAQ-grounded-resolve PhasePlan branch.
-        // Enforces the terminal sequence search_knowledge -> resolve_article ->
-        // grounded customer-facing answer -> record_outcome, OR an explicit
-        // handover only after a valid resolve attempt cannot complete. The
-        // server-side handover-guard in AgentRunLoopImpl owns the deterministic
-        // predicate; this systemInstruction / groundingInstruction / escalationPolicy
-        // triple makes the contract visible to the LLM. record_outcome is added
-        // to allowedTools so the LLM can call it after a grounded answer
-        // without leaving RESOLVE.
-        return PhasePlan.builder()
-                .phase("RESOLVE")
-                .useCase(activeUc)
-                .objective("Determine the customer's issue and provide a grounded, helpful answer for "
-                        + ucDef.name())
-                .allowedTools(List.of("get_customer_context", "search_knowledge",
-                        "resolve_article", "record_outcome", "request_handover"))
-                .requiredContextKeys(Set.of("form_context", "customer_context",
-                        "listing_context", "moderation_context"))
-                .maxToolSteps(4)
-                .allowInterimMessage(false)
-                .validTerminalOutcomes(Set.of(
-                        TerminalOutcome.FINAL_ANSWER,
-                        TerminalOutcome.CLARIFICATION_NEEDED,
-                        TerminalOutcome.ESCALATE))
-                .systemInstruction(
-                        "You are a helpful Gumtree customer support agent. "
-                                + "Resolve the user's issue using the provided tools. "
-                                + "FAQ-path RESOLVE flow (S1): the intended terminal sequence is "
-                                + "search_knowledge -> resolve_article -> grounded customer-facing "
-                                + "answer (with a source_id citation) -> record_outcome. "
-                                + "Only escalate via request_handover after a valid resolve "
-                                + "attempt cannot complete (no viable hit, or resolve_article "
-                                + "could not produce a grounded answer).")
-                .groundingInstruction(
-                        "If tool data contains specific information about the user's case "
-                                + "(account/ad/moderation), answer from that first. "
-                                + "For policy/process explanations, you MUST call search_knowledge "
-                                + "first if accumulated_tool_results.search_knowledge is empty; "
-                                + "do not produce a factual customer-facing answer without "
-                                + "grounded knowledge evidence. After search_knowledge returns a "
-                                + "viable hit, you MUST call resolve_article for the top hit "
-                                + "before answering the customer; cite the source_id in your "
-                                + "user_message. If search_knowledge returns no viable hit, "
-                                + "request_handover with escalation_reason="
-                                + "'faq_miss_threshold_exceeded' is allowed.")
-                .escalationPolicy(
-                        "Escalate via request_handover if (a) the user explicitly requests "
-                                + "a human (use escalation_reason='user_requested', priority 1), "
-                                + "or (b) search_knowledge returned no viable hit and you "
-                                + "cannot answer (use 'faq_miss_threshold_exceeded'), or "
-                                + "(c) the issue is genuinely out of scope (use 'out_of_scope'). "
-                                + "Do NOT short-circuit to request_handover("
-                                + "'faq_miss_threshold_exceeded') when search_knowledge "
-                                + "already returned a viable hit and resolve_article has not "
-                                + "yet been attempted — the runtime will refuse such a "
-                                + "handover and require a resolve_article attempt first.")
-                .build();
+        // Unknown phase OR unmapped (phase, useCase) tuple — fall back to
+        // null (the kernel handles null plans defensively). Pre-Sprint-39
+        // this fall-through carried the legacy RESOLVE-INTAKE and
+        // RESOLVE-FAQ branches; both are now externalized to
+        // server/src/main/resources/skills/resolve_*.yaml.
+        return null;
     }
 
     /**
@@ -535,15 +375,16 @@ public class PhaseEvaluator {
      * Sprint 37 freeze §4.1 decision (c). The output is observationally
      * identical to the pre-migration hardcoded per-phase branch for the
      * representative UCs covered by the Skill (verified by
-     * {@code PhaseEvaluatorSkillIntegrationTest}).
+     * {@code PhaseEvaluatorSkillIntegrationTest} for Sprint 38's 4 simpler
+     * phases and {@code PhaseEvaluatorResolveSkillIntegrationTest} for
+     * Sprint 39's 2 RESOLVE phases).
      *
-     * <p>Per design doc §4.4: Skill {@code procedure} carries principle-level
-     * teaching and is surfaced to the LLM through {@code systemInstruction};
-     * no per-UC if-else logic is applied here, only direct field projection.
-     * Template substitution (e.g., {@code {uc_name}}) is reserved for
-     * Sprint 39 RESOLVE Skills that need per-UC display-name substitution;
-     * Sprint 38's 4 simpler phase Skills all use {@code applicable_use_cases:
-     * ["*"]} and carry no placeholders.
+     * <p>Sprint 39: applies template substitution per design doc §6.2.5 /
+     * §6.2.6 to the RESOLVE Skills' text fields. Each placeholder is a
+     * SINGLE registry / map lookup keyed by the active UC — there is NO
+     * per-UC-pair branch logic in the substitution body per §1.7 + M2 §6 #1.
+     * Skills that do not contain a placeholder (Sprint 38's 4 simpler phase
+     * Skills) pass their text fields through unchanged.
      */
     private PhasePlan composeSkillPhasePlan(Skill skill, String phase, String activeUc) {
         Set<TerminalOutcome> outcomes = skill.validTerminalOutcomes().stream()
@@ -554,16 +395,73 @@ public class PhaseEvaluator {
         return PhasePlan.builder()
                 .phase(phase)
                 .useCase(activeUc) // may be null in DISCOVER while still discovering
-                .objective(skill.objective())
+                .objective(substitutePlaceholders(skill.objective(), activeUc))
                 .allowedTools(skill.toolsRequired())
                 .requiredContextKeys(new LinkedHashSet<>(skill.requiredContextKeys()))
                 .maxToolSteps(maxToolSteps)
                 .allowInterimMessage(skill.allowInterimMessage())
                 .validTerminalOutcomes(outcomes)
-                .systemInstruction(skill.procedure())
-                .groundingInstruction(skill.groundingInstruction())
-                .escalationPolicy(skill.escalationPolicy())
+                .systemInstruction(substitutePlaceholders(skill.procedure(), activeUc))
+                .groundingInstruction(substitutePlaceholders(skill.groundingInstruction(), activeUc))
+                .escalationPolicy(substitutePlaceholders(skill.escalationPolicy(), activeUc))
                 .build();
+    }
+
+    /**
+     * Substitute Sprint 39 RESOLVE-Skill template placeholders per Sprint 37
+     * freeze §6.2.5 / §6.2.6. Six placeholders, each filled by a SINGLE
+     * registry / map lookup keyed by the active UC; no per-UC-pair branch
+     * logic per §1.7 + M2 §6 #1. Skills that do not contain a placeholder
+     * pass their text through unchanged.
+     *
+     * <ul>
+     *   <li>{@code {uc_name}} — display name from {@link UseCaseRegistryService}.</li>
+     *   <li>{@code {uc_id}} — the active UC itself.</li>
+     *   <li>{@code {team_name}} — {@link #UC_TEAM_NAME} map (defaults to
+     *       {@code "specialist"}).</li>
+     *   <li>{@code {intake_complete_trigger}} — canonical
+     *       {@code intake_complete_for_uc_X} via {@link #intakeCompleteTrigger(String)}.</li>
+     *   <li>{@code {case_creation_note}} — case-creation appendix for UC-H/J/K
+     *       (M1 {@code ControlKernel.createCaseIfNeeded} runtime side effect),
+     *       empty for UC-G/I and non-intake UCs.</li>
+     *   <li>{@code {intake_required_fields}} —
+     *       {@link IntakeFieldsRegistry#requiredFieldsFor(String)} list rendered
+     *       via Java {@code List.toString()}. Sixth placeholder (beyond the
+     *       five named in Sprint 39 contract §2.2 D-c) preserves byte-for-byte
+     *       equivalence with the legacy
+     *       {@code buildIntakeSystemInstruction(...)} output; flagged in
+     *       handoff §7 OQ for deliver-agent + human review at Sprint 39 close.</li>
+     * </ul>
+     */
+    private String substitutePlaceholders(String text, String activeUc) {
+        if (text == null) return null;
+        if (activeUc == null || activeUc.isBlank()) return text;
+
+        String ucName = activeUc;
+        try {
+            UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
+            if (ucDef != null && ucDef.name() != null) {
+                ucName = ucDef.name();
+            }
+        } catch (Exception ex) {
+            // Defensive: fall back to the raw UC id if the registry rejects.
+        }
+        String teamName = UC_TEAM_NAME.getOrDefault(activeUc, "specialist");
+        String trigger = intakeCompleteTrigger(activeUc);
+        boolean needsCase = Set.of("UC-H", "UC-J", "UC-K").contains(activeUc);
+        String caseNote = needsCase
+                ? "A tracking case will be created automatically by the runtime when you escalate; "
+                        + "you do not need to call any case-creation tool yourself."
+                : "";
+        String requiredFields = IntakeFieldsRegistry.requiredFieldsFor(activeUc).toString();
+
+        return text
+                .replace("{uc_name}", ucName)
+                .replace("{uc_id}", activeUc)
+                .replace("{team_name}", teamName)
+                .replace("{intake_complete_trigger}", trigger)
+                .replace("{case_creation_note}", caseNote)
+                .replace("{intake_required_fields}", requiredFields);
     }
 
     /**

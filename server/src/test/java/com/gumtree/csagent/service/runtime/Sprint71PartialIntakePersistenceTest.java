@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.model.ToolCall;
+import com.gumtree.csagent.service.runtime.skill.DispatchContext;
+import com.gumtree.csagent.service.runtime.skill.RejectVerdict;
+import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.ToolPolicyEnforcer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -270,7 +275,7 @@ class Sprint71PartialIntakePersistenceTest {
 
         ToolCall completeCall = new ToolCall("request_handover",
                 Map.of("escalation_reason", "intake_complete_for_uc_k"));
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(
+        assertFalse(dispatcherRejectsIntakeIncomplete(
                 intakePlan("UC-K"), completeCall, session),
                 "guard must allow the handover once both UC-K fields are present");
     }
@@ -293,7 +298,7 @@ class Sprint71PartialIntakePersistenceTest {
 
         ToolCall prematureCall = new ToolCall("request_handover",
                 Map.of("escalation_reason", "intake_complete_for_uc_k"));
-        assertTrue(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(
+        assertTrue(dispatcherRejectsIntakeIncomplete(
                 intakePlan("UC-K"), prematureCall, session),
                 "intake-complete guard MUST still reject handover when extractor "
                         + "cannot infer required fields");
@@ -330,5 +335,27 @@ class Sprint71PartialIntakePersistenceTest {
         when(useCaseRegistry.getUseCase("UC-K")).thenReturn(ucDef);
         when(toolPolicyEnforcer.getVisibleToolsForUc("UC-K"))
                 .thenReturn(List.of("request_handover"));
+    }
+
+    /**
+     * Sprint 39 — invoke the unified SkillGuardrailDispatcher per the
+     * Sprint 37 freeze §8.2.2 migration of Sprint 7 §I2
+     * shouldRejectIncompleteIntakeHandover. M1 functional surface
+     * preserved bit-for-bit (this file is the M1 protection regression
+     * test per Sprint 39 §6 fence #28).
+     */
+    private boolean dispatcherRejectsIntakeIncomplete(PhasePlan plan,
+                                                      ToolCall call,
+                                                      BotSession session) {
+        SkillGuardrailDispatcher dispatcher = SkillTestFixtures.productionDispatcher();
+        DispatchContext ctx = new DispatchContext(
+                plan, session, Map.of(), null, Optional.empty());
+        Optional<RejectVerdict> verdict = dispatcher.checkBeforeDispatch(plan, call, ctx);
+        if (verdict.isEmpty()) return false;
+        assertEquals(SkillGuardrailDispatcher.INTAKE_INCOMPLETE_REJECT_REASON,
+                verdict.get().predicateName(),
+                "intake_complete_required guardrail must use the canonical Sprint 7 §I2 "
+                        + "reject-reason label");
+        return true;
     }
 }
