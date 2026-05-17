@@ -1,0 +1,9 @@
+{
+  "review_id": "REV-014",
+  "ad_id": "AD-2006",
+  "review_type": "MANUAL",
+  "decision": "REMOVED",
+  "reason_code": "SCAM_SUSPECT",
+  "reason_display": "Your ad was removed because it displayed characteristics associated with fraudulent listings.",
+  "reviewed_at": "2026-05-02T08:30:00Z"
+}

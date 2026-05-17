@@ -1,0 +1,18 @@
+{
+  "user_id": "USR-016",
+  "email": "grace.pets@example.com",
+  "display_name": "Grace P.",
+  "account_status": "ACTIVE",
+  "account_type": "PERSONAL",
+  "registration_date": "2024-01-10",
+  "creation_date": "2024-01-10",
+  "total_ads_posted": 18,
+  "total_ads_count": 18,
+  "active_ads": 2,
+  "active_ads_count": 2,
+  "warnings": 1,
+  "is_known_good": true,
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": true
+}

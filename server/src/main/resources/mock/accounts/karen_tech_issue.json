@@ -1,0 +1,18 @@
+{
+  "user_id": "USR-019",
+  "email": "karen.techbug@example.com",
+  "display_name": "Karen T.",
+  "account_status": "ACTIVE",
+  "account_type": "PERSONAL",
+  "registration_date": "2024-10-01",
+  "creation_date": "2024-10-01",
+  "total_ads_posted": 9,
+  "total_ads_count": 9,
+  "active_ads": 4,
+  "active_ads_count": 4,
+  "warnings": 0,
+  "is_known_good": true,
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": false
+}

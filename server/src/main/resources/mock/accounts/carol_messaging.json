@@ -1,0 +1,18 @@
+{
+  "user_id": "USR-012",
+  "email": "carol.blocked@example.com",
+  "display_name": "Carol M.",
+  "account_status": "ACTIVE",
+  "account_type": "PERSONAL",
+  "registration_date": "2024-08-20",
+  "creation_date": "2024-08-20",
+  "total_ads_posted": 15,
+  "total_ads_count": 15,
+  "active_ads": 4,
+  "active_ads_count": 4,
+  "warnings": 0,
+  "is_known_good": true,
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": true
+}

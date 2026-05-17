@@ -1,0 +1,9 @@
+{
+  "review_id": "REV-012",
+  "ad_id": "AD-3001",
+  "review_type": "AUTOMATED",
+  "decision": "REMOVED",
+  "reason_code": "SPAM",
+  "reason_display": "Your ad was removed because it was identified as spam or mass-posted content.",
+  "reviewed_at": "2026-05-01T14:00:00Z"
+}

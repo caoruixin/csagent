@@ -1,0 +1,18 @@
+{
+  "user_id": "USR-017",
+  "email": "iris.refund@example.com",
+  "display_name": "Iris R.",
+  "account_status": "ACTIVE",
+  "account_type": "PERSONAL",
+  "registration_date": "2024-06-05",
+  "creation_date": "2024-06-05",
+  "total_ads_posted": 5,
+  "total_ads_count": 5,
+  "active_ads": 1,
+  "active_ads_count": 1,
+  "warnings": 0,
+  "is_known_good": true,
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": true
+}

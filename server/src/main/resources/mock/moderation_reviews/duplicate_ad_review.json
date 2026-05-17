@@ -1,0 +1,9 @@
+{
+  "review_id": "REV-013",
+  "ad_id": "AD-3002",
+  "review_type": "AUTOMATED",
+  "decision": "REMOVED",
+  "reason_code": "DUPLICATE_AD",
+  "reason_display": "Your ad was removed because it appears to be a duplicate of another listing you have posted.",
+  "reviewed_at": "2026-05-03T10:15:00Z"
+}

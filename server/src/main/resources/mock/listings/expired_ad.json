@@ -1,0 +1,16 @@
+{
+  "ad_id": "AD-2007",
+  "title": "Vintage Record Player",
+  "category": "Electronics > Audio",
+  "status": "EXPIRED",
+  "seller_email": "karen.techbug@example.com",
+  "created_date": "2026-02-01",
+  "posted_date": "2026-02-01",
+  "price": 180.00,
+  "currency": "GBP",
+  "location": "Cardiff",
+  "views": 42,
+  "replies": 2,
+  "is_featured": false,
+  "expired_at": "2026-03-01T00:00:00Z"
+}
