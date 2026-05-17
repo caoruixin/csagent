@@ -62,7 +62,7 @@ class Sprint81BudgetedRetryTest {
 
     private OpenAiCompatibleLlmClient newClient() {
         return new OpenAiCompatibleLlmClient(
-                "kimi", "sk-test", "http://127.0.0.1:" + port, "kimi-k2.6", objectMapper);
+                "kimi", "sk-test", "http://127.0.0.1:" + port, "kimi-k2.6", false, objectMapper);
     }
 
     private LlmRequest sampleRequest() {

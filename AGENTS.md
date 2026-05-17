@@ -49,12 +49,28 @@ above. That means:
   `agent_context_guide.md` apply before any non-trivial task.
 - The Constitution (§1), the Failure Brief Template (§2), the Fix
   Layer Classification Checklist (§3), the Anti-Hardcode Review
-  Prompt (§4), the Eval Acceptance Rules (§5), the Architecture-Health
-  Metric definitions (§6), and the required sprint-objective stanza
-  (§7) in `iteration_governance.md` apply to every change that
-  touches the agent's behaviour.
+  Prompt (§4), the Eval Acceptance Rules (§5 incl. §5.5 smoke
+  demotion and §5.6 curated bad-case suite as human-judgment primary
+  gate), the Architecture-Health Metric definitions (§6), the required
+  sprint-objective stanza (§7), and the Milestone framework (§8) in
+  `iteration_governance.md` apply to every change that touches the
+  agent's behaviour.
 
-Sprint-specific scope lives in `docs/sprint_objective.md` and is
-replaced when a new sprint is promoted. The constitution itself is
-not edited per sprint; it is folded back on the cadence specified in
-each governance doc's `review_cadence` front-matter field.
+Sprint-specific scope lives in `docs/sprint_objective.md` (current
+sub-sprint contract) and `docs/milestone_objective.md` (current
+milestone north star). Both are replaced when a new sub-sprint or
+milestone is promoted. The constitution itself is not edited per
+sprint; it is folded back on the cadence specified in each governance
+doc's `review_cadence` front-matter field.
+
+**Note on iteration processes** (2026-05-17 governance update): the
+two input paths by which the agent's evolution is driven (Path 1
+research-driven; Path 2 bad-case-driven) are operationalized in the
+deliver-agent's role definition at `compact/sprint-deliver-orchestrator.md`
+"Workflow inputs" section. A separate human-reference narrative at
+`docs/current/iteration_processes_only_for_human_reference.md` exists
+for the human's planning-time read; that file is intentionally NOT in
+this constitution chain (agents do not need it; operational source-of-truth
+for the deliver-agent is the compact file). Dev and review agents
+execute per `docs/sprint_objective.md` and do not need to know which
+input path produced it.

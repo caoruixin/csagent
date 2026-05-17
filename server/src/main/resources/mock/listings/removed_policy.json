@@ -5,10 +5,13 @@
   "status": "REMOVED",
   "seller_email": "jane.suspended@example.com",
   "created_date": "2025-11-20",
+  "posted_date": "2025-11-20",
   "price": 2500.00,
   "currency": "GBP",
+  "location": "Birmingham",
   "views": 89,
   "replies": 3,
+  "is_featured": false,
   "removal_reason": "policy_violation",
   "removed_at": "2025-11-22T14:30:00Z"
 }

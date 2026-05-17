@@ -52,7 +52,7 @@ class LlmSyntheticBaselineTest {
         int warmup = parseIntEnv("LLM_BASELINE_WARMUP", 2);
 
         OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(
-                "deepseek", apiKey, baseUrl, model, new ObjectMapper());
+                "deepseek", apiKey, baseUrl, model, false, new ObjectMapper());
 
         LlmRequest request = LlmRequest.builder()
                 .systemPrompt(FIXED_SYSTEM_PROMPT)

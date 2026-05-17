@@ -2,10 +2,9 @@ bot:
   base_url: http://localhost:8080
 
 llm:
-  # Values resolved from env vars at runtime
-  base_url: ${DASHSCOPE_BASE_URL}
-  api_key: ${DASHSCOPE_API_KEY}
-  model: ${DASHSCOPE_CHAT_MODEL}
+  base_url: ${SIMULATOR_BASE_URL}
+  api_key: ${SIMULATOR_API_KEY}
+  model: ${SIMULATOR_MODEL}
   temperature: 0.0
   simulator_temperature: 0.7
 

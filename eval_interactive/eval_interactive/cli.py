@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 
 import click
@@ -34,8 +35,8 @@ def main():
 )
 @click.option(
     "--llm-model",
-    default="deepseek-v4-pro",
-    help="DeepSeek model name (default deepseek-v4-pro).",
+    default=os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+    help="LLM model for persona review (from DEEPSEEK_MODEL env var).",
 )
 @click.option(
     "--llm-cache-dir",

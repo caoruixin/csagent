@@ -15,7 +15,7 @@ import java.util.List;
  * so the operator can fix them before running an eval rather than tracing
  * them back from a smoke-result divergence.
  *
- * <p>What is checked (per provider — Kimi primary, DeepSeek fallback):
+ * <p>What is checked (per provider — DeepSeek primary, Kimi fallback):
  * <ul>
  *   <li>API key is present and non-blank.</li>
  *   <li>API key does not look like an unresolved placeholder
@@ -196,13 +196,16 @@ public final class LlmConfigValidator {
         // Sprint 8.1 follow-up #2 (2026-05-06): primary/fallback order
         // flipped — deepseek is primary now, kimi is fallback.
         return String.format(
-                "primary=deepseek[model=%s, base=%s, key=%s], fallback=kimi[model=%s, base=%s, key=%s]",
+                "primary=deepseek[model=%s, base=%s, key=%s, thinking=%s], "
+                        + "fallback=kimi[model=%s, base=%s, key=%s, thinking=%s]",
                 nullToDash(props.getDeepseek().getModel()),
                 nullToDash(props.getDeepseek().getBaseUrl()),
                 describeKeyState(props.getDeepseek().getApiKey()),
+                props.getDeepseek().isThinkingEnabled() ? "enabled" : "disabled",
                 nullToDash(props.getKimi().getModel()),
                 nullToDash(props.getKimi().getBaseUrl()),
-                describeKeyState(props.getKimi().getApiKey()));
+                describeKeyState(props.getKimi().getApiKey()),
+                props.getKimi().isThinkingEnabled() ? "enabled" : "disabled");
     }
 
     private static String nullToDash(String s) { return s == null ? "-" : s; }

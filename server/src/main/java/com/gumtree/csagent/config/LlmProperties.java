@@ -14,23 +14,24 @@ public class LlmProperties {
     @Data
     public static class KimiProperties {
         private String apiKey;
-        private String baseUrl = "https://api.moonshot.ai/v1";
-        private String model = "kimi-k2.6";
+        private String baseUrl;
+        private String model;
+        private boolean thinkingEnabled = false;
     }
 
     @Data
     public static class DeepSeekProperties {
         private String apiKey;
-        private String baseUrl = "https://api.deepseek.com/v1";
-        private String model = "deepseek-v4-pro";
+        private String baseUrl;
+        private String model;
+        private boolean thinkingEnabled = false;
     }
 
     @Data
     public static class DashScopeProperties {
         private String apiKey;
-        private String baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-        private String chatModel = "qwen-plus";
-        private String embeddingModel = "text-embedding-v3";
+        private String baseUrl;
+        private String embeddingModel;
         private int embeddingDimension = 768;
     }
 }
