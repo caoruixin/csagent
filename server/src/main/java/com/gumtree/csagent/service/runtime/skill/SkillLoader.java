@@ -3,6 +3,7 @@ package com.gumtree.csagent.service.runtime.skill;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.gumtree.csagent.model.TerminalOutcome;
+import com.gumtree.csagent.service.runtime.UseCaseRegistryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -12,6 +13,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -76,12 +78,66 @@ public class SkillLoader {
             "downgrade_reason"
     );
 
+    /**
+     * Canonical tool names — mirrors the {@code getName()} return value of
+     * every {@code Tool} implementation under
+     * {@code server/src/main/java/com/gumtree/csagent/service/tools/}.
+     *
+     * <p>Sprint 38 fix iteration #1 (Codex Blocking Finding 1 sub-gap #1b):
+     * design doc §2.2 requires the loader to reject {@code tools_required}
+     * entries that are not in the canonical tool-name set. Keeping the set
+     * mirrored here (rather than constructor-injecting the {@code Tool} list
+     * from Spring) keeps {@link SkillLoader} test-friendly and avoids a bean
+     * graph ordering concern (the {@code Tool} beans depend on a number of
+     * other beans). If a new tool is added to the runtime, this set must be
+     * updated in the same commit — surfaced as an OQ at Sprint 38 fix close.
+     */
+    private static final Set<String> VALID_TOOL_NAMES = Set.of(
+            "search_knowledge",
+            "resolve_article",
+            "classify_use_case",
+            "record_outcome",
+            "request_handover",
+            "create_case_controlled",
+            "get_customer_context",
+            "lookup_listing_or_ad",
+            "lookup_customer_account",
+            "get_moderation_review_context",
+            "get_message_moderation_context"
+    );
+
+    /**
+     * Canonical guardrail predicate types per Sprint 37 freeze §5.2 + §8.2.
+     * Sprint 38 fix iteration #1 (Codex Blocking Finding 1 sub-gap #1d): design
+     * doc §2.2 requires the loader to reject {@code guardrails[].type} entries
+     * that are not a known predicate type. Sprint 38's 4 simpler phase Skills
+     * all ship {@code guardrails: []}; this whitelist becomes load-bearing for
+     * Sprint 39's first concrete guardrails on the RESOLVE Skills.
+     */
+    private static final Set<String> VALID_GUARDRAIL_TYPES = Set.of(
+            "faq_miss_handover_requires_resolve_attempt",
+            "intake_complete_required",
+            "premature_resolve_outcome_guard",
+            "must_cite_source"
+    );
+
     private static final String SKILLS_CLASSPATH_PATTERN = "classpath:/skills/*.yaml";
 
     private final ObjectMapper yamlMapper;
+    private final UseCaseRegistryService useCaseRegistry;
 
-    public SkillLoader() {
+    /**
+     * Production constructor — Spring injects the shared
+     * {@link UseCaseRegistryService} so the loader can validate explicit
+     * (non-wildcard) {@code applicable_use_cases} entries against the registered
+     * UC set per design doc §2.2 (Sprint 38 fix iteration #1, Codex Blocking
+     * Finding 1 sub-gap #1c).
+     */
+    public SkillLoader(UseCaseRegistryService useCaseRegistry) {
         this.yamlMapper = new ObjectMapper(new YAMLFactory());
+        this.useCaseRegistry = Objects.requireNonNull(useCaseRegistry,
+                "UseCaseRegistryService is required for SkillLoader UC-registry validation "
+                        + "(design doc §2.2; Sprint 38 fix iteration #1).");
     }
 
     /**
@@ -150,8 +206,10 @@ public class SkillLoader {
         requireNonEmpty(skill.applicablePhases(), "applicable_phases", filename);
         requireNonEmpty(skill.applicableUseCases(), "applicable_use_cases", filename);
         // tools_required may be empty per design doc §2.1 (e.g., CONFIRM-like
-        // Skills with no tool calls), but the field itself must be present
-        // (List.of() after compact constructor normalization is acceptable).
+        // Skills with no tool calls), but the field itself must be present.
+        // Per Sprint 38 fix iteration #1 (sub-gap #1a), the Skill record's
+        // compact constructor does NOT normalize null toolsRequired, so a
+        // YAML file omitting the key reaches this check as null.
         if (skill.toolsRequired() == null) {
             throw schema(filename, "tools_required is required (may be empty list)");
         }
@@ -167,6 +225,26 @@ public class SkillLoader {
         boolean hasWildcard = skill.applicableUseCases().contains(Skill.UC_WILDCARD);
         if (hasWildcard && skill.applicableUseCases().size() > 1) {
             throw schema(filename, "applicable_use_cases mixes '*' wildcard with explicit UCs");
+        }
+        // Sprint 38 fix iteration #1 sub-gap #1c: explicit (non-wildcard)
+        // applicable_use_cases entries must reference UCs registered in
+        // UseCaseRegistryService per design doc §2.2.
+        if (!hasWildcard) {
+            for (String uc : skill.applicableUseCases()) {
+                if (!useCaseRegistry.isKnownUseCase(uc)) {
+                    throw schema(filename, "applicable_use_cases contains unknown UC '" + uc
+                            + "'; not registered in UseCaseRegistryService");
+                }
+            }
+        }
+
+        // Sprint 38 fix iteration #1 sub-gap #1b: tools_required entries must
+        // be canonical tool names per design doc §2.2.
+        for (String tool : skill.toolsRequired()) {
+            if (!VALID_TOOL_NAMES.contains(tool)) {
+                throw schema(filename, "tools_required contains unknown tool '" + tool
+                        + "'; valid tools are " + VALID_TOOL_NAMES);
+            }
         }
 
         if (skill.validTerminalOutcomes() != null) {
@@ -202,6 +280,13 @@ public class SkillLoader {
         }
 
         for (Guardrail g : skill.guardrails()) {
+            // Sprint 38 fix iteration #1 sub-gap #1d: guardrail type must match
+            // a known dispatcher predicate type per design doc §2.2 / §5.2.
+            if (!VALID_GUARDRAIL_TYPES.contains(g.type())) {
+                throw schema(filename, "guardrail type '" + g.type()
+                        + "' is not a known predicate type; valid types are "
+                        + VALID_GUARDRAIL_TYPES);
+            }
             if (!VALID_ON_FAIL_MODES.contains(g.onFail())) {
                 throw schema(filename, "guardrail type=" + g.type() + " has invalid on_fail '"
                         + g.onFail() + "'; valid modes are " + VALID_ON_FAIL_MODES);

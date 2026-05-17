@@ -1,5 +1,7 @@
 package com.gumtree.csagent.service.runtime.skill;
 
+import com.gumtree.csagent.service.runtime.UseCaseRegistryService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -21,10 +23,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Sprint 38 production YAML files under {@code src/main/resources/skills/}
  * parse cleanly. The remaining tests build minimal in-memory YAML streams
  * and verify fail-fast behaviour for each schema violation.
+ *
+ * <p>Sprint 38 fix iteration #1 (Codex Blocking Finding 1) adds 5 negative
+ * cases for the schema-validation gaps in design doc §2.2 (missing
+ * {@code tools_required}, unknown tool name, explicit unknown UC, unknown
+ * guardrail type) plus a positive case confirming the UC-registry check
+ * accepts a registered UC.
  */
 class SkillLoaderTest {
 
-    private final SkillLoader loader = new SkillLoader();
+    private static UseCaseRegistryService useCaseRegistry;
+    private static SkillLoader loader;
+
+    @BeforeAll
+    static void initLoader() {
+        useCaseRegistry = new UseCaseRegistryService();
+        useCaseRegistry.init();
+        loader = new SkillLoader(useCaseRegistry);
+    }
 
     private static InputStream yaml(String body) {
         return new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8));
@@ -241,5 +257,110 @@ class SkillLoaderTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> loader.parseAndValidate(yaml(body), "x.yaml"));
         assertTrue(ex.getMessage().contains("x.yaml"));
+    }
+
+    /**
+     * Sprint 38 fix iteration #1 sub-gap #1a: omitting the {@code tools_required}
+     * key entirely from YAML must fail-fast. The {@link Skill} record's compact
+     * constructor leaves a null {@code toolsRequired} as null so the loader's
+     * null-check is reachable per design doc §2.2.
+     */
+    @Test
+    void parseAndValidate_missingToolsRequiredField_failsFast() {
+        String body = """
+                name: x
+                description: x
+                applicable_phases: [DISCOVER]
+                applicable_use_cases: ['*']
+                procedure: x
+                """;
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> loader.parseAndValidate(yaml(body), "x.yaml"));
+        assertTrue(ex.getMessage().contains("tools_required"),
+                "expected tools_required schema error, got: " + ex.getMessage());
+    }
+
+    /**
+     * Sprint 38 fix iteration #1 sub-gap #1b: {@code tools_required} entries
+     * must be canonical tool names per design doc §2.2.
+     */
+    @Test
+    void parseAndValidate_unknownToolName_failsFast() {
+        String body = """
+                name: x
+                description: x
+                applicable_phases: [DISCOVER]
+                applicable_use_cases: ['*']
+                tools_required: [some_nonexistent_tool]
+                procedure: x
+                """;
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> loader.parseAndValidate(yaml(body), "x.yaml"));
+        assertTrue(ex.getMessage().contains("some_nonexistent_tool"),
+                "expected unknown-tool schema error, got: " + ex.getMessage());
+    }
+
+    /**
+     * Sprint 38 fix iteration #1 sub-gap #1c: explicit (non-wildcard)
+     * {@code applicable_use_cases} entries must reference UCs registered in
+     * {@link UseCaseRegistryService} per design doc §2.2.
+     */
+    @Test
+    void parseAndValidate_explicitUnknownUseCase_failsFast() {
+        String body = """
+                name: x
+                description: x
+                applicable_phases: [RESOLVE]
+                applicable_use_cases: ['UC-NONEXISTENT']
+                tools_required: [search_knowledge]
+                procedure: x
+                """;
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> loader.parseAndValidate(yaml(body), "x.yaml"));
+        assertTrue(ex.getMessage().contains("UC-NONEXISTENT"),
+                "expected unknown-UC schema error, got: " + ex.getMessage());
+    }
+
+    /**
+     * Sprint 38 fix iteration #1 sub-gap #1c (positive): explicit non-wildcard
+     * UC that IS registered in {@link UseCaseRegistryService} must pass.
+     */
+    @Test
+    void parseAndValidate_explicitKnownUseCase_passes() {
+        String body = """
+                name: x
+                description: x
+                applicable_phases: [RESOLVE]
+                applicable_use_cases: ['UC-A']
+                tools_required: [search_knowledge]
+                procedure: x
+                """;
+        Skill skill = loader.parseAndValidate(yaml(body), "x.yaml");
+        assertNotNull(skill);
+        assertEquals(List.of("UC-A"), skill.applicableUseCases());
+    }
+
+    /**
+     * Sprint 38 fix iteration #1 sub-gap #1d: guardrail {@code type} entries
+     * must match a known dispatcher predicate type per design doc §2.2 / §5.2.
+     */
+    @Test
+    void parseAndValidate_unknownGuardrailType_failsFast() {
+        String body = """
+                name: x
+                description: x
+                applicable_phases: [RESOLVE]
+                applicable_use_cases: ['UC-A']
+                tools_required: [record_outcome]
+                procedure: x
+                guardrails:
+                  - type: nonexistent_predicate
+                    on_fail: reject_with_hint
+                    parameters: {}
+                """;
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> loader.parseAndValidate(yaml(body), "x.yaml"));
+        assertTrue(ex.getMessage().contains("nonexistent_predicate"),
+                "expected unknown-guardrail-type schema error, got: " + ex.getMessage());
     }
 }

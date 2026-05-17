@@ -25,7 +25,13 @@ import java.util.List;
  *       wording per Constitution §1.3.</li>
  *   <li>{@link #toolsRequired()} is the hard tool whitelist composed into
  *       {@code PhasePlan.allowedTools}, enforced by
- *       {@code ToolDispatcher.validateAgainstPlan} per Constitution §1.4.</li>
+ *       {@code ToolDispatcher.validateAgainstPlan} per Constitution §1.4.
+ *       The compact constructor intentionally does NOT normalize a null
+ *       {@code toolsRequired} (unlike the other list fields): per design
+ *       doc §2.2 a missing {@code tools_required} key in YAML must
+ *       fail-fast at {@link SkillLoader#validate(Skill, String)}.
+ *       Post-validation, {@code toolsRequired} is guaranteed non-null
+ *       (it MAY be an empty list for Skills with no tool calls).</li>
  *   <li>{@link #guardrails()} declare Runtime-floor enforcement points
  *       (Sprint 39 populates; Sprint 38's 4 simpler phase Skills all declare
  *       {@code guardrails: []}).</li>
@@ -63,7 +69,12 @@ public record Skill(
     public Skill {
         applicablePhases = applicablePhases == null ? List.of() : List.copyOf(applicablePhases);
         applicableUseCases = applicableUseCases == null ? List.of() : List.copyOf(applicableUseCases);
-        toolsRequired = toolsRequired == null ? List.of() : List.copyOf(toolsRequired);
+        // toolsRequired is intentionally NOT normalized: a missing tools_required
+        // field in YAML must reach SkillLoader.validate(...) as null so the
+        // loader can fail-fast per design doc §2.2 required-fields enforcement
+        // (Sprint 38 fix iteration #1, Codex Blocking Finding 1 sub-gap #1a).
+        // Empty list ([]) is still acceptable post-validation; null is rejected.
+        toolsRequired = toolsRequired == null ? null : List.copyOf(toolsRequired);
         requiredContextKeys = requiredContextKeys == null ? List.of() : List.copyOf(requiredContextKeys);
         validTerminalOutcomes = validTerminalOutcomes == null ? List.of() : List.copyOf(validTerminalOutcomes);
         guardrails = guardrails == null ? List.of() : List.copyOf(guardrails);

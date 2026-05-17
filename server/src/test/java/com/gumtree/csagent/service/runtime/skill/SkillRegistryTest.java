@@ -22,7 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SkillRegistryTest {
 
     private static SkillLoader loaderReturning(List<Skill> skills) {
-        return new SkillLoader() {
+        // The anonymous subclass overrides loadAll() so the loader's own
+        // validation never fires; the UseCaseRegistryService passed to the
+        // parent constructor is unused in this test but required after
+        // Sprint 38 fix iteration #1 sub-gap #1c.
+        return new SkillLoader(SkillTestFixtures.initializedUseCaseRegistry()) {
             @Override
             public List<Skill> loadAll() {
                 return skills;
