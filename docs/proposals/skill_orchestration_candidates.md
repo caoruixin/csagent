@@ -1,17 +1,22 @@
 ---
 title: Skill Orchestration Candidates — Sprint 5 (F2)
 doc_tier: proposal
-status: proposal
+status: superseded
 implementation_status: not_started
 runtime_contract: false
 last_reviewed: 2026-05-10
 review_cadence: on_reactivation
+superseded_by: docs/proposals/skill_foundation_design.md
 notes: >
   Self-declared diagnostic that proposes candidate skill / plan-template
   shapes (e.g. Resolve.FAQ, intake-collect-and-handover) without
   implementing them. Use as a design starting point when a sprint picks
   up skill orchestration; do not treat any candidate as a current runtime
-  feature.
+  feature. Superseded 2026-05-17 by `docs/proposals/skill_foundation_design.md`
+  (Sprint 36 / M2-Skill sub-sprint 1 design freeze). Body retained as
+  upstream reasoning archive per `doc_governance.md` "Forward-looking
+  proposal docs are first-class citizens"; the M2-Skill freeze refines
+  the F2 candidates (S1 + S2 only; S3 / S4 / S5 deferred to M3-C).
 ---
 
 > This document is not the current runtime contract unless a docs/current/* contract or live code path confirms it.
