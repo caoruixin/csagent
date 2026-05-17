@@ -92,7 +92,8 @@ class AgentRunLoopHandoverReasonNormalizationIntegrationTest {
         PhaseEvaluator phaseEvaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjectionBuilder, actionParser,
-                objectMapper, createCaseTool, eventEmitter, toolDispatcher);
+                objectMapper, createCaseTool, eventEmitter, toolDispatcher,
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
 
         AgentRunLoop agentRunLoop = new AgentRunLoopImpl(
                 llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser, objectMapper);

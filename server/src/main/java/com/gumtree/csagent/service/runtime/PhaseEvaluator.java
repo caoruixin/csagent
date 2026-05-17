@@ -6,6 +6,8 @@ import com.gumtree.csagent.model.*;
 import com.gumtree.csagent.service.guardrails.ScriptLibraryService;
 import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.runtime.skill.Skill;
+import com.gumtree.csagent.service.runtime.skill.SkillRegistry;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolDispatcher;
 import com.gumtree.csagent.service.tools.ToolResult;
@@ -13,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Per-phase logic evaluator. Determines what action to take based on
@@ -256,6 +259,7 @@ public class PhaseEvaluator {
     private final CreateCaseControlledTool createCaseTool;
     private final EventEmitter eventEmitter;
     private final ToolDispatcher toolDispatcher;
+    private final SkillRegistry skillRegistry;
 
     public PhaseEvaluator(UseCaseRegistryService useCaseRegistry,
                           KnowledgeSearchService knowledgeSearchService,
@@ -266,7 +270,8 @@ public class PhaseEvaluator {
                           ObjectMapper objectMapper,
                           CreateCaseControlledTool createCaseTool,
                           EventEmitter eventEmitter,
-                          ToolDispatcher toolDispatcher) {
+                          ToolDispatcher toolDispatcher,
+                          SkillRegistry skillRegistry) {
         this.useCaseRegistry = useCaseRegistry;
         this.knowledgeSearchService = knowledgeSearchService;
         this.scriptLibrary = scriptLibrary;
@@ -277,6 +282,7 @@ public class PhaseEvaluator {
         this.createCaseTool = createCaseTool;
         this.eventEmitter = eventEmitter;
         this.toolDispatcher = toolDispatcher;
+        this.skillRegistry = skillRegistry;
     }
 
     // ---------------- tool_calls / user_message helpers ----------------
@@ -389,157 +395,16 @@ public class PhaseEvaluator {
         String phase = session.getCurrentPhase();
         String activeUc = session.getActiveUseCase();
 
-        // D16.D: DISCOVER plan — identify use case via clarifying questions.
-        // 2026-05-02 (Fix 3c): added `classify_use_case` to allowedTools so
-        // the LLM can commit a UC once intent is clear; closes
-        // CONTRACT_VIOLATION:active_use_case missing_after_turns. See
-        // phase0 §0.6 deviation entry 2026-05-02.
-        if ("DISCOVER".equals(phase)) {
-            return PhasePlan.builder()
-                    .phase("DISCOVER")
-                    .useCase(activeUc) // may be null while still discovering
-                    .objective("Identify the user's use case by asking clarifying questions or "
-                            + "interpreting their message, then commit it via classify_use_case")
-                    .allowedTools(List.of("search_knowledge", "classify_use_case"))
-                    .requiredContextKeys(Set.of("form_context", "candidate_use_cases"))
-                    .maxToolSteps(2)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(
-                            TerminalOutcome.CLARIFICATION_NEEDED,
-                            TerminalOutcome.FINAL_ANSWER,
-                            TerminalOutcome.ESCALATE))
-                    .systemInstruction(
-                            "You are in the DISCOVER phase. Your goal is to identify which Use Case "
-                                    + "applies to the customer. Look at the form context, candidate use cases, "
-                                    + "and conversation history. When the user's intent is clear (or you can "
-                                    + "infer it with a supporting detail), call classify_use_case with the "
-                                    + "matching use_case_id and a confidence in [0,1]. Otherwise ask one clear "
-                                    + "clarifying question, or escalate if the user's request is out of scope. "
-                                    + "Sprint 7 §I0 weak-candidate cue: when "
-                                    + "`candidate_use_cases` is empty or weak AND the form context is empty / "
-                                    + "UNKNOWN topic AND the current user message is clearly FAQ-shaped "
-                                    + "(\"how do I X\", \"can I Y\", \"what items are allowed\") OR is "
-                                    + "payment / sale-proceeds-shaped (\"how do I receive payment\", "
-                                    + "\"how do I get paid when I sell\", \"how does payout work\"), do NOT "
-                                    + "request_handover with `faq_miss_threshold_exceeded` after a single user "
-                                    + "turn. Instead, gather enough evidence to classify toward the right "
-                                    + "FAQ-path UC: call `search_knowledge` with the user's question as the "
-                                    + "query, then call `classify_use_case` with the most plausible UC "
-                                    + "(payment / sale-proceeds questions point to UC-F; how-to-post and "
-                                    + "general advertising questions to UC-B; messaging to UC-C; account / "
-                                    + "login to UC-D). Once classified, RESOLVE will run the grounded resolve "
-                                    + "sequence. "
-                                    + "Sprint 33 ad-status disambiguation cue (read alongside "
-                                    + "`candidate_use_cases` and the `discover_disambiguation_signals` "
-                                    + "projection): when the projection shows the user's listing is in a "
-                                    + "not-visible state (`ad_status_observed` is one of REMOVED / SUSPENDED "
-                                    + "/ EXPIRED) AND `topic_subject_carries_multiple_candidate_ucs` is true, "
-                                    + "the user's literal request is the disambiguation signal — not the "
-                                    + "listing's database row. A user asking why the ad is gone, what "
-                                    + "happened to it, or where it went is asking to UNDERSTAND the "
-                                    + "situation (FAQ-resolvable, classify toward the visibility / ad-status "
-                                    + "explanation UC). A user asking to appeal, contest, or reverse the "
-                                    + "removal is asking to ACT (the appeal UC, an intake path). If the "
-                                    + "user's request is ambiguous between understanding and acting, ask "
-                                    + "ONE focused clarifying question this turn before committing "
-                                    + "classify_use_case (for example: \"Do you want to know the reason it "
-                                    + "was removed, or do you want to appeal the removal?\"). Do not commit "
-                                    + "an intake-path UC purely on `ad_status_observed` alone; the user's "
-                                    + "stated need is the disambiguation signal.")
-                    .groundingInstruction(
-                            "Do not commit to detailed answers in DISCOVER. Your job is to determine the "
-                                    + "use case category (call classify_use_case), then RESOLVE will produce the "
-                                    + "actual resolution.")
-                    .escalationPolicy(
-                            "Escalate if user explicitly requests human help, if request is clearly out of scope, "
-                                    + "or if you cannot disambiguate after one clarification.")
-                    .build();
-        }
-
-        // D16.D: CONFIRM plan — interpret whether the user is satisfied with prior answer.
-        // maxToolSteps=2 so the loop can: (1) call record_outcome / request_handover,
-        // then (2) emit a final friendly user_message that PhaseEvaluator maps to CLOSE.
-        if ("CONFIRM".equals(phase)) {
-            return PhasePlan.builder()
-                    .phase("CONFIRM")
-                    .useCase(activeUc)
-                    .objective("Determine whether the user is satisfied with the prior answer")
-                    .allowedTools(List.of("record_outcome", "request_handover"))
-                    .requiredContextKeys(Set.of("form_context", "conversation_history"))
-                    .maxToolSteps(2)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(
-                            TerminalOutcome.FINAL_ANSWER,
-                            TerminalOutcome.CLARIFICATION_NEEDED,
-                            TerminalOutcome.ESCALATE))
-                    .systemInstruction(
-                            "You are in the CONFIRM phase. Interpret whether the user is satisfied with "
-                                    + "the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), "
-                                    + "call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., "
-                                    + "'no', 'still not working', 'I need more help'), call request_handover "
-                                    + "with reason 'user_dissatisfied' OR transition back to RESOLVE if "
-                                    + "appropriate.")
-                    .groundingInstruction(
-                            "Read the user's response carefully. Sentiment matters more than literal words. "
-                                    + "When unclear, ask a single yes/no clarification.")
-                    .escalationPolicy(
-                            "Escalate if user clearly expresses dissatisfaction or requests a human.")
-                    .build();
-        }
-
-        // D16.D: CLOSE plan — terminal closing turn. maxToolSteps=2 so the loop can
-        // optionally call record_outcome and still emit a final closing user_message.
-        if ("CLOSE".equals(phase)) {
-            return PhasePlan.builder()
-                    .phase("CLOSE")
-                    .useCase(activeUc)
-                    .objective("Send a polite closing message and record the final outcome")
-                    .allowedTools(List.of("record_outcome"))
-                    .requiredContextKeys(Set.of("form_context"))
-                    .maxToolSteps(2)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(TerminalOutcome.FINAL_ANSWER))
-                    .systemInstruction(
-                            "You are in the CLOSE phase. Thank the user and confirm the outcome. "
-                                    + "Call record_outcome with the appropriate outcome if not already recorded.")
-                    .groundingInstruction(
-                            "Keep the closing message brief, warm, and final. Do not introduce new topics.")
-                    .escalationPolicy(
-                            "Do not escalate from CLOSE. The session is ending.")
-                    .build();
-        }
-
-        // D16.D: ESCALATE plan — finalize handover to a human agent.
-        if ("ESCALATE".equals(phase)) {
-            // Codex 1.8 / customer_service_tool_spec_v0_2.yaml: create_case_controlled
-            // is a ``runtime_only`` tool (visibility: runtime_only). The runtime
-            // already creates the case deterministically via
-            // ControlKernel.createCaseIfNeeded for forced escalations and
-            // PhaseEvaluator.createCaseIfAllowed for intake completion, so the LLM
-            // must not be permitted to order this side effect. Drop it from the
-            // LLM-visible tool list. record_outcome stays so the agent can
-            // close out the session.
-            List<String> tools = List.of("request_handover", "record_outcome");
-            return PhasePlan.builder()
-                    .phase("ESCALATE")
-                    .useCase(activeUc)
-                    .objective("Complete the handover to a human agent and inform the customer")
-                    .allowedTools(tools)
-                    .requiredContextKeys(Set.of("form_context", "customer_context"))
-                    .maxToolSteps(2)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(
-                            TerminalOutcome.ESCALATE,
-                            TerminalOutcome.FINAL_ANSWER))
-                    .systemInstruction(
-                            "You are in the ESCALATE phase. Send a clear handover message and ensure "
-                                    + "request_handover has been called with an appropriate escalation_reason.")
-                    .groundingInstruction(
-                            "Tell the user a human agent will assist them. Provide expected SLA if known. "
-                                    + "Do not promise specific outcomes.")
-                    .escalationPolicy(
-                            "Already in ESCALATE — finalize the handover.")
-                    .build();
+        // NEW M2 Sprint 38: SkillRegistry-driven composition for the 4 simpler
+        // phases (DISCOVER, CONFIRM, CLOSE, ESCALATE) per design doc §4.1.
+        // The 2 RESOLVE phases (FAQ + INTAKE) stay on the legacy Java-string
+        // branch below until Sprint 39 migrates them; SkillRegistry.select(...)
+        // returns Optional.empty() for those tuples and execution falls through.
+        if (skillRegistry != null) {
+            Optional<Skill> selected = skillRegistry.select(phase, activeUc);
+            if (selected.isPresent()) {
+                return composeSkillPhasePlan(selected.get(), phase, activeUc);
+            }
         }
 
         if (!"RESOLVE".equals(phase)) {
@@ -662,6 +527,42 @@ public class PhaseEvaluator {
                                 + "already returned a viable hit and resolve_article has not "
                                 + "yet been attempted — the runtime will refuse such a "
                                 + "handover and require a resolve_article attempt first.")
+                .build();
+    }
+
+    /**
+     * Compose a {@link Skill} with session state into a {@link PhasePlan} per
+     * Sprint 37 freeze §4.1 decision (c). The output is observationally
+     * identical to the pre-migration hardcoded per-phase branch for the
+     * representative UCs covered by the Skill (verified by
+     * {@code PhaseEvaluatorSkillIntegrationTest}).
+     *
+     * <p>Per design doc §4.4: Skill {@code procedure} carries principle-level
+     * teaching and is surfaced to the LLM through {@code systemInstruction};
+     * no per-UC if-else logic is applied here, only direct field projection.
+     * Template substitution (e.g., {@code {uc_name}}) is reserved for
+     * Sprint 39 RESOLVE Skills that need per-UC display-name substitution;
+     * Sprint 38's 4 simpler phase Skills all use {@code applicable_use_cases:
+     * ["*"]} and carry no placeholders.
+     */
+    private PhasePlan composeSkillPhasePlan(Skill skill, String phase, String activeUc) {
+        Set<TerminalOutcome> outcomes = skill.validTerminalOutcomes().stream()
+                .map(TerminalOutcome::valueOf)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        int maxToolSteps = skill.maxToolSteps() != null ? skill.maxToolSteps() : 2;
+
+        return PhasePlan.builder()
+                .phase(phase)
+                .useCase(activeUc) // may be null in DISCOVER while still discovering
+                .objective(skill.objective())
+                .allowedTools(skill.toolsRequired())
+                .requiredContextKeys(new LinkedHashSet<>(skill.requiredContextKeys()))
+                .maxToolSteps(maxToolSteps)
+                .allowInterimMessage(skill.allowInterimMessage())
+                .validTerminalOutcomes(outcomes)
+                .systemInstruction(skill.procedure())
+                .groundingInstruction(skill.groundingInstruction())
+                .escalationPolicy(skill.escalationPolicy())
                 .build();
     }
 

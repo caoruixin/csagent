@@ -1,0 +1,29 @@
+name: confirm
+description: CONFIRM phase Skill — interpret user satisfaction with prior answer; record_outcome resolved or rebound to RESOLVE.
+applicable_phases:
+  - CONFIRM
+applicable_use_cases:
+  - "*"
+tools_required:
+  - record_outcome
+  - request_handover
+required_context_keys:
+  - form_context
+  - conversation_history
+max_tool_steps: 2
+allow_interim_message: false
+valid_terminal_outcomes:
+  - FINAL_ANSWER
+  - CLARIFICATION_NEEDED
+  - ESCALATE
+objective: "Determine whether the user is satisfied with the prior answer"
+procedure: "You are in the CONFIRM phase. Interpret whether the user is satisfied with the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., 'no', 'still not working', 'I need more help'), call request_handover with reason 'user_dissatisfied' OR transition back to RESOLVE if appropriate."
+grounding_instruction: "Read the user's response carefully. Sentiment matters more than literal words. When unclear, ask a single yes/no clarification."
+escalation_policy: "Escalate if user clearly expresses dissatisfaction or requests a human."
+guardrails: []
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+  reset: []
+  soft_signal_via_projection: []

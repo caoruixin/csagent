@@ -1,0 +1,28 @@
+name: escalate
+description: ESCALATE phase Skill — finalize handover and inform the customer.
+applicable_phases:
+  - ESCALATE
+applicable_use_cases:
+  - "*"
+tools_required:
+  - request_handover
+  - record_outcome
+required_context_keys:
+  - form_context
+  - customer_context
+max_tool_steps: 2
+allow_interim_message: false
+valid_terminal_outcomes:
+  - ESCALATE
+  - FINAL_ANSWER
+objective: "Complete the handover to a human agent and inform the customer"
+procedure: "You are in the ESCALATE phase. Send a clear handover message and ensure request_handover has been called with an appropriate escalation_reason."
+grounding_instruction: "Tell the user a human agent will assist them. Provide expected SLA if known. Do not promise specific outcomes."
+escalation_policy: "Already in ESCALATE — finalize the handover."
+guardrails: []
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+  reset: []
+  soft_signal_via_projection: []

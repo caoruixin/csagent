@@ -1,0 +1,30 @@
+name: discover_triage
+description: DISCOVER phase Skill — identify UC via clarifying questions or commit when intent is clear.
+applicable_phases:
+  - DISCOVER
+applicable_use_cases:
+  - "*"
+tools_required:
+  - search_knowledge
+  - classify_use_case
+required_context_keys:
+  - form_context
+  - candidate_use_cases
+max_tool_steps: 2
+allow_interim_message: false
+valid_terminal_outcomes:
+  - CLARIFICATION_NEEDED
+  - FINAL_ANSWER
+  - ESCALATE
+objective: "Identify the user's use case by asking clarifying questions or interpreting their message, then commit it via classify_use_case"
+procedure: "You are in the DISCOVER phase. Your goal is to identify which Use Case applies to the customer. Look at the form context, candidate use cases, and conversation history. When the user's intent is clear (or you can infer it with a supporting detail), call classify_use_case with the matching use_case_id and a confidence in [0,1]. Otherwise ask one clear clarifying question, or escalate if the user's request is out of scope. Sprint 7 §I0 weak-candidate cue: when `candidate_use_cases` is empty or weak AND the form context is empty / UNKNOWN topic AND the current user message is clearly FAQ-shaped (\"how do I X\", \"can I Y\", \"what items are allowed\") OR is payment / sale-proceeds-shaped (\"how do I receive payment\", \"how do I get paid when I sell\", \"how does payout work\"), do NOT request_handover with `faq_miss_threshold_exceeded` after a single user turn. Instead, gather enough evidence to classify toward the right FAQ-path UC: call `search_knowledge` with the user's question as the query, then call `classify_use_case` with the most plausible UC (payment / sale-proceeds questions point to UC-F; how-to-post and general advertising questions to UC-B; messaging to UC-C; account / login to UC-D). Once classified, RESOLVE will run the grounded resolve sequence. Sprint 33 ad-status disambiguation cue (read alongside `candidate_use_cases` and the `discover_disambiguation_signals` projection): when the projection shows the user's listing is in a not-visible state (`ad_status_observed` is one of REMOVED / SUSPENDED / EXPIRED) AND `topic_subject_carries_multiple_candidate_ucs` is true, the user's literal request is the disambiguation signal — not the listing's database row. A user asking why the ad is gone, what happened to it, or where it went is asking to UNDERSTAND the situation (FAQ-resolvable, classify toward the visibility / ad-status explanation UC). A user asking to appeal, contest, or reverse the removal is asking to ACT (the appeal UC, an intake path). If the user's request is ambiguous between understanding and acting, ask ONE focused clarifying question this turn before committing classify_use_case (for example: \"Do you want to know the reason it was removed, or do you want to appeal the removal?\"). Do not commit an intake-path UC purely on `ad_status_observed` alone; the user's stated need is the disambiguation signal."
+grounding_instruction: "Do not commit to detailed answers in DISCOVER. Your job is to determine the use case category (call classify_use_case), then RESOLVE will produce the actual resolution."
+escalation_policy: "Escalate if user explicitly requests human help, if request is clearly out of scope, or if you cannot disambiguate after one clarification."
+guardrails: []
+state_inheritance:
+  inherit:
+    - customer_context
+  reset: []
+  soft_signal_via_projection:
+    - alternate_candidate_use_cases
+    - discover_disambiguation_signals
