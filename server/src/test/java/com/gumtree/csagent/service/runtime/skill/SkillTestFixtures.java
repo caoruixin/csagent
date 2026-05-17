@@ -1,5 +1,7 @@
 package com.gumtree.csagent.service.runtime.skill;
 
+import com.gumtree.csagent.service.runtime.UseCaseRegistryService;
+
 /**
  * Test fixtures for the Sprint 38 Skill Registry abstraction.
  *
@@ -16,6 +18,18 @@ public final class SkillTestFixtures {
 
     /** Real SkillRegistry built from the on-classpath production Skill YAMLs. */
     public static SkillRegistry productionRegistry() {
-        return new SkillRegistry(new SkillLoader());
+        return new SkillRegistry(new SkillLoader(initializedUseCaseRegistry()));
+    }
+
+    /**
+     * Construct + initialize a {@link UseCaseRegistryService} from the
+     * classpath {@code config/use-case-registry.yaml}. Required by
+     * {@link SkillLoader} after Sprint 38 fix iteration #1 sub-gap #1c
+     * (explicit-UC registry check).
+     */
+    public static UseCaseRegistryService initializedUseCaseRegistry() {
+        UseCaseRegistryService registry = new UseCaseRegistryService();
+        registry.init();
+        return registry;
     }
 }

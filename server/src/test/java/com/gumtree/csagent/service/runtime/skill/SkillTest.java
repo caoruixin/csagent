@@ -8,6 +8,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -73,12 +74,28 @@ class SkillTest {
 
         assertEquals(List.of(), skill.applicablePhases());
         assertEquals(List.of(), skill.applicableUseCases());
-        assertEquals(List.of(), skill.toolsRequired());
+        // toolsRequired is intentionally NOT normalized: per Sprint 38 fix
+        // iteration #1 (Codex Blocking Finding 1 sub-gap #1a), the compact
+        // constructor leaves a null toolsRequired as null so SkillLoader can
+        // fail-fast on a missing tools_required key per design doc §2.2.
+        assertNull(skill.toolsRequired());
         assertEquals(List.of(), skill.requiredContextKeys());
         assertEquals(List.of(), skill.validTerminalOutcomes());
         assertEquals(List.of(), skill.guardrails());
         assertNotNull(skill.stateInheritance());
         assertEquals(StateInheritance.EMPTY, skill.stateInheritance());
+    }
+
+    @Test
+    void skill_compactConstructor_emptyToolsRequiredIsPreserved() {
+        // Explicit empty list (tools_required: [] in YAML) is acceptable per
+        // design doc §2.1 (Skills with no tool calls). Distinct from null.
+        Skill skill = new Skill(
+                "x", "x", List.of("DISCOVER"), List.of("*"),
+                List.of(), List.of(), null, false,
+                List.of(), null, "x", null, null, null, null);
+        assertNotNull(skill.toolsRequired());
+        assertTrue(skill.toolsRequired().isEmpty());
     }
 
     @Test
