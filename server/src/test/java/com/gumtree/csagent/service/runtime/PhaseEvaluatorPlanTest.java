@@ -11,6 +11,7 @@ import com.gumtree.csagent.model.ToolEvent;
 import com.gumtree.csagent.service.guardrails.ScriptLibraryService;
 import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolDispatcher;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +54,8 @@ class PhaseEvaluatorPlanTest {
         evaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
-                objectMapper, createCaseTool, eventEmitter, toolDispatcher);
+                objectMapper, createCaseTool, eventEmitter, toolDispatcher,
+                SkillTestFixtures.productionRegistry());
     }
 
     private BotSession session(String phase, String uc) {

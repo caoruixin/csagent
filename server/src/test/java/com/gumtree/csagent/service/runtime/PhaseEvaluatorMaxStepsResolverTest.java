@@ -9,6 +9,7 @@ import com.gumtree.csagent.model.ToolEvent;
 import com.gumtree.csagent.service.guardrails.ScriptLibraryService;
 import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolDispatcher;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +57,8 @@ class PhaseEvaluatorMaxStepsResolverTest {
         evaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
-                new ObjectMapper(), createCaseTool, eventEmitter, toolDispatcher);
+                new ObjectMapper(), createCaseTool, eventEmitter, toolDispatcher,
+                SkillTestFixtures.productionRegistry());
     }
 
     private PhasePlan plan(String phase, String useCase) {

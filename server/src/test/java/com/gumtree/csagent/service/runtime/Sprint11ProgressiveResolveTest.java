@@ -382,7 +382,8 @@ class Sprint11ProgressiveResolveTest {
                 objectMapper,
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.CreateCaseControlledTool.class),
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.observability.EventEmitter.class),
-                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class));
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class),
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
         BotSession s = sessionWithAd("1234567890");
         PhaseTransitionDecision decision =
                 real.interpretRunResult(plan, listingStatusAnswer, s);
@@ -499,7 +500,8 @@ class Sprint11ProgressiveResolveTest {
                 objectMapper,
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.CreateCaseControlledTool.class),
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.observability.EventEmitter.class),
-                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class));
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class),
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
         BotSession s = sessionWithAd("1234567890");
         PhaseTransitionDecision decision = real.interpretRunResult(plan, softAnswer, s);
         assertEquals("RESOLVE", decision.nextPhase(),

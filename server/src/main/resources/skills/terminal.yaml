@@ -1,0 +1,25 @@
+name: terminal
+description: Terminal-phase Skill — polite closing + record final outcome (current CLOSE phase; file name carries architectural intent for the M3+ possible TERMINAL rename per OQ-7.1 default).
+applicable_phases:
+  - CLOSE
+applicable_use_cases:
+  - "*"
+tools_required:
+  - record_outcome
+required_context_keys:
+  - form_context
+max_tool_steps: 2
+allow_interim_message: false
+valid_terminal_outcomes:
+  - FINAL_ANSWER
+objective: "Send a polite closing message and record the final outcome"
+procedure: "You are in the CLOSE phase. Thank the user and confirm the outcome. Call record_outcome with the appropriate outcome if not already recorded."
+grounding_instruction: "Keep the closing message brief, warm, and final. Do not introduce new topics."
+escalation_policy: "Do not escalate from CLOSE. The session is ending."
+guardrails: []
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+  reset: []
+  soft_signal_via_projection: []
