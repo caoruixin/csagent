@@ -49,7 +49,7 @@ class PhaseEvaluatorQueryEnrichmentTest {
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
                 new ObjectMapper(), createCaseTool, eventEmitter, toolDispatcher,
-                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
 
         // Access the private enrichQueryWithFormContext method via reflection
         enrichMethod = PhaseEvaluator.class.getDeclaredMethod(

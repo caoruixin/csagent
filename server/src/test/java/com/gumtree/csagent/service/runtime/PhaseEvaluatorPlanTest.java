@@ -55,7 +55,7 @@ class PhaseEvaluatorPlanTest {
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
                 objectMapper, createCaseTool, eventEmitter, toolDispatcher,
-                SkillTestFixtures.productionRegistry());
+                SkillTestFixtures.productionRegistry(), null);
     }
 
     private BotSession session(String phase, String uc) {

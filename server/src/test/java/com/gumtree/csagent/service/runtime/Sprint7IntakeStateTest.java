@@ -68,13 +68,13 @@ class Sprint7IntakeStateTest {
 
     @BeforeEach
     void setUp() {
-        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         builder.initToolSchemas();
         phaseEvaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, builder, actionParser, objectMapper,
                 createCaseTool, eventEmitter, toolDispatcher,
-                SkillTestFixtures.productionRegistry());
+                SkillTestFixtures.productionRegistry(), null);
         // Sprint 39 — the Sprint 7 §I2 intake-complete predicate is now an
         // intake_complete_required Skill guardrail enforced by
         // SkillGuardrailDispatcher (Sprint 37 freeze §8.2.2 / §9). The

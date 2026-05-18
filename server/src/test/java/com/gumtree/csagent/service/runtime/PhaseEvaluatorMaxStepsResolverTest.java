@@ -58,7 +58,7 @@ class PhaseEvaluatorMaxStepsResolverTest {
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
                 new ObjectMapper(), createCaseTool, eventEmitter, toolDispatcher,
-                SkillTestFixtures.productionRegistry());
+                SkillTestFixtures.productionRegistry(), null);
     }
 
     private PhasePlan plan(String phase, String useCase) {

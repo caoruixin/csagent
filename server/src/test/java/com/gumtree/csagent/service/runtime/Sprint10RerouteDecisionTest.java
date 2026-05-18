@@ -257,7 +257,7 @@ class Sprint10RerouteDecisionTest {
                 .thenReturn(java.util.List.of("search_knowledge", "resolve_article"));
 
         ContextProjectionBuilder realBuilder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer, null);
         realBuilder.initToolSchemas();
 
         String json = realBuilder.buildProjection(s, java.util.List.of(), null,

@@ -24,7 +24,9 @@ guardrails: []
 state_inheritance:
   inherit:
     - customer_context
-  reset: []
+    - accumulated_tool_results
+  reset:
+    - intake_fields_partial
   soft_signal_via_projection:
     - alternate_candidate_use_cases
     - discover_disambiguation_signals

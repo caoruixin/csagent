@@ -96,7 +96,7 @@ class AgentRunLoopAlreadyCalledNonEnforcementIntegrationTest {
     @BeforeEach
     void setUp() {
         projectionBuilder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         // initToolSchemas() is package-private (Spring @PostConstruct); not
         // calling it here leaves tool_schemas empty, which only affects the
         // tool_schemas slot — the already_called slot under test renders

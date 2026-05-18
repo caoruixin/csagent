@@ -64,7 +64,7 @@ class AlreadyCalledProjectionTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         builder.initToolSchemas();
 
         lenient().when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);

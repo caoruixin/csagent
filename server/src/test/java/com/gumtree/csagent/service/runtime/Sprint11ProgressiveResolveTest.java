@@ -387,7 +387,7 @@ class Sprint11ProgressiveResolveTest {
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.CreateCaseControlledTool.class),
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.observability.EventEmitter.class),
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class),
-                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
         BotSession s = sessionWithAd("1234567890");
         PhaseTransitionDecision decision =
                 real.interpretRunResult(plan, listingStatusAnswer, s);
@@ -449,7 +449,7 @@ class Sprint11ProgressiveResolveTest {
                 .thenReturn(java.util.List.of("search_knowledge", "resolve_article"));
 
         ContextProjectionBuilder realBuilder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer, null);
         realBuilder.initToolSchemas();
 
         String json = realBuilder.buildProjection(s, java.util.List.of(), null,
@@ -505,7 +505,7 @@ class Sprint11ProgressiveResolveTest {
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.CreateCaseControlledTool.class),
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.observability.EventEmitter.class),
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class),
-                SkillTestFixtures.productionRegistry());
+                SkillTestFixtures.productionRegistry(), null);
         BotSession s = sessionWithAd("1234567890");
         PhaseTransitionDecision decision = real.interpretRunResult(plan, softAnswer, s);
         assertEquals("RESOLVE", decision.nextPhase(),

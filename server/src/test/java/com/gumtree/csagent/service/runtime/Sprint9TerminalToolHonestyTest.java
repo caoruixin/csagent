@@ -80,7 +80,7 @@ class Sprint9TerminalToolHonestyTest {
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
                 objectMapper, createCaseTool, eventEmitter, toolDispatcher,
-                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
         loop = new AgentRunLoopImpl(llmInvocation, toolDispatcher, contextProjection,
                 actionParser, objectMapper);
     }

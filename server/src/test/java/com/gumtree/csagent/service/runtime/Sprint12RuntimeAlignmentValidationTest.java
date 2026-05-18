@@ -178,7 +178,7 @@ class Sprint12RuntimeAlignmentValidationTest {
                 .thenReturn(List.of("search_knowledge", "resolve_article",
                         "record_outcome", "request_handover"));
         ContextProjectionBuilder builder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer, null);
         builder.initToolSchemas();
         return builder;
     }

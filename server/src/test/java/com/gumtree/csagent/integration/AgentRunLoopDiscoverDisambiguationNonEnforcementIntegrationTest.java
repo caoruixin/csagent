@@ -110,7 +110,7 @@ class AgentRunLoopDiscoverDisambiguationNonEnforcementIntegrationTest {
     @BeforeEach
     void setUp() {
         projectionBuilder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         agentRunLoop = new AgentRunLoopImpl(
                 llmInvocation, toolDispatcher, projectionBuilder, actionParser, objectMapper);
 

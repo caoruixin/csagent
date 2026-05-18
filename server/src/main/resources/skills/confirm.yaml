@@ -25,5 +25,6 @@ state_inheritance:
   inherit:
     - customer_context
     - accumulated_tool_results
+    - intake_fields_partial
   reset: []
   soft_signal_via_projection: []
