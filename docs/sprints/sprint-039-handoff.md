@@ -345,6 +345,43 @@ Total: 14 files changed/created (5 NEW main; 2 NEW YAMLs; 4 NEW test files; 8 ED
 - Bad-case suite (Alice) closure-criterion (a) result + fabrication-condition trigger count — recorded at Sprint 39 close per M2 §5 recalibration; MAY STAY FLAT (Sprint 39 ships the S1 citation-presence predicate which is the architectural mechanism for fabrication discipline; whether Alice's specific trace pattern is caught depends on whether the bot's trace hits `record_outcome(class=resolve)` without `source_id`).
 - Architecture-health metrics direction (§6 governance): `new_semantic_hardcode_count` = 0; `soft_signal_conversion_count` += 2 (RESOLVE phase Skills externalized; total = 6 phase Skills + 4 predicate migrations + 1 NEW S1 + 1 NEW S2 = 12 architectural conversions post-Sprint-39); `planner_ownership_ratio` unchanged; `shadow_disagreement_rate` not measured.
 
-## 12. Closure verdict placeholder
+## 12. Closure verdict
 
-_Per `feedback_handoff_verdict_section_delegation.md`: this section is left for deliver-agent + human + Codex per-sub-sprint review at Sprint 39 close. Dev does NOT fill the closure verdict._
+**Final classification: A — Clean PASS** (no fix iteration). Sprint 39 closed 2026-05-18 with Codex per-sub-sprint review verdict `decision: pass / blocking_count: 0` on `2f412b6` in a single round per `iteration_governance.md` §4.3 trigger #3 (Runtime grounding-floor surface + Runtime capability floor + multi-fence convergence at one sub-sprint).
+
+**Codex independent verification PASSED for:**
+- §2 scope discipline (21-file diff; no forbidden-surface touch; `ResolveDispositionEvaluator` / `IntakeFieldsRegistry` / `UseCaseRegistryService` / `system_prompt.txt` / `ContextProjectionBuilder` / `SkillLoader` allowlists / governance docs / proposal docs / sprint archives / milestone archives / deliver-agent-owned files / `eval_interactive/` all UNCHANGED in the dev commit).
+- §3 §4.1 nine-question anti-hardcode kernel (Q1-Q9 all PASS; agrees with dev handoff §6 self-walk).
+- §4 §1.7 boundary check (2 RESOLVE Skill YAML bodies legacy-verbatim; `applicable_use_cases` are scope declarations matching pre-Sprint-39 FAQ/INTAKE partition; `state_inheritance` state-dimension-keyed; guardrails in declaration order with correct types/on_fail/parameters; dispatcher bounded to 4 typed predicate types — NOT a generic rule engine; `handleMustCiteSource` matches M2 §6 #4 verbatim 3-boundary check; `handleIntakeCompleteRequired` matches Sprint 7 §I2 byte-for-byte; `handlePrematureResolveOutcomeGuard` verbatim delegation to UNCHANGED `ResolveDispositionEvaluator`; `SkillLoader` allowlists UNCHANGED from Sprint 38-fix).
+- §5 hard-fence verification (Sprint 39 contract §6 37 items + M2 §6 22 items + behavioural-equivalence golden tests across 14 RESOLVE cases + Sprint 37 freeze fidelity for decisions (e §6.2.5/§6.2.6) + (g §8.2.1-§8.2.5) + (h §9.1-§9.4) + MATERIAL FINDING preservation Sprint 6/7/11 + Sprint 33 cue/slot split + premise re-verification all 15 items via `wc -l`).
+- §6 schema + reproducibility checks (RESOLVE Skill YAML schemas per design doc §6.2.5/§6.2.6; dispatcher data shape; record shapes; PhaseEvaluator integration; AgentRunLoopImpl migration with 6-arg + 5-arg backward-compat constructor; test file structure 14+24+11+11=60 new tests; line-count verifications PhaseEvaluator 1427 / AgentRunLoopImpl 638 / SkillGuardrailDispatcher 416 / records 26 + 45 / YAMLs 52 + 37; cited file:line ranges reproduced).
+- §7 Java validation (`mvn test -q` returned `Tests run: 1094, Failures: 1, Errors: 0, Skipped: 2` matching the expected inherited baseline; only `SystemPromptUserRequestedTiebreakerTest.systemPrompt_marksActiveUcTiebreakerExplicitly:53` fails as the documented unchanged dirty-working-tree carry; 60 new tests pass + targeted regression spot-checks all pass).
+- §8 Tier-0 candidate continuation (C1 REJECTED preserved by construction; **C2 QUALIFIED-DEFER — Codex independent verdict aligned with deliver-agent + human pre-decision: deterministic Java tests are necessary but not sufficient production evidence**; C3 QUALIFIED-DEFER; C4 + C5 N/A; no NEW candidates surfaced).
+- §9 OQ independent verification (OQ-S39.1-7 all confirmed; OQ-S39.5 the load-bearing OQ on C2 elevation timing returns **DEFER** independently — alignment).
+
+**OQ disposition at Sprint 39 close (7 OQs):**
+- OQ-S39.1 (6th `{intake_required_fields}` placeholder beyond contract §2.2 D-c 5) → AGREE WITH DEV; anticipated by §2.2 D-e dev judgement clause; Codex confirmed.
+- OQ-S39.2 (dispatcher `PhasePlan`-form + `Skill`-form overloads) → AGREE WITH DEV; both walk the same declaration-ordered guardrail list and preserve short-circuit semantics.
+- OQ-S39.3 (`RejectVerdict` + `DispatchContext` placement as separate files) → AGREE WITH DEV; testability + readability.
+- OQ-S39.4 (constant relocation from `AgentRunLoopImpl` to `SkillGuardrailDispatcher`) → AGREE WITH DEV; reject-reason values preserved bit-for-bit (`s1_resolve_required_before_faq_miss_handover`, `intake_required_fields_missing_for_intake_complete`, `progressive_resolve_record_outcome_premature`; S1 adds `s1_citation_presence_required`).
+- OQ-S39.5 (C2 dispatcher Tier-0 elevation timing) → **DEFER** per `feedback_constitution_discipline_vs_planning_anticipation.md`; Codex independent verdict aligned. C2 R-item `R-skill-guardrail-non-overridability-tier-0` in `docs/action_bank.md` §5.2 stays open for M3+ revisit after Sprint 39 production trace evidence accumulates.
+- OQ-S39.6 (`on_fail: downgrade_reason` not used in Sprint 39) → AGREE with deferral; no behavioural tension found; revisit at Sprint 40+ if surfaced.
+- OQ-S39.7 (stale Sprint 38 test name `resolve_intakeUc_stillFollowsLegacyBranchUntilSprint39`) → DEFER to M2 close housekeeping per `doc_governance.md` rename-at-fold-back cadence; test continues to PASS as-is.
+
+**Tier-0 candidate disposition at Sprint 39 close:** No new Tier-0. C1 REJECTED preserved by construction (`composeSkillPhasePlan` + `ToolDispatcher.validateAgainstPlan`). C2 + C3 QUALIFIED-DEFER R-items stay open. Sprint 39 ships C2's FIRST observed evidence surface (dispatcher short-circuit semantic + 24 dispatcher unit tests); production trace evidence pending across Sprint 39/40/41 window before re-evaluation at M2 close OR M3+ per `feedback_constitution_discipline_vs_planning_anticipation.md`.
+
+**Codex non-blocking observations (§10):**
+- Handoff §9 table cites RESOLVE YAMLs as 50/32 lines and "Total: 14 files changed/created"; `wc -l` and `git diff --stat` show 52/37 YAML lines and 21 files changed. Sprint archive is immutable per `doc_governance.md`; left as-is — informational only.
+- Review prompt placeholder insertion/deletion estimate (~2191/539) differed from actual `git diff --stat` (2621/536). Evidence-count correction only; no scope violation. Recorded as a `feedback_deliver_agent_cited_numbers_must_be_reproducible.md` lapse for future review prompt drafting.
+- C2 + C3 R-items stay open in `docs/action_bank.md` for Sprint 39 close / M2 close revisit; no `runtime_freeze_and_risk_policy.md` edit.
+- Any editorial divergence between Sprint 37 design doc §6.2.5/§6.2.6 templates and legacy-verbatim YAML content should be routed to M2 close fold-back (`R-skill-design-doc-template-fold-back` if not already tracked), not Sprint 39 fix iteration.
+
+**R-item flips at Sprint 39 close** (executed by deliver-agent at sub-sprint close):
+- `R-grounding-discipline-iterative-search-fabrication` → annotated as consumed-by-Sprint-39-S1-must-cite-source-declaration (M2 §7 progression).
+- `D-hard-citation-gate` → annotated to acknowledge M2 §6 #4 bounded inversion is now SHIPPED in code (general gate remains deferred per the original deferral).
+- `D-skill-runtime-framework` → partial-landing annotation extended to Sprint 39 (RESOLVE Skills + predicate migration + dispatcher landed; Sprint 40 + 41 named as continuation surfaces).
+- C2 R-item `R-skill-guardrail-non-overridability-tier-0` STAYS OPEN; Sprint 39 dispatcher landing recorded as FIRST observed evidence surface; re-evaluation deferred to M2 close OR M3+.
+- C3 R-item `R-skill-state-bus-boundary-enforcement-tier-0` STAYS OPEN (Sprint 41 enforcement surface; no Sprint 39 change).
+- Sprint 39 close-action index row added to `docs/action_bank.md` §6.
+
+Full handoff: this file. Codex archive: `docs/sprints/sprint-039-codex-review.md`. Deliver-agent close housekeeping bundle commits separately per `feedback_commit_at_end_bundles_deliver_artefacts.md`.

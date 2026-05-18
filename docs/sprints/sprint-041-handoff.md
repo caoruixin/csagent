@@ -402,13 +402,49 @@ Per `docs/sprint_objective.md` §9 + `iteration_governance.md` §5 + M2 §5 reca
   - `planner_ownership_ratio` unchanged (LLM ownership preserved; bus is capability-floor enforcement).
   - `shadow_disagreement_rate` not measured.
 
-## 12. Closure verdict placeholder
+## 12. Closure verdict
 
-Per `feedback_handoff_verdict_section_delegation.md`: closure verdict is left for deliver-agent + human + Codex per-sub-sprint review. Sprint 41 closes at sub-sprint close per `iteration_governance.md` §4.3 per-sub-sprint Codex trigger #3 (session state model touch across Skill boundary — load-bearing for cross-Skill state preservation; C3 Tier-0 candidate surface).
+**Sprint 41 final classification: A — Clean PASS** (filled by deliver-agent + human at Sprint 41 close 2026-05-18 per `feedback_handoff_verdict_section_delegation.md`).
 
-Expected outcome paths:
-- **A — Clean PASS.** Codex `approve / 0 blocking`. Deliver-agent proceeds to M2 close planning round.
-- **B — Fix-required.** Codex `fix_required / N blocking`. Fix-iteration sub-sprint per existing convention BEFORE M2 close.
-- **C — Out-of-scope review.** Codex `out_of_scope_review`. Deliver-agent + human classify per §4.2 + Sprint 32 / Sprint 38 / Sprint 39 OOSR-with-packaging-note precedent.
+Codex per-sub-sprint review at `docs/sprints/sprint-041-codex-review.md` returned **`decision: pass / blocking_count: 0`** on first pass (single round) per `iteration_governance.md` §4.3 trigger #3 (session state model touch across Skill boundary; C3 Tier-0 candidate evidence surface). Dispatch source: `compact/sprint-041-review-prompt.md` against dev commit `8cd0a10` (parent `9130abc`).
 
-Sprint 41 closes M2 implementation track. M2 milestone close is the NEXT planning round AFTER Sprint 41 close per `docs/sprint_objective.md` §12 (cross-reference to milestone framework §8.4).
+**Codex independent verification confirmed:**
+- All 9 §4.1 anti-hardcode kernel questions PASS with file:line citations (Q1 `SkillStateBus.java:99/117/175` + `SkillStateBus.java:175` registry-driven intersection; Q2 `runtime_freeze_and_risk_policy.md` UNCHANGED; Q3 soft-projection slot at `ContextProjectionBuilder.java:459` + bounded deterministic intake_fields filter; Q4 no eval-phrase encoding; Q5 LLM §1.3 ownership preserved; Q6 `system_prompt.txt` UNCHANGED at 80 lines; Q7 tool schema / capability / PII / grounding floor preserved; Q8 39 NEW Sprint 41 tests + 33 existing ctor-update preserve behavioural equivalence; Q9 `git revert 8cd0a10` cleanly removes Sprint 41 infrastructure to Sprint 40 shape).
+- All 5 §1.7 boundary items PASS (no raw eval phrases; no per-UC-pair branch table — switch detection is single guard at `PhaseEvaluator.java:407`; no `eval_interactive/` edits; M2 §5 OBSERVATION respected — no smoke composite_score / bad-case programmatic gate used; `system_prompt.txt` UNCHANGED).
+- All 8 hard-fence categories PASS (scope fence; no per-UC hardcode; no new classifier; S1/S2/dispatcher UNCHANGED; runtime freeze/M1 preservation; INTAKE_UCS + escalation enum UNCHANGED; governance/archives UNCHANGED; M3 scope fences UNCHANGED).
+- Java baseline preserved: `Tests run: 1144, Failures: 1, Errors: 0, Skipped: 2` per `cd server && mvn clean test -q` independent rerun. The sole failure is the documented inherited `SystemPromptUserRequestedTiebreakerTest.systemPrompt_marksActiveUcTiebreakerExplicitly:53` (OQ-S41.5 STATUS QUO).
+- Sprint 41 target tests: `SkillStateBusTest` 17/17 + `PriorUseCaseCarryProjectionTest` 13/13 + `UcSwitchStateInheritanceTest` 9/9 = 39/39 PASS.
+- M1 + Sprint 38 + Sprint 39 + Sprint 40 functional surfaces ALL preserved (`Sprint71PartialIntakePersistenceTest 14/14` + `SkillTeachingMigrationIntegrationTest 11/11` + `PhaseEvaluatorResolveSkillIntegrationTest 14/14` + `SkillGuardrailDispatcherTest 24/24` + `ResolveFaqGuardrailsTest 11/11` + `ResolveIntakeGuardrailsTest 11/11` + `SkillTest 9/9` + `SkillRegistryTest 11/11` + `SkillLoaderTest 18/18` + `Sprint7CandidateUseCasesProjectionTest 7/7` + `DiscoverDisambiguationSignalsProjectionTest 9/9` all PASS).
+- Schema allowlists wired at `SkillLoader.java:53` + `SkillLoader.java:65`; all 12 unchanged-claim spot checks empty `git diff` (Skill.java, StateInheritance.java, SkillLoader.java, SkillGuardrailDispatcher.java, IntakeFieldsRegistry.java, UseCaseRegistryService.java, ResolveDispositionEvaluator.java, AgentRunLoopImpl.java, ControlKernel.java, system_prompt.txt, runtime_freeze_and_risk_policy.md, skill_registry_design.md).
+
+**OQ disposition** (6 OQs resolved with Codex independent verdicts; deliver-agent + human withheld pre-decisions from the review prompt per the "surface OQs without recommendations" framing):
+- **OQ-S41.1** (D-g `system_prompt.txt` teaching SKIPPED) → **DISAGREE IN PART, NON-BLOCKING**. The slot shape IS self-describing (Codex confirmed), but the dev's rationale that the LLM observes `state_inheritance.soft_signal_via_projection` via Skill envelope projection is partly code-untrue — the current `phase_plan` projection does NOT expose `state_inheritance` to the LLM. Routes to **M2 close housekeeping one-line shell pointer** for `prior_use_case_carry`; NOT a Sprint 41 fix-requirement.
+- **OQ-S41.2** (C3 Tier-0 candidate elevation timing — LOAD-BEARING) → **DEFER continued**. Codex evidence-based verdict aligned with deliver-agent + human pre-decision per `feedback_constitution_discipline_vs_planning_anticipation.md`. Codex direct quote: "structural evidence... is necessary and compelling, but I do not elevate C3 now because the Tier-0 claim is operationally about the LLM having no production path to override state inheritance across real traces; observe through Sprint 41/M2 close/M3+ before freezing it." No `runtime_freeze_and_risk_policy.md` edit at Sprint 41 close.
+- **OQ-S41.3** (existing-test ctor `null` argument style; 33 files) → **ACCEPTABLE STYLE** per Sprint 40 ctor-update precedent + defensive null-checks + dedicated real-fixture tests in NEW Sprint 41 test classes.
+- **OQ-S41.4** (`accumulated_tool_results` declared `inherit` on all 6 Skills vs design doc §10.5 row 1 "All resolve-side Skills" wording) → **FLAG AS DESIGN-DOC EDITORIAL DIVERGENCE**. Runtime effect is no-op (no persistent session field). Routes to **M2 close editorial fold-back** per Sprint 38 OQ-S38.1 + Sprint 39 OQ + Sprint 40 OQ-S40.5 precedent.
+- **OQ-S41.5** (inherited `SystemPromptUserRequestedTiebreakerTest` failure persists; 1 → 1) → **STATUS QUO**. Not a Sprint 41 close blocker per contract §10 #20 ("do NOT make it a hard gate at Sprint 41 close"). The "Sprint 6" anchor token has been absent since Sprint 24-era working-tree mod.
+- **OQ-S41.6** (editorial divergence between §10 template and implementation) → **DIVERGENCE FOUND, MINOR**. The only divergence surfaced is OQ-S41.4 `accumulated_tool_results` wording; no major architectural divergence; routes alongside OQ-S41.4 to M2 close fold-back.
+
+**4 contract-drift items resolved by Codex:**
+- **Drift §7-a** (Sprint 39 + Sprint 40 ctor-update precedent extension to 33 files in Sprint 41) → **REAFFIRM PRECEDENT**. The ctor-update edits are behavioural-equivalence fallout from new dependency injection; not scope creep.
+- **Drift §7-b** (Java baseline 1144 within target 1140-1155) → **pass**. Independent rerun confirmed.
+- **Drift §7-c** (line-count target gaps on `ContextProjectionBuilder.java` +180 vs target ~30-50 + `PhaseEvaluator.java` +55 vs target ~5-15) → **CONTENT-COMPLIANT**. Line-count targets were advisory; helper sizes justified by required null/aging/cap/registry handling.
+- **Drift §7-d** (deliver-agent / dev handoff numbers-cite framing divergence) → **NON-BLOCKING NUMBERS-CITE OBSERVATION**. Codex independently found: deliver-agent review prompt cited `ContextProjectionBuilder.java +182/-2` (actual numstat `181/1`) + `PhaseEvaluator.java +59/-3` (actual `57/2`) + "main sources (10 files)" (actual 9 changed main-source files). Third+ observed instance of `feedback_deliver_agent_cited_numbers_must_be_reproducible.md` pattern. Future deliver-agent prompts should derive every numstat number from `git show --numstat <commit>` directly before citing.
+
+**Tier-0 candidate disposition at Sprint 41 close:**
+- **C1** REJECTED preserved by construction.
+- **C2** QUALIFIED-DEFER continued (Sprint 41 ships nothing new C2-relevant).
+- **C3 QUALIFIED-DEFER continued (LOAD-BEARING decision; Sprint 41 ships FIRST observed evidence surface but Codex evidence-based verdict aligns with deliver-agent + human pre-decision).** R-item `R-skill-state-bus-boundary-enforcement-tier-0` STAYS OPEN; re-evaluation flagged at M2 close OR M3+ after production trace observation.
+- **C4** + **C5** NOT A CANDIDATE preserved.
+
+**M2 close fold-back queue extended by 2 items at Sprint 41 close** (in addition to the pre-Sprint-41 queue from OQ-S38.1 + Sprint 39 §10 + Sprint 39 OQ-S39.7 + OQ-S40.5):
+- (S41) one-line shell pointer for `prior_use_case_carry` (from OQ-S41.1 — the dev rationale was partly code-untrue; M2 close adds the pointer).
+- (S41) `accumulated_tool_results` inheritance wording — design doc §10.5 row 1 "All resolve-side Skills" vs Sprint 41 all-six framing (from OQ-S41.4).
+
+**R-item flips at Sprint 41 close:**
+- `D-skill-runtime-framework` (action_bank.md:345) annotation extended to FULL LANDING (Sprints 37 + 38 + 38-fix + 39 + 40 + 41 ALL shipped; M2 implementation track CLOSED).
+- C2 R-item `R-skill-guardrail-non-overridability-tier-0` STAYS OPEN — Sprint 41 ships nothing new C2-relevant.
+- C3 R-item `R-skill-state-bus-boundary-enforcement-tier-0` annotated with Sprint 41 enforcement evidence + Codex DEFER verdict; STAYS OPEN; re-evaluate at M2 close OR M3+.
+- Sprint 41 close-action index row added to `docs/action_bank.md` §6 after Sprint 40.
+
+**Sprint 41 closes M2 implementation track.** M2 milestone close planning round is the NEXT deliver-agent + human unit of work per `iteration_governance.md` §8.4 — milestone-shared cumulative Codex review against commit range `51c327c..8cd0a10` (NEW M2 sub-sprints 1-5 inclusive); design doc editorial fold-back per `doc_governance.md` cadence (the 6 fold-back items above); M2 archive to `docs/milestones/M2_objective.md`; §6.5 closed-milestone index row in `docs/action_bank.md`; 10-handoff §1 lead refresh (M2 → Preceding milestone; M3 → Current); C2 + C3 R-item re-evaluation; M3 candidate selection per `docs/milestone_objective.md` §11 cross-milestone sequencing (M3-A customer-honesty / M3-B Single Handover Orchestrator / M3-C Sprint 5 S3/S4/S5 skills / M3-D Topic↔UC binding loosening / M3-Latency / M3-Skill-Tuning / M3-Tier-0 re-evaluation).

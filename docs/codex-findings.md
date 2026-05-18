@@ -1,39 +1,34 @@
 ## Sprint Review Decision
-
-_Awaiting next per-sub-sprint or milestone-shared Codex review._
-
-The previous live findings (Sprint 37 per-sub-sprint Codex review,
-`decision: pass / blocking_count: 0`, completed 2026-05-17) have
-been archived to `docs/sprints/sprint-037-codex-review.md` per the
-deliver-agent supersession pattern
-(`feedback_packaging_codex_findings_supersession.md`).
-
-The next Codex review for NEW M2 is **Sprint 38 per-sub-sprint
-Codex review** at sub-sprint close, per `iteration_governance.md`
-§4.3 trigger #3 (new architectural surface — SkillRegistry mediates
-between LLM prompt context and tool dispatch; Codex verifies
-behavioural equivalence pre/post-migration on the 4 simpler phase
-Skills DISCOVER + CONFIRM + ESCALATE + TERMINAL).
-
-Scope: against the Sprint 38 commit (SkillRegistry core +
-`SkillLoader` + `Skill` data class + `skill/discover_triage.yaml`,
-`skill/confirm.yaml`, `skill/escalate.yaml`, `skill/terminal.yaml`
-+ `PhaseEvaluator.java` migration of the 4 simpler phase branches
-to SkillRegistry-driven composition). Review prompt drafted by
-deliver-agent at `compact/sprint-038-review-prompt.md` at
-sub-sprint close.
-
-The §4.2 sprint-close header convention applies:
-
-```
-## Sprint Review Decision
-decision: pass | fix_required | out_of_scope_review
+decision: <pass | fix_required | out_of_scope_review>
 blocking_count: <number>
-summary: <one paragraph>
-```
+summary: <one paragraph — Codex's verdict on the active sprint or milestone>
 
-This file is reset to a scaffold at each archive boundary so the
-live `docs/codex-findings.md` always shows the current review (or
-"awaiting" state). Historical reviews live under
-`docs/sprints/sprint-NNN-codex-review.md` and
-`docs/sprints/M<N>-codex-review.md`.
+## Review Evidence
+<bullet list — review scope, commit range, what was loaded, what was re-run, what was independently verified>
+
+## Blocking Findings (if any)
+<numbered list; each entry quotes the diff snippet OR file:line + cited reference>
+
+## Anti-Hardcode Kernel (per `iteration_governance.md` §4.1)
+<per-Q verdict (Q1-Q9): pass | concern | fail, with one-line justification + file:line citation>
+
+## §1.7 Boundary Check
+<per-item verdict (a-e): pass | concern | fail, with one-line justification>
+
+## Hard-Fence Verification
+<per-fence verdict: pass | concern | fail, with file:line citation or empty-diff confirmation>
+
+## Schema And Reproducibility Checks
+<spot-check verdicts for line counts, allowlists, unchanged-claims, and reproducibility per `feedback_deliver_agent_cited_numbers_must_be_reproducible.md`>
+
+## Validation Runs
+<Java baseline + targeted spot-check runs + any unexpected results>
+
+## Tier-0 Candidate Independent Verification (if applicable)
+<C1-C5 verdicts: REJECTED preserved / QUALIFIED-DEFER continued / ELEVATE NOW / NOT A CANDIDATE>
+
+## OQ Independent Verification
+<per-OQ verdict, citing dev handoff §7 OQ ids and the contract-drift items if any>
+
+## Deferred / Non-Blocking Notes
+<observations that do not change the verdict but are worth recording>
