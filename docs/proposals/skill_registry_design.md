@@ -2,9 +2,9 @@
 title: Skill Registry Design — first-class externalized Skill abstraction (Sprint 37 NEW M2 sub-sprint 1 design freeze)
 doc_tier: proposal
 status: proposal
-implementation_status: not_started
+implementation_status: implemented
 source_of_truth: this file
-last_reviewed: 2026-05-17
+last_reviewed: 2026-05-18
 review_cadence: per milestone
 supersedes:
   - docs/proposals/skill_foundation_design.md
@@ -1269,6 +1269,8 @@ each source content piece.
 
 #### 6.2.1 DISCOVER → `skills/discover_triage.yaml`
 
+**M2 close fold-back annotation (2026-05-18 per OQ-S38.1 + Codex M2-shared review §7 item 2 at `docs/milestones/M2_codex-review.md`)**: The Sprint 38 DISCOVER Skill at `server/src/main/resources/skills/discover_triage.yaml` carries the legacy `PhaseEvaluator.java:397-457` `systemInstruction` content verbatim — Sprint 38 followed the `doc_governance.md` "code ahead of docs" decision rule. Sprint 40 subsequently extended the `procedure` block to absorb Sprint 31 + Sprint 33 SLOT description + DISCOVER phase guidance bulk per decision (f) §7 (the cue/slot split for Sprint 33 closed at Sprint 40 per §7.2.3). The template body below is the editorial paraphrasing of the design intent at Sprint 37 freeze authoring time; the **shipped Skill YAML is the runtime source-of-truth post-M2** per `doc_governance.md` "Code ahead of docs" decision rule (update the doc to reflect delivered behavior). Codex M2-shared review independently confirmed this fold-back routes correctly to SEPARATE governance commit (this annotation) per `doc_governance.md` cadence.
+
 Current source (HEAD `PhaseEvaluator.java:397-457`):
 
 - `objective` (line 401-402): "Identify the user's use case by
@@ -1574,6 +1576,8 @@ state_inheritance:
 
 #### 6.2.5 RESOLVE-INTAKE → `skills/resolve_intake_collect_and_handover.yaml`
 
+**M2 close fold-back annotation (2026-05-18 per Sprint 39 close §10 + Codex M2-shared review §7 item 3 at `docs/milestones/M2_codex-review.md`)**: The Sprint 39 RESOLVE-INTAKE Skill at `server/src/main/resources/skills/resolve_intake_collect_and_handover.yaml` carries the legacy `PhaseEvaluator.java` RESOLVE-INTAKE branch content verbatim — Sprint 39 followed the `doc_governance.md` "code ahead of docs" decision rule. The Skill body uses 6 template-substitution placeholders (per `PhaseEvaluator.substitutePlaceholders(text, activeUc)` helper at the dispatch site) for per-UC required-intake-field substitution at runtime; the placeholder set + substitution semantics are stable and verifiable against the legacy `buildIntakeSystemInstruction(uc, ucDef)` helper that Sprint 39 deleted. The template body below is the editorial paraphrasing of the design intent at Sprint 37 freeze authoring time; the **shipped Skill YAML is the runtime source-of-truth post-M2** per `doc_governance.md` "Code ahead of docs" decision rule (update the doc to reflect delivered behavior). Codex M2-shared review independently confirmed this fold-back routes correctly to SEPARATE governance commit (this annotation) per `doc_governance.md` cadence.
+
 Current source (HEAD `PhaseEvaluator.java:552-596`):
 
 - `phase`, `useCase` (lines 570-571): RESOLVE phase + activeUc in
@@ -1676,6 +1680,8 @@ predicate migration mapping + decision (h) §9 for dispatcher
 semantics.
 
 #### 6.2.6 RESOLVE-FAQ → `skills/resolve_faq_grounded_answer.yaml`
+
+**M2 close fold-back annotation (2026-05-18 per Sprint 39 close §10 + Codex M2-shared review §7 item 3 at `docs/milestones/M2_codex-review.md`)**: The Sprint 39 RESOLVE-FAQ Skill at `server/src/main/resources/skills/resolve_faq_grounded_answer.yaml` carries the legacy `PhaseEvaluator.java` RESOLVE-FAQ branch content verbatim — Sprint 39 followed the `doc_governance.md` "code ahead of docs" decision rule. The Skill body declares 3 guardrails in declaration order: Sprint 6 §G2 `faq_miss_handover_requires_resolve_attempt` + Sprint 11 §M1 `premature_resolve_outcome_guard` + NEW S1 `must_cite_source` bounded per M2 §6 #4 verbatim 3-boundary check (Sprint 39 implementation). The template body below is the editorial paraphrasing of the design intent at Sprint 37 freeze authoring time; the **shipped Skill YAML is the runtime source-of-truth post-M2** per `doc_governance.md` "Code ahead of docs" decision rule (update the doc to reflect delivered behavior). Codex M2-shared review independently confirmed this fold-back routes correctly to SEPARATE governance commit (this annotation) per `doc_governance.md` cadence.
 
 Current source (HEAD `PhaseEvaluator.java:598-665`):
 
@@ -2012,9 +2018,11 @@ Sprint 40 migrates the paragraph from `system_prompt.txt:36-43`
 into `discover_triage.yaml` `procedure` as an additional block.
 Together with the Sprint 33 cue already migrated per decision (e),
 the DISCOVER Skill's `procedure` post-Sprint-40 carries both: (i)
-the slot-reading teaching (Sprint 31 from system_prompt.txt
+the slot-reading teaching (Sprint 33 from system_prompt.txt
 lines 36-43), and (ii) the cue teaching (Sprint 33 from
 PhaseEvaluator lines 432-448).
+
+**M2 close fold-back annotation (2026-05-18 per OQ-S40.5 + Codex M2-shared review §7 item 1 at `docs/milestones/M2_codex-review.md`)**: The original Sprint 37 freeze authoring at this paragraph contained a Sprint 31/33 line-number swap typo — the (i) clause read "(Sprint 31 from system_prompt.txt lines 36-43)" when the correct attribution is "(Sprint 33 from system_prompt.txt lines 36-43)" since `system_prompt.txt:36-43` was Sprint 33's `discover_disambiguation_signals` SLOT description (Sprint 31's `alternate_candidate_use_cases` paragraph was at `system_prompt.txt:30-34` per §7.2.2). Sprint 40 dev implemented the CORRECT mapping per `git show 9130abc` (Sprint 31 from lines 30-34; Sprint 33 from lines 36-43); Codex per-sub-sprint review at `docs/sprints/sprint-040-codex-review.md` confirmed the typo + correct implementation; M2 close fold-back applies the fix to the freeze doc text (above) — restoring "Sprint 33 from system_prompt.txt lines 36-43" as the correct attribution for the cue/slot split's slot half (with the cue half attributed via PhaseEvaluator lines 432-448 in clause (ii) unchanged; both halves are Sprint 33's, fitting the §7.2.3 cue/slot split closing at Sprint 40).
 
 ### 7.3 Orchestration-shell content (post-Sprint-40 `system_prompt.txt`)
 
@@ -2863,7 +2871,7 @@ into per-Skill `state_inheritance` declarations:
 
 | Dimension | OLD Sprint 36 behaviour | M2 declaration shape |
 |---|---|---|
-| `accumulated_tool_results` | **S** (survives unconditionally) | All resolve-side Skills: `inherit: [accumulated_tool_results]` |
+| `accumulated_tool_results` | **S** (survives unconditionally) | All Skills: `inherit: [accumulated_tool_results]` (Sprint 41 implementation extended to all 6 Skills per M2 close fold-back 2026-05-18 — see annotation below table) |
 | `customer_context` | **S** (survives) | All Skills: `inherit: [customer_context]` |
 | `intake_fields_partial` | **C** (survives if compatible, registry intersection) | Resolve-INTAKE Skill: `inherit: [intake_fields_partial]` with bus applying intersection rule; other Skills: NOT declared (default reset) |
 | Prior citations / grounding-history | **N** (NEW soft-signal projection slot `prior_use_case_carry`) | Resolve-side Skills: `soft_signal_via_projection: [prior_use_case_carry]` |
@@ -2872,6 +2880,8 @@ into per-Skill `state_inheritance` declarations:
 The matrix preserves OLD Sprint 36's principle-level shape (one
 rule per row; registry-driven intersection for the C case; no
 per-UC-pair branch).
+
+**M2 close fold-back annotation (2026-05-18 per OQ-S41.4 + Codex M2-shared review §7 item 6 at `docs/milestones/M2_codex-review.md`)**: Row 1 (`accumulated_tool_results`) wording reflects Sprint 41 implementation choice: `inherit: [accumulated_tool_results]` was declared on all 6 Skills (not just resolve-side as the original OLD Sprint 36 §6.3 row phrased and as the pre-fold-back doc text said). The rationale is that `accumulated_tool_results` has no persistent session field (the runtime keeps tool results in `conversation_history` projection, not a separate session-state dimension); the bus action is therefore a documented no-op regardless of inherit-vs-reset declaration. Declaring inherit universally documents the principle that prior-turn tool results survive into the next Skill's projection via `conversation_history` (the LLM observes them through history projection; the bus has no separate `accumulated_tool_results` to mutate). Codex M2-shared review independently verified this is editorial-divergence-only with no runtime impact, and routes the fold-back to this annotation per `doc_governance.md` "Code ahead of docs" decision rule.
 
 ### 10.6 Rationale
 
