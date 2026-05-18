@@ -8,6 +8,7 @@ import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
 import com.gumtree.csagent.service.observability.EventEmitter;
 import com.gumtree.csagent.service.runtime.skill.Skill;
 import com.gumtree.csagent.service.runtime.skill.SkillRegistry;
+import com.gumtree.csagent.service.runtime.skill.SkillStateBus;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolDispatcher;
 import com.gumtree.csagent.service.tools.ToolResult;
@@ -214,6 +215,7 @@ public class PhaseEvaluator {
     private final EventEmitter eventEmitter;
     private final ToolDispatcher toolDispatcher;
     private final SkillRegistry skillRegistry;
+    private final SkillStateBus skillStateBus;
 
     public PhaseEvaluator(UseCaseRegistryService useCaseRegistry,
                           KnowledgeSearchService knowledgeSearchService,
@@ -225,7 +227,8 @@ public class PhaseEvaluator {
                           CreateCaseControlledTool createCaseTool,
                           EventEmitter eventEmitter,
                           ToolDispatcher toolDispatcher,
-                          SkillRegistry skillRegistry) {
+                          SkillRegistry skillRegistry,
+                          SkillStateBus skillStateBus) {
         this.useCaseRegistry = useCaseRegistry;
         this.knowledgeSearchService = knowledgeSearchService;
         this.scriptLibrary = scriptLibrary;
@@ -237,6 +240,7 @@ public class PhaseEvaluator {
         this.eventEmitter = eventEmitter;
         this.toolDispatcher = toolDispatcher;
         this.skillRegistry = skillRegistry;
+        this.skillStateBus = skillStateBus;
     }
 
     // ---------------- tool_calls / user_message helpers ----------------
@@ -359,7 +363,18 @@ public class PhaseEvaluator {
         if (skillRegistry != null) {
             Optional<Skill> selected = skillRegistry.select(phase, activeUc);
             if (selected.isPresent()) {
-                return composeSkillPhasePlan(selected.get(), phase, activeUc);
+                Skill newSkill = selected.get();
+                // Sprint 41 — SkillStateBus integration per design doc §10.3.
+                // Detect a Skill switch and invoke the bus once at the boundary:
+                //   (a) prior turn's active_use_case is non-null AND differs
+                //       from the current session.activeUseCase, AND
+                //   (b) the resolved Skill for the prior (phase_after, prior_uc)
+                //       differs by name from newSkill.
+                // Detection rides on existing M1 surfaces (BotTurn.activeUseCase
+                // + BotTurn.phaseAfter); no new classifier introduced per
+                // M2 §6 #5 fence.
+                maybeApplyStateBusOnSwitch(history, session, newSkill);
+                return composeSkillPhasePlan(newSkill, phase, activeUc);
             }
         }
         // Unknown phase OR unmapped (phase, useCase) tuple — fall back to
@@ -368,6 +383,46 @@ public class PhaseEvaluator {
         // RESOLVE-FAQ branches; both are now externalized to
         // server/src/main/resources/skills/resolve_*.yaml.
         return null;
+    }
+
+    /**
+     * Sprint 41 — invoke {@link SkillStateBus#applyOnSkillSwitch} at the
+     * Skill-switch boundary per design doc §10.3. Skill-switch is detected
+     * when (a) the prior persisted turn carries a non-null
+     * {@code active_use_case} that differs from the current session's
+     * active UC, AND (b) the Skill resolved for the prior
+     * {@code (phase_after, prior_uc)} differs by name from {@code newSkill}.
+     *
+     * <p>Detection rides on existing M1 surfaces (BotTurn.activeUseCase
+     * + BotTurn.phaseAfter); no new classifier introduced per M2 §6 #5
+     * fence. Per §1.7: this method has NO per-UC-pair branch — the bus
+     * itself applies the new Skill's {@code state_inheritance} declaration
+     * verbatim.
+     *
+     * <p>Defensive: no-op when {@code skillStateBus} is null (test
+     * harness fallback), when {@code history} is empty, when the prior
+     * turn has no committed {@code active_use_case}, OR when the prior
+     * Skill resolves to the same Skill as {@code newSkill}.
+     */
+    private void maybeApplyStateBusOnSwitch(List<BotTurn> history,
+                                             BotSession session,
+                                             Skill newSkill) {
+        if (skillStateBus == null || history == null || history.isEmpty()
+                || session == null || newSkill == null) {
+            return;
+        }
+        BotTurn priorTurn = history.get(history.size() - 1);
+        if (priorTurn == null) return;
+        String priorUc = priorTurn.getActiveUseCase();
+        String activeUc = session.getActiveUseCase();
+        if (priorUc == null || priorUc.isBlank()) return;
+        if (Objects.equals(priorUc, activeUc)) return;
+        String priorPhase = priorTurn.getPhaseAfter();
+        if (priorPhase == null || priorPhase.isBlank()) return;
+        Skill priorSkill = skillRegistry.select(priorPhase, priorUc).orElse(null);
+        if (priorSkill == null) return;
+        if (Objects.equals(priorSkill.name(), newSkill.name())) return;
+        skillStateBus.applyOnSkillSwitch(priorSkill, newSkill, session);
     }
 
     /**

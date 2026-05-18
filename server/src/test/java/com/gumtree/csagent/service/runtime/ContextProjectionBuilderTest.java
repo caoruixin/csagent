@@ -44,7 +44,7 @@ class ContextProjectionBuilderTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         // @PostConstruct is not invoked by Spring in unit tests; trigger schema init manually.
         builder.initToolSchemas();
     }

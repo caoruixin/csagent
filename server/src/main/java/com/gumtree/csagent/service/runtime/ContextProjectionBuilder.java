@@ -1,8 +1,10 @@
 package com.gumtree.csagent.service.runtime;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.BotTurn;
@@ -10,6 +12,8 @@ import com.gumtree.csagent.model.KnowledgeHit;
 import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.model.TerminalOutcome;
 import com.gumtree.csagent.model.ToolEvent;
+import com.gumtree.csagent.service.runtime.skill.Skill;
+import com.gumtree.csagent.service.runtime.skill.SkillRegistry;
 import com.gumtree.csagent.service.tools.ToolPolicyEnforcer;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -37,10 +41,28 @@ public class ContextProjectionBuilder {
             "[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}"
     );
 
+    /**
+     * Sprint 41 — aging window (in turns) for the {@code prior_use_case_carry}
+     * projection slot per design doc §10.4 + OLD Sprint 36 OQ 7.7 default
+     * carried forward. The slot is null when the most recent UC switch is
+     * more than {@value} turns ago. Single integer constant: NO per-UC
+     * variation per §1.7.
+     */
+    static final int PRIOR_USE_CASE_CARRY_AGING_TURNS = 4;
+
+    /**
+     * Sprint 41 — cap on the number of citations surfaced in the
+     * {@code prior_use_case_carry} slot per design doc §10.4 + OLD Sprint 36
+     * OQ 7.7 default carried forward. Single integer constant: NO per-UC
+     * variation per §1.7.
+     */
+    static final int PRIOR_USE_CASE_CARRY_CITATION_CAP = 3;
+
     private final ObjectMapper objectMapper;
     private final UseCaseRegistryService useCaseRegistry;
     private final ControlPolicyService controlPolicy;
     private final ToolPolicyEnforcer toolPolicyEnforcer;
+    private final SkillRegistry skillRegistry;
 
     /**
      * Sprint 20 Track B — stable JSON canonicaliser for the
@@ -62,11 +84,13 @@ public class ContextProjectionBuilder {
     public ContextProjectionBuilder(ObjectMapper objectMapper,
                                      UseCaseRegistryService useCaseRegistry,
                                      ControlPolicyService controlPolicy,
-                                     ToolPolicyEnforcer toolPolicyEnforcer) {
+                                     ToolPolicyEnforcer toolPolicyEnforcer,
+                                     SkillRegistry skillRegistry) {
         this.objectMapper = objectMapper;
         this.useCaseRegistry = useCaseRegistry;
         this.controlPolicy = controlPolicy;
         this.toolPolicyEnforcer = toolPolicyEnforcer;
+        this.skillRegistry = skillRegistry;
     }
 
     @PostConstruct
@@ -431,6 +455,23 @@ public class ContextProjectionBuilder {
             // are unambiguous).
             projection.set("discover_disambiguation_signals",
                     buildDiscoverDisambiguationSignalsNode(session));
+
+            // Sprint 41 — prior_use_case_carry projection slot per Sprint 37
+            // freeze decision (i) §10.4. Surfaces continuity state as soft
+            // signal when the session has experienced a prior UC switch
+            // within the aging window (default 4 turns). The slot carries
+            // (a) the prior active UC, (b) the prior Skill name (resolved
+            // via SkillRegistry.select), (c) up to 3 most recent citation
+            // source_ids from the prior UC's turns, and (d) the aging
+            // window constant for LLM diagnostic visibility. The slot is
+            // null when no prior UC switch has occurred OR when the
+            // aging-out window has elapsed. Construction is REGISTRY-DRIVEN:
+            // single aging constant + single citation cap; NO per-UC
+            // variation in shape per §1.7. LLM-owned read per §1.3: the
+            // LLM decides whether to surface continuity, ask, or ignore.
+            JsonNode priorUseCaseCarryNode =
+                    buildPriorUseCaseCarryNode(session, conversationHistory);
+            projection.set("prior_use_case_carry", priorUseCaseCarryNode);
 
             // Sprint 10 §L2 — minimal projected issue-state. Surfaces the
             // runtime reroute outcome (previous_active_use_case, drift_type,
@@ -951,6 +992,145 @@ public class ContextProjectionBuilder {
                     session.getSessionId(), ex.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Sprint 41 — build the {@code prior_use_case_carry} projection slot
+     * per design doc §10.4. The slot surfaces continuity state when the
+     * session has experienced a prior UC switch within the aging window
+     * (default {@link #PRIOR_USE_CASE_CARRY_AGING_TURNS} turns). It carries:
+     *
+     * <ul>
+     *   <li>{@code prior_active_use_case} — the UC immediately preceding
+     *       the current active UC.</li>
+     *   <li>{@code prior_skill_name} — the Skill resolved via
+     *       {@link SkillRegistry#select(String, String)} for the prior
+     *       turn's {@code phase_after} + prior UC.</li>
+     *   <li>{@code prior_citations} — up to
+     *       {@link #PRIOR_USE_CASE_CARRY_CITATION_CAP} most recent
+     *       citation source_ids from turns where the active UC matched
+     *       the prior UC.</li>
+     *   <li>{@code ages_out_after_turns} — the single integer aging
+     *       window constant; diagnostic visibility for the LLM.</li>
+     * </ul>
+     *
+     * <p>Returns {@link NullNode#getInstance()} when (a) the conversation
+     * history is empty or absent, (b) the current active UC is null
+     * (DISCOVER pre-classification), (c) no prior turn carries a different
+     * active UC (single-UC session), OR (d) the most recent UC switch is
+     * more than {@link #PRIOR_USE_CASE_CARRY_AGING_TURNS} turns ago
+     * (aged out).
+     *
+     * <p>§1.7 boundary: construction is REGISTRY-DRIVEN. The aging window
+     * is a single integer constant; the citation cap is a single integer
+     * constant; the {@code prior_skill_name} is resolved via the registry
+     * lookup. NO per-UC variation in slot shape.
+     *
+     * <p>§1.3 boundary: the slot is a soft signal. The LLM reads the slot
+     * value on the next turn and judges whether to surface continuity,
+     * ask, or ignore. The runtime does NOT enforce action on the slot.
+     */
+    private JsonNode buildPriorUseCaseCarryNode(BotSession session,
+                                                 List<BotTurn> conversationHistory) {
+        if (session == null) {
+            return NullNode.getInstance();
+        }
+        String currentActiveUc = session.getActiveUseCase();
+        if (currentActiveUc == null || currentActiveUc.isBlank()) {
+            return NullNode.getInstance();
+        }
+        if (conversationHistory == null || conversationHistory.isEmpty()) {
+            return NullNode.getInstance();
+        }
+
+        // Walk history in reverse to find the most recent turn whose
+        // active_use_case is non-null AND differs from the current active
+        // UC. That turn marks the prior UC switch boundary.
+        BotTurn priorSwitchTurn = null;
+        for (int i = conversationHistory.size() - 1; i >= 0; i--) {
+            BotTurn t = conversationHistory.get(i);
+            if (t == null) continue;
+            String tUc = t.getActiveUseCase();
+            if (tUc != null && !tUc.isBlank() && !tUc.equals(currentActiveUc)) {
+                priorSwitchTurn = t;
+                break;
+            }
+        }
+        if (priorSwitchTurn == null) {
+            return NullNode.getInstance();
+        }
+
+        // Aging check: if the most recent UC switch is more than the
+        // configured aging window away from the current (in-flight) turn,
+        // drop the slot. The "current turn index" is the index this turn
+        // will receive once persisted = (last persisted turn_index + 1).
+        Integer priorTurnIdx = priorSwitchTurn.getTurnIndex();
+        BotTurn lastTurn = conversationHistory.get(conversationHistory.size() - 1);
+        int currentTurnIdx = (lastTurn != null && lastTurn.getTurnIndex() != null)
+                ? lastTurn.getTurnIndex() + 1
+                : conversationHistory.size();
+        if (priorTurnIdx == null) {
+            return NullNode.getInstance();
+        }
+        if (currentTurnIdx - priorTurnIdx > PRIOR_USE_CASE_CARRY_AGING_TURNS) {
+            return NullNode.getInstance();
+        }
+
+        String priorUc = priorSwitchTurn.getActiveUseCase();
+
+        // Resolve prior_skill_name via SkillRegistry.select on the prior
+        // turn's phase_after + prior UC. Null when registry select misses
+        // (e.g., legacy turn without a Skill mapping).
+        String priorSkillName = null;
+        if (skillRegistry != null) {
+            String priorPhase = priorSwitchTurn.getPhaseAfter();
+            if (priorPhase != null && !priorPhase.isBlank()) {
+                priorSkillName = skillRegistry.select(priorPhase, priorUc)
+                        .map(Skill::name)
+                        .orElse(null);
+            }
+        }
+
+        // Collect citation source_ids from turns where active_use_case
+        // matched the prior UC, cap to the most recent
+        // PRIOR_USE_CASE_CARRY_CITATION_CAP. Walk in reverse to gather
+        // most-recent first.
+        ArrayNode citationsNode = objectMapper.createArrayNode();
+        int collected = 0;
+        for (int i = conversationHistory.size() - 1; i >= 0
+                && collected < PRIOR_USE_CASE_CARRY_CITATION_CAP; i--) {
+            BotTurn t = conversationHistory.get(i);
+            if (t == null) continue;
+            String tUc = t.getActiveUseCase();
+            if (tUc == null || !tUc.equals(priorUc)) continue;
+            String[] sids = t.getSourceIds();
+            if (sids == null) continue;
+            for (String sid : sids) {
+                if (sid == null || sid.isBlank()) continue;
+                ObjectNode cite = objectMapper.createObjectNode();
+                cite.put("source_id", sid);
+                cite.put("from_use_case", priorUc);
+                if (t.getTurnIndex() != null) {
+                    cite.put("turn_index", t.getTurnIndex());
+                } else {
+                    cite.putNull("turn_index");
+                }
+                citationsNode.add(cite);
+                collected++;
+                if (collected >= PRIOR_USE_CASE_CARRY_CITATION_CAP) break;
+            }
+        }
+
+        ObjectNode node = objectMapper.createObjectNode();
+        node.set("prior_citations", citationsNode);
+        node.put("prior_active_use_case", priorUc);
+        if (priorSkillName != null) {
+            node.put("prior_skill_name", priorSkillName);
+        } else {
+            node.putNull("prior_skill_name");
+        }
+        node.put("ages_out_after_turns", PRIOR_USE_CASE_CARRY_AGING_TURNS);
+        return node;
     }
 
     /**

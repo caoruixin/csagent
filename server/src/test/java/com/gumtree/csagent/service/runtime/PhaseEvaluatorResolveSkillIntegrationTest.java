@@ -67,7 +67,7 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
                 objectMapper, createCaseTool, eventEmitter, toolDispatcher,
-                SkillTestFixtures.productionRegistry());
+                SkillTestFixtures.productionRegistry(), null);
 
         // Stub UC definitions used by composeSkillPhasePlan's {uc_name}
         // substitution. Names mirror the production

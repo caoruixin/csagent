@@ -63,7 +63,7 @@ class DiscoverDisambiguationSignalsProjectionTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         projectionBuilder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         projectionBuilder.initToolSchemas();
 
         lenient().when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);

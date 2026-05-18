@@ -89,7 +89,7 @@ class AlreadyCalledCs011T2ShapeTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         builder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         builder.initToolSchemas();
 
         lenient().when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);

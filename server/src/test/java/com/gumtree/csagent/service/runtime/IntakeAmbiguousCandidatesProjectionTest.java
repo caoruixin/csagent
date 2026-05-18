@@ -96,7 +96,7 @@ class IntakeAmbiguousCandidatesProjectionTest {
                 useCaseRegistry, objectMapper, handoverAssembler, resolver);
 
         projectionBuilder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         projectionBuilder.initToolSchemas();
 
         lenient().when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);

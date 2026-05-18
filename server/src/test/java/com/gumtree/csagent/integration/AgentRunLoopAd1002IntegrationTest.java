@@ -95,7 +95,7 @@ class AgentRunLoopAd1002IntegrationTest {
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjectionBuilder, actionParser,
                 objectMapper, createCaseTool, eventEmitter, toolDispatcher,
-                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
 
         // Real AgentRunLoop
         agentRunLoop = new AgentRunLoopImpl(

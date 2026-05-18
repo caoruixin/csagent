@@ -73,7 +73,7 @@ class Sprint71PartialIntakePersistenceTest {
     @BeforeEach
     void setUp() {
         builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry,
-                controlPolicy, toolPolicyEnforcer);
+                controlPolicy, toolPolicyEnforcer, null);
         builder.initToolSchemas();
         runLoop = new AgentRunLoopImpl(null, null, builder, null, objectMapper);
         lenient().when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);

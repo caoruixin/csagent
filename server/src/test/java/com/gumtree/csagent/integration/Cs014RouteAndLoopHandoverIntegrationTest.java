@@ -133,7 +133,7 @@ class Cs014RouteAndLoopHandoverIntegrationTest {
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjectionBuilder, actionParser,
                 objectMapper, createCaseTool, eventEmitter, toolDispatcher,
-                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
 
         AgentRunLoop agentRunLoop = new AgentRunLoopImpl(
                 llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser, objectMapper);

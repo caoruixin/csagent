@@ -55,13 +55,13 @@ class Sprint7CandidateUseCasesProjectionTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         builder.initToolSchemas();
         phaseEvaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, builder, actionParser, objectMapper,
                 createCaseTool, eventEmitter, toolDispatcher,
-                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry());
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
         lenient().when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
         lenient().when(controlPolicy.getMaxBotTurnsIntake()).thenReturn(8);
         lenient().when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
