@@ -1,0 +1,203 @@
+{
+  "accounts": {
+    "active_user": {
+      "account_status": "ACTIVE",
+      "active_ads": 3,
+      "display_name": "John D.",
+      "email": "john.doe@example.com",
+      "is_blacklisted": false,
+      "is_known_good": true,
+      "registration_date": "2023-01-15",
+      "total_ads_posted": 12,
+      "user_id": "USR-001",
+      "warnings": 0
+    },
+    "blacklisted_user": {
+      "account_status": "BLACKLISTED",
+      "active_ads": 0,
+      "display_name": "Blocked U.",
+      "email": "blocked.user@example.com",
+      "is_blacklisted": true,
+      "is_known_good": false,
+      "registration_date": "2021-03-20",
+      "total_ads_posted": 120,
+      "user_id": "USR-003",
+      "warnings": 5
+    },
+    "suspended_user": {
+      "account_status": "SUSPENDED",
+      "active_ads": 0,
+      "display_name": "Jane S.",
+      "email": "jane.suspended@example.com",
+      "is_blacklisted": false,
+      "is_known_good": false,
+      "registration_date": "2022-06-10",
+      "total_ads_posted": 45,
+      "user_id": "USR-002",
+      "warnings": 2
+    }
+  },
+  "cases": {
+    "account_support": {
+      "ad_id": null,
+      "case_id": "CASE-SEED-002",
+      "contact_email": "john.doe@example.com",
+      "description": "I am unable to log in to my Gumtree account. I have tried resetting my password but the reset email never arrives.",
+      "intake_fields": {
+        "issue_type": "login_failure",
+        "last_successful_login": "2025-12-01",
+        "password_reset_attempted": true
+      },
+      "queue_name": "Account_Support_Queue",
+      "status": "New",
+      "subject": "Cannot access my account",
+      "use_case_id": "UC-ACCOUNT-ISSUE"
+    },
+    "ad_support": {
+      "ad_id": "AD-1002",
+      "case_id": "CASE-SEED-001",
+      "contact_email": "jane.suspended@example.com",
+      "description": "I posted a listing for a vintage watch and it was removed without explanation. I believe this was done in error.",
+      "intake_fields": {
+        "ad_id": "AD-1002",
+        "removal_reason_shown": "policy_violation",
+        "user_agrees_with_removal": false
+      },
+      "queue_name": "Ad_Support_Queue",
+      "status": "New",
+      "subject": "My ad was removed unfairly",
+      "use_case_id": "UC-AD-REMOVAL"
+    },
+    "gdpr_request": {
+      "ad_id": null,
+      "case_id": "CASE-SEED-003",
+      "contact_email": "john.doe@example.com",
+      "description": "Under GDPR, I would like to request the deletion of all my personal data held by Gumtree. Please process this request within the statutory timeframe.",
+      "intake_fields": {
+        "gdpr_article": "Article 17 - Right to Erasure",
+        "identity_verified": false,
+        "request_type": "data_deletion"
+      },
+      "queue_name": "Privacy_Queue",
+      "status": "New",
+      "subject": "Request to delete my personal data",
+      "use_case_id": "UC-GDPR-REQUEST"
+    }
+  },
+  "listings": {
+    "live_ad": {
+      "ad_id": "AD-1001",
+      "category": "Electronics > Phones",
+      "created_date": "2025-12-01",
+      "currency": "GBP",
+      "price": 899.0,
+      "replies": 8,
+      "seller_email": "john.doe@example.com",
+      "status": "LIVE",
+      "title": "iPhone 15 Pro - Like New",
+      "views": 234
+    },
+    "processing_ad": {
+      "ad_id": "AD-1004",
+      "category": "Sports & Leisure > Cycling",
+      "created_date": "2025-12-18",
+      "currency": "GBP",
+      "price": 350.0,
+      "replies": 0,
+      "seller_email": "john.doe@example.com",
+      "status": "PROCESSING",
+      "title": "Mountain Bike - Barely Used",
+      "views": 0
+    },
+    "removed_multiple_accounts": {
+      "ad_id": "AD-1003",
+      "category": "Electronics > Phones",
+      "created_date": "2025-11-15",
+      "currency": "GBP",
+      "price": 750.0,
+      "removal_reason": "multiple_accounts",
+      "removed_at": "2025-11-16T09:15:00Z",
+      "replies": 1,
+      "seller_email": "blocked.user@example.com",
+      "status": "REMOVED",
+      "title": "Samsung Galaxy S24 Ultra",
+      "views": 45
+    },
+    "removed_policy": {
+      "ad_id": "AD-1002",
+      "category": "Jewellery & Watches",
+      "created_date": "2025-11-20",
+      "currency": "GBP",
+      "price": 2500.0,
+      "removal_reason": "policy_violation",
+      "removed_at": "2025-11-22T14:30:00Z",
+      "replies": 3,
+      "seller_email": "jane.suspended@example.com",
+      "status": "REMOVED",
+      "title": "Rare Vintage Watch Collection",
+      "views": 89
+    }
+  },
+  "message_moderation": {
+    "blocked_messages": {
+      "blocked_messages": 2,
+      "conversation_id": "CONV-002",
+      "messages": [
+        {
+          "block_reason": "PHONE_NUMBER_SHARING",
+          "block_reason_display": "Message blocked: sharing personal phone numbers is not allowed in messages.",
+          "blocked": true,
+          "blocked_at": "2025-12-10T14:22:00Z",
+          "content_preview": "[blocked]",
+          "message_id": "MSG-003",
+          "sender_id": "USR-002"
+        },
+        {
+          "block_reason": "EXTERNAL_LINK",
+          "block_reason_display": "Message blocked: external links to payment or transaction sites are not permitted.",
+          "blocked": true,
+          "blocked_at": "2025-12-10T14:35:00Z",
+          "content_preview": "[blocked]",
+          "message_id": "MSG-006",
+          "sender_id": "USR-002"
+        }
+      ],
+      "total_messages": 8
+    },
+    "clean": {
+      "blocked_messages": 0,
+      "conversation_id": "CONV-001",
+      "messages": [],
+      "total_messages": 5
+    }
+  },
+  "moderation_reviews": {
+    "multiple_accounts": {
+      "ad_id": "AD-1002",
+      "decision": "REMOVED",
+      "reason_code": "MULTIPLE_ACCOUNTS",
+      "reason_display": "Your ad was removed because we detected multiple accounts being used, which violates our fair usage policy.",
+      "review_id": "REV-001",
+      "review_type": "AUTOMATED",
+      "reviewed_at": "2025-12-15T10:30:00Z"
+    },
+    "pet_limit": {
+      "ad_id": "AD-1006",
+      "decision": "REMOVED",
+      "reason_code": "PET_LIMIT_EXCEEDED",
+      "reason_display": "Your ad was removed because you have exceeded the maximum number of pet-related ads allowed within a 30-day period.",
+      "review_id": "REV-003",
+      "review_type": "AUTOMATED",
+      "reviewed_at": "2025-12-17T11:00:00Z"
+    },
+    "prohibited_content": {
+      "ad_id": "AD-1005",
+      "decision": "REMOVED",
+      "reason_code": "PROHIBITED_CONTENT",
+      "reason_display": "Your ad was removed because it contained content that is not allowed on our platform, including items that violate our prohibited items policy.",
+      "review_id": "REV-002",
+      "review_type": "MANUAL",
+      "reviewed_at": "2025-12-16T08:45:00Z"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "db_url": "postgresql://postgres:***@localhost:5432/csagent",
+  "excluded": [
+    "data/eval_datasets",
+    "eval",
+    "eval_interactive"
+  ],
+  "fixture_counts": {
+    "accounts": 3,
+    "cases": 3,
+    "listings": 4,
+    "message_moderation": 2,
+    "moderation_reviews": 3
+  },
+  "fixture_root": "/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/server/src/main/resources/mock",
+  "generated_at": "2026-05-01T12:04:03.899344+00:00",
+  "output_dir": "/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/data/mock_business_exports/20260501-200403",
+  "postgres_counts": {
+    "bot_events": 4262,
+    "bot_sessions": 864,
+    "bot_turns": 1258,
+    "llm_call_log": 1065,
+    "mock_cases": 103,
+    "mock_handover_log": 505,
+    "session_outcomes": 546
+  }
+}

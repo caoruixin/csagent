@@ -5,7 +5,9 @@
 .env.local
 
 # Data files (large CSVs, Excel, filtered output)
-data/
+data/*
+!data/knowledge/
+!data/mock_business_exports/
 
 # claude env files
 .claude/

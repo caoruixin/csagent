@@ -1,0 +1,219 @@
+article_id,title,url_category,uc_tags,search_eligible,mapping_method,token_estimate,source_url
+ka4P2000000021pIAA,Product Safety Statement,General_Policies,UC-FP,True,url_category,137,https://help.gumtree.com/s/policies?cat=General_Policies&article=Product-Safety-Statement
+ka4P200000001AbIAI,Property Scams,,UC-E,True,title_keyword,660,
+ka4P200000001DpIAI,Report Reply,,UC-E|UC-FP,True,title_keyword,297,
+ka4P200000000b7IAA,Reporting Banner Adverts on Gumtree,,UC-E|UC-FP,True,title_keyword,664,
+ka4P200000000o1IAA,Protecting Pets by Making Our Pets Category Harder to Use - 2023 Statement,,UC-B|UC-FP,True,title_keyword,692,
+ka44J000000CupTQAS,Dealer Auction - Terms of Use,,UC-B,True,title_keyword,5707,
+ka44J000000PUMOQA4,Delivery Scams,,UC-E,True,title_keyword,369,
+ka4P200000004WfIAI,How can we help you?,,UC-D,True,content_keyword,304,
+ka4P200000004jZIAQ,The new Gumtree app explained,,UC-E,True,title_keyword,769,
+ka4P2000000032jIAA,Gumtree Complaints Process,,UC-E|UC-FP,True,title_keyword,1077,
+ka4P2000000062DIAQ,Commercial Moderation - New Business Check List,,UC-B,True,title_keyword,449,
+ka4P2000000063pIAA,Commercial Moderation - Renewals Checklist,,UC-B,True,title_keyword,278,
+ka41r000000LI6JAAW,Complaints Procedure - Step 3 - Cheapside Address,,UC-E|UC-FP,True,title_keyword,104,
+ka41r000000LIEJAA4,(temp) Ad removed - By CS (general),,UC-B,True,title_keyword,184,
+ka41r000000LIEEAA4,(temp) NTD Ad Removed Information,,UC-B,True,title_keyword,326,
+ka44J000000gL5yQAE,What are features?,Promoting_Ads,UC-F,True,url_category,315,https://help.gumtree.com/s/payments-promotions?cat=Promoting_Ads&article=Benefits-of-Promoting-Ads
+ka4P200000001qXIAQ,Gumtree Recruitment Scams,,UC-E,True,title_keyword,440,
+ka44J000000gL3sQAE,Staying Safe in Motors,Types_of_Scams,UC-E,True,url_category,616,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Vehicle-Scams
+ka44J000000TbbtQAC,Staying Safe in Community,,UC-E,True,title_keyword,575,
+ka44J000000gL3nQAE,Staying Safe in For Sale,Safely_Buying_Selling,UC-E,True,url_category,588,https://help.gumtree.com/s/safety?article=Safe-Payments&cat=Safely_Buying_Selling
+ka44J000000TbboQAC,Staying Safe in Property,,UC-B,True,title_keyword,642,
+ka44J000000TbbjQAC,Staying Safe in Services,,UC-B,True,title_keyword,572,
+ka44J000000gKqjQAE,Waste Removal Services Advice,Safely_Buying_Selling,UC-E,True,url_category,537,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Waste-Removal-Services-Advice
+ka44J000000gKrhQAE,Animals with Extreme Conformations,Pets_Policies,UC-B|UC-FP,True,url_category,229,https://help.gumtree.com/s/policies?article=Animals-with-Extreme-Conformations&cat=Pets_Policies
+ka44J000000CuopQAC,Dealer Auction - Collections FAQs,,UC-B,True,title_keyword,698,
+ka44J000000gL2aQAE,Contact Gumtree - Business Development,Advertising_a_Business,UC-B,True,url_category,23,https://help.gumtree.com/s/payments-promotions?cat=Advertising_a_Business&article=Business-Development-on-Gumtree
+ka44J000000CupJQAS,Dealer Auction - General FAQ's,,UC-B,True,title_keyword,1110,
+ka44J000000gKv5QAE,My Ad was Removed,Ad_Issues,UC-A|UC-B,True,url_category,342,https://help.gumtree.com/s/technical-issues?cat=Ad_Issues&article=My-Ad-was-Removed
+ka44J000000TbZsQAK,Getting it right: Being safe on Gumtree,,UC-E,True,title_keyword,575,
+ka44J000000gKtTQAU,Gumtree Tax Strategy,General_Policies,UC-FP,True,url_category,808,https://help.gumtree.com/s/policies?cat=General_Policies&article=Gumtree-Tax-Strategy
+ka4P200000002t3IAA,Policies in Pets,Pets_Policies,UC-B|UC-FP,True,url_category,832,https://help.gumtree.com/s/policies?cat=Pets_Policies&article=Pets-Policies
+ka4P2000000054XIAQ,Pets Policies,Pets_Policies,UC-B|UC-FP,True,url_category,927,https://help.gumtree.com/s/policies?article=Pets-Policies&cat=Pets_Policies
+ka44J000000gKzRQAU,I Can't Connect to Live Chat,Other_Errors,UC-E|UC-K,True,url_category,166,https://help.gumtree.com/s/technical-issues?cat=Other_Errors&article=I-Can-t-Connect-to-Live-Chat
+ka44J000000gKyxQAE,I Can’t Click Buttons or Enter Information,Other_Errors,UC-E|UC-K,True,url_category,141,https://help.gumtree.com/s/technical-issues?cat=Other_Errors&article=I-Can-t-Click-Buttons-or-Enter-Information
+ka4Pz000002GHGfIAO,Business Development on Gumtree,Advertising_a_Business,UC-B,True,url_category,23,https://help.gumtree.com/s/payments-promotions?cat=Advertising_a_Business&article=Business-Development-on-Gumtree
+ka4P200000006a5IAA,Making a Complaint,,UC-E|UC-FP,True,title_keyword,505,
+ka4P200000001vNIAQ,Reporting a General Welfare Concern,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,93,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=Reporting-a-General-Welfare-Concern
+ka4P200000001wzIAA,Report an Animal Welfare Concern,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,101,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=Report-an-Animal-Welfare-Concern
+ka44J000000gKu2QAE,Report a Violation of Intellectual Property,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,112,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=Report-a-Violation-of-Intellectual-Property
+ka44J000000gL1SQAU,Notice of take down programme,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,112,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=Report-a-Violation-of-Intellectual-Property
+ka44J000000gL0UQAU,Responsible Disclosure,Keeping_Your_Information_Safe,UC-E,True,url_category,191,https://help.gumtree.com/s/safety?cat=Keeping_Your_Information_Safe&article=Responsible-Disclosure2
+ka4P200000003PJIAY,Responsible Disclosure,Keeping_Your_Information_Safe,UC-E,True,url_category,1550,https://help.gumtree.com/s/safety?cat=Keeping_Your_Information_Safe&article=Responsible-Disclosure2
+ka44J000000gLB3QAM,How to Contact Us by Live Chat,What_s_New_at_Gumtree,UC-E,True,url_category,187,https://help.gumtree.com/s/basics?cat=What_s_New_at_Gumtree&article=How-to-Contact-Us-by-Live-Chat
+ka44J000000gKqtQAE,Where is my Ad?,Ad_Issues,UC-A|UC-B,True,url_category,388,https://help.gumtree.com/s/technical-issues?cat=Ad_Issues&article=Where-Is-My-Ad
+ka44J000000gKaMQAU,Health & Beauty Services,,UC-B,True,title_keyword,318,
+ka44J000000gLBhQAM,Online Survey Jobs,,UC-B,True,title_keyword,708,
+ka44J000000gKuHQAU,Unsupported Android App Versions,Troubleshooting,UC-E|UC-K,True,url_category,64,https://help.gumtree.com/s/technical-issues?cat=Troubleshooting&article=Unsupported-Android-App-Versions
+ka4P200000002hlIAA,Posting Policies,Posting_Policies,UC-B|UC-FP,True,url_category,753,https://help.gumtree.com/s/policies?cat=Posting_Policies&article=General-Posting-Policies2
+ka44J000000gKv0QAE,Why Wasn’t My Ad Bumped Up?,Features,UC-B|UC-F,True,url_category,290,https://help.gumtree.com/s/payments-promotions?cat=Features&article=Bump-Up-Feature
+ka4P200000001TxIAI,Fixing Browser Issues,Troubleshooting,UC-E|UC-K,True,url_category,362,https://help.gumtree.com/s/technical-issues?cat=Troubleshooting&article=Fixing-Browser-Issues2
+ka4P200000001VZIAY,Fixing Browser Issues,Troubleshooting,UC-E|UC-K,True,url_category,257,https://help.gumtree.com/s/technical-issues?cat=Troubleshooting&article=Fixing-Browser-Issues2
+ka44J000000gKwcQAE,Masked Email Addresses,Keeping_Your_Information_Safe,UC-E,True,url_category,502,https://help.gumtree.com/s/safety?cat=Keeping_Your_Information_Safe&article=Masked-Email-Addresses2
+ka44J000000gL26QAE,Features for Job Ads,Category_Specific_Policies,UC-B|UC-FP,True,url_category,552,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Jobs-Policies
+ka44J000000gKtJQAU,GDPR,General_Policies,UC-FP|UC-G,True,url_category,2829,https://help.gumtree.com/s/policies?cat=General_Policies&article=GDPR
+ka44J000000gKpqQAE,GDPR,General_Policies,UC-FP|UC-G,True,url_category,2986,https://help.gumtree.com/s/policies?cat=General_Policies&article=GDPR
+ka4P200000000xhIAA,Reply Code of Conduct,General_Policies,UC-FP,True,url_category,362,https://help.gumtree.com/s/policies?article=Ad-Reply-Code-of-Conduct2&cat=General_Policies
+ka44J000000TbcDQAS,Where is the work wanted section?,,UC-B,True,content_keyword,75,
+ka44J000000gKxBQAU,Bump Up Feature,Features,UC-B|UC-F,True,url_category,274,https://help.gumtree.com/s/payments-promotions?cat=Features&article=Bump-Up-Feature
+ka44J000000gKzCQAU,I Can't Find My Spotlight Ad,Features,UC-B|UC-F,True,url_category,275,https://help.gumtree.com/s/payments-promotions?cat=Features&article=Spotlight-Feature
+ka44J000000gKx6QAE,Spotlight Feature,Features,UC-B|UC-F,True,url_category,331,https://help.gumtree.com/s/payments-promotions?cat=Features&article=Spotlight-Feature
+ka44J000000gKxLQAU,Urgent Feature,Features,UC-B|UC-F,True,url_category,224,https://help.gumtree.com/s/payments-promotions?cat=Features&article=Urgent-Feature
+ka44J000000gKx1QAE,Featured Ads,Features,UC-B|UC-F,True,url_category,375,https://help.gumtree.com/s/payments-promotions?cat=Features&article=Featured-Ads
+ka44J000000gKvAQAU,URL Feature,Features,UC-B|UC-F,True,url_category,283,https://help.gumtree.com/s/payments-promotions?cat=Features&article=URL-Feature
+ka4P200000004q1IAA,How to Promote an Ad,Promoting_Ads,UC-F,True,url_category,432,https://help.gumtree.com/s/payments-promotions?cat=Promoting_Ads&article=How-to-Promote-an-Ad
+ka4P200000004LNIAY,How to Edit an Ad,Managing_Ads,UC-B,True,url_category,613,https://help.gumtree.com/s/basics?cat=Managing_Ads&article=How-to-Edit-an-Ad
+ka44J000000gL0KQAU,How do I edit an ad?,Managing_Ads,UC-B,True,url_category,617,https://help.gumtree.com/s/basics?cat=Managing_Ads&article=How-to-Edit-an-Ad
+ka44J000000gKxqQAE,How to change your email address,Account_Issues,UC-D,True,url_category,263,https://help.gumtree.com/s/technical-issues?cat=Account_Issues&article=Changing-Your-Account-Email
+ka44J000000gKu7QAE,Issues with the Gumtree App,Troubleshooting,UC-E|UC-K,True,url_category,95,https://help.gumtree.com/s/technical-issues?cat=Troubleshooting&article=Issues-with-the-Gumtree-App
+ka44J000000TlTMQA0,Troubleshooting Issues with the Gumtree App,Troubleshooting,UC-E|UC-K,True,url_category,94,https://help.gumtree.com/s/technical-issues?cat=Troubleshooting&article=Issues-with-the-Gumtree-App
+ka44J000000gL0tQAE,Posting Ads on the Android App,Creating_Ads,UC-B,True,url_category,825,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad#android
+ka44J000000gL2LQAU,Creating a Gumtree Jobs Account,Accounts_Profiles,UC-D,True,url_category,164,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=How-to-Create-an-Account
+ka4P20000000569IAA,How to Post an Ad,Creating_Ads,UC-B,True,url_category,677,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka44J000000gL0AQAU,Deactivate Account,Account_Issues,UC-D,True,url_category,151,https://help.gumtree.com/s/technical-issues?cat=Account_Issues&article=Deactivating-Your-Account
+ka44J000000gKz2QAE,Reporting to the Police,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,398,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=What-to-Do-If-I-ve-Been-Scammed2
+ka4P200000002JZIAY,How do I report something to the Police?,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,408,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=Reporting-to-the-Police
+ka44J000000gL0FQAU,Deleting Ads,Managing_Ads,UC-B,True,url_category,287,https://help.gumtree.com/s/basics?cat=Managing_Ads&article=How-to-Delete-an-Ad
+ka4P200000004JlIAI,How to Delete an Ad,Managing_Ads,UC-B,True,url_category,396,https://help.gumtree.com/s/basics?cat=Managing_Ads&article=How-to-Delete-an-Ad
+ka44J000000gKuWQAU,Deactivating Your Account,Account_Issues,UC-D,True,url_category,185,https://help.gumtree.com/s/technical-issues?cat=Account_Issues&article=Deactivating-Your-Account
+ka44J000000gKyJQAU,Managing Push Notifications,Accounts_Profiles,UC-D,True,url_category,67,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=Managing-Push-Notifications
+ka4P2000000060bIAA,Where Is My Ad?,Ad_Issues,UC-A|UC-B,True,url_category,494,https://help.gumtree.com/s/technical-issues?cat=Ad_Issues&article=Where-Is-My-Ad
+ka4P200000004ZtIAI,I Can't Find My Ad,Ad_Issues,UC-A|UC-B,True,url_category,363,https://help.gumtree.com/s/technical-issues?cat=Ad_Issues&article=Where-Is-My-Ad
+ka44J000000gKw3QAE,I Can't Edit My Ad,Ad_Issues,UC-A|UC-B,True,url_category,302,https://help.gumtree.com/s/technical-issues?cat=Ad_Issues&article=I-Can-t-Edit-My-Ad
+ka44J000000gKw8QAE,I Can’t Post My Ad,,UC-B,True,title_keyword,570,
+ka44J000000gL0PQAU,How do I report something to you?,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,135,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=Reporting-an-Ad
+ka44J000000gKwIQAU,How to Login & Logout,Accounts_Profiles,UC-D,True,url_category,235,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=How-to-Login-Logout
+ka44J000000gL2VQAU,How to Login,Accounts_Profiles,UC-D,True,url_category,136,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=How-to-Login-Logout
+ka44J000000gKwSQAU,Creating Effective Ads,Creating_Ads,UC-B,True,url_category,498,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL4lQAE,How do I post an ad in Community?,Creating_Ads,UC-B,True,url_category,194,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka44J000000gL5AQAU,How do I post an Ad in For Sale?,Creating_Ads,UC-B,True,url_category,624,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka44J000000gL5ZQAU,How do I post a job?,Creating_Ads,UC-B,True,url_category,145,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka44J000000gL5UQAU,How do I post an ad in Property?,Creating_Ads,UC-B,True,url_category,194,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka44J000000gL4qQAE,How do I post an ad in Motors?,Creating_Ads,UC-B,True,url_category,194,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka44J000000gL5oQAE,How do I post an ad in Services?,Creating_Ads,UC-B,True,url_category,194,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka44J000000gKr3QAE,How do I post an ad?,Creating_Ads,UC-B,True,url_category,628,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka4P2000000065RIAQ,Reviews,Accounts_Profiles,UC-D,True,url_category,568,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=Reviews
+ka44J000000gL2fQAE,How to Register,Accounts_Profiles,UC-D,True,url_category,201,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=How-to-Create-an-Account
+ka4P200000005SjIAI,How to Create an Account,Accounts_Profiles,UC-D,True,url_category,200,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=How-to-Create-an-Account
+ka44J000000gKzgQAE,Reporting an Ad,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,135,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=Reporting-an-Ad
+ka44J000000gL1rQAE,How to change your password,Account_Issues,UC-D,True,url_category,73,https://help.gumtree.com/s/technical-issues?cat=Account_Issues&article=Changing-Your-Password
+ka4P200000003p8IAA,Changing Your Password,Account_Issues,UC-D,True,url_category,259,https://help.gumtree.com/s/technical-issues?cat=Account_Issues&article=Changing-Your-Password
+ka44J000000TbaHQAS,Disputes with Gumtree,,UC-E|UC-FP,True,title_keyword,65,
+ka4P200000004QDIAY,Using Draft Ads,Creating_Ads,UC-B,True,url_category,296,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Using-Draft-Ads
+ka44J000000gKxpQAE,Saving & Deleting Favourites,Searching_Replying,UC-C|UC-E,True,url_category,318,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Saving-Deleting-Favourites
+ka44J000000gKydQAE,Searching Effectively,Searching_Replying,UC-C|UC-E,True,url_category,780,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Searching-Effectively
+ka44J000000gL0yQAE,Sending & Receiving Messages on the Android App,Searching_Replying,UC-C|UC-E,True,url_category,387,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Sending-Receiving-Messages2
+ka4P20000000421IAA,Sending & Receiving Messages,Searching_Replying,UC-C|UC-E,True,url_category,497,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Sending-Receiving-Messages2
+ka44J000000gL1xQAE,Creating & Managing Alerts in Jobs,Creating_Ads,UC-B,True,url_category,332,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL13QAE,Creating & Managing Alerts in the Android App,Searching_Replying,UC-C|UC-E,True,url_category,451,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Creating-Managing-Alerts2#android
+ka4P200000004oPIAQ,Creating & Managing Alerts,Searching_Replying,UC-C|UC-E,True,url_category,333,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Creating-Managing-Alerts2
+ka4P200000003sLIAQ,Can I Turn Off Email Messages?,Message_Issues,UC-C,True,url_category,206,https://help.gumtree.com/s/technical-issues?cat=Message_Issues&article=Can-I-Turn-Off-Email-Messages
+ka44J000000gKz7QAE,Safety in Messages,Safely_Buying_Selling,UC-E,True,url_category,958,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Safety-in-Messages2
+ka4P200000001FRIAY,Managing Gumtree Emails,Accounts_Profiles,UC-D,True,url_category,408,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=Managing-Gumtree-Emails
+ka4P200000001H3IAI,Adding Videos,Creating_Ads,UC-B,True,url_category,239,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Adding-Videos
+ka4P200000005hFIAQ,Adding Photos,Ad_Issues,UC-A|UC-B,True,url_category,555,https://help.gumtree.com/s/technical-issues?cat=Ad_Issues&article=I-Can-t-Add-Photos
+ka4P200000004mnIAA,Sorting Search Results,Searching_Replying,UC-C|UC-E,True,url_category,160,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Sorting-Search-Results
+ka44J000000gL2GQAU,Searching in Jobs,Searching_Replying,UC-C|UC-E,True,url_category,579,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Searching-Effectively
+ka41r000000LHeyAAG,Logging In to Gumtree Jobs,,UC-B,True,title_keyword,194,
+ka4P200000005MHIAY,Changing Your Account Email,Account_Issues,UC-D,True,url_category,240,https://help.gumtree.com/s/technical-issues?cat=Account_Issues&article=Changing-Your-Account-Email
+ka44J000000gKzMQAU,I Can't Find My Featured Ad,Features,UC-B|UC-F,True,url_category,518,https://help.gumtree.com/s/payments-promotions?cat=Features&article=Featured-Ads
+ka44J000000gKysQAE,Profiles,Accounts_Profiles,UC-D,True,url_category,410,https://help.gumtree.com/s/basics?cat=Accounts_Profiles&article=Profiles
+ka44J000000gL4CQAU,Rules for Retailers,Category_Specific_Policies,UC-B|UC-FP,True,url_category,369,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Retailer-Policies
+ka44J000000gL0eQAE,My Ad was Deleted. Will My Fees be Refunded?,Feature_Issues,UC-F,True,url_category,233,https://help.gumtree.com/s/technical-issues?cat=Feature_Issues&article=Will-My-Payments-be-Refunded
+ka44J000000gKsaQAE,Will My Payments be Refunded?,Feature_Issues,UC-F,True,url_category,233,https://help.gumtree.com/s/technical-issues?cat=Feature_Issues&article=Will-My-Payments-be-Refunded
+ka4P200000001iTIAQ,Community Policies,Category_Specific_Policies,UC-B|UC-FP,True,url_category,209,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Community-Policies
+ka4Pz000002GFuqIAG,Business Accounts,Advertising_a_Business,UC-B,True,url_category,185,https://help.gumtree.com/s/payments-promotions?cat=Advertising_a_Business&article=Business-Accounts2
+ka44J000000gKsfQAE,It Won't Accept My Payment,Other_Errors,UC-E|UC-K,True,url_category,182,https://help.gumtree.com/s/technical-issues?cat=Other_Errors&article=It-Won-t-Accept-My-Payment
+ka44J000000gL1mQAE,Payment Issues,Other_Errors,UC-E|UC-K,True,url_category,182,https://help.gumtree.com/s/technical-issues?cat=Other_Errors&article=It-Won-t-Accept-My-Payment
+ka44J000000gKrDQAU,Paying for promotions,Promoting_Ads,UC-F,True,url_category,180,https://help.gumtree.com/s/payments-promotions?cat=Promoting_Ads&article=Payment-Methods2
+ka44J000000gL5eQAE,How do I find a job?,Searching_Replying,UC-C|UC-E,True,url_category,75,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Searching-Effectively
+ka4P200000003M5IAI,Block Messages,Searching_Replying,UC-C|UC-E,True,url_category,222,https://help.gumtree.com/s/basics?cat=Searching_Replying&article=Block-Messages
+ka44J000000PULfQAO,PayPal Scams,Types_of_Scams,UC-E,True,url_category,1124,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=PayPal-Scams2
+ka44J000000gL55QAE,In the Motors Business?,Advertising_a_Business,UC-B,True,url_category,41,https://help.gumtree.com/s/payments-promotions?cat=Advertising_a_Business&article=Business-Development-on-Gumtree
+ka44J000000gL5FQAU,Do you work in property?,Advertising_a_Business,UC-B,True,url_category,39,https://help.gumtree.com/s/payments-promotions?cat=Advertising_a_Business&article=Business-Development-on-Gumtree
+ka44J000000gL5jQAE,Looking for new recruits?,Advertising_a_Business,UC-B,True,url_category,40,https://help.gumtree.com/s/payments-promotions?cat=Advertising_a_Business&article=Business-Development-on-Gumtree
+ka44J000000gL63QAE,Running a service business in the UK?,Advertising_a_Business,UC-B,True,url_category,50,https://help.gumtree.com/s/payments-promotions?cat=Advertising_a_Business&article=Business-Accounts2
+ka44J000000gKy4QAE,Jobs Policies,Category_Specific_Policies,UC-B|UC-FP,True,url_category,601,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Jobs-Policies
+ka41r000000CxlSAAS,Policies in Jobs,Category_Specific_Policies,UC-B|UC-FP,True,url_category,598,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Jobs-Policies
+ka4P20000000737IAA,Property Policies,Category_Specific_Policies,UC-B|UC-FP,True,url_category,1139,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Property-Policies
+ka44J000000gL0ZQAU,Policies in Services,Category_Specific_Policies,UC-B|UC-FP,True,url_category,478,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Services-Policies
+ka4P200000005VxIAI,What's Not Allowed on Gumtree?,Posting_Policies,UC-B|UC-FP,True,url_category,1481,https://help.gumtree.com/s/policies?cat=Posting_Policies&article=What-s-Not-Allowed-on-Gumtree
+ka44J000000gKuqQAE,Motors Policies,Category_Specific_Policies,UC-B|UC-FP,True,url_category,235,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Motors-Policies
+ka4P200000002rRIAQ,Services Policies,Category_Specific_Policies,UC-B|UC-FP,True,url_category,731,https://help.gumtree.com/s/policies?article=Services-Policies&cat=Category_Specific_Policies
+ka44J000000gKxzQAE,Retailer Policies,Category_Specific_Policies,UC-B|UC-FP,True,url_category,212,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Retailer-Policies
+ka44J000000gKrIQAU,How Long Are Ads Active?,Managing_Ads,UC-B,True,url_category,300,https://help.gumtree.com/s/basics?cat=Managing_Ads&article=How-Long-Are-Ads-Active2
+ka4P200000001fFIAQ,Avoiding Discrimination,Posting_Policies,UC-B|UC-FP,True,url_category,300,https://help.gumtree.com/s/policies?cat=Posting_Policies&article=Avoiding-Discrimination
+ka44J000000gL47QAE,How to avoid discrimination,Posting_Policies,UC-B|UC-FP,True,url_category,282,https://help.gumtree.com/s/policies?cat=Posting_Policies&article=Avoiding-Discrimination
+ka44J000000Ti93QAC,Vehicle History Check,Safely_Buying_Selling,UC-E,True,url_category,267,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Vehicle-History-Check2
+ka44J000000gL18QAE,Vehicle History Check,Safely_Buying_Selling,UC-E,True,url_category,280,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Vehicle-History-Check2
+ka4P200000005ULIAY,Rehoming Pets Online Safely,Pets_Policies,UC-B|UC-FP,True,url_category,287,https://help.gumtree.com/s/policies?cat=Pets_Policies&article=Buying-Pets-Online-Safely2
+ka44J000000gKoEQAU,People We Work With,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,684,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=People-We-Work-With
+ka44J000000gKvyQAE,I’m Not Receiving Replies,,UC-C,True,title_keyword,485,
+ka44J000000gKzHQAU,Clearing Cookies and Cache,Troubleshooting,UC-E|UC-K,True,url_category,611,https://help.gumtree.com/s/technical-issues?cat=Troubleshooting&article=Clearing-Cookies-and-Cache2
+ka44J000000gKxQQAU,Benefits of Promoting Ads,Promoting_Ads,UC-F,True,url_category,324,https://help.gumtree.com/s/payments-promotions?cat=Promoting_Ads&article=Benefits-of-Promoting-Ads
+ka44J000000gKxfQAE,Received an Email About an Ad I Didn't Post,Keeping_Your_Information_Safe,UC-E,True,url_category,477,https://help.gumtree.com/s/safety?cat=Keeping_Your_Information_Safe&article=Received-an-Email-About-an-Ad-I-Didn-t-Post
+ka4P200000002LBIAY,What to Do If I’ve Been Scammed,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,721,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=What-to-Do-If-I-ve-Been-Scammed2
+ka4P200000005XZIAY,Photo Upload Issues,Ad_Issues,UC-A|UC-B,True,url_category,510,https://help.gumtree.com/s/technical-issues?cat=Ad_Issues&article=I-Can-t-Add-Photos
+ka44J000000TetMQAS,I Can't Add Photos,Ad_Issues,UC-A|UC-B,True,url_category,255,https://help.gumtree.com/s/technical-issues?cat=Ad_Issues&article=I-Can-t-Add-Photos
+ka44J000000gKy9QAE,Duplicate Ads,Posting_Policies,UC-B|UC-FP,True,url_category,215,https://help.gumtree.com/s/policies?cat=Posting_Policies&article=Duplicate-Ads
+ka4P200000002cvIAA,Animals We Do Not Allow,Pets_Policies,UC-B|UC-FP,True,url_category,597,https://help.gumtree.com/s/policies?cat=Pets_Policies&article=Animals-We-Do-Not-Allow
+ka44J000000gL3xQAE,People we work with,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,377,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=People-We-Work-With
+ka4P200000000pdIAA,Paying to Rehome Your Pet,Pets_Policies,UC-B|UC-FP,True,url_category,249,https://help.gumtree.com/s/policies?article=Paying-to-rehome-your-pet2&cat=Pets_Policies
+ka44J000000gKyTQAU,Cost of Promoting Ads,Promoting_Ads,UC-F,True,url_category,324,https://help.gumtree.com/s/payments-promotions?cat=Promoting_Ads&article=Cost-of-Promoting-Ads
+ka44J000000gKtYQAU,Age Restrictions,General_Policies,UC-FP,True,url_category,203,https://help.gumtree.com/s/policies?article=Age-Restrictions&cat=General_Policies
+ka44J000000TetlQAC,I Can’t Send Replies,,UC-C,True,title_keyword,445,
+ka44J000000PUL6QAO,AnyVan,,UC-E,True,content_keyword,171,
+ka44J000000PUOFQA4,Are ads on Gumtree free?,Promoting_Ads,UC-F,True,url_category,425,https://help.gumtree.com/s/payments-promotions?cat=Promoting_Ads&article=Are-ads-on-Gumtree-free
+ka44J000000gL2uQAE,Tips on buying a bike,Types_of_Scams,UC-E,True,url_category,582,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Bike-Theft-Scams
+ka44J000000gL4vQAE,How do I edit an ad in Motors?,Managing_Ads,UC-B,True,url_category,150,https://help.gumtree.com/s/basics?cat=Managing_Ads&article=How-to-Edit-an-Ad
+ka44J000000gKvUQAU,Suspicious Emails,Keeping_Your_Information_Safe,UC-E,True,url_category,921,https://help.gumtree.com/s/safety?cat=Keeping_Your_Information_Safe&article=Suspicious-Emails2
+ka44J000000gL2zQAE,Tips on buying electronic goods,Types_of_Scams,UC-E,True,url_category,309,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Mobile-Phone-Scams
+ka44J000000gL3TQAU,Tips on buying tickets,Types_of_Scams,UC-E,True,url_category,798,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Ticket-Scams
+ka44J000000TbchQAC,How do I create a profile?,,UC-B,True,title_keyword,176,
+ka44J000000TbccQAC,Which category should I post in?,,UC-B,True,title_keyword,646,
+ka44J000000gKwmQAE,Bike Theft & Scams,Types_of_Scams,UC-E,True,url_category,366,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Bike-Theft-Scams
+ka44J000000gKzqQAE,Ticket Scams,Types_of_Scams,UC-E,True,url_category,397,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Ticket-Scams
+ka44J000000gKtsQAE,Vehicle Scams,Types_of_Scams,UC-E,True,url_category,464,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Vehicle-Scams
+ka44J000000gKzlQAE,Mobile Phone Scams,Types_of_Scams,UC-E,True,url_category,440,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Mobile-Phone-Scams
+ka4P20000000253IAA,Paying for Items on Gumtree,Payments_on_Gumtree,UC-F,True,url_category,129,https://help.gumtree.com/s/payments-promotions?cat=Payments_on_Gumtree&article=Paying-for-Items-on-Gumtree
+ka44J000000gL1XQAU,Rehoming a pet,Pets_Policies,UC-B|UC-FP,True,url_category,738,https://help.gumtree.com/s/policies?cat=Pets_Policies&article=Pets-Policies
+ka44J000000gKwwQAE,Safety at the Meet Up,Safely_Buying_Selling,UC-E,True,url_category,419,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Safety-at-the-Meet-Up
+ka44J000000gL2pQAE,Staying Safe in Jobs,Safely_Buying_Selling,UC-E,True,url_category,607,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Staying-Safe-in-our-Jobs-Category
+ka44J000000gKzvQAE,What Information Can Be Seen When I Post?,Keeping_Your_Information_Safe,UC-E,True,url_category,419,https://help.gumtree.com/s/safety?cat=Keeping_Your_Information_Safe&article=What-Information-Can-Be-Seen-When-I-Post
+ka44J000000gL21QAE,Posting Ads in Jobs,Category_Specific_Policies,UC-B|UC-FP,True,url_category,558,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Jobs-Policies
+ka44J000000TbcrQAC,How do I create a great ad in Community?,,UC-B,True,title_keyword,144,
+ka44J000000gL5KQAU,How do I create a great ad in For Sale?,Creating_Ads,UC-B,True,url_category,526,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL50QAE,How do I create a great ad in Motors?,Creating_Ads,UC-B,True,url_category,144,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL5PQAU,How do I create a great ad in Property?,Creating_Ads,UC-B,True,url_category,144,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=How-to-Post-an-Ad
+ka44J000000gL5tQAE,How do I create a great ad in Services?,Creating_Ads,UC-B,True,url_category,144,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL4MQAU,Getting it Right: Posting in For Sale,Creating_Ads,UC-B,True,url_category,694,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL39QAE,Getting it Right: Posting in Jobs,Creating_Ads,UC-B,True,url_category,650,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL2kQAE,Getting it Right: Posting in Motors,,UC-B,True,title_keyword,861,https://www.gumtree.com/content/inside-track/car-seller/how-to-create-car-ad/
+ka44J000000gL1NQAU,Getting it right: Posting in Pets,Pets_Policies,UC-B|UC-FP,True,url_category,784,https://help.gumtree.com/s/policies?cat=Pets_Policies&article=Pets-Policies
+ka44J000000gL4HQAU,Getting it Right: Posting in Property,Category_Specific_Policies,UC-B|UC-FP,True,url_category,541,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=Property-Policies
+ka44J000000gL3EQAU,Getting it Right: Posting in Community,Creating_Ads,UC-B,True,url_category,295,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL34QAE,Getting it Right: Posting in Services,Creating_Ads,UC-B,True,url_category,646,https://help.gumtree.com/s/basics?cat=Creating_Ads&article=Creating-Effective-Ads
+ka44J000000gL3JQAU,Tips on buying your dream home,,UC-E,True,content_keyword,691,https://www.gumtree.com/info/life/p/gumtree/top-tips-on-finding-your-next-home/
+ka44J000000gL3OQAU,Tips on renting a holiday home,,UC-B,True,title_keyword,502,https://www.gumtree.com/info/safety/p/trust-safety/safety-advice-trust-safety/how-to-rent-a-holiday-home-or-caravan/
+ka44J000000gKxaQAE,Suspicious Ads,Safely_Buying_Selling,UC-E,True,url_category,514,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Suspicious-Ads
+ka44J000000gL1wQAE,Avoiding Scammers,Keeping_Your_Information_Safe,UC-E,True,url_category,1944,https://help.gumtree.com/s/safety?cat=Keeping_Your_Information_Safe&article=Recognising-Phishing-and-Spoof-Attempts
+ka4P200000001k5IAA,Recognising Phishing and Spoof Attempts,Keeping_Your_Information_Safe,UC-E,True,url_category,833,https://help.gumtree.com/s/safety?cat=Keeping_Your_Information_Safe&article=Recognising-Phishing-and-Spoof-Attempts
+ka4P200000006OnIAI,Safe Payments,Safely_Buying_Selling,UC-E,True,url_category,1087,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Safety-at-the-Meet-Up
+ka44J000000gKxVQAU,Scammers Recruiting Others,Types_of_Scams,UC-E,True,url_category,393,https://help.gumtree.com/s/safety?cat=Types_of_Scams&article=Scammers-Recruiting-Others
+ka4P200000001ybIAA,Whirlool Washing Machine/Dryer Recalls,Posting_Policies,UC-B|UC-FP,True,url_category,168,https://help.gumtree.com/s/policies?cat=Posting_Policies&article=Washing-Machine-Recall
+ka44J000000gKtnQAE,Quick Safety Tips,Safely_Buying_Selling,UC-E,True,url_category,640,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Quick-Safety-Tips
+ka44J000000gL1IQAU,Staying Safe Advice,Safely_Buying_Selling,UC-E,True,url_category,642,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Quick-Safety-Tips
+ka4P200000001IfIAI,Dealer Auction - Payments FAQs,,UC-F,True,title_keyword,397,
+ka4P200000007JFIAY,Gumtree Policies,,UC-FP,True,title_keyword,393,
+ka4P200000000rFIAQ,Protecting Pets by Making Our Pets Category Harder to Use - 2018 Statement,Pets_Policies,UC-B|UC-FP,True,url_category,945,https://help.gumtree.com/s/policies?article=Protecting-Pets-by-Making-Our-Pets-Category-Harder-to-Use2&cat=Pets_Policies
+ka44J000000gL1DQAU,Protecting Pets by Making Our Pets Category Harder to Use,Pets_Policies,UC-B|UC-FP,True,url_category,962,https://help.gumtree.com/s/policies?cat=Pets_Policies&article=Protecting-Pets-by-Making-Our-Pets-Category-Harder-to-Use2
+ka44J000000gKd6QAE,Modern Slavery Act,General_Policies,UC-FP,True,url_category,32,https://help.gumtree.com/s/policies?cat=General_Policies&article=Modern-Slavery-Act2
+ka4P200000004d7IAA,Modern Slavery Act,General_Policies,UC-FP,True,url_category,81,https://help.gumtree.com/s/policies?cat=General_Policies&article=Modern-Slavery-Act2
+ka44J000000TbcSQAS,Rules for selling tickets,,UC-FP,True,title_keyword,288,
+ka44J000000gKrmQAE,"Stoves, Belling and New World Gas Range Cookers  - Safety Notice",Posting_Policies,UC-B|UC-FP,True,url_category,135,https://help.gumtree.com/s/policies?cat=Posting_Policies&article=Stoves-Belling-and-New-World-Gas-Range-Cookers-Notice
+ka44J000000CuozQAC,Dealer Auction - Selling Your Car FAQs,,UC-B,True,title_keyword,1663,
+ka44J000000gKtxQAE,Reporting Reply & Text Fraud,Reporting_Bad_Activity,UC-E|UC-FP,True,url_category,331,https://help.gumtree.com/s/safety?cat=Reporting_Bad_Activity&article=Reporting-Reply-Text-Fraud
+ka44J000000gKuvQAE,How the Tenant Fees Act 2019 Affects You,Category_Specific_Policies,UC-B|UC-FP,True,url_category,360,https://help.gumtree.com/s/policies?cat=Category_Specific_Policies&article=How-the-Tenant-Fees-Act-2019-Affects-You
+ka4P200000001ddIAA,Third Party Code of Business Conduct and Ethics,General_Policies,UC-FP,True,url_category,2742,https://help.gumtree.com/s/policies?article=Third-Party-Code-of-Business-Conduct-and-Ethics&cat=General_Policies
+ka44J000000gKuMQAU,Staying Safe in our Jobs Category,Safely_Buying_Selling,UC-E,True,url_category,847,https://help.gumtree.com/s/safety?cat=Safely_Buying_Selling&article=Staying-Safe-in-our-Jobs-Category
