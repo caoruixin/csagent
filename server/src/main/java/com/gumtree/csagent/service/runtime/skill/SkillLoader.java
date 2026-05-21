@@ -121,6 +121,19 @@ public class SkillLoader {
             "must_cite_source"
     );
 
+    /**
+     * Allowed {@code severity} values on a {@code critical_steps[].severity}
+     * entry per Sprint 43 (S-Eval-2). {@code MANDATORY} steps are Tier-2
+     * gate-contributing; {@code ADVISORY} steps are recorded but never flip
+     * {@code case_passed}. Mirrors the
+     * {@code severity = critical | advisory} contract that S-Eval-1
+     * introduced on {@code HardCheckResult} / {@code OutcomeCheckResult}.
+     */
+    private static final Set<String> VALID_CRITICAL_STEP_SEVERITIES = Set.of(
+            "MANDATORY",
+            "ADVISORY"
+    );
+
     private static final String SKILLS_CLASSPATH_PATTERN = "classpath:/skills/*.yaml";
 
     private final ObjectMapper yamlMapper;
@@ -291,6 +304,57 @@ public class SkillLoader {
                 throw schema(filename, "guardrail type=" + g.type() + " has invalid on_fail '"
                         + g.onFail() + "'; valid modes are " + VALID_ON_FAIL_MODES);
             }
+        }
+
+        // Sprint 43 (S-Eval-2): critical_steps[] schema validation. Empty list
+        // is acceptable (the default on every Skill until S-Eval-3 populates).
+        // Each step must carry all five fields; mandatory_for UCs must be
+        // registered; severity must be MANDATORY|ADVISORY. The traceCheck
+        // string is preserved verbatim — DSL syntax validation is owned by
+        // the Python SkillProcedureExtractor (eval-side; see
+        // eval_interactive/eval_interactive/scoring/skill_procedure_check.py).
+        Set<String> seenStepIds = new java.util.HashSet<>();
+        for (CriticalStep step : skill.criticalSteps()) {
+            requireStepField(step.id(), "critical_steps[].id", filename);
+            if (!seenStepIds.add(step.id())) {
+                throw schema(filename, "critical_steps contains duplicate id '"
+                        + step.id() + "'; step ids must be unique within a Skill");
+            }
+            requireStepField(step.desc(), "critical_steps[id=" + step.id() + "].desc", filename);
+            requireStepField(step.traceCheck(),
+                    "critical_steps[id=" + step.id() + "].trace_check", filename);
+            if (step.mandatoryFor().isEmpty()) {
+                throw schema(filename, "critical_steps[id=" + step.id()
+                        + "].mandatory_for is required (non-empty UC list)");
+            }
+            for (String uc : step.mandatoryFor()) {
+                if (uc == null || uc.isBlank()) {
+                    throw schema(filename, "critical_steps[id=" + step.id()
+                            + "].mandatory_for contains a null/blank UC entry");
+                }
+                if (!useCaseRegistry.isKnownUseCase(uc)) {
+                    throw schema(filename, "critical_steps[id=" + step.id()
+                            + "].mandatory_for contains unknown UC '" + uc
+                            + "'; not registered in UseCaseRegistryService");
+                }
+            }
+            if (step.severity() == null) {
+                throw schema(filename, "critical_steps[id=" + step.id()
+                        + "].severity is required; valid values are "
+                        + VALID_CRITICAL_STEP_SEVERITIES);
+            }
+            if (!VALID_CRITICAL_STEP_SEVERITIES.contains(step.severity().name())) {
+                throw schema(filename, "critical_steps[id=" + step.id()
+                        + "].severity '" + step.severity().name()
+                        + "' is invalid; valid values are "
+                        + VALID_CRITICAL_STEP_SEVERITIES);
+            }
+        }
+    }
+
+    private static void requireStepField(String value, String fieldName, String filename) {
+        if (value == null || value.isBlank()) {
+            throw schema(filename, "required field '" + fieldName + "' is missing or blank");
         }
     }
 

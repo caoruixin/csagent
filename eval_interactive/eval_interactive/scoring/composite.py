@@ -8,6 +8,10 @@ from eval_interactive.case_spec.schema import CaseSpec
 from eval_interactive.scoring.hard_checks import HardCheckResult
 from eval_interactive.scoring.llm_judge import JudgeResult
 from eval_interactive.scoring.outcome_checks import OutcomeCheckResult
+from eval_interactive.scoring.skill_procedure_check import (
+    Tier2Result,
+    tier2_results_to_gate,
+)
 from eval_interactive.scoring.stall_detector import StallResult
 
 
@@ -126,6 +130,13 @@ class CompositeScore:
     # report layers so they can distinguish L1 failures from L2 gate failures.
     mandatory_l2_passed: bool = True
     mandatory_l2_failures: list[str] = field(default_factory=list)
+    # Sprint 43 (S-Eval-2): NEW Tier-2 ``skill_procedure_followship`` gate
+    # band. Default is the empty-list / advisory PASS produced by
+    # ``tier2_results_to_gate(())``; existing callers that have not yet
+    # been updated keep the legacy two-tier gate semantics.
+    tier2_result: Tier2Result = field(
+        default_factory=lambda: tier2_results_to_gate(())
+    )
     detail: str = ""
 
 
@@ -136,16 +147,26 @@ def compute_composite(
     l3_results: list[JudgeResult],
     stall_result: StallResult,
     case_spec: CaseSpec | None = None,
+    tier2_result: Tier2Result | None = None,
 ) -> CompositeScore:
     """Aggregate all scoring layers into a single CompositeScore.
 
-    Rules (Wave B1.1, refined HIGH-5):
-    - ``case_passed = all(l1) AND all(mandatory_l2)``
+    Rules (Wave B1.1, refined HIGH-5; Sprint 43 S-Eval-2 adds Tier-2):
+    - ``case_passed = all(l1) AND all(mandatory_l2) AND tier2_passed``
     - Mandatory L2 always: ``correct_uc``, ``correct_outcome``
     - Mandatory L2 if ``outcome_class == 'escalate'``: ``handover_completeness``
     - ``escalation_compliance`` is an L1 hard check (global) -- not an
       L2 gate. The L1 gate already covers it.
     - Missing mandatory check is fail-closed (treated as a failure).
+    - Tier-2 (Sprint 43 / S-Eval-2): the
+      ``skill_procedure_followship`` extractor produces per-step
+      PASS/FAIL/N/A; ``tier2_results_to_gate`` reduces them to a
+      ``Tier2Result`` with severity ``critical`` (a mandatory step
+      failed) or ``advisory`` (only advisory steps failed, or no
+      applicable steps). Only ``severity="critical"`` Tier-2 fails
+      flip ``case_passed``. Callers that do not pass ``tier2_result``
+      get the empty-list default (Tier-2 PASS / advisory; no gate
+      effect — backward-compat with pre-Sprint-43 call sites).
     - ``outcome_score = mean(L2 scores)`` if any L2 results, else 0.0
     - ``judge_score = mean(L3 scores) / 5.0`` if any L3 results, else 0.0
     - ``composite = 0.0 if not case_passed else 0.5 * outcome + 0.5 * judge``
@@ -182,7 +203,18 @@ def compute_composite(
                 mandatory_l2_passed = False
                 mandatory_l2_failures.append(name)
 
-    case_passed = l1_passed and mandatory_l2_passed
+    # -- Tier-2 gate (Sprint 43 / S-Eval-2 — skill_procedure_followship) --
+    # Tier-2 contributes to case_passed only when its severity is "critical"
+    # (i.e., a mandatory critical_step on the active Skill failed for a
+    # case whose active_use_case matches the step's mandatory_for set).
+    # Advisory-severity Tier-2 results never flip case_passed, mirroring
+    # the S-Eval-1 (D-2.5) severity convention on HardCheckResult /
+    # OutcomeCheckResult.
+    if tier2_result is None:
+        tier2_result = tier2_results_to_gate(())
+    tier2_critical_failed = (not tier2_result.passed) and tier2_result.severity == "critical"
+
+    case_passed = l1_passed and mandatory_l2_passed and not tier2_critical_failed
 
     # -- L2 mean --
     # S-Eval-1 (M3-Eval): exclude advisory results (Tier-3 diagnostics) from
@@ -234,13 +266,30 @@ def compute_composite(
         tag = stall_result.failure_tag or "STALL"
         failure_tags.append(f"STALL:{tag}")
 
+    # Sprint 43 (S-Eval-2): Tier-2 failure tags. Only critical-severity
+    # failures contribute to the case_passed gate but advisory failures
+    # are still surfaced as tags for trend reporting (mirrors how
+    # advisory L1 results are recorded after S-Eval-1 D-2.5).
+    if tier2_critical_failed:
+        for step_id in tier2_result.failed_step_ids:
+            failure_tags.append(f"TIER2:{step_id}")
+    elif tier2_result.severity == "advisory" and tier2_result.failed_step_ids:
+        # Advisory-only failures: gate stays PASS but the failed step
+        # ids are surfaced as TIER2_ADVISORY:<id> tags for trend reports.
+        for step_id in tier2_result.failed_step_ids:
+            failure_tags.append(f"TIER2_ADVISORY:{step_id}")
+
     # -- Detail / explanation --
     detail = _build_detail(
         case_passed=case_passed,
         l1_passed=l1_passed,
         mandatory_l2_passed=mandatory_l2_passed,
+        tier2_critical_failed=tier2_critical_failed,
         l1_failures=[r.check_name for r in l1_results if not r.passed],
         mandatory_l2_failures=mandatory_l2_failures,
+        tier2_failed_step_ids=(
+            list(tier2_result.failed_step_ids) if tier2_critical_failed else []
+        ),
     )
 
     return CompositeScore(
@@ -256,6 +305,7 @@ def compute_composite(
         failure_tags=failure_tags,
         mandatory_l2_passed=mandatory_l2_passed,
         mandatory_l2_failures=mandatory_l2_failures,
+        tier2_result=tier2_result,
         detail=detail,
     )
 
@@ -287,16 +337,23 @@ def _build_detail(
     case_passed: bool,
     l1_passed: bool,
     mandatory_l2_passed: bool,
+    tier2_critical_failed: bool,
     l1_failures: list[str],
     mandatory_l2_failures: list[str],
+    tier2_failed_step_ids: list[str],
 ) -> str:
     """Human-readable explanation of the gate outcome."""
     if case_passed:
-        return "case_passed=True (all L1 and all mandatory L2 gates passed)"
+        return (
+            "case_passed=True (all L1, all mandatory L2, and Tier-2 "
+            "skill_procedure_followship gates passed)"
+        )
 
     parts: list[str] = ["case_passed=False"]
     if not l1_passed:
         parts.append(f"L1 failed: {l1_failures}")
     if not mandatory_l2_passed:
         parts.append(f"mandatory L2 failed/missing: {mandatory_l2_failures}")
+    if tier2_critical_failed:
+        parts.append(f"Tier-2 mandatory critical_steps failed: {tier2_failed_step_ids}")
     return "; ".join(parts)

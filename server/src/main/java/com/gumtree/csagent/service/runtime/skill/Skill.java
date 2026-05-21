@@ -38,6 +38,11 @@ import java.util.List;
  *   <li>{@link #stateInheritance()} declares per-Skill state-bus posture for
  *       UC switch (Sprint 38 populates per design doc §6.2.1-§6.2.4 templates;
  *       Sprint 41 enforces at {@code SkillStateBus} boundary).</li>
+ *   <li>{@link #criticalSteps()} declares per-Skill Tier-2 procedural
+ *       contract per Sprint 43 (S-Eval-2, NEW Milestone M3-Eval sub-sprint 2).
+ *       Empty list at S-Eval-2 close on all 6 Skills; content lands in
+ *       S-Eval-3 (per-sub-sprint Codex review per
+ *       {@code iteration_governance.md} §4.3 trigger #2).</li>
  * </ul>
  *
  * <p>Per design doc §2.4 / §2.5 / §1.7 boundary check: this data model itself
@@ -60,7 +65,8 @@ public record Skill(
         String groundingInstruction,
         String escalationPolicy,
         List<Guardrail> guardrails,
-        StateInheritance stateInheritance
+        StateInheritance stateInheritance,
+        List<CriticalStep> criticalSteps
 ) {
 
     /** Wildcard sentinel for {@link #applicableUseCases()} per design doc §3.2. */
@@ -79,6 +85,37 @@ public record Skill(
         validTerminalOutcomes = validTerminalOutcomes == null ? List.of() : List.copyOf(validTerminalOutcomes);
         guardrails = guardrails == null ? List.of() : List.copyOf(guardrails);
         stateInheritance = stateInheritance == null ? StateInheritance.EMPTY : stateInheritance;
+        criticalSteps = criticalSteps == null ? List.of() : List.copyOf(criticalSteps);
+    }
+
+    /**
+     * Sprint 43 (S-Eval-2) backward-compat secondary constructor: omits
+     * {@code criticalSteps}, defaulting to an empty list. Lets pre-Sprint-43
+     * call sites (test fixtures, ad-hoc {@code new Skill(...)} construction)
+     * compile unchanged. New code should prefer the canonical 16-arg
+     * constructor.
+     */
+    public Skill(
+            String name,
+            String description,
+            List<String> applicablePhases,
+            List<String> applicableUseCases,
+            List<String> toolsRequired,
+            List<String> requiredContextKeys,
+            Integer maxToolSteps,
+            boolean allowInterimMessage,
+            List<String> validTerminalOutcomes,
+            String objective,
+            String procedure,
+            String groundingInstruction,
+            String escalationPolicy,
+            List<Guardrail> guardrails,
+            StateInheritance stateInheritance
+    ) {
+        this(name, description, applicablePhases, applicableUseCases, toolsRequired,
+                requiredContextKeys, maxToolSteps, allowInterimMessage,
+                validTerminalOutcomes, objective, procedure, groundingInstruction,
+                escalationPolicy, guardrails, stateInheritance, List.of());
     }
 
     @JsonCreator
@@ -97,7 +134,8 @@ public record Skill(
             @JsonProperty("grounding_instruction") String groundingInstruction,
             @JsonProperty("escalation_policy") String escalationPolicy,
             @JsonProperty("guardrails") List<Guardrail> guardrails,
-            @JsonProperty("state_inheritance") StateInheritance stateInheritance
+            @JsonProperty("state_inheritance") StateInheritance stateInheritance,
+            @JsonProperty("critical_steps") List<CriticalStep> criticalSteps
     ) {
         return new Skill(
                 name,
@@ -114,7 +152,8 @@ public record Skill(
                 groundingInstruction,
                 escalationPolicy,
                 guardrails,
-                stateInheritance
+                stateInheritance,
+                criticalSteps
         );
     }
 
