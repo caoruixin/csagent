@@ -868,6 +868,35 @@ public class ContextProjectionBuilder {
                 if (plan.systemInstruction() != null) {
                     planNode.put("system_instruction", plan.systemInstruction());
                 }
+
+                // Sprint 43 (S-Eval-2, NEW Milestone M3-Eval): render the
+                // active Skill's `critical_steps[].desc` slice as an LLM-
+                // visible projection slot, immediately after the procedure
+                // narrative (which is folded into `system_instruction` via
+                // PhaseEvaluator.plan() — see PhaseEvaluator.java:459).
+                // Empty list → no `critical_steps` key (parity with M2
+                // envelope behaviour; existing prompt-composition golden
+                // tests stay green). Each rendered entry carries both
+                // `id` and `desc` so S-Eval-3 authors can cross-reference
+                // steps from one `desc` to another by stable id.
+                // Per contract §8 (S-Eval-2 stanza): no semantic hardcode.
+                // Rendering surfaces the soft narrative to the LLM (§1.3
+                // LLM-owned: LLM owns whether to act on it).
+                if (skillRegistry != null && plan.useCase() != null) {
+                    skillRegistry.select(plan.phase(), plan.useCase()).ifPresent(skill -> {
+                        if (!skill.criticalSteps().isEmpty()) {
+                            ArrayNode stepsNode = objectMapper.createArrayNode();
+                            for (var step : skill.criticalSteps()) {
+                                ObjectNode stepNode = objectMapper.createObjectNode();
+                                stepNode.put("id", step.id());
+                                stepNode.put("desc", step.desc());
+                                stepsNode.add(stepNode);
+                            }
+                            planNode.set("critical_steps", stepsNode);
+                        }
+                    });
+                }
+
                 if (plan.escalationPolicy() != null) {
                     planNode.put("escalation_policy", plan.escalationPolicy());
                 }

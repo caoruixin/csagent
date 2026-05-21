@@ -35,6 +35,11 @@ from eval_interactive.scoring.composite import (
 from eval_interactive.scoring.hard_checks import HardCheckResult
 from eval_interactive.scoring.llm_judge import JudgeResult
 from eval_interactive.scoring.outcome_checks import OutcomeCheckResult
+from eval_interactive.scoring.skill_procedure_check import (
+    CriticalStepResult,
+    Tier2Result,
+    tier2_results_to_gate,
+)
 from eval_interactive.scoring.stall_detector import StallResult
 
 
@@ -332,3 +337,165 @@ class TestCompositeGate:
         result = compute_composite("c-legacy", l1, l2, [], _stall_clean())
         assert result.case_passed is True  # only L1 considered
         assert result.mandatory_l2_passed is True  # default
+
+
+# ---------------------------------------------------------------------------
+# Sprint 43 (S-Eval-2) — Tier-2 skill_procedure_followship gate wiring
+# ---------------------------------------------------------------------------
+
+
+def _step_pass(step_id: str, severity: str = "mandatory") -> CriticalStepResult:
+    return CriticalStepResult(
+        step_id=step_id, desc=step_id, outcome="PASS", severity=severity  # type: ignore[arg-type]
+    )
+
+
+def _step_fail(step_id: str, severity: str = "mandatory") -> CriticalStepResult:
+    return CriticalStepResult(
+        step_id=step_id, desc=step_id, outcome="FAIL", severity=severity  # type: ignore[arg-type]
+    )
+
+
+def _step_na(step_id: str, severity: str = "mandatory") -> CriticalStepResult:
+    return CriticalStepResult(
+        step_id=step_id, desc=step_id, outcome="N/A", severity=severity  # type: ignore[arg-type]
+    )
+
+
+class TestTier2Gate:
+    """Sprint 43 (S-Eval-2): Tier-2 ``skill_procedure_followship`` band wiring
+    in :func:`compute_composite` per dev prompt Outcome 5.
+
+    Mirrors the S-Eval-1 (D-2.5) severity-driven gate model:
+
+    - ``severity="critical"`` Tier-2 fail → flips ``case_passed``.
+    - ``severity="advisory"`` Tier-2 fail → recorded as
+      ``TIER2_ADVISORY:<step_id>`` tag; does NOT flip ``case_passed``.
+    - Empty ``critical_steps[]`` → Tier-2 PASS / advisory; no gate effect
+      (parity invariant from contract §9 hard gate).
+    - Step whose ``mandatory_for`` does not match active UC → N/A at the
+      extractor; the gate sees only PASS / N/A and does not flip.
+    """
+
+    def test_empty_tier2_default_does_not_flip_gate(self):
+        # No tier2_result supplied → default empty advisory PASS.
+        # Existing two-tier behaviour preserved (backward-compat invariant
+        # for callers that have not yet been updated to pass tier2_result).
+        spec = _StubCaseSpec(_StubExpected(should_escalate=False, outcome_class="resolve"))
+        l1 = _l1_pass()
+        l2 = [
+            OutcomeCheckResult("correct_uc", 1.0),
+            OutcomeCheckResult("correct_outcome", 1.0),
+        ]
+        result = compute_composite("c-t2-empty", l1, l2, _l3_high(), _stall_clean(), case_spec=spec)
+        assert result.case_passed is True
+        assert result.tier2_result.passed is True
+        assert result.tier2_result.severity == "advisory"
+
+    def test_mandatory_tier2_failure_flips_case_passed(self):
+        # Active Skill carries a mandatory critical_step for UC-A; case is
+        # UC-A; the step's trace_check returned FAIL at extractor → Tier-2
+        # severity=critical → case_passed=False even if L1 and mandatory L2
+        # all pass.
+        spec = _StubCaseSpec(_StubExpected(should_escalate=False, outcome_class="resolve"))
+        l1 = _l1_pass()
+        l2 = [
+            OutcomeCheckResult("correct_uc", 1.0),
+            OutcomeCheckResult("correct_outcome", 1.0),
+        ]
+        tier2 = tier2_results_to_gate([_step_fail("search_before_answer", "mandatory")])
+        result = compute_composite(
+            "c-t2-mand-fail",
+            l1, l2, _l3_high(), _stall_clean(),
+            case_spec=spec, tier2_result=tier2,
+        )
+        assert result.case_passed is False
+        assert result.composite == 0.0
+        assert "TIER2:search_before_answer" in result.failure_tags
+        assert "Tier-2 mandatory critical_steps failed" in result.detail
+        assert result.tier2_result.severity == "critical"
+        assert result.tier2_result.failed_step_ids == ["search_before_answer"]
+
+    def test_advisory_tier2_failure_does_not_flip_case_passed(self):
+        spec = _StubCaseSpec(_StubExpected(should_escalate=False, outcome_class="resolve"))
+        l1 = _l1_pass()
+        l2 = [
+            OutcomeCheckResult("correct_uc", 1.0),
+            OutcomeCheckResult("correct_outcome", 1.0),
+        ]
+        tier2 = tier2_results_to_gate([_step_fail("polish_step", "advisory")])
+        result = compute_composite(
+            "c-t2-adv-fail",
+            l1, l2, _l3_high(), _stall_clean(),
+            case_spec=spec, tier2_result=tier2,
+        )
+        assert result.case_passed is True
+        # Advisory failure still surfaces as a tag (for trend reports).
+        assert "TIER2_ADVISORY:polish_step" in result.failure_tags
+        assert result.tier2_result.passed is True
+        assert result.tier2_result.severity == "advisory"
+
+    def test_all_steps_NA_does_not_flip_case_passed(self):
+        # Step's mandatory_for did not match active UC → extractor returned
+        # N/A → tier2_results_to_gate returns PASS / critical (no mandatory
+        # fails, no advisory fails).
+        spec = _StubCaseSpec(_StubExpected(should_escalate=False, outcome_class="resolve"))
+        l1 = _l1_pass()
+        l2 = [
+            OutcomeCheckResult("correct_uc", 1.0),
+            OutcomeCheckResult("correct_outcome", 1.0),
+        ]
+        tier2 = tier2_results_to_gate([_step_na("uc_a_only_step", "mandatory")])
+        result = compute_composite(
+            "c-t2-na",
+            l1, l2, _l3_high(), _stall_clean(),
+            case_spec=spec, tier2_result=tier2,
+        )
+        assert result.case_passed is True
+        assert result.tier2_result.passed is True
+
+    def test_all_steps_pass_no_failure_tags(self):
+        spec = _StubCaseSpec(_StubExpected(should_escalate=False, outcome_class="resolve"))
+        l1 = _l1_pass()
+        l2 = [
+            OutcomeCheckResult("correct_uc", 1.0),
+            OutcomeCheckResult("correct_outcome", 1.0),
+        ]
+        tier2 = tier2_results_to_gate([
+            _step_pass("step_a", "mandatory"),
+            _step_pass("step_b", "advisory"),
+        ])
+        result = compute_composite(
+            "c-t2-allpass",
+            l1, l2, _l3_high(), _stall_clean(),
+            case_spec=spec, tier2_result=tier2,
+        )
+        assert result.case_passed is True
+        # Detail string explicitly names Tier-2 in the success message.
+        assert "Tier-2" in result.detail
+        # No TIER2 / TIER2_ADVISORY tags on a clean pass.
+        for tag in result.failure_tags:
+            assert not tag.startswith("TIER2"), f"unexpected Tier-2 tag {tag!r} on a clean pass"
+
+    def test_mandatory_tier2_failure_combined_with_l1_failure(self):
+        # Both L1 and Tier-2 mandatory fail → detail names both.
+        spec = _StubCaseSpec(_StubExpected(should_escalate=False, outcome_class="resolve"))
+        l1 = [
+            HardCheckResult("no_forbidden_tools", True),
+            HardCheckResult("no_pii_leakage", False, "PII leak"),
+        ]
+        l2 = [
+            OutcomeCheckResult("correct_uc", 1.0),
+            OutcomeCheckResult("correct_outcome", 1.0),
+        ]
+        tier2 = tier2_results_to_gate([_step_fail("critical_search", "mandatory")])
+        result = compute_composite(
+            "c-t2-combined",
+            l1, l2, _l3_high(), _stall_clean(),
+            case_spec=spec, tier2_result=tier2,
+        )
+        assert result.case_passed is False
+        assert "L1 failed" in result.detail
+        assert "Tier-2 mandatory critical_steps failed" in result.detail
+        assert "L1:no_pii_leakage" in result.failure_tags
+        assert "TIER2:critical_search" in result.failure_tags
