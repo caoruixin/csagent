@@ -30,3 +30,59 @@ state_inheritance:
   soft_signal_via_projection:
     - alternate_candidate_use_cases
     - discover_disambiguation_signals
+critical_steps:
+  - id: faq-uc-search-before-commit
+    desc: |
+      For FAQ-path use cases (UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP),
+      grounding the `classify_use_case` commitment in prior `search_knowledge`
+      evidence reduces the chance of a hasty commit on a partial
+      form-context signal. The retrieval result is the disambiguation
+      surface that resolves between adjacent FAQ-path UCs; commit only
+      after the candidate landing has retrieval support. For sharply-
+      shaped intake (clear topic + explicit question) the LLM may commit
+      without a prior search — this step is advisory because both
+      patterns are legitimate.
+    trace_check: "tool_event_seq(search_knowledge) < tool_event_seq(classify_use_case)"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+    severity: advisory
+  - id: removed-listing-route-with-moderation-context
+    desc: |
+      When the form context indicates a removed listing (the
+      `discover_disambiguation_signals` projection slot shows an
+      `ad_status_observed` value of REMOVED / SUSPENDED / EXPIRED),
+      the moderation context is the canonical reason metadata for
+      deciding between a correct-deletion explanation (UC-FP) and an
+      appeal intake (UC-H). Surface the moderation context in the trace
+      before committing the use case so the route is anchored in the
+      actual reason, not on the listing-status flag alone. The LLM owns
+      whether the user's stated need is understanding or acting on the
+      removal; this step keeps the procedural anchor honest.
+    trace_check: "accumulated_tool_results.get_moderation_review_context"
+    mandatory_for:
+      - UC-FP
+    severity: advisory
+  - id: intake-uc-classified-without-pre-search-noise
+    desc: |
+      For intake-path use cases (UC-G, UC-H, UC-I, UC-J, UC-K),
+      `classify_use_case` is anchored on the form's topic-subject plus
+      the user's explicit intake / appeal / report signal. Pre-
+      classification `search_knowledge` for intake-shaped intent is
+      unnecessary noise and can mislead the route. Commit the intake
+      use case promptly so the intake collection can begin in the
+      RESOLVE phase — the canonical required fields for the chosen UC
+      drive the next turn, not retrieval.
+    trace_check: "accumulated_tool_results.classify_use_case"
+    mandatory_for:
+      - UC-G
+      - UC-H
+      - UC-I
+      - UC-J
+      - UC-K
+    severity: advisory

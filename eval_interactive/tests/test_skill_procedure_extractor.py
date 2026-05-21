@@ -529,7 +529,21 @@ class TestTier2GateAdapter:
 
 
 class TestProductionSkillLoad:
-    def test_load_all_six_production_skills_empty_critical_steps(self):
+    # Sprint 44 (S-Eval-3, NEW Milestone M3-Eval sub-sprint 3) update of the
+    # S-Eval-2 close checkpoint. S-Eval-2 anchored the empty-default state;
+    # S-Eval-3 populates 18 critical_steps across the 6 Skills per the
+    # contract §2 per-Skill anticipated distribution table.
+
+    _EXPECTED_PER_SKILL_COUNTS = {
+        "discover_triage": 3,
+        "confirm": 2,
+        "resolve_faq_grounded_answer": 5,
+        "resolve_intake_collect_and_handover": 5,
+        "escalate": 2,
+        "terminal": 1,
+    }
+
+    def test_load_all_six_production_skills_populated_critical_steps(self):
         from pathlib import Path
 
         from eval_interactive.scoring.skill_procedure_check import (
@@ -548,11 +562,28 @@ class TestProductionSkillLoad:
         assert len(skills) == 6, (
             f"expected 6 production Skill YAMLs, found {len(skills)} under {skills_dir}"
         )
+        total = 0
         for s in skills:
-            assert s.critical_steps == (), (
-                f"S-Eval-2 ships NO critical_steps content; Skill {s.name!r} has "
-                f"{len(s.critical_steps)} steps. Did S-Eval-3 leak in?"
+            expected = self._EXPECTED_PER_SKILL_COUNTS.get(s.name)
+            assert expected is not None, (
+                f"S-Eval-3 expected-count map missing entry for Skill={s.name!r}"
             )
+            assert len(s.critical_steps) == expected, (
+                f"S-Eval-3 per-Skill critical_steps count for {s.name!r} expected "
+                f"{expected}, got {len(s.critical_steps)}"
+            )
+            for step in s.critical_steps:
+                assert step.id and step.desc and step.trace_check
+                assert step.mandatory_for, (
+                    f"Skill {s.name!r} step {step.id!r} has empty mandatory_for"
+                )
+                assert step.severity in ("mandatory", "advisory")
+            total += len(s.critical_steps)
+        assert total == 18, (
+            f"S-Eval-3 expected 18 populated critical_steps total across the 6 "
+            f"Skills (within contract §2 envelope 16-22 lower-bound; 18-30 outer "
+            f"envelope), got {total}"
+        )
 
     def test_extractor_handles_full_production_skill_set_without_crash(self):
         from pathlib import Path
@@ -569,10 +600,20 @@ class TestProductionSkillLoad:
             / "resources"
             / "skills"
         )
+        # Extractor construction parses every step's trace_check; the
+        # S-Eval-2 DSL parser is the §1.7 structural defence. If any
+        # populated trace_check is malformed or contains a forbidden
+        # primitive, this construction raises TraceCheckDSLSyntaxError.
         ext = SkillProcedureExtractor.from_skills(
             load_skills_from_dir(skills_dir)
         )
-        # Empty critical_steps on every skill → every extract() returns [].
+        # Smoke: extract() runs without crash for every Skill name on a
+        # trivial empty trace. Per-step outcomes (PASS/FAIL/N/A) are
+        # exercised by the cluster-specific tests in this file and by the
+        # offline verification recorded in the S-Eval-3 handoff §9. The
+        # populated production set returns either applicable per-step
+        # results (when the active_use_case is in the step's
+        # mandatory_for) or N/A entries.
         for skill_name in [
             "discover_triage",
             "confirm",
@@ -582,7 +623,7 @@ class TestProductionSkillLoad:
             "terminal",
         ]:
             results = ext.extract([_turn()], active_skill=skill_name, active_use_case="UC-A")
-            assert results == [], (
-                f"Skill {skill_name!r} returned non-empty extractor results; "
-                f"S-Eval-2 expected empty list. Got: {results}"
-            )
+            # No exception raised is the smoke pass. Result list shape is
+            # determined by each Skill's per-step mandatory_for scoping
+            # against UC-A.
+            assert isinstance(results, list)

@@ -81,17 +81,58 @@ class SkillCriticalStepsLoadingTest {
     }
 
     @Test
-    void loadAll_productionSkills_haveEmptyCriticalSteps_atSEval2_close() {
+    void loadAll_productionSkills_havePopulatedCriticalSteps_atSEval3_close() {
+        // Sprint 44 (S-Eval-3, NEW Milestone M3-Eval sub-sprint 3) update of
+        // the S-Eval-2 close checkpoint. S-Eval-2 anchored the empty-default
+        // (parity with the M2 envelope); S-Eval-3 populates 18 critical_steps
+        // across the 6 Skills per the contract §2 per-Skill anticipated
+        // distribution table. Each populated step carries all 5 required
+        // fields and parses cleanly through the SkillLoader allowlist
+        // validation that S-Eval-2 shipped. Per-Skill counts are within the
+        // contract's stated 16-22 lower-bound envelope (3-5 per Skill).
         List<Skill> skills = loader.loadAll();
         assertEquals(6, skills.size(),
-                "6 production Skill YAMLs (M2 close) — Sprint 43 (S-Eval-2) does not change the file count");
+                "6 production Skill YAMLs (M2 close) — S-Eval-3 does not change the file count, "
+                        + "only appends critical_steps: blocks to the existing 6.");
 
+        java.util.Map<String, Integer> expectedCounts = java.util.Map.of(
+                "discover_triage", 3,
+                "confirm", 2,
+                "resolve_faq_grounded_answer", 5,
+                "resolve_intake_collect_and_handover", 5,
+                "escalate", 2,
+                "terminal", 1
+        );
+
+        int total = 0;
         for (Skill s : skills) {
             assertNotNull(s.criticalSteps(), "criticalSteps() must never be null after compact-ctor normalization");
-            assertTrue(s.criticalSteps().isEmpty(),
-                    "S-Eval-2 ships NO critical_steps content on any of the 6 Skills; populated in S-Eval-3. "
-                            + "Skill=" + s.name() + " has " + s.criticalSteps().size() + " critical_steps");
+            Integer expected = expectedCounts.get(s.name());
+            assertNotNull(expected, "S-Eval-3 expected-count map missing entry for Skill=" + s.name());
+            assertEquals(expected.intValue(), s.criticalSteps().size(),
+                    "S-Eval-3 per-Skill critical_steps count for " + s.name()
+                            + " does not match the contract §2 distribution table.");
+            // Every populated step must carry all 5 fields cleanly (the
+            // SkillLoader allowlist validation would have already raised on
+            // any missing field; this is a re-assertion against drift).
+            for (CriticalStep step : s.criticalSteps()) {
+                assertNotNull(step.id());
+                assertFalse(step.id().isBlank());
+                assertNotNull(step.desc());
+                assertFalse(step.desc().isBlank());
+                assertNotNull(step.traceCheck());
+                assertFalse(step.traceCheck().isBlank());
+                assertFalse(step.mandatoryFor().isEmpty(),
+                        "Skill=" + s.name() + " step=" + step.id() + " has empty mandatory_for");
+                assertNotNull(step.severity(),
+                        "Skill=" + s.name() + " step=" + step.id() + " has null severity");
+            }
+            total += s.criticalSteps().size();
         }
+
+        assertEquals(18, total,
+                "S-Eval-3 ships 18 populated critical_steps total across the 6 Skills "
+                        + "(within the contract §2 envelope 16-22 lower-bound; 18-30 outer envelope).");
     }
 
     @Test
