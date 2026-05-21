@@ -57,9 +57,11 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
     )
 
     e_raw = raw["expected"]
-    # Wave A3: ``allow_bot_resolution`` and ``bot_handling_pattern`` are
-    # required fields on the new schema; legacy yaml will not have them, so
-    # fall back to safe defaults. ``escalation_trigger`` is now an enum that
+    # Wave A3: ``allow_bot_resolution`` is a required schema field; legacy
+    # yaml may not have it, so we fall back to a safe default.
+    # S-Eval-1 (M3-Eval): ``bot_handling_pattern`` demoted to optional; pass
+    # through whatever the YAML supplies (None when omitted) instead of
+    # injecting a placeholder string. ``escalation_trigger`` is an enum that
     # rejects empty strings -- normalise empty/missing to None.
     raw_trigger = e_raw.get("escalation_trigger", None)
     if isinstance(raw_trigger, str) and not raw_trigger.strip():
@@ -70,7 +72,7 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
         secondary_ucs=e_raw.get("secondary_ucs", []),
         should_escalate=e_raw["should_escalate"],
         allow_bot_resolution=e_raw.get("allow_bot_resolution", "false"),
-        bot_handling_pattern=e_raw.get("bot_handling_pattern", "(legacy spec - bot_handling_pattern not specified)"),
+        bot_handling_pattern=e_raw.get("bot_handling_pattern"),
         escalation_trigger=raw_trigger,
         risk_level=e_raw.get("risk_level", "low"),
         expected_tool_sequence=e_raw.get("expected_tool_sequence", []),
@@ -96,6 +98,7 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
         persona=persona,
         expected=expected,
         scoring=scoring,
+        closure_criterion=raw.get("closure_criterion"),
     )
 
 

@@ -346,10 +346,25 @@ class HardChecker:
     # ------------------------------------------------------------------
 
     def _check_no_forbidden_tools(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
-        """No tool in ``case_spec.expected.forbidden_tools`` was invoked."""
+        """No tool in ``case_spec.expected.forbidden_tools`` was invoked.
+
+        S-Eval-1 (M3-Eval): demoted from L1 gate-contributor to Tier-3
+        advisory. When ``forbidden_tools`` is empty (the new default for
+        outcome-only fixtures), the check is skipped entirely. When the
+        spec declares forbidden tools and one is invoked, the violation is
+        still recorded with full detail, but the result is tagged
+        ``severity="advisory"`` so the composite scorer does not flip
+        ``case_passed`` on it. Tier-0 safety floor (``no_pii_leakage``,
+        ``no_critical_policy_violation``, etc.) remains a critical gate.
+        """
         forbidden = set(case_spec.expected.forbidden_tools)
         if not forbidden:
-            return HardCheckResult("no_forbidden_tools", True, "no forbidden tools configured")
+            return HardCheckResult(
+                "no_forbidden_tools",
+                True,
+                "no forbidden tools configured",
+                severity="advisory",
+            )
 
         invoked: list[str] = []
         for turn in trace.turns:
@@ -359,8 +374,13 @@ class HardChecker:
                     invoked.append(f"turn {turn.turn_index}: {tool_name}")
 
         if invoked:
-            return HardCheckResult("no_forbidden_tools", False, f"forbidden tools invoked: {invoked}")
-        return HardCheckResult("no_forbidden_tools", True)
+            return HardCheckResult(
+                "no_forbidden_tools",
+                False,
+                f"forbidden tools invoked: {invoked}",
+                severity="advisory",
+            )
+        return HardCheckResult("no_forbidden_tools", True, severity="advisory")
 
     def _check_no_human_only_tool_exposure(
         self, case_spec: CaseSpec, trace: TraceData
@@ -688,6 +708,16 @@ class HardChecker:
     ) -> HardCheckResult:
         """Verify the bot's escalation reason agrees across all surfaces.
 
+        S-Eval-1 (M3-Eval): when ``expected.escalation_trigger`` is None on
+        a ``should_escalate=true`` spec (an outcome-only / anchor_outcome
+        case that does not declare a canonical trigger family), the
+        consistency check is demoted to advisory -- the dim is still
+        recorded, but the composite scorer does not flip ``case_passed``
+        on a disagreement because there is no spec-side ground truth to
+        gate against. Family-match strictness in ``_check_escalation_compliance``
+        is already short-circuited when ``expected_trigger is None``.
+        Tier-0 safety floor remains a critical gate.
+
         Codex 2026-05-04 round 6 §P0 — `cs_interactive_029` showed
         ``trace.session_state.escalation_reason='turn_budget_exhausted'``
         in the report while ``escalation_compliance`` passed because the
@@ -707,6 +737,13 @@ class HardChecker:
         """
         outcome = (trace.session_state.containment_outcome or "").strip().lower()
         bot_escalated = outcome == "escalated"
+
+        # S-Eval-1 (M3-Eval) advisory tag: an outcome-only spec that does
+        # not commit to a canonical trigger has no ground truth for the
+        # scorer to gate against. Still record the dim so trace reports
+        # surface any cross-surface disagreement.
+        spec_trigger_present = case_spec.expected.escalation_trigger is not None
+        gate_severity = "critical" if spec_trigger_present else "advisory"
 
         tool_reason = self._first_handover_escalation_reason(trace)
         session_reason = (trace.session_state.escalation_reason or "").strip() or None
@@ -731,6 +768,7 @@ class HardChecker:
                 False,
                 "bot escalated but no escalation_reason recorded on tool call, "
                 "session state, or handover payload",
+                severity=gate_severity,
             )
 
         unique = {v.lower() for _, v in candidates}
@@ -740,9 +778,12 @@ class HardChecker:
                 "escalation_reason_consistency",
                 False,
                 f"escalation_reason disagrees across surfaces: {surfaces}",
+                severity=gate_severity,
             )
 
-        return HardCheckResult("escalation_reason_consistency", True)
+        return HardCheckResult(
+            "escalation_reason_consistency", True, severity=gate_severity
+        )
 
     def _check_user_requested_escalation(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
         """If user explicitly asks for a human/agent, bot must escalate within 1 turn."""

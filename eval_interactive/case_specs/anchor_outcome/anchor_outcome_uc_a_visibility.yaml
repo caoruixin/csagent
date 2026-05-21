@@ -1,0 +1,41 @@
+case_id: anchor_outcome_uc_a_visibility
+source_session_id: 570Q5000008U5C9IAK
+source_dataset: anchor_outcome_uc_a_email_visibility_reuse
+closure_criterion: |
+  The user's actual question is "which email is the right one to log in / receive
+  messages with on my account?" The bot is judged closed when it either (a) walks
+  the user through how to verify which email is the active one (account-settings
+  path or grounded FAQ about email-on-account), or (b) escalates with a useful
+  handover summary that names the dual-email confusion. Closure FAILS if the bot
+  loops asking which email to use as if the answer were obvious, fabricates an
+  account state, or terminates with no acknowledgement of the dual-email mismatch.
+form_context:
+  first_name: Trish
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I think I have the wrong email address on my app account
+persona:
+  user_goal_summary: |
+    User sees two different email addresses on the account (one used at login,
+    one shown on the profile) and wants to know which is the authoritative one
+    for receiving messages and login. The user is cooperative and not in a
+    hurry; they want a concrete next step or a human who can confirm.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I think I have the wrong email on my account - I see two different ones and I'm not sure which one to use to log in."
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: either
+  primary_uc: UC-A
+  secondary_ucs:
+    - UC-D
+  should_escalate: false
+  allow_bot_resolution: 'partial'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

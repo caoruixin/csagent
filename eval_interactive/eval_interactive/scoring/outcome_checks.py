@@ -11,11 +11,20 @@ from eval_interactive.trace.models import TraceData
 
 @dataclass
 class OutcomeCheckResult:
-    """Result of a single outcome check."""
+    """Result of a single outcome check.
+
+    ``severity`` controls whether the result contributes to the composite
+    case-pass gate or is purely diagnostic. Defaults to ``"critical"`` so
+    historical callers keep their gate-contribution semantics. S-Eval-1
+    (M3-Eval) demotes ``tool_sequence_match`` to ``"advisory"``; the
+    composite scorer excludes advisory results from the outcome-score mean
+    and the mandatory-L2 gate.
+    """
 
     check_name: str
     score: float  # 0.0 to 1.0
     detail: str = ""
+    severity: str = "critical"
 
 
 # Use-case families that require case_id in handover payload
@@ -282,10 +291,19 @@ class OutcomeChecker:
         """Compare actual tool calls against expected_tool_sequence.
 
         1.0 for exact match.  Partial credit for longest common subsequence.
+
+        S-Eval-1 (M3-Eval): demoted from L2 LCS gate-contributor to
+        Tier-3 diagnostic. The score is still computed and recorded so
+        per-case trace reports continue to show LCS alignment, but the
+        composite scorer treats the result as advisory -- it does not
+        contribute to the outcome-score mean and is not eligible for
+        the mandatory-L2 gate.
         """
         expected_seq = case_spec.expected.expected_tool_sequence
         if not expected_seq:
-            return OutcomeCheckResult("tool_sequence_match", 1.0, "no expected sequence")
+            return OutcomeCheckResult(
+                "tool_sequence_match", 1.0, "no expected sequence", severity="advisory"
+            )
 
         actual_seq = [
             tc.get("tool_name", "") if isinstance(tc, dict) else ""
@@ -295,7 +313,9 @@ class OutcomeChecker:
         actual_seq = [t for t in actual_seq if t]  # drop empties
 
         if actual_seq == expected_seq:
-            return OutcomeCheckResult("tool_sequence_match", 1.0, "exact match")
+            return OutcomeCheckResult(
+                "tool_sequence_match", 1.0, "exact match", severity="advisory"
+            )
 
         # Longest common subsequence for partial credit
         lcs_len = self._lcs_length(expected_seq, actual_seq)
@@ -304,6 +324,7 @@ class OutcomeChecker:
             "tool_sequence_match",
             round(score, 3),
             f"lcs={lcs_len}/{len(expected_seq)}, actual={actual_seq}",
+            severity="advisory",
         )
 
     def _check_turn_efficiency(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:

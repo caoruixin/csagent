@@ -18,8 +18,11 @@ Wave A1.1 changes (2026-04-27):
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Literal, Optional, get_args
+
+_log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +154,11 @@ class Expected:
     secondary_ucs: list[str]
     should_escalate: bool
     allow_bot_resolution: AllowBotResolution  # true | false | partial (required)
-    bot_handling_pattern: str  # plain-English bot expectation (required)
+    # S-Eval-1 (M3-Eval): demoted from required str to Optional[str] per the
+    # four-tier pyramid -- bot_handling_pattern is procedural narrative, no
+    # longer a hard gate. Existing fixtures that carry a string keep their
+    # non-empty validation; outcome-only cases may omit it.
+    bot_handling_pattern: Optional[str] = None
     escalation_trigger: Optional[EscalationTrigger] = None
     risk_level: str = "low"  # low | medium | high | critical
     expected_tool_sequence: list[str] = field(default_factory=list)
@@ -176,9 +183,15 @@ class Expected:
                 f"got {self.allow_bot_resolution!r}"
             )
 
-        # ----- bot_handling_pattern non-empty -----
-        if not isinstance(self.bot_handling_pattern, str) or not self.bot_handling_pattern.strip():
-            raise ValueError("bot_handling_pattern is required and must be a non-empty string")
+        # ----- bot_handling_pattern shape -----
+        # S-Eval-1 (M3-Eval): None is now acceptable (outcome-only cases).
+        # When a string is supplied, it must still be non-empty so legacy
+        # fixtures cannot silently drift to a blank value.
+        if self.bot_handling_pattern is not None:
+            if not isinstance(self.bot_handling_pattern, str) or not self.bot_handling_pattern.strip():
+                raise ValueError(
+                    "bot_handling_pattern, when supplied, must be a non-empty string"
+                )
 
         # ----- escalation_trigger / should_escalate coupling -----
         trigger = self.escalation_trigger
@@ -189,10 +202,19 @@ class Expected:
 
         if self.should_escalate:
             if trigger is None:
-                raise ValueError(
-                    "escalation_trigger is required when should_escalate=true"
+                # S-Eval-1 (M3-Eval): demoted from hard ValueError to a
+                # diagnostic-only warning. Outcome-only cases may declare
+                # `should_escalate=true` without committing to a canonical
+                # trigger family; the scoring layer treats trigger-absent
+                # specs as advisory (escalation_compliance skips the
+                # family-match path when trigger is None, and
+                # escalation_reason_consistency is tagged advisory in the
+                # same condition). The runtime contract is unchanged.
+                _log.warning(
+                    "Expected.escalation_trigger is None with should_escalate=true; "
+                    "family-match scoring will be treated as advisory for this case."
                 )
-            if trigger not in ESCALATION_TRIGGER_VALUES:
+            elif trigger not in ESCALATION_TRIGGER_VALUES:
                 raise ValueError(
                     f"escalation_trigger must be one of "
                     f"{ESCALATION_TRIGGER_VALUES!r}; got {trigger!r}"
@@ -224,3 +246,11 @@ class CaseSpec:
     persona: Persona
     expected: Expected
     scoring: ScoringConfig
+    # S-Eval-1 (M3-Eval): observable end-state the case is "resolved" against,
+    # written in customer-perspective natural language. Used by anchor_outcome
+    # and bad-case manual review at sprint / milestone close; not a programmatic
+    # gate. Placed at CaseSpec level (not on Expected) because the criterion
+    # is the case-level closure target, not a sub-field of the
+    # expected-bot-behaviour block. Backward-compatible: None on every existing
+    # smoke / anchor / case-family fixture.
+    closure_criterion: Optional[str] = None

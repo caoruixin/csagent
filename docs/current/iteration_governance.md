@@ -498,6 +498,12 @@ disambiguation; this §5.5 formalizes the demotion.
 **NEW primary gate (per §5.6 below):** curated bad-case suite
 manual review pass.
 
+**2026-05-21 update (Sprint 42 / M3-Eval S-Eval-1):** the outcome-only
+`anchor_outcome` suite at `eval_interactive/case_specs/anchor_outcome/`
+is the second human-judgment surface beside the curated bad-case suite
+at `eval_interactive/case_specs/bad_cases/`; smoke remains
+observation-only by design.
+
 ### 5.6 Curated bad-case suite as new primary acceptance gate
 
 Starting 2026-05-16, the new primary acceptance gate is **manual

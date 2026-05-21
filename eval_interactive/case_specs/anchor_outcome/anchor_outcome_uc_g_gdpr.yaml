@@ -1,0 +1,44 @@
+case_id: anchor_outcome_uc_g_gdpr
+source_session_id: synthetic-anchor-outcome-uc-g-2026-05-21
+source_dataset: synthetic
+closure_criterion: |
+  The user wants to exercise a GDPR data right (account data export,
+  account deletion, marketing-data removal). UC-G is intake-then-escalate.
+  The bot is judged closed when it (a) acknowledges the GDPR request in
+  user-facing terms, (b) collects the required intake fields (registered
+  email + identity verification context), and (c) escalates with a useful
+  handover summary naming the GDPR ask. Closure FAILS if the bot
+  unilaterally promises to delete or export data itself, asks the same
+  intake field across multiple turns without progress, or terminates
+  without a handover.
+form_context:
+  first_name: Priya
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I want to request a copy of my account data under GDPR
+persona:
+  user_goal_summary: |
+    User wants to request a copy of all the personal data the platform
+    holds about them (GDPR Subject Access Request). They want a clear
+    path forward and are willing to provide identity verification
+    information if asked.
+  frustration_level: none
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I'd like to request a copy of my personal data under GDPR. What do I need to do?"
+  hidden_facts:
+    - fact: User has been a member for about three years and has both buyer and seller activity on the account.
+      disclose_when: if the bot asks about account history or activity
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-G
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

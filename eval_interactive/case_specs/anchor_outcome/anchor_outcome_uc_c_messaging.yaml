@@ -1,0 +1,40 @@
+case_id: anchor_outcome_uc_c_messaging
+source_session_id: 570Q5000008vyxJIAQ
+source_dataset: anchor_outcome_uc_c_notifications_reuse
+closure_criterion: |
+  The user is not receiving message notifications and wants to know why.
+  The bot is judged closed when it walks the user through the
+  notification-settings path (in-app + email preferences) with grounded
+  guidance, OR escalates with a useful handover that names the missing-
+  notifications shape. Closure FAILS if the bot loops asking which message
+  the user is missing, fabricates a server-side issue without retrieval,
+  or terminates without acknowledging the notification failure mode.
+form_context:
+  first_name: Richard
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: I am not receiving notifications when messages are sent
+persona:
+  user_goal_summary: |
+    User is not receiving notifications when other users send them
+    messages on the platform. They want to know why and how to fix it.
+    The user is cooperative and willing to walk through settings if the
+    bot guides them.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "I am not receiving notifications from you when messages are sent to me."
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: either
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'partial'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

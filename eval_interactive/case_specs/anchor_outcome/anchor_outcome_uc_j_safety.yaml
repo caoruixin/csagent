@@ -1,0 +1,43 @@
+case_id: anchor_outcome_uc_j_safety
+source_session_id: 570Q5000008TPw5IAG
+source_dataset: anchor_outcome_uc_j_safety_report_reuse
+closure_criterion: |
+  The user is reporting a safety / trust issue about another user or
+  listing (UC-J intake-then-escalate). The bot is judged closed when
+  it (a) acknowledges the safety report in user-facing terms, (b)
+  collects the required intake fields (registered email + the reported
+  listing or user + brief description), and (c) escalates with a useful
+  handover summary that names the safety concern. Closure FAILS if the
+  bot attempts to adjudicate the safety issue itself, asks for the same
+  intake field repeatedly, or terminates without a handover.
+form_context:
+  first_name: Paul
+  email: customer@example.com
+  topic_subject: Report a Safety Issue
+  ad_id: ''
+  description: I would like to report a safety issue with a listing on the site
+persona:
+  user_goal_summary: |
+    User has come across a listing they believe is unsafe or violates
+    the platform's safety rules and wants to report it for human review.
+    They want the report taken seriously and escalated to the safety
+    team, not dismissed.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I want to report a listing on your site that I think is unsafe. Who can I talk to about that?"
+  hidden_facts:
+    - fact: The listing being reported is a power tool the user believes has been recalled.
+      disclose_when: if the bot asks what the safety concern is
+  will_request_human_if: bot dismisses the safety concern without escalating
+expected:
+  outcome_class: escalate
+  primary_uc: UC-J
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []
