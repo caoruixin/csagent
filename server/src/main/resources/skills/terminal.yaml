@@ -24,3 +24,27 @@ state_inheritance:
   reset:
     - intake_fields_partial
   soft_signal_via_projection: []
+critical_steps:
+  - id: terminal-records-outcome
+    desc: |
+      In the CLOSE phase, `record_outcome` must be called so the case
+      has a recorded disposition. Without it the runtime cannot
+      finalise the session state and the case stays in an
+      indeterminate state. The Skill's tools_required list contains
+      `record_outcome` exactly because this is the canonical
+      session-closing action.
+    trace_check: "accumulated_tool_results.record_outcome"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+      - UC-G
+      - UC-H
+      - UC-I
+      - UC-J
+      - UC-K
+    severity: mandatory

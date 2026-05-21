@@ -36,3 +36,70 @@ state_inheritance:
   reset: []
   soft_signal_via_projection:
     - prior_use_case_carry
+critical_steps:
+  - id: uc-g-intake-complete-before-handover
+    desc: |
+      For UC-G (GDPR / data deletion), the canonical intake fields
+      `registered_email` and `data_request_type` must both be collected
+      before `request_handover` is dispatched with the
+      `intake_complete_for_uc_g` reason. Handing over with an empty or
+      partial intake leaves the data-rights team without the basis to
+      act and is the lock-in failure shape the `intake_complete_required`
+      guardrail explicitly refuses (it will downgrade the call and
+      hint at the missing fields).
+    trace_check: "all_of(intake_state.fields_collected.contains(registered_email), intake_state.fields_collected.contains(data_request_type))"
+    mandatory_for:
+      - UC-G
+    severity: mandatory
+  - id: uc-h-intake-complete-before-handover
+    desc: |
+      For UC-H (Ad Removal Appeal), the canonical intake fields
+      `ad_id_or_listing_url`, `registered_email`, and
+      `stated_reason_or_context` must all be collected before
+      `request_handover` is dispatched with the
+      `intake_complete_for_uc_h` reason. The user's appeal cannot be
+      acted on by the moderation team without the listing reference
+      and the appeal context. The `intake_complete_required` guardrail
+      refuses an `intake_complete_for_uc_h` handover with missing
+      fields; this Tier-2 step is the eval-side surface that captures
+      the same intent on the trace.
+    trace_check: "all_of(intake_state.fields_collected.contains(ad_id_or_listing_url), intake_state.fields_collected.contains(registered_email), intake_state.fields_collected.contains(stated_reason_or_context))"
+    mandatory_for:
+      - UC-H
+    severity: mandatory
+  - id: uc-i-intake-complete-before-handover
+    desc: |
+      For UC-I (Refund / Payment Dispute), the canonical intake fields
+      `transaction_reference` and `dispute_reason` must both be
+      collected before `request_handover` is dispatched with the
+      `intake_complete_for_uc_i` reason. The payments team needs the
+      transaction handle and the user's stated reason to investigate;
+      without them the case cannot proceed.
+    trace_check: "all_of(intake_state.fields_collected.contains(transaction_reference), intake_state.fields_collected.contains(dispute_reason))"
+    mandatory_for:
+      - UC-I
+    severity: mandatory
+  - id: uc-j-intake-complete-before-handover
+    desc: |
+      For UC-J (Trust & Safety Report), the canonical intake fields
+      `report_target`, `report_type`, and `description` must all be
+      collected before `request_handover` is dispatched with the
+      `intake_complete_for_uc_j` reason. The T&S team cannot triage a
+      report without knowing the target, the abuse category, and the
+      user's narrative description of what happened.
+    trace_check: "all_of(intake_state.fields_collected.contains(report_target), intake_state.fields_collected.contains(report_type), intake_state.fields_collected.contains(description))"
+    mandatory_for:
+      - UC-J
+    severity: mandatory
+  - id: uc-k-intake-complete-before-handover
+    desc: |
+      For UC-K (Technical Issue Intake), the canonical intake fields
+      `platform` and `repro_steps_or_error_message` must both be
+      collected before `request_handover` is dispatched with the
+      `intake_complete_for_uc_k` reason. The engineering triage team
+      needs the platform context plus a concrete repro / error
+      signature to act; without them the report is unactionable.
+    trace_check: "all_of(intake_state.fields_collected.contains(platform), intake_state.fields_collected.contains(repro_steps_or_error_message))"
+    mandatory_for:
+      - UC-K
+    severity: mandatory
