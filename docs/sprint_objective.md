@@ -1,72 +1,54 @@
 ---
-title: Sprint objective — placeholder (M2 milestone closed; M3 candidate selection planning round pending; no active sub-sprint)
+title: S-Eval-2 contract pending — post-S-Eval-1-close placeholder
 doc_tier: current-runtime
-status: current
+status: proposal
 implementation_status: not_started
-source_of_truth: this file
-last_reviewed: 2026-05-18
-review_cadence: per round
-supersedes: [docs/sprints/sprint-041-objective.md]
+source_of_truth: this file (until S-Eval-2 contract is drafted, then this placeholder is replaced)
+last_reviewed: 2026-05-21
+review_cadence: per sub-sprint
+supersedes: [docs/sprints/sprint-042-objective.md]
 superseded_by: null
 notes: >
-  Placeholder. NO active sub-sprint at the time of this file. M2
-  milestone (Skill Registry Abstraction + Wholesale Retroactive
-  Externalization) closed **A — Clean PASS at the milestone level**
-  2026-05-18 per `docs/milestones/M2_objective.md` §12.1 + Codex
-  milestone-shared review archive at
-  `docs/milestones/M2_codex-review.md`. M2 implementation track
-  (S37 → S41) and milestone close BOTH complete; M3 candidate
-  selection planning round is the NEXT deliver-agent + human unit of
-  work per `iteration_governance.md` §8.4.
+  S-Eval-1 (Sprint 42) closed Clean PASS 2026-05-21 (dev commit
+  `d91bd3d`; deliver-agent + human classification: A — Clean PASS;
+  archive at `docs/sprints/sprint-042-objective.md` + `docs/sprints/sprint-042-handoff.md`).
+  S-Eval-2 is the next sub-sprint per `docs/milestone_objective.md` §3
+  (Skill `critical_steps` schema + extractor + projection wiring;
+  multi-layer `eval_spec` + `prompt_projection`; Codex milestone-shared
+  per §4.3 default; estimated 4-5 dev-days).
 
-  **Until M3 candidate is locked + M3 milestone objective drafted +
-  first M3 sub-sprint contract drafted:**
-  - Live `docs/sprint_objective.md` carries this placeholder.
-  - Live `docs/milestone_objective.md` carries an M3-candidate-
-    selection-pending placeholder.
-  - Dev agent should NOT launch from these placeholders (no
-    actionable scope; these are for human reference only).
+  This file is a PLACEHOLDER until the deliver-agent + human draft the
+  S-Eval-2 sub-sprint contract at the next planning round. At that
+  point this file is REPLACED with the full S-Eval-2 contract (12
+  sections per Sprint 35 / 41 / 42 shape).
 
-  **Deferred work waiting on M3 planning round:**
-  - First M3 sub-sprint contract (replaces this placeholder once
-    drafted).
-  - First M3 sub-sprint dev prompt at `compact/sprint-NNN-dev-prompt.md`.
-  - Cross-session pre-launch handoff at
-    `compact/context-handoff-sprint-NNN-pre-launch.md` for the next
-    deliver-agent instance.
+  **S-Eval-1 close carry-over (per `docs/sprints/sprint-042-handoff.md`
+  §12.7; LOAD-BEARING for S-Eval-3 / S-Eval-4 planning, not S-Eval-2)**:
+  the per-UC anchor distribution observation surfaced systematic
+  under-representation of the intake-then-escalate UCs (UC-G / UC-H /
+  UC-I / UC-J have ZERO anchor coverage; UC-F has 1 case; UC-B has 5
+  cases). At S-Eval-3 planning the deliver-agent + dev should be aware
+  that any UC-F or UC-B `critical_step` will exercise against a thin
+  corpus. At S-Eval-4 planning, prioritise UC-G / UC-H / UC-I / UC-J
+  entries from the 17 approved overrides to compensate for the gap.
+  M3-Corpus (parallel-track milestone) is the right home for a
+  structural fix; no separate R-item opened at S-Eval-1 close.
 
-  **Deferred work waiting on deliver-agent + human discretion (NOT
-  gated on M3 planning):**
-  - Design-doc editorial fold-back commit (6 items per
-    `docs/milestone_objective.md` placeholder notes block + M2
-    archive §12.6). SEPARATE governance commit per `doc_governance.md`
-    cadence.
-
-## Next deliver-agent unit of work
-
-**M3 candidate selection planning round.** Per the deliver-agent
-role definition + `docs/milestone_objective.md` placeholder notes:
-- Path 1 (research-driven): human picks M3 candidate from the slate
-  + provides research-agent proposal; deliver-agent drafts NEW
-  `docs/milestone_objective.md` for M3 + first M3 sub-sprint contract
-  to replace this placeholder.
-- Path 2 (bad-case-driven): a real-session bad case surfaces
-  during/after M2 close; deliver-agent + human triage per
-  `iteration_governance.md` §5.6 + 4-route fit decision.
-
-## Reading order on cold start
-
-If a new deliver-agent instance picks up after M3 planning has progressed:
-1. Verify `docs/codex-findings.md` state (scaffold vs filled).
-2. Read this file (placeholder; no scope).
-3. Read `docs/milestone_objective.md` (placeholder OR new M3
-   contract).
-4. Read `docs/milestones/M2_objective.md` §12 closure verdict (M2
-   final classification + Tier-0 dispositions + R-item flips +
-   design-doc fold-back queue + M3 candidate context).
-5. Read `docs/10-handoff.md` §1 lead for the current state.
+  **S-Eval-1 open question routed to M3-Eval milestone-shared Codex
+  review**: OQ-S42.3 (D-2.2 demotion interpretation — whether tagging
+  `_check_escalation_reason_consistency` advisory when
+  `expected.escalation_trigger is None` is the right surface, given
+  `_check_escalation_compliance` already short-circuits the family-match
+  in that condition) is a confirmation item at M3-Eval close, not a
+  blocker for S-Eval-2 start.
 ---
 
-# No active sub-sprint — M3 candidate selection planning round pending
+# S-Eval-2 contract pending — post-S-Eval-1-close placeholder
 
-See frontmatter `notes:` block above for full context. Dev agent should NOT launch from this file.
+This file is a placeholder. The deliver-agent + human draft the
+S-Eval-2 sub-sprint contract at the next planning round; on draft, this
+placeholder is REPLACED with the full S-Eval-2 contract (12-section
+template per Sprint 35 / 41 / 42 precedent).
+
+For the M3-Eval milestone context S-Eval-2 sits inside, see
+`docs/milestone_objective.md` §3 (sub-sprint sequence, S-Eval-2 row).

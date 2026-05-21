@@ -305,32 +305,50 @@ regression tests in `test_s_eval_1_schema_and_scoring.py` all pass; the
 12 existing composite-gate tests pass after the minimal `_StubCaseSpec`
 update; no other test regressed.
 
-**9 failures are PRE-EXISTING baseline** caused by the working-tree
-deletion of `docs/customer_service_tool_spec_v0_2.{md,yaml}` and the
-override-count drift the M3-Eval objective already flags (17 approved
-entries at HEAD vs the older test expecting 15). Per `git status`:
+**9 failures are PRE-EXISTING baseline** — none caused by S-Eval-1.
+Three distinct root causes (corrected 2026-05-21 at close after
+deliver-agent + human spot-check of each failure):
 
-```
-D docs/customer_service_tool_spec_v0_2.md
-D docs/customer_service_tool_spec_v0_2.yaml
-```
+1. **`tests/scoring/test_escalation_enum_sync.py` × 2**: hardcodes the
+   path `docs/customer_service_tool_spec_v0_2.yaml` at
+   `test_escalation_enum_sync.py:31`. The OLD `v0_2` spec was
+   superseded by `docs/current/customer_service_tool_spec_v0_3.md`
+   (per `docs/current/agent_context_guide.md`); `v0_2.yaml` was deleted
+   in the working tree as part of the supersession housekeeping. The
+   test was never migrated to a `v0_3` source — and `v0_3` exists only
+   as Markdown (no companion YAML), so a one-line path swap is not the
+   right fix. Out of S-Eval-1 scope; surface as a follow-on R-item
+   candidate (one of: add a `v0_3.yaml` companion + repoint the test;
+   extract the enum from the `v0_3.md` YAML codefence; relocate the
+   enum source-of-truth into the Python schema with a back-link
+   comment). Per `git status`:
 
-Both files were deleted in the working tree BEFORE S-Eval-1 dev began;
-neither is in the S-Eval-1 staged diff. The 9 failing tests all
-reference one of these two paths or the 17-vs-15 override drift:
+   ```
+   D docs/customer_service_tool_spec_v0_2.md
+   D docs/customer_service_tool_spec_v0_2.yaml
+   ```
 
-- `tests/regression/test_case_spec_overrides.py::test_v2_schema_loads_cleanly`
-  — `assert 17 == 15` (override count drift; pre-existing, documented
-  in `docs/milestone_objective.md` notes).
-- `tests/regression/test_case_spec_overrides.py::test_smoke_yaml_matches_override_pipeline_output`
-  — same root.
-- `tests/regression/test_corpus_lint.py` × 5 — all reference the deleted
-  yaml.
-- `tests/scoring/test_escalation_enum_sync.py` × 2 — reference the
-  deleted yaml.
+   Both deletions were in the working tree BEFORE S-Eval-1 dev began.
 
-Recorded as §10 Contract drift type **§7-c** (pre-existing working-tree
-state; not caused by S-Eval-1).
+2. **`tests/regression/test_corpus_lint.py` × 5**: the test invokes
+   `python -m eval_interactive.case_spec.linter` as a subprocess and
+   the subprocess hits
+   `ModuleNotFoundError: No module named 'eval_interactive.case_spec'`.
+   The traceback also shows a cross-repo path
+   `/Users/caoruixin/projects/csagent-design-v1-without-human-review-dataset/...`
+   that suggests a stale `PYTHONPATH` / pytest-config leakage from a
+   sibling repo. **Not caused by any deleted spec file and not by
+   S-Eval-1.** Pre-existing infra issue.
+
+3. **`tests/regression/test_case_spec_overrides.py` × 2**: `assert 17 == 15`
+   — the override-count drift that `docs/milestone_objective.md` notes
+   already flag (HEAD has 17 `status: approved` entries in
+   `case_spec_overrides.yaml` vs the older test expecting 15).
+   Independent of any spec file.
+
+Recorded as §10 Contract drift type **§7-c** (pre-existing baseline
+state across three independent root causes; none introduced or
+worsened by S-Eval-1).
 
 ### Backward-compat fixture load
 
@@ -432,11 +450,19 @@ during implementation).
 
 One **§7-c (pre-existing baseline)** observation:
 
-- The 9 pre-existing test failures referenced in §9 (caused by
-  working-tree deletion of `docs/customer_service_tool_spec_v0_2.{md,yaml}`
-  + 17-vs-15 override count drift) are not S-Eval-1's responsibility
-  to fix. They are a pre-existing baseline state from the deliver-agent
-  + human housekeeping done at M2 close fold-back. The S-Eval-1 diff
+- The 9 pre-existing test failures referenced in §9 break down into
+  three distinct root causes — not all attributable to the
+  `customer_service_tool_spec_v0_2.{md,yaml}` working-tree deletion as
+  the first draft of §9 incorrectly claimed (corrected at close):
+  (a) 2 in `test_escalation_enum_sync.py` reference the deleted
+  `v0_2.yaml` because the test was never migrated to the superseding
+  `docs/current/customer_service_tool_spec_v0_3.md` (and `v0_3` exists
+  only as Markdown, so the migration is non-trivial); (b) 5 in
+  `test_corpus_lint.py` hit a subprocess `ModuleNotFoundError` whose
+  traceback shows a cross-repo `PYTHONPATH` leak, unrelated to any
+  spec file; (c) 2 in `test_case_spec_overrides.py` are the 17-vs-15
+  override-count drift documented in `docs/milestone_objective.md`
+  notes. None are S-Eval-1's responsibility to fix. The S-Eval-1 diff
   introduces ZERO new test failures.
 
 ## 11. Bundle policy honored
@@ -461,6 +487,97 @@ Dev ships **ONE bundle commit** containing only the files listed in §3.
 
 ## 12. Closure verdict
 
-*This section is LEFT EMPTY by the dev agent per
-`feedback_handoff_verdict_section_delegation.md`. Deliver-agent + human
-append at sub-sprint close.*
+**Classification: A — Clean PASS** (deliver-agent + human, 2026-05-21).
+
+- **§12.1 Verdict**: dev commit `d91bd3d` delivered the S-Eval-1 contract
+  end-to-end. All four §2 outcomes shipped (schema demotions + scoring
+  demotions + new `anchor_outcome/` suite of 12 cases + §5.5 governance
+  sentence) plus the regression-test block (Outcome 5; 20 new tests)
+  plus the Outcome 6 observation deliverable (anchor parse/load timing
+  + per-UC distribution). No §6 hard fence touched; no §10 stop signal
+  fired; §4.1 nine-question self-walk passes Q1-Q8 with Q9 N/A; §7
+  stanza honoured.
+
+- **§12.2 Commit range + test counts**: single dev commit `d91bd3d`
+  (22 files; +1557 / −26 per `git show --numstat d91bd3d`). Python test
+  suite 320 passed / 9 pre-existing failed; S-Eval-1 introduced 20 new
+  passing tests and zero new failures. Java baseline `1144 / 1-inherited
+  / 0 / 2` preserved by construction (no Java files in the diff). Pre-
+  existing 9 failures (referenced in handoff §9 / §10) accepted as
+  baseline state from working-tree deletion of
+  `docs/customer_service_tool_spec_v0_2.{md,yaml}` and the 17-vs-15
+  override count drift; not Sprint 42 regressions.
+
+- **§12.3 Codex verdict (deferred)**: S-Eval-1 is Codex-deferred to
+  M3-Eval milestone close per §4.3 default (no per-sub-sprint trigger
+  fired). Open question **OQ-S42.3** (D-2.2 demotion interpretation —
+  whether tagging `_check_escalation_reason_consistency` advisory when
+  `expected.escalation_trigger is None` is the right surface, given
+  `_check_escalation_compliance` already short-circuits the family-match
+  in that condition) is routed to the M3-Eval milestone-shared Codex
+  review prompt as a confirmation item; not a blocker for S-Eval-2
+  start.
+
+- **§12.4 Open questions (informational)**: all 4 OQs in handoff §7
+  classified as **non-blocking** at S-Eval-1 close:
+  - **OQ-S42.1** (UC-G synthetic provenance): not an R-item at S-Eval-1
+    close. UC-G zero-coverage is captured under §12.7 below as an input
+    to S-Eval-3 / S-Eval-4 planning rather than a new R-item.
+  - **OQ-S42.2** (anchor distribution observation): same — folded into
+    §12.7 carry-over.
+  - **OQ-S42.3** (D-2.2 demotion interpretation): routed to M3-Eval
+    milestone-shared Codex review (§12.3 above).
+  - **OQ-S42.4** (`test_composite_gate.py` stub update scope): confirmed
+    in-scope under contract §6 "limited touch" — the stub update is a
+    behavioural-equivalence preservation for the 12 existing gate tests
+    against the new opt-in / opt-out path; not scope creep.
+
+- **§12.5 R-item flips**: none at S-Eval-1 close. The four M3-Eval
+  R-items (`R-l3-judge-form-context-trust-rubric` /
+  `R-l1-source-citation-quality-rubric` /
+  `R-cs040-l3-review-intake-completion-semantics` /
+  `R-cs038-l3-review-intake-efficiency`) flip at S-Eval-5 per
+  `docs/milestone_objective.md` §7. Two unblocked-but-not-closed
+  R-items (`R-case-spec-overrides-schema-scoring-extension`,
+  `R-escalation-reason-runtime-evidence-contract-review`) had their
+  schema-block lifted by S-Eval-1 D-1.x but full closure still depends
+  on later work; not flipped here.
+
+- **§12.6 Sprint 42 close-action row**: append at
+  `docs/action_bank.md` §6 close-action index per the housekeeping
+  bundle.
+
+- **§12.7 Carry-over to S-Eval-3 / S-Eval-4 planning (LOAD-BEARING)**:
+  the per-UC anchor distribution observation (handoff §9 Outcome 6 (b))
+  is an input to subsequent M3-Eval sub-sprint planning:
+  - **UC-C: 77 / UC-D: 37** — heaviest exercise surface. Any Tier-2
+    `critical_step` populated for these UCs in S-Eval-3 will exercise
+    against a deep anchor pool. Use UC-C / UC-D anchor traces as
+    primary calibration for S-Eval-3 `desc` wording per the proposal
+    §5.3 standard.
+  - **UC-F: 1 / UC-B: 5** — thin exercise surface. S-Eval-3 `desc`
+    authoring for UC-F / UC-B will lean on smoke + the new
+    anchor_outcome case + a synthetic fallback; deliver-agent + human
+    should expect S-Eval-3 to surface a follow-on R-item for UC-F /
+    UC-B corpus thinness if the trial run reveals brittle scoring.
+  - **UC-G / UC-H / UC-I / UC-J: 0** anchor coverage; intake-then-
+    escalate UCs are systematically under-represented across all three
+    buckets (smoke + anchor + family). At S-Eval-3, Skill `critical_steps`
+    authored for the intake-then-escalate path (per the proposal §6
+    S-Eval-3 step #1 second cluster) will not have anchor exercise; the
+    sole UC-H exercise surface is the family-case `cs29d564` (synthetic)
+    + the new `anchor_outcome_uc_h_appeal` (also reused from `cs29d564`).
+    At S-Eval-4, bad-case selection from the 17 approved overrides
+    should prioritise UC-G / UC-H / UC-I / UC-J entries to compensate
+    for the corpus gap. M3-Corpus (parallel-track milestone consuming
+    `R-corpus-coverage-audit-per-uc`) is the right home for a structural
+    corpus-gap fix; deliver-agent + human DO NOT open a separate R-item
+    here, but DO flag the gap explicitly in the S-Eval-3 and S-Eval-4
+    dev prompts.
+
+- **§12.8 Next sub-sprint**: S-Eval-2 (Skill `critical_steps` schema +
+  extractor + projection wiring; multi-layer `eval_spec` + `prompt_projection`;
+  Codex milestone-shared per §4.3 default). Deliver-agent + human draft
+  the S-Eval-2 contract at the next planning round. Live
+  `docs/sprint_objective.md` resets to a post-S-Eval-1-close placeholder
+  pending that planning round.
