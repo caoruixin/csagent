@@ -96,7 +96,14 @@ def _compute_mandatory_l2(
     mandatory checks are NOT synthesized here -- the gate logic in
     ``compute_composite`` is responsible for fail-closed handling so that a
     missing check still produces an explicit failure tag.
+
+    S-Eval-1 (M3-Eval): when ``case_spec.scoring.outcome_checks`` is empty
+    (the spec opted out of per-case L2 gating, as the new outcome-only
+    ``anchor_outcome`` fixtures do), this returns an empty list and the
+    mandatory-L2 gate is skipped entirely.
     """
+    if not case_spec.scoring.outcome_checks:
+        return []
     mandatory_names = set(_mandatory_l2_names(case_spec))
     return [r for r in l2_results if r.check_name in mandatory_names]
 
@@ -151,13 +158,17 @@ def compute_composite(
     always pass it.
     """
     # -- L1 gate --
-    l1_passed = all(r.passed for r in l1_results) if l1_results else True
+    # S-Eval-1 (M3-Eval): results tagged ``severity="advisory"`` are recorded
+    # for diagnostics but do not contribute to the gate (e.g. demoted
+    # ``no_forbidden_tools`` violations on outcome-only specs).
+    critical_l1 = [r for r in l1_results if getattr(r, "severity", "critical") != "advisory"]
+    l1_passed = all(r.passed for r in critical_l1) if critical_l1 else True
 
-    # -- Mandatory L2 gate (Wave B1.1) --
+    # -- Mandatory L2 gate (Wave B1.1; S-Eval-1 opt-out when scoring.outcome_checks is empty) --
     mandatory_l2_passed = True
     mandatory_l2_failures: list[str] = []
 
-    if case_spec is not None:
+    if case_spec is not None and case_spec.scoring.outcome_checks:
         mandatory_names = _mandatory_l2_names(case_spec)
         results_by_name = {r.check_name: r for r in l2_results}
         for name in mandatory_names:
@@ -174,8 +185,12 @@ def compute_composite(
     case_passed = l1_passed and mandatory_l2_passed
 
     # -- L2 mean --
-    if l2_results:
-        outcome_score = sum(r.score for r in l2_results) / len(l2_results)
+    # S-Eval-1 (M3-Eval): exclude advisory results (Tier-3 diagnostics) from
+    # the outcome-score mean so demoted dims like ``tool_sequence_match`` do
+    # not skew the composite.
+    gating_l2 = [r for r in l2_results if getattr(r, "severity", "critical") != "advisory"]
+    if gating_l2:
+        outcome_score = sum(r.score for r in gating_l2) / len(gating_l2)
     else:
         outcome_score = 0.0
 

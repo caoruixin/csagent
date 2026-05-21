@@ -57,15 +57,30 @@ class _StubExpected:
 
 
 @dataclass
+class _StubScoring:
+    """Stub for ``CaseSpec.scoring`` -- only ``outcome_checks`` is consumed
+    by the composite gate after S-Eval-1 (M3-Eval) added the opt-in /
+    opt-out gate behaviour.
+    """
+
+    outcome_checks: list = field(
+        default_factory=lambda: ["correct_uc", "correct_outcome"]
+    )
+
+
+@dataclass
 class _StubCaseSpec:
     """Minimal stand-in for CaseSpec used by composite scorer.
 
-    Only ``expected.should_escalate`` and ``expected.outcome_class`` are
-    consumed by the gating logic, so we don't need the full schema.
+    ``expected.should_escalate`` / ``expected.outcome_class`` /
+    ``expected.primary_uc`` drive the conditional-mandatory rules.
+    ``scoring.outcome_checks`` is read by S-Eval-1 (M3-Eval) opt-in:
+    when the list is empty the mandatory-L2 gate is skipped.
     """
 
     expected: _StubExpected = field(default_factory=_StubExpected)
     case_id: str = "stub-case"
+    scoring: _StubScoring = field(default_factory=_StubScoring)
 
 
 def _l1_pass(*names: str) -> list[HardCheckResult]:

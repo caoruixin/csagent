@@ -1,0 +1,39 @@
+case_id: anchor_outcome_uc_b_posting
+source_session_id: 570Q5000008rbcjIAA
+source_dataset: anchor_outcome_uc_b_giveaway_reuse
+closure_criterion: |
+  The user wants to know whether they can give away free items on the site
+  (UC-B posting policy question). The bot is judged closed when it produces
+  a grounded answer about free-listing / giveaway policy with a source
+  citation, or escalates with a useful handover that names the giveaway
+  question. Closure FAILS if the bot fabricates a policy, ignores the
+  question and asks for unrelated intake fields, or terminates with a
+  generic "I cannot help" response.
+form_context:
+  first_name: Rita
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: I want to give away free items.  Can I do this on your site?
+persona:
+  user_goal_summary: |
+    User wants to give away free items and is asking whether the platform
+    allows this and how to post such listings. They are exploring options
+    and want a direct yes/no plus the steps if applicable.
+  frustration_level: none
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+    - "I want to give away free items. Can I do this on your site?"
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-B
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

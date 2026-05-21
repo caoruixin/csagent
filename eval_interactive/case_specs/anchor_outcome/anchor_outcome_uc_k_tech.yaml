@@ -1,0 +1,43 @@
+case_id: anchor_outcome_uc_k_tech
+source_session_id: 570Q5000008fBsXIAU
+source_dataset: anchor_outcome_uc_k_tech_issue_reuse
+closure_criterion: |
+  The user has a technical issue with a platform feature (UC-K intake-
+  then-escalate; e.g. cannot add phone number, in-app feature broken).
+  The bot is judged closed when it (a) acknowledges the technical issue,
+  (b) collects the required intake fields (registered email +
+  device/app context + brief description), and (c) escalates with a
+  useful handover summary that names the technical concern. Closure
+  FAILS if the bot promises to "fix" the technical issue itself, asks
+  the same intake field across multiple turns without progress, or
+  terminates without a handover.
+form_context:
+  first_name: Stephen
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: I cannot add my phone number to my account
+persona:
+  user_goal_summary: |
+    User cannot add a phone number to their account profile - the option
+    is missing or the action fails. They want the option restored or to
+    be told why it is missing.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Why am I not getting the option to add my phone number as a verification step on my account?"
+  hidden_facts:
+    - fact: User is on the latest version of the iOS app and has tried both Wi-Fi and mobile data.
+      disclose_when: if the bot asks about device, app version, or network
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []
