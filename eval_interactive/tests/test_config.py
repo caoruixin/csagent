@@ -99,7 +99,7 @@ class TestLoadConfig:
         assert config.bot.base_url == "http://bot:80"
         assert config.llm.api_key == ""
         assert config.simulator.max_turns == 15
-        assert config.batch.parallel == 5
+        assert config.batch.parallel == 1
 
     def test_env_var_resolution_in_config(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("TEST_API_KEY", "sk-secret")
