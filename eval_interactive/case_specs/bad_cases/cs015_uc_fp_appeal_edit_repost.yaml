@@ -1,0 +1,78 @@
+case_id: cs015_uc_fp_appeal_edit_repost
+source_session_id: 570Q5000008WmXxIAK
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008WmXxIAK
+  surfaced_by: Wave A6 semantic re-review (supersedes Wave A2.1 UC-K legacy pin; cs_interactive_015)
+  surfaced_date: 2026-04-30
+  failure_shape: |
+    UC-FP edit-and-repost question ("ok so how do I change it?" / "so I can't just change it?") on a
+    listing that was removed for content-policy reasons is mis-routed away from UC-FP resolve-first.
+    The pre-override CaseSpec pinned UC-K (Technical Support) as primary on the strength of the
+    word "change", losing the policy-grounded reposting guidance the user actually needs. Late
+    request_handover at turn 11 is failure-path evidence, not the golden behaviour.
+  layers_involved: prompt_projection (UC-FP route-hint did not surface against "change" keyword
+    pull toward UC-K); semantic_planner (LLM did not prefer the policy-grounded UC-FP path over a
+    technical-defect framing); eval_spec (legacy UC-K pin masked the failure shape).
+  related_dimensions: [D1]
+  related_r_items: []
+  tier: core
+
+closure_criterion: |
+  Bot retrieves customer + listing + moderation context, explains the specific policy reason the ad
+  was flagged ("men only" wording / image content / title language), and gives the user a clear next
+  step: edit the wording / image and repost under the allowed pattern, OR appeal if the user
+  believes the flag was wrong. Bot routes the "ok so how do I change it" follow-up as a UC-FP
+  reposting question (factual / faq_grounded), NOT as a UC-K technical-defect intake. Bot does NOT
+  fabricate a policy reason that is not in the moderation context. Bot escalates only on an
+  explicit appeal/review/restoration/human-support request, strong distress, or when a safe reason
+  cannot be produced. Late escalation in a long thread without explanation attempt is failure.
+
+form_context:
+  first_name: Customer
+  email: removed.listing.seller@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: |
+    My ad was taken down and I don't really understand why. The reason given mentioned the wording
+    or the photo. Can someone tell me what I need to change so I can put it back up?
+
+persona:
+  user_goal_summary: |
+    User posted an ad that was flagged for content-policy reasons (wording / image / title). The
+    user wants to know specifically what to change so they can repost. The user's question "ok so
+    how do I change it?" / "so I can't just change it?" is the canonical UC-FP edit-and-repost
+    shape — not a technical defect (UC-K). The user is cooperative; willing to edit and try again
+    once they understand the policy.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, my ad got taken down. The notice mentioned something about wording or the photo. What do I need to change?"
+    - "Ok so how do I change it? Can I just edit and repost?"
+  hidden_facts:
+    - fact: User has posted similar items before without issue; the change this time is in the
+        wording of the title (gendered phrasing) and the image (body-parts shown).
+      disclose_when: if the bot asks for prior listing history or for what was different about this listing
+    - fact: User does not want to appeal the removal; they want to know what wording / images are
+        acceptable so they can repost a compliant listing.
+      disclose_when: if the bot asks whether the user wants to appeal vs repost
+  will_request_human_if: the bot escalates to human without explaining the policy reason or naming
+    the specific change required
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs: [UC-B, UC-K]
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  acceptable_outcomes: [resolve]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []
