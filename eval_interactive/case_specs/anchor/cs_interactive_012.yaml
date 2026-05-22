@@ -64,3 +64,4 @@ scoring:
   - groundedness
   - relevance
   - tone_appropriateness
+  - user_goal_achievement

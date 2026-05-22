@@ -80,7 +80,9 @@ class StallDetectorConfig:
 
 @dataclass
 class BatchConfig:
-    parallel: int = 5
+    # parallel=1 default per M3-Eval close evidence (bad-case suite stability
+    # requires sequential runs); opt-in to higher parallel via CLI --parallel.
+    parallel: int = 1
     timeout_per_session_seconds: int = 120
 
 
@@ -133,7 +135,7 @@ def _build_config(raw: dict) -> Config:
 
     batch_raw = raw.get("batch", {})
     batch = BatchConfig(
-        parallel=int(batch_raw.get("parallel", 5)),
+        parallel=int(batch_raw.get("parallel", 1)),
         timeout_per_session_seconds=int(
             batch_raw.get("timeout_per_session_seconds", 120)
         ),

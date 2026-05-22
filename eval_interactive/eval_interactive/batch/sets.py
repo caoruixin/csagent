@@ -1,7 +1,10 @@
 """Case set management -- loads named sets of CaseSpecs.
 
-Manages the three canonical case-spec directories (anchor, promotion,
-exploration) and supports loading custom paths.
+Manages the canonical case-spec directories and supports loading custom
+paths. Sets are split into two registries: `_KNOWN_SETS` participate in
+`--set all` iteration; `_OPT_IN_SETS` are opt-in human-judgment suites
+(per `docs/current/iteration_governance.md` §5.6) that must be selected
+explicitly to avoid treating their programmatic PASS/FAIL as hard gates.
 """
 
 from __future__ import annotations
@@ -15,6 +18,11 @@ from eval_interactive.case_spec.schema import CaseSpec
 logger = logging.getLogger(__name__)
 
 _KNOWN_SETS = ("anchor", "promotion", "exploration", "smoke")
+# Opt-in human-judgment suites excluded from `--set all` per
+# `iteration_governance.md` §5.6 (programmatic PASS/FAIL is NOT a hard gate
+# for these suites; manual review is the acceptance gate).
+_OPT_IN_SETS = ("bad_cases", "anchor_outcome")
+_ALL_SETS = _KNOWN_SETS + _OPT_IN_SETS
 
 
 class CaseSetManager:
@@ -30,12 +38,15 @@ class CaseSetManager:
         self._base_dir = Path(base_dir)
 
     def load_set(self, set_name: str) -> list[CaseSpec]:
-        """Load a named set: 'anchor', 'promotion', 'exploration', or 'all'.
+        """Load a named set.
 
-        'all' loads all three sets combined.
+        Valid set names: anchor, promotion, exploration, smoke (participate
+        in 'all'); bad_cases, anchor_outcome (opt-in human-judgment suites,
+        explicit selection only — excluded from 'all' per
+        `iteration_governance.md` §5.6); 'all' (combines `_KNOWN_SETS` only).
 
         Args:
-            set_name: One of 'anchor', 'promotion', 'exploration', or 'all'.
+            set_name: A registered set name or 'all'.
 
         Returns:
             List of CaseSpec instances, sorted by case_id.
@@ -57,10 +68,11 @@ class CaseSetManager:
             specs.sort(key=lambda s: s.case_id)
             return specs
 
-        if set_name not in _KNOWN_SETS:
+        if set_name not in _ALL_SETS:
             raise ValueError(
                 f"Unknown set name '{set_name}'. "
-                f"Valid names: {', '.join(_KNOWN_SETS)}, all"
+                f"Valid names: {', '.join(_KNOWN_SETS)}, "
+                f"{', '.join(_OPT_IN_SETS)} (opt-in), all"
             )
 
         sub_dir = self._base_dir / set_name
@@ -99,7 +111,7 @@ class CaseSetManager:
             Dict mapping set name to number of case specs found.
         """
         result: dict[str, int] = {}
-        for name in _KNOWN_SETS:
+        for name in _ALL_SETS:
             sub_dir = self._base_dir / name
             if sub_dir.is_dir():
                 yaml_count = len(list(sub_dir.glob("*.yaml"))) + len(
