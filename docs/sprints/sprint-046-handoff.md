@@ -943,6 +943,166 @@ Dev did NOT stage (deliver-agent close territory per
 Human bundles deliver-agent close-out files at deliver-agent's
 separate close commit.
 
+## 13. Real-LLM monotone-relaxing rerun — OQ-S46.1 resolution (follow-up; added 2026-05-22 post-bundle commit `e0cd8aa`)
+
+OQ-S46.1 disposition was originally "deferred to M3-Eval close
+real-LLM pass" because no LLM API key was available in the dev
+session. Human surfaced ``.env.local`` (Moonshot/Kimi config) after
+the bundle landed; dev followed up with the real-LLM rerun the
+contract §2.5 + §2.7 + §10 #5 specify. This §13 records the
+results. The original §7 OQ-S46.1 disposition is now superseded by
+this §13 outcome.
+
+### 13.1 Setup
+
+- Created git worktree at `../csagent-pre-s-eval-5` checked out to
+  parent commit `a4a3bc6` (pre-S-Eval-5; the deliver-agent's S-Eval-4
+  close + S-Eval-5 launch commit). Same Java backend (running at
+  ``localhost:8080``) for both runs — Sprint 46 ships zero Java
+  source, so the bot's per-session behaviour is identical between
+  worktrees; only the Python scoring code differs.
+- Both worktrees inherit `.env.local` (Moonshot ``moonshot-v1-32k``
+  as the simulator + judge LLM, per the platform config).
+
+### 13.2 Run matrix
+
+| Suite | Cases | Pre-S-Eval-5 PASS / FAIL | Post-S-Eval-5 PASS / FAIL | PASS→FAIL transitions | FAIL→PASS transitions |
+|---|---:|---:|---:|---:|---:|
+| Smoke | 14 | 0 / 14 | 0 / 14 | **0** | 0 |
+| Anchor_outcome | 12 | 0 / 12 | 0 / 12 | **0** | 0 |
+| Anchor | 159 | 0 / 159 | 0 / 159 | **0** | 0 |
+| **Total** | **185** | **0 / 185** | **0 / 185** | **0** | 0 |
+
+Pre-run timings: smoke 63s, anchor_outcome 10s, anchor 167s (159
+cases @ parallel=4 = 4.18s/case effective).
+Post-run timings: smoke 34s, anchor_outcome 8s, anchor 195s.
+
+### 13.3 Monotone-relaxing verdict
+
+**PASS** — zero ``case_passed = true → false`` transitions across
+185 cases. The §10 #5 STOP signal is NOT triggered. Result
+consistent with the structural proof in
+`tests/test_s_eval_5_l3_repositioning.py::TestMonotoneRelaxingL3Demotion`:
+``case_passed`` depends only on L1 + mandatory L2 + Tier-2 (per
+``composite.py:217``); the L3 demotion changes the judge_score mean
+composition but cannot affect the gate.
+
+Note that the operational rerun's interpretive power on the
+L3-demotion axis is limited because every case in all three suites
+was already FAIL at pre-S-Eval-5 baseline (per the LLM-provider
+drift documented in S-Eval-3 §13 + S-Eval-4 §9). No PASS cases
+existed pre-run that *could* have flipped to FAIL — the rerun
+verifies the bound vacuously on the L3 axis. The structural proof
+(`composite.py:217`) is the binding signal; the rerun confirms no
+Tier-2-wiring-driven flip emerged either.
+
+### 13.4 Tier-2 wiring observations (Option A; §2.6 calibration follow-on)
+
+From the 159-case anchor POST run (the largest surface for Tier-2
+calibration evidence):
+
+- **Cases that exercised Tier-2**: 40 of 159 (cases that reached
+  the normal pipeline; ``loop_detected`` 38 + ``bot_ended`` 2 stop
+  reasons). The remaining 119 cases hit ``contract_violation`` and
+  skipped the scoring pipeline entirely (their case_result lacks a
+  ``tier2_result`` block — this is pre-existing behaviour of
+  `_contract_violation_result` and NOT affected by S-Eval-5).
+- **Critical-severity Tier-2 fails** (would flip case_passed if L1/L2
+  were passing): 40 (all 40 exercised cases). All 40 cases were
+  already FAIL pre-S-Eval-5 (loop_detected stop_reason → L1/L2 likely
+  failing), so the Tier-2 flip does NOT introduce any new
+  true→false transition.
+- **Advisory-severity Tier-2 fails**: 0.
+- **Per-UC distribution** of Tier-2 critical fails: UC-C: 26, UC-D: 9, UC-A: 4, UC-K: 1.
+- **Most frequent failed step IDs** (cumulative across the 40 cases):
+  - `escalate-via-request-handover` (40)
+  - `terminal-records-outcome` (40)
+  - `record-outcome-on-confirmed-resolve` (37)
+  - `search-knowledge-before-faq-answer` (37)
+  - `uc-k-intake-complete-before-handover` (2)
+  - `uc-j-intake-complete-before-handover` (1)
+
+**Interpretation**: the 4 most-frequent failed step IDs fire on
+nearly every exercised case because the bot is consistently entering
+``loop_detected`` without making proper progress through the
+escalate → terminal phase transitions. The Tier-2 critical_steps are
+correctly documenting the bot's existing failure modes (the
+S-Eval-3 populated content is sound; the bot regression is
+independent of S-Eval-5). **This is observational evidence of the
+provider-drift bot regression, NOT a calibration failure of the
+Tier-2 wording.**
+
+**§2.6 UC-FP `consult-moderation-context-on-removal-explanation`
+calibration follow-on**: **NOT TRIGGERED**. The step ID does NOT
+appear in the 40-case failed-step-id list. No legitimate UC-FP
+no-context path surfaced; no S-Eval-3 fix-iteration is indicated.
+
+### 13.5 L3 dim score distribution shifts (informational)
+
+POST-S-Eval-5 anchor (40 exercised cases) vs PRE-S-Eval-5 anchor
+(39 exercised cases; 1-case diff is LLM non-determinism in
+session creation success):
+
+| Dim | Pre mean | Pre min | Pre max | Post mean | Post min | Post max | Post severity |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `groundedness` | 5.00 | 5.0 | 5.0 | 4.90 | 3.0 | 5.0 | advisory |
+| `relevance` | 1.33 | 1.0 | 3.0 | 1.35 | 1.0 | 3.0 | advisory |
+| `tone_appropriateness` | 2.18 | 1.0 | 4.0 | 2.25 | 1.0 | 5.0 | advisory |
+
+**Observations**:
+
+- **`groundedness`** min shifted **5.0 → 3.0** (post mean 4.90 vs
+  pre 5.00). The new ``R-l1-source-citation-quality-rubric`` clause
+  is catching citation-quality failures the legacy rubric missed
+  (bare Salesforce ID citations now score ≤ 3 per the rubric band).
+  Validates the rubric update landed and is operationally effective.
+- **`tone_appropriateness`** max shifted **4.0 → 5.0** (post mean
+  2.25 vs pre 2.18). The new
+  ``R-l3-judge-form-context-trust-rubric`` clause is permitting
+  full-mark scores on first-name greetings that previously hit a
+  4.0 ceiling for "unauthorized familiarity". Validates the rubric
+  update landed and is operationally effective.
+- **`relevance`** essentially unchanged (1.33 → 1.35; statistical
+  noise). No rubric change to ``_judge_relevance``; expected.
+- **NEW `user_goal_achievement` dim**: NOT exercised on the 185-case
+  surface. All 159 anchor + 14 smoke + 12 anchor_outcome fixtures
+  configure exactly 3 dims (`tone_appropriateness`, `relevance`,
+  `groundedness`); none opts into `user_goal_achievement`. The dim
+  is correctly wired (per
+  `tests/test_s_eval_5_l3_repositioning.py::TestUserGoalAchievementDim`
+  + offline mock dispatch verification) but no production fixture
+  has been migrated to use it yet. **Surfaced as OQ-S46.7** below;
+  candidate for M4+ fixture-migration R-item.
+
+### 13.6 STOP signals — none triggered
+
+Per `docs/sprint_objective.md` §10:
+
+- ✅ **#5 (monotone-relaxing FAIL)**: NOT triggered (0 true→false
+  transitions across 185 cases).
+- ✅ **§2.6 (UC-FP no-context calibration)**: NOT triggered
+  (`consult-moderation-context-on-removal-explanation` not in
+  failed step IDs).
+- ✅ **#7 (baseline regression)**: NOT triggered (Java 1163/1/0/2
+  unchanged; Python 5/426 unchanged).
+
+OQ-S46.1 is **CLOSED** by this §13 evidence.
+
+### 13.7 NEW OQ surfaced by the rerun
+
+**OQ-S46.7 (NEW)** — All 185 case fixtures across smoke (14) +
+anchor_outcome (12) + anchor (159) configure exactly 3 L3 dims
+(`tone_appropriateness`, `relevance`, `groundedness`); zero opt
+into the new `user_goal_achievement` dim. The dim is correctly
+wired + tested but not exercised on production fixtures yet.
+**Disposition**: surface as M4+ candidate R-item
+`R-case-fixture-migrate-to-user-goal-achievement-dim` (additive
+fixture migration; the new dim is supplementary advisory so the
+migration is monotone-relaxing by construction and could be done
+in a single fold-back PR). Not blocking M3-Eval close — the dim's
+wiring is verified via dedicated unit tests; production exercise
+can land later.
+
 ## 12. Closure verdict
 
 *(Section left empty by dev per
