@@ -23,6 +23,13 @@ from eval_interactive.scoring.composite import CompositeScore, compute_composite
 from eval_interactive.scoring.hard_checks import HardChecker, HardCheckResult
 from eval_interactive.scoring.llm_judge import LlmJudge
 from eval_interactive.scoring.outcome_checks import OutcomeChecker
+from eval_interactive.scoring.skill_procedure_check import (
+    CriticalStepResult,
+    SkillProcedureExtractor,
+    Tier2Result,
+    load_skills_from_dir,
+    tier2_results_to_gate,
+)
 from eval_interactive.scoring.stall_detector import StallDetector
 from eval_interactive.simulator.agent_client import AgentClient
 from eval_interactive.simulator.session_runner import SessionResult, SessionRunner
@@ -47,6 +54,22 @@ class RunResult:
 class BatchExecutor:
     """Runs multiple evaluation sessions with configurable parallelism."""
 
+    # Repo-root-relative path to the canonical Skill YAMLs (single source
+    # of truth per the M3-Eval proposal §5 decision 5; Java
+    # ``SkillLoader`` is the authoritative validator at Spring
+    # bootstrap, this Python loader is the eval-side mirror). Same
+    # ``parents[3]`` calculation tests/test_skill_procedure_extractor.py
+    # uses (with ``parents[2]`` from the tests dir → ``parents[3]`` from
+    # ``eval_interactive/eval_interactive/batch/executor.py``).
+    _SKILLS_DIR: Path = (
+        Path(__file__).resolve().parents[3]
+        / "server"
+        / "src"
+        / "main"
+        / "resources"
+        / "skills"
+    )
+
     def __init__(self, config: Config):
         """Initialize with the application config.
 
@@ -55,6 +78,15 @@ class BatchExecutor:
                     parallelism, timeout, and output directory.
         """
         self._config = config
+        # S-Eval-5 (M3-Eval, Option A AUTHORIZED 2026-05-22 per
+        # ``docs/sprint_objective.md`` §2.6): the production eval-harness
+        # path now passes a ``tier2_result`` to ``compute_composite``
+        # so the populated ``critical_steps`` content from S-Eval-3 is
+        # no longer structurally inert. Built lazily on first use so
+        # tests that don't exercise the executor end-to-end (and
+        # checkouts that may legitimately omit the Java tree) don't
+        # pay the load cost or fail at import time.
+        self._skill_extractor: SkillProcedureExtractor | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -247,8 +279,25 @@ class BatchExecutor:
                 case_spec, trace_data, session_result.transcript
             )
 
+            # 7a. Tier-2 ``skill_procedure_followship`` (Sprint 46 /
+            # S-Eval-5 Option A AUTHORIZED 2026-05-22 per
+            # ``docs/sprint_objective.md`` §2.6). The S-Eval-3 populated
+            # ``critical_steps`` on each Skill YAML are evaluated
+            # against the per-turn trace; a mandatory-step FAIL whose
+            # ``mandatory_for`` UC list includes ``active_use_case``
+            # flips Tier-2 to critical and (via ``compute_composite``)
+            # flips ``case_passed``. Empty / absent
+            # ``critical_steps`` → ``Tier2Result(PASS, advisory)`` and
+            # no gate effect (parity with the S-Eval-2 default).
+            per_turn_trace = self._build_per_turn_trace(trace_data)
+            tier2_result = self._compute_tier2_result(
+                per_turn_trace, trace_data.session_state.active_use_case
+            )
+
             # 8. Composite score (Wave B1.1: pass case_spec so the composite
-            # scorer can apply mandatory-L2 gates in addition to L1 gates).
+            # scorer can apply mandatory-L2 gates in addition to L1 gates;
+            # S-Eval-5 Option A: pass tier2_result so the Tier-2 gate
+            # flows through to production ``case_passed``).
             composite_score = compute_composite(
                 case_spec.case_id,
                 l1_results,
@@ -256,6 +305,7 @@ class BatchExecutor:
                 l3_results,
                 stall_result,
                 case_spec=case_spec,
+                tier2_result=tier2_result,
             )
 
             # Sprint 25 (R-per-llm-call-latency-instrumentation): fetch the
@@ -288,6 +338,58 @@ class BatchExecutor:
     # ------------------------------------------------------------------
     # Serialisation helpers
     # ------------------------------------------------------------------
+
+    def _get_skill_extractor(self) -> SkillProcedureExtractor | None:
+        """Lazy-load the SkillProcedureExtractor.
+
+        Returns ``None`` if the canonical skills directory is missing
+        (e.g., the eval_interactive checkout is exercised without the
+        Java tree). In that case Tier-2 stays inert via the empty-list
+        gate produced by ``tier2_results_to_gate(())`` — preserving the
+        S-Eval-2 backward-compat default.
+        """
+        if self._skill_extractor is not None:
+            return self._skill_extractor
+        if not self._SKILLS_DIR.is_dir():
+            logger.warning(
+                "Skill YAML dir not found at %s; Tier-2 skill_procedure_followship "
+                "will stay inert (PASS / advisory).",
+                self._SKILLS_DIR,
+            )
+            return None
+        self._skill_extractor = SkillProcedureExtractor.from_skills(
+            load_skills_from_dir(self._SKILLS_DIR)
+        )
+        return self._skill_extractor
+
+    def _compute_tier2_result(
+        self,
+        per_turn_trace: list[dict],
+        active_use_case: str | None,
+    ) -> Tier2Result:
+        """Aggregate per-Skill ``critical_steps`` evaluation into one
+        Tier-2 verdict.
+
+        Each Skill's per-step extractor pass is concatenated; the
+        extractor itself returns ``N/A`` for any step whose
+        ``mandatory_for`` UC list does not include
+        ``active_use_case``, so iterating every loaded Skill is safe
+        and avoids hard-coding a per-(phase, UC)-to-Skill mapping on
+        the eval side (the Java runtime's ``SkillRegistry.select`` is
+        the source of truth at runtime, not duplicated here).
+        ``tier2_results_to_gate`` reduces the union into a single
+        ``Tier2Result``: critical iff any mandatory step in any Skill
+        FAILed on a UC that matches its ``mandatory_for`` set.
+        """
+        ext = self._get_skill_extractor()
+        if ext is None:
+            return tier2_results_to_gate(())
+        all_results: list[CriticalStepResult] = []
+        for skill_name in ext.skills_by_name:
+            all_results.extend(
+                ext.extract(per_turn_trace, skill_name, active_use_case)
+            )
+        return tier2_results_to_gate(all_results)
 
     @staticmethod
     def _fetch_llm_calls(
@@ -396,9 +498,43 @@ class BatchExecutor:
                 for r in composite_score.l2_results
             ],
             "l3_results": [
-                {"dimension": r.dimension, "score": r.score, "reasoning": r.reasoning}
+                {
+                    "dimension": r.dimension,
+                    "score": r.score,
+                    "reasoning": r.reasoning,
+                    # S-Eval-5 (M3-Eval): surface dim severity so trend
+                    # reports can split advisory dims (the three demoted
+                    # legacy dims + new ``user_goal_achievement``) from
+                    # critical dims (``premature_finish`` / ``stall_quality``)
+                    # without re-deriving the split from the dim name.
+                    "severity": getattr(r, "severity", "critical"),
+                }
                 for r in composite_score.l3_results
             ],
+            # S-Eval-5 (M3-Eval, Option A AUTHORIZED): per-step Tier-2
+            # ``skill_procedure_followship`` outcomes. Empty list when
+            # the extractor is inert (e.g., Skill YAMLs absent or no
+            # applicable step matched the active UC). The aggregate
+            # gate verdict is already encoded in
+            # ``composite_score.tier2_result``; this list is the
+            # per-step detail consumers need for trend reports + the
+            # M3-Eval close manual review surface.
+            "tier2_result": {
+                "passed": composite_score.tier2_result.passed,
+                "severity": composite_score.tier2_result.severity,
+                "failed_step_ids": list(composite_score.tier2_result.failed_step_ids),
+                "detail": composite_score.tier2_result.detail,
+                "per_step": [
+                    {
+                        "step_id": s.step_id,
+                        "desc": s.desc,
+                        "outcome": s.outcome,
+                        "severity": s.severity,
+                        "detail": s.detail,
+                    }
+                    for s in composite_score.tier2_result.per_step
+                ],
+            },
             "transcript": session_result.transcript,
             # Codex (latest review) §1.1: per-case status must use the same
             # gate as the summary pass count — case_passed AND composite>=0.7
