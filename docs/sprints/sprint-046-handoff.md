@@ -1105,6 +1105,55 @@ can land later.
 
 ## 12. Closure verdict
 
-*(Section left empty by dev per
-`feedback_handoff_verdict_section_delegation.md`. Deliver-agent +
-human fill at S-Eval-5 close decision.)*
+**Filled by deliver-agent + human jointly at S-Eval-5 close decision
+2026-05-23 per `feedback_handoff_verdict_section_delegation.md` ownership.**
+
+### 12.1 Classification
+
+**A — Clean PASS** (S-Eval-5 sub-sprint close + LAST M3-Eval sub-sprint).
+
+Sub-sprint close walked against the pre-dev handoff (`compact/context-handoff-sprint-046-pre-dev.md` §7) "A — Clean PASS"
+criteria:
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| Dev shipped contract end-to-end | ✅ | All 6 §2 items (3 L3 dim demotions + NEW `user_goal_achievement` dim + 2 rubric updates + 4 R-item closures + Option A executor wiring + monotone-relaxing structural proof) shipped per `docs/sprint_objective.md` §2 + §5. |
+| No §6 hard fence touched | ✅ | Zero Java production source / zero runtime semantic edits / zero Skill content / zero case fixtures / zero `hard_checks.py`/`outcome_checks.py`/`skill_procedure_check.py` edits per §3 bundle file table. |
+| No §10 stop signal fired | ✅ | §13 real-LLM monotone-relaxing rerun PASS (0 `case_passed=true → false` transitions across 185 cases per §13.3); UC-FP `consult-moderation-context-on-removal-explanation` calibration NOT triggered per §13.4. |
+| §4.1 Q1-Q8 PASS, Q9 N/A | ✅ | Dev §6 self-walk all PASS (Q9 N/A — permanent four-tier pyramid; no sunset plan). Codex M3-Eval-shared review confirmed §1.7 compliance independently at M3-Eval close (Codex §3 Q1 PASS). |
+| Contract drift bounded | ✅ | §10 documents 2 §7-a planned drifts: (#1) 30 NEW tests vs §2.8 expected 5-15 (each pins load-bearing assertion); (#2) executor +138 LOC vs §2.2 "one-line edit" framing (the literal `compute_composite(..., tier2_result=)` pass-through IS one line; supporting helpers — `_SKILLS_DIR` + `_get_skill_extractor` + `_compute_tier2_result` + `_build_case_result` enrichment — required to make that one line meaningful per §5 scope coverage). Both acceptable per contract §5 Files-in-scope open-ended count + §2.6 supporting infrastructure scope. |
+| OQs disposed non-blocking | ✅ | §7 surfaces 6 OQs (S46.1-S46.6) + §13.7 surfaces 1 OQ (S46.7); all routed M3-Eval-shared close OR M4+ non-blocking. **OQ-S46.1 RESOLVED** via §13 real-LLM monotone-relaxing rerun follow-up commit `7562a2d` (0 PASS→FAIL transitions; STOP signal #5 not triggered). |
+| Codex returned `pass` | N/A → M3-Eval-shared at close | Per `iteration_governance.md` §4.3 default: Codex deferred to M3-Eval milestone-shared close (no per-sub-sprint trigger fired for S-Eval-5). The M3-Eval-shared Codex review verdict landed 2026-05-23 at `docs/codex-findings.md` (then archived to `docs/milestones/M3-Eval_codex-review.md` as part of M3-Eval close-out bundle); verdict `decision: fix_required / blocking_count: 1` with the 1 blocker being **deliver-agent evidence-package inconsistency in `eval_interactive/case_specs/bad_cases/_manifest.md`** (Tier-0 "12 of 12 PASS" claim contradicted by cs001 `escalation_compliance` L1 fail). The blocker is NOT a re-judgment of any S-Eval-5 architectural deliverable; deliver-agent applied the documentation fix in the manifest M3-Eval close section (replaced the blanket "12/12" with the accurate breakdown: 4 safety invariants 12/12 + escalation_compliance 11/12 + documented hard-fence-#9 v0_2 deletion exception). Per `iteration_governance.md` §5.6 (2026-05-17 human-judgment-gate refinement) the closure_criterion verdicts are NOT re-litigated; Codex did NOT request any S-Eval-5 code change. |
+
+### 12.2 Files committed
+
+Dev shipped in ONE bundle commit (`e0cd8aa`) per `feedback_commit_at_end_bundles_deliver_artefacts.md`:
+
+| Path | Class | Notes |
+|---|---|---|
+| `eval_interactive/eval_interactive/scoring/llm_judge.py` | edit | L3 dim repositioning (3 advisory + NEW `user_goal_achievement`) + 2 rubric updates + `JudgeResult.severity` field + `_severity_for` + `_parse_response(severity=...)` |
+| `eval_interactive/eval_interactive/scoring/composite.py` | edit | Filter advisory L3 results out of `judge_score` mean (parity with S-Eval-1 D-2.5 L1/L2 filter); `L3_ADVISORY:` failure-tag prefix |
+| `eval_interactive/eval_interactive/batch/executor.py` | edit | Option A executor wiring per §2.6: `_SKILLS_DIR` + lazy `_get_skill_extractor` + `_compute_tier2_result` + `compute_composite(..., tier2_result=tier2_result)` pass-through + `_build_case_result` enrichment |
+| `docs/action_bank.md` | edit | Append `succeeded-by` closure annotations to the 4 M3-Eval R-items at lines 397 / 408 / 409 / 412 (entries preserved per §6 convention) |
+| `eval_interactive/tests/test_s_eval_5_l3_repositioning.py` | NEW | 30-test regression suite (7 classes): L3 demotion + severity assignment + new dim + rubric updates + monotone-relaxing structural proof + executor wiring + R-item closures |
+| `docs/sprints/sprint-046-handoff.md` | NEW | This file (dev handoff) |
+
+Plus follow-up commit `7562a2d`: docs-only update to this file's §13 (real-LLM monotone-relaxing rerun OQ-S46.1 resolution).
+
+Bundle stats: 6 files (per §11 expected 6-10 range; at lower edge); +1220 additions / -22 deletions (per §3 sub-tally re-summed at commit time per OQ-S44.6 / `feedback_deliver_agent_cited_numbers_must_be_reproducible.md` discipline).
+
+### 12.3 R-items disposed
+
+- ✅ **4 closed in S-Eval-5** (annotations at `docs/action_bank.md` §6 — lines 397 / 408 / 409 / 412 — `succeeded-by` references commit `e0cd8aa`):
+  - `R-l3-judge-form-context-trust-rubric` (closed via `_judge_tone_appropriateness` rubric update; rendered `form_context.first_name` as trusted signal).
+  - `R-l1-source-citation-quality-rubric` (closed via `_judge_groundedness` rubric tightening; bare Salesforce IDs explicitly non-actionable).
+  - `R-cs038-l3-review-intake-efficiency` (closed via cumulative M3-Eval architectural shift — Sprint 21 schema-block lifted by S-Eval-1 + L3 demotion to advisory completes the route).
+  - `R-cs040-l3-review-intake-completion-semantics` (closed via cumulative four-tier decomposition: Tier-1 `user_goal_achievement` covers ends + Tier-2 `skill_procedure_followship` covers means).
+
+- 🔁 **Not closed by S-Eval-5; deferred to future milestones**: `R-stale-test-escalation-enum-sync-v0_2-to-v0_3-migration` (S-Eval-1 surfaced; impl deferred), `R-bad-case-suite-uc-ghij-seed-from-real-sessions` (S-Eval-4 surfaced; deferred to M4+), `R-escalation-reason-runtime-evidence-contract-review` (referenced in cs_040 closure annotation; not in M3-Eval scope), `R-case-spec-overrides-schema-scoring-extension` (referenced in cs_038 / cs_040 closure annotations; graduated to follow-on).
+
+### 12.4 Outcome
+
+S-Eval-5 closes cleanly as the LAST M3-Eval sub-sprint. M3-Eval milestone close cycle proceeds immediately (this S-Eval-5 close + the M3-Eval close-out bundle are bundled by deliver-agent + human jointly per `iteration_governance.md` §8.4). No fix-iteration sub-sprint required.
+
+**S-Eval-5 sub-sprint verdict: A — Clean PASS. M3-Eval milestone close trigger: ACTIVE.**

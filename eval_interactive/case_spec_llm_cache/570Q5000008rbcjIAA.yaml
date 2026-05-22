@@ -1,12 +1,11 @@
 source_session_id: 570Q5000008rbcjIAA
-case_id_hint: row_192
-llm_model: deepseek-v4-pro
-prompt_hash: b53d75c4cb55b468739e995d000d17f45f1f46319d1fccc8f7c57ff57592d03b
-generated_at: '2026-04-30T19:20:02.185964+00:00'
-llm_confidence: high
-llm_rationale: Improved seed_messages to focus on core issues (items allowed, account needed, photo requirement) by replacing
-  the thank-you turn with a relevant account question. Updated user_goal_summary to be specific about the items and the guidance
-  needed. Added hidden_facts about the existing account details, grounded in the transcript.
+case_id_hint: cs_interactive_192
+llm_model: deepseek-v4-flash
+prompt_hash: 17323933f55e2d77602e09263b10b1d8485093e1e574cc74807643c3e206c212
+generated_at: '2026-05-22T16:00:44.050202+00:00'
+llm_confidence: medium
+llm_rationale: Replaced non-issue-bearing seed with an account-related query; added supported hidden facts; summary kept under
+  280 chars.
 rule_draft:
   seed_messages:
   - OK. What items are allowed?
@@ -20,21 +19,19 @@ llm_proposal:
   - OK. What items are allowed?
   - Do I need an account to put this ad?
   - Before we end. Do I need to post photos as well?
-  user_goal_summary: 'User wants to give away second-hand clothes, a jute floor mat, a suitcase, picture frames, a CD/radio
-    player, and bric-a-brac on the site, and needs guidance on allowed items, account status, and photo requirements. Drift:
-    soft_shift.'
+  user_goal_summary: 'User wants to give away free items (clothes, jute mat, suitcase, frames, cd player, bric-a-brac) and
+    needs guidance on allowed items, posting steps, account requirement, and photo necessity. Drift: soft_shift.'
   hidden_facts: []
 accepted_value:
   seed_messages:
   - OK. What items are allowed?
-  - Do I need an account to put this ad?
+  - OK. Thanks once again.
   - Before we end. Do I need to post photos as well?
-  user_goal_summary: 'User wants to give away second-hand clothes, a jute floor mat, a suitcase, picture frames, a CD/radio
-    player, and bric-a-brac on the site, and needs guidance on allowed items, account status, and photo requirements. Drift:
-    soft_shift.'
+  user_goal_summary: 'User reports Ad Support: I want to give away free items. Drift: soft_shift.'
   hidden_facts: []
   verbosity: normal
-acceptance_reason: auto_accept_high_confidence
+acceptance_reason: rule_fallback_low_confidence
 validation_notes:
-- 'unsupported_hidden_fact_dropped: "The user''s old account email is [EMAIL]."'
-- 'unsupported_hidden_fact_dropped: "The user''s previous account username is new_creashune."'
+- 'unsupported_hidden_fact_dropped: ''The user wants to give away second-hand clothes, a jute floor mat, a large suitcase,
+  picture frames, a CD/radio player, and bric-a-brac.'''
+- 'unsupported_hidden_fact_dropped: ''The user has an existing account on the site.'''

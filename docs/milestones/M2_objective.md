@@ -7,7 +7,7 @@ source_of_truth: this file
 last_reviewed: 2026-05-18
 review_cadence: ad hoc
 supersedes: [docs/milestones/M2-Skill_objective.md, docs/milestones/M1_objective.md]
-superseded_by: docs/milestone_objective.md (M3 candidate selection pending)
+superseded_by: docs/milestones/M3-Eval_objective.md
 notes: >
   M2 — first framing ("M2-Skill", Skill Foundation + UC-Switching
   Continuity, drafted 2026-05-17, approved same day, only Sprint 36

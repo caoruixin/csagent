@@ -66,11 +66,6 @@ scoring:
   - correct_outcome
   - escalation_triggered
   - intake_fields_collected
-  - tool_sequence_match
-  - case_id_present
-  - turn_efficiency
-  - issue_preservation
-
   llm_judge_dimensions:
   - groundedness
   - relevance
