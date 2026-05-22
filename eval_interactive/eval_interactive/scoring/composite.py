@@ -227,8 +227,19 @@ def compute_composite(
         outcome_score = 0.0
 
     # -- L3 mean (normalized to 0..1) --
-    if l3_results:
-        judge_score = (sum(r.score for r in l3_results) / len(l3_results)) / 5.0
+    # S-Eval-5 (M3-Eval): exclude advisory L3 dims from the judge_score
+    # mean so the three demoted dims (`groundedness`, `relevance`,
+    # `tone_appropriateness`) and the new `user_goal_achievement`
+    # supplementary dim do not factor into `composite_score`. Their
+    # numeric scores remain on `l3_results` and continue to be
+    # serialised into `case_results[].l3_results[]` for trend
+    # reporting. Mirrors the S-Eval-1 (D-2.5) severity convention
+    # already applied to L1 / L2 above. Critical L3 dims
+    # (`premature_finish`, `stall_quality`) continue to feed the
+    # judge_score mean as before.
+    gating_l3 = [r for r in l3_results if getattr(r, "severity", "critical") != "advisory"]
+    if gating_l3:
+        judge_score = (sum(r.score for r in gating_l3) / len(gating_l3)) / 5.0
     else:
         judge_score = 0.0
 
@@ -258,9 +269,19 @@ def compute_composite(
         if r.score < 0.5:
             failure_tags.append(f"L2:{r.check_name}")
 
+    # S-Eval-5 (M3-Eval): advisory-severity L3 dims (the three demoted
+    # legacy dims + new ``user_goal_achievement``) get a distinct
+    # ``L3_ADVISORY:`` prefix so reports can pull them apart from the
+    # critical-severity ``L3:`` failure floor (parity with the
+    # ``TIER2_ADVISORY:`` convention from Sprint 43 / S-Eval-2).
+    # Critical L3 dims keep the legacy ``L3:`` prefix for backward
+    # compatibility with downstream readers.
     for r in l3_results:
         if r.score < 3.0:
-            failure_tags.append(f"L3:{r.dimension}")
+            if getattr(r, "severity", "critical") == "advisory":
+                failure_tags.append(f"L3_ADVISORY:{r.dimension}")
+            else:
+                failure_tags.append(f"L3:{r.dimension}")
 
     if stall_result.detected:
         tag = stall_result.failure_tag or "STALL"
