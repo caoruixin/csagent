@@ -1,0 +1,87 @@
+case_id: cs001_uc_c_mechanical_template_escalate
+source_session_id: 570Q5000008kr6LIAQ
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008kr6LIAQ
+  surfaced_by: Sprint 21 Wave A5/A6 L3 batch disposition (cs_interactive_001)
+  surfaced_date: 2026-05-14
+  failure_shape: |
+    A UC-C Replies / Messaging session ("I am unable to receive messages on my account") triggers
+    two failure modes layered together. (1) The pre-override CaseSpec pairs
+    escalation_trigger=clarification_budget_exhausted with bot_handling_pattern naming "intake
+    fields (none)" — a logical contradiction (no clarification budget exists to exhaust when no
+    clarification fields are required); the truthful Phase 2 §2.4 reason is
+    faq_miss_threshold_exceeded after search_knowledge + 3 × resolve_article exhausts FAQ
+    without a resolve-grade hit. (2) The bot's turn-0 user-facing reply is a mechanical template
+    ("Hi Benjamin! I'm having difficulty resolving this. Let me connect you with a specialist.")
+    with zero acknowledgment of the user's specific complaint. This bad case captures the L3
+    quality failure (the L1 escalation_trigger correction is now reflected in the override; the
+    bot's behaviour quality is the still-active failure surface).
+  layers_involved: prompt_projection (the LLM did not project the user's specific messaging
+    complaint into a personalised acknowledgment); semantic_planner (LLM chose a generic
+    template rather than running the policy-mandated FAQ search first); eval_spec (the L1
+    clarification_budget_exhausted label was an internal contradiction that the override
+    corrected to faq_miss_threshold_exceeded).
+  related_dimensions: [D4]
+  related_r_items: []
+  tier: scope-relevant
+
+closure_criterion: |
+  Bot acknowledges the user's specific Replies / Messaging complaint by paraphrasing or naming
+  the actual issue ("you can't receive messages on your account") in the turn-0 reply, runs the
+  policy-mandated tool sequence (search_knowledge + resolve_article), and hands over with
+  reason=faq_miss_threshold_exceeded once FAQ search exhausts without a resolve-grade hit.
+  Bot does NOT use a mechanical template ("I'm having difficulty resolving this") on turn 0
+  before any tool call has run. Bot does NOT escalate with reason=clarification_budget_exhausted
+  when no clarification fields are required (a logical impossibility). Bot does NOT skip FAQ
+  search and escalate immediately.
+
+form_context:
+  first_name: Benjamin
+  email: benjamin.messages@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: |
+    I am unable to receive messages on my account. People are replying to my ads but I do not
+    see any messages.
+
+persona:
+  user_goal_summary: |
+    User's listings are getting replies from buyers, but the messages are not showing up in
+    the user's inbox on the platform. The user wants the platform to investigate why
+    messages are not being delivered. UC-C (Replies / Messaging) primary; intake-fields-none
+    case; if FAQ search has no covering article, faq_miss_threshold_exceeded is the truthful
+    handover reason.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "I am unable to receive messages on my account. People are replying to my ads but I don't see any messages."
+    - "Can you check why messages aren't getting through?"
+  hidden_facts:
+    - fact: User's email notifications for replies are turned off in the notification
+        settings; in-app messages are working, but the user only checks email.
+      disclose_when: if the bot asks whether the user checks the in-app inbox vs email notifications
+    - fact: User has been receiving spam replies that the system auto-filtered into a hidden
+        "blocked" folder; the user is not aware of the blocked folder.
+      disclose_when: if the bot asks about spam / blocked / filter folders specifically
+  will_request_human_if: the bot opens with a mechanical "I'm having difficulty resolving this"
+    template before running any FAQ search
+
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'partial'
+  escalation_trigger: faq_miss_threshold_exceeded
+  acceptable_outcomes: [escalate, resolve]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

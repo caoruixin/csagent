@@ -1,0 +1,82 @@
+case_id: cs029_uc_d_account_locked_callback
+source_session_id: 570Q5000008kDiPIAU
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008kDiPIAU
+  surfaced_by: Sprint 4 §E2 reviewer correction (cs_interactive_029)
+  surfaced_date: 2026-05-05
+  failure_shape: |
+    Account-locked persona ("HI MY ACCOUNT OS / IS LOCKED / I HAVE ALREADY FOLLOWED YOUR SO CALLED
+    PROCESS / can you please call me now?") is mis-classified to UC-C (Replies / Messaging) on the
+    pre-override CaseSpec, instead of UC-D (Account & Login). The HR-row primary_uc=UC-C was the
+    L1 fallback; the runtime deterministic UC fallback (ControlKernel.inferFallbackUseCase)
+    correctly picks UC-D for these seeds, so the spec/runtime contract is internally inconsistent.
+    Under UC-C the bot gives messaging-feature answers; the user's actual need (account locked,
+    callback to business team) goes unmet for many turns until the human agent escalates with a
+    case number at turn 43/47.
+  layers_involved: prompt_projection (UC-D account-locked route hint not strong enough against
+    the case-routing pull of "can't advertise" → UC-C messaging); semantic_planner (LLM committed
+    to UC-C and could not escape); eval_spec (HR-row UC-C primary pin masked the failure shape).
+  related_dimensions: [D1]
+  related_r_items: []
+  tier: core
+
+closure_criterion: |
+  Bot recognises "my account is locked" / "I can't advertise" as a UC-D account/login issue (NOT
+  a UC-C messaging issue), runs get_customer_context for account-state retrieval, explains
+  what the user can do (unlock steps, business team contact form for business accounts), and
+  escalates to the business team with reason=user_requested if the user explicitly asks for a
+  callback. Bot does NOT loop on UC-C messaging-feature answers when the user has clearly said
+  the account is locked. Bot acknowledges ALL-CAPS persona without escalating purely on caps
+  signal (user_distress requires the actual frustration shape, not surface-level shouting).
+
+form_context:
+  first_name: Customer
+  email: locked.account.holder@example.com
+  topic_subject: Account & Login
+  ad_id: ''
+  description: |
+    My account is locked. I have already followed the process you sent me last time. Can someone
+    call me about this? I need my account manager.
+
+persona:
+  user_goal_summary: |
+    User runs a business account that has been locked, preventing them from advertising. They
+    have already attempted the platform's standard unlock process and it did not resolve the
+    issue. They want a callback from someone who can actually unlock the account (business / B2B
+    team), not another self-serve walkthrough. ALL-CAPS in the seed messages is frustration
+    emphasis, not a Sprint B1 distress trigger.
+  frustration_level: high
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+    - "HI MY ACCOUNT OS LOCKED"
+    - "I HAVE ALREADY FOLLOWED YOUR SO CALLED PROCESS"
+    - "can you please call me now? I need my account manager"
+  hidden_facts:
+    - fact: User has a business account (not personal) and has a named account manager assigned;
+        the lock followed a payment failure that has since been resolved.
+      disclose_when: if the bot asks whether this is a business or personal account
+    - fact: User has tried the standard unlock process (email reset link) twice and it did not
+        succeed; the link expired before they could click it.
+      disclose_when: if the bot asks what unlock steps the user has already tried
+  will_request_human_if: the bot loops on messaging-feature answers (UC-C) when the user has
+    said the account is locked, OR if the bot offers another generic self-serve unlock walkthrough
+
+expected:
+  outcome_class: escalate
+  primary_uc: UC-D
+  secondary_ucs: [UC-C]
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  escalation_trigger: user_requested
+  acceptable_outcomes: [escalate]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

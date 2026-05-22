@@ -1,0 +1,89 @@
+case_id: cs095_uc_d_email_recovery_misroute
+source_session_id: 570Q5000008U5C9IAK
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008U5C9IAK
+  surfaced_by: Sprint 21 Wave A5/A6 L3 re-review (supersedes Wave A2.1 legacy UC-A migration; cs_interactive_095)
+  surfaced_date: 2026-05-14
+  failure_shape: |
+    "I think I have the wrong email address on my app account so am not getting messages to the
+    app and it's telling me I have no adverts. I can't see where it can be changed, can you help"
+    is dominated by a wrong-email-on-account signal (UC-D), not by Top-Ad visibility (UC-A). The
+    pre-override CaseSpec pinned UC-A primary on the strength of "no adverts showing"; the bot's
+    own T0 reply on this session is UC-D-flavoured (steps to change contact email, citing an
+    internal Salesforce source_id ka44J000000gKxqQAE that leaks an internal artefact). The
+    failure is multi-layer: UC misroute + L1 no_stall ("I'm looking into this for you" turn 1
+    placeholder) + duplicated greeting ("Hi Trish! Hi Trish") + internal-source-id leak. Distinct
+    from the existing anchor_outcome_uc_a_visibility case which captures the SUCCESS outcome
+    shape from the same session; this bad case captures the multi-layer failure shape.
+  layers_involved: prompt_projection (UC-D email-recovery route hint not strong enough against
+    "no adverts" UC-A pull); semantic_planner (LLM stamped UC-A but produced UC-D-flavoured
+    answer — internal inconsistency); skill_state (T1 PLACEHOLDER_WITHOUT_FOLLOWUP "I'm looking
+    into this for you" with no follow-on tool call); eval_spec (UC-A pin masked the failure
+    shape; the bot's behaviour was UC-D-aligned).
+  related_dimensions: [D1]
+  related_r_items: []
+  tier: core
+
+closure_criterion: |
+  Bot recognises "wrong email address on my app account" as the dominant signal (UC-D
+  account/email recovery), with "no adverts showing" as a downstream consequence rather than a
+  standalone UC-A Top-Ad visibility question. Bot walks the user through verifying which email
+  is the active one on the account (account-settings path) or escalates with a useful handover
+  summary naming the dual-email confusion. Bot does NOT loop asking which email to use as if
+  the answer were obvious. Bot does NOT fabricate an account state. Bot does NOT leak internal
+  Salesforce source IDs / ka-prefixed identifiers in user-facing text. Bot does NOT produce a
+  T1 placeholder ("I'm looking into this for you") without a follow-on tool call in the same
+  turn. Bot does not greet the user by first name twice in the same turn.
+
+form_context:
+  first_name: Trish
+  email: trish.account@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: |
+    I think I have the wrong email address on my app account so am not getting messages to the
+    app and it's telling me I have no adverts. I can't see where it can be changed, can you help
+
+persona:
+  user_goal_summary: |
+    User sees two different email addresses on the account (one used at login, one shown on the
+    profile) and is not receiving messages. Adverts that were posted under one email are not
+    visible from the other. The user wants to know which email is the authoritative one and how
+    to fix the mismatch. UC-D account/email recovery, with secondary UC-A Top-Ad visibility as
+    a downstream symptom.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I think I have the wrong email address on my app account so I'm not getting messages and it's saying I have no adverts. Can you help?"
+    - "There are two emails I use - I think one of them is wrong on the account. How do I check which one is right?"
+  hidden_facts:
+    - fact: User signed up originally with a personal Gmail; later switched their primary inbox
+        to a work / iCloud address and updated the listing contact email but possibly not the
+        account login email.
+      disclose_when: if the bot asks which email the user thinks is correct OR asks about prior
+        email changes
+    - fact: User can still log into the account; the issue is the account shows zero adverts
+        even though the user posted some last week from what they believed was the same account.
+      disclose_when: if the bot asks whether the user can log in OR about the symptoms in detail
+  will_request_human_if: the bot produces a placeholder reply ("I'm looking into this for you")
+    without an actual action in the same turn, OR the bot fabricates an account state without
+    retrieving customer context
+
+expected:
+  outcome_class: either
+  primary_uc: UC-D
+  secondary_ucs: [UC-A, UC-K]
+  should_escalate: false
+  allow_bot_resolution: 'partial'
+  acceptable_outcomes: [resolve, escalate]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

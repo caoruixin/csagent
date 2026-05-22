@@ -1,0 +1,79 @@
+case_id: cs012_uc_fp_late_phone_failure_path
+source_session_id: 570Q5000008hx9tIAA
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008hx9tIAA
+  surfaced_by: Wave A5 semantic review (merged with Wave A2.1 UC-B reclassification map; cs_interactive_012)
+  surfaced_date: 2026-04-30
+  failure_shape: |
+    "Why was my kitten ad deleted?" + later "can you call me / put me through to a human" is mis-routed
+    to an escalate-only path on the strength of the late phone request alone, instead of running the
+    UC-FP resolve-first flow (retrieve customer + listing + moderation context, then explain the
+    policy reason in plain English with grounded reposting guidance).
+  layers_involved: prompt_projection (DISCOVER systemInstruction does not surface the "removed-listing
+    => UC-FP resolve-first" route hint strongly enough); semantic_planner (LLM treats the late phone
+    request as the dominant signal, overriding the earlier resolvable UC-FP shape); eval_spec
+    (pre-override CaseSpec mis-labelled this as UC-B with an escalate outcome)
+  related_dimensions: [D1]
+  related_r_items: []
+  tier: core
+
+closure_criterion: |
+  Bot acknowledges the kitten ad removal question, runs get_customer_context + search_knowledge +
+  resolve_article on the kittens / livestock / restricted-categories policy surface, and answers the
+  user's actual question (why the ad was removed, what categories are restricted, whether and how to
+  re-list under an allowed category) on the factual_answer / faq_grounded output class. Bot does NOT
+  hand over with reason=user_requested on the late phone request alone before attempting
+  policy-grounded resolution. Bot does NOT fabricate a reason that is not grounded in the FAQ /
+  moderation context. If the user explicitly demands a human after the bot has explained the policy,
+  user_requested handover is acceptable; before policy explanation, it is failure.
+
+form_context:
+  first_name: Customer
+  email: kitten.seller@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: |
+    I posted an ad for kittens last week and now it has been removed. Can someone tell me why this
+    happened and what I need to do? I just want to sell my kittens to a good home.
+
+persona:
+  user_goal_summary: |
+    User posted a kittens listing that was removed by the platform for a policy reason
+    (live-animal-sale restriction). The user does not know the policy reason and wants the bot to
+    explain why the ad was removed and what they can do (re-list under a different category, edit
+    wording, appeal). Later in the session the user becomes mildly frustrated and asks for a phone
+    call / human; this is a failure-path signal, not the user's primary goal. The user's primary
+    goal is policy understanding, not human escalation.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I posted an ad for some kittens I'm trying to rehome and it was removed. Can you tell me why?"
+    - "I just want to know what happened. Can someone explain or call me about this?"
+  hidden_facts:
+    - fact: User is rehoming a litter of kittens; they are not a registered breeder; the listing
+        photos showed the kittens with the seller's contact details in the image caption.
+      disclose_when: if the bot asks for context on the ad content or the seller's situation
+    - fact: User did not read the listing policies before posting; they assumed kittens were the
+        same as other pet listings on the platform.
+      disclose_when: if the bot asks about prior listings or policy familiarity
+  will_request_human_if: the bot loops asking the user to explain why the ad was removed when the
+    user has already said they don't know
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs: [UC-K]
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  acceptable_outcomes: [resolve]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

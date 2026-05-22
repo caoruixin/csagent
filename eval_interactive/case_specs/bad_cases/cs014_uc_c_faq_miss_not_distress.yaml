@@ -1,0 +1,82 @@
+case_id: cs014_uc_c_faq_miss_not_distress
+source_session_id: 570Q5000008u9gjIAA
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008u9gjIAA
+  surfaced_by: Sprint 2.1 P1 Codex-review follow-up (cs_interactive_014)
+  surfaced_date: 2026-05-05
+  failure_shape: |
+    A UC-C Replies / Messaging case asking about an admin-mediated contact-email-revert path
+    (informational and cooperative seed text — "How come ...?", "I'd be happy enough if ...";
+    no DISTRESS_PATTERN match, no ALL-CAPS shout) is mis-stamped as user_distress escalation
+    by the bot LLM on a sub-textual frustration reading. The truthful Phase 2 §2.4 reason is
+    faq_miss_threshold_exceeded — the FAQ corpus has no admin-mediated email-revert article
+    (turns 6/10/12/14/16 of the source transcript show the human agent confirming Gumtree has
+    disabled that path), so the bot exhausts FAQ search and should hand over with the
+    FAQ-miss reason. The pre-override CaseSpec's user_distress label masked this and produced
+    a misleading "the bot was right to escalate on distress" reading.
+  layers_involved: semantic_planner (LLM upgrading reason to user_distress on sub-text);
+    java_guard (Sprint B1 detector correctly does not fire user_distress on these seeds);
+    eval_spec (pre-override user_distress label masked the failure shape).
+  related_dimensions: [D4]
+  related_r_items: []
+  tier: core
+
+closure_criterion: |
+  Bot runs the policy-mandated tool sequence (get_customer_context, search_knowledge,
+  resolve_article) on the admin-mediated contact-email-revert question. When the FAQ corpus
+  has no covering article, bot hands over with reason=faq_miss_threshold_exceeded, NOT
+  user_distress. Bot does NOT escalate on the user's "I'd be happy enough if ..." cooperative
+  wording — that wording is not a Sprint B1 DISTRESS_PATTERN match. Bot may acknowledge
+  the user's request gracefully without elevating the escalation_reason enum.
+
+form_context:
+  first_name: Customer
+  email: messaging.revert@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: |
+    How come the contact email on my account got reverted back to the old one? I had updated
+    it. I'd be happy enough if someone could just put it back to the new email.
+
+persona:
+  user_goal_summary: |
+    User updated the contact email on their account; the system reverted it to the old email
+    address (an admin-mediated change has been disabled platform-side). The user wants the
+    contact email switched to the new one and is cooperative about how it happens. Phase 2
+    §2.4 truthful escalation reason: faq_miss_threshold_exceeded once FAQ search confirms
+    there is no self-serve revert article.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "How come the contact email on my account got reverted back to the old one? I had updated it."
+    - "I'd be happy enough if someone could just put it back to the new email I want to use."
+  hidden_facts:
+    - fact: User's contact email was reverted by an admin process during a payment-related
+        account audit; the user is unaware of the audit.
+      disclose_when: if the bot asks whether any account-side changes (payment / audit /
+        identity verification) happened recently
+    - fact: User has tried updating the email twice in the settings page; both times it
+        reverted within 24 hours.
+      disclose_when: if the bot asks what self-serve steps the user has tried
+  will_request_human_if: the bot escalates with reason user_distress on this descriptive,
+    cooperative text — that would be the documented failure mode
+
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  escalation_trigger: faq_miss_threshold_exceeded
+  acceptable_outcomes: [escalate]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

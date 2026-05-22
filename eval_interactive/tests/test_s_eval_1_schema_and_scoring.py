@@ -352,9 +352,18 @@ class TestBackwardCompatLoad:
     def test_alice_bad_case_loads_unchanged(self):
         specs = load_case_specs(_BAD_CASES)
         ids = {s.case_id for s in specs}
+        # Alice remains the regression guard for the UC-A/UC-H mis-classification
+        # shape across all M3-Eval sub-sprints; cascade fence prevents edits to
+        # the Alice YAML (S-Eval-4 §6 #5 / milestone §6 #6).
         assert "alice_uc_a_uc_h_misclass" in ids
-        assert len(specs) == 1, (
-            f"bad_cases should carry exactly 1 case (Alice) at HEAD; found {len(specs)}"
+        # S-Eval-4 (Sprint 45) expansion: 11 new bad cases sourced from the 17
+        # approved `case_spec_overrides.yaml` entries landed alongside Alice.
+        # Total = 12 = 1 Alice + 11 new (cs012 / cs015 / cs066 / cs029 / cs095 /
+        # cs011 / cs014 / cs001 / wmkb / iwzx / fg5q). Anchor floor for the
+        # S-Eval-1 checkpoint at HEAD after S-Eval-4 close.
+        assert len(specs) == 12, (
+            f"bad_cases should carry exactly 12 cases (1 Alice + 11 S-Eval-4 expansion) "
+            f"at S-Eval-4 close baseline; found {len(specs)}"
         )
 
     def test_case_family_fixtures_load_unchanged(self):

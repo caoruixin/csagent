@@ -1,0 +1,88 @@
+case_id: wmkb_uc_a_trader_flag_secondary_uc_h
+source_session_id: 570Q5000008wmKbIAI
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008wmKbIAI
+  surfaced_by: Wave A2.1 reclassification map (legacy migration)
+  surfaced_date: 2026-04-30
+  failure_shape: |
+    User's account has been flagged as "trader" / business when they consider themselves a
+    private seller, and the platform has applied trader-account rules (different listing
+    limits, fees, visibility). The user wants the trader flag corrected (UC-A account/profile
+    question) — with a possible UC-H appeal path if the flag was applied via an automated
+    decision the user wants to contest. The pre-override CaseSpec pinned UC-B (Posting); the
+    actual primary is UC-A with UC-H / UC-D fallback. Risk: the bot may lock into UC-H intake
+    (Ad Removal Appeal) on the strength of the "incorrect flag" wording, even when the user
+    just wants to know how to change the account-type setting. This is the closest the 17
+    approved overrides come to a UC-H surface; the UC-G/H/I/J primary-corpus gap is still
+    documented (no override has UC-H as primary).
+  layers_involved: prompt_projection (UC-A trader-flag account-setting route hint vs UC-H
+    appeal-locked intake disambiguation); semantic_planner (LLM committed to UC-H on "incorrect
+    flag" phrasing and could not escape; mirror of Alice UC-A↔UC-H shape); eval_spec (UC-B pin
+    masked the failure shape).
+  related_dimensions: [D1]
+  related_r_items:
+    - R-bad-case-suite-uc-ghij-seed-from-real-sessions (NEW; opened at S-Eval-4 launch — the
+      17-pool has 0 UC-G/H/I/J primary entries; this case touches UC-H as secondary only)
+  tier: scope-relevant
+
+closure_criterion: |
+  Bot recognises "the trader flag on my account is wrong" as a UC-A account/profile question
+  (route to account-settings / account-type guidance / FAQ-grounded answer on private-vs-trader
+  status). Bot asks one focused clarifying question if the framing is ambiguous between
+  "tell me how to change the setting" (UC-A) and "I want to appeal the decision" (UC-H). Bot
+  does NOT lock into UC-H intake (request_handover-only path) without an explicit appeal
+  request from the user. If the user explicitly asks to appeal the trader-flag decision, the
+  bot may then route to UC-H intake; otherwise the bot stays in UC-A and provides
+  policy-grounded guidance on changing the account-type setting.
+
+form_context:
+  first_name: Customer
+  email: trader.flag.wrong@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: |
+    My account has been flagged as a trader / business account but I am a private seller. I
+    just sell things from my own home. Can you change this back? It's making my listings
+    different.
+
+persona:
+  user_goal_summary: |
+    User considers themselves a private seller (occasional household items / personal
+    belongings) but the platform has flagged the account as a business / trader, applying
+    different rules. The user wants to know (a) why the flag was applied, and (b) how to
+    change it back — either via self-serve account settings (UC-A) or via an appeal if the
+    flag was applied algorithmically (UC-H). The user is cooperative and not asking to escalate.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, my account got flagged as a trader / business account but I'm just selling some things from my home. How do I change it back?"
+    - "I'm not running a business. Why was this applied?"
+  hidden_facts:
+    - fact: User sold a few high-value items in quick succession last month; the platform's
+        automated trader-detection rule fired on volume / category mix.
+      disclose_when: if the bot asks about recent listing activity / volume / what triggered the change
+    - fact: User does not want to appeal a removal; the listings are still live, but they are
+        being treated under trader rules (fees, limits).
+      disclose_when: if the bot tries to route this to UC-H appeal — the user clarifies they
+        do not want an appeal
+  will_request_human_if: the bot locks the conversation into UC-H intake (request_handover-only
+    path) when the user has not asked for an appeal
+
+expected:
+  outcome_class: either
+  primary_uc: UC-A
+  secondary_ucs: [UC-H, UC-D]
+  should_escalate: false
+  allow_bot_resolution: 'partial'
+  acceptable_outcomes: [resolve, escalate]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []
