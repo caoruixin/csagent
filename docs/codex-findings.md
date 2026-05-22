@@ -25,4 +25,10 @@ summary: <one paragraph — Codex's verdict on the active sprint or milestone>
 <Java baseline + targeted spot-check runs + any unexpected results>
 
 ## Tier-0 Candidate Independent Verification (if applicable)
-<verdict on any new Tier-0 candidate the sprint/milestone surfaced; or "N/A — no Tier-0 candidate in scope">
+<C1-C5 verdicts: REJECTED preserved / QUALIFIED-DEFER continued / ELEVATE NOW / NOT A CANDIDATE>
+
+## OQ Independent Verification
+<per-OQ verdict, citing dev handoff §7 OQ ids and the contract-drift items if any>
+
+## Deferred / Non-Blocking Notes
+<observations that do not change the verdict but are worth recording>

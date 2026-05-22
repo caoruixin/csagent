@@ -25,9 +25,10 @@ expected:
   - UC-D
   should_escalate: true
   allow_bot_resolution: 'true'
-  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
-  escalation_trigger: clarification_budget_exhausted
+  bot_handling_pattern: Acknowledge the user's specific Replies/Messaging complaint, run policy-mandated tools (search_knowledge,
+    resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded
+    once FAQ search exhausts without a resolve-grade hit on the UC-C messaging topic.
+  escalation_trigger: faq_miss_threshold_exceeded
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
