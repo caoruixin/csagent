@@ -25,6 +25,32 @@ _OPT_IN_SETS = ("bad_cases", "anchor_outcome")
 _ALL_SETS = _KNOWN_SETS + _OPT_IN_SETS
 
 
+def is_human_judgment_suite(suite_name: str | None) -> bool:
+    """Return True iff ``suite_name`` is an opt-in human-judgment suite.
+
+    Per ``iteration_governance.md`` §5.6, the bad-case and
+    anchor-outcome suites are evaluated by manual human review of the
+    per-case ``closure_criterion`` against ``per_turn_trace``;
+    programmatic ``case_passed`` PASS/FAIL is observation-only. This
+    helper centralises the suite-name check so the executor and report
+    code do not duplicate the membership test.
+
+    Args:
+        suite_name: A suite directory name (e.g., "bad_cases",
+            "anchor_outcome", "anchor"), or ``None`` when the loader
+            could not determine the suite (e.g., a CaseSpec
+            instantiated directly in unit tests, or loaded from a
+            non-set path that does not match any registered suite).
+
+    Returns:
+        True when ``suite_name`` matches an entry in ``_OPT_IN_SETS``;
+        False otherwise (including for ``None``).
+    """
+    if suite_name is None:
+        return False
+    return suite_name in _OPT_IN_SETS
+
+
 class CaseSetManager:
     """Manages case spec sets (anchor/promotion/exploration)."""
 

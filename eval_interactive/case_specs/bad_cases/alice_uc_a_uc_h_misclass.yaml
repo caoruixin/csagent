@@ -143,15 +143,5 @@ scoring:
     - no_forbidden_tools
     - budget_enforcement
     - grounding_compliance
-  outcome_checks:
-    - correct_uc
-    - correct_outcome
-    - resolution_achieved
-    - answer_accuracy
-    - tool_sequence_match
-    - turn_efficiency
-    - issue_preservation
-  llm_judge_dimensions:
-    - groundedness
-    - relevance
-    - tone_appropriateness
+  outcome_checks: []
+  llm_judge_dimensions: []

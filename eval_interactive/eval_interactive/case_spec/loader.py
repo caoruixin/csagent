@@ -19,7 +19,7 @@ from .schema import (
 )
 
 
-def _parse_case_spec(raw: dict) -> CaseSpec:
+def _parse_case_spec(raw: dict, source_suite: str | None = None) -> CaseSpec:
     """Parse a raw dict (from YAML) into a CaseSpec dataclass."""
     fc_raw = raw["form_context"]
     form_context = FormContext(
@@ -99,14 +99,23 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
         expected=expected,
         scoring=scoring,
         closure_criterion=raw.get("closure_criterion"),
+        source_suite=source_suite,
     )
 
 
-def load_case_spec(path: str | Path) -> CaseSpec:
+def load_case_spec(
+    path: str | Path, source_suite: str | None = None
+) -> CaseSpec:
     """Load a single CaseSpec from a YAML file.
 
     Args:
         path: Path to a .yaml or .yml file.
+        source_suite: Optional suite name override. When ``None``,
+            inferred from the parent directory's name so a fixture at
+            ``case_specs/bad_cases/foo.yaml`` carries
+            ``source_suite="bad_cases"``. Used downstream by the
+            executor to mark per-case ``case_passed_authority`` per
+            ``iteration_governance.md`` §5.6.
 
     Returns:
         Parsed CaseSpec instance.
@@ -122,14 +131,23 @@ def load_case_spec(path: str | Path) -> CaseSpec:
     with open(path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
-    return _parse_case_spec(raw)
+    if source_suite is None:
+        source_suite = path.parent.name or None
+
+    return _parse_case_spec(raw, source_suite=source_suite)
 
 
-def load_case_specs(directory: str | Path) -> list[CaseSpec]:
+def load_case_specs(
+    directory: str | Path, source_suite: str | None = None
+) -> list[CaseSpec]:
     """Load all CaseSpec YAML files from a directory.
 
     Args:
         directory: Path to a directory containing .yaml/.yml files.
+        source_suite: Optional suite name override. When ``None``,
+            uses ``directory.name`` so every CaseSpec loaded from
+            ``case_specs/bad_cases/`` carries
+            ``source_suite="bad_cases"``.
 
     Returns:
         List of parsed CaseSpec instances, sorted by case_id.
@@ -143,11 +161,14 @@ def load_case_specs(directory: str | Path) -> list[CaseSpec]:
     if not directory.is_dir():
         raise NotADirectoryError(f"Expected a directory: {directory}")
 
+    if source_suite is None:
+        source_suite = directory.name or None
+
     specs: list[CaseSpec] = []
     for yaml_file in sorted(directory.glob("*.yaml")):
-        specs.append(load_case_spec(yaml_file))
+        specs.append(load_case_spec(yaml_file, source_suite=source_suite))
     for yml_file in sorted(directory.glob("*.yml")):
-        specs.append(load_case_spec(yml_file))
+        specs.append(load_case_spec(yml_file, source_suite=source_suite))
 
     specs.sort(key=lambda s: s.case_id)
     return specs
