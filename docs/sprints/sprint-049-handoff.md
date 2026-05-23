@@ -345,6 +345,15 @@ Per `docs/sprint_objective.md` §5:
 
 None requested at S3 close. The #9 fix is correctness-driven and does not close an R-item; the #4 demotion implements M3-Eval pyramid intent and does not close an R-item (the M3-Eval close already noted handover_completeness as a Tier-3 candidate). Deliver-agent may surface new R-items at milestone close based on OQ-S49.1 if the non-misflip FAILs (legitimate bot failures or other Tier-2 mandatory-pair misflips) warrant follow-on work.
 
-## 12. Closure verdict (deferred)
+## 12. Closure verdict (deliver-agent + human, 2026-05-24)
 
-Reserved for deliver-agent + human at S-Cleanup-3 sub-sprint close. On close, M4-Eval-Cleanup goes to milestone close (Codex milestone-shared review per §4.3 default + bad-case suite regression-safety rerun + milestone close artefacts per `iteration_governance.md` §8.4).
+**S-Cleanup-3 closes A — Clean PASS** (LAST M4-Eval-Cleanup sub-sprint; bundled into the M4-Eval-Cleanup milestone close per `iteration_governance.md` §8.4). Milestone-level verdict + dispositions in `docs/milestones/M4-Eval-Cleanup_objective.md` §12.
+
+- **Code + tests**: #9 phase-plan-scoped Tier-2 + #4 handover_completeness/case_id_present demotion shipped eval-side (zero `server/` touch); 14 new tests (`test_tier2_phase_plan_scoping.py`) + inverted composite-gate tests; 63 targeted PASS; Java `1163/1/0/2` unchanged; Python `3 failed, 460 passed` via `uv run python -m pytest`. Dev work bundled into commit `d5b1508`.
+- **#9 empirical**: anchor before/after `escalate-via-request-handover` misflips 119 → 0; `case_passed=true` 0 → 11 (confirmed from result artifacts `20260523-051234` / `20260523-063218`).
+- **Bad-case primary gate (PRIMARY per §5.6)**: regression-safe PASS — distribution reproduces M3 exactly (PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0); recorded in `eval_interactive/case_specs/bad_cases/_manifest.md` "M4-Eval-Cleanup close" section + M4 ledger column.
+- **Codex**: milestone-shared review `fix_required / 1` (P0-F1 close-package timing) → re-review `pass / 0` after this work landed + committed. Archived to `docs/milestones/M4-Eval-Cleanup_codex-review.md`.
+
+**P3-F1 correction (Codex non-blocking finding; note-only disposition).** §6 and §6.4 of this handoff state "All 12 cases ran end-to-end without crashes" and (in the §6.4 prose) a "6 true / 6 false" programmatic split. Both are superseded by the authoritative `_manifest.md` M4 section: in run `20260523-075141`, **cs029 was a 0-turn `CONTRACT_VIOLATION`** (a session-establishment flake, cleared on the isolated rerun `20260523-095557` → PASS), and the programmatic `case_passed` split was **5 true / 7 false**, not 6 / 6. The §6.4 per-case table itself is accurate (it shows cs029 false / empty-containment); the prose "all 12 ran end-to-end" claim and the 6/6 count are the drift. The human-judgment bad-case verdict (the actual §5.6 gate) is unaffected. Authoritative bad-case record: `eval_interactive/case_specs/bad_cases/_manifest.md`.
+
+**R-item flips**: none at S3 (correctness fix + pyramid-intent demotion close no R-item). New R-items at close: none (human note-only disposition 2026-05-24). See `milestone_objective.md` §12.7-§12.9 (archived to `docs/milestones/M4-Eval-Cleanup_objective.md`) for the milestone-level R-item + P3 + OQ dispositions.
