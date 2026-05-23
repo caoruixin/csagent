@@ -733,14 +733,18 @@ class TestTier2ExecutorWiring:
             "happy-path resolution for the dev session."
         )
 
-    def test_executor_compute_tier2_result_iterates_all_skills(self):
-        """``_compute_tier2_result`` iterates every loaded Skill and
-        aggregates per-step outcomes via ``tier2_results_to_gate``.
-        A mandatory step FAIL on ANY Skill flips the gate to
-        critical."""
-        # Build a minimal BatchExecutor with a mocked extractor that
-        # exposes two skills — one whose step PASSes, one whose step
-        # FAILs.
+    def test_executor_compute_tier2_result_aggregates_presented_skills(self):
+        """S-Cleanup-3 (#9): ``_compute_tier2_result`` aggregates
+        per-step outcomes across every Skill whose presented step ids
+        appear in ``per_turn_trace[].phase_plan.critical_steps``. A
+        mandatory FAIL on any presented step flips the gate to critical.
+
+        Pre-S-Cleanup-3 this test asserted "iterates every loaded
+        Skill" regardless of phase_plan content; that semantic
+        produced the memo §3 misflip and was replaced by phase-plan-
+        scoped evaluation. The remaining contract (a mandatory FAIL
+        on a *presented* step flips Tier-2) is unchanged.
+        """
         skill_pass = Skill(
             name="confirm",
             applicable_use_cases=("*",),
@@ -768,21 +772,23 @@ class TestTier2ExecutorWiring:
             ),
         )
 
-        # Set up extractor with both skills.
         ext = SkillProcedureExtractor.from_skills([skill_pass, skill_fail])
 
-        # Synthetic BatchExecutor minimally instantiated — patch the
-        # lazy-load to return our extractor; no need for a real Config.
         from eval_interactive.batch.executor import BatchExecutor
 
         executor = BatchExecutor.__new__(BatchExecutor)
         executor._skill_extractor = ext
 
-        # Trace where record_outcome FIRED (skill_pass step PASS) and
-        # search_knowledge did NOT (skill_fail step FAIL).
+        # Both steps' ids must appear in phase_plan.critical_steps so
+        # the post-S-Cleanup-3 scoping treats them as presented.
         trace = self._trace_with_tool_results({"record_outcome": {}})
+        trace[0]["phase_plan"] = {
+            "critical_steps": [
+                {"id": "confirm-step", "desc": "Confirm step."},
+                {"id": "search-before-answer", "desc": "Retrieve before answering."},
+            ]
+        }
         gate = executor._compute_tier2_result(trace, active_use_case="UC-A")
-        # Aggregate: one mandatory FAIL → critical.
         assert gate.passed is False
         assert gate.severity == "critical"
         assert "search-before-answer" in gate.failed_step_ids

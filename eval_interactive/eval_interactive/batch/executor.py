@@ -66,6 +66,32 @@ def _resolve_case_passed_authority(case_spec: CaseSpec) -> str:
     )
 
 
+def _collect_presented_step_ids(per_turn_trace: list[dict]) -> set[str]:
+    """Return the set of ``critical_steps[].id`` the runtime presented
+    to the LLM across the session.
+
+    Reads ``per_turn_trace[].phase_plan.critical_steps[].id`` — the
+    eval-visible mirror of the runtime's per-turn projection (populated
+    by ``ContextProjectionBuilder``; each turn's ``phase_plan`` is the
+    Skill the runtime's ``SkillRegistry.select`` picked for that phase).
+    Union across turns so a multi-phase session that traversed
+    DISCOVER → RESOLVE → ESCALATE collects every Skill's presented step
+    ids.
+
+    Empty set is a meaningful signal — see
+    :meth:`BatchExecutor._compute_tier2_result` for the defensive
+    inert-default it triggers.
+    """
+    presented: set[str] = set()
+    for turn in per_turn_trace or ():
+        phase_plan = turn.get("phase_plan") or {}
+        for step in phase_plan.get("critical_steps") or ():
+            sid = step.get("id") if isinstance(step, dict) else None
+            if sid:
+                presented.add(str(sid))
+    return presented
+
+
 @dataclass
 class RunResult:
     """Consolidated output of a batch evaluation run."""
@@ -436,28 +462,42 @@ class BatchExecutor:
         active_use_case: str | None,
     ) -> Tier2Result:
         """Aggregate per-Skill ``critical_steps`` evaluation into one
-        Tier-2 verdict.
+        Tier-2 verdict, scoped to the steps the runtime actually
+        presented.
 
-        Each Skill's per-step extractor pass is concatenated; the
-        extractor itself returns ``N/A`` for any step whose
-        ``mandatory_for`` UC list does not include
-        ``active_use_case``, so iterating every loaded Skill is safe
-        and avoids hard-coding a per-(phase, UC)-to-Skill mapping on
-        the eval side (the Java runtime's ``SkillRegistry.select`` is
-        the source of truth at runtime, not duplicated here).
-        ``tier2_results_to_gate`` reduces the union into a single
-        ``Tier2Result``: critical iff any mandatory step in any Skill
-        FAILed on a UC that matches its ``mandatory_for`` set.
+        S-Cleanup-3 (#9): the previous implementation iterated every
+        loaded Skill and evaluated every step whose ``mandatory_for``
+        UC list included ``active_use_case``. Because the escalate
+        Skill's ``escalate-via-request-handover`` step is mandatory
+        for all 12 UCs, any resolve-path session (no escalation) was
+        spuriously flipped to ``case_passed=False`` by a step the
+        session never traversed. The fix scopes evaluation to the
+        critical-step ids the runtime emitted into
+        ``per_turn_trace[].phase_plan.critical_steps[].id`` — the same
+        single-source-of-truth surface the runtime LLM consumed in the
+        per-turn projection. See
+        ``docs/solutions/tier2_skill_traversal_design_memo.md`` for the
+        offline reproduction + Option (b) decision.
+
+        Defensive default: if the trace carries no
+        ``phase_plan.critical_steps`` on any turn (older traces, error
+        turns, or partial runs), evaluate NOTHING → inert PASS /
+        advisory. We deliberately do NOT fall back to all-Skills
+        because that re-introduces the misflip; the empty-list default
+        preserves S-Eval-2 backward-compat semantics.
         """
+        presented_ids = _collect_presented_step_ids(per_turn_trace)
+        if not presented_ids:
+            return tier2_results_to_gate(())
         ext = self._get_skill_extractor()
         if ext is None:
             return tier2_results_to_gate(())
-        all_results: list[CriticalStepResult] = []
+        scoped_results: list[CriticalStepResult] = []
         for skill_name in ext.skills_by_name:
-            all_results.extend(
-                ext.extract(per_turn_trace, skill_name, active_use_case)
-            )
-        return tier2_results_to_gate(all_results)
+            for r in ext.extract(per_turn_trace, skill_name, active_use_case):
+                if r.step_id in presented_ids:
+                    scoped_results.append(r)
+        return tier2_results_to_gate(scoped_results)
 
     @staticmethod
     def _fetch_llm_calls(

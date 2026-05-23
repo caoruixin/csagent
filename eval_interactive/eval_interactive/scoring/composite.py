@@ -41,32 +41,23 @@ _ALWAYS_MANDATORY_L2: tuple[str, ...] = (
 _GATE_THRESHOLDS: dict[str, float] = {}
 
 
-_CASE_ID_UCS = frozenset({"UC-H", "UC-J", "UC-K"})
-
-
-def _uc_family(uc: str | None) -> str:
-    """Strip ``-NN`` suffix from a use-case identifier (``UC-J-01`` -> ``UC-J``)."""
-    if not uc:
-        return ""
-    parts = uc.upper().split("-")
-    if len(parts) >= 2:
-        return f"{parts[0]}-{parts[1]}"
-    return uc.upper()
-
-
 def _conditional_mandatory_l2(case_spec: CaseSpec) -> tuple[str, ...]:
     """Return the conditionally-mandatory L2 check names for this case.
 
-    Codex 2026-05-04 round 4 walks back the previous round's strict-path
-    promotions. ``tool_sequence_match`` is no longer a release gate (it
-    moved to diagnostics per round 4 §"What Should Become Soft or
-    Diagnostic"); ``case_id_present`` remains a hard gate for UC-H/J/K
-    escalations because losing the linkage produces a useless handover
-    (round 4 §H4 "Useful Handover Gate").
+    S-Cleanup-3 (#4) demoted ``handover_completeness`` and
+    ``case_id_present`` from mandatory-on-escalate to Tier-3 advisory
+    per the M3-Eval four-tier pyramid: they are still computed and
+    recorded in ``l2_results`` for trend reporting but no longer flip
+    ``case_passed``. Mirrors the S-Eval-1 (D-2.5) severity convention
+    where advisory checks are observation, not gating. Safety floor is
+    unaffected — these were process-completeness checks, not safety
+    invariants (Tier-0 safety lives in ``hard_checks.py``).
 
-    - ``case_id_present`` becomes mandatory when ``outcome_class ==
-      escalate`` AND the expected primary UC is in ``{UC-H, UC-J, UC-K}``.
-    - ``handover_completeness`` always-mandatory on escalate cases.
+    Codex 2026-05-04 round 4 (pre-S-Cleanup-3 history) introduced the
+    two checks as mandatory because losing the linkage produced a
+    useless handover; M3-Eval reclassified them as Tier-3 advisory
+    because the four-tier pyramid treats process-completeness as
+    observation, not a release gate.
 
     Note: ``escalation_compliance`` is *intentionally not* listed here.
     It is an L1 hard check (see ``hard_checks.py``) that runs globally on
@@ -75,14 +66,7 @@ def _conditional_mandatory_l2(case_spec: CaseSpec) -> tuple[str, ...]:
     ``L2_GATE_MISSING`` whenever the L2 list does not also configure it
     -- which masked otherwise-passing escalate cases (HIGH-5).
     """
-    expected = case_spec.expected
-    conditional: list[str] = []
-    if expected.outcome_class == "escalate":
-        conditional.append("handover_completeness")
-        uc_family = _uc_family(expected.primary_uc)
-        if uc_family in _CASE_ID_UCS:
-            conditional.append("case_id_present")
-    return tuple(conditional)
+    return ()
 
 
 def _mandatory_l2_names(case_spec: CaseSpec) -> tuple[str, ...]:
@@ -151,10 +135,14 @@ def compute_composite(
 ) -> CompositeScore:
     """Aggregate all scoring layers into a single CompositeScore.
 
-    Rules (Wave B1.1, refined HIGH-5; Sprint 43 S-Eval-2 adds Tier-2):
+    Rules (Wave B1.1, refined HIGH-5; Sprint 43 S-Eval-2 adds Tier-2;
+    S-Cleanup-3 (#4) demotes ``handover_completeness`` +
+    ``case_id_present`` to Tier-3 advisory):
     - ``case_passed = all(l1) AND all(mandatory_l2) AND tier2_passed``
     - Mandatory L2 always: ``correct_uc``, ``correct_outcome``
-    - Mandatory L2 if ``outcome_class == 'escalate'``: ``handover_completeness``
+    - ``handover_completeness`` and ``case_id_present`` are now Tier-3
+      advisory (computed + recorded, not gating) per the M3-Eval
+      four-tier pyramid.
     - ``escalation_compliance`` is an L1 hard check (global) -- not an
       L2 gate. The L1 gate already covers it.
     - Missing mandatory check is fail-closed (treated as a failure).
