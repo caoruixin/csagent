@@ -1,11 +1,12 @@
 """Wave B1.1 (refined HIGH-5): Tests for composite case_passed gating logic.
 
 These tests verify that ``case_passed`` requires BOTH all L1 hard checks
-AND all "mandatory L2" outcome checks to pass, with the conditional
-mandatory rules:
+AND all "mandatory L2" outcome checks to pass, with the mandatory rules:
 
 * always-mandatory: ``correct_uc``, ``correct_outcome``
-* if ``outcome_class == 'escalate'``: ``handover_completeness``
+* S-Cleanup-3 (#4) demoted ``handover_completeness`` and
+  ``case_id_present`` to Tier-3 advisory; they are computed + recorded
+  but no longer gate ``case_passed``.
 * fail-closed: missing mandatory checks count as failures
 
 Note (HIGH-5): ``escalation_compliance`` used to be in the conditional
@@ -122,11 +123,11 @@ class TestComputeMandatoryL2:
         names = {r.check_name for r in mand}
         assert names == {"correct_uc", "correct_outcome"}
 
-    def test_escalate_adds_handover_completeness(self):
-        """outcome_class=escalate -> mandatory L2 adds handover_completeness.
-
-        ``escalation_compliance`` is intentionally NOT in the mandatory L2
-        set (HIGH-5): it is an L1 hard check now.
+    def test_escalate_does_not_add_handover_completeness(self):
+        """S-Cleanup-3 (#4): outcome_class=escalate must NOT add
+        ``handover_completeness`` or ``case_id_present`` to the
+        mandatory-L2 set — they are now Tier-3 advisory per the
+        M3-Eval pyramid.
         """
         spec = _StubCaseSpec(_StubExpected(should_escalate=True, outcome_class="escalate"))
         l2 = [
@@ -136,11 +137,7 @@ class TestComputeMandatoryL2:
         ]
         mand = _compute_mandatory_l2(spec, l2)
         names = {r.check_name for r in mand}
-        assert names == {
-            "correct_uc",
-            "correct_outcome",
-            "handover_completeness",
-        }
+        assert names == {"correct_uc", "correct_outcome"}
 
     def test_should_escalate_does_not_add_l2_gate(self):
         """should_escalate=true alone (without outcome_class=escalate) must
@@ -259,8 +256,14 @@ class TestCompositeGate:
         ), result.failure_tags
         assert result.composite >= 0.7
 
-    def test_outcome_class_escalate_handover_fails(self):
-        """outcome_class=escalate but handover_completeness fails -> case_passed=False."""
+    def test_outcome_class_escalate_handover_completeness_demoted(self):
+        """S-Cleanup-3 (#4) demotion: outcome_class=escalate with a
+        failing handover_completeness must NOT flip case_passed —
+        the check is now Tier-3 advisory.
+
+        Pre-S-Cleanup-3 this test asserted the gate flipped; the
+        inversion is the demotion's primary contract.
+        """
         spec = _StubCaseSpec(_StubExpected(should_escalate=True, outcome_class="escalate"))
         l1 = _l1_pass()
         l2 = [
@@ -271,10 +274,41 @@ class TestCompositeGate:
             ),
         ]
         result = compute_composite("c6", l1, l2, _l3_high(), _stall_clean(), case_spec=spec)
-        assert result.case_passed is False
-        assert result.composite == 0.0
-        assert "handover_completeness" in result.mandatory_l2_failures
-        assert "L2_GATE:handover_completeness" in result.failure_tags
+        assert result.case_passed is True
+        assert result.mandatory_l2_passed is True
+        assert "handover_completeness" not in result.mandatory_l2_failures
+        assert not any(
+            tag.startswith("L2_GATE:handover_completeness")
+            or tag.startswith("L2_GATE_MISSING:handover_completeness")
+            for tag in result.failure_tags
+        ), result.failure_tags
+
+    def test_outcome_class_escalate_case_id_present_demoted(self):
+        """S-Cleanup-3 (#4) demotion: outcome_class=escalate with a
+        missing case_id_present must NOT flip case_passed — the
+        check is now Tier-3 advisory.
+
+        Pre-S-Cleanup-3 the absence of case_id_present on a UC-H/J/K
+        escalate case tripped ``L2_GATE_MISSING:case_id_present``;
+        the demotion removes that gate.
+        """
+        spec = _StubCaseSpec(
+            _StubExpected(should_escalate=True, outcome_class="escalate", primary_uc="UC-H")
+        )
+        l1 = _l1_pass()
+        # case_id_present intentionally absent — pre-S-Cleanup-3 this
+        # raised L2_GATE_MISSING.
+        l2 = [
+            OutcomeCheckResult("correct_uc", 1.0),
+            OutcomeCheckResult("correct_outcome", 1.0),
+        ]
+        result = compute_composite("c6b", l1, l2, _l3_high(), _stall_clean(), case_spec=spec)
+        assert result.case_passed is True
+        assert result.mandatory_l2_passed is True
+        assert "case_id_present" not in result.mandatory_l2_failures
+        assert not any(
+            "case_id_present" in tag for tag in result.failure_tags
+        ), result.failure_tags
 
     def test_should_escalate_false_escalation_compliance_not_mandatory(self):
         """should_escalate=false -> no L2 escalation gate (still true).
