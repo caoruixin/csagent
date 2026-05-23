@@ -26,7 +26,10 @@ stall_detector:
   followup_window_turns: 2
 
 batch:
-  parallel: 3
+  # parallel=1 default aligned with dataclass default at config.py:85 per
+  # S-Cleanup-1 close (2026-05-23) OQ-S47.1 disposition; M3-Eval close
+  # evidence supports sequential runs for bad-case suite stability.
+  parallel: 1
   timeout_per_session_seconds: 120
 
 report:
