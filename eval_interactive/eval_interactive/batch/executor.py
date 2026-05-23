@@ -17,6 +17,7 @@ from pathlib import Path
 
 import click
 
+from eval_interactive.batch.sets import is_human_judgment_suite
 from eval_interactive.case_spec.schema import CaseSpec
 from eval_interactive.config import Config
 from eval_interactive.scoring.composite import CompositeScore, compute_composite
@@ -37,6 +38,32 @@ from eval_interactive.simulator.user_simulator import UserSimulator
 from eval_interactive.trace.collector import TraceCollector, TraceContractError
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_case_passed_authority(case_spec: CaseSpec) -> str:
+    """Map a CaseSpec's source suite to the ``case_passed_authority``
+    string emitted on every per-case result dict (S-Cleanup-2).
+
+    - "human_review" when ``case_spec.source_suite`` matches an
+      opt-in human-judgment suite per
+      ``iteration_governance.md`` §5.6 (``bad_cases`` /
+      ``anchor_outcome``).
+    - "programmatic" otherwise, including the safety default when
+      ``source_suite`` is ``None`` (e.g., a CaseSpec instantiated
+      directly in tests, or loaded from a path the loader could not
+      classify).
+
+    Defensive: the unknown / ``None`` default falls into the
+    programmatic bucket so the human_review annotation is never
+    applied unless the suite is positively identified. ``getattr``
+    with a default also tolerates mock CaseSpec stand-ins in trace-
+    contract tests that pre-date the ``source_suite`` field.
+    """
+    return (
+        "human_review"
+        if is_human_judgment_suite(getattr(case_spec, "source_suite", None))
+        else "programmatic"
+    )
 
 
 @dataclass
@@ -132,6 +159,24 @@ class BatchExecutor:
             f"Starting batch run '{label}' -- {len(cases)} case(s), "
             f"parallel={parallel}"
         )
+
+        # S-Cleanup-2 (M4-Eval-Cleanup): when the run contains cases
+        # from an opt-in human-judgment suite (``bad_cases`` or
+        # ``anchor_outcome`` per ``iteration_governance.md`` §5.6),
+        # surface the suite-mode header so consumers do not mistake
+        # programmatic PASS/FAIL for the acceptance gate. The per-case
+        # ``case_passed_authority`` field on each result records the
+        # same distinction at row granularity.
+        if any(
+            is_human_judgment_suite(getattr(c, "source_suite", None))
+            for c in cases
+        ):
+            click.echo(
+                "  Suite type: human_judgment (per "
+                "iteration_governance.md §5.6); programmatic PASS/FAIL "
+                "is informational only — manual review of "
+                "closure_criterion against per_turn_trace is the gate."
+            )
 
         tasks = [
             self._run_one(case, semaphore)
@@ -322,13 +367,36 @@ class BatchExecutor:
                 case_spec, session_result, trace_data, composite_score, llm_calls
             )
 
-            status = "PASS" if composite_score.case_passed and composite_score.composite >= 0.7 else "FAIL"
-            click.echo(
-                f"  {status:7s} {case_spec.case_id}  "
-                f"composite={composite_score.composite:.3f}  "
-                f"turns={session_result.total_turns}  "
-                f"stop={session_result.stop_reason}"
+            programmatic_status = (
+                "PASS"
+                if composite_score.case_passed and composite_score.composite >= 0.7
+                else "FAIL"
             )
+            # S-Cleanup-2 (M4-Eval-Cleanup): cases from an opt-in
+            # human-judgment suite render the per-case stdout line with
+            # a ``HUMAN_REVIEW`` prefix instead of ``PASS`` / ``FAIL``
+            # so a reader does not mistake the programmatic verdict for
+            # the §5.6 acceptance gate. The composite / turns / stop
+            # metrics are still surfaced because they remain useful as
+            # observation signals.
+            if is_human_judgment_suite(
+                getattr(case_spec, "source_suite", None)
+            ):
+                click.echo(
+                    f"  HUMAN_REVIEW {case_spec.case_id}  "
+                    f"(programmatic={programmatic_status}; human "
+                    f"review of closure_criterion required per §5.6)  "
+                    f"composite={composite_score.composite:.3f}  "
+                    f"turns={session_result.total_turns}  "
+                    f"stop={session_result.stop_reason}"
+                )
+            else:
+                click.echo(
+                    f"  {programmatic_status:7s} {case_spec.case_id}  "
+                    f"composite={composite_score.composite:.3f}  "
+                    f"turns={session_result.total_turns}  "
+                    f"stop={session_result.stop_reason}"
+                )
 
             return case_result
 
@@ -475,6 +543,17 @@ class BatchExecutor:
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
+            # S-Cleanup-2 (M4-Eval-Cleanup): "human_review" for cases
+            # loaded from the opt-in human-judgment suites
+            # (``bad_cases`` / ``anchor_outcome`` per
+            # ``iteration_governance.md`` §5.6); "programmatic"
+            # otherwise. Consumers MUST NOT treat ``case_passed`` as
+            # the acceptance gate when authority == "human_review";
+            # the §5.6 manual review of ``closure_criterion`` against
+            # ``per_turn_trace`` is the gate. The field is informational
+            # for the executor itself — composite / case_passed are
+            # still computed unchanged.
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
             "session_id": session_result.session_id,
             "total_turns": session_result.total_turns,
             "stop_reason": session_result.stop_reason,
@@ -577,6 +656,7 @@ class BatchExecutor:
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
             "session_id": "",
             "total_turns": 0,
             "stop_reason": "timeout",
@@ -620,6 +700,7 @@ class BatchExecutor:
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
             "session_id": "",
             "total_turns": 0,
             "stop_reason": "error",
@@ -668,6 +749,7 @@ class BatchExecutor:
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
             "session_id": exc.session_id,
             "total_turns": 0,
             "stop_reason": "contract_violation",

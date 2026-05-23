@@ -254,3 +254,13 @@ class CaseSpec:
     # expected-bot-behaviour block. Backward-compatible: None on every existing
     # smoke / anchor / case-family fixture.
     closure_criterion: Optional[str] = None
+    # S-Cleanup-2 (M4-Eval-Cleanup): name of the suite directory the
+    # CaseSpec was loaded from (e.g., "bad_cases", "anchor_outcome",
+    # "anchor"). Populated by ``load_case_spec`` / ``load_case_specs``
+    # from the parent directory name. Used by the batch executor to
+    # mark per-case ``case_passed_authority`` ("human_review" for
+    # opt-in suites per ``iteration_governance.md`` §5.6;
+    # "programmatic" otherwise). ``None`` when the loader cannot
+    # determine the suite (e.g., a CaseSpec instantiated directly in
+    # unit tests).
+    source_suite: Optional[str] = None
