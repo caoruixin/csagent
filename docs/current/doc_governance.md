@@ -196,6 +196,11 @@ If a foundational doc has not been touched in many sprints and the system
 has moved, that is a fold-back signal even if no individual sprint produced
 a "big" change.
 
+**Archive operation note**: `git mv` archives HEAD/index content, not
+working-tree content. When archiving sprint_objective or other live files
+at close, stage working-tree modifications first, then rename; otherwise
+the archive captures stale content and requires a fixup commit.
+
 ## Claude Code and Codex responsibilities
 
 We use two agents in different roles for docs work:
@@ -223,6 +228,9 @@ Before merging a docs-only reconciliation PR:
 - [ ] No sprint archive (`docs/sprints/*`, `docs/archive/*`) was edited.
 - [ ] Every claim about delivered behavior cites a concrete code path or is
       explicitly marked as an example / illustration.
+- [ ] Every quantitative claim (counts, scores, rates) cites source path +
+      extraction method (jq filter, git numstat, script command). Unrecorded
+      methodology becomes unverifiable downstream.
 - [ ] Front matter is present on new docs and updated on touched docs:
       `doc_tier`, `status`, `implementation_status`, `source_of_truth`,
       `last_reviewed`.

@@ -37,6 +37,14 @@ the Context Pack Prompt are in
 [`agent_context_guide.md`](agent_context_guide.md). This file
 references both; it does not duplicate them.
 
+**Governance-doc editing discipline**: planning-time scope authorization
+(e.g., "if (a), fold back §X") does NOT authorize execution-time content.
+Before editing any governance-tier doc, verify: (1) timelessness — no
+sprint numbers, R-item IDs, or dates; (2) principle vs current-state —
+governance teaches principles, not findings; (3) necessity — would
+backlog carry the load without the edit? (4) durable shift vs reaction.
+If any check fails, put the content in `action_bank.md` or sprint archives.
+
 ## 1. Constitution
 
 ### 1.1 Objective
@@ -654,6 +662,11 @@ The bad-case suite directory is governance-tracked (per `doc_governance.md`
 front matter equivalent); see `eval_interactive/case_specs/bad_cases/_manifest.md`
 for the lifecycle ledger.
 
+**Eval evidence gate**: mocked-LLM tests cannot be primary evidence that
+a prompt change caused a behaviour change — the mock controls the measured
+variable. Real-LLM rerun is the eval evidence gate; mocked-LLM tests
+cover projection/rendering/dispatch wiring only.
+
 ## 6. Architecture-Health Metrics (definitions only)
 
 These four metrics are defined here and are referenced by Section 5's
@@ -749,6 +762,11 @@ A future deliver agent should be able to paste this template into a
 new `docs/sprint_objective.md` and fill the four fields without
 further interpretation. If filling a field requires guessing intent,
 the sprint is not ready to start.
+
+**Multi-layer prospective variant**: investigation + bundle-or-defer
+sprints span multiple candidate layers; §7 stanza is per-decision-outcome
+multi-layer prospective (enumerate possible §3.2 layers per case). Bundle
+policy must live in sprint_objective so Codex can verify scope discipline.
 
 ## 8. Milestone framework (2026-05-16 update)
 
@@ -933,3 +951,9 @@ single-feature follow-on between milestones) is allowed; it
 defaults to "milestone-of-one" framing per §8.5 and follows
 existing per-sprint conventions for Codex review, deliver-agent
 close-out, etc.
+
+**Commit-at-end bundling**: in commit-at-end workflows, dev working
+trees accumulate uncommitted deliver-agent-owned files. Dev should stage
+only authorized-scope files (not `git add -A`); deliver-agent files are
+bundled by human at close commit. If bundled anyway, classify per
+`docs/current/deliver_close_taxonomy.md` A-with-packaging-note.
