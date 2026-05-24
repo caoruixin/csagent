@@ -1,8 +1,12 @@
 """JSON report generator -- produces machine-readable evaluation results.
 
-Generates a structured JSON report containing run metadata, the 7 key
-metrics from Phase 5 section 6.9, per-case drill-down data, and optional
-regression comparison results.
+Generates a structured JSON report containing run metadata, the
+aggregate summary (including the M3-Eval / Sprint 50 ``suite_authority``
+flag), per-case drill-down data, and optional regression comparison
+results. The legacy Phase-5 §6.9 "7 key metrics" remain present in the
+summary block for backward-compat with downstream consumers (Sprint 50
+removes only the HTML *rendering* of the legacy dashboard; the
+aggregates stay computed and stay in the serialised summary).
 """
 
 from __future__ import annotations
@@ -89,7 +93,17 @@ class JsonReportGenerator:
             return default
 
     def _build_summary(self, summary: dict) -> dict:
-        """Normalise and fill defaults for the summary block."""
+        """Normalise and fill defaults for the summary block.
+
+        Emits ``suite_authority`` so external consumers of
+        ``results.json`` can branch on the human-judgment vs
+        programmatic distinction without re-deriving it from the
+        per-case ``case_passed_authority`` list. Sourced from the
+        aggregate field that :func:`batch.executor._compute_summary`
+        emits once per run; falls back to ``"programmatic"`` (the
+        same safety default the per-case resolver uses) when the
+        summary dict pre-dates Sprint 50.
+        """
         return {
             "total_cases": summary.get("total_cases", 0),
             "passed_cases": summary.get("passed_cases", 0),
@@ -115,6 +129,7 @@ class JsonReportGenerator:
                 summary.get("mean_composite_score"), 0.0
             ),
             "per_uc_breakdown": summary.get("per_uc_breakdown", {}),
+            "suite_authority": summary.get("suite_authority", "programmatic"),
         }
 
     def _build_case(self, cr: dict) -> dict:
@@ -127,6 +142,9 @@ class JsonReportGenerator:
             "expected_outcome": cr.get("expected_outcome", ""),
             "actual_outcome": cr.get("actual_outcome", ""),
             "case_passed": bool(cr.get("case_passed", False)),
+            "case_passed_authority": cr.get(
+                "case_passed_authority", "programmatic"
+            ),
             "composite_score": self._safe_float(cr.get("composite_score"), 0.0),
             "outcome_score": self._safe_float(cr.get("outcome_score"), 0.0),
             "judge_score": self._safe_float(cr.get("judge_score"), 0.0),
@@ -135,6 +153,7 @@ class JsonReportGenerator:
             "l1_results": self._serialise_l1(cr.get("l1_results")),
             "l2_results": self._serialise_l2(cr.get("l2_results")),
             "l3_results": self._serialise_l3(cr.get("l3_results")),
+            "tier2_result": cr.get("tier2_result"),
             "failure_tags": list(cr.get("failure_tags") or []),
             "stall_detected": bool(cr.get("stall_detected", False)),
         }
