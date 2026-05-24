@@ -20,7 +20,6 @@ required_context_keys:
   - form_context
   - customer_context
   - listing_context
-  - moderation_context
 max_tool_steps: 4
 allow_interim_message: false
 valid_terminal_outcomes:
