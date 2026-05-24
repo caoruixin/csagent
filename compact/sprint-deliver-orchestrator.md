@@ -58,7 +58,7 @@ Deliver agent 生成的 `docs/sprint_objective.md` 与 `docs/milestone_objective
 **核心原则**：
 - 不要让 agent 共享聊天记录。
 - 所有关键 context 必须通过 repo docs、eval results、git diff、handoff、review findings 传递。
-- 跨 session 持久化通过 governance docs（auto-loaded via AGENTS.md）+ `docs/10-handoff.md` §1（current state SoT）。
+- 跨 session 持久化通过 governance docs（auto-loaded via AGENTS.md）+ `docs/10-handoff.md` §0（structured cold-start table）+ §1（recent narrative）+ §2（archive index）。
 
 ## 协作目标 — 升级版 milestone loop
 
@@ -85,7 +85,8 @@ Human 给定 scope / 方向
 | `docs/milestone_objective.md` | **起草 + close 时归档** | `iteration_governance.md` §8.3 |
 | `docs/sprint_objective.md` | **起草 + close 时归档** | `iteration_governance.md` §7/§8 |
 | `docs/10-handoff.md` §0 | **close 时更新结构化冷启动表** | 本文件 §Close 维护 |
-| `docs/10-handoff.md` §1 | **close 时更新叙事 lead** | 本文件 §Close 维护 |
+| `docs/10-handoff.md` §1 | **close 时更新叙事 lead + 截断旧内容** | `doc_governance.md` retention rule + 本文件 §Close 维护 |
+| `docs/10-handoff.md` §2 | **milestone close 时追加 archive index 行** | `doc_governance.md` retention rule |
 | `docs/action_bank.md` | **R-item 状态维护** | `iteration_governance.md` §8.6 |
 | `docs/codex-findings.md` | **close 时 archive + reset scaffold** | `iteration_governance.md` §4.2 |
 | `compact/sprint-NNN-dev-prompt.md` | **生成** | 本文件 §协作流程 |
@@ -158,15 +159,16 @@ Deliver agent + human：
 
 **Sub-sprint close**（deliver-agent 执行，human commit）：
 1. 更新 `docs/10-handoff.md` **§0 表格**（current phase, baseline, OQ queue, next action）
-2. 更新 `docs/10-handoff.md` **§1 叙事**（添加 sub-sprint close 段落）
+2. 更新 `docs/10-handoff.md` **§1 叙事**（prepend sub-sprint close 段落；不在 sub-sprint close 截断）
 3. 归档 sprint docs → `docs/sprints/sprint-NNN-{objective,handoff,codex-review}.md`
 4. 更新 `docs/action_bank.md`（R-item flips, close-action index row）
 5. 起草下一个 sub-sprint contract（如 milestone 未完成）
 
 **Milestone close**（deliver-agent 执行，human commit）：
 1. 更新 `docs/10-handoff.md` **§0 表格**（phase = no active milestone, next = M(N+1)+ candidate selection）
-2. 更新 `docs/10-handoff.md` **§1 叙事**（添加 milestone close 段落）
-3. 归档 `docs/codex-findings.md` → `docs/milestones/M<N>_codex-review.md`，reset live file 为 scaffold
+2. 更新 `docs/10-handoff.md` **§1 叙事**（写 milestone close lead；截断 §1 中比"上一个已关闭 milestone"更旧的内容 — 详见 `doc_governance.md` retention rule；保留 current lead + preceding milestone 1 句摘要 + archive pointer）
+3. 更新 `docs/10-handoff.md` **§2 archive index**（追加刚关闭的 milestone 行）
+4. 归档 `docs/codex-findings.md` → `docs/milestones/M<N>_codex-review.md`，reset live file 为 scaffold
 4. 归档 `docs/milestone_objective.md` → `docs/milestones/M<N>_objective.md`
 5. Reset `docs/milestone_objective.md` + `docs/sprint_objective.md` 为 next-milestone-TBD placeholder
 6. 更新 `docs/action_bank.md`（§6.5 closed-milestone index row + R-item close annotations）

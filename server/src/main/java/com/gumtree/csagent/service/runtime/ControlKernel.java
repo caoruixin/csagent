@@ -8,6 +8,7 @@ import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotTurnRepository;
 import com.gumtree.csagent.service.llm.LlmCallContext;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.observability.TraceWriter;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolResult;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +62,14 @@ public class ControlKernel {
     private final EscalationReasonResolver escalationResolver;
     private final RuntimeIntentClassifier runtimeIntentClassifier;
     private final RerouteDecider rerouteDecider;
+    /**
+     * Sprint 51 / M5 S2 — per-step LLM record persistence. Optional
+     * (constructor-injected) so the many ControlKernel tests built before S2
+     * continue compiling with null; production wiring sets it. When null,
+     * the per-step records are accumulated by the loop but not persisted —
+     * the existing BotTurn single-column trace is unaffected.
+     */
+    private final TraceWriter traceWriter;
 
     @Autowired
     public ControlKernel(BotTurnRepository turnRepository,
@@ -77,7 +86,8 @@ public class ControlKernel {
                          AgentRunLoop agentRunLoop,
                          EscalationReasonResolver escalationResolver,
                          RuntimeIntentClassifier runtimeIntentClassifier,
-                         RerouteDecider rerouteDecider) {
+                         RerouteDecider rerouteDecider,
+                         TraceWriter traceWriter) {
         this.turnRepository = turnRepository;
         this.eventRepository = eventRepository;
         this.budgetChecker = budgetChecker;
@@ -93,6 +103,7 @@ public class ControlKernel {
         this.escalationResolver = escalationResolver;
         this.runtimeIntentClassifier = runtimeIntentClassifier;
         this.rerouteDecider = rerouteDecider;
+        this.traceWriter = traceWriter;
     }
 
     /**
@@ -122,7 +133,39 @@ public class ControlKernel {
                 eventEmitter, contextProjectionBuilder, agentRunLoopProperties,
                 agentRunLoop, escalationResolver,
                 new RuntimeIntentClassifier(escalationResolver, objectMapper),
-                new RerouteDecider());
+                new RerouteDecider(),
+                null);
+    }
+
+    /**
+     * Sprint 51 / M5 S2 — backwards-compat constructor preserved for the
+     * Sprint 10/11/12/13 tests that wire {@link RuntimeIntentClassifier} /
+     * {@link RerouteDecider} explicitly but predate the {@link TraceWriter}
+     * dependency. Chains to the canonical constructor with a null
+     * {@code TraceWriter} (per-step records accumulate but are not persisted —
+     * the existing BotTurn single-column trace is unaffected, which is what
+     * those tests assert against).
+     */
+    public ControlKernel(BotTurnRepository turnRepository,
+                         BotEventRepository eventRepository,
+                         BudgetChecker budgetChecker,
+                         DriftDetector driftDetector,
+                         PhaseEvaluator phaseEvaluator,
+                         ControlPolicyService controlPolicy,
+                         ObjectMapper objectMapper,
+                         CreateCaseControlledTool createCaseTool,
+                         EventEmitter eventEmitter,
+                         ContextProjectionBuilder contextProjectionBuilder,
+                         AgentRunLoopProperties agentRunLoopProperties,
+                         AgentRunLoop agentRunLoop,
+                         EscalationReasonResolver escalationResolver,
+                         RuntimeIntentClassifier runtimeIntentClassifier,
+                         RerouteDecider rerouteDecider) {
+        this(turnRepository, eventRepository, budgetChecker, driftDetector,
+                phaseEvaluator, controlPolicy, objectMapper, createCaseTool,
+                eventEmitter, contextProjectionBuilder, agentRunLoopProperties,
+                agentRunLoop, escalationResolver,
+                runtimeIntentClassifier, rerouteDecider, null);
     }
 
     /**
@@ -2009,6 +2052,19 @@ public class ControlKernel {
                     .build();
             turnRepository.save(turn);
 
+            // Sprint 51 / M5 S2 — observation-only: after the BotTurn row is
+            // persisted (the FK target), persist one bot_turn_llm_calls row
+            // per LLM invocation accumulated by AgentRunLoopImpl. The
+            // BotTurn's existing llm_raw_response / projected_context columns
+            // are UNCHANGED in semantics (final-step value). The traceWriter
+            // can be null in some unit tests that bypass the @Autowired path;
+            // skip silently in that case.
+            if (traceWriter != null
+                    && result.llmCallRecords() != null
+                    && !result.llmCallRecords().isEmpty()) {
+                traceWriter.recordLlmCalls(turn.getTurnId(), result.llmCallRecords());
+            }
+
             // Sprint 14 §L1 / §L2 — stamp source-evidence lineage and FAQ
             // grounding diagnostics onto the BotSession transient slots
             // so the next ContextProjectionBuilder call (and any in-memory
@@ -2135,6 +2191,13 @@ public class ControlKernel {
         java.util.List<ToolEvent> mergedTool = new java.util.ArrayList<>();
         if (discover.toolEvents() != null) mergedTool.addAll(discover.toolEvents());
         if (resolve.toolEvents() != null) mergedTool.addAll(resolve.toolEvents());
+        // Sprint 51 / M5 S2 — merge per-step records too so the admin trace
+        // surfaces every invocation across the DISCOVER + same-turn RESOLVE
+        // replan.
+        java.util.List<com.gumtree.csagent.model.LlmCallRecord> mergedRecords =
+                new java.util.ArrayList<>();
+        if (discover.llmCallRecords() != null) mergedRecords.addAll(discover.llmCallRecords());
+        if (resolve.llmCallRecords() != null) mergedRecords.addAll(resolve.llmCallRecords());
         return new AgentRunResult(
                 resolve.messages(),
                 mergedTool,
@@ -2143,7 +2206,8 @@ public class ControlKernel {
                 resolve.finalUserMessage(),
                 resolve.escalationReason(),
                 resolve.lastProjection(),
-                resolve.lastLlmRawResponse());
+                resolve.lastLlmRawResponse(),
+                mergedRecords);
     }
 
     private void emitEvent(BotSession session, String eventType, int turnIndex, String payload) {
