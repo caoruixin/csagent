@@ -1,9 +1,9 @@
 package com.gumtree.csagent.controller;
 
 import com.gumtree.csagent.config.MockProperties;
+import com.gumtree.csagent.controller.dto.BotTurnTrace;
 import com.gumtree.csagent.model.BotEvent;
 import com.gumtree.csagent.model.BotSession;
-import com.gumtree.csagent.model.BotTurn;
 import com.gumtree.csagent.model.LlmCallLog;
 import com.gumtree.csagent.model.MockCase;
 import com.gumtree.csagent.model.MockHandoverLog;
@@ -121,9 +121,20 @@ public class DemoInspectionController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Sprint 51 / M5 S2 — admin trace now nests the per-invocation LLM
+     * records (full untruncated raw response + per-step projection) under
+     * each turn so a multi-step turn shows every step, not just the final
+     * one. Base BotTurn fields are unchanged (the DTO unwraps them inline);
+     * the new {@code llm_calls} array is additive.
+     *
+     * <p>Distinct from {@code GET /sessions/{id}/llm-calls} (above), which
+     * returns the frozen per-call summary from {@code llm_call_log} used by
+     * the eval harness — that payload is untouched.
+     */
     @GetMapping("/sessions/{id}/trace")
-    public ResponseEntity<List<BotTurn>> getSessionTrace(@PathVariable("id") String sessionId) {
-        return ResponseEntity.ok(localEventStore.getSessionTrace(sessionId));
+    public ResponseEntity<List<BotTurnTrace>> getSessionTrace(@PathVariable("id") String sessionId) {
+        return ResponseEntity.ok(localEventStore.getSessionTraceWithLlmCalls(sessionId));
     }
 
     @GetMapping("/metrics/funnel")

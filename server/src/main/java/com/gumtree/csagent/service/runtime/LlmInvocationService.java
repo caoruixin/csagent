@@ -74,6 +74,16 @@ public class LlmInvocationService {
     }
 
     /**
+     * Sprint 51 / M5 S2 — the active model name used for {@code chat} calls.
+     * Stamped on per-step {@link com.gumtree.csagent.model.LlmCallRecord} so
+     * the admin trace can show which model produced each invocation. The
+     * value is the primary provider's configured model (see constructor).
+     */
+    public String getModelName() {
+        return modelName;
+    }
+
+    /**
      * Invoke the LLM for a standard chat turn.
      *
      * <p>Sprint §C1: the underlying {@code OpenAiCompatibleLlmClient} retries

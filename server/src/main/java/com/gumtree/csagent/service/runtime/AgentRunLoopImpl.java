@@ -5,6 +5,7 @@ import com.gumtree.csagent.model.AgentRunResult;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.BotTurn;
 import com.gumtree.csagent.model.LlmCallEvent;
+import com.gumtree.csagent.model.LlmCallRecord;
 import com.gumtree.csagent.model.LlmResponse;
 import com.gumtree.csagent.model.ParsedAction;
 import com.gumtree.csagent.model.PhasePlan;
@@ -149,6 +150,14 @@ public class AgentRunLoopImpl implements AgentRunLoop {
 
         List<LlmCallEvent> llmEvents = new ArrayList<>();
         List<ToolEvent> toolEvents = new ArrayList<>();
+        // Sprint 51 / M5 S2 — observation-only side-record: one
+        // LlmCallRecord per successful LLM invocation in this run, carrying
+        // the full raw response + the projection that fed THIS step (the
+        // existing `lastProjection`/`lastLlmRawResponse` get overwritten by
+        // the loop and only the final value survives into BotTurn's single
+        // columns). Never read by the loop; passed through AgentRunResult to
+        // TraceWriter for persistence in `bot_turn_llm_calls`.
+        List<LlmCallRecord> llmCallRecords = new ArrayList<>();
         Map<String, Object> accumulatedToolResults = new LinkedHashMap<>();
         int sequence = 0;
         String lastProjection = null;
@@ -204,14 +213,14 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 log.warn("AgentRunLoop llm deadline exceeded at step {}: {}", step, ex.getMessage());
                 return AgentRunResult.deadlineExceeded(
                         "llm_deadline_exceeded: " + ex.getMessage(),
-                        llmEvents, toolEvents, lastProjection);
+                        llmEvents, toolEvents, lastProjection, llmCallRecords);
             } catch (LlmUnavailableException ex) {
                 log.error("AgentRunLoop llm unavailable at step {} (failure_class={}): {}",
                         step, ex.getFailureClass(), ex.getMessage());
                 return AgentRunResult.llmUnavailable(
                         "llm_unavailable: failure_class=" + ex.getFailureClass()
                                 + " " + ex.getMessage(),
-                        llmEvents, toolEvents, lastProjection);
+                        llmEvents, toolEvents, lastProjection, llmCallRecords);
             } catch (Exception ex) {
                 log.error("AgentRunLoop llm invocation failed at step {}: {}",
                         step, ex.getMessage(), ex);
@@ -237,8 +246,15 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 String fallbackMessage = (content == null || content.isBlank())
                         ? "I'm having trouble processing your request."
                         : content;
+                // Sprint 51 — record this invocation even on parser failure
+                // (raw response + projection are still useful for debugging
+                // the malformed payload). Empty tool_calls since parsing
+                // didn't yield any.
+                llmCallRecords.add(new LlmCallRecord(
+                        step, "chat", llmInvocation.getModelName(), latency,
+                        lastLlmRawResponse, projection, List.of()));
                 return AgentRunResult.finalAnswer(fallbackMessage, llmEvents, toolEvents,
-                        lastProjection, lastLlmRawResponse);
+                        lastProjection, lastLlmRawResponse, llmCallRecords);
             }
 
             if (action == null) {
@@ -247,12 +263,27 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 String fallbackMessage = (content == null || content.isBlank())
                         ? "I'm having trouble processing your request."
                         : content;
+                llmCallRecords.add(new LlmCallRecord(
+                        step, "chat", llmInvocation.getModelName(), latency,
+                        lastLlmRawResponse, projection, List.of()));
                 return AgentRunResult.finalAnswer(fallbackMessage, llmEvents, toolEvents,
-                        lastProjection, lastLlmRawResponse);
+                        lastProjection, lastLlmRawResponse, llmCallRecords);
             }
 
             List<ToolCall> calls = action.getToolCalls();
             String userMsg = action.getUserMessage();
+
+            // Sprint 51 / M5 S2 — at the existing step boundary, snapshot a
+            // full-fidelity record of this LLM invocation: stepIndex, call
+            // type, model, latency, full raw response, the projection that
+            // fed THIS step (vs `lastProjection` which is overwritten next
+            // step), and the LLM-issued tool calls observed. Observation
+            // only — never read by the loop, never alters control flow or
+            // call timing.
+            llmCallRecords.add(new LlmCallRecord(
+                    step, "chat", llmInvocation.getModelName(), latency,
+                    lastLlmRawResponse, projection,
+                    calls == null ? List.of() : calls));
 
             // 5. No tool calls -> final user message (or clarification).
             // Sprint 8.1 follow-up (2026-05-06): distinguish clarifying
@@ -273,10 +304,10 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                         : userMsg;
                 if (isClarificationMessage(finalText)) {
                     return AgentRunResult.clarification(finalText, llmEvents, toolEvents,
-                            lastProjection, lastLlmRawResponse);
+                            lastProjection, lastLlmRawResponse, llmCallRecords);
                 }
                 return AgentRunResult.finalAnswer(finalText, llmEvents, toolEvents,
-                        lastProjection, lastLlmRawResponse);
+                        lastProjection, lastLlmRawResponse, llmCallRecords);
             }
 
             // 6. Dispatch each tool call
@@ -500,7 +531,7 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     return AgentRunResult.useCaseIdentified(
                             session.getActiveUseCase(),
                             llmEvents, toolEvents,
-                            lastProjection, lastLlmRawResponse);
+                            lastProjection, lastLlmRawResponse, llmCallRecords);
                 }
             }
 
@@ -510,7 +541,7 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 // customer-facing escalation template. The LLM's userMsg, if
                 // any, is captured in the last LlmCallEvent.responseSummary.
                 return AgentRunResult.escalate(handoverReason, llmEvents, toolEvents,
-                        lastProjection, lastLlmRawResponse);
+                        lastProjection, lastLlmRawResponse, llmCallRecords);
             }
         }
 
@@ -520,7 +551,8 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         // happened before the loop hit maxToolSteps. Terminal outcome and
         // PhaseEvaluator MAX_STEPS mapping are unchanged.
         log.warn("AgentRunLoop hit max_tool_steps={} without terminal outcome", maxSteps);
-        return AgentRunResult.maxSteps(llmEvents, toolEvents, lastProjection, lastLlmRawResponse);
+        return AgentRunResult.maxSteps(llmEvents, toolEvents, lastProjection,
+                lastLlmRawResponse, llmCallRecords);
     }
 
     /**

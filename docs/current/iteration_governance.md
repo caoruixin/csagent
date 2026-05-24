@@ -884,9 +884,10 @@ At milestone close, the deliver-agent + human produce:
 - Archive the milestone objective to `docs/milestones/M<N>_objective.md`.
 - Append a §6.5 "Closed milestone index" row to `docs/action_bank.md`
   (NEW subsection alongside the existing §6 closed-action index).
-- Refresh `docs/10-handoff.md` §1 lead (demote current milestone
-  to Preceding milestone; set next milestone or sub-sprint as
-  Current).
+- Refresh `docs/10-handoff.md` §0 table + §1 lead (demote current
+  milestone to Preceding milestone; truncate §1 content older than
+  the preceding milestone per `doc_governance.md` retention rule;
+  add row to §2 archive index).
 - Reset `docs/sprint_objective.md` to the first sub-sprint of the
   next milestone (or to a planning placeholder if no next milestone
   is locked).

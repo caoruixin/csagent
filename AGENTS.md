@@ -1,12 +1,9 @@
 # Repo Constitution
 
-This repository builds a customer-service agent for an online classifieds
-marketplace. The agent is **LLM-first**: the LLM owns the semantic
-understanding of the user's problem (goal, drift, escalation posture,
-response strategy), and the Java / Python runtime owns the deterministic
-boundaries (tool schema, capability / permission, PII and safety floor,
-grounding floor, idempotency, persistence, trace and eval contract).
-Rules define boundaries; rules do not replace semantic judgement.
+This repository builds an LLM-first customer-service agent for an online
+classifieds marketplace. The governing principles — LLM-vs-Runtime
+ownership boundary, iteration rules, and forbidden list — are defined
+in `docs/current/iteration_governance.md` §1.
 
 The constitution and the doc-governance rules live under
 `docs/current/`. Foundational architecture, phase specs, and durable
@@ -21,6 +18,23 @@ must include the **Layer-classification + anti-hardcode stanza**
 defined in `docs/current/iteration_governance.md` §7. Pure infra,
 docs-only, config-governance, and characterization-test sprints are
 exempt from the stanza.
+
+## Agent role registry
+
+Every agent working in this repo shares the governance chain below.
+Each role has a dedicated entry doc that defines its responsibilities,
+operational procedures, and handoff format.
+
+| Role | Entry doc | Spawned by | Primary responsibility |
+|------|-----------|------------|----------------------|
+| **Dev agent** (Claude Code) | `compact/sprint-NNN-dev-prompt.md` (per sub-sprint) | Human paste | Implement sub-sprint contract; run tests/eval; author handoff |
+| **Deliver agent** | `compact/sprint-deliver-orchestrator.md` (via `compact/deliver-activation.md`) | Human paste | Plan milestones + sub-sprints; orchestrate close; maintain bad-case suite |
+| **Review agent** (Codex) | `compact/M<N>-review-prompt.md` (per milestone) | Human / deliver agent | Anti-hardcode review at milestone close; targeted PR review |
+| **Research agent** | `compact/research-agent-guide.md` | Human paste | Investigate proposals + bad-case root-cause; produce deliver-consumable solutions |
+
+Role-specific entry docs reference governance sections by `§` number;
+they do not duplicate governance content. All context passes through
+repo docs, not chat history.
 
 ## Constitution chain
 
@@ -39,9 +53,9 @@ shape what you write).
 
 ## How to use this constitution
 
-Every dev and review agent that loads `CLAUDE.md` transitively loads
-this file, and through this file loads the three governance docs
-above. That means:
+Every agent (dev, deliver, review, research) that loads `CLAUDE.md`
+or references `@AGENTS.md` transitively loads this file, and through
+this file loads the three governance docs above. That means:
 
 - The doc front-matter schema, source-of-truth rules, and fold-back
   cadence in `doc_governance.md` apply to every docs PR.

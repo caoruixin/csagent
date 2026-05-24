@@ -1,6 +1,6 @@
 import { useState, useEffect, type CSSProperties } from 'react';
 import { getTrace } from '../../api/client';
-import type { TraceResponse, TraceStep } from '../../types';
+import type { LlmCall, TraceResponse, TraceStep } from '../../types';
 
 interface Props {
   sessionId: string;
@@ -203,6 +203,14 @@ function LlmDetailPanel({ step }: { step: TraceStep }) {
           </div>
         )}
       </div>
+
+      {/* Sprint 51 / M5 S2 — Invocation list. Default-collapsed (per-step
+          projections are heavy). Each invocation expands to its OWN
+          projected context + raw response, distinct from the final-step
+          summary above. */}
+      {step.llm_calls && step.llm_calls.length > 0 && (
+        <LlmInvocationsPanel calls={step.llm_calls} />
+      )}
 
       {!isEmptyRecord(step.action_parameters) && (
         <div>
@@ -462,6 +470,222 @@ function StepCard({ step, expanded, onToggle }: { step: TraceStep; expanded: boo
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Sprint 51 / M5 S2 — LlmInvocationsPanel: one row per LLM call inside the
+// AgentRunLoop step boundary for this turn. The base LlmDetailPanel above
+// keeps showing the FINAL step's value (BotTurn's single column); this panel
+// surfaces every step so the human can see the full multi-step exchange.
+// Default-collapsed (per-step projections are heavy).
+function LlmInvocationsPanel({ calls }: { calls: LlmCall[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        data-testid="llm-invocations-toggle"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          cursor: 'pointer',
+          fontWeight: 500,
+          padding: 8,
+          background: 'var(--color-bg-secondary)',
+          fontSize: '0.85rem',
+          borderBottom: open ? '1px solid var(--color-border)' : undefined,
+        }}
+      >
+        {open ? '▾' : '▸'} LLM Invocations ({calls.length})
+      </div>
+      {open && (
+        <div style={{ padding: 10 }} data-testid="llm-invocations-list">
+          {calls.map((c, i) => (
+            <LlmInvocationCard key={c.id ?? `${c.step_index}-${i}`} call={c} index={i} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LlmInvocationCard({ call, index }: { call: LlmCall; index: number }) {
+  const [projOpen, setProjOpen] = useState(false);
+  const [rawOpen, setRawOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+
+  const parsedProjection = (() => {
+    if (!call.projected_context) return null;
+    try {
+      return JSON.parse(call.projected_context) as unknown;
+    } catch {
+      return call.projected_context;
+    }
+  })();
+  const parsedRaw = (() => {
+    if (!call.llm_raw_response) return null;
+    try {
+      return JSON.stringify(JSON.parse(call.llm_raw_response), null, 2);
+    } catch {
+      return call.llm_raw_response;
+    }
+  })();
+  const parsedTools = (() => {
+    if (!call.tool_calls) return null;
+    try {
+      return JSON.parse(call.tool_calls) as unknown;
+    } catch {
+      return call.tool_calls;
+    }
+  })();
+
+  return (
+    <div
+      data-testid="llm-invocation-card"
+      style={{
+        marginBottom: 8,
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 8,
+          padding: '8px 10px',
+          background: '#F9FAFB',
+          alignItems: 'center',
+          fontSize: '0.82rem',
+        }}
+      >
+        <span style={{ fontWeight: 600 }}>Invocation {index + 1}</span>
+        <span
+          style={{
+            padding: '1px 6px',
+            borderRadius: 999,
+            background: '#fff',
+            border: '1px solid var(--color-border)',
+            color: 'var(--color-text-secondary)',
+            fontSize: '0.72rem',
+          }}
+        >
+          step {call.step_index}
+        </span>
+        <span
+          style={{
+            padding: '1px 6px',
+            borderRadius: 999,
+            background:
+              call.call_type === 'routing'
+                ? '#FEF3C7'
+                : call.call_type === 'rerank'
+                  ? '#E0E7FF'
+                  : '#DCFCE7',
+            color:
+              call.call_type === 'routing'
+                ? '#92400E'
+                : call.call_type === 'rerank'
+                  ? '#3730A3'
+                  : '#166534',
+            fontSize: '0.72rem',
+            fontWeight: 500,
+          }}
+        >
+          {call.call_type}
+        </span>
+        {call.model != null && call.model !== '' && (
+          <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+            {call.model}
+          </span>
+        )}
+        {call.latency_ms != null && (
+          <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+            {call.latency_ms}ms
+          </span>
+        )}
+      </div>
+
+      <div
+        onClick={() => setProjOpen((o) => !o)}
+        style={{
+          cursor: 'pointer',
+          padding: 6,
+          background: 'var(--color-bg-secondary)',
+          fontSize: '0.78rem',
+          borderTop: '1px solid var(--color-border)',
+        }}
+      >
+        {projOpen ? '▾ Projected Context (this step)' : '▸ Projected Context (this step)'}
+      </div>
+      {projOpen && (
+        <div style={{ padding: 8 }}>
+          {parsedProjection == null ? (
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>—</span>
+          ) : (
+            <pre style={jsonPreBlockStyle}>
+              {typeof parsedProjection === 'string'
+                ? parsedProjection
+                : JSON.stringify(parsedProjection, null, 2)}
+            </pre>
+          )}
+        </div>
+      )}
+
+      <div
+        onClick={() => setRawOpen((o) => !o)}
+        style={{
+          cursor: 'pointer',
+          padding: 6,
+          background: 'var(--color-bg-secondary)',
+          fontSize: '0.78rem',
+          borderTop: '1px solid var(--color-border)',
+        }}
+      >
+        {rawOpen ? '▾ LLM Raw Response (this step)' : '▸ LLM Raw Response (this step)'}
+      </div>
+      {rawOpen && (
+        <div style={{ padding: 8 }}>
+          {parsedRaw == null ? (
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>—</span>
+          ) : (
+            <pre style={jsonPreBlockStyle}>{parsedRaw}</pre>
+          )}
+        </div>
+      )}
+
+      {parsedTools != null && (
+        <>
+          <div
+            onClick={() => setToolsOpen((o) => !o)}
+            style={{
+              cursor: 'pointer',
+              padding: 6,
+              background: 'var(--color-bg-secondary)',
+              fontSize: '0.78rem',
+              borderTop: '1px solid var(--color-border)',
+            }}
+          >
+            {toolsOpen ? '▾ Tool Calls (this step)' : '▸ Tool Calls (this step)'}
+          </div>
+          {toolsOpen && (
+            <div style={{ padding: 8 }}>
+              <pre style={jsonPreBlockStyle}>
+                {typeof parsedTools === 'string'
+                  ? parsedTools
+                  : JSON.stringify(parsedTools, null, 2)}
+              </pre>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

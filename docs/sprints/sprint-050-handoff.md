@@ -333,4 +333,52 @@ Deliver-agent applies the actual R-item flip in `docs/action_bank.md` at close p
 
 ## 12. Closure verdict (deliver-agent + human)
 
-_Reserved for deliver-agent + human at S1 close per `iteration_governance.md` §8.4 + the §A `§7-exempt` framing. On close, the milestone M5 continues with S2 (per-invocation trace) per `docs/milestone_objective.md` §3 ordering (S1 independent → S2 before S3 → S3 [+ S4])._
+**Verdict: A — Clean PASS** (deliver-agent + human, 2026-05-24). First sub-sprint
+of Milestone M5 — Observability Coherence; closed clean; milestone continues with S2.
+
+**Deliver-agent independent verification at close** (not dev self-report):
+
+- Commit `9ef9d1e`, parent `84ae017` (M4 close); 6 files, 1458(+)/188(-).
+- **Hard fences fence-verified** (`git show 9ef9d1e --numstat -- <path>` empty):
+  no `server/*`; no `composite.py` / `sets.py` / `case_specs/*`; no deliver-agent
+  files swept into the commit (`milestone_objective` / `sprint_objective` /
+  `10-handoff` / `action_bank` / `codex-findings` / `compact/*` all absent —
+  clean `git add` discipline, not `git add -A`).
+- phase5 §6.9 fold-back = `34(+)/0(-)` — purely additive; §6.9 content preserved
+  per `doc_governance.md`.
+- **Tests independently reproduced** by deliver-agent: `test_report_generators.py`
+  41 passed; full Python suite `3 failed / 486 passed` (+26 vs the `3 failed /
+  460 passed` baseline; the 3 residual are the env-specific
+  `test_case_spec_overrides`×2 + `test_corpus_lint`×1 per OQ-S47.3, NOT S1
+  regressions). Java `1163 / 1-inherited / 0 / 2` UNCHANGED by construction.
+- Re-rendered `results/20260523-075141/report.html`: four-tier surface +
+  `suite_authority: human_review` badge present; the misleading "0/12 passed"
+  headline gone (dev §6.4 grep evidence; file gitignored).
+
+**§4.1 anti-hardcode**: S1 is §7-exempt (display + docs-only); Codex DEFERRED to
+the M5 milestone-shared pass per `iteration_governance.md` §4.3 (no per-sub-sprint
+trigger). Self-walk clean `approve` (handoff §3) accepted.
+
+**OQ dispositions (all note-only; no fix-iteration):**
+
+- **OQ-S50.1** (re-rendered `report.html` gitignored, not staged) → ACCEPT dev
+  recommendation: do NOT force-add; `eval_interactive/results/*` is gitignored
+  repo-wide (no prior sprint committed a results artefact); the reproducible
+  regen command + the §6.4 eyeball record suffice.
+- **OQ-S50.2** (Tier-0 false-positive `no_pii_leakage` rendering, cs011/cs012) →
+  ACCEPT dev's no-annotation choice. Surfacing the hits without a filter is
+  correct — a "known-FP" annotation would couple the renderer to case_ids (a
+  §4.1 Q4 risk); the Tier-1 manifest pointer already routes the human to the
+  authoritative human-judgment verdict.
+- **OQ-S50.3** (per-UC `task_success_rate` column dropped) → ACCEPT. The column
+  rendered N/A under the existing per-UC summary shape; reviving a per-UC TSR is
+  a `_compute_summary` change out of S1 display scope. No data loss.
+- **OQ-S50.4** (`json_report.py` per-case now surfaces `case_passed_authority` +
+  `tier2_result`) → ACCEPT. Strict additive; backward-compat-safe.
+
+**R-item**: `R-eval-report-observability` → **CLOSED 2026-05-24** (all three
+bundled sub-items delivered). Flip applied in `docs/action_bank.md` at close.
+
+**Next**: M5 continues with **S2 (Sprint 51) — Per-invocation trace (B2)** per
+`docs/milestone_objective.md` §3 ordering (S1 independent → **S2 before S3** → S3
+[+ S4]). S2 contract pending the deliver-agent + human storage-shape decision.

@@ -68,6 +68,31 @@ export interface TraceStep {
   phase_after?: string;
   active_use_case?: string;
   latency_ms?: number;
+  // Sprint 51 / M5 S2 — per-invocation full-fidelity records from the new
+  // `bot_turn_llm_calls` table. One entry per LLM call inside the
+  // AgentRunLoop step boundary for this turn (FAQ Skill: up to
+  // `max_tool_steps`). The existing `llm_raw_response` / `projected_context`
+  // single fields above keep carrying the FINAL step's value
+  // (backward-compat); this array carries every step. Default-collapsed in
+  // the UI because per-step projections are heavy.
+  llm_calls?: LlmCall[];
+}
+
+// Sprint 51 / M5 S2 — per-invocation record. Mirrors the
+// `bot_turn_llm_calls` row shape exposed via /sessions/{id}/trace.
+export interface LlmCall {
+  id?: number;
+  bot_turn_id?: string;
+  step_index: number;
+  call_type: string; // "chat" | "routing" | "rerank"
+  model?: string;
+  latency_ms?: number;
+  llm_raw_response?: string;
+  // Backend serialises jsonb as a JSON-encoded string (same as
+  // BotTurn.projected_context). The viewer parses it lazily on expand.
+  projected_context?: string;
+  tool_calls?: string;
+  created_at?: string;
 }
 
 export interface ToolCall {

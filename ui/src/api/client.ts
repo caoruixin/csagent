@@ -193,6 +193,24 @@ function mapTrace(sessionId: string, turns: any[]): TraceResponse {
       phase_after: t.phaseAfter ?? t.phase_after ?? undefined,
       active_use_case: t.activeUseCase ?? t.active_use_case ?? undefined,
       latency_ms: t.latencyMs ?? t.latency_ms ?? undefined,
+      // Sprint 51 / M5 S2 — per-invocation records nested under each turn
+      // by the /trace endpoint (BotTurnTrace DTO). Optional; older sessions
+      // and tests without S2 data ship without it.
+      llm_calls: (t.llmCalls ?? t.llm_calls)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ? ((t.llmCalls ?? t.llm_calls) as any[]).map((c: any) => ({
+            id: c.id,
+            bot_turn_id: c.botTurnId ?? c.bot_turn_id,
+            step_index: c.stepIndex ?? c.step_index ?? 0,
+            call_type: c.callType ?? c.call_type ?? '',
+            model: c.model,
+            latency_ms: c.latencyMs ?? c.latency_ms,
+            llm_raw_response: c.llmRawResponse ?? c.llm_raw_response,
+            projected_context: c.projectedContext ?? c.projected_context,
+            tool_calls: c.toolCalls ?? c.tool_calls,
+            created_at: c.createdAt ?? c.created_at,
+          }))
+        : undefined,
     })),
   };
 }
