@@ -833,7 +833,24 @@ class BatchExecutor:
         """Compute aggregate metrics across all cases.
 
         Returns a dict with overall rates, per-UC breakdown,
-        escalation correctness, and policy compliance.
+        escalation correctness, policy compliance, and the
+        ``suite_authority`` aggregate flag (Sprint 50 / M5 S1).
+
+        ``suite_authority`` is a single source-of-truth signal
+        derived from per-case ``case_passed_authority``
+        annotations (see :func:`_resolve_case_passed_authority`).
+        Both the HTML and JSON report renderers consume this
+        field so the two surfaces cannot drift on the
+        human-judgment vs programmatic distinction.
+
+        - ``"human_review"`` — every case is human_review.
+        - ``"programmatic"`` — every case is programmatic.
+        - ``"mixed"`` — both authorities are present (e.g., a
+          custom path that loaded specs from multiple suites).
+        - ``"programmatic"`` — for an empty case list, matching
+          the safety default used by
+          :func:`_resolve_case_passed_authority` for unknown
+          source suites.
         """
         total = len(case_results)
         if total == 0:
@@ -850,6 +867,7 @@ class BatchExecutor:
                 "escalation_correctness": 0.0,
                 "policy_compliance_rate": 0.0,
                 "mean_turns_to_resolution": 0.0,
+                "suite_authority": "programmatic",
             }
 
         passed = sum(
@@ -925,6 +943,26 @@ class BatchExecutor:
         )
         policy_compliance_rate = compliant / total if total else 0.0
 
+        # ``suite_authority`` aggregate (Sprint 50 / M5 S1): derive
+        # once from the per-case ``case_passed_authority`` annotations
+        # so the HTML and JSON renderers consume a single source of
+        # truth. Per-case authority is resolved by
+        # :func:`_resolve_case_passed_authority` upstream from
+        # ``CaseSpec.source_suite`` via
+        # :func:`sets.is_human_judgment_suite`. Cases that pre-date the
+        # annotation (``None``) coalesce to ``"programmatic"`` here,
+        # matching the safety default used per-case.
+        authorities = {
+            (r.get("case_passed_authority") or "programmatic")
+            for r in case_results
+        }
+        if authorities == {"human_review"}:
+            suite_authority = "human_review"
+        elif authorities == {"programmatic"}:
+            suite_authority = "programmatic"
+        else:
+            suite_authority = "mixed"
+
         return {
             "total_cases": total,
             "passed_cases": passed,
@@ -940,6 +978,7 @@ class BatchExecutor:
             "mean_turns_to_resolution": (
                 round(sum(turns) / total, 2) if total else 0.0
             ),
+            "suite_authority": suite_authority,
         }
 
     # ------------------------------------------------------------------
