@@ -146,8 +146,7 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
         assertEquals(List.of("get_customer_context", "search_knowledge",
                         "resolve_article", "record_outcome", "request_handover"),
                 plan.allowedTools());
-        assertEquals(Set.of("form_context", "customer_context",
-                        "listing_context", "moderation_context"),
+        assertEquals(Set.of("form_context", "customer_context", "listing_context"),
                 plan.requiredContextKeys());
         assertEquals(4, plan.maxToolSteps());
         assertEquals(false, plan.allowInterimMessage());

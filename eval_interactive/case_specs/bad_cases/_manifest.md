@@ -245,3 +245,48 @@ M4-Eval-Cleanup is a **CLEANUP milestone** (not bad-case-driven; no new bad case
 ### Decision
 
 Deliver-agent + human jointly judge the **bad-case suite gate: regression-safe PASS** — the §5.1 acceptance bar is MET (distribution reproduces M3 exactly; safety floor preserved; #9/#4 land cleanly on the suite). The overall **M4-Eval-Cleanup close verdict is pending the Codex milestone-shared review** (`compact/M4-Eval-Cleanup-review-prompt.md` → `docs/codex-findings.md`); on a Codex `pass / 0` the close is **A — Clean PASS**. Reproducible commands per `docs/sprints/sprint-049-handoff.md` §6.4 + the isolated rerun command `uv run eval-interactive run --path case_specs/bad_cases/cs029_uc_d_account_locked_callback.yaml --parallel 1`.
+
+## M5 / S3 (Sprint 52) close real-LLM rerun — sub-sprint regression-safety gate (2026-05-25)
+
+### Posture
+
+This is a **sub-sprint-level** rerun, NOT the M5 milestone-close §5.6 manual review (that lands at M5 close). M5 S3 (projection audit C1 + Skill-driven convergence C2) is the milestone's only **semantic surface**; the S3 contract names the real-LLM bad-case rerun as the **C2 semantic-preservation evidence gate** (proving C2 #3 `moderation_context` declaration strip + C2 #4 Skill-registry-driven `tool_schemas` base did NOT change LLM-visible behaviour). The acceptance shape is **regression-safety**: the rerun should reproduce the M4-close distribution. Run by the deliver-agent on 2026-05-25 against the S3 build (backend restarted on the working-tree S3 diff; `javap` confirmed the C2 #4 `resolveProjectedToolNames` helper compiled in; Flyway V15 already applied), Moonshot `moonshot-v1-32k` simulator/judge per `.env.local`, `case_passed_authority = "human_review"`. Verdicts are the deliver-agent + human regression-safety read (human concurred 2026-05-25), based on the traces, not programmatic `case_passed`.
+
+### Run paths
+
+- **Main batch (12 cases, parallel=1)**: `eval_interactive/results/20260524-172654/results.json` — 10 of 12 completed multi-turn; **fg5q + iwzx hit `CONTRACT_VIOLATION` (`active_use_case` / `escalation_reason` `missing_after_turns`)** — the `R-bad-case-parallel-session-establishment-flakiness` shape (the same intermittent flake that hit cs029 at M4-close, even at parallel=1).
+- **Isolated reruns (parallel=1)**: iwzx → `results/20260524-173652/` (cleared: escalated, UC-H, `service_degraded`, no contract warning, 1 try); fg5q → `results/20260524-173645/` (flaked) + `results/20260524-173810/` (flaked) + `results/20260524-173818/` (cleared: `composite=0.5`, 3 turns, `stop=bot_ended`, 3rd try). Both contract violations are the documented intermittent session-establishment flake; both clear on rerun.
+
+### Per-case read (regression-safety vs M4-close)
+
+| case_id | M4 bucket | S3 outcome (active_uc / containment) | Read |
+|---|---|---|---|
+| `cs001` | PASS | UC-C / escalated / Tier-2✓ | stable |
+| `cs014` | PASS | UC-C / escalated / Tier-2✓ | stable |
+| `cs029` | PASS | UC-D / escalated, clean | **improved** (cleared the M4-close flake without isolation) |
+| `cs066` | PASS | UC-K / escalated (same Tier-2 sub-tags) | stable |
+| `fg5q` | PASS | flake ×2 → cleared on 3rd (composite 0.5, bot_ended) | flake; clean run is PASS-shape |
+| `alice` | IMPROVING | UC-A / escalated; Tier-2 `search-knowledge` ordering jitter | stable shape |
+| `cs011` | IMPROVING | UC-D / escalated | stable shape |
+| `cs012` | IMPROVING | escalated; UC H→A routing jitter | stable shape |
+| `wmkb` | IMPROVING | UC-D / escalated | stable shape |
+| `cs015` | FAIL | escalated; UC A→B routing jitter | stable (documented raison d'être) |
+| `cs095` | FAIL | UC-C / escalated | stable (documented raison d'être) |
+| `iwzx` | FAIL | flake → cleared (UC-H, escalated, service_degraded) | stable (documented; UC-H per `R-iwzx-uc-k-vs-uc-h-routing`) |
+
+### Overall pattern verdict (S3 close)
+
+- **PASS × 5**: cs001, cs014, cs029, cs066, fg5q.
+- **IMPROVING × 4**: alice, cs011, cs012, wmkb.
+- **FAIL × 3**: cs015, cs095, iwzx — all 3 the documented raison d'être.
+- **OOSR × 0** (fg5q + iwzx cleared via isolated parallel=1 reruns).
+
+**Distribution reproduces the M4-close distribution** (PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0). The **decisive regression signal — outcome class — is stable**: every case that establishes a session escalates; **zero resolve↔escalate flip**. UC-routing jitter (cs012 H→A, cs015 A→B) + Tier-2 step-ordering jitter (alice, cs095, wmkb) are documented run-to-run LLM variance, NOT C2-attributable: the run-loop primary path is byte-identical (the `:845-863` plan-filtered overwrite already used `Skill.toolsRequired()`), the mapped-Skill tool set is unchanged, and the C2 #3 strip has zero emission consumer. The `active_use_case missing_after_turns` flake is categorically upstream of `tool_schemas` projection.
+
+### C2 semantic-preservation confirmed
+
+No C2-attributable degradation. The session-establishment flake (`R-bad-case-parallel-session-establishment-flakiness`, PARTIAL) has now hit cs029 (M4) + fg5q + iwzx (S3) — a recurring tax on the gate; **recommend a priority bump of that R-item** (surfaced at S3 close; deliver-agent + human to decide).
+
+### Decision
+
+Deliver-agent + human jointly judge the **S3 bad-case regression-safety gate: PASS** (human concurred 2026-05-25). The overall **S3 close verdict is pending the per-sub-sprint Codex review** (`compact/sprint-052-codex-review-prompt.md` → `docs/codex-findings.md`, per `milestone_objective.md` §8); on a Codex `pass / 0` the S3 close is **A — Clean PASS**. Reproducible: `cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1` + the isolated `--path case_specs/bad_cases/<case>.yaml --parallel 1`.

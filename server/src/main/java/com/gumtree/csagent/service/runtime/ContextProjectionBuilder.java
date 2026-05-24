@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -614,20 +615,25 @@ public class ContextProjectionBuilder {
             budgetNode.put("max_faq_miss", controlPolicy.getMaxFaqMiss());
             projection.set("budget_state", budgetNode);
 
-            // Tool schemas (visible tools for current UC) — full per-tool schema objects.
-            // ToolPolicyEnforcer drives WHICH tools appear; the static schema map provides the
-            // {name, description, arguments_schema} payload. Per phase0 §0.6, this is the sole
-            // tool-discovery channel for the LLM (single-layer tool-use; no per-phase action list).
+            // Tool schemas — Skill-registry-driven (M2-correct). When the
+            // active (phase, UC) maps to a Skill, the Skill's
+            // {@code tools_required} is the projection surface (single source
+            // of truth shared with {@code PhasePlan.allowedTools()} and the
+            // ToolDispatcher whitelist). When no Skill maps the tuple
+            // (e.g. RESOLVE with no active UC, or a future phase with no
+            // Skill yet), fall back to the pre-M2 UC-driven palette via
+            // {@code ToolPolicyEnforcer} so legacy / unmapped cases keep
+            // their previous behaviour. The run-loop {@code build(...)}
+            // path's {@code :allowedTools} overwrite remains as defense-
+            // in-depth; for mapped Skills it now writes the same set.
             ArrayNode toolSchemasNode = objectMapper.createArrayNode();
-            if (activeUc != null) {
-                for (String toolName : toolPolicyEnforcer.getVisibleToolsForUc(activeUc)) {
-                    ObjectNode schema = toolSchemas.get(toolName);
-                    if (schema != null) {
-                        toolSchemasNode.add(schema.deepCopy());
-                    } else {
-                        log.warn("No static tool schema registered for visible tool '{}' (UC={})",
-                                toolName, activeUc);
-                    }
+            for (String toolName : resolveProjectedToolNames(session, activeUc)) {
+                ObjectNode schema = toolSchemas.get(toolName);
+                if (schema != null) {
+                    toolSchemasNode.add(schema.deepCopy());
+                } else {
+                    log.warn("No static tool schema registered for projected tool '{}' (phase={}, uc={})",
+                            toolName, session.getCurrentPhase(), activeUc);
                 }
             }
             projection.set("tool_schemas", toolSchemasNode);
@@ -1352,6 +1358,46 @@ public class ContextProjectionBuilder {
             sb.append("Current phase: ").append(phase).append(".");
         }
         return sb.toString().trim();
+    }
+
+    /**
+     * Resolve the projected {@code tool_schemas} surface for a session.
+     *
+     * <p>Registry/Skill-driven (M2-correct): when {@link SkillRegistry#select}
+     * matches a Skill for the session's {@code (currentPhase, activeUseCase)}
+     * tuple, the Skill's {@code toolsRequired} list is the projection
+     * surface — the same single source of truth that
+     * {@code PhaseEvaluator.plan(...)} composes into
+     * {@code PhasePlan.allowedTools()} and that
+     * {@code ToolDispatcher.validateAgainstPlan} enforces. When no Skill
+     * maps the tuple (legacy / unmapped phase, or RESOLVE with no committed
+     * UC yet), fall back to the pre-M2 UC-driven palette via
+     * {@code ToolPolicyEnforcer.getVisibleToolsForUc(activeUseCase)} so the
+     * legacy fallback path keeps its previous behaviour.
+     *
+     * <p>§1.7 boundary: no per-UC if-else, no keyword/regex/enum branch.
+     * The path is registry/Skill-driven; the UC-driven fallback is a
+     * single defensive call that mirrors pre-M2 behaviour for any tuple
+     * the registry does not cover. The Skill's {@code toolsRequired} list
+     * is itself registry data (loaded from
+     * {@code server/src/main/resources/skills/*.yaml}).
+     */
+    private List<String> resolveProjectedToolNames(BotSession session, String activeUseCase) {
+        if (session == null) {
+            return Collections.emptyList();
+        }
+        String phase = session.getCurrentPhase();
+        if (skillRegistry != null) {
+            Optional<Skill> selected = skillRegistry.select(phase, activeUseCase);
+            if (selected.isPresent()) {
+                List<String> toolsRequired = selected.get().toolsRequired();
+                return toolsRequired == null ? Collections.emptyList() : toolsRequired;
+            }
+        }
+        if (activeUseCase == null) {
+            return Collections.emptyList();
+        }
+        return toolPolicyEnforcer.getVisibleToolsForUc(activeUseCase);
     }
 
     /**
