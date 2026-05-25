@@ -41,7 +41,7 @@ cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/
 | `iwzx_uc_k_advert_on_hold_restore` | scope-relevant | `570Q5000008iwZxIAI` | Wave A2.1 reclassification map (legacy migration) | 2026-04-30 | **active** | — | — | **FAIL** | **FAIL** | bot retrieves moderation context to determine policy-driven (UC-FP) vs system-driven (UC-K) hold cause; routes to UC-K intake-and-handover OR UC-FP policy-grounded explanation accordingly; bot does NOT respond with generic "your ad is under review, please wait" template |
 | `fg5q_uc_fp_phone_rejected_repost` | scope-relevant | `570Q5000008fG5qIAE` | Wave A2.1 reclassification map (legacy migration) | 2026-04-30 | **active** | — | — | **PASS** | **PASS** | bot retrieves moderation context, distinguishes policy rejection (UC-FP — explain rule, give in-app messaging alternative) from technical-validation rejection (UC-K intake); bot does NOT respond with generic "please follow the posting guidelines" template without naming the actual rule |
 
-Ledger updates per milestone close: deliver-agent + human jointly record PASS / FAIL / IMPROVING per case row, citing the milestone close run path. **M4-Eval-Cleanup close**: all 12 verdicts UNCHANGED from M3 (cleanup milestone, zero bot-code change); the 5 PASS cases (cs001, cs014, cs029, cs066, fg5q) are now downgrade-ELIGIBLE per §5.6.3 (2 consecutive milestone-close PASS) but remain `active` pending a joint deliver-agent + human downgrade decision at a future bad-case-driven milestone close. See "M4-Eval-Cleanup close" section below.
+Ledger updates per milestone close: deliver-agent + human jointly record PASS / FAIL / IMPROVING per case row, citing the milestone close run path. **M4-Eval-Cleanup close**: all 12 verdicts UNCHANGED from M3 (cleanup milestone, zero bot-code change); the 5 PASS cases (cs001, cs014, cs029, cs066, fg5q) are now downgrade-ELIGIBLE per §5.6.3 (2 consecutive milestone-close PASS) but remain `active` pending a joint deliver-agent + human downgrade decision at a future bad-case-driven milestone close. See "M4-Eval-Cleanup close" section below. **M5 (Observability Coherence) close**: all 12 verdicts UNCHANGED from M4 (coherence milestone, regression-safety bar; S4's projection gating is semantic-preserving) — PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0. Per-case M5 verdicts + the NEW shadow review are in the "M5 milestone close + S4 (Sprint 53)" section below (the per-row M1–M4 result columns are not extended with an M5 column at this close — M5 = M4 verbatim; the dedicated section is the authoritative per-case record). The 4 consistently-clean PASS cases (cs001, cs014, cs029, cs066) are now at 3 consecutive regression-safe milestone closes (M3/M4/M5) — downgrade-eligibility strengthened, but the downgrade decision stays DEFERRED to a future bad-case-driven milestone close (M5 is not bad-case-anchored); fg5q is NOT downgrade-clean (required iso clears at S3 + S4 per the session-establishment flake).
 
 ## Tier definitions (per `iteration_governance.md` §5.6.1)
 
@@ -290,3 +290,56 @@ No C2-attributable degradation. The session-establishment flake (`R-bad-case-par
 ### Decision
 
 Deliver-agent + human jointly judge the **S3 bad-case regression-safety gate: PASS** (human concurred 2026-05-25). The overall **S3 close verdict is pending the per-sub-sprint Codex review** (`compact/sprint-052-codex-review-prompt.md` → `docs/codex-findings.md`, per `milestone_objective.md` §8); on a Codex `pass / 0` the S3 close is **A — Clean PASS**. Reproducible: `cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1` + the isolated `--path case_specs/bad_cases/<case>.yaml --parallel 1`.
+
+## M5 milestone close + S4 (Sprint 53) bad-case + shadow review (2026-05-25)
+
+### Posture
+
+This is the **M5 milestone-close §5.6 manual review** AND the **S4 (Sprint 53) sub-sprint regression-safety gate** in one (the human chose to close M5 at S4; #4 C3/`knowledge_hits` routes to a separate "projection hygiene" milestone candidate). M5 is a **cleanup/coherence milestone** (per `docs/milestone_objective.md` §5 the acceptance shape is **regression-safety**, not bad-case closure): no bad case is expected to flip to PASS *as a result of* M5; the suite is the **regression guard** for S4's projection-gating convergence (the only behaviour-risk surface). S4 gates which context-key + soft-signal slots the per-turn projection emits, per Skill declaration — it must not change *what semantic information is available to the LLM*. **Two mandatory evidence gates** per the S4 contract: (a) the real-LLM bad-case rerun holding the M4-close distribution, and (b) — NEW this sub-sprint — a **shadow rerun** (held-out, dev-blind; deliver-agent ran + read). Run by the deliver-agent 2026-05-25 against the S4 build (backend `javap`-confirmed serving `skillRequiresContextKey` + `skillDeclaresSoftSignal` from `target/classes`), Moonshot `moonshot-v1-32k` simulator/judge. Verdicts are the deliver-agent + human regression-safety read (human concurred 2026-05-25), based on the traces, not on programmatic `case_passed`.
+
+### Run paths
+
+- **Bad-case main batch (12 cases, parallel=1) — recovered-LLM run**: `eval_interactive/results/20260525-s4-main-run-recovered-llm/results.json`. The dev's initial run (`results/20260525-s4-main-run/`, 09:20 CST) was STOP-and-surfaced during an upstream bot-LLM provider degradation (deepseek primary + kimi fallback both exhausted; 128 transport errors 09:24–12:10 CST per `/tmp/s4-backend.log`); the provider recovered (~12:14 CST) and this recovered-LLM run is the evidence gate. 10 of 12 completed multi-turn; **cs015 + fg5q hit `CONTRACT_VIOLATION`** (the `R-bad-case-parallel-session-establishment-flakiness` shape, even at parallel=1).
+- **Bad-case isolated reruns (parallel=1)**: cs015 → `results/20260525-s4-recovered-iso-20260525-042035/` (#1 contract) + `…042046/` (#2 **cleared**, `composite=0.5`, bot_ended); fg5q → `…042116/` (#1 contract) + `…042122/` (#2 **cleared**, `composite=0.5`, bot_ended). Both clear on 2× iso — the documented session-establishment flake.
+- **Shadow rerun (22 held-out cases, parallel=1) — NEW S4 gate**: `eval_interactive/results/20260525-094611/results.json` (label `20260525-s4-shadow-recovered`; deliver-agent ran the flattened `case_specs_shadow/case_families/**` set, dev-blind). Summary: mean_outcome **0.711**, mean_turns **3.1**, policy_compliance 90.9%. 19/22 reached the bot with healthy multi-turn outcomes; 3/22 are session-establishment failures (bot never reached, `turns_traced=0`, `elapsed_ms=0`).
+- **Shadow isolated reruns**: cs32s02 → `results/…s4-shadow-iso-cs32s02*` (#1 contract → **cleared on iso**: 5 turns, `stop=goal_impossible`, no contract); cs59s01 + cs59s02 → `…s4-shadow-iso-cs59s0*` (**both still HTTP-400** on session-create — deterministic, not a flake).
+
+### Bad-case per-case verdict (12 cases — distribution UNCHANGED from M4/M3/S3)
+
+| case_id | Verdict | M5 read (recovered-LLM) |
+|---|---|---|
+| `cs001` | **PASS** | UC-C / escalated; stable |
+| `cs014` | **PASS** | UC-C / escalated; stable |
+| `cs029` | **PASS** | UC-D / escalated, clean; stable |
+| `cs066` | **PASS** | UC-K / escalated; stable Tier-2 sub-tags |
+| `fg5q` | **PASS** | flake → cleared on 2× iso (composite 0.5, bot_ended); clean run is PASS-shape |
+| `alice` | **IMPROVING** | UC-A / escalated; stable shape |
+| `cs011` | **IMPROVING** | UC-D / escalated; stable shape |
+| `cs012` | **IMPROVING** | UC-A / escalated; stable shape |
+| `wmkb` | **IMPROVING** | UC-D / escalated; stable shape |
+| `cs015` | **FAIL** | flake → cleared on 2× iso; documented raison d'être intact |
+| `cs095` | **FAIL** | UC-C / escalated; documented raison d'être intact |
+| `iwzx` | **FAIL** | UC-H / escalated; documented raison d'être intact |
+
+**Distribution reproduces the M4-close distribution** (PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0). Outcome class is stable across all 12 (zero resolve↔escalate flip). The detailed per-case last-turn **projection-gating verification** (the 4 gated slots emit exactly per the Phase-A audit's NEED column: 3 DISCOVER-only soft signals gated out for RESOLVE Skills; `prior_use_case_carry` emits for resolve_faq + resolve_intake) is in `docs/sprints/sprint-053-handoff.md` §6.3 — empirically byte-correct in both directions.
+
+### Shadow review (NEW S4 gate — 22 held-out cases, dev-blind)
+
+The shadow rerun is the regression guard for S4's projection convergence against held-out cases the dev never saw. The **decisive signal is outcome class + bot engagement, not the programmatic pass rate** (these family CaseSpecs carry empty scoring lists, so programmatic pass is structurally unreachable — `Passed: 0/22` is the same empty-scoring artifact as the bad cases, observation-only per §5.5/§5.6).
+
+- **19/22 cases reached the bot and produced healthy multi-turn outcomes** (mean_outcome 0.711, mean_turns 3.1), across UC-A/B/C/D/E/F/FP/H/J/K — no UC-wide collapse, no mass degradation.
+- **3/22 at outcome_score 0 are ALL session-establishment failures where the bot was never reached** (`turns_traced=0`, `elapsed_ms=0`) — categorically upstream of S4's projection gating (which runs only *inside* a bot turn):
+  - `cs32s02_uc_a_uc_h_hidden_fact_drift` — `CONTRACT_VIOLATION` (active_use_case missing_after_turns) → **cleared on iso** (5 turns, goal_impossible). The documented `R-bad-case-parallel-session-establishment-flakiness` shape.
+  - `cs59s01_uc_d_empty_form_account_recovery` + `cs59s02_uc_f_empty_form_payout_timing` — **deterministic HTTP-400** on `POST /v1/chat/sessions` (reproduced on iso). A pre-existing **shadow-fixture / harness** issue: the empty `form_context` payload is rejected by the backend's session-create validation. **NOT an S4 regression** (the bot is never reached); surfaced only because shadow is run dev-blind. New observation → see "Surfaced findings" below.
+
+**No S4-attributable shadow regression** — the projection-gating code path is invoked during per-turn LLM-input construction; the 3 zero-outcome cases never reached a bot turn, and the 19 that did show healthy, varied outcomes.
+
+### Surfaced findings (deliver-agent → action_bank)
+
+- **`R-bad-case-parallel-session-establishment-flakiness`** — S4 adds data points: bad-case cs015 + fg5q (cleared on 2× iso) and shadow cs32s02 (cleared on iso). The flake now spans cs029 (M4) + fg5q/iwzx (S3) + cs015/fg5q/cs32s02 (S4). PRIORITY-BUMPED at S3 close; keep open.
+- **NEW: shadow empty-form session-create HTTP-400** — cs59s01/cs59s02 deterministically 400 on `POST /v1/chat/sessions` with an empty `form_context`. Distinct from the intermittent flake (deterministic, not load-dependent). Candidate low-priority R-item `R-shadow-fixture-empty-form-session-create-400` (eval-harness / fixture; 2 shadow cases cannot establish a session). Upstream of all bot behaviour; does not affect the S4/M5 regression verdict.
+- **Bot-LLM provider drift** (OQ-S53.2) — S3-close used `moonshot-v1-32k` as bot model; the S4 backend default is `deepseek-v4-flash` primary + `kimi-k2.6` fallback (degraded 09:24–12:10, recovered ~12:14). External infrastructure shift, consistent with the `iteration_governance.md` §5.5 external-provider-drift confounding source; observation-only.
+
+### Decision
+
+Deliver-agent + human jointly judge the **M5 / S4 bad-case + shadow regression-safety gate: PASS** (human concurred 2026-05-25). The §5 regression-safety bar is **MET**: bad-case distribution reproduces M4-close exactly (outcome class stable, both flakes cleared on iso); shadow shows no S4-attributable regression (19/22 healthy; 3/22 are pre-bot session-establishment failures). Tier-0 safety floor + grounding floor untouched. The overall **M5 close verdict is pending the combined Codex review** (`compact/sprint-053-codex-review-prompt.md` over the cumulative M5 range `84ae017..<S4 commit>`, S4-focused, per `milestone_objective.md` §8 + `iteration_governance.md` §4.3); on a Codex `pass / 0` the close is **A — Clean PASS**. Reproducible: bad-case `uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1`; shadow (deliver-agent / human only) `uv run eval-interactive run --path case_specs_shadow/case_families/<family>/ --parallel 1` per family (the loader is non-recursive; the deliver-agent flattened the 22 cases to a scratch dir for the single batch above).

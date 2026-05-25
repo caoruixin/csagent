@@ -20,16 +20,11 @@ notes: >
 # Iteration governance
 
 This document is the operational rulebook for how we iterate on the
-customer-service agent. Section 1 is the LLM-first **Constitution**.
-Sections 2–6 are the operational gates that turn the Constitution into
-day-to-day decisions: a **Failure Brief Template** for capturing what
-went wrong, a **Fix Layer Classification Checklist** for routing the
-fix to the right layer, an **Anti-Hardcode Review Prompt** for catching
-semantic hardcodes in PR review, **Eval Acceptance Rules** for what
-counts as a passing sprint, and **Architecture-Health Metric
-definitions** for tracking whether the system is getting healthier or
-more brittle over time. Section 7 specifies the **sprint-objective
-stanza** that semantic-touching sprints must include.
+customer-service agent. §1 is the LLM-first **Constitution**; §2–§6
+are operational gates (Failure Brief, Fix Layer Classification,
+Anti-Hardcode Review, Eval Acceptance, Architecture-Health Metrics);
+§7 specifies the sprint-objective stanza; §8 defines the milestone
+framework.
 
 Doc-tier and source-of-truth conventions are defined in
 [`doc_governance.md`](doc_governance.md). Per-task reading lists and
@@ -282,67 +277,14 @@ The per-PR verdict set below is different from the **sprint-close
 review header** used in `docs/codex-findings.md`. Both are spelled out
 at the end of this section so the two are not conflated.
 
-### 4.1 Copy-pastable prompt
+### 4.1 Nine-question anti-hardcode kernel
 
-```text
-You are the Anti-Hardcode Review Agent. The PR below proposes a change
-to this repo. Your job is to decide whether the change introduces a
-semantic hardcode — a keyword / regex / if-else / enum / per-UC matrix
-that encodes a decision the LLM is supposed to own under
-docs/current/iteration_governance.md §1.3 — and to issue a verdict.
-
-Scope exemption: pure infra, docs-only, config-governance, and
-characterization-test PRs are not subject to this review. If the PR
-is purely one of those, return `approve` with a one-line note naming
-the exemption.
-
-For every other PR, walk these nine questions in order. For each
-"yes" or each concern, paste the diff snippet and the reasoning.
-
-1. Does the PR add a keyword / regex / if-else / enum / per-UC matrix
-   for a semantic decision (drift detection, escalation, UC
-   selection, risk classification, follow-up, intake routing)?
-2. If yes to (1), is the change justified as protecting a current
-   Tier-0 invariant named in docs/runtime_freeze_and_risk_policy.md
-   §1 / §2?
-3. Could the same outcome be achieved by projecting a soft signal to
-   the LLM (an additional projected slot, a candidate list, a
-   diagnostic flag) instead of a hard branch in Java or the prompt?
-4. Does the change encode visible-eval case text, trace-specific
-   phrasing, or a CaseSpec id into runtime, prompt, or judge config?
-5. Does the change move semantic ownership from the LLM to Java —
-   that is, shrink what docs/current/iteration_governance.md §1.3
-   says the LLM owns?
-6. Does the change add an if-else block to the prompt instead of
-   principle-level or observable-state guidance?
-7. Does the change preserve tool schema, capability / permission
-   boundary, PII / safety floor, and grounding floor?
-8. Does the PR ship generalization eval coverage — target, neighbor,
-   negative, and shadow cases — and not only the target case?
-9. If the change is temporary, does it carry an explicit rollback or
-   sunset plan (downgrade-to-signal trigger, retirement sprint id)?
-
-Return exactly one verdict:
-
-- `approve` — the change is not a semantic hardcode, or is justified
-  as protecting a current Tier-0 invariant with adequate generalization
-  coverage and a clear rollback if temporary.
-- `approve with downgrade-to-signal follow-up` — the change is
-  acceptable as an interim measure, but a follow-up sprint must
-  convert it into a soft signal projected to the LLM. Name the
-  trigger that should fire the conversion.
-- `reject as semantic hardcode` — the change encodes a soft semantic
-  decision the LLM should own; questions 1 and 2 fail, or questions
-  5 / 6 fail, with no Tier-0 claim and no sunset plan.
-- `needs human architecture decision` — the change crosses an
-  unresolved governance question (new escalation reason enum value,
-  new Tier-0 candidate, LLM-vs-Java boundary shift, new tool surface)
-  and a human reviewer must decide before merge.
-
-Do not rewrite the PR. Do not propose a code fix beyond naming the
-layer in docs/current/iteration_governance.md §3 that the fix should
-target.
-```
+The canonical copy-pastable prompt lives at
+[`compact/anti-hardcode-review-kernel.md`](../../compact/anti-hardcode-review-kernel.md).
+It contains nine questions, a scope exemption clause, and four
+possible verdicts (`approve`, `approve with downgrade-to-signal
+follow-up`, `reject as semantic hardcode`, `needs human architecture
+decision`).
 
 ### 4.2 Sprint-close review header (separate convention)
 
@@ -462,30 +404,11 @@ recorded in `eval_interactive/results/*/results.json`, and tracked
 across sprints, but they no longer block sprint or milestone close.
 
 **Rationale:** the smoke composite_score has accumulated multiple
-independent confounding sources that the deliver-agent + dev +
-review pipeline has surfaced over Sprints 24-32:
-
-1. **External LLM provider drift** (Sprint 31 §13 + Sprint 32
-   Codex re-run evidence) produces +84% mean `elapsed_ms` widening
-   and resulting contract-violation spikes with zero sprint-side
-   code change.
-2. **Judge calibration variance** — the same prompt + CaseSpec
-   yields different judge scores across reruns on the same bot
-   codebase (Sprint 25 §6.4 four-hypothesis walk).
-3. **Mocked-LLM vs real-LLM gap** (Sprint 23 `feedback_mocked_llm_cannot_prove_prompt_causal_change.md`) —
-   smoke runs real LLMs but unit tests mock them; failure-shape
-   variance between the two channels is observed.
-4. **Eval rubric dimensions** — `mean_composite_score` is a
-   weighted sum where the weights and the underlying dimensions
-   have not been re-validated since Sprint 14 baseline; the
-   weighting may be wrong for the post-Sprint-23 / post-Sprint-31
-   prompt + projection surface.
-
-Per Constitution §1.6 ("Eval is evidence, not authority"), a
-metric that cannot be reliably attributed to sprint-side causes
-cannot gate sprint close. Sprint 31 fix-iteration #1 already
-operationally treated the smoke regression as OOSR via rigorous
-disambiguation; this §5.5 formalizes the demotion.
+independent confounding sources (external LLM provider drift, judge
+calibration variance, mocked-vs-real-LLM gap, unvalidated weighting
+dimensions) that cannot be reliably attributed to sprint-side causes.
+Per Constitution §1.6, such a metric cannot gate sprint close. See
+sprint archives (Sprints 24-32) for detailed evidence history.
 
 **What stays as hard close gate** (unchanged):
 
@@ -494,14 +417,8 @@ disambiguation; this §5.5 formalizes the demotion.
 - **Java test suite no new regression** (baseline preservation; the
   inherited `SystemPromptUserRequestedTiebreakerTest` failure since
   Sprint 24-era working-tree mod is the documented baseline).
-- **Safety floor unchanged** — Tier-0 safety invariants (PII,
-  identity verification, imminent harm) remain green. Verified by
-  the standard `hard_checks: no_pii_leakage / no_critical_policy_violation`
-  schema on every CaseSpec.
-- **Grounding floor unchanged** — the FAQ grounding diagnostics
-  per `faq_grounding_contract.md` (six output classes, citation
-  diagnostics) remain at or above their prior level. Verified per
-  case at sprint close manual review of relevant traces.
+- **Safety floor unchanged** — per §5.1.
+- **Grounding floor unchanged** — per §5.1.
 
 **NEW primary gate (per §5.6 below):** curated bad-case suite
 manual review pass.
@@ -551,28 +468,10 @@ Each bad-case CaseSpec carries the standard CaseSpec schema PLUS:
 3. For each bad case, the human (with deliver-agent's assistance)
    judges PASS / FAIL / IMPROVING **qualitatively** against the
    `closure_criterion`. This is a **human-judgment gate**, not a
-   programmatic gate.
-
-**Important clarification (2026-05-17 refinement): the bad-case
-suite is a human-reviewed gate, not an automated PASS/FAIL
-programmatic gate.** Rationale:
-
-- The judge dimensions and scoring weights in the eval harness are
-  themselves unstable (see §5.5 confounding sources). Treating a
-  programmatic `composite_score >= X` derived from the bad-case
-  trace as a binary gate would re-import the same instability the
-  smoke composite_score demotion (§5.5) was designed to escape.
-- The `closure_criterion` field on each bad case is GUIDANCE for
-  the human review — naming the observable end-states that count
-  as "resolved". The human reads the trace, judges whether the
-  bot's behaviour qualitatively matches the expected end-state,
-  and decides PASS / FAIL / IMPROVING based on overall situation
-  (not on a programmatic match of any single field).
-- Early-stage (until the eval rubric is independently validated
-  and stable), human review is the only reliable signal for
-  whether the agent's behaviour is genuinely improving on the bad
-  case shape. A milestone close requires the human's qualitative
-  judgment, not a CI-style automated check.
+   programmatic gate — the `closure_criterion` is guidance naming
+   observable end-states, but the human reads the trace and decides
+   based on overall situation. Programmatic scores are unstable
+   (per §5.5) and cannot substitute for human review at this stage.
 
 **Sprint or milestone close decision** is made by the human (with
 deliver-agent's recommendation) based on the per-case manual
@@ -691,8 +590,7 @@ A **semantic-touching sprint** is any sprint that changes prompt, a
 runtime semantic decision (UC routing, drift detection, escalation
 posture, follow-up policy), the eval spec, or judge calibration.
 Pure infra, docs-only, config-governance, and characterization-test
-sprints (Sprint 15 and Sprint 16 are recent examples) are **exempt**
-and need not include the stanza.
+sprints are **exempt** and need not include the stanza.
 
 Semantic-touching sprints **must** include the stanza below in
 `docs/sprint_objective.md`. Codex review checks for it as part of the
@@ -806,25 +704,11 @@ sub-sprint:
 
 ### 8.2 Why milestones (vs single-feature sprints)
 
-The single-feature sprint cadence (Sprints 24-32) optimized for
-narrow scope discipline at the cost of architectural throughput.
-Sprint 24-32 each shipped 1 feature in ~1-2 days; the deliver-agent
-+ Codex overhead per sprint averaged ~50% of dev time. For a
-branch-context evolution (where the human accepts higher risk
-tolerance for faster iteration), milestone-grained planning:
-
-- Cuts deliver-agent overhead by ~50-70% (one milestone planning
-  round + one milestone close vs three per-sprint rounds).
-- Cuts Codex overhead by ~60-80% (one milestone Codex review vs
-  three per-sprint Codex reviews per §4.3).
-- Surfaces architectural coupling earlier (sub-sprints in the same
-  milestone share design context, vs three independently-scoped
-  sprints).
-- Preserves §1.7 anti-hardcode discipline (each sub-sprint still
-  fills the §7 stanza; Codex still verifies at milestone close).
-- Preserves the Constitution and the LLM-first iteration rule
-  (§1.5) — the milestone framework changes cadence, not
-  architecture.
+Milestone-grained planning cuts deliver-agent and Codex overhead by
+bundling 3–5 related sub-sprints under one planning round and one
+close review, while preserving §1.7 anti-hardcode discipline (each
+sub-sprint still fills the §7 stanza; Codex verifies at milestone
+close). The framework changes cadence, not architecture.
 
 ### 8.3 Milestone objective document schema
 
