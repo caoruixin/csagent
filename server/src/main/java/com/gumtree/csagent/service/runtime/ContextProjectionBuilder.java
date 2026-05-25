@@ -408,15 +408,29 @@ public class ContextProjectionBuilder {
             // (UNKNOWN topic + empty description), which the DISCOVER
             // systemInstruction reads as the trigger to gather evidence
             // before escalating with faq_miss_threshold_exceeded.
-            ArrayNode candidateUcsNode = objectMapper.createArrayNode();
-            if (session.getCandidateUseCases() != null) {
-                for (String uc : session.getCandidateUseCases()) {
-                    if (uc != null && !uc.isBlank()) {
-                        candidateUcsNode.add(uc);
+            //
+            // Sprint 53 / M5 S4 — Skill-declared context-key gating
+            // (#2). Per the Phase-A audit
+            // (`docs/diagnostics/m5-s4-skill-declaration-audit.md` §3.E),
+            // only `discover_triage` declares `candidate_use_cases` in
+            // `required_context_keys` AND only DISCOVER actually reads
+            // the slot (post-DISCOVER Skills work on a committed UC).
+            // Gating reads `Skill.requiredContextKeys()`; for unmapped
+            // (phase, UC) tuples the helper defaults to TRUE (emit) so
+            // legacy/unmapped sessions keep pre-S4 behaviour. §1.7
+            // boundary: no per-UC if-else; the gate is registry-data-
+            // driven (the YAML declaration).
+            if (skillRequiresContextKey(session, activeUc, "candidate_use_cases")) {
+                ArrayNode candidateUcsNode = objectMapper.createArrayNode();
+                if (session.getCandidateUseCases() != null) {
+                    for (String uc : session.getCandidateUseCases()) {
+                        if (uc != null && !uc.isBlank()) {
+                            candidateUcsNode.add(uc);
+                        }
                     }
                 }
+                projection.set("candidate_use_cases", candidateUcsNode);
             }
-            projection.set("candidate_use_cases", candidateUcsNode);
 
             // Sprint 31 — Option β alternate_candidate_use_cases projection
             // slot. Soft signal carrying the UCs the intake router considered
@@ -425,20 +439,34 @@ public class ContextProjectionBuilder {
             // currently active UC. Empty array signals either (a) the intake
             // routed deterministically to a single UC (no alternates
             // considered) or (b) the active UC is the only surviving
-            // candidate after filtering. The slot is always present for
-            // projection-shape stability (§N0 nullable-field convention).
-            // The runtime does NOT branch on this value; the LLM owns
-            // whether to act on it.
-            ArrayNode alternateCandidateUcsNode = objectMapper.createArrayNode();
-            String activeUcForAlternate = session.getActiveUseCase();
-            if (session.getIntakeAmbiguousCandidates() != null) {
-                for (String uc : session.getIntakeAmbiguousCandidates()) {
-                    if (uc != null && !uc.isBlank() && !uc.equals(activeUcForAlternate)) {
-                        alternateCandidateUcsNode.add(uc);
+            // candidate after filtering. The runtime does NOT branch on
+            // this value; the LLM owns whether to act on it.
+            //
+            // Sprint 53 / M5 S4 — `soft_signal_via_projection` gating
+            // (#5). Per the Phase-A audit
+            // (`docs/diagnostics/m5-s4-skill-declaration-audit.md` §3.G),
+            // only `discover_triage` declares this slot in
+            // `state_inheritance.soft_signal_via_projection` AND only
+            // DISCOVER procedure references it. Gating reads
+            // `Skill.stateInheritance().softSignalViaProjection()`; for
+            // unmapped (phase, UC) tuples the helper defaults to TRUE
+            // (emit) — defensive pre-S4 behaviour preservation. The slot
+            // is null/empty for most sessions even when emitted (only
+            // populated when intake-router fired AMBIGUOUS), so the
+            // shape-change risk is minimal. §1.7 boundary: registry/
+            // Skill-driven.
+            if (skillDeclaresSoftSignal(session, activeUc, "alternate_candidate_use_cases")) {
+                ArrayNode alternateCandidateUcsNode = objectMapper.createArrayNode();
+                String activeUcForAlternate = session.getActiveUseCase();
+                if (session.getIntakeAmbiguousCandidates() != null) {
+                    for (String uc : session.getIntakeAmbiguousCandidates()) {
+                        if (uc != null && !uc.isBlank() && !uc.equals(activeUcForAlternate)) {
+                            alternateCandidateUcsNode.add(uc);
+                        }
                     }
                 }
+                projection.set("alternate_candidate_use_cases", alternateCandidateUcsNode);
             }
-            projection.set("alternate_candidate_use_cases", alternateCandidateUcsNode);
 
             // Sprint 33 — discover_disambiguation_signals projection slot.
             // Soft signal carrying observable evidence that the user's
@@ -450,12 +478,17 @@ public class ContextProjectionBuilder {
             // The slot is observable evidence the LLM MAY use to inform
             // classify_use_case (e.g. to ask one clarifying question
             // before committing); the runtime does NOT enforce or branch
-            // on the slot value. The slot is always present for
-            // projection-shape stability (§N0 nullable-field convention);
-            // empty / null sub-fields are the common case (most sessions
-            // are unambiguous).
-            projection.set("discover_disambiguation_signals",
-                    buildDiscoverDisambiguationSignalsNode(session));
+            // on the slot value.
+            //
+            // Sprint 53 / M5 S4 — `soft_signal_via_projection` gating
+            // (#5). Per the Phase-A audit
+            // (`docs/diagnostics/m5-s4-skill-declaration-audit.md` §3.H),
+            // only `discover_triage` declares + reads. Same pattern as
+            // `alternate_candidate_use_cases` above.
+            if (skillDeclaresSoftSignal(session, activeUc, "discover_disambiguation_signals")) {
+                projection.set("discover_disambiguation_signals",
+                        buildDiscoverDisambiguationSignalsNode(session));
+            }
 
             // Sprint 41 — prior_use_case_carry projection slot per Sprint 37
             // freeze decision (i) §10.4. Surfaces continuity state as soft
@@ -470,9 +503,22 @@ public class ContextProjectionBuilder {
             // single aging constant + single citation cap; NO per-UC
             // variation in shape per §1.7. LLM-owned read per §1.3: the
             // LLM decides whether to surface continuity, ask, or ignore.
-            JsonNode priorUseCaseCarryNode =
-                    buildPriorUseCaseCarryNode(session, conversationHistory);
-            projection.set("prior_use_case_carry", priorUseCaseCarryNode);
+            //
+            // Sprint 53 / M5 S4 — `soft_signal_via_projection` gating
+            // (#5). Per the Phase-A audit
+            // (`docs/diagnostics/m5-s4-skill-declaration-audit.md` §3.I),
+            // `resolve_faq_grounded_answer` + `resolve_intake_collect_and_handover`
+            // declare + need this slot (UC-A↔UC-C / cross-UC continuity is
+            // a RESOLVE-Skill concern); other Skills have
+            // `previous_active_use_case` as a separate slot for drift
+            // context and don't need the carry's prior_skill_name +
+            // citation list. Defensive default = emit for unmapped
+            // tuples.
+            if (skillDeclaresSoftSignal(session, activeUc, "prior_use_case_carry")) {
+                JsonNode priorUseCaseCarryNode =
+                        buildPriorUseCaseCarryNode(session, conversationHistory);
+                projection.set("prior_use_case_carry", priorUseCaseCarryNode);
+            }
 
             // Sprint 10 §L2 — minimal projected issue-state. Surfaces the
             // runtime reroute outcome (previous_active_use_case, drift_type,
@@ -1398,6 +1444,82 @@ public class ContextProjectionBuilder {
             return Collections.emptyList();
         }
         return toolPolicyEnforcer.getVisibleToolsForUc(activeUseCase);
+    }
+
+    /**
+     * Sprint 53 / M5 S4 — Skill-declared context-key gating helper (C2 #2).
+     *
+     * <p>Returns {@code true} iff the Skill that
+     * {@link SkillRegistry#select} maps to the session's
+     * {@code (currentPhase, activeUseCase)} tuple declares {@code key} in
+     * its {@code required_context_keys} list. Defaults to {@code true}
+     * (emit) when (a) the registry is unavailable, (b) the session has
+     * no current phase, OR (c) no Skill maps the tuple — defensive
+     * pre-S4 behaviour preservation for legacy / unmapped sessions.
+     *
+     * <p>Per the Phase-A audit
+     * ({@code docs/diagnostics/m5-s4-skill-declaration-audit.md} §4.A),
+     * only {@code candidate_use_cases} is routed to this gate in S4
+     * (the four other context slots stay unconditional / data-gated /
+     * registry-gated per the audit's §4.B / §4.C disposition).
+     *
+     * <p>§1.7 boundary: no per-UC if-else, no keyword/regex/enum branch.
+     * The gate reads registry data (the Skill YAML declaration); the
+     * defensive fallback is a single uniform {@code true}.
+     */
+    private boolean skillRequiresContextKey(BotSession session, String activeUseCase, String key) {
+        if (skillRegistry == null || session == null) {
+            return true;
+        }
+        String phase = session.getCurrentPhase();
+        if (phase == null) {
+            return true;
+        }
+        Optional<Skill> selected = skillRegistry.select(phase, activeUseCase);
+        if (selected.isEmpty()) {
+            return true;
+        }
+        List<String> declared = selected.get().requiredContextKeys();
+        return declared != null && declared.contains(key);
+    }
+
+    /**
+     * Sprint 53 / M5 S4 — Skill-declared soft-signal gating helper (C2 #5).
+     *
+     * <p>Returns {@code true} iff the Skill that
+     * {@link SkillRegistry#select} maps to the session's
+     * {@code (currentPhase, activeUseCase)} tuple declares {@code slot}
+     * in its {@code state_inheritance.soft_signal_via_projection} list.
+     * Defaults to {@code true} (emit) when (a) the registry is
+     * unavailable, (b) the session has no current phase, OR (c) no
+     * Skill maps the tuple — same defensive pre-S4 default as
+     * {@link #skillRequiresContextKey} for legacy/unmapped sessions.
+     *
+     * <p>Per the Phase-A audit
+     * ({@code docs/diagnostics/m5-s4-skill-declaration-audit.md} §3.G /
+     * §3.H / §3.I), the three soft-signal slots
+     * ({@code alternate_candidate_use_cases},
+     * {@code discover_disambiguation_signals},
+     * {@code prior_use_case_carry}) all route to this gate; their DECL
+     * coverage matches their NEED column exactly (no dropped signal).
+     *
+     * <p>§1.7 boundary: registry/Skill-driven; the soft signal stays
+     * LLM-owned per §1.3 (the gate decides whether the slot is
+     * projected; the LLM decides whether to act on it).
+     */
+    private boolean skillDeclaresSoftSignal(BotSession session, String activeUseCase, String slot) {
+        if (skillRegistry == null || session == null) {
+            return true;
+        }
+        String phase = session.getCurrentPhase();
+        if (phase == null) {
+            return true;
+        }
+        Optional<Skill> selected = skillRegistry.select(phase, activeUseCase);
+        if (selected.isEmpty()) {
+            return true;
+        }
+        return selected.get().stateInheritance().softSignalViaProjection().contains(slot);
     }
 
     /**
