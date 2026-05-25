@@ -504,13 +504,27 @@ established pattern.
 
 ## 12. Sub-sprint close verdict (deliver-agent + human)
 
-**Classification: A — Clean PASS — PENDING the per-sub-sprint Codex review.**
-The two deliver-agent-side gates (independent verification + the real-LLM
-bad-case regression-safety rerun) are complete and PASS; the FINAL S3 close
-verdict is gated on the per-sub-sprint Codex review (`compact/sprint-052-codex-review-prompt.md`
-→ `docs/codex-findings.md`, per `milestone_objective.md` §8). On Codex
-`pass / 0` the S3 close is **A — Clean PASS**. Recorded by the deliver-agent
-2026-05-25; human concurred the rerun gate.
+**Classification: A — Clean PASS.** Closed jointly by deliver-agent + human
+2026-05-25. All gates pass: independent verification (§12.1), the real-LLM
+bad-case regression-safety rerun (§12.2; human-concurred), and the
+**per-sub-sprint Codex review** (per `milestone_objective.md` §8). Codex
+returned `fix_required / 2` on the first pass
+(`compact/sprint-052-codex-review-prompt.md`) where BOTH blockers were
+close-package TIMING artifacts, NOT dev-code: P0 = the real-LLM rerun evidence
+was not yet recorded when Codex ran (Codex was dispatched in parallel before
+the deliver-agent recorded it); P1 = the S3 dev scope was not yet committed
+(working-tree review, not the promised immutable range). Plus a P3 doc-drift
+(`docs/current/runtime_contract.md` still named the stripped `moderation_context`
+key). The code / anti-hardcode axis was a clean `approve` on the first pass
+(Q1-Q7 + Q9 PASS; all §4 fences; all §5 C1-matrix claims independently
+verified). The deliver-agent resolved all three (recorded the rerun evidence
+into `_manifest.md` "M5 / S3 close" section + §12.2; the human committed the S3
+scope as `49d48b1`; reconciled `runtime_contract.md` to C2 #3 option (b)), and
+the **Codex re-review** (`compact/sprint-052-codex-rereview-prompt.md`) returned
+**`pass / 0`** over the immutable range `cf9c120..49d48b1`, re-affirming the
+clean code axis and finding no new substantive issue. Both Codex passes are
+archived to `docs/sprints/sprint-052-codex-review.md`. This is the M4-close
+close-package-timing pattern (memory `feedback_milestone_close_bad_case_before_codex`).
 
 ### 12.1 Deliver-agent independent verification (not dev self-report)
 

@@ -4,7 +4,7 @@ doc_tier: current-runtime
 status: current
 implementation_status: partial
 source_of_truth: this file
-last_reviewed: 2026-05-24
+last_reviewed: 2026-05-25
 review_cadence: per milestone
 supersedes: []
 superseded_by: null
@@ -121,15 +121,27 @@ base computation is removed in favour of the Skill-driven `plan.allowedTools()`.
 **No projection field is deleted or changed before the C1 map confirms no
 consumer depends on it.** **Depends on:** S2 (per-call projection visibility).
 
-### S4 (conditional) — Projection dedup / denoise (C3) (Sprint 53) — `prompt_projection` — §7 REQUIRED
-Only if the S3 C1 consumption-map justifies it: separate "projected for the eval
-trace contract" from "projected for LLM decisions," merge duplicated values
-(`session.*` vs `budget_state`/`phase_plan`), and evaluate the `task_summary`
-natural-language restatement, the ~15 always-null §N0 slots, and the
-`drift_history`/`task_history` per-turn re-parse for their actual value to the
-LLM. Highest-risk sub-sprint; **shadow + bad-case rerun mandatory**; batched
-small-step convergence. **Depends on:** S3 C1 map + C2 landed. **Decision to run
-S4 is taken at S3 close**, based on the C1 findings (per the human's "S4 可选").
+### S4 — Skill-declaration audit + context-key gating (C2 #2) + soft-signal gating (C2 #5) (Sprint 53) — `prompt_projection` — §7 REQUIRED
+**CONFIRMED to run** (decision taken at S3 close 2026-05-25). S4 completes the
+M5 #3 Skill-driven projection convergence S3 began: S3 landed C2 #3 + #4 and
+STOP-surfaced **#2 (Skill-declared context-key gating)** + **#5
+(`soft_signal_via_projection` gating)** because the S3 C1 matrix found the Skill
+`requiredContextKeys` / `stateInheritance` declarations INCOMPLETE — gating on
+them as-is would drop LLM-visible context. S4 therefore runs in two gated
+phases: **Phase A** — a Skill-declaration completeness AUDIT
+(`docs/diagnostics/m5-s4-skill-declaration-audit.md`) that completes +
+intentionalizes the 6 Skills' declarations, delivered + reviewed BEFORE any
+gating (analogous to S3's C1); **Phase B** — the #2 + #5 convergence gated by
+the audit (the projection reads `PhasePlan.requiredContextKeys()` +
+`Skill.stateInheritance().softSignalViaProjection()` instead of legacy
+unconditional/UC-driven emission). The original-S4 **C3 dedup/denoise** + the
+**OQ-S52.4 `knowledge_hits` canonicalization** are folded in as a **CONDITIONAL
+#4 that DEFAULTS TO DEFER** (to an S5 or a separate "projection hygiene"
+milestone per §8.5) to keep S4 risk-bounded. Highest-risk sub-sprint;
+**both a real-LLM bad-case rerun AND a shadow rerun are mandatory evidence
+gates**; registry/Skill-driven — no per-UC if-else; STOP-and-surface any slot
+that cannot be gated without dropping an LLM-visible signal. **Depends on:** S3
+C1 map + C2 #3/#4 landed (commit `49d48b1`). Per-sub-sprint Codex at S4 close.
 
 ## 4. Non-goals (explicit)
 
