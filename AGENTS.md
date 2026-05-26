@@ -28,9 +28,9 @@ operational procedures, and handoff format.
 | Role | Entry doc | Spawned by | Primary responsibility |
 |------|-----------|------------|----------------------|
 | **Dev agent** (Claude Code) | `compact/sprint-NNN-dev-prompt.md` (per sub-sprint) | Human paste | Implement sub-sprint contract; run tests/eval; author handoff |
-| **Deliver agent** | `compact/sprint-deliver-orchestrator.md` (via `compact/deliver-activation.md`) | Human paste | Plan milestones + sub-sprints; orchestrate close; maintain bad-case suite |
+| **Deliver agent** | `docs/teams/deliver-agent.md` (via `docs/teams/deliver-activation.md`) | Human paste | Plan milestones + sub-sprints; orchestrate close; maintain bad-case suite |
 | **Review agent** (Codex) | `compact/M<N>-review-prompt.md` (per milestone) | Human / deliver agent | Anti-hardcode review at milestone close; targeted PR review |
-| **Research agent** | `compact/research-agent-guide.md` | Human paste | Investigate proposals + bad-case root-cause; produce deliver-consumable solutions |
+| **Research agent** | `docs/teams/research-agent.md` | Human paste | Investigate proposals + bad-case root-cause; produce deliver-consumable solutions |
 
 Role-specific entry docs reference governance sections by `§` number;
 they do not duplicate governance content. All context passes through
@@ -80,11 +80,8 @@ doc's `review_cadence` front-matter field.
 **Note on iteration processes** (2026-05-17 governance update): the
 two input paths by which the agent's evolution is driven (Path 1
 research-driven; Path 2 bad-case-driven) are operationalized in the
-deliver-agent's role definition at `compact/sprint-deliver-orchestrator.md`
-"Workflow inputs" section. A separate human-reference narrative at
-`docs/current/iteration_processes_only_for_human_reference.md` exists
-for the human's planning-time read; that file is intentionally NOT in
-this constitution chain (agents do not need it; operational source-of-truth
-for the deliver-agent is the compact file). Dev and review agents
-execute per `docs/sprint_objective.md` and do not need to know which
-input path produced it.
+deliver-agent's role definition at `docs/teams/deliver-agent.md`
+"Workflow inputs" section. The conceptual overview of both paths
+lives in `docs/teams/collaboration-guide.md` §3. Dev and review
+agents execute per `docs/sprint_objective.md` and do not need to
+know which input path produced it.

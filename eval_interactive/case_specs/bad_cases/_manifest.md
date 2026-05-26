@@ -1,7 +1,7 @@
 # Curated Bad-Case Suite
 
 **Authored:** 2026-05-16; refined 2026-05-17 (tiering + human-judgment-gate clarification + N=2 downgrade rule)
-**Source-of-truth:** this file (lifecycle ledger) + `iteration_governance.md` §5.6 / §5.6.1 / §5.6.2 / §5.6.3 (governance) + `compact/sprint-deliver-orchestrator.md` "Workflow inputs — Path 2" (operational triage + 4-route fit + edge case handling for deliver-agent)
+**Source-of-truth:** this file (lifecycle ledger) + `iteration_governance.md` §5.6 / §5.6.1 / §5.6.2 / §5.6.3 (governance) + `docs/teams/deliver-agent.md` "Workflow inputs — Path 2" (operational triage + 4-route fit + edge case handling for deliver-agent)
 **Owners:** deliver-agent + human (jointly maintained)
 
 ## Purpose
@@ -66,7 +66,7 @@ When a new bad case surfaces (human use / colleague use / sprint-surfaced findin
    - Failure mode crosses ≥ 1 layer (not a single-component cosmetic).
    - Reproducible OR represents a typical scenario class.
    - Not a duplicate of an existing closed/archived case.
-2. Per Path 2: trace + observation are handed to a research-agent (not directly to deliver-agent) for root-cause analysis + solution proposal. See `compact/sprint-deliver-orchestrator.md` "Workflow inputs — Path 2" for the full operational process (triage gate → research-agent proposal → encode → 4-route fit decision → downstream milestone loop).
+2. Per Path 2: trace + observation are handed to a research-agent (not directly to deliver-agent) for root-cause analysis + solution proposal. See `docs/teams/deliver-agent.md` "Workflow inputs — Path 2" for the full operational process (triage gate → research-agent proposal → encode → 4-route fit decision → downstream milestone loop).
 3. After research-agent proposal lands and human selects the design, deliver-agent authors a new `<case_id>.yaml` here using the schema in any existing bad case + the §5.6 extension fields.
 4. Deliver-agent assigns initial tier (`core` for cross-cutting; `scope-relevant` for surface-specific). Appends a row to the lifecycle ledger above.
 5. Deliver-agent decides whether the case fits the current milestone scope (add to `milestone_objective.md` §5 acceptance bar) OR is queued for a future milestone (open as an R-item in `docs/action_bank.md` referencing the bad case).

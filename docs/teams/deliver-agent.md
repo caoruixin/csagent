@@ -2,7 +2,7 @@
 
 **Authored:** 2026-05-16 (rebuild); **Last updated:** 2026-05-23 (optimized: removed governance duplication, consolidated memory into repo docs)
 **Source-of-truth:** this file + `docs/current/iteration_governance.md` §8 (milestone framework)
-**Use:** 使用 `compact/deliver-activation.md` 激活模板启动 deliver-agent session（模板会指向本文件）。
+**Use:** 使用 `docs/teams/deliver-activation.md` 激活模板启动 deliver-agent session（模板会指向本文件）。
 
 ---
 
@@ -121,13 +121,37 @@ Human review 后，把 milestone_objective + 第一个 sprint_objective 写入�
 
 ### Dev prompt 包含要素
 
-每个 sub-sprint 的 dev prompt（`compact/sprint-NNN-dev-prompt.md`）必须包含：
-- **Scope**: 引用 `docs/sprint_objective.md` 当前 contract
-- **Context 读取列表**: AGENTS.md (auto-loaded) + `milestone_objective.md` + `sprint_objective.md`
-- **Hard fences**: 不允许做什么（来自 sprint_objective stop conditions）
-- **Handoff 要求**: 输出 `docs/sprints/sprint-NNN-handoff.md`；§12 留空由 deliver agent + human 填
-- **测试/eval 要求**: 运行哪些 test / eval suite
-- **Commit 纪律**: dev 只 stage 自己 scope 的文件，不 stage deliver-agent 文件
+每个 sub-sprint 的 dev prompt（`compact/sprint-NNN-dev-prompt.md`）必须是
+**self-contained executable view of the sub-sprint contract**——可以单独粘贴
+到一个 fresh dev session 即可启动工作，不需要 dev session 再去读 sprint
+contract 之外的任何文件（除 `AGENTS.md` 治理链 auto-loaded 之外）。具体而言，
+dev prompt 必须**完整内嵌**（NOT reference）以下内容：
+
+1. **Role identity** — "你是 dev agent for Sprint NNN / M<N> S<X>"；本次任务的
+   一句话目标（来自 sprint_objective.md `Goal`）。
+2. **Read order**（最小化）— 仅 `AGENTS.md`（auto-loaded）+ 本 prompt；其他
+   文件 ONLY 在 prompt 显式需要 dev 查阅 code anchors 时引用具体路径。
+3. **Embedded sub-sprint contract** — 从 `docs/sprint_objective.md` 复制以下
+   section 的完整内容（NOT 摘要，NOT reference）：
+   - `Class`（layer + §7 REQUIRED/EXEMPT）
+   - `Goal`
+   - `Scope`（编号 #1-#N，完整步骤化执行内容）
+   - `Hard fences / STOP conditions`
+   - `Test / eval requirements`
+   - `§7 stanza`（若 sprint 是 §7 REQUIRED）
+   - `Codex review plan`(per §4.3)
+   - `Handoff requirements`
+   - `Commit discipline`
+4. **Self-check checklist** — sub-sprint 完成前 dev 必须勾选的项目。
+
+**Source-of-truth 同步规则**：`docs/sprint_objective.md` 是 canonical contract
+（human review approves this）；`compact/sprint-NNN-dev-prompt.md` 是它的
+self-contained executable view。Deliver-agent 在起草时**一次性同步生成**
+objective.md 和 prompt.md；若 objective.md 在 human review 后被修改，prompt.md
+必须同步更新。详见 `docs/current/iteration_governance.md` §9。
+
+**Dev session 不需要 deliver-agent 再发任何补充上下文**——粘贴 prompt 即可
+启动；session 内的工作完全在 prompt embedded contract 范围内。
 
 ### Sub-sprint 完成 → Milestone 内继续
 
@@ -139,11 +163,36 @@ Deliver-agent + human 评估 sub-sprint handoff：
 
 ### Review prompt 包含要素
 
-Milestone close 的 review prompt（`compact/M<N>-review-prompt.md`）必须包含：
-- **Scope**: milestone 全部 commit range + 所有 sub-sprint 的 objective + handoff
-- **Focus**: milestone-level scope discipline + Anti-Hardcode kernel (§4.1) + Hard fences
-- **输出**: `docs/codex-findings.md` with §4.2 header
-- **约束**: review agent 不编辑代码；per-sub-sprint review 仅在 §4.3 触发条件下生成
+Milestone close 的 review prompt（`compact/M<N>-review-prompt.md`）必须同样是
+**self-contained executable view**——可以粘贴到一个 fresh Codex session 即可
+启动 review，不需要 review session 再去读 governance docs 或 prompt 之外的
+任何文件（sub-sprint handoff 是例外，因为它们是 dev 在 review 之前才产出的
+artefact；prompt 中显式列出具体路径即可）。具体而言，review prompt 必须**完整
+内嵌**：
+
+1. **Role identity** — "你是 Anti-Hardcode + Milestone-Close Review Agent
+   for Milestone M<N>"；本次 review 的 cumulative commit range。
+2. **Loader**（最小化）— 仅 `AGENTS.md`（auto-loaded）+ 本 prompt + 各
+   sub-sprint handoff 文件具体路径（这些是 dev 产出，不可内嵌）。
+3. **Embedded milestone context** — 从 `docs/milestone_objective.md` 复制：
+   - `Milestone class`（layer breakdown + §7 coverage + Codex plan）
+   - `Goal`
+   - `Sub-sprint sequence`（编号 + scope 摘要）
+   - `Non-goals`
+   - `Milestone acceptance bar`
+   - `Hard fences`
+4. **Embedded §4.1 nine-question kernel** — 从 `docs/current/anti-hardcode-review-kernel.md`
+   复制完整内容（NOT reference）。
+5. **Cumulative scope claim** — 每个 sub-sprint 的 commit + 主要 ship artefacts
+   摘要（来自 sub-sprint objective.md，已经被 deliver-agent close 时归档）。
+6. **Output format** — `docs/codex-findings.md` 应 use 的 §4.2 header
+   格式（embedded，不只是 reference）。
+7. **Constraints** — review agent 不编辑代码；不 re-judge §5.6 bad-case 人类
+   verdict；per-sub-sprint review 仅在 §4.3 触发条件下生成（embedded 该
+   trigger 列表）。
+
+**Source-of-truth 同步规则同 Dev prompt**：`milestone_objective.md` 是 canonical；
+`compact/M<N>-review-prompt.md` 是它的 self-contained executable view。
 
 ### Milestone close 阶段 — Decision
 
@@ -196,7 +245,7 @@ Sprint / milestone close PASS requires all HARD GATES pass. OBSERVATION metrics 
 
 ## Workflow inputs
 
-When you're spawned as deliver-agent in a new session, the human's input falls into one of two paths. This section is the operational source-of-truth for both: triage criteria, decision rubrics, and edge case handling are listed in full here (the conceptual / narrative version exists at `docs/current/iteration_processes_only_for_human_reference.md` for human review only; you do not need to read that doc).
+When you're spawned as deliver-agent in a new session, the human's input falls into one of two paths. This section is the operational source-of-truth for both: triage criteria, decision rubrics, and edge case handling are listed in full here (the conceptual overview lives in `docs/teams/collaboration-guide.md` §3).
 
 ### Path 1 — Research-driven (forward-looking)
 
