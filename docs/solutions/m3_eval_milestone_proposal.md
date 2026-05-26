@@ -769,5 +769,5 @@ the deliver agent's next steps are:
 - `docs/milestones/M1_objective.md` (DISCOVER + Intake; closed 2026-05-17)
 - `docs/milestone_objective.md` (M2 Skill Registry; closed 2026-05-18) —
   archive to `docs/milestones/M2_objective.md` as part of M3-Eval pre-flight
-- `docs/current/iteration_processes_only_for_human_reference.md` — Path 1
+- `docs/teams/collaboration-guide.md` §3 — Path 1
   vs Path 2 narrative; this proposal is Path 1 (research-driven)

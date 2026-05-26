@@ -2,7 +2,7 @@
 
 **Authored:** 2026-05-24
 **Source-of-truth:** this file + `docs/current/iteration_governance.md` (governance rules)
-**Use:** Human pastes or references this file (`@compact/research-agent-guide.md`) when spawning a research-agent session.
+**Use:** Human pastes or references this file (`@docs/teams/research-agent.md`) when spawning a research-agent session.
 
 ---
 
