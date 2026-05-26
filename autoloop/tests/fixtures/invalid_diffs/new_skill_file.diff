@@ -1,0 +1,7 @@
+file_path: server/src/main/resources/skills/brand_new_phase.yaml
+expected_decision: REJECT
+expected_reason_substring: file outside mutable surface
+before: ""
+after: |
+  name: brand_new_phase
+  procedure: "anything"

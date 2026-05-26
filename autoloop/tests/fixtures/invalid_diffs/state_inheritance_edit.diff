@@ -1,0 +1,21 @@
+file_path: server/src/main/resources/skills/discover_triage.yaml
+expected_decision: REJECT
+expected_reason_substring: state_inheritance
+before: |
+  name: discover_triage
+  procedure: "step one"
+  grounding_instruction: "ground"
+  escalation_policy: "escalate"
+  state_inheritance:
+    inherit: [customer_context]
+    reset: []
+    soft_signal_via_projection: []
+after: |
+  name: discover_triage
+  procedure: "step one"
+  grounding_instruction: "ground"
+  escalation_policy: "escalate"
+  state_inheritance:
+    inherit: [customer_context, accumulated_tool_results]
+    reset: []
+    soft_signal_via_projection: []

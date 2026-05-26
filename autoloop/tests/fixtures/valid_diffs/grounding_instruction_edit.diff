@@ -1,0 +1,34 @@
+file_path: server/src/main/resources/skills/resolve_faq_grounded_answer.yaml
+expected_decision: ACCEPT
+expected_reason_substring: whitelisted
+expected_changed_path_match: "$.grounding_instruction"
+before: |
+  name: resolve_faq_grounded_answer
+  applicable_use_cases: [UC-A]
+  tools_required: [search_knowledge]
+  procedure: "search then answer"
+  grounding_instruction: "cite source_id"
+  escalation_policy: "escalate on no hit"
+  guardrails: []
+  state_inheritance: {inherit: [], reset: [], soft_signal_via_projection: []}
+  critical_steps:
+    - id: cite-source
+      desc: "cite the source"
+      trace_check: "result.cite"
+      mandatory_for: [UC-A]
+      severity: mandatory
+after: |
+  name: resolve_faq_grounded_answer
+  applicable_use_cases: [UC-A]
+  tools_required: [search_knowledge]
+  procedure: "search then answer"
+  grounding_instruction: "cite source_id; do not paraphrase article body"
+  escalation_policy: "escalate on no hit"
+  guardrails: []
+  state_inheritance: {inherit: [], reset: [], soft_signal_via_projection: []}
+  critical_steps:
+    - id: cite-source
+      desc: "cite the source"
+      trace_check: "result.cite"
+      mandatory_for: [UC-A]
+      severity: mandatory
