@@ -1,0 +1,14 @@
+file_path: server/src/main/resources/skills/discover_triage.yaml
+expected_decision: REJECT
+expected_reason_substring: no whitelisted field changed
+before: |
+  name: discover_triage
+  procedure: "step one"
+  grounding_instruction: "ground"
+  escalation_policy: "escalate"
+after: |
+  # added some comments
+  name: discover_triage
+  procedure: "step one"  # trailing comment
+  grounding_instruction: "ground"
+  escalation_policy: "escalate"

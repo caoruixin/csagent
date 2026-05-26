@@ -1,0 +1,44 @@
+# autoloop runtime config — M-Auto-1A S-Auto-1 scope.
+#
+# The mutable_surface block is the structural anchor for the sandbox.
+# It encodes the LOCKED contract from `program.md` §2 and from
+# `docs/solutions/auto_evolution_skill_driven_v1.md` §3.1 (collapsed
+# tightened version).
+#
+# To unlock additional Skill files OR additional fields requires a NEW
+# milestone + a NEW `program.md` v2 + explicit human authorization (per
+# `program.md` §8 Versioning).
+
+mutable_surface:
+  # The four LLM-soft field paths that auto-loop's meta-agent may
+  # propose edits to. Anything else inside a Skill YAML is structurally
+  # rejected by `autoloop/sandbox/yaml_diff_validator.py`.
+  allowed_field_paths:
+    - "$.procedure"
+    - "$.grounding_instruction"
+    - "$.escalation_policy"
+    - "$.critical_steps[*].desc"
+
+  # The six Skill YAML files whose LLM-soft fields auto-loop may target.
+  # File paths are relative to the repo root.
+  allowed_skill_files:
+    - "server/src/main/resources/skills/discover_triage.yaml"
+    - "server/src/main/resources/skills/resolve_faq_grounded_answer.yaml"
+    - "server/src/main/resources/skills/resolve_intake_collect_and_handover.yaml"
+    - "server/src/main/resources/skills/confirm.yaml"
+    - "server/src/main/resources/skills/escalate.yaml"
+    - "server/src/main/resources/skills/terminal.yaml"
+
+paths:
+  # All paths are relative to the repo root unless otherwise noted.
+  # S-Auto-1 does not yet read or write these; S-Auto-3 will populate.
+  experiments_log: "autoloop/results/experiments.jsonl"
+  iterations_index: "autoloop/results/iterations.jsonl"
+  lessons_log: "autoloop/results/lessons.md"
+  runs_dir: "autoloop/results/runs/"
+
+lessons:
+  # K — every K iterations the lessons LLM produces a compacted lessons
+  # block per `program.md` and the proposal §3.4 (three-layer memory).
+  # S-Auto-3 reads this; S-Auto-1 only persists the value.
+  compaction_window_k: 10

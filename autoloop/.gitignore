@@ -1,0 +1,9 @@
+# autoloop local artefacts — never commit.
+.venv/
+.pytest_cache/
+*.egg-info/
+__pycache__/
+*.pyc
+
+# S-Auto-3 will produce these; placeholder for visibility.
+results/

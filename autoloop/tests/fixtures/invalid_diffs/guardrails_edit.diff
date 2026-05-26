@@ -1,0 +1,18 @@
+file_path: server/src/main/resources/skills/resolve_faq_grounded_answer.yaml
+expected_decision: REJECT
+expected_reason_substring: guardrails
+before: |
+  name: resolve_faq_grounded_answer
+  procedure: "search"
+  grounding_instruction: "cite"
+  escalation_policy: "escalate"
+  guardrails: []
+after: |
+  name: resolve_faq_grounded_answer
+  procedure: "search"
+  grounding_instruction: "cite"
+  escalation_policy: "escalate"
+  guardrails:
+    - type: must_cite_source
+      on_fail: reject_with_hint
+      parameters: {}
