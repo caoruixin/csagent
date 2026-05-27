@@ -118,12 +118,16 @@ fitness:
   # session-establishment flakiness interaction.
   parallel_suites: false
 
-  # S-Auto-4 — scoring-code drift baseline. Deliver-agent fills with
-  # the M-Auto-1A close commit SHA at sub-sprint close so the
-  # `scoring_code_drift` anti-gaming check has a reference. When null
-  # the check emits a WARN with rule_id=scoring_code_drift.baseline_missing
-  # (D3: never guess; never silently hash-as-baseline).
-  scoring_code_baseline_sha: null
+  # S-Auto-4 — scoring-code drift baseline. Deliver-agent backfilled
+  # at S-Auto-4 close (2026-05-27) with the S-Auto-4 dev commit `1feef1f`
+  # — the commit at which all four scoring files (`tier_evaluator.py` +
+  # `eval_runner.py` + `baseline_loader.py` + `gaming.py`) exist in their
+  # M-Auto-1A close form. Subsequent commits touching any of these four
+  # files will trigger `gaming.scoring_code_drift.sha_changed` ERROR.
+  # If reset to null, the check emits WARN
+  # `rule_id=scoring_code_drift.baseline_missing` (D3: never guess; never
+  # silently hash-as-baseline).
+  scoring_code_baseline_sha: "1feef1f"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the
