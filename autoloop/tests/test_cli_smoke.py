@@ -104,11 +104,24 @@ def test_top_level_help_lists_all_subcommands() -> None:
         assert sub in res.stdout, f"top-level help missing subcommand {sub}"
 
 
-def test_placeholder_subcommand_exits_nonzero() -> None:
-    """The placeholder subcommands are not yet implemented and SHOULD
-    exit 1 so that a CI invocation of a placeholder surfaces as a
-    failure rather than a silent no-op.
+def test_dry_run_subcommand_invokes_loop() -> None:
+    """S-Auto-3 wires dry-run to the loop orchestrator. Without
+    AUTOLOOP_META_LLM_API_KEY set, the first iteration short-circuits
+    to `decision=error` (the LLM client can't be built), but the
+    output proves the orchestrator was invoked — distinguishing
+    S-Auto-3's real wiring from the S-Auto-1 placeholder banner.
     """
-    res = _run_cli(["dry-run"])
-    assert res.returncode == 1
-    assert "S-Auto-3" in res.stdout
+    env = os.environ.copy()
+    # Force LLM unconfigured so we don't hit the network in CI.
+    env.pop("AUTOLOOP_META_LLM_API_KEY", None)
+    res = subprocess.run(
+        [sys.executable, "-m", "autoloop", "dry-run"],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    # The S-Auto-1 placeholder printed "S-Auto-3 territory" and exited 1.
+    # The S-Auto-3 wiring prints the iteration banner.
+    assert "S-Auto-3 territory" not in res.stdout
+    assert "starting" in res.stdout or "iteration" in res.stdout.lower()
