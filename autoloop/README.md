@@ -19,7 +19,7 @@ tier-evaluator, and meta-agent ship in S-Auto-2 / S-Auto-3 / S-Auto-4.
 | `run`       | S-Auto-3 (placeholder; fitness evaluator delivered by S-Auto-2, loop wiring lands in S-Auto-3) | Live iteration loop (creates `autoloop/exp-N` test branches). |
 | `report`    | S-Auto-3 (placeholder) | Render per-iteration human audit report. |
 | `apply`     | S-Auto-3 (placeholder) | Human-driven cherry-pick of a kept iteration to `main`. |
-| `audit`     | S-Auto-3 (placeholder) | Inspect a finished iteration's evidence + meta-agent reasoning. |
+| `audit`     | S-Auto-3 (placeholder); S-Auto-4 surfaces `gaming_flags` + `anti_hardcode_flag_for_codex` | Inspect a finished iteration's evidence + meta-agent reasoning. |
 
 All subcommands are exposed via the `autoloop` entry point installed by
 `pyproject.toml` and additionally as `python -m autoloop <subcommand>`.

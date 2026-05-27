@@ -394,6 +394,20 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     # re-open a per-case shadow lookup.
     include_shadow_detail = bool(getattr(args, "include_shadow_detail", False))
 
+    # S-Auto-4 surfaces — extracted from the persisted record for a
+    # compact summary in addition to the full record JSON.
+    gaming_flags_summary = [
+        {
+            "rule_id": (f or {}).get("rule_id"),
+            "severity": (f or {}).get("severity"),
+            "detail": (f or {}).get("detail"),
+        }
+        for f in (match.get("gaming_flags") or [])
+    ]
+    anti_hardcode_flag_for_codex = bool(
+        match.get("anti_hardcode_flag_for_codex", False)
+    )
+
     rendered = {
         "iteration_id": exp_id,
         "experiments_log_record": match,
@@ -401,6 +415,8 @@ def _cmd_audit(args: argparse.Namespace) -> int:
             _iterations_index.record_to_dict(sqlite_match)
             if sqlite_match else None
         ),
+        "anti_hardcode_flag_for_codex": anti_hardcode_flag_for_codex,
+        "gaming_flags_summary": gaming_flags_summary,
     }
 
     if include_shadow_detail:

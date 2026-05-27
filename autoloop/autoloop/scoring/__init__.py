@@ -24,6 +24,7 @@ from .eval_runner import (
     run_suite,
     run_v1_fitness_suite,
 )
+from .gaming import GamingFlag, detect
 from .tier_evaluator import (
     LayerResult,
     LexicographicVerdict,
@@ -35,12 +36,14 @@ __all__ = [
     "BaselineLoadError",
     "BaselineSnapshot",
     "EvalRunnerTimeoutError",
+    "GamingFlag",
     "LayerResult",
     "LexicographicVerdict",
     "ShadowAuditDetail",
     "SuiteRunResult",
     "SuiteRunSpec",
     "SuiteSnapshot",
+    "detect",
     "evaluate",
     "load",
     "run_suite",

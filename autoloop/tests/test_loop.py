@@ -207,19 +207,20 @@ def test_sandbox_reject_short_circuits_before_apply(tmp_path: Path):
     fake_apply.assert_not_called()
 
 
-# --- anti-hardcode placeholder always-PASSes -----------------------
+# --- anti-hardcode detector — clean propose PASSes ------------------
 
 
-def test_anti_hardcode_placeholder_always_passes(tmp_path: Path):
-    """The S-Auto-3 placeholder anti_hardcode_check must return PASS
-    so the iteration proceeds to apply. (S-Auto-4 swaps real impl.)
+def test_anti_hardcode_real_detector_passes_clean_propose(tmp_path: Path):
+    """S-Auto-4 real detector. A clean soft-narrative edit (no
+    forbidden structural pattern) returns PASS with placeholder=False.
     """
     from autoloop.sandbox.anti_hardcode_check import anti_hardcode_check
 
     hyp = _hypothesis()
     res = anti_hardcode_check(hyp, config={})
-    assert res.decision == "PASS"
-    assert res.placeholder is True
+    assert res.verdict == "PASS"
+    assert res.placeholder is False
+    assert res.rule_id is None
 
 
 # --- proposer JSON-invalid → discard with reason -------------------
@@ -473,26 +474,37 @@ def test_shadow_firewall_holds_in_experiments_log(tmp_path: Path):
     assert "failure_tags" not in log_text
 
 
-# --- adversarial fixture for S-Auto-4 (kept for future use) ---------
+# --- adversarial fixture for S-Auto-4 — real detector rejects --------
 
 
-def test_adversarial_fixture_passes_placeholder_anti_hardcode(tmp_path: Path):
-    """Fixture: an adversarial hypothesis with §1.7 red-line content
-    (an IF-THEN decision tree referencing a UC by name). The
-    S-Auto-3 placeholder always-PASS hook lets it through; S-Auto-4
-    real impl SHOULD reject it. This test asserts placeholder
-    behavior (so S-Auto-4 dev knows what to make change).
+def test_adversarial_fixture_fails_real_detection(tmp_path: Path):
+    """Load-bearing placeholder → real transition regression target.
+    The §1.7 red-line content (an IF-THEN decision tree + a
+    `.contains(...)` literal + a UC-by-name reference) MUST be
+    rejected by the S-Auto-4 detector.
     """
-    from autoloop.sandbox.anti_hardcode_check import anti_hardcode_check
+    repo = _make_repo(tmp_path)
+    cfg = _config_for(repo)
 
     adversarial = Hypothesis(
         target_skill_file="server/src/main/resources/skills/discover_triage.yaml",
         target_field_path="$.procedure",
-        before_value="x",
-        after_value="if user.message contains 'appeal' then route to UC-H else UC-A",
+        before_value="step one\nstep two\n",
+        after_value=(
+            "if user.message.contains('appeal') then route to UC-H "
+            "else UC-A"
+        ),
         rationale="adversarial fixture for S-Auto-4",
     )
-    res = anti_hardcode_check(adversarial, config={})
-    # S-Auto-3 placeholder: PASS. S-Auto-4 should change this to FAIL.
-    assert res.decision == "PASS"
-    assert res.placeholder is True
+
+    with patch.object(_loop._analyzer, "analyze", return_value={}), \
+         patch.object(_loop._proposer, "propose", return_value=adversarial), \
+         patch.object(_loop, "_build_baseline_summary", return_value={}):
+        r = run_one_iteration(
+            config=cfg, iteration_id="exp-adv",
+            client=_fake_client(), repo_root=repo,
+        )
+
+    assert r.decision == "discard"
+    assert r.discard_reason is not None
+    assert r.discard_reason.startswith("anti_hardcode_rejected:")

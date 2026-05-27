@@ -1,22 +1,27 @@
 """Top-level orchestrator for the auto-evolution loop.
 
-S-Auto-3 deliverable. Runs the full state machine per iteration:
+S-Auto-3 deliverable; S-Auto-4 added the content_validator (pre-
+sandbox) + gaming.detect (post-eval) insertion points. Full state
+machine per iteration:
 
-    1.  analyzer.analyze(baseline, lessons, recent)        → FailureTaxonomy
-    2.  proposer.propose(taxonomy, lessons, recent, ...)   → Hypothesis
-    3.  sandbox.validate_skill_yaml_diff(...)              → ValidationResult
-    4.  sandbox.anti_hardcode_check(hypothesis)            → AntiHardcodeResult
-        # S-Auto-3 placeholder always-PASS; S-Auto-4 swaps real impl.
-    5.  dry-run: write artefacts under runs/<id>/, STOP.
-    6.  applier.apply(hypothesis)                          → AppliedExperiment
-    7.  eval_runner.run_v1_fitness_suite(...)              → dict[suite, SuiteRunResult]
-    8.  baseline_loader.load(...)                          → BaselineSnapshot
-    9.  tier_evaluator.evaluate(...)                       → LexicographicVerdict
-    10. memory.experiments_log.append(...)
-    11. memory.iterations_index.insert(...)
-    12. if iter_count % K == 0: lessons_compactor.compact(...)
-    13. git tag autoloop/<keep|discard>-N on the exp-N branch
-    14. applier.cleanup() — always in finally.
+    1.   analyzer.analyze(baseline, lessons, recent)        → FailureTaxonomy
+    2.   proposer.propose(taxonomy, lessons, recent, ...)   → Hypothesis
+    2.5. sandbox.validate_content(hypothesis)               → ContentValidationResult
+    3.   sandbox.validate_skill_yaml_diff(...)              → ValidationResult
+    4.   sandbox.anti_hardcode_check(hypothesis)            → AntiHardcodeResult
+         # PASS / FAIL / FLAG_FOR_CODEX; FLAG_FOR_CODEX continues.
+    5.   dry-run: write artefacts under runs/<id>/, STOP.
+    6.   applier.apply(hypothesis)                          → AppliedExperiment
+    7.   eval_runner.run_v1_fitness_suite(...)              → dict[suite, SuiteRunResult]
+    8.   baseline_loader.load(...)                          → BaselineSnapshot
+    9.   tier_evaluator.evaluate(...)                       → LexicographicVerdict
+    9.5. gaming.detect(...)                                 → list[GamingFlag]
+         # Observation-only; never alters keep/discard.
+    10.  memory.experiments_log.append(...)
+    11.  memory.iterations_index.insert(...)
+    12.  if iter_count % K == 0: lessons_compactor.compact(...)
+    13.  git tag autoloop/<keep|discard>-N on the exp-N branch
+    14.  applier.cleanup() — always in finally.
 
 A failure at ANY step is caught; `IterationResult.decision` is set
 to `"error"` with the exception string; `cleanup()` still runs.
@@ -57,11 +62,16 @@ from .sandbox.anti_hardcode_check import (
     anti_hardcode_check as _anti_hardcode_check_fn,
 )
 from .sandbox.applier import AppliedExperiment
+from .sandbox.content_validator import (
+    ContentValidationResult,
+    validate_content as _validate_content_fn,
+)
 from .sandbox.yaml_diff_validator import (
     ValidationResult,
     validate_skill_yaml_diff,
 )
-from .scoring import baseline_loader, eval_runner, tier_evaluator
+from .scoring import baseline_loader, eval_runner, gaming as _gaming, tier_evaluator
+from .scoring.gaming import GamingFlag
 from .scoring.tier_evaluator import LexicographicVerdict
 
 
@@ -76,6 +86,16 @@ class IterationResult:
     when decision == "error" — it holds the exception text. All
     other fields are best-effort populated up to the point the
     iteration short-circuited.
+
+    S-Auto-4 added two additive optional fields:
+    - `content_validator_verdict` — verdict from the pre-sandbox
+      content validator (None on iterations that short-circuited
+      earlier).
+    - `gaming_flags` — list of observation-only anti-gaming flags
+      (post-eval; never alters keep/discard).
+    - `anti_hardcode_flag_for_codex` — True when the anti-hardcode
+      detector returned FLAG_FOR_CODEX (the iteration continued
+      through apply / eval; the flag is for human / Codex review).
     """
 
     iteration_id: str
@@ -89,6 +109,9 @@ class IterationResult:
     discard_reason: str | None = None
     error: str | None = None
     elapsed_seconds: float = 0.0
+    content_validator_verdict: ContentValidationResult | None = None
+    gaming_flags: list[dict[str, Any]] = field(default_factory=list)
+    anti_hardcode_flag_for_codex: bool = False
 
 
 def run_one_iteration(
@@ -155,6 +178,17 @@ def run_one_iteration(
             return _finalize(result, started)
         result.hypothesis = hypothesis
 
+        # --- 2.5. Content validator (S-Auto-4, pre-sandbox).
+        cv_verdict = _validate_content_fn(hypothesis, config=config)
+        result.content_validator_verdict = cv_verdict
+        if cv_verdict.verdict != "PASS":
+            result.decision = "discard"
+            result.discard_reason = (
+                f"content_validator_rejected:{cv_verdict.rule_id}"
+            )
+            _persist_iteration(result, config, root, dry_run=dry_run, applied=None)
+            return _finalize(result, started)
+
         # --- 3. Sandbox.
         surface_cfg = (config or {}).get("mutable_surface") or {}
         allowed_files = surface_cfg.get("allowed_skill_files") or []
@@ -176,14 +210,20 @@ def run_one_iteration(
             _persist_iteration(result, config, root, dry_run=dry_run, applied=None)
             return _finalize(result, started)
 
-        # --- 4. Anti-hardcode (S-Auto-3 placeholder; S-Auto-4 real).
+        # --- 4. Anti-hardcode (S-Auto-4 real detector).
         ah_verdict = _anti_hardcode_check_fn(hypothesis, config=config)
         result.anti_hardcode_verdict = ah_verdict
-        if ah_verdict.decision != "PASS":
+        if ah_verdict.verdict == "FAIL":
             result.decision = "discard"
-            result.discard_reason = f"anti_hardcode_rejected:{ah_verdict.reason}"
+            result.discard_reason = (
+                f"anti_hardcode_rejected:{ah_verdict.rule_id}"
+            )
             _persist_iteration(result, config, root, dry_run=dry_run, applied=None)
             return _finalize(result, started)
+        if ah_verdict.verdict == "FLAG_FOR_CODEX":
+            # Observation-only: continue the iteration; surface the
+            # flag for Codex / human review via the iteration record.
+            result.anti_hardcode_flag_for_codex = True
 
         # --- 5. Dry-run short circuit.
         if dry_run:
@@ -237,6 +277,16 @@ def run_one_iteration(
         result.discard_reason = (
             verdict.discard_reason if verdict.decision == "discard" else None
         )
+
+        # --- 9.5. Anti-gaming checks (observation-only in v1).
+        try:
+            result.gaming_flags = _run_gaming_detect(
+                result, results_root, baseline, config, root,
+            )
+        except Exception:
+            # Gaming detector is observation-only; any internal
+            # failure must not block iteration persistence.
+            result.gaming_flags = []
 
         # --- 10/11. Persist memory (Layer A + Layer B).
         _persist_iteration(
@@ -426,14 +476,65 @@ def _build_record_dict(
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "hypothesis": _safe_asdict(result.hypothesis),
         "sandbox_verdict": _safe_asdict(result.sandbox_verdict),
+        "content_validator_verdict": _safe_asdict(result.content_validator_verdict),
         "anti_hardcode_verdict": _safe_asdict(result.anti_hardcode_verdict),
+        "anti_hardcode_flag_for_codex": result.anti_hardcode_flag_for_codex,
         "applied": _serialize_applied(applied),
         "verdict": _serialize_verdict(result.verdict),
+        "gaming_flags": list(result.gaming_flags or []),
         "decision": result.decision,
         "discard_reason": result.discard_reason,
         "error": result.error,
         "elapsed_seconds": result.elapsed_seconds,
     }
+
+
+def _run_gaming_detect(
+    result: IterationResult,
+    results_root: Path,
+    baseline,
+    config: dict[str, Any],
+    root: Path,
+) -> list[dict[str, Any]]:
+    """Build the gaming.detect arguments + return serialized flags."""
+    iteration_record = _build_record_dict(result, applied=result.applied)
+    paths = _resolve_paths(config, root)
+    recent_records = _experiments_log.read_recent(paths["experiments_log"], 20)
+    baseline_dir_str = (config or {}).get("fitness", {}).get("baseline_dir") or ""
+    baseline_dir = (
+        root / baseline_dir_str
+        if baseline_dir_str and "<PLACEHOLDER" not in baseline_dir_str
+        else None
+    )
+    eval_artefacts = {
+        "results_root": results_root,
+        "verdict": result.verdict,
+        "baseline_dir": baseline_dir,
+        "baseline_snapshot": baseline,
+    }
+    flags = _gaming.detect(
+        iteration_record,
+        recent_records,
+        eval_artefacts,
+        config=config,
+    )
+    return [asdict(f) for f in flags]
+
+
+def _summarize_gaming_flags(
+    flags: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Compact gaming-flag view for the `audit` subcommand."""
+    if not flags:
+        return []
+    return [
+        {
+            "rule_id": f.get("rule_id"),
+            "severity": f.get("severity"),
+            "detail": f.get("detail"),
+        }
+        for f in flags
+    ]
 
 
 def _build_index_record(
@@ -550,6 +651,14 @@ def _write_dry_run_artefacts(
     if result.hypothesis is not None:
         with (runs_dir / "hypothesis.json").open("w", encoding="utf-8") as f:
             json.dump(_safe_asdict(result.hypothesis), f, indent=2, default=str)
+    if result.content_validator_verdict is not None:
+        with (runs_dir / "content_validator_verdict.json").open(
+            "w", encoding="utf-8"
+        ) as f:
+            json.dump(
+                _safe_asdict(result.content_validator_verdict),
+                f, indent=2, default=str,
+            )
     if result.sandbox_verdict is not None:
         with (runs_dir / "sandbox_verdict.json").open("w", encoding="utf-8") as f:
             json.dump(_safe_asdict(result.sandbox_verdict), f, indent=2, default=str)
