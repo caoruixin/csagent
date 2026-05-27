@@ -237,6 +237,36 @@ S-Auto-3 surfaced **OQ-S56.1**: one out-of-standard-scope edit to `eval_interact
 
 This disposition is captured at S-Auto-3 close so the milestone-shared Codex review at M-Auto-1A close consumes a stable hard-fence list (top-level YAML edit is pre-blessed; Codex does not need to re-litigate it).
 
+### 6.2 S-Auto-4 close + M-Auto-1A milestone-close gate state (2026-05-27)
+
+All 4 sub-sprints of M-Auto-1A are CLOSED at this point:
+
+- **Sprint 54 / S-Auto-1** — A — Clean PASS 2026-05-27; dev commit `85fc409`; archives `docs/sprints/sprint-054-{objective,handoff}.md`.
+- **Sprint 55 / S-Auto-2** — A — Clean PASS 2026-05-27; dev commit `eb55322`; archives `docs/sprints/sprint-055-{objective,handoff}.md`.
+- **Sprint 56 / S-Auto-3** — A — Clean PASS 2026-05-27; dev commit pending in `cf0127f` parent line; archives `docs/sprints/sprint-056-{objective,handoff}.md`.
+- **Sprint 57 / S-Auto-4** — A — Clean PASS 2026-05-27; dev commit `1feef1f`; archives `docs/sprints/sprint-057-{objective,handoff}.md` + per-sub-sprint Codex prompt `compact/sprint-057-codex-review-prompt.md`.
+
+**Gates satisfied at S-Auto-4 close (deliver-agent verified 2026-05-27)**:
+
+- §5 "Java test baseline preserved" — `1183 / 1-inherited / 0 / 2` UNCHANGED from M5 close `c9390dc` (S-Auto-4 zero Java touch verified via `git diff --stat cf0127f..1feef1f -- server/ eval/src/main/java/` returns empty).
+- §5 "Python test baseline preserved" — eval_interactive `486 passed, 3 failed` UNCHANGED; new autoloop tests all PASS (216 total, 147 baseline + 69 S-Auto-4 new).
+- §5 "Anti-hardcode auto-check regression test" — calibration table satisfies the ≥8 forbidden auto-rejected + ≥4 clean pass bar with margin (11/11 + 4/4 + 2/2 FLAG); 11.76% FLAG_FOR_CODEX rate is well under the 25% warn threshold.
+- §5 "Sandbox structural-reject coverage" — satisfied at S-Auto-1 close; carries through.
+
+**Gates PENDING at S-Auto-4 close (block M-Auto-1A milestone close until satisfied)**:
+
+1. **Per-sub-sprint Codex review of S-Auto-4** (§4.3 trigger #2) — REQUIRED. Human dispatches `compact/sprint-057-codex-review-prompt.md` against commit `1feef1f`. Codex must return `pass` (or `approve with downgrade-to-signal follow-up`). `reject` triggers fix-iteration sub-sprint extending M-Auto-1A.
+2. **Milestone-shared Codex review on cumulative S-Auto-1..S-Auto-4 range** (§4.3 default) — REQUIRED at milestone close. Deliver-agent authors `compact/M-Auto-1A-review-prompt.md` AFTER the per-sub-sprint Codex returns `pass` (so the milestone-shared prompt can cross-reference the per-sub-sprint verdict notes for the cumulative scope claim).
+3. **Bad-case suite manual review** (§5.6 primary gate) — REQUIRED. Deliver-agent + human run `eval_interactive/case_specs/bad_cases/` with `parallel=1` (per `R-bad-case-parallel-session-establishment-flakiness`). Distribution expected to match M5-close exactly (PASS×5 + IMPROVING×4 + FAIL×3) since M-Auto-1A ships zero bot-behaviour change. Any deviation = STOP and investigate (autoloop/ has somehow side-effected the bot).
+4. **Shadow regression-safety rerun** (§5 acceptance bar; M5 NEW parity gate) — REQUIRED. Deliver-agent runs `eval_interactive/case_specs_shadow/` once at M-Auto-1A close; expected no regression beyond `R-shadow-fixture-empty-form-session-create-400`.
+5. **Live iteration end-to-end** (§5 acceptance bar; OQ-S56.5) — REQUIRED. Human runs `uv run python -m autoloop run --experiments 1` with `AUTOLOOP_META_LLM_API_KEY` filled in `.env.local` + a built `server/` jar so `mvn -pl server -am spring-boot:run` succeeds + a clean working tree on the autoloop branch. Records keep/discard verdict + elapsed time (expected ~12-15 min). Regardless of keep/discard, the FULL pipeline must execute without crash.
+
+**§6.1 OQ-S56.1 surface unchanged at S-Auto-4 close**: deliver-agent verified `git diff cf0127f..1feef1f -- eval_interactive/eval_interactive.yaml` returns empty. The blessing established at S-Auto-3 close holds for the cumulative scope claim consumed by the milestone-shared Codex.
+
+**§6 hard fences re-affirmed across S-Auto-1..S-Auto-4 cumulative range**: deliver-agent verified `git diff --stat cf0127f..1feef1f` against all enumerated gated prefixes returns empty (only the new sub-sprint's own archive `docs/sprints/sprint-057-handoff.md` appears, in-scope per §6 item 5 carve-out for sprints not in the `001-053` range). The cumulative range covers all four sub-sprints; the milestone-shared Codex consumes this against the §6 fences + §6.1 OQ-S56.1 disposition.
+
+**`config.fitness.scoring_code_baseline_sha` backfilled `"1feef1f"`** by deliver-agent at S-Auto-4 close per the S-Auto-4 contract — anchors `gaming.scoring_code_drift` to the S-Auto-4 dev commit. Future commits touching `tier_evaluator.py` / `eval_runner.py` / `baseline_loader.py` / `gaming.py` would trigger drift ERROR per D3.
+
 ## 7. R-items consumed / surfaced
 
 **Consumed by M-Auto-1A (closed at close):** None expected. M-Auto-1A is infrastructure; it closes no semantic R-items.
