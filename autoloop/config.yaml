@@ -42,3 +42,51 @@ lessons:
   # block per `program.md` and the proposal §3.4 (three-layer memory).
   # S-Auto-3 reads this; S-Auto-1 only persists the value.
   compaction_window_k: 10
+
+fitness:
+  # v1 minimal fitness suite — human-locked 2026-05-27 dataset scope.
+  # anchor (159) is NOT here per docs/milestone_objective.md §2
+  # dataset-scope; M-Auto-2 may revisit. Each suite is invoked via
+  # `eval-interactive run --path <suite> --parallel <N>
+  #  --output-dir <results_root>/<suite>/` by
+  # autoloop/scoring/eval_runner.py. Paths are repo-root-relative.
+  suites:
+    - name: bad_cases
+      path: eval_interactive/case_specs/bad_cases/
+      parallel: 1                    # bad-case session-establishment flakiness mitigation per M5-close R-item
+    - name: anchor_outcome
+      path: eval_interactive/case_specs/anchor_outcome/
+      parallel: 4
+    - name: shadow
+      path: eval_interactive/case_specs_shadow/
+      parallel: 4
+
+  # Layer 3 improvement-threshold mode. 'case_count' is the v1 choice
+  # (2026-05-27 human-locked); a 'percent' mode is reserved for
+  # later milestones where N is larger and a 2% threshold becomes
+  # meaningful (12+12=24 cases makes 2% = 0.48 cases, which is not).
+  improvement_threshold_mode: case_count
+  improvement_min_cases: 1
+
+  # Layer 4 shadow gate. 3% drop tolerance is the proposal §3.3 v1
+  # threshold; tightening / loosening is a future-milestone decision.
+  shadow_max_drop_pct: 3.0
+
+  # Layer 1 anchor_outcome strictness. 0 = no programmatic-pass case
+  # may flip down between baseline and current.
+  anchor_outcome_max_drop_cases: 0
+
+  # Explicit baseline pointer (no auto-latest heuristic). Deliver-agent
+  # + human bless the actual baseline run path at M-Auto-1A close OR
+  # at first S-Auto-3 live-iteration; the literal placeholder below is
+  # what S-Auto-2 commits.
+  baseline_dir: eval_interactive/results/<PLACEHOLDER-set-at-M-Auto-1A-close>
+
+  # Hard cap per suite (30 min). A timeout aborts the loop iteration
+  # — partial fitness evidence is worse than no fitness evidence.
+  eval_suite_timeout_seconds: 1800
+
+  # Sequential suite execution in v1. M-Auto-2 may parallelize, but
+  # only after evaluating LLM-provider rate-limit + bad-case
+  # session-establishment flakiness interaction.
+  parallel_suites: false
