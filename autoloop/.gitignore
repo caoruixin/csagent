@@ -5,5 +5,9 @@
 __pycache__/
 *.pyc
 
+# Local-only environment variables (credentials for meta-agent LLM etc.) — NEVER commit.
+.env.local
+.env.*.local
+
 # S-Auto-3 will produce these; placeholder for visibility.
 results/

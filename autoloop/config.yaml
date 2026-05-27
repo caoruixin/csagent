@@ -42,6 +42,33 @@ lessons:
   # block per `program.md` and the proposal §3.4 (three-layer memory).
   # S-Auto-3 reads this; S-Auto-1 only persists the value.
   compaction_window_k: 10
+  # How many recent iterations to summarize into the proposer prompt.
+  # S-Auto-3 reads this from config.
+  recent_iterations_for_propose: 5
+
+meta_agent:
+  # Meta-agent LLM configuration for analyzer / proposer / lessons_compactor.
+  # Provider: AICodeWith (https://api.aicodewith.com) — Anthropic-compatible
+  # protocol per https://docs.aicodewith.com/en/docs/claude-code (the service
+  # exposes Claude / Codex / Gemini through Anthropic-style env vars).
+  #
+  # Credentials live in `autoloop/.env.local` (gitignored). The env-var
+  # NAMES are autoloop-namespaced (NOT the AICodeWith-recommended
+  # ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL) to avoid colliding with
+  # any system-wide Anthropic env vars the human may have set for other
+  # tools (e.g. Claude Code, other Anthropic SDK clients). S-Auto-3 dev
+  # passes them explicitly to the SDK constructor:
+  #   client = anthropic.Anthropic(
+  #       api_key=os.environ["AUTOLOOP_META_LLM_API_KEY"],
+  #       base_url=os.environ.get("AUTOLOOP_META_LLM_BASE_URL"),
+  #   )
+  provider: anthropic                   # SDK: `anthropic` Python package; Anthropic-compatible API
+  model: claude-opus-4-7                # best-reasoning default for meta-agent; downgrade to claude-sonnet-4-6 for cost/latency if needed
+  temperature: 0.3                       # low for reproducibility of propose / analyze
+  max_tokens: 4096
+  api_key_env: AUTOLOOP_META_LLM_API_KEY
+  base_url_env: AUTOLOOP_META_LLM_BASE_URL
+  request_timeout_seconds: 120
 
 fitness:
   # v1 minimal fitness suite — human-locked 2026-05-27 dataset scope.
