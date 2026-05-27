@@ -118,16 +118,28 @@ fitness:
   # session-establishment flakiness interaction.
   parallel_suites: false
 
-  # S-Auto-4 — scoring-code drift baseline. Deliver-agent backfilled
-  # at S-Auto-4 close (2026-05-27) with the S-Auto-4 dev commit `1feef1f`
-  # — the commit at which all four scoring files (`tier_evaluator.py` +
-  # `eval_runner.py` + `baseline_loader.py` + `gaming.py`) exist in their
-  # M-Auto-1A close form. Subsequent commits touching any of these four
-  # files will trigger `gaming.scoring_code_drift.sha_changed` ERROR.
-  # If reset to null, the check emits WARN
-  # `rule_id=scoring_code_drift.baseline_missing` (D3: never guess; never
-  # silently hash-as-baseline).
-  scoring_code_baseline_sha: "1feef1f"
+  # S-Auto-4 — scoring-code drift baseline. The value here is the
+  # SHA-256 content hash produced by `gaming._compute_scoring_code_sha()`
+  # over the four files (`tier_evaluator.py` + `eval_runner.py` +
+  # `baseline_loader.py` + `gaming.py`) at their M-Auto-1A close form
+  # (computed at S-Auto-4 close 2026-05-27 against the bytes at
+  # commit `1feef1f`).
+  #
+  # First fill attempt was the literal git commit SHA `"1feef1f"`,
+  # which Codex per-sub-sprint review (`docs/codex-findings.md`
+  # Axis C milestone-shared note 2026-05-27) flagged as a format
+  # mismatch — gaming.py compares against this content hash, not
+  # against a git commit id, so `1feef1f` produced an
+  # observation-only `scoring_code_drift.sha_changed` on every
+  # iteration. Resolved at S-Auto-4 close-bundle fix-up by computing
+  # the actual hash and recording it here.
+  #
+  # Subsequent commits touching any of these four files will
+  # trigger `gaming.scoring_code_drift.sha_changed` ERROR (intended
+  # behaviour). If reset to null, the check emits WARN
+  # `rule_id=scoring_code_drift.baseline_missing` (D3: never guess;
+  # never silently hash-as-baseline).
+  scoring_code_baseline_sha: "5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the
