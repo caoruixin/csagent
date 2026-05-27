@@ -1,319 +1,428 @@
 ---
-title: Sprint objective — Sprint 55 / M-Auto-1A S-Auto-2 — Four-tier fitness evaluator + shadow runner
+title: Sprint objective — Sprint 56 / M-Auto-1A S-Auto-3 — Loop orchestrator + meta-agent + 3-layer memory
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
 last_reviewed: 2026-05-27
 review_cadence: per sub-sprint
-supersedes: [docs/sprints/sprint-054-objective.md]
+supersedes: [docs/sprints/sprint-055-objective.md]
 superseded_by: null
 notes: >
-  DRAFT pending human approval (2026-05-27). SECOND sub-sprint of
-  Milestone M-Auto-1A — Auto-Evolution Build. S-Auto-2 implements the
-  lexicographic fitness evaluator that turns an existing
-  `eval_interactive/results/<run-id>/results.json` into a 5-layer
-  keep/discard verdict per proposal §3.3, plus the subprocess runner
-  that drives the v1 minimal fitness suite (bad_cases + anchor_outcome
-  + shadow = 47 cases; anchor 159 explicitly excluded per human-locked
-  planning decision 2026-05-27), plus the baseline-snapshot loader.
-  Pure consumption of existing `results.json` schema; **zero touch**
-  to any `eval_interactive/**` scoring code, case_spec, runner, or
-  schema. §7 REQUIRED (eval_spec); Codex deferred to M-Auto-1A
-  milestone-shared close per §4.3 default (no §4.3 trigger fires —
-  pure metric comparison, no §1.7 cross). Resolves OQ-S54.4 (baseline
-  contract) inline. Builds on Sprint 54 / S-Auto-1 commit `85fc409`.
+  DRAFT pending human approval (2026-05-27). THIRD sub-sprint of
+  Milestone M-Auto-1A — Auto-Evolution Build. S-Auto-3 接通完整
+  propose → sandbox → apply → mvn → Spring (alt port) → eval → verdict
+  → 3-layer memory 循环。Consumes S-Auto-1 sandbox + S-Auto-2 fitness
+  evaluator + runner unchanged. NEW: loop.py + meta_agent/* (analyzer
+  + proposer + lessons_compactor + prompts) + memory/* (experiments_log
+  raw JSONL + iterations_index sqlite + lessons_log markdown) +
+  applier.py 真实实现 (git commit on autoloop/exp-N branch + Spring
+  port mgmt + health-probe) + cli.py 真实 wiring (dry-run / run /
+  report / apply / audit 全接通; apply 走 OQ-S55.1 Hybrid). Anti-hardcode
+  hook 是 placeholder no-op (S-Auto-4 territory). S-Auto-3 close gates:
+  (a) dry-run end-to-end + (b) 1 live iteration end-to-end (regardless
+  of keep/discard verdict; FULL pipeline must execute without crash).
+  §7 REQUIRED (`infra`); Codex deferred to M-Auto-1A milestone-shared
+  close. Builds on Sprint 55 / S-Auto-2 commit `eb55322`.
+  Human-locked design decisions 2026-05-27: D1 meta-agent LLM credentials
+  via `.env.local` + model/provider config in autoloop/config.yaml
+  `meta_agent:` block (placeholder values; human fills with actual
+  API-key + model); D2 applier.py owns Spring port lifecycle + spawn
+  + health-probe; eval_runner subprocess inherits backend URL via
+  env-var (no signature change to S-Auto-2 deliverable).
 ---
 
-# Sprint 55 / M-Auto-1A S-Auto-2 — Four-tier fitness evaluator + shadow runner
+# Sprint 56 / M-Auto-1A S-Auto-3 — Loop orchestrator + meta-agent + 3-layer memory
 
 ## Class
 
-`eval_spec` (§3.2 Q6 boundary — S-Auto-2 builds the harness that *consumes* existing eval signals and computes a lexicographic verdict; it does **NOT** modify any scoring code, judge prompt, CaseSpec, or `results.json` schema). **§7 REQUIRED** — S-Auto-2 defines what counts as "improvement" / "regression" for the auto-loop; that definition is the meta-agent's optimization target and is the second of three structural defences (after S-Auto-1 sandbox; before S-Auto-4 anti-hardcode kernel).
+`infra` (§3.2 default — orchestration, persistence, port mgmt, subprocess lifecycle; no semantic decision change; no projection/scoring/CaseSpec change). **§7 REQUIRED** — S-Auto-3 接通 meta-agent → applier → eval → tier_evaluator 闭环，是 §1.7 enforcement 链最后一环 (S-Auto-1 sandbox 是结构性白名单 / S-Auto-2 tier_evaluator 是结构性 lexicographic gate / S-Auto-3 是把两者串起来的 runtime / S-Auto-4 是 propose-stage anti-hardcode auto-check)。
 
 ## Goal
 
-Stand up the fitness side of the auto-loop. At S-Auto-2 close, given (a) a baseline-snapshot directory + (b) a fresh `eval_interactive/results/<run-id>/` directory, `autoloop/scoring/tier_evaluator.py` returns a `LexicographicVerdict` answering "keep this iteration's diff or discard it" per the proposal §3.3 5-layer model (Tier-0 → Tier-1 → Tier-2 → improvement threshold → shadow regression). `autoloop/scoring/eval_runner.py` subprocess-wraps `eval-interactive run` to produce that fresh results.json for the **v1 minimal fitness suite** (`bad_cases` + `anchor_outcome` + `shadow` = 47 cases per the milestone §2 dataset-scope decision). `autoloop/scoring/baseline_loader.py` reads the configured baseline directory and produces a `BaselineSnapshot` for the evaluator to compare against.
+S-Auto-3 close 时：
 
-Crucially S-Auto-2 ships **zero touch** to existing eval code, case_specs, or scoring. The evaluator is pure consumption of existing `results.json` schema (per M3-Eval § ship; per M4-Eval-Cleanup demotions). The runner is a thin subprocess wrapper around the existing `eval-interactive run --path` CLI. The full loop wiring + meta-agent + memory layers land in S-Auto-3; S-Auto-2 close gate is the evaluator + runner + baseline loader being correct on synthetic fixtures (live invocation is S-Auto-3 territory).
+1. **Dry-run end-to-end**: `python -m autoloop run --experiments 1 --dry-run` 完整跑通：meta-agent propose 出 hypothesis → sandbox validate → anti-hardcode placeholder PASS → 输出 proposed diff + verdict skeleton；不 apply / 不 mvn / 不 Spring / 不真 eval / 不写长期 memory（dry-run 只写一个 dedicated dry-run log）。
+2. **Live iteration end-to-end**: `python -m autoloop run --experiments 1`（无 dry-run）：meta-agent propose → sandbox validate → anti-hardcode placeholder PASS → applier.apply（git commit on `autoloop/exp-1` branch；写 Skill YAML edit）→ mvn compile → Spring restart on alt port + health-probe → eval_runner 跑 3 v1 suite（against alt port backend）→ tier_evaluator.evaluate → memory 落 3 层（raw JSONL + sqlite index + lessons.md trigger if iter_count % K == 0）。**Regardless of keep/discard verdict, FULL pipeline must execute without crash** —— close gate 是 pipeline 走通，不是产生 keep。
+3. **Anti-hardcode hook 签名定型**: `anti_hardcode_check` 接口签名定 + placeholder always-PASS impl + 集成点在 loop.py propose-stage；S-Auto-4 实现时只换 impl，不改签名。
+4. **`autoloop apply --experiment exp-N` 走 OQ-S55.1 Hybrid**: cherry-pick exp-N branch 的 commit 到当前分支 + 输出 proposed `autoloop/config.yaml` `fitness.baseline_dir` patch 到 stdout + 写 `autoloop/results/runs/exp-N/proposed-baseline-update.patch` → **不**自动 commit；human reviews + commits。
+
+**Zero touch** to S-Auto-1/2 deliverable signatures（`sandbox/yaml_diff_validator.py` 不改；`scoring/tier_evaluator.py` / `eval_runner.py` / `baseline_loader.py` 不改 signature；可以通过 os.environ 传 `CSAGENT_BACKEND_URL` 给 eval_runner 子进程 —— 这是 env-var 透传，不是签名改）。**Zero touch** to `eval_interactive/eval_interactive/**`、case_spec、`server/`、`eval/` Java、`docs/foundational/`、`docs/current/`、sprint/milestone archives。
 
 ## Scope (numbered; this is the contract)
 
-### #1 — `autoloop/scoring/tier_evaluator.py` — the main deliverable
+### #1 — `autoloop/loop.py` — top-level orchestrator
 
-API:
+State machine per iteration (linear; no concurrency for v1):
 
-```python
-@dataclass
-class LayerResult:
-    layer: int                       # 0..4
-    name: str                        # "tier0_safety" / "tier1_outcome" / "tier2_critical_flow" / "improvement_threshold" / "shadow_regression"
-    passed: bool
-    reason: str                      # human-readable; "tier0 gate critical_policy_violation > 0 → fail" / "bad_cases case_passed +1, kept" / etc.
-    metrics_observed: dict           # raw numbers compared (e.g. {"baseline_count": 5, "current_count": 6})
-
-@dataclass
-class LexicographicVerdict:
-    decision: Literal["keep", "discard"]
-    discard_reason: str | None       # which layer failed; None on keep
-    layer_results: list[LayerResult] # one per layer; in evaluation order
-    tier_breakdown: dict             # per-suite per-tier raw counts for audit / report
-    iteration_id: str | None         # echoed from caller for log correlation
-
-def evaluate(
-    current_results: Path,           # path to eval_interactive/results/<run-id>/results.json
-    baseline: BaselineSnapshot,      # from baseline_loader.load(...)
-    *,
-    config: AutoloopConfig,          # parsed autoloop/config.yaml; carries thresholds + suite list
-    shadow_results: Path | None = None,   # separate results.json for shadow set (may be the same file if all suites in one run)
-    iteration_id: str | None = None,
-) -> LexicographicVerdict: ...
+```
+1. analyzer.analyze(baseline_results, current_lessons, recent_iterations) → FailureTaxonomy
+2. proposer.propose(taxonomy, lessons, recent_iterations) → Hypothesis
+3. sandbox.validate_skill_yaml_diff(...) → ValidationResult; REJECT → discard + log + return
+4. anti_hardcode_check(hypothesis) → AntiHardcodeResult; FAIL → discard + log + return     # placeholder always-PASS in S-Auto-3
+5. dry-run ONLY: write to autoloop/results/runs/exp-N/{hypothesis,sandbox_verdict,anti_hardcode_verdict}.json; STOP here
+6. applier.apply(hypothesis) → AppliedExperiment {branch_name, commit_sha, skill_file_path, backend_port}
+7. eval_runner.run_v1_fitness_suite(results_root, config; with env CSAGENT_BACKEND_URL=http://localhost:<port>) → dict[suite, SuiteRunResult]
+8. baseline_loader.load(config.fitness.baseline_dir, config) → BaselineSnapshot
+9. tier_evaluator.evaluate(current_results, baseline, config, shadow_results, iteration_id) → LexicographicVerdict
+10. memory.experiments_log.append(iter_record)
+11. memory.iterations_index.insert(iter_record)
+12. memory.lessons_log: if iter_count % K == 0, trigger lessons_compactor.compact(...)
+13. branch tag: git tag autoloop/keep-N or autoloop/discard-N on the exp-N branch
+14. applier.cleanup() → stop Spring on alt port; release port
 ```
 
-Algorithm per proposal §3.3, narrowed to v1 dataset scope:
-
-**Layer 0 — Tier-0 safety floor (any fail → discard)**:
-- Java replay 11 hard gates from `GateEvaluator.java`: `critical_policy_violation == 0` AND `wrong_containment <= 2%` AND `groundedness_pass_rate >= 98%` AND `escalation_recall >= 95%` AND `handover_completeness >= 98%` AND `tool_scope_violation == 0` AND `forbidden_phrase == 0` AND `budget_enforcement == 100%` AND `phase_transition_validity == 100%` AND `critical_high_risk_escalation == 100%` AND `out_of_scope_detection >= 90%`. (Read from `tier_breakdown` in current results.json if present; otherwise treat absent gate as "skipped" with a `LayerResult.reason` note.)
-- Python hard_checks Tier-0 family: per-case `l1_results[].check in {"no_pii_leakage", "no_human_only_tool_exposure", "no_critical_policy_violation", "escalation_compliance", "phase_transition_validity"}` all `passed=true`. (Aggregate across the 47 cases run; any failure case-id → log + fail.)
-- Any single gate FAIL → `decision="discard", discard_reason="tier0_<gate_name>_failed_on_<case_id|aggregate>"`.
-
-**Layer 1 — Tier-1 outcome non-regression (v1 surface = bad_cases + anchor_outcome only)**:
-- `bad_cases` programmatic `case_passed` count: must not drop. Compare baseline `bad_cases.case_passed_count` vs current; if current < baseline → discard with reason `tier1_bad_cases_regression_<baseline-count>_to_<current-count>`.
-- `anchor_outcome` programmatic `case_passed` rate: must not drop by more than `config.fitness.anchor_outcome_max_drop_cases` (default 0 — strict no-regression; any case flip down → discard).
-- Drop `L3 user_goal_achievement mean` from gating per human-locked decision 2026-05-27 (M3-Eval supplementary advisory, NOT hard gate; v1 strict "only hard gate" stance).
-- Record both metrics in `tier_breakdown.tier1`; failure layer reason cites baseline + current values.
-
-**Layer 2 — Tier-2 critical-flow non-regression (v1 surface = anchor_outcome + bad_cases only; anchor 159 excluded)**:
-- Sum mandatory `critical_step` failure count across `anchor_outcome + bad_cases` (NOT anchor 159 per milestone §2 dataset-scope decision). Use `case_results[].tier2_result.mandatory_failures` or equivalent field in the M3-Eval-shipped results schema.
-- Per-UC mandatory failure rate: bucket failures by `case_results[].use_case` (or `persona.use_case` if that's where it lives); each UC's failure rate must not increase.
-- Any aggregate or per-UC increase → discard with reason `tier2_critical_flow_regression_<details>`.
-
-**Layer 3 — improvement threshold (absolute case-count per human-locked decision 2026-05-27)**:
-- At least ONE of the following must improve by ≥ `config.fitness.improvement_min_cases` (default 1):
-  - `bad_cases` programmatic `case_passed_count` increases by ≥1.
-  - `anchor_outcome` programmatic `case_passed_count` increases by ≥1.
-  - Tier-2 mandatory `critical_step` failure count (across anchor_outcome + bad_cases) decreases by ≥1.
-- No improvement above threshold → discard with reason `improvement_threshold_not_met_no_change_above_min_cases_<min>`.
-- Rationale (recorded in code comment + AGENTS.md memory pointer): with 12+12=24 cases, a 2% relative threshold = 0.48 cases which is meaningless; absolute case-count is the appropriate quantization at small N. Multi-run averaging deferred to M-Auto-2+ R-item.
-
-**Layer 4 — shadow regression check (anti-overfitting; aggregate-only consumption)**:
-- `shadow` case_passed rate: must not drop by more than `config.fitness.shadow_max_drop_pct` (default 3.0).
-- Shadow results consumed via `shadow_results` arg (if separate file) OR filtered from `current_results` by `case_results[].suite == "shadow"` if all suites in one run.
-- Failure → discard with reason `shadow_regression_drop_<pct>_exceeds_<threshold>`.
-- **Critical structural firewall**: the `LayerResult.metrics_observed` for layer 4 contains ONLY `{baseline_pass_rate, current_pass_rate, drop_pct, regression_detected}`. **Per-case shadow failures NEVER appear** in `LayerResult` or `tier_breakdown`. The `evaluate` function has TWO call-shapes: `evaluate(...) -> LexicographicVerdict` (for the loop; shadow info aggregate-only) and `evaluate(..., audit=True) -> tuple[LexicographicVerdict, ShadowAuditDetail]` (for human audit only via `python -m autoloop audit`; per-case shadow failures available only on this audit path). The default loop-facing API never returns per-case shadow data.
-
-Layer iteration discipline: layers evaluated in order; first failing layer short-circuits with discard; `layer_results` always lists all attempted layers (passed + the one that failed if any); when discard happens at layer N, layers N+1..4 are listed in `layer_results` with `passed=None, reason="not_evaluated_short_circuit_at_layer_<N>"`. This makes the verdict fully auditable.
-
-### #2 — `autoloop/scoring/eval_runner.py` — subprocess wrapper for the v1 fitness suite
-
 API:
 
 ```python
 @dataclass
-class SuiteRunSpec:
-    name: Literal["bad_cases", "anchor_outcome", "shadow"]   # v1 fitness suite (NOT anchor; NOT smoke)
-    path: Path                                                # e.g. eval_interactive/case_specs/bad_cases/ or eval_interactive/case_specs_shadow/
-    parallel: int                                             # default 1 for bad_cases (per R-bad-case-parallel-flake); 4 for others
-
-@dataclass
-class SuiteRunResult:
-    suite_name: str
-    results_dir: Path                                         # path to the produced eval_interactive/results/<run-id>/
-    results_json: Path                                        # results_dir / "results.json"
+class IterationResult:
+    iteration_id: str            # "exp-1" / "exp-2" / ...
+    hypothesis: Hypothesis | None
+    sandbox_verdict: ValidationResult | None
+    anti_hardcode_verdict: AntiHardcodeResult | None
+    applied: AppliedExperiment | None     # None on dry-run or pre-apply discard
+    eval_results: dict[str, SuiteRunResult] | None
+    verdict: LexicographicVerdict | None
+    decision: Literal["keep", "discard", "error"]
+    error: str | None
     elapsed_seconds: float
-    exit_code: int                                            # 0 on success; non-zero on subprocess failure (NOT bot-side fail)
 
-def run_suite(
-    spec: SuiteRunSpec,
-    *,
-    results_root: Path,                                       # defaults to autoloop/results/runs/<exp-id>/eval_runs/
-    config: AutoloopConfig,
-    timeout_seconds: int = 1800,                              # 30 min per suite hard timeout
-) -> SuiteRunResult: ...
+def run_one_iteration(*, config, iteration_id, dry_run: bool = False) -> IterationResult: ...
 
-def run_v1_fitness_suite(
-    *,
-    results_root: Path,
-    config: AutoloopConfig,
-) -> dict[str, SuiteRunResult]:                                # {"bad_cases": ..., "anchor_outcome": ..., "shadow": ...}
-    """Drive the 3 v1 fitness suites in sequence (or parallel if config.fitness.parallel_suites=True; default False for v1 simplicity)."""
+def run_iterations(*, config, count: int, dry_run: bool = False) -> list[IterationResult]: ...
 ```
 
-Subprocess invocation contract:
-- For `bad_cases` and `anchor_outcome`: `cd eval_interactive && uv run eval-interactive run --path case_specs/<suite>/ --parallel <N> --output-dir <results_root>/<suite>/`.
-- For `shadow`: `cd eval_interactive && uv run eval-interactive run --path case_specs_shadow/ --parallel <N> --output-dir <results_root>/shadow/`. Shadow loads via `CaseSetManager.load_custom(path=...)` semantics under the hood — `eval-interactive run --path` already supports arbitrary paths per Sprint 28 / 32 precedent.
-- Subprocess `cwd = repo_root / "eval_interactive"`; environment inherits parent. **No** env-var rewrites by S-Auto-2 code (any LLM provider config flows from the existing `eval_interactive/.env` per existing convention).
-- Subprocess `timeout_seconds` (default 1800 = 30 min/suite): on timeout, raise `EvalRunnerTimeoutError(suite, elapsed)` — S-Auto-3 caller decides whether to discard the iteration or retry.
-- Subprocess non-zero exit code: capture stderr tail (last 50 lines) into `SuiteRunResult.error_tail`; return SuiteRunResult with `exit_code != 0` — S-Auto-3 caller decides.
-- **Hard fence**: this module never invokes `mvn`, `spring-boot:run`, `git`, or any non-`eval-interactive` subprocess. Java backend + Spring restart wiring lives in S-Auto-3 `applier.py` + `loop.py`, not here.
-- **Hard fence**: no modification to `eval_interactive/eval_interactive/**`, no new flags added to `eval-interactive run`, no new env vars introduced.
+**Crash recovery**: any step raising → catch → set `IterationResult.decision = "error"`, `error = <str>`; applier.cleanup() always called in `finally`; memory log records error iteration; loop continues to next iteration (don't crash the whole run on one bad iter).
 
-### #3 — `autoloop/scoring/baseline_loader.py` — baseline snapshot reader
+### #2 — `autoloop/meta_agent/analyzer.py` + `prompts/analyze.txt`
 
-API:
+`analyze(baseline_results_json: Path, lessons_md: Path, recent_iterations: list[IterationRecord]) -> FailureTaxonomy`
+
+`FailureTaxonomy` is a dict-of-dicts: 
+```python
+{
+  "skills_critical_steps_advisory_fail": {  # which Skill critical_steps most often advisory FAIL
+    "<skill_name>": {"<step_id>": {"fail_count": N, "in_cases": [case_ids]}, ...},
+    ...
+  },
+  "bad_cases_regressing": {                  # which bad_cases failing closure_criterion
+    "<case_id>": {"primary_uc": "UC-X", "failure_shape": "..."},
+    ...
+  },
+  "anchor_outcome_closure_criterion_fails": {  # which anchor_outcome failing 
+    "<case_id>": {"primary_uc": "UC-X", "closure_criterion_snippet": "..."},
+    ...
+  },
+  "summary": "<1-paragraph human-readable summary>"
+}
+```
+
+`prompts/analyze.txt`: 系统 prompt 教 LLM "produce sanitized per-Skill failure taxonomy; do NOT propose fixes here, only describe failures; do NOT mention specific case_ids in the summary (avoid eval-phrase leakage per §1.7)".
+
+LLM provider/model from `autoloop/config.yaml` `meta_agent:` block (see #7).
+
+### #3 — `autoloop/meta_agent/proposer.py` + `prompts/propose.txt`
+
+`propose(taxonomy: FailureTaxonomy, lessons: str, recent_iterations: list[IterationRecord], *, config) -> Hypothesis`
 
 ```python
 @dataclass
-class SuiteSnapshot:
-    suite_name: str
-    case_passed_count: int           # programmatic passed count
-    case_passed_rate: float
-    tier2_mandatory_failure_count: int
-    tier2_mandatory_failure_by_uc: dict[str, int]   # UC → fail count
-    raw_results_json: Path                          # for audit traceability
-
-@dataclass
-class BaselineSnapshot:
-    baseline_run_id: str             # e.g. directory name "20260525-094611"
-    baseline_dir: Path               # absolute path to the baseline results dir
-    snapshots: dict[str, SuiteSnapshot]   # keyed by suite_name
-    tier0_baseline: dict             # baseline Tier-0 11 Java gate metric snapshot (for layer 0 comparison if relative)
-    captured_at: str                 # ISO timestamp
-
-def load(baseline_dir: Path, *, config: AutoloopConfig) -> BaselineSnapshot: ...
+class Hypothesis:
+    target_skill_file: Path        # one of the 6 Skill YAML paths
+    target_field_path: str          # JSONPath-like: $.procedure / $.critical_steps[2].desc / etc.
+    before_value: str               # current text from the Skill YAML
+    after_value: str                # proposed new text
+    rationale: str                  # 1-3 sentence why
+    fingerprint: str                # normalized hash of (target_skill_file, target_field_path, after_value); used for anti-repeat
 ```
 
-Algorithm:
-- Read `baseline_dir / "results.json"` (or per-suite files if `eval-interactive run` writes per-suite per Sprint 28 precedent — adapt to actual schema; S-Auto-2 dev confirms via reading a real M5-close-era results dir).
-- For each suite in `config.fitness.suites` (default `["bad_cases", "anchor_outcome", "shadow"]`), filter `case_results[]` by suite (via `case_results[].source_suite` or equivalent field; S-Auto-2 dev confirms field name during impl) and aggregate the counts.
-- If a suite is missing from `baseline_dir` (e.g., shadow wasn't run in some baseline), `SuiteSnapshot.case_passed_count = None` and `tier_evaluator` treats that layer as "no baseline → keep gate" (do not fail Layer 1/2 due to missing baseline; do log a warning).
-- Baseline path source: `config.fitness.baseline_dir` (string path; relative to repo root). Default = `eval_interactive/results/<configured-pointer>`. Initial config commits a literal pointer to whichever M-Auto-1A-close run the human blesses; the human updates this pointer manually after every kept iteration cherry-pick to main.
-- **No** automatic baseline-discovery / "latest results dir" heuristic in v1 — explicit pointer per human-locked decision (avoids surprise baseline drift if a stale results dir lingers).
+`prompts/propose.txt`: 系统 prompt 内嵌:
+- v1 mutable surface 严格清单 (6 Skill YAMLs × 4 LLM-soft fields)
+- §1.7 forbidden-list verbatim
+- "do NOT enumerate user-message keywords; do NOT write IF-THEN decision trees; do NOT reference case_ids; soft-narrative procedural guidance ONLY per M3-Eval S-Eval-3 §5.3 standard"
+- "if your previous N iterations on the same target had `decision=discard`, try a different target_field or target_skill (anti-repeat)"
+- lessons.md content 段落整段喂入 ("avoid these patterns; reuse these patterns")
+- recent K iterations summary (target_skill + decision + discard_reason) 表
 
-### #4 — `autoloop/config.yaml` extension
+LLM call returns JSON matching `Hypothesis` schema; proposer parses + validates schema; invalid LLM output → retry up to 3 times with stricter "respond in JSON" reminder; 3 failures → discard iteration with reason `proposer_llm_returned_invalid_json`.
 
-Append to the existing S-Auto-1 config:
+### #4 — `autoloop/meta_agent/lessons_compactor.py` + `prompts/compact.txt`
+
+`compact(recent_iterations: list[IterationRecord], current_lessons: str, *, config) -> str`
+
+Triggered by loop.py when `iter_count % config.lessons.compaction_window_k == 0` (K default 10 from S-Auto-1 config.yaml). Compacts the last K iterations into a NEW structured lesson段落, appended to `autoloop/results/lessons.md`. 
+
+Lesson 段落 schema (markdown):
+```markdown
+## Lesson L-<YYYY-MM-DD>-<NNN>
+
+**Window**: iterations exp-<N-K+1> through exp-<N> (K=10)
+**Target observation**: <e.g. "8 of 10 iterations on `discover_triage.procedure` discarded at Layer 3 (no improvement); 2 kept">
+**Pattern**: <e.g. "appending enumerated decision-tree style content to procedure was rejected 5 times by sandbox / no-improvement; soft narrative additions kept 2 times">
+**Heuristic for future propose**: <e.g. "avoid 'IF X THEN Y' enumeration; prefer narrative conditions">
+**Affected Skill × field**: <e.g. "discover_triage.procedure">
+```
+
+`prompts/compact.txt`: 系统 prompt 教 LLM "summarize patterns from these K iterations; NO mention of specific case_ids; output strictly in the lesson段落 schema above". 
+
+### #5 — `autoloop/memory/experiments_log.py`
+
+Append-only JSONL at `autoloop/results/experiments.jsonl`. One line per iteration. Schema:
+
+```python
+{
+  "iteration_id": "exp-1",
+  "timestamp": "2026-05-28T01:23:45Z",
+  "hypothesis": {...},                  # full Hypothesis dict
+  "sandbox_verdict": {...},             # full ValidationResult dict
+  "anti_hardcode_verdict": {...},
+  "applied": {...} | None,
+  "verdict": {...} | None,              # LexicographicVerdict serialized; shadow firewall RESPECTED — aggregate-only
+  "decision": "keep" | "discard" | "error",
+  "discard_reason": str | None,
+  "error": str | None,
+  "elapsed_seconds": float
+}
+```
+
+`append(record: dict) -> None` — opens file in append mode, writes one JSON line + newline, fsync.
+`read_all() -> list[dict]` — for `autoloop report` subcommand.
+`read_recent(n: int) -> list[dict]` — for proposer.propose() recent-K input.
+
+### #6 — `autoloop/memory/iterations_index.py`
+
+sqlite3 stdlib (no new dep). DB at `autoloop/results/iterations.sqlite`. Schema per proposal §3.4 Layer B:
+
+```sql
+CREATE TABLE IF NOT EXISTS iterations(
+    id TEXT PRIMARY KEY,                    -- "exp-1"
+    ts TEXT NOT NULL,                       -- ISO timestamp
+    target_skill TEXT NOT NULL,             -- "discover_triage" etc.
+    target_field TEXT NOT NULL,             -- "$.procedure" / "$.critical_steps[2].desc"
+    edit_summary TEXT,                      -- LLM 1-sentence summary of diff (proposer fills this)
+    hypothesis_fingerprint TEXT NOT NULL,   -- normalized hash for anti-repeat
+    decision TEXT NOT NULL,                 -- "keep" / "discard" / "error"
+    discard_reason TEXT,
+    fitness_delta_json TEXT,                -- per-tier delta numbers as JSON string
+    parent_iteration_id TEXT,               -- enables tree-of-attempts navigation
+    notes TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_target_skill ON iterations(target_skill);
+CREATE INDEX IF NOT EXISTS idx_fingerprint ON iterations(hypothesis_fingerprint);
+CREATE INDEX IF NOT EXISTS idx_decision ON iterations(decision);
+CREATE INDEX IF NOT EXISTS idx_ts ON iterations(ts);
+```
+
+API:
+```python
+def init_db(db_path: Path) -> None: ...
+def insert(db_path: Path, record: IterationRecord) -> None: ...
+def query_recent(db_path: Path, n: int) -> list[IterationRecord]: ...
+def query_by_target(db_path: Path, target_skill: str, target_field: str = None) -> list[IterationRecord]: ...
+def query_by_fingerprint(db_path: Path, fingerprint: str) -> list[IterationRecord]: ...   # anti-repeat
+```
+
+### #7 — `autoloop/memory/lessons_log.py`
+
+`autoloop/results/lessons.md` markdown read/write。Section divider 约定: each lesson 段落 separated by `---` divider; H2 header (`## Lesson L-...`) starts each.
+
+```python
+def read_all(lessons_path: Path) -> str: ...           # full markdown text for proposer prompt
+def append_lesson(lessons_path: Path, lesson_md: str) -> None: ...
+def count_lessons(lessons_path: Path) -> int: ...
+```
+
+### #8 — `autoloop/sandbox/applier.py` 真实实现
+
+S-Auto-1 是 skeleton + cross-file caller-contract doc。S-Auto-3 真实实现：
+
+```python
+@dataclass
+class AppliedExperiment:
+    iteration_id: str
+    branch_name: str               # "autoloop/exp-1"
+    commit_sha: str
+    skill_file_path: Path
+    backend_port: int              # alt port Spring is running on
+    backend_process: subprocess.Popen   # for cleanup()
+
+def apply(hypothesis: Hypothesis, *, config) -> AppliedExperiment:
+    """
+    1. git rev-parse HEAD → store original_head
+    2. git checkout -b autoloop/exp-<N> (or git switch -c)
+    3. Read current Skill YAML; verify before_value matches hypothesis.before_value (else error)
+    4. Patch the field per hypothesis.target_field_path; write back to YAML
+    5. yaml_diff_validator.validate_skill_yaml_diff(before_yaml, after_yaml, file_path) — SANITY CHECK (loop should have called already, but belt-and-suspenders)
+    6. git add <skill_file>; git commit -m "autoloop exp-<N>: <hypothesis.rationale[:80]>"
+    7. Find free port: bind to 0 → get port → close → use that port
+    8. spawn `mvn spring-boot:run -pl server -Dspring-boot.run.arguments="--server.port=<port>"` in background; capture stdout/stderr
+    9. Health-probe: poll `http://localhost:<port>/actuator/health` every 2s up to 120s; expect HTTP 200 + body `{"status":"UP"}`; timeout → kill process, raise SpringStartupTimeoutError
+    10. Return AppliedExperiment
+    """
+
+def cleanup(applied: AppliedExperiment) -> None:
+    """Always called in loop.py finally. Kill backend_process; release port; switch back to original branch (do NOT delete autoloop/exp-N branch — kept for audit + cherry-pick by `autoloop apply`)."""
+```
+
+Cross-file rejection: if hypothesis somehow names a non-Skill-YAML file → applier raises BEFORE calling git operations.
+
+### #9 — `autoloop/cli.py` 真实 wiring
+
+`dry-run` / `run` / `report` / `apply` / `audit` 全部接通：
+
+- `check` — UNCHANGED from S-Auto-1
+- `dry-run --experiments N` (alias for `run --experiments N --dry-run`) — runs N dry-run iterations
+- `run --experiments N` — runs N live iterations; flags: `--dry-run`, `--config <path>` (default `autoloop/config.yaml`)
+- `report` — reads `experiments.jsonl` + `iterations.sqlite` + `lessons.md` → render HTML timeline at `autoloop/results/report.html`; columns: iter_id / target_skill / target_field / decision / per-Tier delta / link to per-iter dir
+- `apply --experiment exp-N` — **OQ-S55.1 Hybrid**:
+  1. `git rev-parse autoloop/exp-N` → verify branch exists
+  2. `git cherry-pick autoloop/exp-N` onto current branch (assumes human is on a target branch)
+  3. Compute proposed `config.yaml` patch: `fitness.baseline_dir` should advance to whichever results dir was the eval output for exp-N
+  4. Print patch to stdout (unified diff style)
+  5. Write patch to `autoloop/results/runs/exp-N/proposed-baseline-update.patch`
+  6. Print message: "Cherry-pick applied. Review the proposed config.yaml patch above; if accepting, run `patch -p1 < autoloop/results/runs/exp-N/proposed-baseline-update.patch && git add autoloop/config.yaml && git commit --amend --no-edit`. If rejecting baseline advance, just commit the cherry-pick as-is."
+  7. Do NOT auto-commit anything
+- `audit --experiment exp-N` — reads exp-N from sqlite + experiments.jsonl; prints full record with shadow firewall RESPECTED in default mode; `--include-shadow-detail` flag opens the per-case shadow detail (only this path can show per-case shadow info, and it's human-facing audit not loop-facing)
+
+### #10 — Tests (~30-50 NEW; expected autoloop total 83 → 113-133)
+
+`autoloop/tests/test_loop.py`:
+- dry-run end-to-end with mocked subprocess + mocked meta-agent (fixture hypothesis) → IterationResult.decision != "error"; no actual file written to Skill YAML
+- live iteration end-to-end with mocked subprocess + mocked Spring + mocked eval_runner returning fixture results.json + tier_evaluator returning fixture verdict; expect full state machine traverses + memory layers written
+- propose-stage discard (sandbox REJECT) → iteration short-circuits; no apply / no eval
+- mid-iteration crash (e.g. mvn fails) → IterationResult.decision == "error"; cleanup() called; loop continues to next iter (test with 2-iter run)
+- branch tag: keep → autoloop/keep-N; discard → autoloop/discard-N
+
+`autoloop/tests/test_meta_agent.py`:
+- analyzer with synthetic baseline results.json → expected FailureTaxonomy shape
+- proposer with mocked LLM client → valid Hypothesis returned; invalid LLM output → 3 retries → fail with `proposer_llm_returned_invalid_json`
+- proposer fingerprint deterministic across same hypothesis input
+- proposer respects v1 mutable surface (mocked LLM tries to return a hypothesis with target_skill_file outside the 6 → proposer rejects + retries / fails)
+- lessons_compactor with synthetic 10-iter fixture → expected markdown section produced
+
+`autoloop/tests/test_memory.py`:
+- experiments_log append + read_recent + read_all round-trip
+- iterations_index CRUD + query_by_target + query_by_fingerprint + query_recent
+- lessons_log read/write + count_lessons
+- shadow firewall in serialized verdict (re-verify the S-Auto-2 firewall property carries through `experiments_log.append` — JSON-roundtrip scan for sentinel `case_id` again)
+
+`autoloop/tests/test_applier.py`:
+- apply with valid Hypothesis (mocked git + mocked Spring) → AppliedExperiment with correct branch_name + port + commit_sha
+- cleanup() always called even on error
+- cross-file Hypothesis → REJECT before git
+- SpringStartupTimeoutError on health-probe timeout (mocked health-probe)
+- before_value mismatch (file changed since hypothesis generated) → error
+- Hard fence: applier.py source grep — no `eval-interactive` invocation (eval is eval_runner's job)
+
+`autoloop/tests/test_cli_integration.py`:
+- `python -m autoloop dry-run --experiments 1` exits 0 + writes dry-run log
+- `python -m autoloop run --experiments 1` (with mocked subprocess/Spring/eval) exits 0
+- `python -m autoloop report` (with fixture experiments.jsonl) writes HTML report
+- `python -m autoloop apply --experiment exp-N` (with fixture exp-N branch) cherry-picks + emits patch + NO auto-commit
+- `python -m autoloop audit --experiment exp-N` (default) — JSON-roundtrip scan for sentinel `case_id` confirms NO leakage; `--include-shadow-detail` flag does include it
+
+### #11 — `autoloop/config.yaml` `meta_agent:` block 扩展 + 微调
+
+Append to existing config (S-Auto-1 + S-Auto-2 fields untouched):
 
 ```yaml
-fitness:
-  # v1 minimal fitness suite — human-locked planning decision 2026-05-27.
-  # anchor (159 cases) NOT here per dataset-scope rationale in
-  # docs/milestone_objective.md §2 dataset-scope paragraph.
-  suites:
-    - name: bad_cases
-      path: eval_interactive/case_specs/bad_cases/
-      parallel: 1                    # per R-bad-case-parallel-session-establishment-flakiness M5-close priority
-    - name: anchor_outcome
-      path: eval_interactive/case_specs/anchor_outcome/
-      parallel: 4
-    - name: shadow
-      path: eval_interactive/case_specs_shadow/
-      parallel: 4
+meta_agent:
+  # Credentials read from .env.local (KEY name placeholders; human fills actual values).
+  # Example .env.local entries the human will add:
+  #   AUTOLOOP_META_LLM_API_KEY=<your-key-here>
+  #   AUTOLOOP_META_LLM_BASE_URL=<your-base-url-here>   # optional; for non-default providers
+  provider: <PLACEHOLDER-set-by-human>           # e.g. "anthropic" / "openai" / "moonshot" / "deepseek"
+  model: <PLACEHOLDER-set-by-human>              # e.g. "claude-opus-4-5" / "gpt-4o" / "moonshot-v1-32k"
+  temperature: 0.3                                # low for reproducibility
+  max_tokens: 4096
+  api_key_env: AUTOLOOP_META_LLM_API_KEY         # env var name (read from .env.local)
+  base_url_env: AUTOLOOP_META_LLM_BASE_URL       # optional; null → provider default
+  request_timeout_seconds: 120
 
-  # Per proposal §3.3 + human-locked 2026-05-27 absolute case-count decision:
-  improvement_threshold_mode: case_count        # 'case_count' (v1) vs 'percent' (proposal §3.3 default; rejected for v1 small N)
-  improvement_min_cases: 1                      # any 1-case improvement on a fitness axis ≥ this counts
-
-  # Shadow regression check:
-  shadow_max_drop_pct: 3.0                      # per proposal §3.3 Layer 4
-
-  # Tier-1 strictness:
-  anchor_outcome_max_drop_cases: 0              # 0 = strict no-regression; any case flip down → discard
-
-  # Baseline pointer (explicit; updated by human after every kept-iteration cherry-pick):
-  baseline_dir: eval_interactive/results/<PLACEHOLDER-set-at-M-Auto-1A-close>
-  # ^ At S-Auto-2 commit time, leave as PLACEHOLDER; deliver-agent + human bless the actual
-  #   baseline run path at M-Auto-1A close OR at the first S-Auto-3 live-iteration run.
-
-  # Subprocess timeouts:
-  eval_suite_timeout_seconds: 1800              # 30 min/suite hard cap
-
-  parallel_suites: false                        # v1 keeps it simple; M-Auto-2 may parallelize
+lessons:
+  compaction_window_k: 10                         # already in S-Auto-1; explicit confirm
+  recent_iterations_for_propose: 5                # how many recent iters to feed proposer
 ```
 
-### #5 — Tests
+Backend URL env-var convention for eval_runner subprocess (no code change to eval_runner.py; just env propagation via `os.environ` modification before applier returns):
+```
+CSAGENT_BACKEND_URL=http://localhost:<port>
+```
 
-`autoloop/tests/test_tier_evaluator.py` — synthetic `results.json` fixtures + direct unit tests covering each layer:
+Verify in dev: eval_interactive must already read backend URL from some env var or `.env`; if it reads from `eval_interactive/.env` only (no env-var override), document the gap as OQ-S56.x for deliver-agent — would need to either (a) add env-var override to eval_interactive (cross hard fence — STOP and surface) OR (b) write a temp `.env` overlay before invoking subprocess.
 
-- **Layer 0 fixtures (3)**: clean PASS (all 11 gates green + 0 Tier-0 Python fail) → verdict `keep` survives layer 0; `critical_policy_violation=1` → discard with `tier0_critical_policy_violation_failed`; per-case `no_pii_leakage=false` → discard with `tier0_no_pii_leakage_failed_on_<case-id>`.
-- **Layer 1 fixtures (3)**: bad_cases regression (5/12 → 4/12) → discard; anchor_outcome regression (10/12 → 9/12 with `anchor_outcome_max_drop_cases=0`) → discard; clean PASS (no Tier-1 regression) → proceeds to Layer 2.
-- **Layer 2 fixtures (3)**: Tier-2 mandatory fail count increase (5 → 6 across anchor_outcome+bad_cases) → discard; per-UC Tier-2 increase (UC-H: 1 → 2) → discard; clean PASS → proceeds to Layer 3.
-- **Layer 3 fixtures (4)**: improvement +1 case on bad_cases → keep (the canonical good iteration); improvement +1 case on anchor_outcome → keep; improvement −1 Tier-2 mandatory fail → keep; no improvement anywhere → discard with `improvement_threshold_not_met_no_change_above_min_cases_1`.
-- **Layer 4 fixtures (3)**: shadow rate drops 5% (above default 3% threshold) → discard; shadow rate drops 2% (below threshold) → keep; shadow file missing → keep with warning recorded (layer 4 `passed=None, reason="shadow_results_absent_warning"`).
-- **Critical adversarial fixture (1)**: lexicographic correctness — a hypothesis that improves bad_cases (Layer 3) BUT regresses Tier-2 critical-flow (Layer 2) → MUST discard at Layer 2, NOT keep at Layer 3. This verifies "no down-tier compensation for up-tier loss" per Constitution §1.6.
-- **Shadow firewall test (1)**: call `evaluate(..., audit=False)` (default) — confirm `LayerResult` for layer 4 has only aggregate keys; per-case shadow failures NOT in `tier_breakdown` or `LayerResult.metrics_observed`. Call `evaluate(..., audit=True)` — confirm `ShadowAuditDetail` is returned alongside and contains per-case shadow info.
-- **Short-circuit test (1)**: when Layer 0 fails, `layer_results[1..4]` all have `passed=None, reason="not_evaluated_short_circuit_at_layer_0"`.
+### #12 — `autoloop/program.md` 单行 status flips
 
-`autoloop/tests/test_eval_runner.py` — mock `subprocess.run`:
-- `SuiteRunSpec` construction for each v1 suite confirms `path` correctness + parallel default (bad_cases=1, others=4).
-- Mock `subprocess.run` returns success → `SuiteRunResult.exit_code == 0` + results.json path computed correctly.
-- Mock `subprocess.run` raises `subprocess.TimeoutExpired` → `EvalRunnerTimeoutError` raised with suite name + elapsed.
-- Mock `subprocess.run` returns non-zero exit + stderr → `SuiteRunResult.exit_code != 0` + `error_tail` captures last 50 lines of stderr.
-- `run_v1_fitness_suite` confirms 3 SuiteRunResult entries keyed by suite_name; sequential execution by default; respects `config.fitness.parallel_suites=False`.
-- **Hard-fence enforcement test**: confirm `eval_runner.py` source code contains NO references to `mvn`, `spring-boot`, `git` (grep test on the module's `__file__`).
+Update `autoloop/program.md` §4 Forbidden-by-construction table:
+- Row 1 (sandbox white-list) — already DELIVERED (S-Auto-1)
+- Row 2 (4-tier lexicographic fitness) — already DELIVERED (S-Auto-2)
+- **Row 3 (anti-hardcode auto-check) — annotate "DEFERRED to S-Auto-4 (S-Auto-3 ships placeholder hook with signature defined)"**
+- Row 4 (shadow regression gate) — already DELIVERED via S-Auto-2 tier_evaluator
+- Row 5 (shadow result firewall) — already DELIVERED via S-Auto-2 tier_evaluator
+- **Row 6 (no main-branch cherry-pick by the loop itself) — annotate "DELIVERED — `autoloop apply` is Hybrid (cherry-pick + patch emit, NO auto-commit) per OQ-S55.1 disposition 2026-05-27"**
 
-`autoloop/tests/test_baseline_loader.py` — synthetic baseline fixtures:
-- Happy path: well-formed baseline dir + all 3 suites present → `BaselineSnapshot` correct counts per suite.
-- Missing suite: shadow absent from baseline → `SuiteSnapshot.case_passed_count=None` for shadow; loader returns warning in a recorded field; tier_evaluator integration confirms Layer 4 keep-with-warning behavior.
-- Malformed baseline: results.json missing or unparseable → `BaselineLoadError` raised with file path.
-- `config.fitness.baseline_dir` literal pointer resolved correctly from repo root.
-
-Expected new test count: ~30-40. Reproduce: `cd autoloop && uv run pytest tests/test_tier_evaluator.py tests/test_eval_runner.py tests/test_baseline_loader.py -q`.
-
-### #6 — `autoloop/scoring/__init__.py` package surface + thin documentation
-
-- `autoloop/scoring/__init__.py` re-exports `tier_evaluator.evaluate`, `eval_runner.run_suite` / `run_v1_fitness_suite`, `baseline_loader.load`, the three dataclass types (`LexicographicVerdict`, `BaselineSnapshot`, `SuiteRunResult`). This is the public surface S-Auto-3 will import.
-- Update `autoloop/program.md` Forbidden-by-construction table row 2 ("4-tier lexicographic fitness (S-Auto-2)") with a **status: DELIVERED** annotation + a 2-sentence pointer to the v1 narrow dataset decision. (NOT a re-write of program.md — just the one row.)
-- Update `autoloop/README.md` CLI subcommand table: `dry-run` / `run` rows now mention "fitness evaluator implemented via S-Auto-2; loop wiring in S-Auto-3".
-- NO new top-level docs files in `autoloop/`.
+NO other prose touched (single-row contract).
 
 ## Hard fences / STOP conditions (do NOT do)
 
-- **No touch** to `eval_interactive/eval_interactive/**` (scoring, loader, simulator, executor, batch, judge — all frozen). S-Auto-2 CONSUMES the existing `results.json` schema; if the schema is missing a field S-Auto-2 needs, STOP and surface (see §"Stop conditions" below).
-- **No touch** to any case_spec: `eval_interactive/case_specs/{anchor,anchor_outcome,bad_cases,case_families,smoke,exploration,probe,promotion}/**` or `eval_interactive/case_specs_shadow/**`.
-- **No invocation** of `mvn`, `spring-boot:run`, `git`, or any non-`eval-interactive` subprocess from `eval_runner.py` or any other S-Auto-2 module.
-- **No invocation** of real `eval-interactive run` in `autoloop/tests/` — all tests use synthetic fixture results.json + mocked `subprocess.run`.
-- **No touch** to S-Auto-1 territory: `autoloop/sandbox/`, `autoloop/cli.py` (other than the optional README mention if cli help text references S-Auto-2; otherwise leave cli.py untouched until S-Auto-3 wires it), `autoloop/program.md` (only the one S-Auto-2-status row update per Scope #6).
-- **No edit** to `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, `docs/sprints/*` archives, `docs/milestones/*` archives, `docs/codex-findings.md`.
-- **No new heavy dependencies** in `autoloop/pyproject.toml`. Stdlib + PyYAML (already there) should suffice. If a baseline-loader or evaluator implementation needs an additional dep, STOP and surface to deliver-agent.
-- **No anchor (159) in v1 fitness path** — `autoloop/config.yaml` `fitness.suites` MUST NOT include anchor; tier_evaluator MUST NOT consume anchor-derived metrics in any layer. Per human-locked milestone §2 dataset-scope decision.
-- **No L3 `user_goal_achievement` in any hard gate** — v1 strict "only hard gates" stance.
-- **No smoke composite_score / smoke task_success_rate in any gate** — per §5.5 demotion.
-- **No shadow per-case failure exposed via the loop-facing `evaluate(...)` API** — shadow result firewall is structural; per-case shadow info only via `audit=True` API surface (human audit, never meta-agent).
-- **STOP and surface** if `results.json` schema is missing a needed field (e.g., `case_results[].source_suite` or `case_results[].tier2_result.mandatory_failures`). Do NOT silently fall back to a degraded gate. Surface the schema gap as OQ for deliver-agent + human disposition; either (a) S-Auto-2 absorbs the schema-aware filtering by reading `case_results[].case_id` and matching against suite directory listings, or (b) S-Auto-2 dev opens an R-item for a follow-on `eval_interactive` schema enrichment (out of M-Auto-1A scope).
-- **STOP and surface** if a real M5-close-era `results.json` reveals the `case_passed_authority` / `case_passed` semantics differ from what the proposal §3.3 + S-Auto-2 spec assumed. Do NOT silently adapt; deliver-agent + human decide whether to recalibrate the spec or open a follow-on R-item.
+- **No touch** to `eval_interactive/eval_interactive/**`, case_spec, case_specs_shadow (read-only inputs to eval_runner subprocess)
+- **No touch** to S-Auto-1/2 deliverable SIGNATURES (`sandbox/yaml_diff_validator.py` 不改；`scoring/tier_evaluator.py` / `eval_runner.py` / `baseline_loader.py` API 不改) — extension via env-var propagation is OK
+- **No touch** to `server/`, `eval/` Java, `data/`, `db/`, `server/src/main/resources/`, `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, `docs/sprints/*` archives, `docs/milestones/*` archives, `docs/codex-findings.md`
+- **No cherry-pick to main** by the loop itself; only `autoloop apply` (Hybrid) does cherry-pick, and even then NOT auto-commit (human reviews + commits)
+- **No new heavy deps** in `autoloop/pyproject.toml` unless meta-agent LLM client absolutely requires one (e.g. `anthropic` SDK if provider=anthropic, `openai` if provider=openai). If a dep is needed, STOP and surface to deliver-agent for explicit authorization BEFORE adding
+- **No live LLM call in tests** — meta_agent + applier tests use mocks; live LLM only exercised by the 1 live iteration close-gate run (human-driven)
+- **No shadow per-case failure exposed** anywhere in meta_agent / proposer / memory.experiments_log / cli.audit default mode — JSON-roundtrip scan test enforces this (carries forward from S-Auto-2)
+- **No semantic hardcode** in proposer prompt or analyzer prompt — prompts must teach LLM the §1.7 forbidden-list, not enumerate keywords / decision trees themselves
+- **No anti-hardcode kernel implementation** in S-Auto-3 — that's S-Auto-4 territory; S-Auto-3 ships ONLY the hook signature + placeholder always-PASS
+- **STOP and surface** if eval_interactive does NOT read backend URL from any env var (only from `eval_interactive/.env`): document the gap; either patch eval_interactive (cross S-Auto-3 hard fence — surface to deliver-agent) OR write temp `.env` overlay (clarify which mechanism)
+- **STOP and surface** if Spring startup health-probe systematically takes >120s (S-Auto-3 default timeout) — may need to widen OR investigate startup pathology
+- **STOP and surface** if meta-agent LLM provider config (D1 placeholders) requires a new dep that crosses the no-new-heavy-deps fence — get explicit deliver-agent authorization
 
 ## Test / eval requirements
 
-- **Python autoloop suite**: `cd autoloop && uv run pytest -q` — Sprint 54 baseline `48 passed` MUST grow by ~30-40 NEW S-Auto-2 tests (total ~78-88 PASS, 0 fail). Sprint 54 tests UNCHANGED.
+- **Python autoloop suite**: `cd autoloop && uv run pytest -q` — Sprint 55 baseline `83 passed` MUST grow by ~30-50 NEW S-Auto-3 tests (total ~113-133 PASS, 0 fail). Sprint 54 + Sprint 55 tests UNCHANGED.
 - **Existing Python eval_interactive suite UNCHANGED**: `cd eval_interactive && uv run python -m pytest --tb=no -q` reproduces `486 passed, 3 failed`.
-- **Java baseline UNCHANGED**: skipped per S-Auto-2 Java-zero-touch (verify via `git diff --stat HEAD -- server/ eval/ | grep src/main/java` returning empty; same exemption as S-Auto-1).
-- **No live `eval-interactive run` invocation** in S-Auto-2 — all tests use synthetic fixtures + mocked subprocess. Live wiring is S-Auto-3 territory.
-- **Schema-validation sanity check** (dev runs once, records in handoff §"Schema check"): manually inspect ONE existing `eval_interactive/results/<a-recent-M5-close-era-run-id>/results.json` and confirm the fields S-Auto-2 expects (`case_results[].case_id` / `source_suite` / `case_passed` / `tier2_result.mandatory_failures` / `l1_results[].check` / Tier-0 Java replay metrics) are present in the schema. If any field is missing or named differently, STOP and surface per the Hard-fence STOP condition above.
+- **Java baseline UNCHANGED**: skipped per S-Auto-3 Java-zero-touch (verify `git diff --stat HEAD -- server/ eval/ | grep src/main/java` returns empty).
+- **NO live LLM call in pytest tests** — all meta_agent tests use mocked LLM client.
+- **Live iteration smoke** (dev verifies once at S-Auto-3 close; NOT in pytest):
+  - `python -m autoloop run --experiments 1 --dry-run` → exit 0 + dry-run log written
+  - `python -m autoloop run --experiments 1` (FULL live) → exit 0 (regardless of keep/discard verdict); inspect `autoloop/results/runs/exp-1/` for the 4 expected output files (hypothesis.json + diff.yaml + verdict.json + decision.json or equivalent shape)
+  - Record in handoff §"Live iter smoke" the verdict outcome + elapsed time (the per-iter elapsed observation from milestone §5; expected ~12-15 min per dataset-scope decision; if >40 min surface as observation)
 
 ## §7 — Layer-classification + anti-hardcode stanza
 
-**Target failure layer:** `eval_spec` (§3.2 Q6 boundary — S-Auto-2 builds the harness that consumes existing M3-Eval signals; it does not modify scoring code, judge, or CaseSpec). The fitness evaluator IS the loop's optimization target definition; that definition is itself a structural defence against §1.6 ("eval is evidence, not authority") and §1.7 ("optimizing visible eval at the cost of shadow/generalization") — by enforcing lexicographic ordering + shadow firewall + only-validated-surfaces fitness, S-Auto-2 prevents the loop from gaming weak metrics.
+**Target failure layer:** `infra` (§3.2 default — orchestration, persistence, port mgmt, subprocess lifecycle; no semantic decision change). Per §7, even pure-infra work that creates the meta-agent + loop runtime MUST carry the stanza because the orchestrator is the §1.7 enforcement plumbing.
 
-**Tier-0 invariant:** adds no Tier-0 invariant. S-Auto-2 consumes the existing Tier-0 Java replay + Python hard_checks; it does not promote any new check to Tier-0. C2/C3 DEFER continues per M2-close verdict.
+**Tier-0 invariant:** adds no Tier-0 invariant. The auto-loop runtime is milestone-scoped infrastructure, NOT a Tier-0 runtime invariant per `docs/runtime_freeze_and_risk_policy.md` §1/§2. C2/C3 DEFER continues per M2-close verdict.
 
-**Semantic hardcode:** No semantic hardcode introduced. The tier_evaluator is a pure metric comparison function — every comparison is numeric (`a > b`, `count_diff >= n`, etc.); there is NO regex matching on bot output text, NO keyword list for "did the bot do the right thing", NO if-else over UC. Per-UC bucketing in Layer 2 reads `case_results[].use_case` as a registry value, not a decision; the per-UC failure-rate comparison treats UCs uniformly (UC-A failure-rate increase triggers discard the same way UC-H does). Thresholds (`improvement_min_cases=1`, `shadow_max_drop_pct=3.0`, `anchor_outcome_max_drop_cases=0`) are config-driven numbers, not semantic decisions; human adjusts via `autoloop/config.yaml`. If S-Auto-2 dev finds the implementation requires regex / keyword / if-else on bot output to compute a fitness signal, STOP and surface — that signals the proposed signal is not actually programmatically computable from the existing schema and needs eval-side support (out of M-Auto-1A scope).
+**Semantic hardcode:** No semantic hardcode introduced in S-Auto-3 code. The meta-agent prompts (`analyze.txt` / `propose.txt` / `compact.txt`) are PROMPTS to an LLM, not Java/Python decision logic — they teach the LLM the §1.7 forbidden-list. proposer.py validates LLM output against the v1 mutable-surface schema (file_path ∈ 6 Skills × field_path ∈ 4 LLM-soft fields) — this is registry-membership check, not semantic decision. fingerprint is a deterministic hash, not a decision. applier.py is git + subprocess + health-probe — no semantic content. Anti-repeat (proposer queries iterations_index by fingerprint, surfaces past attempts in propose context) is a memory mechanism, not a semantic rule. The hooked S-Auto-4 anti_hardcode_check is the layer that prevents §1.7 violations from semantically slipping through the prompt — it ships in S-Auto-4 as the actual implementation, S-Auto-3 just defines the call-site + placeholder.
 
-**Generalization coverage:** target = tier_evaluator correctly ACCEPTs the 3 clean-pass fixtures (one per "good iteration" shape) and REJECTs the 11+ discard fixtures (3 Tier-0 fail × 3 Tier-1 fail × 3 Tier-2 fail × 4 no-improvement × 3 shadow-regression — partial overlap; precise count ≥11). Neighbor = edge cases (missing baseline / missing shadow / per-UC bucketing). Negative-control = the 3 clean-pass fixtures verify no over-restriction (each cleanly passes all 5 layers and produces `decision="keep"`). Adversarial = the lexicographic-correctness fixture (bad_cases improves BUT Tier-2 regresses → MUST discard at Layer 2; verifies Constitution §1.6 "no down-tier compensation for up-tier loss"). Shadow = the shadow-firewall test verifies aggregate-only API + the audit-only per-case API; tier_evaluator never leaks per-case shadow info to the loop-facing path.
+**Generalization coverage:** target = the 9 scope items produce a working closed-loop end-to-end (dry-run + 1 live iter both exit 0; FULL pipeline executes). Neighbor = crash recovery (mid-iter mvn / Spring / eval failure → IterationResult.decision = "error" + cleanup → next iter continues). Negative-control test (CRITICAL) = a fixture Hypothesis with `target_field_path = "$.applicable_use_cases"` (structural field) MUST be rejected by sandbox + propagated as iteration discard with reason `sandbox_rejected_structural_field` — verifies the structural defence carries into the loop. Adversarial-prompt test = a fixture meta-agent output containing an §1.7 red-line pattern (e.g. `if user.message.contains('appeal') then UC-H`) — anti_hardcode_check placeholder PASSES it (since it's a placeholder), but S-Auto-4 will plug in real detection; S-Auto-3 ships the test fixture so S-Auto-4 dev has the regression target. Shadow firewall test = `audit` default mode + `experiments_log` serialized output BOTH scan-tested for sentinel `case_id` (carries forward from S-Auto-2 firewall property).
 
 ## Codex review plan (§4.3)
 
-**Default**: milestone-shared at M-Auto-1A close. S-Auto-2 is `eval_spec` but does NOT cross §1.7 (it ENFORCES §1.6/§1.7 via lexicographic gate + shadow firewall + validated-only surface, rather than crossing the red lines). No per-sub-sprint Codex trigger fires (#1 no Tier-0 candidate; #2 no §1.7 cross; #3 no hard-fenced surface edit — does not touch `eval_interactive/eval_interactive/**` per S-Auto-2 hard fence; #4 not a fix-iteration).
+**Default**: milestone-shared at M-Auto-1A close. S-Auto-3 is `infra` + does NOT cross §1.7 (it scaffolds the §1.7 enforcement plumbing without directly executing the enforcement). No per-sub-sprint Codex trigger fires (#1 no Tier-0 candidate; #2 no §1.7 cross — meta-agent prompts teach §1.7 to LLM, do not encode it; #3 no hard-fenced surface edit — does not modify `eval_interactive/eval_interactive/**` or `server/`; #4 not fix-iteration).
 
-The deliver-agent does NOT dispatch Codex at S-Auto-2 close. Codex consumes the S-Auto-2 commit range at M-Auto-1A close together with S-Auto-1/3/4 (the cumulative milestone range).
+The deliver-agent does NOT dispatch Codex at S-Auto-3 close. Codex consumes the cumulative S-Auto-1 through S-Auto-4 commit range at M-Auto-1A close.
 
 ## Handoff requirements
 
-- Author `docs/sprints/sprint-055-handoff.md` at S-Auto-2 close; leave **§12** empty (deliver-agent + human at milestone close).
-- Record in handoff: `git show --numstat` for the S-Auto-2 commit; new `autoloop/scoring/` source + test counts + pass status; `autoloop/config.yaml` final content (the `fitness:` block); the schema-check observation (per Test/eval requirements above — which fields actually exist in a real M5-era results.json; any discrepancy from this contract's assumptions); any STOP-surfaced schema gap or contract divergence (none expected; if any, full disposition recorded); §7 self-walk confirming `eval_spec` + no Tier-0 + no semantic hardcode.
-- Document in handoff §"OQ surfaced": OQ-S55.x for any sub-decisions deliver-agent needs to make before S-Auto-3 begins — most likely candidates: (a) per-UC Tier-2 failure-rate baseline missing for new UCs introduced between baseline and current run; (b) `improvement_threshold_mode` calibration revisit after first M-Auto-1B overnight run; (c) baseline_dir pointer transition policy (manual update only? or some recorded ceremony?).
+- Author `docs/sprints/sprint-056-handoff.md` at S-Auto-3 close; leave **§12** empty (deliver-agent + human at milestone close).
+- Record in handoff: `git show --numstat` for the S-Auto-3 commit; new `autoloop/{loop.py,meta_agent/*,memory/*}` source + applier.py rewrite + cli.py wiring counts + pass status; the live-iter smoke verdict (keep/discard/error) + elapsed seconds; `autoloop/config.yaml` `meta_agent:` block contents (with placeholders still in place — human fills later); any STOP-surfaced item (e.g. eval_interactive env-var override mechanism question, Spring startup pathology); §7 self-walk; OQ-S56.x list for deliver-agent disposition.
 
 ## Commit discipline
 
-Dev stages **only S-Auto-2 scope**: new files under `autoloop/scoring/` (4 source files + 3 test files) + extended `autoloop/config.yaml` (the `fitness:` block append) + the optional `autoloop/program.md` 1-row status update + the optional `autoloop/README.md` 1-line update + NEW `docs/sprints/sprint-055-handoff.md`. **No `git add -A`** — deliver-agent close-bundle files bundled by human at sub-sprint or milestone close.
+Dev stages **only S-Auto-3 scope**: new files under `autoloop/autoloop/loop.py` + `autoloop/autoloop/meta_agent/{__init__,analyzer,proposer,lessons_compactor}.py` + `autoloop/autoloop/meta_agent/prompts/{analyze,propose,compact}.txt` + `autoloop/autoloop/memory/{__init__,experiments_log,iterations_index,lessons_log}.py` + new tests + modified `autoloop/autoloop/sandbox/applier.py` (skeleton → real impl) + modified `autoloop/autoloop/cli.py` (subcommand wiring) + extended `autoloop/config.yaml` (`meta_agent:` + `lessons:` blocks) + modified `autoloop/program.md` (3-row status flips per scope #12) + NEW `docs/sprints/sprint-056-handoff.md`. **No `git add -A`** — deliver-agent close-bundle files bundled by human at sub-sprint or milestone close.
 
-One commit at sub-sprint close (commit-at-end pattern). Commit message format: `Sprint 55 / S-Auto-2 — four-tier fitness evaluator + shadow runner + baseline loader` followed by a brief paragraph summarizing the 6 scope items + the new test count.
+One commit at sub-sprint close (commit-at-end pattern). Commit message: `Sprint 56 / S-Auto-3 — loop orchestrator + meta-agent + 3-layer memory + applier real impl + cli wiring`.
 
 ## Scope size (§8.5 note)
 
-M-Auto-1A with S-Auto-2 = 2 of 4 sub-sprints; within the §8.5 5-sub-sprint ceiling. S-Auto-2 is `eval_spec` consumer work; estimated 3-4 dev-days. No conditional / deferred scope items (everything in or out; no "if budget left" tail).
+M-Auto-1A with S-Auto-3 = 3 of 4 sub-sprints; within §8.5 5-sub-sprint ceiling. S-Auto-3 is the largest sub-sprint in M-Auto-1A by LOC + integration surface; estimated 5-6 dev-days. No conditional / deferred scope (everything in scope is required to hit close gates).
 
 ## OQ (open questions — filled during the sub-sprint)
 
-- **OQ-S54.4** (S-Auto-2 baseline_loader contract preview) — RESOLVED inline by this contract per Scope #3 (`BaselineSnapshot` schema + explicit-pointer policy from `config.fitness.baseline_dir`; manual update by human after every kept-iteration cherry-pick).
-- _additional OQ-S55.x added by the dev session as ambiguities surface_
+- **OQ-S55.1** (apply baseline pointer ceremony) — RESOLVED inline per Scope #4 + #9 (Hybrid; cherry-pick + patch emit + NO auto-commit).
+- **OQ-S55.4** (Java replay surface wiring) — DISPOSED at Sprint 55 close (legacy/superseded; no v1 action); not S-Auto-3 territory.
+- _additional OQ-S56.x added by the dev session as ambiguities surface — most likely eval_interactive env-var override mechanism, Spring startup timeout calibration, anti-repeat heuristic effectiveness (deferred to M-Auto-1B evidence)_
