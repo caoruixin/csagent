@@ -117,3 +117,73 @@ fitness:
   # only after evaluating LLM-provider rate-limit + bad-case
   # session-establishment flakiness interaction.
   parallel_suites: false
+
+  # S-Auto-4 — scoring-code drift baseline. Deliver-agent fills with
+  # the M-Auto-1A close commit SHA at sub-sprint close so the
+  # `scoring_code_drift` anti-gaming check has a reference. When null
+  # the check emits a WARN with rule_id=scoring_code_drift.baseline_missing
+  # (D3: never guess; never silently hash-as-baseline).
+  scoring_code_baseline_sha: null
+
+content_validator:
+  # S-Auto-4 — structural integrity checker that runs BEFORE the
+  # YAML-diff sandbox. Fails on zero-length / overflow / underflow /
+  # corrupted placeholder tokens / forbidden deny-list tokens.
+
+  # Custom placeholder token shapes BEYOND the default 3 generic shapes
+  # (curly `{TOKEN}`, dollar `${TOKEN}`, angle `<TOKEN>`). D3: ships
+  # empty by default; Salesforce-specific or locale-specific shapes
+  # require explicit human curation here.
+  custom_token_shapes: []
+
+  # Forbidden-token deny-list — strings that should never appear in a
+  # propose `after_value`. Seeded small; deliver-agent + human curate
+  # at S-Auto-4 close. Adding entries is a separate sprint decision.
+  deny_list:
+    - "<<SYSTEM>>"
+    - "<<USER>>"
+
+  # Length sanity bounds. `length_overflow_ratio` rejects `after_value`
+  # > 5x `before_value`. `length_underflow_ratio` rejects `after_value`
+  # < 0.1x `before_value` IFF `before_value` >= `length_underflow_min_before`.
+  length_overflow_ratio: 5.0
+  length_underflow_ratio: 0.1
+  length_underflow_min_before: 50
+
+anti_hardcode:
+  # S-Auto-4 — real anti-hardcode detector. Replaces the S-Auto-3
+  # placeholder always-PASS hook. Deterministic regex + heuristic
+  # (NO LLM, NO new heavy dep). PASS / FAIL / FLAG_FOR_CODEX verdicts.
+  enabled: true
+
+  # Synonym-map normalization (e.g. "equals" → "=", "->" → "→"). Off
+  # by default; deliver-agent enables after calibration evidence shows
+  # it adds detection coverage without spiking false-positive rate.
+  synonym_map_enabled: false
+
+  # Operational warning threshold on `FLAG_FOR_CODEX` rate over the
+  # calibration table. Above this, detector is too noisy and needs
+  # re-calibration before broader use.
+  flag_for_codex_rate_warn_threshold: 0.25
+
+gaming:
+  # S-Auto-4 — seven post-eval anti-gaming checks. All
+  # OBSERVATION-ONLY in v1: flags surface via `experiments_log` +
+  # `autoloop audit` but do NOT alter the loop's keep/discard verdict.
+  # M-Auto-1B may promote ERROR-severity checks to gating after
+  # calibration.
+  enabled: true
+  observation_only_in_v1: true
+
+  # Shadow-leak signatures. CONFIG-DRIVEN ONLY (D3). The detector must
+  # NEVER read `eval_interactive/case_specs_shadow/` content. Adding
+  # signatures here is an out-of-band human-approved action.
+  shadow_leak_signatures:
+    - "cs59s"
+    - "shadow_case_id"
+    - "shadow/"
+    - "case_specs_shadow"
+
+  # Threshold for `anomalous_metric_movement`: improvement_count /
+  # diff_chars ratio above which the WARN flag fires.
+  anomalous_metric_movement_threshold: 0.05
