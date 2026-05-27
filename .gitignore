@@ -49,3 +49,6 @@ eval_interactive/results/*
 hs_err_pid*
 replay_pid*
 
+#ultrareview/compare 工具的临时输出
+.compare-output/
+
