@@ -1,5 +1,12 @@
 bot:
-  base_url: http://localhost:8080
+  # Env-var indirection (Sprint 56 / S-Auto-3 OQ-S56.1): the autoloop
+  # applier spawns a parallel Spring on a free alt port and sets
+  # CSAGENT_BACKEND_URL=http://127.0.0.1:<alt-port> before invoking
+  # `eval-interactive run`. For standalone (human) eval-interactive
+  # usage, set CSAGENT_BACKEND_URL=http://localhost:8080 in
+  # `.env.local` (the dotenv loader at eval_interactive/eval_interactive/config.py
+  # reads repo-root `.env.local` automatically).
+  base_url: ${CSAGENT_BACKEND_URL}
 
 llm:
   base_url: ${SIMULATOR_BASE_URL}

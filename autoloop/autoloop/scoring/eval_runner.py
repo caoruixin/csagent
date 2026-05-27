@@ -109,12 +109,22 @@ def run_suite(
         str(suite_out_dir.resolve()),
     ]
 
+    # Ensure CSAGENT_BACKEND_URL is set for the eval-interactive
+    # subprocess. The autoloop loop orchestrator (Sprint 56 /
+    # S-Auto-3) sets this to the alt-port the applier brought up;
+    # standalone callers fall back to the regular port. This bridges
+    # the env-var indirection in `eval_interactive/eval_interactive.yaml`
+    # without changing the eval_runner signature (per S-Auto-3 contract).
+    sub_env = os.environ.copy()
+    if "CSAGENT_BACKEND_URL" not in sub_env:
+        sub_env["CSAGENT_BACKEND_URL"] = "http://localhost:8080"
+
     start = time.monotonic()
     try:
         proc = subprocess.run(
             cmd,
             cwd=str(cwd),
-            env=os.environ.copy(),
+            env=sub_env,
             capture_output=True,
             text=True,
             timeout=timeout_seconds,

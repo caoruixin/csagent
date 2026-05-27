@@ -2,7 +2,7 @@
 title: Milestone M-Auto-1A — Auto-Evolution Build (Skill-Driven Hill-Climbing Infrastructure)
 doc_tier: current-runtime
 status: current
-implementation_status: not_started
+implementation_status: partial
 source_of_truth: this file
 last_reviewed: 2026-05-27
 review_cadence: per milestone
@@ -224,6 +224,18 @@ These are the structural guarantees that distinguish M-Auto-1A from any "auto-lo
 10. **No shadow-set leakage to meta-agent**. The shadow result fed back to the loop is the aggregate `{shadow_regression_detected: yes|no, drop_pct: <float>}` only. Per-case shadow failures NEVER reach `meta_agent/proposer.py`. Implemented as a structural firewall in `autoloop/scoring/tier_evaluator.py` (separate API surface for the loop vs. for the human audit `report` subcommand).
 11. **No mutation of `eval_interactive/results/` schema**. Auto-loop produces parallel output under `autoloop/results/` only; eval invocation reuses existing schema unchanged.
 12. **No editing of `docs/codex-findings.md` during M-Auto-1A sub-sprint execution**. The live `docs/codex-findings.md` is a scaffold; S-Auto-4 per-sub-sprint Codex writes to it at S-Auto-4 close; milestone-shared Codex review writes to it at M-Auto-1A close; archived to `docs/milestones/M-Auto-1A_codex-review.md` at milestone close per standard deliver-agent close-out.
+
+### 6.1 OQ-S56.1 disposition (Sprint 56 / S-Auto-3 close 2026-05-27)
+
+S-Auto-3 surfaced **OQ-S56.1**: one out-of-standard-scope edit to `eval_interactive/eval_interactive.yaml` (literal `bot.base_url: http://localhost:8080` → env-var indirection `bot.base_url: ${CSAGENT_BACKEND_URL}` + 7-line comment block documenting the OQ). Deliver-agent + human disposition 2026-05-27 at S-Auto-3 close: **BLESSED as in-scope**. Reasoning:
+
+1. **Hard-fence letter check**: §6 item 2 names `eval_interactive/eval_interactive/**` (the inner Python module path) + `eval_interactive/case_specs/**` + `eval_interactive/case_specs_shadow/**`. The edited file is `eval_interactive/eval_interactive.yaml` — a **sibling of the inner `eval_interactive/eval_interactive/` directory**, not a child of it. The fence as written does NOT cover the top-level config.
+2. **Spirit of the fence**: the milestone goal is to keep the eval harness Python module + case specs byte-identical so any per-iteration eval invocation is identical to a baseline eval invocation. The env-var indirection touches only the backend URL routing — it adds NO semantic logic, NO case-spec change, NO Python-module change, NO new dependency.
+3. **Why required by the contract**: §5 "Live iteration end-to-end" acceptance bar requires the eval-interactive subprocess to route HTTP calls to the alt-port Spring spawned by the applier. eval-interactive's YAML config loader supports `${VAR}` substitution; without env-var indirection, the only path is a literal port number (defeats the alt-port mechanism) or a runtime YAML overwrite (more invasive than env-var indirection).
+4. **Why structurally safe**: the loop orchestrator sets `CSAGENT_BACKEND_URL=http://127.0.0.1:<alt-port>` before invoking eval-interactive; `eval_runner.py` sets a fallback default `http://localhost:8080` if the env-var is unset (so standalone eval-interactive usage continues to work); the human's `.env.local` also carries the default. The change is benign across all invocation paths.
+5. **Per-fence re-affirmation**: §6 item 2 still applies in full to `eval_interactive/eval_interactive/**` (inner module — byte-identical) + `eval_interactive/case_specs/**` (byte-identical) + `eval_interactive/case_specs_shadow/**` (byte-identical). The blessing is scoped to the **single 9-line diff** at `eval_interactive/eval_interactive.yaml` documented in `docs/sprints/sprint-056-handoff.md` §8.
+
+This disposition is captured at S-Auto-3 close so the milestone-shared Codex review at M-Auto-1A close consumes a stable hard-fence list (top-level YAML edit is pre-blessed; Codex does not need to re-litigate it).
 
 ## 7. R-items consumed / surfaced
 
