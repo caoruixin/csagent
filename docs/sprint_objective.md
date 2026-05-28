@@ -1,477 +1,344 @@
 ---
-title: Sprint objective — Sprint 058 / M-Auto-1B S-Auto-5 — Live-iter bootstrap + Detector calibration (Fix-C hybrid)
+title: Sprint objective — Sprint 059 / M-Auto-1B S-Auto-6 — First overnight batch + First human review + First cherry-pick to main
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
 last_reviewed: 2026-05-28
 review_cadence: per sub-sprint
-supersedes: [docs/sprints/sprint-057-objective.md]
+supersedes: [docs/sprints/sprint-058-objective.md]
 superseded_by: null
 notes: >
-  FIRST sub-sprint of Milestone M-Auto-1B — Auto-Evolution
-  Calibration. S-Auto-5 retires the OQ-S56.5 live-iter waiver from
-  M-Auto-1A close, runs 1-3 real iterations against a real
-  meta-agent LLM to accumulate ≥10 propose samples, and consumes
-  `R-S57-anti-hardcode-whenever-arrow-synonym-bypass` via Fix-C
-  hybrid (word-boundary regex + evidence-driven
-  `synonym_map_enabled` toggle decision + optional Fix-B FLAG rule
-  fallback). §7 REQUIRED (`infra` primary + `eval_spec`
-  calibration); **Codex PER-SUB-SPRINT REQUIRED per §4.3 trigger
-  #2** — the Fix-C detector change touches the §1.7 structural
-  guard; Codex must independently verify Fix-C has no design hole
-  + calibration evidence is sound BEFORE S-Auto-6 begins overnight
-  running it against real propose outputs. Codex must return
-  `pass` (or `approve with downgrade-to-signal follow-up`) BEFORE
-  S-Auto-6 overnight starts.
+  SECOND and FINAL planned sub-sprint of Milestone M-Auto-1B —
+  Auto-Evolution Calibration (per `docs/milestone_objective.md` §3
+  sequence). S-Auto-6 takes the calibrated detector (`synonym_map_enabled=true`
+  per Fix-C step 2 Path A landed by S-Auto-5 commit `ae0ec3e`) and runs
+  the first auto-loop overnight batch against the v1 47-case dataset,
+  conducts the first deliver-agent + human §5.6-style manual review of
+  kept candidates, and executes the first cherry-pick of an auto-loop
+  output to main (M-Auto-1B fence #7 ALLOWS EXACTLY ONCE — changed from
+  M-Auto-1A's "no cherry-pick"). §7 REQUIRED (`eval_spec`); **Codex
+  milestone-shared at M-Auto-1B close per §4.3 default** UNLESS the
+  cherry-pick candidate touches a §5.3 borderline that requires
+  per-sub-sprint Codex (deliver-agent + human jointly judge at the
+  cherry-pick decision point).
 
-  Builds on M-Auto-1A close `b6b627b` (Sprint 057 / S-Auto-4 — Anti-
-  hardcode kernel + content validator + gaming checks). The
-  baseline detector content hash `5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c`
-  is the M-Auto-1A close baseline for the four `autoloop/autoloop/scoring/`
-  files; those four files are LOCKED in M-Auto-1B (hard fence #13)
-  — detector calibration change lands in `autoloop/autoloop/sandbox/anti_hardcode_check.py`
-  + `autoloop/config.yaml` + `autoloop/tests/` only.
+  Builds on S-Auto-5 close `ae0ec3e` (Codex per-sub-sprint verdict
+  `pass / 0` sub-classified `approve with downgrade-to-signal
+  follow-up` 2026-05-28; the only follow-up trigger is the NEW
+  `R-S58-anti-hardcode-zero-width-when-arrow-bypass` which is
+  non-blocking for S-Auto-6 per the Codex verdict). The calibrated
+  detector has Fix-C step 1 word-boundary regex live AND
+  `synonym_map_enabled=true`; 17-fixture sweep preserved 11/11 +
+  4/4 + 2/2; detector self-discipline 3 regression tests PASS; rule
+  count UNCHANGED at 11.
 
-  Three human-locked planning decisions 2026-05-28 (AskUserQuestion):
-  (a) proposal `docs/solutions/m_auto_1b_calibration_planning.md`
-  adopted as planning baseline; (b) sub-sprint slicing = Alt-S2
-  (S-Auto-5 + S-Auto-6); (c) R-S57 fix path = Fix-C hybrid. This
-  contract operationalizes Fix-C step 1 (mandatory; word-boundary
-  regex) + Fix-C step 2 (evidence-driven toggle decision based on
-  ≥10 real-meta-agent calibration samples).
+  Two human-coupled gates inside S-Auto-6 that the dev session
+  cannot satisfy alone:
+
+  - **Step #3 §5.6 manual review** of overnight kept candidates is a
+    deliver-agent + human joint judgment (NOT programmatic alone);
+    dev triggers the eval + opens the trace surfaces, but the PASS /
+    FAIL / IMPROVING / borderline-§5.3 decision is human-judgment.
+  - **Step #4 cherry-pick decision via AskUserQuestion** is human-driven
+    (the dev does NOT pick which kept candidate becomes the cherry-pick
+    OR judge no-cherry-pick justification).
+
+  These two gates make S-Auto-6 a hybrid dev + deliver-agent + human
+  session. The dev prompt embeds explicit STOP-and-surface points at
+  each gate so the dev never silently auto-picks a candidate.
+
+  R-S58 disposition decision (whether to extend M-Auto-1B by a
+  Fix-D sub-sprint `S-Auto-7` OR defer to M-Auto-2) is also surfaced
+  at S-Auto-6 close — informed by overnight evidence (whether any
+  bypass variant from real meta-agent propose distribution PASSes the
+  detector beyond R-S58's zero-width signature).
 ---
 
-# Sprint 058 / M-Auto-1B S-Auto-5 — Live-iter bootstrap + Detector calibration (Fix-C hybrid)
+# Sprint 059 / M-Auto-1B S-Auto-6 — First overnight batch + First human review + First cherry-pick to main
 
 ## Class
 
-`infra` (primary; §3.2 Q1 boundary — the sub-sprint's first half is build infrastructure + live-iter prerequisite + first real iteration, none of which is a runtime semantic change) + `eval_spec` (calibration; §3.2 Q6 boundary — the sub-sprint's second half is structural detector refinement + evidence-driven config toggle decision, both at the meta-agent output boundary, not at the runtime / projection / scoring / CaseSpec layer). **§7 REQUIRED** — S-Auto-5 introduces structural changes to the §1.7 anti-hardcode defender (word-boundary regex extension + optional FLAG rule fallback) and the evidence-driven `synonym_map_enabled` toggle decision; both are semantic-touching at the meta-agent output boundary even though no runtime / projection / scoring change occurs.
+`eval_spec` (§3.2 Q6 — sub-sprint consumes the per-iteration fitness verdict sequence on a calibrated detector; the cherry-pick mechanism + §5.6 manual review of kept candidates are eval-side acceptance-bar gates, not runtime semantic changes). The cherry-picked Skill YAML edit (if any) is a single-field-class edit on `procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[*].desc` per the sandbox white-list — semantic-touching at the LLM-soft-narrative surface (§1.3 LLM owns content; Runtime owns boundary).
+
+**§7 REQUIRED** — S-Auto-6 ships at most ONE Skill YAML edit on main (via cherry-pick mechanism); that edit may shift LLM-soft-narrative behaviour. The §7 stanza guards the structural integrity of the substrate machinery + the human-judgment-gate respect.
 
 ## Goal
 
-S-Auto-5 close 时:
+S-Auto-6 close 时:
 
-1. **Live-iter prerequisites retired.** `mvn package -pl server -am -DskipTests` produces `server/target/*.jar`; `AUTOLOOP_META_LLM_API_KEY` confirmed live via `python -m autoloop check` returning success; working tree clean on `auto-loop-branch` immediately before the first live iteration.
+1. **Pre-batch baseline drift envelope established.** ≥2 baseline reruns of the v1 47-case fitness suite (`bad_cases` ×12 + `anchor_outcome` ×12 + `shadow` ×23) on the calibrated detector at S-Auto-5 close HEAD `ae0ec3e`; median per-suite `case_passed` count + IQR recorded in `docs/sprints/sprint-059-handoff.md` §X "Baseline drift envelope". If baseline-vs-baseline drift exceeds 5/34 cases (the M-Auto-1A close-day signature), surface to deliver-agent + human BEFORE starting overnight.
 
-2. **≥1 real iteration completed end-to-end.** `python -m autoloop run --experiments 1` (NO `--dry-run`) drives the full 14-step state machine to a verdict (keep / discard / error all acceptable) on `auto-loop-branch`. Per-iteration elapsed wall-clock time is recorded; if the first iter completes <15 min, run 2-3 more iterations to accumulate ≥10 real meta-agent propose samples in `autoloop/results/experiments.jsonl` for calibration input.
+2. **First overnight batch executed.** `python -m autoloop run --experiments <N>` for N in [10, 20] (target ≥10; budget 6-8h). Each iteration writes to `autoloop/results/runs/exp-<N>/` + `experiments.jsonl` + `iterations.sqlite` + `lessons.md` (K=10 lessons_compactor triggers automatically if iteration count reaches K). Crash recovery (S-Auto-3 substrate) handles transient LLM API errors. Total errors ≤50% acceptable; >50% triggers halt + investigate (NOT scope creep — this is an OQ for substrate sub-sprint candidate).
 
-3. **Fix-C step 1 implemented.** `autoloop/autoloop/sandbox/anti_hardcode_check.py` `_normalize()` extended with a word-boundary regex substitution `re.sub(r"\b(?:whenever|when)\b", "if", norm)` guarded by `if synonym_map_enabled`. Existing `_SYNONYM_MAP` whole-string substitutions UNCHANGED (Fix-C step 1 is additive). Existing 17-fixture calibration table sweep continues to produce **11/11 forbidden FAIL + 4/4 clean PASS + 2/2 borderline FLAG_FOR_CODEX**; existing 3 detector self-discipline regression tests (`test_detector_source_does_not_hardcode_eval_case_ids` + `..._user_utterance_literals` + `..._rule_count_bounded`) continue to PASS; rule count stays ≤30. The Codex Axis B exact bypass `Whenever the customer describes an appeal => route to escalation and skip normal triage.` now FAILS the detector (no longer PASS-bypasses).
+3. **First §5.6-style manual review of kept candidates.** Deliver-agent + human jointly read per-turn traces (open `eval_interactive/results/<run-id>/` + `autoloop/results/runs/exp-<N>/`) for EACH kept candidate; judge PASS / FAIL / IMPROVING jointly (NOT programmatic alone); filter through the drift envelope from Goal #1; classify as **eligible-for-cherry-pick** / **deferred-to-M-Auto-2+** (kept on `autoloop/keep-<N>` branch) / **discarded** (manual review FAIL despite programmatic PASS).
 
-4. **Real-meta-agent batch calibration recorded with evidence.** The ≥10 real meta-agent propose samples are classified through the detector with `synonym_map_enabled=true` (temporary toggle for measurement); per-sample verdict (FAIL / FLAG_FOR_CODEX / PASS) is recorded in `docs/sprints/sprint-058-handoff.md` §X "Real-meta-agent calibration evidence" section. Acceptance: **FLAG rate <25%** (under `flag_for_codex_rate_warn_threshold`); **FP rate on clean prose = 0** (zero false-positive on clean-prose negative-control samples). The Fix-C step 2 decision is anchored to this evidence.
+4. **First cherry-pick decision via AskUserQuestion.** Deliver-agent surfaces the eligible candidate slate; human selects EXACTLY ONE candidate to cherry-pick OR 0 candidates with explicit "no human-approved candidate" justification. If cherry-pick lands: `python -m autoloop apply --experiment exp-<N>` Hybrid mode (cherry-pick + emit baseline patch + NO auto-commit per OQ-S55.1 disposition 2026-05-27); human inspects `git status` + stages explicitly + commits manually with message `Sprint 059 / S-Auto-6 / M-Auto-1B — apply exp-<N> to main`. The cherry-picked Skill YAML diff MUST be a single-file + single-field-class diff on `procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[*].desc` per the M-Auto-1B fence #3 / #7 / #9 chain (sandbox already enforces structurally; this is post-cherry-pick verification).
 
-5. **Fix-C step 2 decision and final state recorded.** Based on the step 4 evidence:
-   - **IF acceptance bar passes** (FLAG <25% + FP=0 on clean prose) → flip `synonym_map_enabled: false → true` in `autoloop/config.yaml` `anti_hardcode` block (final state).
-   - **IF FP>0 on any clean prose sample** → retain `synonym_map_enabled: false` AND implement Fix-B FLAG rule (new `_RE_Q1_WHEN_ARROW_FLAG` regex emitting FLAG_FOR_CODEX on `\b(?:whenever|when)\b[\s\S]{1,120}?(?:→|=>|->)[\s\S]{1,120}` pattern; NOT auto-FAIL). The detector still structurally closes the Codex Axis B exact bypass through the Fix-B FLAG rule path.
-   The decision + supporting evidence MUST be recorded in `docs/sprints/sprint-058-handoff.md` §X for per-sub-sprint Codex consumption.
+5. **Observation accumulation + R-S58 disposition recommendation.** `autoloop/config.yaml` `fitness.baseline_dir` advance past the cherry-pick commit (if any) so the next milestone baseline is post-cherry-pick. Cumulative observation captured in handoff: per-iteration elapsed time average; FLAG rate distribution; gaming flag counts + severity; `shadow_disagreement_rate` first measurement (§6 architecture-health metric); whether any NEW bypass variant beyond R-S58 surfaced in real meta-agent propose distribution. Recommendation on R-S58 disposition: (a) defer to M-Auto-2 Fix-D sub-sprint (if no new bypass surface AND zero-width shape did NOT manifest in overnight propose distribution); (b) extend M-Auto-1B with a Fix-D sub-sprint S-Auto-7 (if new bypass surfaces beyond R-S58 OR zero-width shape manifests at meaningful rate). Recommendation is dev-agent + deliver-agent observation; **final R-S58 disposition is a deliver-agent + human planning-round decision at M-Auto-1B close** — NOT a dev-side call.
 
-6. **Per-sub-sprint Codex `pass` (§4.3 trigger #2).** Deliver-agent dispatches Codex at S-Auto-5 close (NOT at S-Auto-5 open) with `compact/sprint-058-codex-review-prompt.md` self-contained per §9 invariant. Codex must verify Fix-C step 1 + step 2 structural soundness, calibration evidence audit, ≥3 adversarial spot-checks, detector self-discipline regression test status. Codex must return `pass / 0` (or `approve with downgrade-to-signal follow-up`) BEFORE S-Auto-6 overnight starts.
+6. **Milestone-shared Codex review at M-Auto-1B close** (separate later pass dispatched by deliver-agent at milestone close; this sub-sprint does NOT itself dispatch). UNLESS the cherry-pick candidate touches a §5.3 borderline that requires per-sub-sprint Codex — in that case deliver-agent + human dispatch per-sub-sprint Codex at S-Auto-6 close BEFORE M-Auto-1B close.
 
-**Zero touch** to `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py` (M-Auto-1B hard fence #13 — content hash locked against `5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c`). **Zero touch** to `autoloop/autoloop/loop.py` / `autoloop/autoloop/meta_agent/**` / `autoloop/autoloop/memory/**` / `autoloop/autoloop/sandbox/{yaml_diff_validator,applier,content_validator}.py` / `autoloop/autoloop/cli.py` (S-Auto-1/2/3/4 deliverables — signature + body unchanged in S-Auto-5). **Zero touch** to `eval_interactive/eval_interactive/**`, case_spec, case_specs_shadow, `server/src/main/java/**`, `eval/src/main/java/**`, `data/`, `db/`, `server/src/main/resources/**` (the cherry-pick fence #7 of M-Auto-1B §6 allows ONE Skill YAML edit in S-Auto-6 only; S-Auto-5 ships zero `server/` edits). **Zero touch** to `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, sprint/milestone archives, `docs/codex-findings.md` scaffold (per-sub-sprint Codex writes at close).
+**Zero touch** to `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py` (M-Auto-1B fence #13 content-hash lock `5177b674...`). **Zero touch** to `autoloop/autoloop/sandbox/{yaml_diff_validator,applier,content_validator,anti_hardcode_check}.py` (S-Auto-1/2/3/4/5 substrate + S-Auto-5 calibrated detector — UNCHANGED in S-Auto-6). **Zero touch** to `autoloop/autoloop/loop.py` / `meta_agent/` / `memory/` / `cli.py`. **Zero touch** to `eval_interactive/eval_interactive/**`, case_spec, case_specs_shadow, `server/src/main/java/`, `eval/src/main/java/`, `data/`, `db/`, `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, sprint/milestone archives. **Conditional touch** to `server/src/main/resources/skills/*.yaml`: EXACTLY ONCE via cherry-pick mechanism in Goal #4 ONLY; OUTSIDE the cherry-pick path, zero touch.
 
 ## Scope (numbered; this is the contract)
 
-### #1 — Build `server/` jar (live-iter prerequisite (a))
+### #1 — Pre-batch baseline rerun + drift envelope
+
+Run the baseline 47-case fitness suite at S-Auto-5 close HEAD `ae0ec3e` twice (or more if median+IQR width is unstable; cap at 3):
+
+```bash
+cd autoloop && uv run --extra dev python -m autoloop run --experiments 0 --baseline-rerun
+```
+
+(If `--baseline-rerun` is not a wired CLI flag at S-Auto-5 close HEAD, run the eval suites manually via `cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/` + `... --path case_specs/anchor_outcome/` + `... --path case_specs_shadow/` and aggregate per-suite `case_passed` count. Verify the flag's existence by reading `autoloop/autoloop/cli.py` BEFORE running; if absent, STOP and surface to deliver-agent.)
+
+Record per-baseline-run aggregate `case_passed` counts per suite. Compute:
+
+- Median per suite (bad_cases: M_bc; anchor_outcome: M_ao; shadow: M_sh)
+- IQR per suite (where ≥3 runs; for 2 runs, use min/max range as proxy)
+- Cross-suite total median + IQR
+
+**Acceptance**:
+
+- Baseline-vs-baseline drift ≤ M-Auto-1A close-day signature (5/34 cases = 14.7% across bad-case + shadow combined). If drift > 5/34, STOP and surface to deliver-agent + human BEFORE starting overnight; joint decision to (a) proceed with widened envelope or (b) halt for upstream LLM-provider investigation.
+
+Record the drift envelope in `docs/sprints/sprint-059-handoff.md` §X "Pre-batch baseline drift envelope".
+
+### #2 — First overnight batch
 
 Run:
 
 ```bash
-mvn package -pl server -am -DskipTests
+cd autoloop && uv run --extra dev python -m autoloop run --experiments 15
 ```
 
-(or equivalent fast-build command if the dev session has a faster path that produces the jar without sacrificing the jar artefact). Verify `ls server/target/*.jar` shows at least one `.jar` file. The applier's mvn alt-port Spring spawn (S-Auto-3 substrate) reads from this artefact path; without it, live-iter cannot start.
+(Adjust `--experiments` value within [10, 20] based on the per-iteration elapsed-time estimate from S-Auto-5: ~12-15 min/iter → 20-30 iter possible in 6h; substrate cleanup + restart between iterations may add overhead. The S-Auto-5 4 iterations actually completed in 122s / 87s / 37s wall-clock total — well under estimate; full Spring eval cycle wasn't tested due to spawn failure. **Pre-overnight smoke**: dispatch 1 iter with `--experiments 1` BEFORE the overnight to measure actual end-to-end elapsed including the eval cycle; if >40 min, adjust `--experiments` count downward.)
 
-**If `mvn package` fails** for any reason (dependency issue, compilation error, disk space): STOP and surface to deliver-agent + human. Do NOT bypass with `-DskipTests` blanket, do NOT pin a dependency version, do NOT delete + re-clone the repo. Root-cause investigation first.
+**Pre-overnight smoke required**: BEFORE the overnight batch, run `python -m autoloop run --experiments 1` to measure the actual end-to-end iteration elapsed including the eval cycle (Spring spawn + 47-case eval; S-Auto-5 exp-2 only got to Spring spawn step before failure → the actual `eval_runner` execution time is NOT yet measured live). If first complete iteration succeeds AND elapsed ≤25 min, proceed to overnight at full count. If elapsed 25-40 min, reduce overnight count proportionally. If >40 min, STOP and surface.
 
-### #2 — Verify live-iter prerequisites (b) + (c)
+During overnight:
 
-Run:
+- Crash recovery (S-Auto-3 substrate) handles transient LLM API errors automatically; per-iter state persists in `experiments.jsonl` + `iterations.sqlite` so a mid-batch crash doesn't lose completed iterations.
+- Spring spawn failures (the OQ-S58.7 pattern from S-Auto-5) are recoverable per-iteration: the loop logs the error + proceeds to next iteration. Do NOT patch `applier.py` mid-overnight (hard fence #13).
+- Lessons compactor (S-Auto-3) triggers automatically at K=10 iteration count if reached; first `autoloop/results/lessons.md` LLM-distilled lesson lands during the overnight.
+
+**Stop conditions during the overnight**:
+
+- Total errors >50% within the first 5 iterations: halt + surface to deliver-agent + human; investigate (LLM API, infra, Spring spawn pathology). Recover already-completed iterations via state persistence; do NOT scope-creep into substrate fixes.
+- Per-iteration elapsed time average >40 min (sustained, not single outlier): halt + surface; substrate optimization is M-Auto-2+ scope.
+- A pattern of bypass shapes from real meta-agent propose distribution PASS through the detector (beyond R-S58 zero-width): record + halt OR continue based on deliver-agent + human joint decision (depends on frequency + severity).
+
+### #3 — §5.6-style manual review of kept candidates
+
+Next morning, deliver-agent + human jointly conduct manual review.
+
+For EACH kept candidate (one per `autoloop/results/runs/exp-<N>/iteration_record.json` with `terminal_decision == "keep"`):
+
+1. Open the per-turn traces:
+   - `eval_interactive/results/<run-id>/results.json` for the bad_cases + anchor_outcome runs (sample turn-level detail per kept candidate's eval).
+   - `autoloop/results/runs/exp-<N>/{hypothesis.json, diff.yaml, sandbox_verdict.json, anti_hardcode_verdict.json, tier_evaluator_verdict.json}` for the propose-stage + verdict artefacts.
+   - The M5 admin trace UI surface (post-M5 S2 deliverable) for per-invocation LLM raw response inspection — useful for understanding WHY the meta-agent proposed THIS edit.
+2. Sample turn-level traces on bad_cases (Tier-1 + Tier-2 evidence) + anchor_outcome (closure_criterion alignment).
+3. Joint PASS / FAIL / IMPROVING / borderline-§5.3 verdict, recorded per candidate in handoff §X table.
+4. Filter through the drift envelope from #1: a programmatic-PASS candidate inside the drift envelope is NOT a true PASS — it may be provider-drift noise.
+5. Classification:
+   - **eligible-for-cherry-pick**: manual review PASS + NO §5.3 borderline + outside drift envelope (real improvement).
+   - **deferred-to-M-Auto-2+**: manual review PASS but borderline §5.3 ("drift to keyword bot"-style edit even though programmatically PASS); kept on `autoloop/keep-<N>` branch for M-Auto-2+ re-review.
+   - **discarded**: manual review FAIL despite programmatic PASS (typically: change introduces a new failure shape OR inside drift envelope OR over-fits a narrow target case at expense of neighbor / negative-control).
+
+Record the full candidate slate in `docs/sprints/sprint-059-handoff.md` §X "Manual review of kept candidates" with classification rationale per candidate.
+
+### #4 — Cherry-pick decision via AskUserQuestion
+
+**STOP-and-surface to deliver-agent + human** at this step. The dev session does NOT pick a candidate OR judge no-cherry-pick justification — the AskUserQuestion is dispatched by deliver-agent.
+
+Deliver-agent surfaces the eligible-for-cherry-pick slate via AskUserQuestion with one row per candidate:
+
+- target_skill (file basename)
+- target_field (path; e.g., `$.critical_steps[4].desc`)
+- before_value (first 80 chars + ...)
+- after_value (first 80 chars + ...)
+- programmatic verdict (Layer 0-4 PASS summary)
+- manual review verdict (PASS + classification rationale)
+- deliver-agent recommendation
+
+Human selects EXACTLY ONE candidate to cherry-pick OR 0 candidates with explicit "no human-approved candidate" justification.
+
+**If cherry-pick lands** (human selects 1 candidate):
 
 ```bash
-cd autoloop && uv run --extra dev python -m autoloop check
+cd autoloop && uv run --extra dev python -m autoloop apply --experiment exp-<N>
 ```
 
-Confirm the output reports `AUTOLOOP_META_LLM_API_KEY` is set (from `autoloop/.env.local`). The exact output shape comes from S-Auto-3's CLI; expected format includes a line confirming the env-var presence and provider identity.
-
-Confirm `git status` returns clean (no uncommitted modifications) BEFORE the next step. The applier expects a clean working tree to commit on a new `autoloop/exp-1` branch.
-
-**If `python -m autoloop check` reports a problem** (env-var missing despite `.env.local` presence; provider unreachable; ...): STOP and surface to deliver-agent + human; do NOT manually edit `autoloop/.env.local` without surfacing context first.
-
-### #3 — Run the first live iteration
-
-Run:
+Hybrid mode behaviour (per OQ-S55.1 disposition 2026-05-27): cherry-pick + emit baseline patch (showing the new Skill YAML state) + NO auto-commit. Human inspects:
 
 ```bash
-cd autoloop && uv run --extra dev python -m autoloop run --experiments 1
+git status        # verifies single-file diff on server/src/main/resources/skills/<file>.yaml
+git diff          # verifies single-field-class change matching exp-<N>'s diff.yaml
 ```
 
-(NO `--dry-run` flag.) The full 14-step state machine must execute:
+If `git diff` shows MORE than ONE file OR a field outside `procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[*].desc`, **STOP and surface**: applier produced an out-of-fence diff, which should be structurally impossible per the M-Auto-1A sandbox. This would be a substrate bug requiring fix-iteration S-Auto-6.1 (or M-Auto-2 substrate hardening).
 
-1. propose (meta-agent LLM call: analyze → propose)
-2. content_validator (S-Auto-4 surface; PASS or FAIL → discard)
-3. sandbox YAML diff validate (S-Auto-1 surface; ACCEPT or REJECT → discard)
-4. anti_hardcode_check (S-Auto-4 surface; PASS / FAIL / FLAG_FOR_CODEX; FAIL → discard, FLAG → continue + flag)
-5. applier prepare branch (S-Auto-3 surface; create `autoloop/exp-1`)
-6. applier write YAML patch
-7. applier git commit on exp branch
-8. applier mvn compile on exp branch (or fast cache hit since jar exists from #1)
-9. applier Spring spawn on alt port + actuator health probe (120s timeout)
-10. eval_runner three v1 suites in sequence: bad_cases (parallel=1) → anchor_outcome (parallel=4) → shadow (parallel=4) — total 47 cases
-11. tier_evaluator lexicographic verdict (Layer 0 → 1 → 2 → 3 → 4)
-12. gaming.detect (post-eval observation-only flags)
-13. memory writes: experiments_log append + iterations_index insert + (no lessons compaction unless K=10 reached, which won't happen here)
-14. applier cleanup (SIGTERM / SIGKILL Spring; branch tag)
-
-Record:
-- Iteration outcome (keep / discard / error; if discard, the `discard_reason`; if error, the exception class + stage).
-- Per-iteration wall-clock elapsed time.
-- `autoloop/results/runs/exp-1/` directory contents: `hypothesis.json` (meta-agent proposed hypothesis) + `diff.yaml` (proposed YAML diff) + per-stage verdict artefacts (sandbox_verdict.json, anti_hardcode_verdict.json, etc.).
-
-**Stop conditions during this step**:
-
-- Iteration crashes in a way the S-Auto-3 crash-recovery substrate does NOT handle (e.g., a path-not-tested-during-S-Auto-3-integration-test): STOP, capture full stack trace, surface to deliver-agent + human. Do NOT patch loop.py mid-sub-sprint (hard fence: zero touch to loop.py).
-- Per-iteration elapsed time >40 min: continue this iteration to completion if possible, but STOP additional iterations and surface as observation toward milestone §10 stop condition consideration.
-- Total errors during the first 1 iteration (= 100% error rate at N=1): STOP, surface to deliver-agent + human; investigate (LLM API, infra).
-
-### #4 — Run 2-3 additional live iterations (conditional)
-
-**IF the first iteration completed <15 min** (well within budget) AND total iteration count so far <3 AND propose-sample count <10, run 2-3 more iterations to accumulate ≥10 real meta-agent propose samples:
+If verified clean:
 
 ```bash
-cd autoloop && uv run --extra dev python -m autoloop run --experiments 2
+git add server/src/main/resources/skills/<file>.yaml
+git commit -m "Sprint 059 / S-Auto-6 / M-Auto-1B — apply exp-<N> to main
+
+[2-3 sentences describing the cherry-picked edit + manual review verdict + deliver-agent + human joint signature]
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
-(Adjust `--experiments` to bring cumulative total to 3.) Each additional iteration appends to `autoloop/results/experiments.jsonl` + `iterations.sqlite`.
+The applier branch `autoloop/exp-<N>` stays as the source-of-truth pre-cherry-pick state; `autoloop/keep-<N>` (if applier creates it) carries the post-cherry-pick branch tag.
 
-After all live iterations are done, extract the ≥10 propose samples from `experiments.jsonl` — specifically `hypothesis.proposed_value` (the candidate `procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[].desc` text) for each iteration. Save these as a sanitized JSON fixture at `autoloop/tests/fixtures/real_meta_agent_calibration_samples.json`:
+**If 0 cherry-pick** (human declines all candidates OR no eligible candidates):
 
-```json
-{
-  "samples": [
-    {
-      "iter_id": "exp-1",
-      "target_skill": "...",
-      "target_field": "...",
-      "proposed_value": "...",
-      "captured_date": "2026-MM-DD"
-    },
-    ...
-  ]
-}
-```
+Deliver-agent records the "no human-approved candidate" justification in handoff §X with: (a) per-candidate decline rationale (one line each), (b) deliver-agent + human joint signature, (c) impact on M-Auto-1B close gate (0 cherry-pick is PASS if all other gates PASS). All eligible candidates stay on `autoloop/keep-<N>` branches for M-Auto-2+ review.
 
-**Sanitization**: strip any literal eval `case_id` / `session_id` / `cs<id>` substring tokens (the calibration fixture must NOT itself encode eval phrases — detector self-discipline carries forward). If a sample contains such a token, replace with a redacted placeholder (`<REDACTED_CASE_ID>`) and note the redaction in the JSON record. If sanitization makes the sample meaningless, drop it and supplement with another iteration.
+### #5 — Observation accumulation + R-S58 disposition recommendation
 
-**If after 3 iterations** the propose-sample count is still <10 (because the meta-agent proposed identical / near-identical hypotheses across iterations, or because some were discarded before reaching `experiments.jsonl`): STOP and surface to deliver-agent + human. Possible mitigation: deliver-agent + human jointly compose supplementary calibration samples from the §1.7 forbidden examples + the M-Auto-1A close-day drift cases, but this is a planning-round decision NOT a dev-side call.
+Record in `docs/sprints/sprint-059-handoff.md`:
 
-### #5 — Implement Fix-C step 1
+- **Per-iteration elapsed time table**: exp-<N>, target_skill, target_field, iteration_decision, discard_reason, elapsed_s, propose_succeeded (similar to S-Auto-5 §4 table; one row per overnight iter).
+- **Cumulative FLAG rate**: count of `anti_hardcode_flag_for_codex: true` records across overnight + percentage.
+- **Gaming flag distribution**: count by `severity` (WARN vs ERROR) + by `rule_id` across overnight.
+- **`shadow_disagreement_rate` first measurement** (§6 architecture-health metric): fraction of kept candidates whose `tier_evaluator_verdict.layer_4` shadow regression was within tolerance but the manual review classified as drift / borderline.
+- **R-S58 disposition recommendation**:
+  - If NO new bypass variant from real meta-agent propose distribution surfaces beyond R-S58 zero-width AND R-S58 zero-width signature did NOT manifest in any overnight propose: **recommend defer to M-Auto-2** (low priority; the bypass requires invisible-character obfuscation which is low-probability in real meta-agent output).
+  - If R-S58 zero-width signature DID manifest in overnight propose OR new variant surfaces: **recommend extend M-Auto-1B with S-Auto-7 Fix-D sub-sprint** (§8.5 ceiling: M-Auto-1B + S-Auto-7 = 3 sub-sprints, still under 5).
+  - **Final R-S58 disposition is deliver-agent + human at M-Auto-1B close** — NOT dev's call.
 
-Edit `autoloop/autoloop/sandbox/anti_hardcode_check.py`. The current `_normalize()` (HEAD `b6b627b` lines ~85-105) shape is:
-
-```python
-def _normalize(text: str, *, synonym_map_enabled: bool) -> str:
-    norm = unicodedata.normalize("NFKC", text).lower()
-    norm = _RE_WHITESPACE.sub(" ", norm)
-    if synonym_map_enabled:
-        for src, dst in _SYNONYM_MAP.items():
-            norm = norm.replace(src, dst)
-    return norm
-```
-
-Modify to insert the word-boundary regex substitution BEFORE the `_SYNONYM_MAP` whole-string substitution, ALSO guarded by `synonym_map_enabled`:
-
-```python
-def _normalize(text: str, *, synonym_map_enabled: bool) -> str:
-    norm = unicodedata.normalize("NFKC", text).lower()
-    norm = _RE_WHITESPACE.sub(" ", norm)
-    if synonym_map_enabled:
-        norm = _RE_WHEN_WORD_BOUNDARY.sub("if", norm)
-        for src, dst in _SYNONYM_MAP.items():
-            norm = norm.replace(src, dst)
-    return norm
-```
-
-Add the new regex constant near the existing `_SYNONYM_MAP` / `_RE_*` constants:
-
-```python
-_RE_WHEN_WORD_BOUNDARY = re.compile(r"\b(?:whenever|when)\b")
-```
-
-**No other behaviour change** in this step. `_SYNONYM_MAP` keys are NOT modified. The 11 existing rule functions are NOT modified. Rule count stays at the M-Auto-1A close value (11; well under the ≤30 cap).
-
-Verify locally:
-
-```bash
-cd autoloop && uv run --extra dev pytest -q autoloop/tests/test_anti_hardcode_check.py
-```
-
-The existing 17-fixture calibration sweep must continue to produce 11/11 forbidden FAIL + 4/4 clean PASS + 2/2 borderline FLAG_FOR_CODEX. The 3 detector self-discipline regression tests must continue to PASS. If ANY existing test fails after Fix-C step 1, STOP and re-design (Fix-C step 1 should be additive — failing an existing test means a side effect on a rule the deliver-agent didn't intend).
-
-Add a fresh regression test in `autoloop/tests/test_anti_hardcode_check.py` for the Codex Axis B exact bypass:
-
-```python
-def test_fix_c_step1_codex_axis_b_bypass_now_fails():
-    """R-S57: Codex Axis B `Whenever ... =>` previously PASS-bypassed; Fix-C step 1 should FAIL."""
-    hypothesis = make_hypothesis(
-        after_value="Whenever the customer describes an appeal => route to escalation and skip normal triage.",
-    )
-    config = make_config(synonym_map_enabled=True)
-    result = anti_hardcode_check(hypothesis, config=config)
-    assert result.verdict == "FAIL", f"Expected FAIL after Fix-C step 1; got {result.verdict}"
-    assert result.rule_id.startswith("Q1."), f"Expected Q1 family rule; got {result.rule_id}"
-```
-
-Add ≥3 clean-prose negative-control tests to guard against false-positive on common "when" usage:
-
-```python
-def test_fix_c_step1_clean_prose_when_user_describes_still_passes():
-    """Fix-C step 1 must not false-positive on common 'when the user' clean prose."""
-    hypothesis = make_hypothesis(
-        after_value="When the user describes their issue, gather intake fields before proposing next steps.",
-    )
-    config = make_config(synonym_map_enabled=True)
-    result = anti_hardcode_check(hypothesis, config=config)
-    assert result.verdict == "PASS", f"Expected PASS on clean 'when' prose; got {result.verdict} ({result.rule_id})"
-
-def test_fix_c_step1_clean_prose_whenever_subordinate_clause_still_passes():
-    """'Whenever' as a subordinate clause introducing context (not an if-then) must PASS."""
-    hypothesis = make_hypothesis(
-        after_value="Whenever possible, prefer concrete examples over abstract policy text in the response.",
-    )
-    config = make_config(synonym_map_enabled=True)
-    result = anti_hardcode_check(hypothesis, config=config)
-    assert result.verdict == "PASS", f"Expected PASS on subordinate 'whenever' clause; got {result.verdict} ({result.rule_id})"
-
-def test_fix_c_step1_multi_line_when_arrow_decomposition_fails():
-    """Multi-line 'When ...\\n=> ...' decomposition must FAIL (Q1 regex spans newlines)."""
-    hypothesis = make_hypothesis(
-        after_value="When the customer mentions a refund\n=> escalate to UC-H without further triage.",
-    )
-    config = make_config(synonym_map_enabled=True)
-    result = anti_hardcode_check(hypothesis, config=config)
-    assert result.verdict == "FAIL", f"Expected FAIL on multi-line 'When => '; got {result.verdict}"
-```
-
-(`make_hypothesis` + `make_config` are existing test helpers in `test_anti_hardcode_check.py`; reuse the existing patterns rather than inventing new ones.)
-
-### #6 — Real-meta-agent batch calibration
-
-Write a small helper (or run interactively via pytest fixture or a script under `autoloop/scripts/` if helper-scripts convention exists; otherwise put it inline in a dedicated test file `autoloop/tests/test_real_meta_agent_calibration.py`) that:
-
-1. Loads the samples from `autoloop/tests/fixtures/real_meta_agent_calibration_samples.json`.
-2. For each sample, constructs a `Hypothesis` (use existing `make_hypothesis` helper pattern).
-3. Runs `anti_hardcode_check(hyp, config=make_config(synonym_map_enabled=True))` for each.
-4. Records per-sample verdict (FAIL / FLAG_FOR_CODEX / PASS) + rule_id + matched_substring (if applicable).
-5. Computes aggregate FAIL count + FLAG count + PASS count + FLAG rate (`FLAG / total`).
-6. Asserts FLAG rate <25% (the existing `flag_for_codex_rate_warn_threshold`).
-7. Asserts FP rate on clean-prose samples = 0 (clean prose = samples the deliver-agent + dev jointly classify as "should-PASS" prior to calibration; if no clean-prose samples exist among the ≥10 real-meta-agent set, supplement with the existing 4 clean fixtures from the 17-fixture table).
-
-Run:
-
-```bash
-cd autoloop && uv run --extra dev pytest -q autoloop/tests/test_real_meta_agent_calibration.py
-```
-
-Record the aggregate counts + per-sample evidence table in `docs/sprints/sprint-058-handoff.md` §X "Real-meta-agent calibration evidence" section. The table format:
-
-| sample_id | target_field | proposed_value (first 80 chars + ...) | verdict | rule_id | clean_prose_label |
-|---|---|---|---|---|---|
-| exp-1.proposed_value | ... | ... | PASS / FAIL / FLAG | ... | clean / forbidden / borderline |
-
-**If FLAG rate ≥25%** OR **FP rate >0 on clean prose**: do NOT flip `synonym_map_enabled` in #7; the Fix-C step 2 decision moves to the Fix-B FLAG rule fallback path (see #7 below).
-
-### #7 — Fix-C step 2: decision + final state
-
-Based on the #6 evidence, choose ONE of two final states:
-
-**Path A — Acceptance bar passes** (FLAG rate <25% + FP=0 on clean prose):
-
-Edit `autoloop/config.yaml` `anti_hardcode` block:
-
-```yaml
-anti_hardcode:
-  enabled: true
-  synonym_map_enabled: true             # Fix-C step 2 Path A: flipped after S-Auto-5 calibration evidence;
-                                        # see docs/sprints/sprint-058-handoff.md §X for per-sample evidence
-  flag_for_codex_rate_warn_threshold: 0.25
-```
-
-No additional rule added.
-
-**Path B — Acceptance bar fails on FP>0 clean prose**:
-
-Retain `synonym_map_enabled: false`. Add a new FLAG rule in `autoloop/autoloop/sandbox/anti_hardcode_check.py`:
-
-```python
-_RE_Q1_WHEN_ARROW_FLAG = re.compile(
-    r"\b(?:whenever|when)\b[\s\S]{1,120}?(?:→|=>|->)[\s\S]{1,120}",
-    re.IGNORECASE,
-)
-
-def _q1_when_arrow_flag(text: str) -> tuple[str, str] | None:
-    """Fix-C step 2 Path B: FLAG (not FAIL) on `\\b(?:whenever|when)\\b ... =>` shape.
-    Detector emits FLAG_FOR_CODEX so Codex / human judges; not auto-FAIL because
-    'when' is English-common and `synonym_map_enabled=false` keeps the FAIL gate
-    narrow to the Q1 if-then regex."""
-    m = _RE_Q1_WHEN_ARROW_FLAG.search(text)
-    if m:
-        return (_trim(m.group(0)), _FLAG)
-    return None
-```
-
-Register the new rule in the existing rule list under the `Q1` category, with rule_id `Q1.when_arrow_flag` (alphabetically sorted in the rule list to maintain deterministic evaluation order). Add corresponding test cases in `test_anti_hardcode_check.py`:
-
-```python
-def test_fix_c_step2b_when_arrow_flag_on_codex_axis_b_bypass():
-    """Path B: Codex Axis B `Whenever ... =>` triggers FLAG_FOR_CODEX (not FAIL)."""
-    hypothesis = make_hypothesis(
-        after_value="Whenever the customer describes an appeal => route to escalation and skip normal triage.",
-    )
-    config = make_config(synonym_map_enabled=False)
-    result = anti_hardcode_check(hypothesis, config=config)
-    assert result.verdict == "FLAG_FOR_CODEX"
-    assert result.rule_id == "Q1.when_arrow_flag"
-
-def test_fix_c_step2b_when_arrow_flag_does_not_fire_on_clean_prose():
-    """Path B: 'when the user describes' clean prose does NOT trigger Q1.when_arrow_flag (no arrow token)."""
-    hypothesis = make_hypothesis(
-        after_value="When the user describes their issue, gather intake fields before proposing next steps.",
-    )
-    config = make_config(synonym_map_enabled=False)
-    result = anti_hardcode_check(hypothesis, config=config)
-    assert result.verdict == "PASS"
-```
-
-Rule count grows from 11 to 12 (still well under the ≤30 cap). Update the rule_count assertion in `test_detector_source_rule_count_bounded` if it's hardcoded to 11 (the M-Auto-1A close test used `<=30` so likely already passes; verify).
-
-**Whichever path is chosen**, record the decision + reasoning + per-sample evidence in `docs/sprints/sprint-058-handoff.md` §X. The handoff MUST clearly state: "Fix-C step 2 final state = Path A: `synonym_map_enabled=true`" OR "Fix-C step 2 final state = Path B: `synonym_map_enabled=false` + new `Q1.when_arrow_flag` FLAG rule".
-
-### #8 — Tests (~6-12 NEW; expected total 216 → 222-228)
-
-Reproducibility: the actual new test count depends on whether Path A or Path B is chosen at #7.
-
-**Path A new tests** (≥6):
-- `test_fix_c_step1_codex_axis_b_bypass_now_fails` (#5)
-- `test_fix_c_step1_clean_prose_when_user_describes_still_passes` (#5)
-- `test_fix_c_step1_clean_prose_whenever_subordinate_clause_still_passes` (#5)
-- `test_fix_c_step1_multi_line_when_arrow_decomposition_fails` (#5)
-- `test_real_meta_agent_calibration_flag_rate_under_threshold` (#6; runs the calibration over the ≥10 sample fixture and asserts FLAG <25%)
-- `test_real_meta_agent_calibration_fp_zero_on_clean_prose` (#6; asserts FP=0 on the clean-prose subset)
-
-**Path B new tests** (≥8): all of Path A plus:
-- `test_fix_c_step2b_when_arrow_flag_on_codex_axis_b_bypass` (#7 Path B)
-- `test_fix_c_step2b_when_arrow_flag_does_not_fire_on_clean_prose` (#7 Path B)
-
-### #9 — `autoloop/program.md` — no edit required
-
-The `autoloop/program.md` §4 status table row 3 currently reads `S-Auto-4 — DELIVERED (deterministic regex+heuristic detector ...)`. S-Auto-5 does NOT flip a new status row; the calibration is a refinement of the existing detector, not a new feature row. If `program.md` ever needs an §4 update for M-Auto-1B calibration, that's a deliver-agent decision at S-Auto-5 close, NOT a dev-side edit during the sub-sprint.
+If cherry-pick landed, advance `autoloop/config.yaml` `fitness.baseline_dir` past the new commit so M-Auto-2 baseline is post-cherry-pick (recorded as part of the close-bundle by deliver-agent at M-Auto-1B close — NOT a dev-side edit unless deliver-agent explicitly delegates).
 
 ## Hard fences / STOP conditions
 
-- **Zero touch** to `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py` — these four files are content-hash locked at `5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c` per M-Auto-1B §6 fence #13; any edit would trigger `gaming.scoring_code_drift.sha_changed` ERROR.
-- **Zero touch** to `autoloop/autoloop/loop.py` / `autoloop/autoloop/meta_agent/**` / `autoloop/autoloop/memory/**` / `autoloop/autoloop/cli.py` / `autoloop/autoloop/sandbox/{yaml_diff_validator,applier,content_validator}.py` — these are the S-Auto-1/2/3/4 deliverable substrate; S-Auto-5 consumes them, does NOT modify them.
-- **Zero touch** to `eval_interactive/eval_interactive/**`, case_spec, case_specs_shadow, `server/src/main/java/**`, `eval/src/main/java/**`, `data/`, `db/`, `server/src/main/resources/**`, `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, sprint/milestone archives, `docs/codex-findings.md`.
-- **No new heavy deps** in `autoloop/pyproject.toml` — stdlib `re` + `unicodedata` only (continues M-Auto-1A baseline). If a dep is needed, STOP and surface to deliver-agent BEFORE adding.
-- **No LLM call** inside `anti_hardcode_check` or its tests (the detector remains deterministic per D1).
-- **No semantic hardcode IN the detector itself** — Fix-C step 1 word-boundary regex `\b(?:whenever|when)\b` is a generic structural pattern (D2 compliant); optional Fix-B step 2 `_RE_Q1_WHEN_ARROW_FLAG` is similarly generic structural. The Codex Axis B exact phrase, any eval case_id, any user utterance, any expected answer, any case-status label MUST NOT appear in any detector rule (only in test fixtures for assertion targets).
-- **No hardcoding** of `synonym_map_enabled` toggle flip without the #6 calibration evidence (the toggle final state is evidence-driven, not intent-driven).
-- **No `git add -A`** by dev — stage only S-Auto-5 scope files explicitly: the modified `anti_hardcode_check.py` + `config.yaml` + new test files + `experiments.jsonl` / `iterations.sqlite` updates from live-iter + the new calibration fixture + `docs/sprints/sprint-058-handoff.md`. Deliver-agent close-bundle artefacts (this objective file, the milestone objective, Codex prompt + findings, 10-handoff updates, action_bank R-item annotations) bundled by the human at close.
-- **STOP and surface** if Fix-C step 1 implementation causes ANY existing 17-fixture test to fail (Fix-C step 1 should be additive; failure means a side effect on a rule the deliver-agent didn't intend).
-- **STOP and surface** if real-meta-agent batch produces <10 propose samples after 3 iterations (the meta-agent may be proposing near-identical hypotheses; root-cause investigation needed before deliver-agent + human jointly compose supplementary samples).
-- **STOP and surface** if Codex per-sub-sprint review returns `reject as semantic hardcode` on Fix-C step 1 or step 2 — that triggers a fix-iteration sub-sprint S-Auto-5.1 BEFORE S-Auto-6 can begin.
-- **STOP and surface** if per-iteration elapsed time >40 min (M-Auto-1B §10 stop condition consideration).
-- **STOP and surface** if `mvn package` fails OR `python -m autoloop check` fails OR live-iter crashes in an unhandled path.
+- **Zero touch** to `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py` (M-Auto-1B fence #13).
+- **Zero touch** to `autoloop/autoloop/sandbox/{yaml_diff_validator,applier,content_validator,anti_hardcode_check}.py` (S-Auto-1 through S-Auto-5 substrate).
+- **Zero touch** to `autoloop/autoloop/loop.py` / `meta_agent/` / `memory/` / `cli.py`.
+- **Zero touch** to `eval_interactive/eval_interactive/**`, case_spec, case_specs_shadow, `server/src/main/java/`, `eval/src/main/java/`, `data/`, `db/`, `server/src/main/resources/{prompts,scripts,config,mock}/**`, `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, sprint archives `docs/sprints/sprint-001-*` through `docs/sprints/sprint-058-*`, milestone archives, `docs/codex-findings.md` scaffold.
+- **Conditional touch** to `server/src/main/resources/skills/*.yaml`: EXACTLY ONCE via the Goal #4 cherry-pick mechanism; outside cherry-pick, zero touch. The cherry-pick diff MUST be single-file + single-field-class (`procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[*].desc` only).
+- **At MOST 1 cherry-pick** during S-Auto-6 (M-Auto-1B fence #7 / #17). Any additional kept candidates stay on `autoloop/keep-<N>` branches awaiting M-Auto-2+ review.
+- **No `git add -A`** by dev — stage S-Auto-6 scope files explicitly. The cherry-pick commit is a separate single-file stage (`git add server/src/main/resources/skills/<file>.yaml`). Deliver-agent close-bundle artefacts bundled by human at close.
+- **No new Tier-0 invariant**. C2/C3 DEFER continues. If overnight surfaces a Tier-0 candidate observation, surface as R-item for M-Auto-2+ planning.
+- **No new heavy deps** in `autoloop/pyproject.toml`.
+- **No LLM call** in any new code (S-Auto-6 is execution-driven; no new code expected beyond handoff documentation).
+- **No human-judgment-gate bypass**: dev does NOT pick cherry-pick candidate OR judge no-cherry-pick alone; AskUserQuestion via deliver-agent is the human-judgment gate per §5.6.
+- **No silent skip of pre-overnight smoke**: the `--experiments 1` smoke is mandatory BEFORE the overnight batch (S-Auto-5 did not measure full Spring + eval cycle live; overnight without smoke = risk of 6h wasted on a substrate pathology).
+- **STOP and surface** conditions:
+  - Pre-batch baseline drift envelope width >5/34 cases (M-Auto-1A close-day signature exceeded).
+  - Pre-overnight smoke iter elapsed >40 min.
+  - Overnight total errors >50% within first 5 iterations.
+  - Per-iter average elapsed >40 min sustained.
+  - Multiple bypass shapes from real meta-agent propose distribution PASS detector beyond R-S58.
+  - Cherry-pick `apply` mechanism produces out-of-fence diff (multi-file OR field outside white-list).
+  - Any kept candidate's manual review surfaces a borderline §5.3 case (deliver-agent + human jointly judge whether to discard or surface for per-sub-sprint Codex re-review BEFORE M-Auto-1B close).
 
 ## Test / eval requirements
 
-- **Python autoloop suite**: `cd autoloop && uv run --extra dev pytest -q` — M-Auto-1A close baseline `216 passed, 1 warning` MUST grow by 6-12 NEW S-Auto-5 tests (Path A: ~6; Path B: ~8; possibly +2 if dev adds extra adversarial fixtures). Total `222-228 passed, 1 warning`. The 1 warning is the S-Auto-2 baseline-missing-shadow asserted behaviour, unchanged.
-- **Existing Python eval_interactive suite UNCHANGED**: `cd eval_interactive && uv run python -m pytest --tb=no -q` reproduces `486 passed, 3 failed` (failures are env-specific per OQ-S47.3).
-- **Java baseline UNCHANGED**: skipped per S-Auto-5 Java-zero-touch (verify `git diff --stat -- server/src/main/java/ eval/src/main/java/` against the S-Auto-5 dev commit returns empty).
-- **17-fixture calibration sweep**: 11/11 forbidden FAIL + 4/4 clean PASS + 2/2 borderline FLAG_FOR_CODEX UNCHANGED after Fix-C step 1.
-- **Detector self-discipline regression tests**: 3 tests (`test_detector_source_does_not_hardcode_eval_case_ids` + `test_detector_source_does_not_hardcode_user_utterance_literals` + `test_detector_source_rule_count_bounded`) UNCHANGED — PASS.
-- **Real-meta-agent batch calibration**: ≥10 samples; FLAG rate <25%; FP=0 on clean prose (with the chosen `synonym_map_enabled` setting from #7).
-- **Live-iter end-to-end**: 1-3 real iterations completed without unhandled crash; per-iteration elapsed time recorded; `autoloop/results/runs/exp-N/` contents present.
-- **No live LLM call in pytest tests** (continues M-Auto-1A baseline) — calibration tests use sanitized fixture file, NOT a fresh LLM call.
+- **Python autoloop suite**: `cd autoloop && uv run --extra dev pytest -q` — S-Auto-5 close baseline `223 passed, 1 warning` UNCHANGED (S-Auto-6 expected to add 0 new pytest tests — execution-driven sub-sprint; if observation infrastructure requires new tests, add to handoff §X with justification).
+- **Existing Python eval_interactive suite UNCHANGED**: `cd eval_interactive && uv run python -m pytest --tb=no -q` reproduces `486 passed, 3 failed`.
+- **Java baseline UNCHANGED**: `Tests run: 1183, Failures: 1, Errors: 0, Skipped: 2` UNCHANGED from M-Auto-1A close `b6b627b` IF cherry-pick lands and the Skill YAML edit does NOT regress Java tests (Skill YAML loading is via Spring config + `SkillRegistry`; potential Java-side touch is class-loading + YAML parse only — semantically the edited Skill YAML is consumed by LLM-side projection, not Java decision-paths, so baseline preserved by construction). Run `cd server && mvn test -B -pl server` AFTER cherry-pick (if any) to verify.
+- **Live-iter end-to-end at scale**: ≥10 overnight iterations complete to terminal verdict (keep / discard / error all acceptable per S-Auto-5 precedent).
+- **§5.6 manual review evidence at sub-sprint close**: per-kept-candidate trace review documented with deliver-agent + human joint PASS/FAIL/IMPROVING/borderline classification.
+- **Shadow regression-safety check at M-Auto-1B close** (separate from S-Auto-6; milestone-close gate per M5 / M-Auto-1A precedent). If cherry-pick landed, shadow drop on the 23 shadow cases must be ≤3%.
+- **No live LLM call in pytest tests** — overnight LLM calls happen via `python -m autoloop run` (CLI invocation, NOT pytest).
 
 ## §7 — Layer-classification + anti-hardcode stanza
 
-**Target failure layer:** `infra` (primary; §3.2 Q1 — live-iter prerequisite + first real iteration are infrastructure execution + observation) + `eval_spec` (calibration; §3.2 Q6 — Fix-C step 1 + optional step 2 are structural refinements of the meta-agent output boundary detector). The sub-sprint does NOT change runtime / projection / scoring / CaseSpec / judge / smoke / shadow firewall posture.
+**Target failure layer:** `eval_spec` (§3.2 Q6 — sub-sprint's primary action is consuming per-iteration fitness verdict sequence + cherry-pick eligibility decision; both are eval-side acceptance bars, not runtime semantic changes). The cherry-picked Skill YAML edit (if any) is the LLM-soft-narrative surface (§1.3 LLM owns content) — semantic-touching in the sense that it changes LLM-visible Skill instruction text, but the change is sandbox-validated + anti-hardcode-validated + tier_evaluator-validated + §5.6-manual-reviewed BEFORE landing on main. The cherry-pick is therefore a §5.6-gated structured improvement, NOT a §1.7 violation.
 
-**Tier-0 invariant:** adds no Tier-0 invariant. The Fix-C step 1 word-boundary regex + optional Fix-B step 2 FLAG rule are meta-loop infrastructure refinements, NOT a runtime invariant per `docs/runtime_freeze_and_risk_policy.md` §1/§2. The detector itself DETECTS attempts to invent new Tier-0 semantics (existing Q2 rule); Fix-C does not alter this Q2 detection behaviour.
+**Tier-0 invariant:** adds no Tier-0 invariant. The cherry-picked Skill YAML edit (if any) does NOT modify any current Tier-0 invariant per `docs/runtime_freeze_and_risk_policy.md` §1/§2 (which govern Java-side safety floor, not Skill YAML LLM-soft narrative content). The §3.2 Q2 detector rule in the calibrated anti_hardcode_check.py (existing S-Auto-4 rule + S-Auto-5 Fix-C step 1) actively REJECTS any proposed Tier-0 invention attempt — overnight kept candidates have been filtered through this check at propose-stage.
 
-**Semantic hardcode:** No semantic hardcode introduced. Justification by surface:
-
-- **Fix-C step 1 word-boundary regex** `r"\b(?:whenever|when)\b"` is a **generic structural pattern** (per D2 detector self-discipline) — matches the two English-language words "whenever" and "when" as word-boundary tokens. The regex does NOT enumerate specific eval phrases / user utterances / expected answers / case-status labels. The detector self-discipline regression tests (`test_detector_source_does_not_hardcode_eval_case_ids` + `..._user_utterance_literals`) continue to grep-PASS (no literal `cs<id>` / `closure_criterion` / etc. tokens in the rule source).
-- **Optional Fix-B step 2 FLAG rule** `_RE_Q1_WHEN_ARROW_FLAG` is similarly a **generic structural pattern** — matches the structural shape `\b(?:whenever|when)\b ... (?:→|=>|->) ...` as a FLAG (NOT auto-FAIL) signal. The regex encodes a generic IF/WHEN ... THEN arrow-tree shape, NOT specific content.
-- **Calibration evidence-driven `synonym_map_enabled` toggle** is a config-level decision NOT a hardcode — flipping `false → true` is enabling a feature flag whose semantics are already in the codebase from S-Auto-4. The decision is evidence-driven (≥10 real-meta-agent samples + 17-fixture sweep both pass before flipping).
-- **Real-meta-agent calibration fixture** at `autoloop/tests/fixtures/real_meta_agent_calibration_samples.json` is a **test data file** containing sanitized meta-agent propose outputs. Sanitization removes any literal `case_id` / `session_id` / user-utterance tokens before commit. The fixture is consumed by `test_real_meta_agent_calibration.py` for regression purposes (asserting the detector verdict against the sanitized samples remains stable across future detector edits).
+**Semantic hardcode:** S-Auto-6 introduces no NEW semantic hardcode in source code. The cherry-picked Skill YAML edit (if any) MUST pass the calibrated anti_hardcode_check (Fix-C step 1 + `synonym_map_enabled=true` from S-Auto-5) at propose-stage; manual review §5.6 additionally guards against borderline §5.3 "drift to keyword bot" candidates. The detector + manual review chain is the §1.7 enforcement; S-Auto-6 does NOT modify the chain itself (sandbox + anti_hardcode + content_validator + gaming all hard-fenced per #13). Any post-cherry-pick observation of a §1.7-style regression in the cherry-picked content would be a fix-iteration S-Auto-6.1 (revert + re-evaluate; OR refine via M-Auto-2+).
 
 **Generalization coverage:**
 
-- **target** = (i) live-iter pipeline end-to-end on `auto-loop-branch` against a real meta-agent LLM (regardless keep / discard / error verdict); (ii) R-S57 detector calibration: 17-fixture sweep maintains 11/11 + 4/4 + 2/2 + real-meta-agent batch FLAG rate <25% + FP=0 on clean prose + Codex Axis B exact bypass now FAILs the detector.
-- **neighbor** = R-S57 adversarial variants surfaced by Codex per-sub-sprint review (unicode obfuscation of "whenever" e.g., `ｗhenever`; multi-line decomposition `When ...\n=> ...`; semantic synonym swap "anytime ... ->"; logically-equivalent shapes "Given X happens, then output Y"). Detector must reject (or FLAG, depending on Path A / B) each.
-- **negative-control** = 17-fixture clean PASS cases (4 cases) + ≥3 real-meta-agent clean prose samples ("when the user describes their issue, ..." / "whenever possible, prefer concrete examples ..." / similar). MUST NOT false-positive after Fix-C step 1.
-- **shadow** = the shadow firewall posture is unchanged by S-Auto-5 (no detector-side change to `gaming.shadow_set_leakage` rule; the `shadow_leak_signatures` config list stays seeded with `["cs59s", "shadow_case_id", "shadow/", "case_specs_shadow"]` from M-Auto-1A). S-Auto-6 overnight is where shadow accumulates evidence.
+- **target** = (i) ≥10 overnight iterations complete to terminal verdict on `auto-loop-branch` against the calibrated detector + real meta-agent LLM; (ii) ≥1 §5.6 manual review of kept candidates (or 0 if no kept candidates surface); (iii) cherry-pick decision (1 or 0) recorded with deliver-agent + human joint signature.
+- **neighbor** = the cherry-picked candidate (if any) does NOT regress neighboring cases — i.e., for the target_skill + target_field that was edited, related test cases in `bad_cases` / `anchor_outcome` / `shadow` do NOT shift from PASS → FAIL beyond the drift envelope from #1.
+- **negative-control** = the cherry-picked candidate (if any) does NOT shift the M-Auto-1B close-day bad-case manual review distribution (expected: ≥1 case moves to IMPROVING or PASS if cherry-pick lands targets a R-iwzx / R-bad-case-suite-uc-ghij-seed-from-real-sessions like case; otherwise expected to match M-Auto-1A close distribution).
+- **shadow** = shadow firewall posture UNCHANGED in S-Auto-6 (no detector / config / scoring change). Overnight kept candidates have been filtered through Layer 4 shadow regression check (≤3% drop) by tier_evaluator; the cherry-picked candidate's shadow drop ≤3% guarantee carries through to main.
 
 ## Codex review plan (§4.3)
 
-**PER-SUB-SPRINT REQUIRED — §4.3 trigger #2**. The Fix-C step 1 detector change + Fix-C step 2 decision touch the §1.7 structural guard. Codex must independently verify Fix-C structural soundness + calibration evidence is sound BEFORE S-Auto-6 begins overnight running it against real propose outputs.
+**Default**: milestone-shared at M-Auto-1B close. Codex consumes cumulative range `<M-Auto-1A-close>..<M-Auto-1B-close>` covering both sub-sprints + cherry-pick commit (if any).
 
-**Codex prompt timing**: deliver-agent authors `compact/sprint-058-codex-review-prompt.md` at S-Auto-5 **close** (NOT at open), covering the actual delivered commit range.
+**Per-sub-sprint Codex CONDITIONAL on cherry-pick borderline-§5.3**:
 
-**Codex must verify**:
+Deliver-agent + human jointly judge at S-Auto-6 cherry-pick decision point (Goal #4 AskUserQuestion):
 
-1. §4.1 nine-question kernel walk against the modified detector source (`anti_hardcode_check.py` + the new `_RE_WHEN_WORD_BOUNDARY` constant + optional new `_RE_Q1_WHEN_ARROW_FLAG` + `_q1_when_arrow_flag`): does Fix-C step 1 or step 2 encode any §1.7-violating decision logic? (D2 regression — the new regex must remain generic structural; no specific eval phrase / user utterance / answer / label.)
-2. The detector catches the Codex Axis B exact bypass after Fix-C step 1 (FAIL on `synonym_map_enabled=true` Path A; FLAG_FOR_CODEX on `synonym_map_enabled=false` + new FLAG rule Path B).
-3. ≥3 NEW bypass spot-checks (unicode obfuscation, multi-line decomposition, semantic synonym swap "anytime" / "as soon as" / German / Spanish translation). Detector must reject or FLAG each correctly; if a residual bypass surfaces, Codex returns `approve with downgrade-to-signal follow-up` with the new R-item recommendation.
-4. Real-meta-agent calibration evidence audit: read the ≥10-sample fixture + the per-sample verdict table in `docs/sprints/sprint-058-handoff.md` §X "Real-meta-agent calibration evidence"; verify FLAG rate <25% + FP=0 on clean prose; verify the Path A / Path B decision rationale matches the evidence (no flip-without-justification).
-5. Detector self-discipline 3 regression tests (`test_detector_source_does_not_hardcode_eval_case_ids` + `..._user_utterance_literals` + `..._rule_count_bounded`) PASS after Fix-C; rule count stays ≤30.
-6. The 17-fixture calibration sweep still produces 11/11 + 4/4 + 2/2 after Fix-C step 1 (no side effect on existing rules).
-7. Live-iter end-to-end evidence (Sprint 058 handoff §X "Live-iter end-to-end record") shows the prerequisite + first real iteration + per-iteration elapsed time + any error/discard outcomes are documented.
+- If the cherry-pick candidate is unambiguously clean §5.6 manual review PASS, NO §5.3 borderline → milestone-shared Codex (default).
+- If cherry-pick candidate is §5.3 borderline ("drift to keyword bot" risk despite programmatic PASS) → per-sub-sprint Codex required BEFORE M-Auto-1B close (deliver-agent dispatches `compact/sprint-059-codex-review-prompt.md`; Codex verifies (a) the cherry-picked edit is structurally clean; (b) §1.7 forbidden-list compliance; (c) §5.3 borderline acceptable as `approve with downgrade-to-signal follow-up`).
+- If cherry-pick candidate's manual review surfaces a CLEAR §5.3 violation → discard the candidate; do NOT cherry-pick; close with 0 cherry-pick.
 
-**Verdict expected**: `pass / 0` or `approve with downgrade-to-signal follow-up`. Must return BEFORE S-Auto-6 overnight starts. `reject as semantic hardcode` triggers fix-iteration sub-sprint S-Auto-5.1. Pre-mitigation: deliver-agent + dev jointly run all detector self-discipline regression tests + the 17-fixture sweep + the real-meta-agent calibration before commit.
+**Verdict expected** (milestone-shared at M-Auto-1B close): `pass / 0` or `approve with downgrade-to-signal follow-up` (likely; R-S58 deferred trigger).
 
 ## Handoff requirements
 
-- Author `docs/sprints/sprint-058-handoff.md` at S-Auto-5 close; leave **§12** empty (deliver-agent + human at milestone close).
-- Record in handoff:
-  - `git show --numstat <s-auto-5-commit-sha>` for the sub-sprint commit.
-  - Section "Live-iter end-to-end record": prereq verification (mvn package outcome, `python -m autoloop check` output summary, `git status` clean confirmation); per-iteration table (exp-1 ... exp-N with target_skill / target_field / verdict / discard_reason / elapsed_ms); cumulative propose-sample count.
-  - Section "Real-meta-agent calibration evidence": the per-sample verdict table from #6 (≥10 rows); aggregate FAIL/FLAG/PASS counts; FLAG rate (under 25% expected); FP rate on clean prose (0 expected); whether Path A or Path B was chosen at #7; one-paragraph rationale linking the evidence to the decision.
-  - Section "17-fixture sweep after Fix-C": the 17/17 outcome breakdown unchanged (11 FAIL + 4 PASS + 2 FLAG); the detector self-discipline 3 regression tests PASS status; rule count.
-  - Section "Adversarial spot-check pre-Codex" (dev pre-mitigation): ≥3 adversarial constructions the dev tried locally and the detector verdict for each; this is a dry-run of what Codex will independently verify.
-  - Section "§7 stanza self-walk": dev confirms the §7 stanza above against the actual delivered scope (any deviation flagged).
-  - Section "OQ list" (OQ-S58.x candidates if surfaced).
-- Author `compact/sprint-058-codex-review-prompt.md` AS PART OF the S-Auto-5 close-bundle (deliver-agent writes this; embeds §4.1 nine-question kernel verbatim + commit range + the 7 verification axes above + the §6 hard fences from `docs/milestone_objective.md` + §6.1 OQ-S56.1 disposition).
+Author `docs/sprints/sprint-059-handoff.md` at S-Auto-6 close. Leave **§12** empty (deliver-agent + human at milestone close). Required sections:
+
+- **§1 Class + §7 stanza self-walk** — confirm against delivered scope.
+- **§2 Goal achievement** — bullet each of the 6 Goal items + evidence pointer.
+- **§3 Scope execution log** — for each scope step #1-#5, brief status (DONE / PARTIAL / SKIPPED-WITH-REASON).
+- **§4 Pre-batch baseline drift envelope** — per-baseline-run aggregate `case_passed` counts per suite (≥2 reruns); median + IQR per suite + cross-suite total; drift envelope decision (proceed with measured envelope OR halt for upstream LLM-provider investigation).
+- **§5 Pre-overnight smoke + overnight batch record** — `--experiments 1` smoke iter outcome + elapsed time; overnight batch: `--experiments <N>` value chosen + rationale; per-iteration table (iter_id, target_skill, target_field, iteration_decision, discard_reason, elapsed_s, propose_succeeded, anti_hardcode_flag_for_codex, gaming_flags count); cumulative counts (keep / discard / error / total).
+- **§6 Manual review of kept candidates** — per-kept-candidate row with target_skill, target_field, programmatic verdict, manual review PASS/FAIL/IMPROVING/borderline-§5.3 classification, classification rationale, eligibility-for-cherry-pick / deferred-to-M-Auto-2+ / discarded.
+- **§7 Cherry-pick decision** — AskUserQuestion record (deliver-agent surfaces; human selects); selected candidate (or "no human-approved candidate" + justification); `python -m autoloop apply --experiment exp-<N>` Hybrid output; `git status` + `git diff` verification of single-file + single-field-class diff; cherry-pick commit SHA + footer.
+- **§8 Observation accumulation** — per-iteration elapsed-time average; cumulative FLAG rate; gaming flag distribution by severity + rule_id; `shadow_disagreement_rate` first measurement; whether NEW bypass variants surfaced from real meta-agent propose distribution beyond R-S58.
+- **§9 R-S58 disposition recommendation** — defer-to-M-Auto-2 OR extend-M-Auto-1B-with-S-Auto-7; deliver-agent observation; final disposition is deliver-agent + human at M-Auto-1B close.
+- **§10 Code anchor table** — `git show --numstat <commits>` for any commits landed during S-Auto-6 (the cherry-pick commit, if any; the handoff commit; substrate observation commits if any).
+- **§11 Test count** — autoloop pytest UNCHANGED at `223 passed, 1 warning` baseline (S-Auto-6 expected to add 0 tests; if tests added, breakdown here).
+- **§12 OQ-S59.x list** — open questions surfaced during execution; disposition per OQ.
+
+You do NOT author the milestone-shared Codex review prompt (deliver-agent's job at M-Auto-1B close).
 
 ## Commit discipline
 
-Dev stages **only S-Auto-5 scope** explicitly:
+S-Auto-6 expected commit pattern (commit-at-end; one or two commits):
 
-- Modified `autoloop/autoloop/sandbox/anti_hardcode_check.py` (Fix-C step 1; optional Fix-C step 2 Path B FLAG rule).
-- Modified `autoloop/config.yaml` (Fix-C step 2 `synonym_map_enabled` final state).
-- Modified `autoloop/tests/test_anti_hardcode_check.py` (≥4 new tests for Fix-C step 1; Path B: +2 tests for step 2 fallback rule).
-- New `autoloop/tests/test_real_meta_agent_calibration.py` (the calibration sweep test).
-- New `autoloop/tests/fixtures/real_meta_agent_calibration_samples.json` (sanitized ≥10-sample fixture).
-- Updates to `autoloop/results/runs/exp-N/` + `autoloop/results/experiments.jsonl` + `autoloop/results/iterations.sqlite` from the live iterations (whether committed depends on `.gitignore` policy at `autoloop/results/`; if `.gitignore`'d, the live-iter evidence lives in the handoff record only — verify the existing convention).
-- New `docs/sprints/sprint-058-handoff.md`.
+**Commit 1 (conditional; cherry-pick only IF a candidate is selected at Goal #4)**:
 
-**No `git add -A`**. Deliver-agent close-bundle files (this objective archive rename at close, milestone objective, codex prompt + findings, 10-handoff updates, action_bank R-item annotations) bundled by the human at close per `feedback_commit_at_end_bundles_deliver_artefacts.md`.
+```
+Sprint 059 / S-Auto-6 / M-Auto-1B — apply exp-<N> to main
 
-One commit at sub-sprint close (commit-at-end pattern). Commit message: `Sprint 058 / S-Auto-5 / M-Auto-1B — live-iter bootstrap + Fix-C step 1 + calibration evidence + step 2 final state`. (Replace the trailing fragment with the actual Path A or Path B decision; e.g., `... + step 2 Path A: synonym_map_enabled=true` OR `... + step 2 Path B: synonym_map_enabled=false + when_arrow_flag rule`.)
+[2-3 sentences describing the cherry-picked edit: target_skill + target_field + edit summary; manual review verdict; deliver-agent + human joint signature]
 
-Commit footer: `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` per standard convention.
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+```
+
+Stage ONLY: `server/src/main/resources/skills/<file>.yaml` (the single-file Skill YAML edit from `python -m autoloop apply --experiment exp-<N>` Hybrid mode output).
+
+**Commit 2 (always; S-Auto-6 close handoff)**:
+
+```
+Sprint 059 / S-Auto-6 / M-Auto-1B — first overnight batch + first human review + first cherry-pick <or "no cherry-pick" + justification>
+
+[2-3 sentences describing the overnight batch outcome (N iter completed; keep/discard/error counts); manual review verdict on kept candidates; cherry-pick decision + cherry-pick commit pointer if applicable; R-S58 disposition recommendation]
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+```
+
+Stage ONLY: `docs/sprints/sprint-059-handoff.md` (the dev-authored handoff archive).
+
+**No `git add -A`**. Deliver-agent close-bundle artefacts (this objective archive rename at close, milestone objective §12 closure verdict, milestone-shared Codex prompt + findings, 10-handoff updates, action_bank R-item annotations) bundled by human at close per `feedback_commit_at_end_bundles_deliver_artefacts.md`.
 
 ## Scope size (§8.5 note)
 
-M-Auto-1B with S-Auto-5 = 1 of 2 sub-sprints planned; within §8.5 5-sub-sprint ceiling (margin = 3 if fix-iteration needed). S-Auto-5 is medium by LOC + test count + structural-defence importance; estimated 4-5 dev-days + Codex ~2 days. The Fix-C step 2 Path A / Path B branching adds conditional scope but each path is ≤2 hours dev work. No deferred scope (everything in scope is required to hit close gates).
+M-Auto-1B with S-Auto-6 = 2 of 2 sub-sprints planned (within §8.5 5-sub-sprint ceiling; margin = 3 if fix-iteration S-Auto-5.1 / S-Auto-6.1 / Fix-D S-Auto-7 needed). S-Auto-6 is execution-driven + observation-driven; estimated 1-2 dev-days execution + 1 overnight (6-8h auto-loop) + 1-2 days deliver-agent + human manual review + cherry-pick decision + apply + close-bundle.
 
 ## OQ (open questions — filled during the sub-sprint)
 
-- **OQ-S58.x candidates** (expected; dev surfaces as ambiguities encountered):
-  - Whether the meta-agent's propose distribution produces enough diverse samples in 1-3 iterations to constitute "≥10 real samples" (or if the meta-agent loops on similar hypotheses; surfaces if so).
-  - Exact wall-clock per-iteration elapsed time vs. M-Auto-1B §9 estimate (12-25 min target; >40 min triggers stop-condition discussion).
-  - Whether Path A or Path B was chosen at Fix-C step 2 and the per-sample evidence justification.
-  - Whether any adversarial spot-check beyond the 3-dev-tried-locally surfaces (Codex will independently verify; OQ-S58 records dev's pre-mitigation attempts).
-  - Whether `autoloop/results/` directory is `.gitignore`'d or committed (existing convention to verify; if `.gitignore`'d, live-iter evidence captured in handoff only).
-  - Whether `make_hypothesis` and `make_config` test helpers in `test_anti_hardcode_check.py` support the new test patterns; surface if helper extensions are needed (additive, no signature break to existing tests).
+- **OQ-S59.x candidates** (expected; dev surfaces as ambiguities encountered):
+  - **OQ-S59.1** — `--baseline-rerun` CLI flag exists OR substitute path. Verify via `python -m autoloop --help` BEFORE running #1.
+  - **OQ-S59.2** — pre-overnight smoke iter elapsed time vs. S-Auto-5 estimate (12-25 min target).
+  - **OQ-S59.3** — `--experiments <N>` value chosen for overnight + rationale (function of pre-overnight smoke + 6-8h budget).
+  - **OQ-S59.4** — whether overnight Spring spawn failure rate exceeds S-Auto-5 single observation (exp-2 1/3 = 33% of attempted spawns; if overnight reproduces, surface OQ to M-Auto-2 substrate optimization).
+  - **OQ-S59.5** — whether lessons_compactor K=10 trigger fires during overnight; if yes, first `lessons.md` LLM-distilled lesson content.
+  - **OQ-S59.6** — kept-candidate count distribution vs. S-Auto-5 augmented-evidence expectation. If 0 kept candidates from overnight, deliver-agent + human assess whether meta-prompt refinement is M-Auto-2+ scope.
+  - **OQ-S59.7** — whether any kept candidate touches `R-iwzx-uc-k-vs-uc-h-routing-spurious-distress` or `R-bad-case-suite-uc-ghij-seed-from-real-sessions` natural-target territory; if yes, the manual review specifically validates against those R-items' expected behaviour.
+  - **OQ-S59.8** — whether R-S58 zero-width-bypass shape manifests in overnight propose distribution (informs the R-S58 disposition recommendation at #5).
+  - **OQ-S59.9** — cherry-pick decision rationale + 0-cherry-pick justification (if applicable).
+  - **OQ-S59.10** — `config.fitness.baseline_dir` advance + new baseline directory path (if cherry-pick lands; deliver-agent close-bundle).
+
+Add OQ entries as ambiguities are encountered; record disposition per OQ in handoff §12.
