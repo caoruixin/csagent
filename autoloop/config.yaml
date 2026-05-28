@@ -175,7 +175,18 @@ anti_hardcode:
   # Synonym-map normalization (e.g. "equals" → "=", "->" → "→"). Off
   # by default; deliver-agent enables after calibration evidence shows
   # it adds detection coverage without spiking false-positive rate.
-  synonym_map_enabled: false
+  #
+  # Fix-C step 2 (S-Auto-5, 2026-05-28): Path A — flipped false → true
+  # after batch calibration. Evidence: 3 real-meta-agent propose samples
+  # (exp-2/3/4) all PASS under synonym_map_enabled=true (0 FP on clean
+  # prose); 17-fixture calibration suite preserves 11 FAIL + 4 PASS + 2
+  # FLAG outcome; Codex Axis B exact bypass `Whenever ... =>` now FAILs
+  # via Q1.if_then_decision_tree after the new word-boundary regex
+  # normalization in anti_hardcode_check._normalize(). See
+  # docs/sprints/sprint-058-handoff.md §5 for per-sample evidence +
+  # OQ-S58.x for the <10 real-sample-count gap (augmented via existing
+  # 17-fixture suite = 20 calibration data points).
+  synonym_map_enabled: true
 
   # Operational warning threshold on `FLAG_FOR_CODEX` rate over the
   # calibration table. Above this, detector is too noisy and needs

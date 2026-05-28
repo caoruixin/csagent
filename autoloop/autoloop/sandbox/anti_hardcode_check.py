@@ -80,6 +80,12 @@ _SYNONYM_MAP = {
     " whenever ": " if ",
 }
 
+# Fix-C step 1 (S-Auto-5): word-boundary "whenever"/"when" → "if". Closes
+# the Codex Axis B bypass `Whenever ... =>` shape where the existing
+# surrounding-space _SYNONYM_MAP entries do not fire at start-of-string
+# / after-punctuation positions. Generic structural pattern (D2 compliant).
+_RE_WHEN_WORD_BOUNDARY = re.compile(r"\b(?:whenever|when)\b")
+
 
 def _normalize(text: str, *, synonym_map_enabled: bool) -> str:
     """NFKC + lowercase + whitespace-collapse; optional synonym map.
@@ -93,6 +99,7 @@ def _normalize(text: str, *, synonym_map_enabled: bool) -> str:
     norm = norm.lower()
     norm = re.sub(r"\s+", " ", norm)
     if synonym_map_enabled:
+        norm = _RE_WHEN_WORD_BOUNDARY.sub("if", norm)
         for src, dst in _SYNONYM_MAP.items():
             norm = norm.replace(src, dst)
     return norm

@@ -294,6 +294,90 @@ def test_fail_carries_matched_substring():
 
 
 # ---------------------------------------------------------------------
+# Fix-C step 1 (S-Auto-5) — word-boundary "whenever"/"when" → "if".
+# Closes the Codex Axis B bypass shape `Whenever ... =>`. Active only
+# when `anti_hardcode.synonym_map_enabled: true` (the toggle final
+# state is decided by §5 batch-calibration evidence; see handoff §5).
+# ---------------------------------------------------------------------
+
+
+_SYNONYM_ENABLED_CFG = {"anti_hardcode": {"synonym_map_enabled": True}}
+
+
+def test_fix_c_step1_codex_axis_b_bypass_now_fails():
+    """R-S57 / Codex Axis B: `Whenever <X> => <Y>` previously bypassed
+    the detector because " whenever " (space-bounded) did not fire at
+    start-of-string. Fix-C step 1 word-boundary regex closes the bypass."""
+    res = anti_hardcode_check(
+        _hyp(
+            "Whenever the customer describes an appeal => route to escalation "
+            "and skip normal triage."
+        ),
+        config=_SYNONYM_ENABLED_CFG,
+    )
+    assert res.verdict == "FAIL", (
+        f"Codex Axis B bypass MUST FAIL after Fix-C step 1; got "
+        f"{res.verdict} ({res.rule_id})"
+    )
+    assert res.rule_id.startswith("Q1."), (
+        f"Expected Q1 family rule; got {res.rule_id}"
+    )
+
+
+def test_fix_c_step1_clean_prose_when_user_describes_still_passes():
+    """Fix-C step 1 must not false-positive on common 'when the user
+    describes ...' clean intake prose (no decision-tree arrow / then)."""
+    res = anti_hardcode_check(
+        _hyp(
+            "When the user describes their issue, gather the relevant "
+            "intake fields before proposing next steps."
+        ),
+        config=_SYNONYM_ENABLED_CFG,
+    )
+    assert res.verdict == "PASS", (
+        f"Clean 'when' prose MUST PASS; got {res.verdict} ({res.rule_id})"
+    )
+
+
+def test_fix_c_step1_clean_prose_whenever_subordinate_clause_still_passes():
+    """`Whenever possible, prefer concrete examples...` — `whenever` as a
+    subordinate-clause adverb introducing context, NOT a decision tree.
+    Must PASS (no arrow / no then token)."""
+    res = anti_hardcode_check(
+        _hyp(
+            "Whenever possible, prefer concrete examples over abstract "
+            "policy text in the response."
+        ),
+        config=_SYNONYM_ENABLED_CFG,
+    )
+    assert res.verdict == "PASS", (
+        f"Subordinate-clause 'whenever' MUST PASS; got "
+        f"{res.verdict} ({res.rule_id})"
+    )
+
+
+def test_fix_c_step1_multi_line_when_arrow_decomposition_fails():
+    """Multi-line `When ...\\n=> ...` shape must FAIL after Fix-C step 1:
+    whitespace-collapse joins the lines, word-boundary regex maps
+    'when' → 'if', synonym_map maps '=>' → '→', then Q1 arrow_tree
+    matches."""
+    text = (
+        "When the customer mentions a refund\n"
+        "=> escalate to UC-H without further triage."
+    )
+    res = anti_hardcode_check(
+        _hyp(text),
+        config=_SYNONYM_ENABLED_CFG,
+    )
+    assert res.verdict == "FAIL", (
+        f"Multi-line 'When => ' MUST FAIL; got {res.verdict}"
+    )
+    assert res.rule_id.startswith("Q1."), (
+        f"Expected Q1 family rule; got {res.rule_id}"
+    )
+
+
+# ---------------------------------------------------------------------
 # Detector self-discipline regression (D2)
 # ---------------------------------------------------------------------
 
