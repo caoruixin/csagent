@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "description": "S-Auto-5 real-meta-agent batch calibration fixture. Sanitized propose outputs from live iterations exp-2, exp-3, exp-4 on 2026-05-28. See docs/sprints/sprint-058-handoff.md \u00a75 for per-sample evidence + OQ-S58.x for the <10 sample-count gap (3 real samples captured vs spec >=10; resolved via augmented-evidence path = 3 real + 17-fixture suite = 20 total calibration data points).",
+    "samples_count": 3,
+    "spec_min_count": 10,
+    "real_meta_agent_provider": "anthropic via AICodeWith gateway",
+    "real_meta_agent_model": "claude-opus-4-7"
+  },
+  "samples": [
+    {
+      "iter_id": "exp-2",
+      "target_skill_file": "server/src/main/resources/skills/confirm.yaml",
+      "target_field_path": "$.procedure",
+      "proposed_value": "You are in the CONFIRM phase. Interpret whether the user is satisfied with the prior answer based on the overall sentiment and substantive content of their reply, not on any specific phrasing. When the reply signals satisfaction \u2014 an affirmative acknowledgement, an expression of gratitude, or any indication that the prior answer addressed the user's issue \u2014 call record_outcome with outcome='RESOLVED'. When the reply signals dissatisfaction \u2014 the user states the prior answer did not work, raises further concerns about the same issue, or explicitly requests a human \u2014 first consider whether a fresh RESOLVE attempt has a viable path (a different grounded surface, or a refined reading of the issue); if not, call request_handover with reason 'user_dissatisfied'. When the user's stance is genuinely ambiguous, ask one focused yes/no clarification before committing the outcome.",
+      "before_value": "You are in the CONFIRM phase. Interpret whether the user is satisfied with the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., 'no', 'still not working', 'I need more help'), call request_handover with reason 'user_dissatisfied' OR transition back to RESOLVE if appropriate.",
+      "rationale": "No baseline failure landscape is available this iteration, so the safest move is a low-risk style refactor that strengthens an existing surface without changing semantics. The current confirm procedure enumerates closed-list phrase examples which can encourage brittle phrase-level matching at the LLM layer; replacing them with sentiment-and-content narrative guidance aligns the procedure with the Skill's own grounding_instruction (which already states 'Sentiment matters more than literal words'). The edit also makes the retry-vs-handover branch explicit instead of the bare 'OR transition back to RESOLVE if appropriate', which should reduce indeterminate CONFIRM exits and unblock cleaner downstream traces once baseline data starts populating.",
+      "iteration_decision": "error",
+      "iteration_discard_reason": null,
+      "synonym_map_enabled": true,
+      "clean_prose_label": "clean",
+      "captured_date": "2026-05-28",
+      "sanitization_notes": "No literal cs<id> or session_id tokens; raw proposed_value preserved."
+    },
+    {
+      "iter_id": "exp-3",
+      "target_skill_file": "server/src/main/resources/skills/terminal.yaml",
+      "target_field_path": "$.procedure",
+      "proposed_value": "You are in the CLOSE phase. Your job is to send a brief, warm closing message and ensure the session has a recorded final disposition. First, inspect `accumulated_tool_results.record_outcome` \u2014 if a prior phase already bound the outcome (a RESOLVED disposition from CONFIRM, or an ESCALATED disposition after handover), do not re-record; simply send the closing message that matches the recorded disposition. If `record_outcome` has not yet been called, call it now with the disposition that reflects what actually happened in the session: RESOLVED when the user's issue was answered and they did not push back, ESCALATED when a `request_handover` has already been dispatched, or UNRESOLVED only when neither a grounded answer nor a handover was completed. The closing message should mirror the recorded disposition \u2014 thank the user for resolved cases, set expectations about human follow-up for escalated cases, and avoid introducing new topics, new questions, or new commitments. Do not promise specific SLAs beyond what the ESCALATE phase already communicated, and do not re-open the issue by asking whether anything else is needed; CLOSE is terminal.",
+      "before_value": "You are in the CLOSE phase. Thank the user and confirm the outcome. Call record_outcome with the appropriate outcome if not already recorded.",
+      "rationale": "The current CLOSE procedure is a single sentence that does not distinguish between sessions where `record_outcome` is already bound (the common case after CONFIRM/ESCALATE) and sessions where CLOSE is the first place the outcome gets recorded. Spelling out the inspect-then-record sequence, and aligning the closing message to the actual disposition, reduces the risk of double-recording, mismatched-disposition closes, and CLOSE-phase scope creep (re-opening the issue), all of which are state-fidelity hazards on the Tier-2 critical-flow surface.",
+      "iteration_decision": "discard",
+      "iteration_discard_reason": "content_validator_rejected:content_validator.length_overflow",
+      "synonym_map_enabled": true,
+      "clean_prose_label": "clean",
+      "captured_date": "2026-05-28",
+      "sanitization_notes": "No literal cs<id> or session_id tokens; raw proposed_value preserved."
+    },
+    {
+      "iter_id": "exp-4",
+      "target_skill_file": "server/src/main/resources/skills/confirm.yaml",
+      "target_field_path": "$.escalation_policy",
+      "proposed_value": "Escalate via request_handover if (a) the user explicitly asks for a human (use escalation_reason='user_requested'), or (b) the user expresses dissatisfaction with the prior answer and the bot has no tractable retry path (use escalation_reason='user_dissatisfied'). When the user's CONFIRM reply points at a tractable gap \u2014 a missed detail or a follow-up the bot can still address with its tools \u2014 prefer transitioning back to RESOLVE for a fresh grounded attempt over an immediate handover. A neutral or ambiguous closing reply is not by itself a dissatisfaction signal; when uncertain, ask one yes/no clarification before recording the outcome or escalating.",
+      "before_value": "Escalate if user clearly expresses dissatisfaction or requests a human.",
+      "rationale": "The current confirm escalation_policy is a one-line generic instruction that gives the LLM no mapping to the canonical escalation_reason enum and no guidance distinguishing handover from a RESOLVE rebound. Aligning the field with the shape used in resolve_faq_grounded_answer (lettered cases with explicit escalation_reason tokens) and naming the RESOLVE-rebound option should reduce two failure shapes the existing critical_steps already flag: premature record_outcome on dissatisfaction, and handover when a fresh grounded retry was still viable. No new keywords or UC-specific branches are introduced; the guidance stays narrative and use-case-agnostic.",
+      "iteration_decision": "discard",
+      "iteration_discard_reason": "content_validator_rejected:content_validator.length_overflow",
+      "synonym_map_enabled": true,
+      "clean_prose_label": "clean",
+      "captured_date": "2026-05-28",
+      "sanitization_notes": "No literal cs<id> or session_id tokens; raw proposed_value preserved."
+    }
+  ]
+}
