@@ -1,10 +1,14 @@
 """autoloop CLI — subcommand router.
 
-Subcommands (S-Auto-3 wires all five):
+Subcommands (S-Auto-7.1 adds `preflight`; S-Auto-3 wires the prior five):
 
     check       Validate config + run sandbox self-test (UNCHANGED from S-Auto-1).
+    preflight   Dev-env discovery (foreground :8080 / postgres / redis /
+                API key / working tree / baseline_dir). Standalone surface.
     dry-run     Run N iterations in dry-run mode (no apply, no eval).
-    run         Run N live iterations end-to-end.
+    run         Run N live iterations end-to-end. Pre-flight runs FIRST
+                unless `--skip-preflight`; `--auto-reboot` kills a foreground
+                :8080 listener that blocks the applier alt-port Spring spawn.
     report      Render `autoloop/results/report.html` audit timeline.
     apply       Hybrid: cherry-pick an exp-N branch, emit baseline patch, NO
                 auto-commit (OQ-S55.1 disposition).
@@ -28,6 +32,7 @@ from typing import Any, Sequence
 
 import yaml
 
+from . import preflight as _preflight
 from .memory import experiments_log as _experiments_log
 from .memory import iterations_index as _iterations_index
 from .memory import lessons_log as _lessons_log
@@ -36,6 +41,24 @@ from .sandbox.yaml_diff_validator import validate_skill_yaml_diff
 
 _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 _CONFIG_PATH = _PACKAGE_ROOT / "config.yaml"
+_ENV_LOCAL_PATH = _PACKAGE_ROOT / ".env.local"
+
+
+def _auto_load_env_local() -> None:
+    """OQ-S60.10 ergonomics — auto-load `autoloop/.env.local` into
+    `os.environ` so `AUTOLOOP_META_LLM_API_KEY` is available to the
+    meta-agent client without requiring `set -a; source .env.local;
+    set +a` first. Silent if the file is absent OR python-dotenv is
+    unavailable — pre-flight `check_meta_llm_api_key` will then
+    surface the missing-key fail with actionable remediation.
+    """
+    if not _ENV_LOCAL_PATH.exists():
+        return
+    try:
+        from dotenv import load_dotenv  # type: ignore[import-not-found]
+    except ImportError:
+        return
+    load_dotenv(_ENV_LOCAL_PATH, override=False)
 
 
 # --- Shared config loader --------------------------------------------
@@ -141,6 +164,101 @@ def _self_test_sandbox(
     return True
 
 
+# --- Subcommand: preflight (S-Auto-7.1) ------------------------------
+
+
+def _cmd_preflight(args: argparse.Namespace) -> int:
+    """Standalone surface for `python -m autoloop preflight`.
+
+    Exit 0 if all checks are ok-or-warn; 1 if any check returned
+    `fail`. The same checks run inside `_cmd_run` before the loop
+    starts (gated by `--skip-preflight`).
+    """
+    config_path = Path(args.config) if args.config else _CONFIG_PATH
+    if not config_path.exists():
+        print(f"[preflight] FAIL: config not found at {config_path}", file=sys.stderr)
+        return 1
+    cfg = _load_config(config_path)
+    repo_root = _resolve_repo_root(config_path)
+
+    _auto_load_env_local()
+    results = _preflight.run_preflight(cfg, repo_root=repo_root)
+    print(_preflight.format_report(results))
+    return 1 if any(r.status == "fail" for r in results) else 0
+
+
+def _run_preflight_gate(
+    cfg: dict[str, Any],
+    repo_root: Path,
+    *,
+    auto_reboot: bool,
+    skip_preflight: bool,
+) -> int:
+    """Pre-flight gate for `_cmd_run`. Returns 0 to proceed; non-zero
+    to refuse to start. On `--auto-reboot`, attempts to kill the
+    foreground :8080 listener and re-runs pre-flight once.
+    """
+    if skip_preflight:
+        print(
+            "[run] WARN: --skip-preflight set; bypassing env discovery (DEV-ONLY)",
+            file=sys.stderr,
+        )
+        return 0
+
+    results = _preflight.run_preflight(cfg, repo_root=repo_root)
+    print(_preflight.format_report(results))
+    fails = [r for r in results if r.status == "fail"]
+    if not fails:
+        return 0
+
+    if not auto_reboot:
+        print(
+            "[run] FAIL: pre-flight reported %d failing check(s); "
+            "address remediation above OR re-run with --skip-preflight "
+            "(dev-only)" % len(fails),
+            file=sys.stderr,
+        )
+        return 1
+
+    fg = next(
+        (r for r in fails if r.name == "foreground_backend"), None
+    )
+    if fg is None or not (fg.details and fg.details.get("pids")):
+        print(
+            "[run] FAIL: --auto-reboot only recovers `foreground_backend` "
+            "fails; %d other check(s) failing — address remediation above"
+            % len(fails),
+            file=sys.stderr,
+        )
+        return 1
+
+    print(
+        "[run] --auto-reboot: killing foreground :%s listener(s) pid=%s"
+        % (fg.details.get("port"), fg.details.get("pids"))
+    )
+    for pid in fg.details["pids"]:
+        ok = _preflight.auto_reboot_foreground_backend(int(pid))
+        print("[run] auto-reboot pid=%d → %s" % (pid, "stopped" if ok else "FAILED"))
+        if not ok:
+            print(
+                "[run] FAIL: could not stop pid=%d; check permissions" % pid,
+                file=sys.stderr,
+            )
+            return 1
+
+    results = _preflight.run_preflight(cfg, repo_root=repo_root)
+    print(_preflight.format_report(results))
+    fails = [r for r in results if r.status == "fail"]
+    if fails:
+        print(
+            "[run] FAIL: pre-flight still reports %d failing check(s) after "
+            "auto-reboot — address remediation above" % len(fails),
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
 # --- Subcommand: run / dry-run ---------------------------------------
 
 
@@ -152,9 +270,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
     cfg = _load_config(config_path)
     repo_root = _resolve_repo_root(config_path)
 
-    # Lazy-import the loop so `autoloop check` doesn't pay the
-    # import cost on a fresh checkout.
-    from .loop import run_iterations
+    # OQ-S60.10 — auto-load autoloop/.env.local so AUTOLOOP_META_LLM_API_KEY
+    # is available without `set -a; source .env.local; set +a`.
+    _auto_load_env_local()
 
     count = int(args.experiments)
     dry_run = bool(args.dry_run) or args._invoked_as == "dry-run"
@@ -162,6 +280,23 @@ def _cmd_run(args: argparse.Namespace) -> int:
     if count <= 0:
         print("[run] FAIL: --experiments must be >= 1", file=sys.stderr)
         return 1
+
+    # S-Auto-7.1 — pre-flight env discovery before live runs. dry-run
+    # skips pre-flight by construction (no apply / no eval / no LLM
+    # call, so substrate state is irrelevant).
+    if not dry_run:
+        gate = _run_preflight_gate(
+            cfg,
+            repo_root,
+            auto_reboot=bool(getattr(args, "auto_reboot", False)),
+            skip_preflight=bool(getattr(args, "skip_preflight", False)),
+        )
+        if gate != 0:
+            return gate
+
+    # Lazy-import the loop so `autoloop check` doesn't pay the
+    # import cost on a fresh checkout.
+    from .loop import run_iterations
 
     print(f"[run] starting {count} iteration(s), dry_run={dry_run}")
     results = run_iterations(
@@ -482,6 +617,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p_check.add_argument("--config", help="Path to autoloop config.yaml (default: package config).")
     p_check.set_defaults(func=_cmd_check)
 
+    # preflight (S-Auto-7.1)
+    p_preflight = sub.add_parser(
+        "preflight",
+        help=(
+            "Dev-env discovery (foreground :8080 / postgres / redis / "
+            "API key / working tree / baseline_dir). Exit 1 on any fail."
+        ),
+    )
+    p_preflight.add_argument("--config", help="Path to autoloop config.yaml.")
+    p_preflight.set_defaults(func=_cmd_preflight)
+
     # dry-run (alias for run --dry-run)
     p_dry = sub.add_parser(
         "dry-run",
@@ -501,6 +647,23 @@ def _build_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="No apply / no eval / no long-term memory writes.",
+    )
+    p_run.add_argument(
+        "--auto-reboot",
+        action="store_true",
+        help=(
+            "On pre-flight `foreground_backend` fail, kill the listening "
+            "PID(s) and re-run pre-flight. DEV-ONLY ergonomics; does NOT "
+            "recover other pre-flight fail modes."
+        ),
+    )
+    p_run.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help=(
+            "DEV ESCAPE HATCH: skip pre-flight env discovery entirely. "
+            "Use only when you've already verified env state manually."
+        ),
     )
     p_run.set_defaults(func=_cmd_run, _invoked_as="run")
 

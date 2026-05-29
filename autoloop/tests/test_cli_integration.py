@@ -77,8 +77,15 @@ def test_cli_run_invokes_loop_with_dry_run_false(tmp_path: Path):
         captured_kwargs.update(kwargs)
         return [fake_result]
 
+    # S-Auto-7.1 — the new pre-flight gate refuses a minimal placeholder
+    # config (no blessed baseline_dir on disk). This test verifies loop
+    # invocation, not pre-flight integration (which has dedicated coverage
+    # in test_preflight.py). `--skip-preflight` bypasses the gate as designed.
     with patch("autoloop.loop.run_iterations", side_effect=_capture):
-        rc = main(["run", "--config", str(config_path), "--experiments", "1"])
+        rc = main([
+            "run", "--config", str(config_path),
+            "--experiments", "1", "--skip-preflight",
+        ])
     assert rc == 0
     assert captured_kwargs.get("dry_run") is False
 
