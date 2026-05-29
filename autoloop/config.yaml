@@ -103,11 +103,19 @@ fitness:
   # may flip down between baseline and current.
   anchor_outcome_max_drop_cases: 0
 
-  # Explicit baseline pointer (no auto-latest heuristic). Deliver-agent
-  # + human bless the actual baseline run path at M-Auto-1A close OR
-  # at first S-Auto-3 live-iteration; the literal placeholder below is
-  # what S-Auto-2 commits.
-  baseline_dir: eval_interactive/results/<PLACEHOLDER-set-at-M-Auto-1A-close>
+  # Explicit baseline pointer (no auto-latest heuristic). Blessed at
+  # S-Auto-7 close (2026-05-29) per docs/sprints/sprint-060-handoff.md
+  # §6: a staging directory at the path below contains per-suite
+  # symlinks to the three eval-interactive runs that constitute the
+  # M-Auto-1B baseline (bad_cases run-id 20260529-101324 / 12 cases /
+  # anchor_outcome run-id 20260529-102054 / 12 cases / shadow run-id
+  # 20260529-102949 / 22 cases — 46 cases total). The shadow count
+  # is 22 (not the previously-assumed 23) because `_manifest.yaml`
+  # at the top level was the 23rd entry and is a manifest, not a
+  # case_spec; loader fix landed in S-Auto-7 skips `_*.yaml` files.
+  # Re-blessing at any future milestone is a deliver-agent + human
+  # decision per `gaming.suspect_baseline_manipulation` notes.
+  baseline_dir: eval_interactive/results/m-auto-1b-baseline-20260529
 
   # Hard cap per suite (30 min). A timeout aborts the loop iteration
   # — partial fitness evidence is worse than no fitness evidence.
