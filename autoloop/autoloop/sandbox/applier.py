@@ -365,14 +365,17 @@ def _spawn_spring(root: Path, port: int) -> subprocess.Popen:
 
     The server's pom.xml lives at `server/pom.xml`. We invoke from
     repo root with `-pl server` so the multi-module build picks the
-    server module.
+    server module. We deliberately omit `-am` because the root pom
+    is `<packaging>pom</packaging>` with no `mainClass`, and `-am`
+    would bring `csagent-parent` into the reactor where mvn applies
+    `spring-boot:run` to every selected module — which fails on the
+    parent before reaching server (OQ-S61.1).
     """
     cmd = [
         "mvn",
         "-q",
         "-pl",
         "server",
-        "-am",
         "spring-boot:run",
         f"-Dspring-boot.run.arguments=--server.port={port}",
     ]
