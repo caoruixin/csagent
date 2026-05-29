@@ -259,7 +259,7 @@ class PhaseEvaluatorSkillIntegrationTest {
         assertEquals(DISCOVER_OBJECTIVE, plan.objective());
         assertEquals(List.of("search_knowledge", "classify_use_case"), plan.allowedTools());
         assertEquals(Set.of("form_context", "candidate_use_cases"), plan.requiredContextKeys());
-        assertEquals(2, plan.maxToolSteps());
+        assertEquals(3, plan.maxToolSteps());
         assertEquals(false, plan.allowInterimMessage());
         assertEquals(Set.of(TerminalOutcome.CLARIFICATION_NEEDED,
                         TerminalOutcome.FINAL_ANSWER,

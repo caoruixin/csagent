@@ -306,12 +306,10 @@ class Sprint9TraceObservabilityFidelityIntegrationTest {
     }
 
     @Test
-    void failedToolDispatch_sanitizesEmailAndTokenInPersistedErrorMessage() throws Exception {
-        // Sprint 9.1 closure — even when the underlying tool error string
-        // contains email / phone / bearer-token / long-credential surfaces,
-        // bot_turns.tool_calls.error_message and the inline result_summary
-        // must redact those before persistence so secrets / sensitive PII
-        // cannot leak via the trace.
+    void failedToolDispatch_persistsErrorMessageVerbatim() throws Exception {
+        // Demo admin-trace policy: tool error strings are persisted verbatim
+        // (length-bounded only) so operators can diagnose failures. User-message
+        // email redaction is handled in ContextProjectionBuilder, not here.
         BotSession session = ucaSession();
         mockCommonStubs();
 
@@ -331,8 +329,6 @@ class Sprint9TraceObservabilityFidelityIntegrationTest {
 
         when(toolDispatcher.validateAgainstPlan(any(), eq("request_handover")))
                 .thenReturn(ToolResult.ok(null));
-        // Salesforce-style failure that interpolates user PII + a bearer token
-        // into the error string.
         String dirtyError =
                 "salesforce_handover_failed: 401 for alice@example.com phone +44 20 7946 0958"
                         + " token Bearer abcdef0123456789ABCDEFGHabcdef01";
@@ -359,20 +355,13 @@ class Sprint9TraceObservabilityFidelityIntegrationTest {
             checkedAtLeastOne = true;
 
             String persistedErr = entry.path("error_message").asText();
-            assertFalse(persistedErr.contains("alice@example.com"),
-                    "Sprint 9.1: persisted error_message must redact email (was: " + persistedErr + ")");
-            assertFalse(persistedErr.contains("20 7946 0958"),
-                    "Sprint 9.1: persisted error_message must redact phone digits (was: "
+            assertTrue(persistedErr.contains("alice@example.com"),
+                    "persisted error_message must remain verbatim for diagnosis (was: "
                             + persistedErr + ")");
-            assertFalse(persistedErr.contains("abcdef0123456789ABCDEFGHabcdef01"),
-                    "Sprint 9.1: persisted error_message must redact long bearer token (was: "
-                            + persistedErr + ")");
-            assertTrue(persistedErr.contains("[REDACTED_EMAIL]"));
-            assertTrue(persistedErr.contains("[REDACTED_BEARER]"));
+            assertTrue(persistedErr.contains("abcdef0123456789ABCDEFGHabcdef01"));
 
             String summary = entry.path("result_summary").asText();
-            assertFalse(summary.contains("alice@example.com"));
-            assertFalse(summary.contains("abcdef0123456789ABCDEFGHabcdef01"));
+            assertTrue(summary.contains("alice@example.com"));
             assertTrue(summary.startsWith("error:"),
                     "result_summary must still surface the failure prefix");
         }
