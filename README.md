@@ -254,7 +254,7 @@ sequenceDiagram
 ### 4.3 内层环伪代码（`AgentRunLoopImpl.run`）
 
 ```text
-maxSteps = plan.maxToolSteps  // 通常 2~4，来自 Skill YAML
+maxSteps = plan.maxToolSteps  // 通常 2~6（FAQ RESOLVE 为 6），来自 Skill YAML
 for step in 0 .. maxSteps-1:
     projection = ContextProjectionBuilder.build(
         session, history, plan, userMessage,

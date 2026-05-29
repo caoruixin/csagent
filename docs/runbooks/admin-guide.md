@@ -401,6 +401,12 @@ URL: `http://localhost:5173/admin`
 
 ### Trace Viewer — LLM Interaction Detail (CURRENT)
 
+Admin trace (`bot_turns.tool_calls`) persists tool errors, guardrail
+reject reasons, and KB `source_id` values **verbatim** for diagnosis
+(length-bounded and credential-key redaction only). Email in **user
+messages** sent to the LLM is redacted inside `projected_context`, not
+in the tool-call trace panel.
+
 Each step in the Trace tab includes a **"View LLM Detail"** button that
 reveals the full App↔LLM interaction for that turn. The detail panel
 shows the following sections; column "Source field on `BotTurn`" tracks

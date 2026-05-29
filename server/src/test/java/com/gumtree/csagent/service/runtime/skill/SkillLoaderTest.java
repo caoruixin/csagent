@@ -16,8 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Sprint 38 unit coverage for {@link SkillLoader} per Sprint 37 freeze §3.3
- * (loader semantics) + §2.2 (schema validation contract).
+ * Sprint 38 unit coverage for {@link SkillLoader} per Sprint 37 freeze ?3.3
+ * (loader semantics) + ?2.2 (schema validation contract).
  *
  * <p>{@link #loadAll_productionSkills_loadsAllSkills()} verifies the 6
  * production YAML files under {@code src/main/resources/skills/} parse
@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * and verify fail-fast behaviour for each schema violation.
  *
  * <p>Sprint 38 fix iteration #1 (Codex Blocking Finding 1) adds 5 negative
- * cases for the schema-validation gaps in design doc §2.2 (missing
+ * cases for the schema-validation gaps in design doc ?2.2 (missing
  * {@code tools_required}, unknown tool name, explicit unknown UC, unknown
  * guardrail type) plus a positive case confirming the UC-registry check
  * accepts a registered UC.
@@ -70,32 +70,34 @@ class SkillLoaderTest {
         assertEquals(List.of("DISCOVER"), discover.applicablePhases());
         assertEquals(List.of("*"), discover.applicableUseCases());
         assertEquals(List.of("search_knowledge", "classify_use_case"), discover.toolsRequired());
+        assertEquals(3, discover.maxToolSteps());
         assertEquals(List.of("alternate_candidate_use_cases", "discover_disambiguation_signals"),
                 discover.stateInheritance().softSignalViaProjection());
         assertTrue(discover.guardrails().isEmpty(),
-                "Sprint 38 DISCOVER ships with guardrails: [] per design doc §6.2.1");
+                "Sprint 38 DISCOVER ships with guardrails: [] per design doc ?6.2.1");
 
         Skill terminal = skills.stream()
                 .filter(s -> "terminal".equals(s.name())).findFirst().orElseThrow();
         assertEquals(List.of("CLOSE"), terminal.applicablePhases(),
                 "OQ-7.1 default: keep CLOSE phase enum; file name terminal.yaml carries the M3+ intent");
 
-        // Sprint 39 — verify the 2 RESOLVE Skills carry their expected guardrails.
+        // Sprint 39 ��� verify the 2 RESOLVE Skills carry their expected guardrails.
         Skill resolveFaq = skills.stream()
                 .filter(s -> "resolve_faq_grounded_answer".equals(s.name()))
                 .findFirst().orElseThrow();
         assertEquals(3, resolveFaq.guardrails().size(),
-                "RESOLVE-FAQ Skill ships 3 guardrails per Sprint 37 freeze §6.2.6: "
+                "RESOLVE-FAQ Skill ships 3 guardrails per Sprint 37 freeze ?6.2.6: "
                         + "faq_miss_handover_requires_resolve_attempt + "
                         + "premature_resolve_outcome_guard + must_cite_source");
         assertEquals(List.of("UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP"),
                 resolveFaq.applicableUseCases());
+        assertEquals(6, resolveFaq.maxToolSteps());
 
         Skill resolveIntake = skills.stream()
                 .filter(s -> "resolve_intake_collect_and_handover".equals(s.name()))
                 .findFirst().orElseThrow();
         assertEquals(1, resolveIntake.guardrails().size(),
-                "RESOLVE-INTAKE Skill ships 1 guardrail per Sprint 37 freeze §6.2.5: "
+                "RESOLVE-INTAKE Skill ships 1 guardrail per Sprint 37 freeze ?6.2.5: "
                         + "intake_complete_required");
         assertEquals("intake_complete_required",
                 resolveIntake.guardrails().get(0).type());
@@ -292,7 +294,7 @@ class SkillLoaderTest {
      * Sprint 38 fix iteration #1 sub-gap #1a: omitting the {@code tools_required}
      * key entirely from YAML must fail-fast. The {@link Skill} record's compact
      * constructor leaves a null {@code toolsRequired} as null so the loader's
-     * null-check is reachable per design doc §2.2.
+     * null-check is reachable per design doc ?2.2.
      */
     @Test
     void parseAndValidate_missingToolsRequiredField_failsFast() {
@@ -311,7 +313,7 @@ class SkillLoaderTest {
 
     /**
      * Sprint 38 fix iteration #1 sub-gap #1b: {@code tools_required} entries
-     * must be canonical tool names per design doc §2.2.
+     * must be canonical tool names per design doc ?2.2.
      */
     @Test
     void parseAndValidate_unknownToolName_failsFast() {
@@ -332,7 +334,7 @@ class SkillLoaderTest {
     /**
      * Sprint 38 fix iteration #1 sub-gap #1c: explicit (non-wildcard)
      * {@code applicable_use_cases} entries must reference UCs registered in
-     * {@link UseCaseRegistryService} per design doc §2.2.
+     * {@link UseCaseRegistryService} per design doc ?2.2.
      */
     @Test
     void parseAndValidate_explicitUnknownUseCase_failsFast() {
@@ -371,7 +373,7 @@ class SkillLoaderTest {
 
     /**
      * Sprint 38 fix iteration #1 sub-gap #1d: guardrail {@code type} entries
-     * must match a known dispatcher predicate type per design doc §2.2 / §5.2.
+     * must match a known dispatcher predicate type per design doc ?2.2 / ?5.2.
      */
     @Test
     void parseAndValidate_unknownGuardrailType_failsFast() {
