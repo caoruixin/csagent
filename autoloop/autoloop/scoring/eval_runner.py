@@ -1,10 +1,20 @@
 """Subprocess wrapper around `eval-interactive run` for the v1 fitness
 suite.
 
-S-Auto-2 deliverable. Invokes the existing `eval-interactive run` CLI
-exactly once per fitness suite (bad_cases, anchor_outcome, shadow);
-captures results.json + stderr tail; surfaces timeouts and non-zero
-exit codes for the loop orchestrator (S-Auto-3) to act on.
+S-Auto-2 deliverable; revised at S-Auto-7 (M-Auto-1B) per Blocker B
+fix path (b): the original S-Auto-2 contract assumed a
+`--output-dir` flag on `eval-interactive run` that does not exist
+in the eval-interactive CLI. Rather than introduce a new CLI flag
+(fence #14 violation), this module now adapts to eval-interactive's
+native output convention: the harness writes to
+`eval_interactive/results/<YYYYMMDD-HHMMSS>/` (UTC timestamp). This
+module snapshots that directory before invoking the subprocess,
+identifies the newly-created run dir after, and symlinks
+`<results_root>/<suite_name>` -> `<eval_interactive/results>/<ts>/`
+so downstream consumers (baseline_loader, tier_evaluator, gaming)
+continue to see the historical `<results_root>/<suite>/results.json`
+contract transparently. The eval-interactive CLI is byte-identical
+to its pre-S-Auto-7 form (fix path (b), not (a)).
 
 Hard fences enforced structurally in this module:
 
@@ -14,14 +24,15 @@ Hard fences enforced structurally in this module:
 - NEVER mutates `eval_interactive/eval_interactive/**` or any
   case_spec — it CONSUMES `eval-interactive run` as a black box.
 - NEVER introduces a new CLI flag on `eval-interactive run`. If a
-  future S-Auto-2.X needs a new flag, that change belongs in
-  `eval_interactive/` and is OUT of S-Auto-2 scope; STOP-and-surface
+  future S-Auto-X needs a new flag, that change belongs in
+  `eval_interactive/` and is OUT of substrate scope; STOP-and-surface
   per the §"Hard fences" clause of the sub-sprint contract.
 """
 
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
@@ -80,20 +91,30 @@ def run_suite(
     config: dict[str, Any],
     timeout_seconds: int = 1800,
 ) -> SuiteRunResult:
-    """Run one suite, writing results to `<results_root>/<suite>/`.
+    """Run one suite; stage results under `<results_root>/<suite>/`.
 
-    Subprocess contract (verbatim from S-Auto-2 sub-sprint contract):
+    Subprocess contract (S-Auto-7 Blocker B fix path (b); supersedes
+    the S-Auto-2 --output-dir contract):
         cd <repo_root>/eval_interactive && \\
         uv run eval-interactive run --path <spec.path> \\
-            --parallel <spec.parallel> \\
-            --output-dir <results_root>/<spec.name>/
+            --parallel <spec.parallel>
+
+    eval-interactive writes to its config-default
+    `eval_interactive/results/<YYYYMMDD-HHMMSS>/` (UTC). This
+    function snapshots that directory before invoking the
+    subprocess and identifies the new run dir afterwards via
+    set-difference + mtime tiebreaker, then symlinks
+    `<results_root>/<spec.name>` to it. Downstream consumers see
+    the `<results_root>/<suite>/results.json` shape transparently
+    via the symlink.
 
     `cwd` is `repo_root/eval_interactive`; the environment is
     inherited unchanged (LLM provider config flows through
     `eval_interactive/.env`).
     """
-    suite_out_dir = Path(results_root) / spec.name
-    suite_out_dir.mkdir(parents=True, exist_ok=True)
+    results_root = Path(results_root)
+    results_root.mkdir(parents=True, exist_ok=True)
+    suite_link = results_root / spec.name
 
     cwd = _REPO_ROOT / "eval_interactive"
     cmd = [
@@ -105,8 +126,6 @@ def run_suite(
         str(spec.path),
         "--parallel",
         str(spec.parallel),
-        "--output-dir",
-        str(suite_out_dir.resolve()),
     ]
 
     # Ensure CSAGENT_BACKEND_URL is set for the eval-interactive
@@ -118,6 +137,17 @@ def run_suite(
     sub_env = os.environ.copy()
     if "CSAGENT_BACKEND_URL" not in sub_env:
         sub_env["CSAGENT_BACKEND_URL"] = "http://localhost:8080"
+
+    # Snapshot eval-interactive's results/ directory listing BEFORE
+    # the subprocess so we can identify the newly-created timestamp
+    # dir afterwards. Done lazily — if the dir does not yet exist
+    # (first-ever run), `before_ts_dirs` is empty.
+    ei_results_dir = cwd / "results"
+    before_ts_dirs: set[Path] = (
+        {p for p in ei_results_dir.iterdir() if p.is_dir()}
+        if ei_results_dir.exists()
+        else set()
+    )
 
     start = time.monotonic()
     try:
@@ -134,18 +164,60 @@ def run_suite(
         raise EvalRunnerTimeoutError(spec.name, elapsed) from e
 
     elapsed = time.monotonic() - start
+
+    new_ts_dir = _locate_new_results_dir(ei_results_dir, before_ts_dirs)
+
     error_tail: str | None = None
     if proc.returncode != 0 and proc.stderr:
         error_tail = "\n".join((proc.stderr or "").splitlines()[-50:])
 
+    # Stage <results_root>/<suite>/ as a symlink to the eval-
+    # interactive run dir so downstream consumers see the historical
+    # contract. If the subprocess failed before writing a run dir,
+    # `new_ts_dir` is None and the link is not created; callers can
+    # detect via `results_json.exists()` or `exit_code != 0`.
+    if new_ts_dir is not None:
+        if suite_link.is_symlink() or suite_link.is_file():
+            suite_link.unlink()
+        elif suite_link.exists():
+            # Pre-existing real directory at this path is unexpected
+            # under normal use (the per-iter results_root is created
+            # fresh by the orchestrator), but be safe.
+            shutil.rmtree(suite_link)
+        suite_link.symlink_to(new_ts_dir.resolve(), target_is_directory=True)
+
     return SuiteRunResult(
         suite_name=spec.name,
-        results_dir=suite_out_dir,
-        results_json=suite_out_dir / "results.json",
+        results_dir=suite_link,
+        results_json=suite_link / "results.json",
         elapsed_seconds=elapsed,
         exit_code=proc.returncode,
         error_tail=error_tail,
     )
+
+
+def _locate_new_results_dir(
+    ei_results_dir: Path,
+    before_ts_dirs: set[Path],
+) -> Path | None:
+    """Find the eval-interactive run dir created by the just-completed
+    subprocess.
+
+    Returns the newest-by-mtime directory under `ei_results_dir` that
+    did NOT exist in `before_ts_dirs`. If no new directory appeared
+    (e.g. subprocess failed before writing), returns None. If multiple
+    new directories appeared (e.g. concurrent runs — not expected
+    under v1 sequential execution but defensive), returns the newest.
+    """
+    if not ei_results_dir.exists():
+        return None
+    after = {p for p in ei_results_dir.iterdir() if p.is_dir()}
+    new_dirs = sorted(
+        after - before_ts_dirs,
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return new_dirs[0] if new_dirs else None
 
 
 def run_v1_fitness_suite(
