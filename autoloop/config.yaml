@@ -121,10 +121,10 @@ fitness:
   # S-Auto-4 — scoring-code drift baseline. The value here is the
   # SHA-256 content hash produced by `gaming._compute_scoring_code_sha()`
   # over the four files (`tier_evaluator.py` + `eval_runner.py` +
-  # `baseline_loader.py` + `gaming.py`) at their M-Auto-1A close form
-  # (computed at S-Auto-4 close 2026-05-27 against the bytes at
-  # commit `1feef1f`).
+  # `baseline_loader.py` + `gaming.py`).
   #
+  # Original M-Auto-1A close value (2026-05-27 against commit `1feef1f`)
+  # was `5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c`.
   # First fill attempt was the literal git commit SHA `"1feef1f"`,
   # which Codex per-sub-sprint review (`docs/codex-findings.md`
   # Axis C milestone-shared note 2026-05-27) flagged as a format
@@ -134,12 +134,21 @@ fitness:
   # iteration. Resolved at S-Auto-4 close-bundle fix-up by computing
   # the actual hash and recording it here.
   #
+  # S-Auto-7 close (2026-05-29) rebaselined to the value below after
+  # Blocker B fix path (b) modified `eval_runner.py` (fence #13
+  # controlled override; the other three scoring files remain
+  # byte-identical to their M-Auto-1A close form). Reproducibility:
+  # `uv run --extra dev python -c "from autoloop.scoring.gaming \
+  # import _compute_scoring_code_sha; print(_compute_scoring_code_sha())"`
+  # at S-Auto-7 HEAD must reproduce the value below. See
+  # `docs/sprints/sprint-060-handoff.md` §5.
+  #
   # Subsequent commits touching any of these four files will
   # trigger `gaming.scoring_code_drift.sha_changed` ERROR (intended
   # behaviour). If reset to null, the check emits WARN
   # `rule_id=scoring_code_drift.baseline_missing` (D3: never guess;
   # never silently hash-as-baseline).
-  scoring_code_baseline_sha: "5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c"
+  scoring_code_baseline_sha: "22548e20ea50518b35c78cebddde891ddb46ea0452e32e49518ad4caab9188a9"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the

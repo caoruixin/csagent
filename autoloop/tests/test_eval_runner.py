@@ -97,12 +97,15 @@ def test_run_suite_mocked_success(tmp_path: Path):
     assert result.error_tail is None
 
     # Confirm subprocess was invoked with the expected CLI shape.
+    # S-Auto-7 Blocker B fix path (b): the `--output-dir` flag was
+    # REMOVED — eval-interactive auto-timestamps and eval_runner
+    # symlinks the result. Asserting absence prevents regression.
     call_args = mock_run.call_args
     cmd = call_args[0][0]
     assert cmd[:4] == ["uv", "run", "eval-interactive", "run"]
     assert "--path" in cmd
     assert "--parallel" in cmd
-    assert "--output-dir" in cmd
+    assert "--output-dir" not in cmd
 
 
 def test_run_suite_timeout_raises(tmp_path: Path):
@@ -167,10 +170,19 @@ def test_run_v1_fitness_suite_runs_all_three_sequentially(tmp_path: Path):
     call_order: list[str] = []
 
     def _fake_run(cmd, **kwargs):
-        # The --output-dir path's parent name encodes the suite.
-        out_idx = cmd.index("--output-dir") + 1
-        out = cmd[out_idx]
-        suite_name = Path(out).name
+        # S-Auto-7 fix path (b): --output-dir was removed; derive the
+        # suite from --path's basename instead. bad_cases / anchor_outcome
+        # / shadow are uniquely identifiable from the case_specs path.
+        path_idx = cmd.index("--path") + 1
+        path_str = cmd[path_idx]
+        if "bad_cases" in path_str:
+            suite_name = "bad_cases"
+        elif "anchor_outcome" in path_str:
+            suite_name = "anchor_outcome"
+        elif "shadow" in path_str:
+            suite_name = "shadow"
+        else:
+            suite_name = Path(path_str).name
         call_order.append(suite_name)
         m = MagicMock()
         m.returncode = 0
@@ -199,6 +211,174 @@ def test_run_v1_fitness_suite_parallel_suites_true_raises(tmp_path: Path):
     }
     with pytest.raises(NotImplementedError):
         run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+
+
+# --- S-Auto-7 Blocker B fix path (b) tests ---------------------------
+
+
+def test_eval_runner_removes_output_dir_arg(tmp_path: Path):
+    """S-Auto-7 fix path (b): the subprocess command must NOT contain
+    `--output-dir`. eval-interactive's CLI does not support that flag;
+    eval_runner now adapts to the auto-timestamp convention.
+    """
+    spec = SuiteRunSpec(name="bad_cases", path=Path("x"), parallel=1)
+    fake_proc = MagicMock()
+    fake_proc.returncode = 0
+    fake_proc.stderr = ""
+
+    with patch(
+        "autoloop.scoring.eval_runner.subprocess.run", return_value=fake_proc
+    ) as mock_run:
+        run_suite(
+            spec,
+            results_root=tmp_path,
+            config=DEFAULT_CONFIG,
+            timeout_seconds=10,
+        )
+
+    cmd = mock_run.call_args[0][0]
+    assert "--output-dir" not in cmd
+    # The cmd should END with --parallel <N>; no trailing positional args.
+    assert cmd[-2] == "--parallel"
+    assert cmd[-1] == str(spec.parallel)
+
+
+def test_eval_runner_locates_auto_timestamped_output_via_set_diff(
+    tmp_path: Path, monkeypatch
+):
+    """Post-subprocess, eval_runner identifies the new
+    eval_interactive/results/<ts>/ via before/after set-diff.
+    """
+    # Build a synthetic repo root with eval_interactive/results/.
+    fake_repo = tmp_path / "repo"
+    ei_results = fake_repo / "eval_interactive" / "results"
+    ei_results.mkdir(parents=True)
+    # Pre-existing old dir that must be IGNORED.
+    (ei_results / "20260101-000000").mkdir()
+    (ei_results / "20260101-000000" / "results.json").write_text("{}")
+    monkeypatch.setattr(
+        "autoloop.scoring.eval_runner._REPO_ROOT", fake_repo
+    )
+
+    new_ts = "20260529-120000"
+
+    def _fake_run(cmd, **kwargs):
+        # Simulate eval-interactive creating its new run dir.
+        new_dir = ei_results / new_ts
+        new_dir.mkdir()
+        (new_dir / "results.json").write_text('{"case_results": []}')
+        m = MagicMock()
+        m.returncode = 0
+        m.stderr = ""
+        return m
+
+    spec = SuiteRunSpec(name="bad_cases", path=Path("x"), parallel=1)
+    results_root = tmp_path / "iter_results"
+
+    with patch(
+        "autoloop.scoring.eval_runner.subprocess.run", side_effect=_fake_run
+    ):
+        result = run_suite(
+            spec,
+            results_root=results_root,
+            config=DEFAULT_CONFIG,
+            timeout_seconds=10,
+        )
+
+    suite_link = results_root / "bad_cases"
+    assert suite_link.is_symlink()
+    # Symlink target is the NEW dir, not the pre-existing one.
+    assert suite_link.resolve() == (ei_results / new_ts).resolve()
+    # Downstream consumers see results.json through the symlink.
+    assert result.results_json.exists()
+    assert result.results_json.read_text() == '{"case_results": []}'
+
+
+def test_eval_runner_returns_suiterunresult_with_correct_paths(
+    tmp_path: Path,
+):
+    """SuiteRunResult preserves the historical <results_root>/<suite>/
+    contract (the symlink path) for downstream baseline_loader,
+    tier_evaluator, and gaming consumers.
+    """
+    spec = SuiteRunSpec(name="anchor_outcome", path=Path("x"), parallel=4)
+    fake_proc = MagicMock()
+    fake_proc.returncode = 0
+    fake_proc.stderr = ""
+    results_root = tmp_path / "iter_results"
+
+    with patch(
+        "autoloop.scoring.eval_runner.subprocess.run", return_value=fake_proc
+    ):
+        result = run_suite(
+            spec,
+            results_root=results_root,
+            config=DEFAULT_CONFIG,
+            timeout_seconds=10,
+        )
+
+    assert result.results_dir == results_root / "anchor_outcome"
+    assert result.results_json == results_root / "anchor_outcome" / "results.json"
+    assert isinstance(result, SuiteRunResult)
+
+
+def test_eval_runner_no_new_dir_leaves_results_path_absent(
+    tmp_path: Path, monkeypatch
+):
+    """If the subprocess does not create a new run dir (e.g. fails
+    before writing), the symlink is not created and
+    results_json.exists() returns False so callers can detect.
+    """
+    fake_repo = tmp_path / "repo"
+    (fake_repo / "eval_interactive" / "results").mkdir(parents=True)
+    monkeypatch.setattr(
+        "autoloop.scoring.eval_runner._REPO_ROOT", fake_repo
+    )
+
+    fake_proc = MagicMock()
+    fake_proc.returncode = 1
+    fake_proc.stderr = "boom"
+    results_root = tmp_path / "iter_results"
+    spec = SuiteRunSpec(name="shadow", path=Path("x"), parallel=4)
+
+    with patch(
+        "autoloop.scoring.eval_runner.subprocess.run", return_value=fake_proc
+    ):
+        result = run_suite(
+            spec,
+            results_root=results_root,
+            config=DEFAULT_CONFIG,
+            timeout_seconds=10,
+        )
+
+    assert result.exit_code == 1
+    suite_link = results_root / "shadow"
+    assert not suite_link.exists()
+    assert not result.results_json.exists()
+
+
+def test_locate_new_results_dir_picks_newest_by_mtime_on_multi(
+    tmp_path: Path,
+):
+    """When multiple new directories appear (defensive against
+    concurrent runs), `_locate_new_results_dir` returns the newest by
+    mtime.
+    """
+    from autoloop.scoring.eval_runner import _locate_new_results_dir
+    import time as _time
+
+    ei_results = tmp_path / "results"
+    ei_results.mkdir()
+    before = {p for p in ei_results.iterdir() if p.is_dir()}
+
+    older = ei_results / "20260529-100000"
+    older.mkdir()
+    _time.sleep(0.05)
+    newer = ei_results / "20260529-110000"
+    newer.mkdir()
+
+    found = _locate_new_results_dir(ei_results, before)
+    assert found == newer
 
 
 # --- Hard-fence grep enforcement -------------------------------------
