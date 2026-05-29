@@ -142,6 +142,13 @@ def load_case_specs(
 ) -> list[CaseSpec]:
     """Load all CaseSpec YAML files from a directory.
 
+    Walks the directory recursively so nested layouts like
+    ``case_specs_shadow/case_families/<family>/*.yaml`` are supported
+    alongside flat layouts like ``case_specs/bad_cases/*.yaml``.
+    Files whose basename starts with ``_`` (the manifest / metadata
+    convention used by ``_manifest.yaml`` and similar) are skipped —
+    they are not case specs and do not satisfy the CaseSpec schema.
+
     Args:
         directory: Path to a directory containing .yaml/.yml files.
         source_suite: Optional suite name override. When ``None``,
@@ -164,10 +171,17 @@ def load_case_specs(
     if source_suite is None:
         source_suite = directory.name or None
 
+    def _is_case_spec(p: Path) -> bool:
+        return not p.name.startswith("_")
+
     specs: list[CaseSpec] = []
-    for yaml_file in sorted(directory.glob("*.yaml")):
+    for yaml_file in sorted(directory.rglob("*.yaml")):
+        if not _is_case_spec(yaml_file):
+            continue
         specs.append(load_case_spec(yaml_file, source_suite=source_suite))
-    for yml_file in sorted(directory.glob("*.yml")):
+    for yml_file in sorted(directory.rglob("*.yml")):
+        if not _is_case_spec(yml_file):
+            continue
         specs.append(load_case_spec(yml_file, source_suite=source_suite))
 
     specs.sort(key=lambda s: s.case_id)
