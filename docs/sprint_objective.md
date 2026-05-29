@@ -1,344 +1,395 @@
 ---
-title: Sprint objective — Sprint 059 / M-Auto-1B S-Auto-6 — First overnight batch + First human review + First cherry-pick to main
+title: Sprint objective — Sprint 060 / M-Auto-1B S-Auto-7 — Substrate fix (Blocker A + Blocker B + smoke iter)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
-last_reviewed: 2026-05-28
+last_reviewed: 2026-05-29
 review_cadence: per sub-sprint
-supersedes: [docs/sprints/sprint-058-objective.md]
+supersedes: [docs/sprints/sprint-059-objective.md]
 superseded_by: null
 notes: >
-  SECOND and FINAL planned sub-sprint of Milestone M-Auto-1B —
-  Auto-Evolution Calibration (per `docs/milestone_objective.md` §3
-  sequence). S-Auto-6 takes the calibrated detector (`synonym_map_enabled=true`
-  per Fix-C step 2 Path A landed by S-Auto-5 commit `ae0ec3e`) and runs
-  the first auto-loop overnight batch against the v1 47-case dataset,
-  conducts the first deliver-agent + human §5.6-style manual review of
-  kept candidates, and executes the first cherry-pick of an auto-loop
-  output to main (M-Auto-1B fence #7 ALLOWS EXACTLY ONCE — changed from
-  M-Auto-1A's "no cherry-pick"). §7 REQUIRED (`eval_spec`); **Codex
-  milestone-shared at M-Auto-1B close per §4.3 default** UNLESS the
-  cherry-pick candidate touches a §5.3 borderline that requires
-  per-sub-sprint Codex (deliver-agent + human jointly judge at the
-  cherry-pick decision point).
+  THIRD sub-sprint of Milestone M-Auto-1B (extended from the original
+  2-sub-sprint sequence to 4 per S-Auto-6 close-empty in-place
+  revision; §8.5 ceiling = 5 sub-sprints; margin = 1 for fix-iteration
+  S-Auto-7.1 if needed). S-Auto-7 resolves the two substrate
+  pre-flight blockers surfaced at S-Auto-6 close-empty
+  (`docs/sprints/sprint-059-handoff.md` §0 + §12):
 
-  Builds on S-Auto-5 close `ae0ec3e` (Codex per-sub-sprint verdict
-  `pass / 0` sub-classified `approve with downgrade-to-signal
-  follow-up` 2026-05-28; the only follow-up trigger is the NEW
-  `R-S58-anti-hardcode-zero-width-when-arrow-bypass` which is
-  non-blocking for S-Auto-6 per the Codex verdict). The calibrated
-  detector has Fix-C step 1 word-boundary regex live AND
-  `synonym_map_enabled=true`; 17-fixture sweep preserved 11/11 +
-  4/4 + 2/2; detector self-discipline 3 regression tests PASS; rule
-  count UNCHANGED at 11.
+    Blocker A — `autoloop/config.yaml:110` `fitness.baseline_dir`
+    still literal `<PLACEHOLDER-set-at-M-Auto-1A-close>` string;
+    Layer 3 trivializes against `... or 0` fallback at
+    `tier_evaluator.py:485-532`.
 
-  Two human-coupled gates inside S-Auto-6 that the dev session
-  cannot satisfy alone:
+    Blocker B — `autoloop/autoloop/scoring/eval_runner.py:99-110`
+    invokes `eval-interactive run --output-dir <suite_out_dir>`
+    against a Click flag that has NEVER existed in
+    `eval_interactive/eval_interactive/cli.py` at any commit
+    (verified `git log -S "output_dir" -- eval_interactive/eval_interactive/cli.py`
+    empty). Every overnight iter at Step 7 would Click-fail.
 
-  - **Step #3 §5.6 manual review** of overnight kept candidates is a
-    deliver-agent + human joint judgment (NOT programmatic alone);
-    dev triggers the eval + opens the trace surfaces, but the PASS /
-    FAIL / IMPROVING / borderline-§5.3 decision is human-judgment.
-  - **Step #4 cherry-pick decision via AskUserQuestion** is human-driven
-    (the dev does NOT pick which kept candidate becomes the cherry-pick
-    OR judge no-cherry-pick justification).
+  Human-locked S-Auto-6 close decisions 2026-05-29 (AskUserQuestion):
+  (a) Class C — In-flight downgrade classification for S-Auto-6;
+  (b) S-Auto-7 scope = substrate-fix ONLY (overnight + cherry-pick
+  deferred to S-Auto-8 as the original S-Auto-6 scope reattempted);
+  (c) Blocker B fix path = (b) REMOVE `--output-dir` from
+  `eval_runner.py` + adapt to auto-timestamped output + rebaseline
+  scoring_code_baseline_sha (smaller blast radius than CLI-side add).
 
-  These two gates make S-Auto-6 a hybrid dev + deliver-agent + human
-  session. The dev prompt embeds explicit STOP-and-surface points at
-  each gate so the dev never silently auto-picks a candidate.
+  Class = `infra` (substrate-fix; structural plumbing repair; no
+  semantic decision change). §7 stanza EXEMPT per pure-infra carve-out
+  (eval_runner.py change is HOW the subprocess consumes results, NOT
+  WHAT eval reads or grades; case_specs / judge / detector / projection
+  / scoring semantic logic all UNCHANGED). §7 self-walked for
+  paper-trail completeness only.
 
-  R-S58 disposition decision (whether to extend M-Auto-1B by a
-  Fix-D sub-sprint `S-Auto-7` OR defer to M-Auto-2) is also surfaced
-  at S-Auto-6 close — informed by overnight evidence (whether any
-  bypass variant from real meta-agent propose distribution PASSes the
-  detector beyond R-S58's zero-width signature).
+  Codex review plan: **PER-SUB-SPRINT REQUIRED per §4.3 trigger #3**
+  (hard-fenced surface that the milestone objective explicitly named
+  out of scope). M-Auto-1B §6 fence #13 locks
+  `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py`
+  at content-hash `5177b674...`; S-Auto-7 explicitly overrides the
+  fence for `eval_runner.py` ONLY + re-baselines the hash. Codex must
+  independently verify the controlled fence #13 override at S-Auto-7
+  close BEFORE S-Auto-8 overnight can dispatch.
+
+  Builds on S-Auto-6 close-empty `1943ed5` 2026-05-29. The substrate
+  state at S-Auto-7 open: 17-fixture detector sweep PASS (S-Auto-5
+  Fix-C); calibrated `synonym_map_enabled: true` (S-Auto-5 step 2 Path
+  A); `R-S57` closed; `R-S58` open (defer to M-Auto-1B planning round
+  AFTER S-Auto-8 overnight evidence per S-Auto-6 §9 recommendation).
 ---
 
-# Sprint 059 / M-Auto-1B S-Auto-6 — First overnight batch + First human review + First cherry-pick to main
+# Sprint 060 / M-Auto-1B S-Auto-7 — Substrate fix (Blocker A + Blocker B + smoke iter)
 
 ## Class
 
-`eval_spec` (§3.2 Q6 — sub-sprint consumes the per-iteration fitness verdict sequence on a calibrated detector; the cherry-pick mechanism + §5.6 manual review of kept candidates are eval-side acceptance-bar gates, not runtime semantic changes). The cherry-picked Skill YAML edit (if any) is a single-field-class edit on `procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[*].desc` per the sandbox white-list — semantic-touching at the LLM-soft-narrative surface (§1.3 LLM owns content; Runtime owns boundary).
-
-**§7 REQUIRED** — S-Auto-6 ships at most ONE Skill YAML edit on main (via cherry-pick mechanism); that edit may shift LLM-soft-narrative behaviour. The §7 stanza guards the structural integrity of the substrate machinery + the human-judgment-gate respect.
+`infra` (§3.2 Q1 — substrate-fix + baseline rebaseline; structural plumbing repair on the eval_runner subprocess invocation + `BaselineSnapshot` source advance; no semantic decision change, no projection / scoring semantic logic edit, no CaseSpec / judge change). **§7 EXEMPT** per pure-infra carve-out + self-walked for paper-trail completeness (similar to S-Auto-1 / S-Auto-3 / S-Auto-6 self-walk pattern). The eval_runner.py modification is HOW the subprocess consumes eval-interactive's output, NOT WHAT eval reads or grades; the calibrated anti-hardcode detector + 17-fixture sweep + 3 detector self-discipline regression tests all PASS unchanged.
 
 ## Goal
 
-S-Auto-6 close 时:
+S-Auto-7 close 时:
 
-1. **Pre-batch baseline drift envelope established.** ≥2 baseline reruns of the v1 47-case fitness suite (`bad_cases` ×12 + `anchor_outcome` ×12 + `shadow` ×23) on the calibrated detector at S-Auto-5 close HEAD `ae0ec3e`; median per-suite `case_passed` count + IQR recorded in `docs/sprints/sprint-059-handoff.md` §X "Baseline drift envelope". If baseline-vs-baseline drift exceeds 5/34 cases (the M-Auto-1A close-day signature), surface to deliver-agent + human BEFORE starting overnight.
+1. **Blocker B resolved (eval_runner fix path (b) — must land FIRST to enable Blocker A blessing).** `autoloop/autoloop/scoring/eval_runner.py:99-110` modified: REMOVE the `--output-dir` argument from the subprocess invocation; adapt `run_v1_fitness_suite` to locate eval-interactive's auto-timestamped output directory (e.g., `ls -t eval_interactive/results/ | head -1` post-subprocess to identify the most recent timestamped run; optionally copy or symlink the `results.json` to a stable per-iter path under `autoloop/results/runs/<iter-id>/eval/` for `tier_evaluator.evaluate` consumption). Verified by single-suite end-to-end smoke: `python -c "from autoloop.scoring.eval_runner import run_v1_fitness_suite; r = run_v1_fitness_suite(...); assert r.exit_code == 0 and r.results_root.exists()"` returns success against a real `eval-interactive run --path case_specs/<suite>/` invocation. The `eval_interactive/eval_interactive/cli.py` is UNCHANGED (Blocker B fix path (a) NOT taken; smaller blast radius preserved).
 
-2. **First overnight batch executed.** `python -m autoloop run --experiments <N>` for N in [10, 20] (target ≥10; budget 6-8h). Each iteration writes to `autoloop/results/runs/exp-<N>/` + `experiments.jsonl` + `iterations.sqlite` + `lessons.md` (K=10 lessons_compactor triggers automatically if iteration count reaches K). Crash recovery (S-Auto-3 substrate) handles transient LLM API errors. Total errors ≤50% acceptable; >50% triggers halt + investigate (NOT scope creep — this is an OQ for substrate sub-sprint candidate).
+2. **scoring_code_baseline_sha rebaselined.** Run `python -c "from autoloop.scoring.gaming import _compute_scoring_code_sha; print(_compute_scoring_code_sha(config_path='autoloop/config.yaml'))"` post-edit to compute the new content hash over the four scoring files (`tier_evaluator.py` + `eval_runner.py` [modified] + `baseline_loader.py` + `gaming.py`). Update `autoloop/config.yaml` `fitness.scoring_code_baseline_sha` from M-Auto-1A close `5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c` to the new hash. Verify silent steady state: `_check_scoring_code_drift(config=config)` returns `[]` (no `gaming.scoring_code_drift.sha_changed` ERROR fires in the next iteration). This is a controlled fence #13 override with documented re-baselining — precedent at M-Auto-1A close commit `b6b627b` (S-Auto-4 close-day fix-up: literal git commit id corrected to content-hash form).
 
-3. **First §5.6-style manual review of kept candidates.** Deliver-agent + human jointly read per-turn traces (open `eval_interactive/results/<run-id>/` + `autoloop/results/runs/exp-<N>/`) for EACH kept candidate; judge PASS / FAIL / IMPROVING jointly (NOT programmatic alone); filter through the drift envelope from Goal #1; classify as **eligible-for-cherry-pick** / **deferred-to-M-Auto-2+** (kept on `autoloop/keep-<N>` branch) / **discarded** (manual review FAIL despite programmatic PASS).
+3. **Blocker A resolved — bless concrete baseline_dir.** Run the v1 47-case fitness suite ONCE on `auto-loop-branch` HEAD with the repaired eval_runner (Steps 1+2 above must land before this step can succeed): `bad_cases` ×12 (parallel=1 per S-Auto-2 default for `R-bad-case-parallel-session-establishment-flakiness`) + `anchor_outcome` ×12 (parallel=4) + `shadow` ×23 (parallel=4). Bless the resulting eval-interactive auto-timestamped directory `eval_interactive/results/<concrete-run-id>` as the M-Auto-1B baseline by updating `autoloop/config.yaml` `fitness.baseline_dir` from the literal `<PLACEHOLDER-set-at-M-Auto-1A-close>` string to the concrete path. Record per-suite `case_passed` count + per-case verdict snapshot in handoff §X "Baseline blessing evidence". This is the first time a non-empty `BaselineSnapshot` is loaded by `loop.py:386-441` → Layer 3 improvement-threshold gate becomes meaningful AND Layer 4 shadow regression `shadow_max_drop_pct: 3.0%` denominator becomes non-zero.
 
-4. **First cherry-pick decision via AskUserQuestion.** Deliver-agent surfaces the eligible candidate slate; human selects EXACTLY ONE candidate to cherry-pick OR 0 candidates with explicit "no human-approved candidate" justification. If cherry-pick lands: `python -m autoloop apply --experiment exp-<N>` Hybrid mode (cherry-pick + emit baseline patch + NO auto-commit per OQ-S55.1 disposition 2026-05-27); human inspects `git status` + stages explicitly + commits manually with message `Sprint 059 / S-Auto-6 / M-Auto-1B — apply exp-<N> to main`. The cherry-picked Skill YAML diff MUST be a single-file + single-field-class diff on `procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[*].desc` per the M-Auto-1B fence #3 / #7 / #9 chain (sandbox already enforces structurally; this is post-cherry-pick verification).
+4. **Smoke iter end-to-end verification.** Run `python -m autoloop run --experiments 1` (NO `--dry-run`) on `auto-loop-branch` against the now-blessed baseline + repaired eval_runner. The full 14-step state machine must complete through Step 7 (eval_runner) AND Step 9 (tier_evaluator) — both previously unreachable in S-Auto-5 + S-Auto-6. Acceptance: (a) iteration terminal verdict is keep / discard / error (any of three acceptable); (b) `autoloop/results/runs/exp-<N>/iteration_record.json` contains non-empty `tier_evaluator_verdict` with non-degenerate Layer 0-4 outcomes (each Layer reports PASS / FAIL / informational metric rather than the "missing baseline" short-circuit pattern from S-Auto-5); (c) per-iter elapsed time recorded (the FIRST measurement of full Spring-spawn + 47-case-eval cycle including the meta-agent propose call; previously bounded only by Spring-spawn step at S-Auto-5 exp-2 122.1s). If smoke crashes in an unhandled path NOT caused by Blockers A/B, STOP and surface — substrate brittleness may require fix-iteration S-Auto-7.1.
 
-5. **Observation accumulation + R-S58 disposition recommendation.** `autoloop/config.yaml` `fitness.baseline_dir` advance past the cherry-pick commit (if any) so the next milestone baseline is post-cherry-pick. Cumulative observation captured in handoff: per-iteration elapsed time average; FLAG rate distribution; gaming flag counts + severity; `shadow_disagreement_rate` first measurement (§6 architecture-health metric); whether any NEW bypass variant beyond R-S58 surfaced in real meta-agent propose distribution. Recommendation on R-S58 disposition: (a) defer to M-Auto-2 Fix-D sub-sprint (if no new bypass surface AND zero-width shape did NOT manifest in overnight propose distribution); (b) extend M-Auto-1B with a Fix-D sub-sprint S-Auto-7 (if new bypass surfaces beyond R-S58 OR zero-width shape manifests at meaningful rate). Recommendation is dev-agent + deliver-agent observation; **final R-S58 disposition is a deliver-agent + human planning-round decision at M-Auto-1B close** — NOT a dev-side call.
+5. **Per-sub-sprint Codex `pass`** (§4.3 trigger #3). Deliver-agent dispatches Codex at S-Auto-7 close (NOT at open) with `compact/sprint-060-codex-review-prompt.md` self-contained per §9 invariant. Codex independently verifies: (i) Blocker B fix path (b) structural soundness — auto-timestamp consumption is plumbing-correct, no new semantic logic introduced; (ii) the new `scoring_code_baseline_sha` matches actual `_compute_scoring_code_sha()` output post-edit (reproduces independently); (iii) the controlled fence #13 override is justified — Blocker B forces it, no other path enables overnight in M-Auto-1B Stage 1; (iv) the blessed `baseline_dir` points to a real concrete eval-interactive run with non-zero `case_passed` counts per suite; (v) smoke iter reached Step 9 with non-degenerate `tier_evaluator_verdict`. Codex must return `pass / 0` (or `approve with downgrade-to-signal follow-up` for any residual substrate brittleness observation) BEFORE S-Auto-8 overnight starts.
 
-6. **Milestone-shared Codex review at M-Auto-1B close** (separate later pass dispatched by deliver-agent at milestone close; this sub-sprint does NOT itself dispatch). UNLESS the cherry-pick candidate touches a §5.3 borderline that requires per-sub-sprint Codex — in that case deliver-agent + human dispatch per-sub-sprint Codex at S-Auto-6 close BEFORE M-Auto-1B close.
-
-**Zero touch** to `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py` (M-Auto-1B fence #13 content-hash lock `5177b674...`). **Zero touch** to `autoloop/autoloop/sandbox/{yaml_diff_validator,applier,content_validator,anti_hardcode_check}.py` (S-Auto-1/2/3/4/5 substrate + S-Auto-5 calibrated detector — UNCHANGED in S-Auto-6). **Zero touch** to `autoloop/autoloop/loop.py` / `meta_agent/` / `memory/` / `cli.py`. **Zero touch** to `eval_interactive/eval_interactive/**`, case_spec, case_specs_shadow, `server/src/main/java/`, `eval/src/main/java/`, `data/`, `db/`, `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, sprint/milestone archives. **Conditional touch** to `server/src/main/resources/skills/*.yaml`: EXACTLY ONCE via cherry-pick mechanism in Goal #4 ONLY; OUTSIDE the cherry-pick path, zero touch.
+**Zero touch** to `autoloop/autoloop/scoring/{tier_evaluator,baseline_loader,gaming}.py` (the other three scoring files in fence #13 group; only `eval_runner.py` is overridden). **Zero touch** to `autoloop/autoloop/sandbox/{yaml_diff_validator,applier,content_validator,anti_hardcode_check}.py` (S-Auto-5 calibrated detector + S-Auto-1/3/4 substrate — UNCHANGED). **Zero touch** to `autoloop/autoloop/loop.py` / `meta_agent/` / `memory/` / `cli.py`. **Zero touch** to `eval_interactive/eval_interactive/**` (fix path (b) does NOT modify the eval-interactive CLI), `eval_interactive/case_specs/`, `eval_interactive/case_specs_shadow/`. **Zero touch** to `server/src/main/java/`, `eval/src/main/java/`, `data/`, `db/`, `server/src/main/resources/` (NO cherry-pick in S-Auto-7; that's S-Auto-8 scope only), `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, sprint/milestone archives, `docs/codex-findings.md` scaffold.
 
 ## Scope (numbered; this is the contract)
 
-### #1 — Pre-batch baseline rerun + drift envelope
+### #1 — Blocker B fix path (b): adapt eval_runner.py to auto-timestamped output
 
-Run the baseline 47-case fitness suite at S-Auto-5 close HEAD `ae0ec3e` twice (or more if median+IQR width is unstable; cap at 3):
+Read `autoloop/autoloop/scoring/eval_runner.py` first to understand current `run_v1_fitness_suite` API + helpers + `SuiteRunResult` shape.
 
-```bash
-cd autoloop && uv run --extra dev python -m autoloop run --experiments 0 --baseline-rerun
+Modify the subprocess invocation (current state HEAD lines 99-110):
+
+```python
+cmd = [
+    "uv", "run", "eval-interactive", "run",
+    "--path", str(spec.path),
+    "--parallel", str(spec.parallel),
+    "--output-dir", str(suite_out_dir.resolve()),  # REMOVE this line
+]
 ```
 
-(If `--baseline-rerun` is not a wired CLI flag at S-Auto-5 close HEAD, run the eval suites manually via `cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/` + `... --path case_specs/anchor_outcome/` + `... --path case_specs_shadow/` and aggregate per-suite `case_passed` count. Verify the flag's existence by reading `autoloop/autoloop/cli.py` BEFORE running; if absent, STOP and surface to deliver-agent.)
+To:
 
-Record per-baseline-run aggregate `case_passed` counts per suite. Compute:
-
-- Median per suite (bad_cases: M_bc; anchor_outcome: M_ao; shadow: M_sh)
-- IQR per suite (where ≥3 runs; for 2 runs, use min/max range as proxy)
-- Cross-suite total median + IQR
-
-**Acceptance**:
-
-- Baseline-vs-baseline drift ≤ M-Auto-1A close-day signature (5/34 cases = 14.7% across bad-case + shadow combined). If drift > 5/34, STOP and surface to deliver-agent + human BEFORE starting overnight; joint decision to (a) proceed with widened envelope or (b) halt for upstream LLM-provider investigation.
-
-Record the drift envelope in `docs/sprints/sprint-059-handoff.md` §X "Pre-batch baseline drift envelope".
-
-### #2 — First overnight batch
-
-Run:
-
-```bash
-cd autoloop && uv run --extra dev python -m autoloop run --experiments 15
+```python
+cmd = [
+    "uv", "run", "eval-interactive", "run",
+    "--path", str(spec.path),
+    "--parallel", str(spec.parallel),
+]
 ```
 
-(Adjust `--experiments` value within [10, 20] based on the per-iteration elapsed-time estimate from S-Auto-5: ~12-15 min/iter → 20-30 iter possible in 6h; substrate cleanup + restart between iterations may add overhead. The S-Auto-5 4 iterations actually completed in 122s / 87s / 37s wall-clock total — well under estimate; full Spring eval cycle wasn't tested due to spawn failure. **Pre-overnight smoke**: dispatch 1 iter with `--experiments 1` BEFORE the overnight to measure actual end-to-end elapsed including the eval cycle; if >40 min, adjust `--experiments` count downward.)
+After the subprocess completes, locate the auto-timestamped output. eval-interactive writes to `eval_interactive/results/<YYYYMMDD-HHMMSS>/`. Two viable approaches:
 
-**Pre-overnight smoke required**: BEFORE the overnight batch, run `python -m autoloop run --experiments 1` to measure the actual end-to-end iteration elapsed including the eval cycle (Spring spawn + 47-case eval; S-Auto-5 exp-2 only got to Spring spawn step before failure → the actual `eval_runner` execution time is NOT yet measured live). If first complete iteration succeeds AND elapsed ≤25 min, proceed to overnight at full count. If elapsed 25-40 min, reduce overnight count proportionally. If >40 min, STOP and surface.
+**Approach A (filesystem mtime-based)**: snapshot `eval_interactive/results/` directory listing BEFORE the subprocess invocation; after, find the NEW directory created. Avoid race conditions with concurrent eval-interactive invocations (S-Auto-7 single-thread; not a concern in practice but document).
 
-During overnight:
+**Approach B (results.json self-locating)**: pass `--results-base eval_interactive/results/` (if the flag exists; verify; likely no) OR rely on eval-interactive's deterministic timestamp + match-by-suite-path post-subprocess.
 
-- Crash recovery (S-Auto-3 substrate) handles transient LLM API errors automatically; per-iter state persists in `experiments.jsonl` + `iterations.sqlite` so a mid-batch crash doesn't lose completed iterations.
-- Spring spawn failures (the OQ-S58.7 pattern from S-Auto-5) are recoverable per-iteration: the loop logs the error + proceeds to next iteration. Do NOT patch `applier.py` mid-overnight (hard fence #13).
-- Lessons compactor (S-Auto-3) triggers automatically at K=10 iteration count if reached; first `autoloop/results/lessons.md` LLM-distilled lesson lands during the overnight.
+Pick the simpler approach (likely A; the filesystem snapshot pattern is well-tested in subprocess tooling). Document the approach in inline comments. The `suite_out_dir` parameter the original `run_v1_fitness_suite` accepted should be re-interpreted as a STAGING target: after the subprocess writes to its auto-timestamped path, copy or symlink the `results.json` (or the entire `<timestamp>/` directory) to `suite_out_dir` for downstream `tier_evaluator.evaluate` consumption. Adapt `SuiteRunResult.results_root` to point to the staged location.
 
-**Stop conditions during the overnight**:
-
-- Total errors >50% within the first 5 iterations: halt + surface to deliver-agent + human; investigate (LLM API, infra, Spring spawn pathology). Recover already-completed iterations via state persistence; do NOT scope-creep into substrate fixes.
-- Per-iteration elapsed time average >40 min (sustained, not single outlier): halt + surface; substrate optimization is M-Auto-2+ scope.
-- A pattern of bypass shapes from real meta-agent propose distribution PASS through the detector (beyond R-S58 zero-width): record + halt OR continue based on deliver-agent + human joint decision (depends on frequency + severity).
-
-### #3 — §5.6-style manual review of kept candidates
-
-Next morning, deliver-agent + human jointly conduct manual review.
-
-For EACH kept candidate (one per `autoloop/results/runs/exp-<N>/iteration_record.json` with `terminal_decision == "keep"`):
-
-1. Open the per-turn traces:
-   - `eval_interactive/results/<run-id>/results.json` for the bad_cases + anchor_outcome runs (sample turn-level detail per kept candidate's eval).
-   - `autoloop/results/runs/exp-<N>/{hypothesis.json, diff.yaml, sandbox_verdict.json, anti_hardcode_verdict.json, tier_evaluator_verdict.json}` for the propose-stage + verdict artefacts.
-   - The M5 admin trace UI surface (post-M5 S2 deliverable) for per-invocation LLM raw response inspection — useful for understanding WHY the meta-agent proposed THIS edit.
-2. Sample turn-level traces on bad_cases (Tier-1 + Tier-2 evidence) + anchor_outcome (closure_criterion alignment).
-3. Joint PASS / FAIL / IMPROVING / borderline-§5.3 verdict, recorded per candidate in handoff §X table.
-4. Filter through the drift envelope from #1: a programmatic-PASS candidate inside the drift envelope is NOT a true PASS — it may be provider-drift noise.
-5. Classification:
-   - **eligible-for-cherry-pick**: manual review PASS + NO §5.3 borderline + outside drift envelope (real improvement).
-   - **deferred-to-M-Auto-2+**: manual review PASS but borderline §5.3 ("drift to keyword bot"-style edit even though programmatically PASS); kept on `autoloop/keep-<N>` branch for M-Auto-2+ re-review.
-   - **discarded**: manual review FAIL despite programmatic PASS (typically: change introduces a new failure shape OR inside drift envelope OR over-fits a narrow target case at expense of neighbor / negative-control).
-
-Record the full candidate slate in `docs/sprints/sprint-059-handoff.md` §X "Manual review of kept candidates" with classification rationale per candidate.
-
-### #4 — Cherry-pick decision via AskUserQuestion
-
-**STOP-and-surface to deliver-agent + human** at this step. The dev session does NOT pick a candidate OR judge no-cherry-pick justification — the AskUserQuestion is dispatched by deliver-agent.
-
-Deliver-agent surfaces the eligible-for-cherry-pick slate via AskUserQuestion with one row per candidate:
-
-- target_skill (file basename)
-- target_field (path; e.g., `$.critical_steps[4].desc`)
-- before_value (first 80 chars + ...)
-- after_value (first 80 chars + ...)
-- programmatic verdict (Layer 0-4 PASS summary)
-- manual review verdict (PASS + classification rationale)
-- deliver-agent recommendation
-
-Human selects EXACTLY ONE candidate to cherry-pick OR 0 candidates with explicit "no human-approved candidate" justification.
-
-**If cherry-pick lands** (human selects 1 candidate):
+Verify by direct subprocess invocation (no loop integration yet):
 
 ```bash
-cd autoloop && uv run --extra dev python -m autoloop apply --experiment exp-<N>
+cd autoloop && uv run --extra dev python -c "
+from pathlib import Path
+from autoloop.scoring.eval_runner import run_v1_fitness_suite, SuiteSpec
+spec = SuiteSpec(path=Path('../eval_interactive/case_specs/bad_cases'), parallel=1)
+r = run_v1_fitness_suite(spec, Path('/tmp/test_suite_out'))
+print(f'exit_code={r.exit_code}, results_root={r.results_root}, results_root.exists()={r.results_root.exists() if r.results_root else False}')
+"
 ```
 
-Hybrid mode behaviour (per OQ-S55.1 disposition 2026-05-27): cherry-pick + emit baseline patch (showing the new Skill YAML state) + NO auto-commit. Human inspects:
+Expected: `exit_code=0`, `results_root` points to a path containing `results.json` with non-zero `case_results` count.
+
+**If subprocess invocation crashes** (e.g., `eval-interactive` itself errors against the suite path): STOP and surface — may be a deeper substrate brittleness beyond Blocker B.
+
+**If `--output-dir` flag was somehow added to eval-interactive in the interim** (`git log -S "output_dir" -- eval_interactive/eval_interactive/cli.py` non-empty post-S-Auto-7-open): STOP and surface — the planning input has shifted, deliver-agent + human re-decide.
+
+### #2 — scoring_code_baseline_sha rebaseline
+
+Post-#1 edit, compute the new content hash. The `_compute_scoring_code_sha()` helper at `autoloop/autoloop/scoring/gaming.py` reads the four scoring files via the config path and hashes their content:
 
 ```bash
-git status        # verifies single-file diff on server/src/main/resources/skills/<file>.yaml
-git diff          # verifies single-field-class change matching exp-<N>'s diff.yaml
+cd autoloop && uv run --extra dev python -c "
+from autoloop.scoring.gaming import _compute_scoring_code_sha
+sha = _compute_scoring_code_sha(config_path='config.yaml')
+print(sha)
+"
 ```
 
-If `git diff` shows MORE than ONE file OR a field outside `procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[*].desc`, **STOP and surface**: applier produced an out-of-fence diff, which should be structurally impossible per the M-Auto-1A sandbox. This would be a substrate bug requiring fix-iteration S-Auto-6.1 (or M-Auto-2 substrate hardening).
+(Replace `config_path='config.yaml'` with whatever invocation form `_compute_scoring_code_sha` accepts; sample the helper signature first.)
 
-If verified clean:
+The output is a 64-char hex SHA-256. Update `autoloop/config.yaml`:
+
+```yaml
+fitness:
+  baseline_dir: ...
+  scoring_code_baseline_sha: <new-64-char-hex>  # Was: 5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c (M-Auto-1A close hash); S-Auto-7 rebaselined 2026-05-29 after Blocker B fix path (b) modified eval_runner.py per `docs/sprints/sprint-060-handoff.md` §X.
+```
+
+(Include the inline comment with the precedent annotation + cross-reference.)
+
+Verify silent steady state:
 
 ```bash
-git add server/src/main/resources/skills/<file>.yaml
-git commit -m "Sprint 059 / S-Auto-6 / M-Auto-1B — apply exp-<N> to main
-
-[2-3 sentences describing the cherry-picked edit + manual review verdict + deliver-agent + human joint signature]
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+cd autoloop && uv run --extra dev python -c "
+import yaml
+from pathlib import Path
+from autoloop.scoring.gaming import _check_scoring_code_drift
+config = yaml.safe_load(Path('config.yaml').read_text())
+flags = _check_scoring_code_drift(config=config)
+assert flags == [], f'Expected empty drift list; got {flags}'
+print('PASS: scoring_code_drift silent')
+"
 ```
 
-The applier branch `autoloop/exp-<N>` stays as the source-of-truth pre-cherry-pick state; `autoloop/keep-<N>` (if applier creates it) carries the post-cherry-pick branch tag.
+If the assertion fails, the new hash does not match — recompute + re-update.
 
-**If 0 cherry-pick** (human declines all candidates OR no eligible candidates):
+### #3 — Blocker A blessing: run 47-case fitness baseline + advance baseline_dir
 
-Deliver-agent records the "no human-approved candidate" justification in handoff §X with: (a) per-candidate decline rationale (one line each), (b) deliver-agent + human joint signature, (c) impact on M-Auto-1B close gate (0 cherry-pick is PASS if all other gates PASS). All eligible candidates stay on `autoloop/keep-<N>` branches for M-Auto-2+ review.
+With the repaired eval_runner + valid scoring SHA, run the v1 47-case fitness suite ONCE on `auto-loop-branch` HEAD. Three suites in sequence (or parallel where permitted):
 
-### #5 — Observation accumulation + R-S58 disposition recommendation
+```bash
+# Snapshot eval_interactive/results/ before to identify the new directories created
+cd eval_interactive && ls -t results/ > /tmp/results_before.txt
 
-Record in `docs/sprints/sprint-059-handoff.md`:
+# Suite 1: bad_cases (parallel=1 per R-bad-case-parallel-session-establishment-flakiness)
+cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1
 
-- **Per-iteration elapsed time table**: exp-<N>, target_skill, target_field, iteration_decision, discard_reason, elapsed_s, propose_succeeded (similar to S-Auto-5 §4 table; one row per overnight iter).
-- **Cumulative FLAG rate**: count of `anti_hardcode_flag_for_codex: true` records across overnight + percentage.
-- **Gaming flag distribution**: count by `severity` (WARN vs ERROR) + by `rule_id` across overnight.
-- **`shadow_disagreement_rate` first measurement** (§6 architecture-health metric): fraction of kept candidates whose `tier_evaluator_verdict.layer_4` shadow regression was within tolerance but the manual review classified as drift / borderline.
-- **R-S58 disposition recommendation**:
-  - If NO new bypass variant from real meta-agent propose distribution surfaces beyond R-S58 zero-width AND R-S58 zero-width signature did NOT manifest in any overnight propose: **recommend defer to M-Auto-2** (low priority; the bypass requires invisible-character obfuscation which is low-probability in real meta-agent output).
-  - If R-S58 zero-width signature DID manifest in overnight propose OR new variant surfaces: **recommend extend M-Auto-1B with S-Auto-7 Fix-D sub-sprint** (§8.5 ceiling: M-Auto-1B + S-Auto-7 = 3 sub-sprints, still under 5).
-  - **Final R-S58 disposition is deliver-agent + human at M-Auto-1B close** — NOT dev's call.
+# Suite 2: anchor_outcome (parallel=4)
+cd eval_interactive && uv run eval-interactive run --path case_specs/anchor_outcome/ --parallel 4
 
-If cherry-pick landed, advance `autoloop/config.yaml` `fitness.baseline_dir` past the new commit so M-Auto-2 baseline is post-cherry-pick (recorded as part of the close-bundle by deliver-agent at M-Auto-1B close — NOT a dev-side edit unless deliver-agent explicitly delegates).
+# Suite 3: shadow (parallel=4)
+cd eval_interactive && uv run eval-interactive run --path case_specs_shadow/ --parallel 4
+
+# Identify the 3 NEW run-ids created
+cd eval_interactive && ls -t results/ | head -5
+```
+
+Three NEW timestamped run-ids should appear in `eval_interactive/results/`. The baseline directory pattern needs to consume all three suite outputs.
+
+**Reading the `tier_evaluator.evaluate` + `baseline_loader.load_baseline_snapshot` API contract is required at this step**: the M-Auto-1B baseline may need to be ONE directory containing aggregated per-suite results OR THREE separate directories per suite. Read `autoloop/autoloop/scoring/baseline_loader.py` to understand the expected directory shape. If the loader expects ONE directory with subdirs per suite, copy/symlink the three eval-interactive outputs into a baseline aggregation directory (e.g., `eval_interactive/results/m-auto-1b-baseline-<YYYYMMDD>/{bad_cases,anchor_outcome,shadow}/`). If it expects three separate paths, configure accordingly.
+
+Update `autoloop/config.yaml` `fitness.baseline_dir` from the literal `<PLACEHOLDER-set-at-M-Auto-1A-close>` string to the concrete blessed path. Record:
+
+- The three eval-interactive run-ids.
+- Per-suite `case_passed` count + per-case verdict from each `results.json`.
+- The blessed `baseline_dir` value in config.yaml.
+
+In handoff §X "Baseline blessing evidence".
+
+**If the baseline run surfaces unexpected behaviour** (e.g., a suite errors out entirely, or per-case verdict shape is unexpected): STOP and surface. The baseline blessing must be high-quality — it anchors all future M-Auto-1B + post-cherry-pick evaluations.
+
+### #4 — Smoke iter end-to-end verification
+
+With Blockers A + B + scoring SHA rebaseline all landed, run the smoke iter:
+
+```bash
+cd autoloop && uv run --extra dev python -m autoloop run --experiments 1
+```
+
+(NO `--dry-run`.) The full 14-step state machine must execute end-to-end. Critically: Step 7 (`eval_runner.run_v1_fitness_suite`) AND Step 9 (`tier_evaluator.evaluate`) must reach non-degenerate outputs — both were structurally unreachable in S-Auto-5 (failed before Step 7) and S-Auto-6 (closed empty).
+
+Record:
+
+- Iteration outcome (keep / discard / error; any acceptable per scope acceptance bar).
+- Per-iter wall-clock elapsed time (the FIRST measurement of full Spring-spawn + 47-case-eval cycle).
+- `autoloop/results/runs/exp-<N>/iteration_record.json` contents — verify `tier_evaluator_verdict` is non-empty + Layer 0-4 outcomes are non-degenerate (each Layer reports PASS/FAIL/informational metric, NOT the empty-snapshot short-circuit pattern from S-Auto-5).
+- `autoloop/results/runs/exp-<N>/` artefacts: `hypothesis.json`, `diff.yaml`, `sandbox_verdict.json`, `anti_hardcode_verdict.json`, `tier_evaluator_verdict.json`, eval per-suite outputs.
+
+**If smoke iter crashes in an unhandled path NOT caused by Blockers A/B**: STOP and surface. Substrate brittleness may require fix-iteration S-Auto-7.1.
+
+**If per-iter elapsed >40 min**: continue this iteration to completion but STOP additional iterations (S-Auto-7 only requires 1 smoke iter). Surface as observation toward §10 substrate optimization R-item for M-Auto-2.
+
+### #5 — Codex per-sub-sprint review prep
+
+Author the handoff (per §11 Handoff requirements below). Do NOT dispatch Codex; deliver-agent dispatches at S-Auto-7 close with `compact/sprint-060-codex-review-prompt.md` (deliver-agent authors at close).
+
+Pre-mitigation against Codex friction (your job before commit):
+
+- Verify `git diff --stat 1943ed5..HEAD` (or whatever the actual commit base is) shows ONLY: `autoloop/autoloop/scoring/eval_runner.py`, `autoloop/config.yaml`, `autoloop/tests/test_eval_runner.py` (new or extended), `docs/sprints/sprint-060-handoff.md`. NO other file changed.
+- Verify `git diff --stat -- autoloop/autoloop/scoring/tier_evaluator.py autoloop/autoloop/scoring/baseline_loader.py autoloop/autoloop/scoring/gaming.py` returns empty (the other three scoring files in fence #13 group UNCHANGED — only `eval_runner.py` overridden).
+- Verify `git diff --stat -- eval_interactive/eval_interactive/cli.py` returns empty (fix path (b) preserved — eval-interactive CLI byte-identical).
+- Reproducibility: include in handoff the exact `_compute_scoring_code_sha()` invocation + output (so Codex can reproduce).
 
 ## Hard fences / STOP conditions
 
-- **Zero touch** to `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py` (M-Auto-1B fence #13).
-- **Zero touch** to `autoloop/autoloop/sandbox/{yaml_diff_validator,applier,content_validator,anti_hardcode_check}.py` (S-Auto-1 through S-Auto-5 substrate).
+- **CONTROLLED FENCE #13 OVERRIDE**: `autoloop/autoloop/scoring/eval_runner.py` is the ONLY file in the fence #13 content-hash-locked group that may be touched. The other three (`tier_evaluator.py` / `baseline_loader.py` / `gaming.py`) STAY untouched. After edit, the override is finalized by re-baselining `scoring_code_baseline_sha` in config.yaml; the fence reasserts at the NEW hash at S-Auto-7 close.
+- **Zero touch** to `eval_interactive/eval_interactive/cli.py` (fix path (b) preserves eval-interactive byte-identical; fix path (a) was NOT chosen).
+- **Zero touch** to `eval_interactive/eval_interactive/**` (the inner Python module beyond cli.py).
+- **Zero touch** to `eval_interactive/case_specs/`, `eval_interactive/case_specs_shadow/`.
+- **Zero touch** to `autoloop/autoloop/sandbox/{yaml_diff_validator,applier,content_validator,anti_hardcode_check}.py` (S-Auto-1/3/4/5 substrate + calibrated detector).
 - **Zero touch** to `autoloop/autoloop/loop.py` / `meta_agent/` / `memory/` / `cli.py`.
-- **Zero touch** to `eval_interactive/eval_interactive/**`, case_spec, case_specs_shadow, `server/src/main/java/`, `eval/src/main/java/`, `data/`, `db/`, `server/src/main/resources/{prompts,scripts,config,mock}/**`, `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, sprint archives `docs/sprints/sprint-001-*` through `docs/sprints/sprint-058-*`, milestone archives, `docs/codex-findings.md` scaffold.
-- **Conditional touch** to `server/src/main/resources/skills/*.yaml`: EXACTLY ONCE via the Goal #4 cherry-pick mechanism; outside cherry-pick, zero touch. The cherry-pick diff MUST be single-file + single-field-class (`procedure` / `grounding_instruction` / `escalation_policy` / `critical_steps[*].desc` only).
-- **At MOST 1 cherry-pick** during S-Auto-6 (M-Auto-1B fence #7 / #17). Any additional kept candidates stay on `autoloop/keep-<N>` branches awaiting M-Auto-2+ review.
-- **No `git add -A`** by dev — stage S-Auto-6 scope files explicitly. The cherry-pick commit is a separate single-file stage (`git add server/src/main/resources/skills/<file>.yaml`). Deliver-agent close-bundle artefacts bundled by human at close.
-- **No new Tier-0 invariant**. C2/C3 DEFER continues. If overnight surfaces a Tier-0 candidate observation, surface as R-item for M-Auto-2+ planning.
-- **No new heavy deps** in `autoloop/pyproject.toml`.
-- **No LLM call** in any new code (S-Auto-6 is execution-driven; no new code expected beyond handoff documentation).
-- **No human-judgment-gate bypass**: dev does NOT pick cherry-pick candidate OR judge no-cherry-pick alone; AskUserQuestion via deliver-agent is the human-judgment gate per §5.6.
-- **No silent skip of pre-overnight smoke**: the `--experiments 1` smoke is mandatory BEFORE the overnight batch (S-Auto-5 did not measure full Spring + eval cycle live; overnight without smoke = risk of 6h wasted on a substrate pathology).
+- **Zero touch** to `server/src/main/java/**`, `eval/src/main/java/**`, `data/`, `db/`, `server/src/main/resources/` (cherry-pick to skills/ is S-Auto-8 scope ONLY).
+- **Zero touch** to `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, sprint archives (other than S-Auto-7's own), milestone archives, `docs/codex-findings.md` scaffold.
+- **No new heavy deps** in `autoloop/pyproject.toml`. Stdlib `pathlib` + `subprocess` only (the same dep posture S-Auto-2 ships with).
+- **No LLM call** in `eval_runner.py` or its tests (substrate stays deterministic).
+- **No `git add -A`** — stage S-Auto-7 scope explicitly.
+- **No cherry-pick to main** in S-Auto-7 (M-Auto-1B fence #7 / #17 allows EXACTLY ONCE in S-Auto-8 ONLY).
 - **STOP and surface** conditions:
-  - Pre-batch baseline drift envelope width >5/34 cases (M-Auto-1A close-day signature exceeded).
-  - Pre-overnight smoke iter elapsed >40 min.
-  - Overnight total errors >50% within first 5 iterations.
-  - Per-iter average elapsed >40 min sustained.
-  - Multiple bypass shapes from real meta-agent propose distribution PASS detector beyond R-S58.
-  - Cherry-pick `apply` mechanism produces out-of-fence diff (multi-file OR field outside white-list).
-  - Any kept candidate's manual review surfaces a borderline §5.3 case (deliver-agent + human jointly judge whether to discard or surface for per-sub-sprint Codex re-review BEFORE M-Auto-1B close).
+  - `--output-dir` flag has been added to eval-interactive CLI in the interim (planning input shifted; deliver-agent + human re-decide).
+  - Direct subprocess invocation of repaired eval_runner crashes for a reason beyond Blocker B.
+  - Baseline run (47-case fitness suite) surfaces unexpected per-case verdict shape OR per-suite errors.
+  - Smoke iter crashes in unhandled path NOT caused by Blockers A/B (fix-iteration S-Auto-7.1 candidate).
+  - Smoke iter elapsed >40 min (substrate optimization R-item for M-Auto-2).
+  - `_check_scoring_code_drift(config=config)` returns non-empty after #2 rebaseline (hash mismatch — recompute + re-update; if persistent, surface).
+  - `tier_evaluator_verdict` is still degenerate (empty Layer 0-4) post-smoke despite blessed baseline (deeper structural issue in `loop.py` or `tier_evaluator.py`; fix-iteration S-Auto-7.1).
 
 ## Test / eval requirements
 
-- **Python autoloop suite**: `cd autoloop && uv run --extra dev pytest -q` — S-Auto-5 close baseline `223 passed, 1 warning` UNCHANGED (S-Auto-6 expected to add 0 new pytest tests — execution-driven sub-sprint; if observation infrastructure requires new tests, add to handoff §X with justification).
-- **Existing Python eval_interactive suite UNCHANGED**: `cd eval_interactive && uv run python -m pytest --tb=no -q` reproduces `486 passed, 3 failed`.
-- **Java baseline UNCHANGED**: `Tests run: 1183, Failures: 1, Errors: 0, Skipped: 2` UNCHANGED from M-Auto-1A close `b6b627b` IF cherry-pick lands and the Skill YAML edit does NOT regress Java tests (Skill YAML loading is via Spring config + `SkillRegistry`; potential Java-side touch is class-loading + YAML parse only — semantically the edited Skill YAML is consumed by LLM-side projection, not Java decision-paths, so baseline preserved by construction). Run `cd server && mvn test -B -pl server` AFTER cherry-pick (if any) to verify.
-- **Live-iter end-to-end at scale**: ≥10 overnight iterations complete to terminal verdict (keep / discard / error all acceptable per S-Auto-5 precedent).
-- **§5.6 manual review evidence at sub-sprint close**: per-kept-candidate trace review documented with deliver-agent + human joint PASS/FAIL/IMPROVING/borderline classification.
-- **Shadow regression-safety check at M-Auto-1B close** (separate from S-Auto-6; milestone-close gate per M5 / M-Auto-1A precedent). If cherry-pick landed, shadow drop on the 23 shadow cases must be ≤3%.
-- **No live LLM call in pytest tests** — overnight LLM calls happen via `python -m autoloop run` (CLI invocation, NOT pytest).
+- **Python autoloop suite**: `cd autoloop && uv run --extra dev pytest -q` — S-Auto-5 close baseline `223 passed, 1 warning` MUST grow by ~3-6 new S-Auto-7 tests (`test_eval_runner.py` new tests for auto-timestamp consumption + `SuiteRunResult.results_root` shape + exit_code propagation; possibly +1 for the `_compute_scoring_code_sha` rebaseline assertion if test_gaming.py needs updating with the new fixture hash). Total `226-229 passed, 1 warning`. The 1 warning is the S-Auto-2 baseline-missing-shadow asserted behaviour UNCHANGED.
+- **Existing Python eval_interactive suite UNCHANGED**: `cd eval_interactive && uv run python -m pytest --tb=no -q` reproduces `486 passed, 3 failed` (OQ-S47.3 env-specific failures).
+- **Java baseline UNCHANGED**: skipped per Java-zero-touch (verify `git diff --stat 1943ed5..HEAD -- server/src/main/java/ eval/src/main/java/` returns empty).
+- **17-fixture detector calibration sweep**: `cd autoloop && uv run --extra dev pytest -q autoloop/tests/test_anti_hardcode_check.py` UNCHANGED at 31 passed (S-Auto-7 does NOT touch the detector).
+- **Detector self-discipline 3 regression tests**: UNCHANGED — PASS.
+- **scoring_code_baseline_sha**: NEW value matches actual `_compute_scoring_code_sha()` output post-edit; verified by `_check_scoring_code_drift(config=config) == []`.
+- **Live-iter end-to-end smoke**: 1 iter completed end-to-end through Step 9 with non-degenerate `tier_evaluator_verdict`.
+- **No live LLM call in pytest tests** — eval_runner tests use synthetic-fixture or mocked-subprocess only.
 
-## §7 — Layer-classification + anti-hardcode stanza
+## §7 — Layer-classification + anti-hardcode stanza (EXEMPT; self-walked for paper-trail)
 
-**Target failure layer:** `eval_spec` (§3.2 Q6 — sub-sprint's primary action is consuming per-iteration fitness verdict sequence + cherry-pick eligibility decision; both are eval-side acceptance bars, not runtime semantic changes). The cherry-picked Skill YAML edit (if any) is the LLM-soft-narrative surface (§1.3 LLM owns content) — semantic-touching in the sense that it changes LLM-visible Skill instruction text, but the change is sandbox-validated + anti-hardcode-validated + tier_evaluator-validated + §5.6-manual-reviewed BEFORE landing on main. The cherry-pick is therefore a §5.6-gated structured improvement, NOT a §1.7 violation.
+**§7 stanza is NOT REQUIRED for pure-infra substrate-fix sub-sprints per `iteration_governance.md` §7**. Self-walked here for paper-trail completeness only:
 
-**Tier-0 invariant:** adds no Tier-0 invariant. The cherry-picked Skill YAML edit (if any) does NOT modify any current Tier-0 invariant per `docs/runtime_freeze_and_risk_policy.md` §1/§2 (which govern Java-side safety floor, not Skill YAML LLM-soft narrative content). The §3.2 Q2 detector rule in the calibrated anti_hardcode_check.py (existing S-Auto-4 rule + S-Auto-5 Fix-C step 1) actively REJECTS any proposed Tier-0 invention attempt — overnight kept candidates have been filtered through this check at propose-stage.
+**Target failure layer:** `infra` (§3.2 Q1 — substrate-fix; eval_runner.py is structural plumbing wrapping eval-interactive subprocess; the change is HOW the subprocess consumes output, NOT a semantic decision). Baseline blessing is a configuration advance, not a runtime semantic change.
 
-**Semantic hardcode:** S-Auto-6 introduces no NEW semantic hardcode in source code. The cherry-picked Skill YAML edit (if any) MUST pass the calibrated anti_hardcode_check (Fix-C step 1 + `synonym_map_enabled=true` from S-Auto-5) at propose-stage; manual review §5.6 additionally guards against borderline §5.3 "drift to keyword bot" candidates. The detector + manual review chain is the §1.7 enforcement; S-Auto-6 does NOT modify the chain itself (sandbox + anti_hardcode + content_validator + gaming all hard-fenced per #13). Any post-cherry-pick observation of a §1.7-style regression in the cherry-picked content would be a fix-iteration S-Auto-6.1 (revert + re-evaluate; OR refine via M-Auto-2+).
+**Tier-0 invariant:** adds no Tier-0 invariant. eval_runner.py modification is structural plumbing repair; the calibrated detector + sandbox + content_validator + tier_evaluator + gaming + meta_agent + loop + memory all UNCHANGED. The existing Q2 detector rule (Tier-0 invariant invention detection) is UNCHANGED.
+
+**Semantic hardcode:** No semantic hardcode introduced. Justification:
+
+- eval_runner.py fix path (b) is a **subprocess invocation pattern adjustment** — removes a non-existent CLI flag + adds filesystem auto-timestamp consumption. No regex, no keyword list, no if-else decision branch, no per-UC matrix. Pure plumbing.
+- `scoring_code_baseline_sha` rebaseline is a config field update with the recomputed content hash; no rule logic changes.
+- `baseline_dir` advance from placeholder to concrete eval-interactive run path is a config field update; no semantic logic changes.
+- Smoke iter execution exercises the existing semantic logic (S-Auto-3/4/5 substrate + calibrated detector + meta-agent propose) WITHOUT modifying any of it.
 
 **Generalization coverage:**
 
-- **target** = (i) ≥10 overnight iterations complete to terminal verdict on `auto-loop-branch` against the calibrated detector + real meta-agent LLM; (ii) ≥1 §5.6 manual review of kept candidates (or 0 if no kept candidates surface); (iii) cherry-pick decision (1 or 0) recorded with deliver-agent + human joint signature.
-- **neighbor** = the cherry-picked candidate (if any) does NOT regress neighboring cases — i.e., for the target_skill + target_field that was edited, related test cases in `bad_cases` / `anchor_outcome` / `shadow` do NOT shift from PASS → FAIL beyond the drift envelope from #1.
-- **negative-control** = the cherry-picked candidate (if any) does NOT shift the M-Auto-1B close-day bad-case manual review distribution (expected: ≥1 case moves to IMPROVING or PASS if cherry-pick lands targets a R-iwzx / R-bad-case-suite-uc-ghij-seed-from-real-sessions like case; otherwise expected to match M-Auto-1A close distribution).
-- **shadow** = shadow firewall posture UNCHANGED in S-Auto-6 (no detector / config / scoring change). Overnight kept candidates have been filtered through Layer 4 shadow regression check (≤3% drop) by tier_evaluator; the cherry-picked candidate's shadow drop ≤3% guarantee carries through to main.
+- **target** = (i) eval_runner.run_v1_fitness_suite end-to-end against real `eval-interactive run` subprocess returns `SuiteRunResult` with non-empty `results_root` containing `results.json`; (ii) scoring_code_drift detector silent on rebaselined config; (iii) smoke iter reaches Step 9 with non-degenerate `tier_evaluator_verdict`.
+- **neighbor** = autoloop pytest suite UNCHANGED baseline + 3-6 new tests on eval_runner.py adaptation. The other three fence #13 scoring files PASS unchanged (not modified).
+- **negative-control** = `_check_scoring_code_drift` returns `[]` post-rebaseline (steady state); `_RE_WHEN_WORD_BOUNDARY` detector behaviour UNCHANGED on the 17-fixture sweep.
+- **shadow** = shadow firewall posture UNCHANGED. Shadow leak signatures + tier_evaluator Layer 4 logic UNCHANGED.
 
 ## Codex review plan (§4.3)
 
-**Default**: milestone-shared at M-Auto-1B close. Codex consumes cumulative range `<M-Auto-1A-close>..<M-Auto-1B-close>` covering both sub-sprints + cherry-pick commit (if any).
+**PER-SUB-SPRINT REQUIRED — §4.3 trigger #3**. The S-Auto-7 sub-sprint explicitly overrides M-Auto-1B §6 fence #13 (`autoloop/autoloop/scoring/` content-hash lock); the override is BLESSED at S-Auto-7 planning round (the milestone objective in-place revision 2026-05-29 documenting the controlled override) but must be VERIFIED at S-Auto-7 close by Codex independently.
 
-**Per-sub-sprint Codex CONDITIONAL on cherry-pick borderline-§5.3**:
+**Codex prompt timing**: deliver-agent authors `compact/sprint-060-codex-review-prompt.md` at S-Auto-7 close (NOT at open), covering the actual delivered commit range.
 
-Deliver-agent + human jointly judge at S-Auto-6 cherry-pick decision point (Goal #4 AskUserQuestion):
+**Codex must verify**:
 
-- If the cherry-pick candidate is unambiguously clean §5.6 manual review PASS, NO §5.3 borderline → milestone-shared Codex (default).
-- If cherry-pick candidate is §5.3 borderline ("drift to keyword bot" risk despite programmatic PASS) → per-sub-sprint Codex required BEFORE M-Auto-1B close (deliver-agent dispatches `compact/sprint-059-codex-review-prompt.md`; Codex verifies (a) the cherry-picked edit is structurally clean; (b) §1.7 forbidden-list compliance; (c) §5.3 borderline acceptable as `approve with downgrade-to-signal follow-up`).
-- If cherry-pick candidate's manual review surfaces a CLEAR §5.3 violation → discard the candidate; do NOT cherry-pick; close with 0 cherry-pick.
+1. Blocker B fix path (b) structural soundness — `eval_runner.py` modification is plumbing only (subprocess invocation + filesystem auto-timestamp consumption + `SuiteRunResult` adaptation); no new semantic logic introduced. The change does NOT add regex / keyword / if-else / enum that encodes a semantic decision (§1.7 forbidden surface check).
+2. The new `scoring_code_baseline_sha` matches actual `_compute_scoring_code_sha()` output post-edit. Codex independently reproduces the hash computation + assertion.
+3. The controlled fence #13 override is justified — Blocker B forces it (`eval-interactive run --output-dir` Click error blocks every overnight iter at Step 7); no other path enables overnight in M-Auto-1B Stage 1. The override is minimal-blast-radius (only `eval_runner.py` touched in the fence #13 group; the other three scoring files UNCHANGED).
+4. The blessed `baseline_dir` points to a real concrete eval-interactive run with non-zero `case_passed` counts per suite (Codex spot-checks by reading the blessed `eval_interactive/results/<concrete-run-id>/results.json`).
+5. Smoke iter `iteration_record.json` `tier_evaluator_verdict` is non-degenerate (Layer 0-4 outcomes each PASS / FAIL / informational metric; no empty-snapshot short-circuit pattern).
+6. Hard-fence verification against the M-Auto-1B §6 17 fences for surfaces OTHER than the controlled fence #13 override — `git diff --stat 1943ed5..HEAD -- <all gated paths except eval_runner.py>` returns empty.
+7. `eval_interactive/eval_interactive/cli.py` UNCHANGED (fix path (b) preserved; fix path (a) NOT taken).
 
-**Verdict expected** (milestone-shared at M-Auto-1B close): `pass / 0` or `approve with downgrade-to-signal follow-up` (likely; R-S58 deferred trigger).
+**Verdict expected**: `pass / 0` or `approve with downgrade-to-signal follow-up` (likely if any residual substrate brittleness observation surfaces — e.g., Spring spawn rate, eval-interactive auto-timestamp race-condition consideration).
+
+`reject as semantic hardcode` triggers fix-iteration sub-sprint S-Auto-7.1 BEFORE S-Auto-8 can dispatch.
 
 ## Handoff requirements
 
-Author `docs/sprints/sprint-059-handoff.md` at S-Auto-6 close. Leave **§12** empty (deliver-agent + human at milestone close). Required sections:
+Author `docs/sprints/sprint-060-handoff.md` at S-Auto-7 close. Leave **§12** empty (deliver-agent + human at milestone close). Required sections:
 
-- **§1 Class + §7 stanza self-walk** — confirm against delivered scope.
-- **§2 Goal achievement** — bullet each of the 6 Goal items + evidence pointer.
+- **§1 Class + §7 stanza self-walk** — confirm class `infra` + §7 EXEMPT classification against delivered scope.
+- **§2 Goal achievement** — bullet each of the 5 Goal items + evidence pointer.
 - **§3 Scope execution log** — for each scope step #1-#5, brief status (DONE / PARTIAL / SKIPPED-WITH-REASON).
-- **§4 Pre-batch baseline drift envelope** — per-baseline-run aggregate `case_passed` counts per suite (≥2 reruns); median + IQR per suite + cross-suite total; drift envelope decision (proceed with measured envelope OR halt for upstream LLM-provider investigation).
-- **§5 Pre-overnight smoke + overnight batch record** — `--experiments 1` smoke iter outcome + elapsed time; overnight batch: `--experiments <N>` value chosen + rationale; per-iteration table (iter_id, target_skill, target_field, iteration_decision, discard_reason, elapsed_s, propose_succeeded, anti_hardcode_flag_for_codex, gaming_flags count); cumulative counts (keep / discard / error / total).
-- **§6 Manual review of kept candidates** — per-kept-candidate row with target_skill, target_field, programmatic verdict, manual review PASS/FAIL/IMPROVING/borderline-§5.3 classification, classification rationale, eligibility-for-cherry-pick / deferred-to-M-Auto-2+ / discarded.
-- **§7 Cherry-pick decision** — AskUserQuestion record (deliver-agent surfaces; human selects); selected candidate (or "no human-approved candidate" + justification); `python -m autoloop apply --experiment exp-<N>` Hybrid output; `git status` + `git diff` verification of single-file + single-field-class diff; cherry-pick commit SHA + footer.
-- **§8 Observation accumulation** — per-iteration elapsed-time average; cumulative FLAG rate; gaming flag distribution by severity + rule_id; `shadow_disagreement_rate` first measurement; whether NEW bypass variants surfaced from real meta-agent propose distribution beyond R-S58.
-- **§9 R-S58 disposition recommendation** — defer-to-M-Auto-2 OR extend-M-Auto-1B-with-S-Auto-7; deliver-agent observation; final disposition is deliver-agent + human at M-Auto-1B close.
-- **§10 Code anchor table** — `git show --numstat <commits>` for any commits landed during S-Auto-6 (the cherry-pick commit, if any; the handoff commit; substrate observation commits if any).
-- **§11 Test count** — autoloop pytest UNCHANGED at `223 passed, 1 warning` baseline (S-Auto-6 expected to add 0 tests; if tests added, breakdown here).
-- **§12 OQ-S59.x list** — open questions surfaced during execution; disposition per OQ.
+- **§4 Blocker B fix evidence** — `git show --numstat` for the `eval_runner.py` modification; before/after diff with key lines; direct subprocess invocation result; SuiteRunResult shape post-edit.
+- **§5 scoring_code_baseline_sha rebaseline evidence** — old hash (`5177b674...`) + new hash + `_compute_scoring_code_sha()` reproducibility check + `_check_scoring_code_drift` silent confirmation.
+- **§6 Baseline blessing evidence** — three eval-interactive run-ids; per-suite case_passed counts; per-case verdict snapshot (summary table); blessed `baseline_dir` config value post-edit.
+- **§7 Smoke iter end-to-end record** — iteration outcome (keep/discard/error); per-iter elapsed time; `iteration_record.json` `tier_evaluator_verdict` Layer 0-4 outcomes (non-degenerate verification); cumulative artefact tree under `autoloop/results/runs/exp-<N>/`.
+- **§8 Adversarial spot-check pre-Codex** — independent verification of (i) fence #13 override scope (only eval_runner.py touched); (ii) eval-interactive CLI unchanged; (iii) scoring SHA reproducibility.
+- **§9 Code anchor table** — `git show --numstat <s-auto-7-commit-sha>` table format showing file paths + lines added/removed.
+- **§10 Test count** — autoloop pytest baseline 223 → final count + delta breakdown.
+- **§11 §7 stanza self-walk verification** — explicit "self-walk passed; §7 EXEMPT confirmed".
+- **§12 OQ-S60.x list** — open questions surfaced; disposition per OQ.
 
-You do NOT author the milestone-shared Codex review prompt (deliver-agent's job at M-Auto-1B close).
+Author `compact/sprint-060-codex-review-prompt.md` AS PART OF the S-Auto-7 close-bundle (deliver-agent writes this; embeds §4.1 nine-question kernel verbatim + fence #13 override justification + 7 verification axes above + M-Auto-1B §6 hard fences for non-overridden surfaces).
 
 ## Commit discipline
 
-S-Auto-6 expected commit pattern (commit-at-end; one or two commits):
+Dev stages **only S-Auto-7 scope** explicitly:
 
-**Commit 1 (conditional; cherry-pick only IF a candidate is selected at Goal #4)**:
+- Modified `autoloop/autoloop/scoring/eval_runner.py` (Blocker B fix path (b)).
+- Modified `autoloop/config.yaml` (`fitness.baseline_dir` advance + `fitness.scoring_code_baseline_sha` re-baselined).
+- New or extended `autoloop/tests/test_eval_runner.py` (3-6 new tests).
+- Optional: if the autoloop subsystem ships a small helper for auto-timestamp consumption (e.g., a `_locate_latest_results` helper), include in `eval_runner.py` body or a new sibling file (deliver-agent + human discuss at planning if sibling file needed).
+- New `docs/sprints/sprint-060-handoff.md`.
+
+**No `git add -A`**. **No bundle of deliver-agent close artefacts** (`docs/sprint_objective.md` / `docs/milestone_objective.md` / `docs/codex-findings.md` / `docs/10-handoff.md` / `docs/action_bank.md` / `compact/sprint-060-codex-review-prompt.md`) — those bundle by human at close per `feedback_commit_at_end_bundles_deliver_artefacts.md`.
+
+**Two-commit pattern** (analogous to S-Auto-5 commit-pattern):
+
+**Commit 1 (REQUIRED; Blocker B + scoring SHA rebaseline + tests)**:
 
 ```
-Sprint 059 / S-Auto-6 / M-Auto-1B — apply exp-<N> to main
+Sprint 060 / S-Auto-7 / M-Auto-1B — Blocker B fix path (b) + scoring SHA rebaseline + tests
 
-[2-3 sentences describing the cherry-picked edit: target_skill + target_field + edit summary; manual review verdict; deliver-agent + human joint signature]
+[2-3 sentences describing the eval_runner.py change + new tests + scoring SHA before/after]
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
 
-Stage ONLY: `server/src/main/resources/skills/<file>.yaml` (the single-file Skill YAML edit from `python -m autoloop apply --experiment exp-<N>` Hybrid mode output).
+Stage: `autoloop/autoloop/scoring/eval_runner.py`, `autoloop/config.yaml` (`scoring_code_baseline_sha` only — NOT `baseline_dir` yet), `autoloop/tests/test_eval_runner.py`.
 
-**Commit 2 (always; S-Auto-6 close handoff)**:
+**Commit 2 (REQUIRED; Blocker A blessing + smoke iter + handoff)**:
 
 ```
-Sprint 059 / S-Auto-6 / M-Auto-1B — first overnight batch + first human review + first cherry-pick <or "no cherry-pick" + justification>
+Sprint 060 / S-Auto-7 / M-Auto-1B — Blocker A baseline_dir blessing + smoke iter
 
-[2-3 sentences describing the overnight batch outcome (N iter completed; keep/discard/error counts); manual review verdict on kept candidates; cherry-pick decision + cherry-pick commit pointer if applicable; R-S58 disposition recommendation]
+[2-3 sentences describing the blessed baseline run-ids + per-suite case_passed counts + smoke iter outcome + per-iter elapsed]
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
 
-Stage ONLY: `docs/sprints/sprint-059-handoff.md` (the dev-authored handoff archive).
+Stage: `autoloop/config.yaml` (`baseline_dir` only), `docs/sprints/sprint-060-handoff.md`.
 
-**No `git add -A`**. Deliver-agent close-bundle artefacts (this objective archive rename at close, milestone objective §12 closure verdict, milestone-shared Codex prompt + findings, 10-handoff updates, action_bank R-item annotations) bundled by human at close per `feedback_commit_at_end_bundles_deliver_artefacts.md`.
+(Splitting into two commits separates the "fence override + rebaseline" structural change from the "baseline blessing + smoke" verification step; clean audit trail for Codex.)
 
 ## Scope size (§8.5 note)
 
-M-Auto-1B with S-Auto-6 = 2 of 2 sub-sprints planned (within §8.5 5-sub-sprint ceiling; margin = 3 if fix-iteration S-Auto-5.1 / S-Auto-6.1 / Fix-D S-Auto-7 needed). S-Auto-6 is execution-driven + observation-driven; estimated 1-2 dev-days execution + 1 overnight (6-8h auto-loop) + 1-2 days deliver-agent + human manual review + cherry-pick decision + apply + close-bundle.
+M-Auto-1B with S-Auto-7 = 3 of 4 sub-sprints planned (within §8.5 5-sub-sprint ceiling; margin = 1 if fix-iteration S-Auto-7.1 needed). S-Auto-7 is small-medium by LOC + test count (~3-6 new tests + ~30-100 LOC in eval_runner.py adaptation + ~10 LOC config edits); estimated 2-3 dev-days + Codex ~1-2 days. The fence #13 override + scoring SHA rebaseline are the high-risk items; the baseline blessing + smoke are straightforward execution.
 
 ## OQ (open questions — filled during the sub-sprint)
 
-- **OQ-S59.x candidates** (expected; dev surfaces as ambiguities encountered):
-  - **OQ-S59.1** — `--baseline-rerun` CLI flag exists OR substitute path. Verify via `python -m autoloop --help` BEFORE running #1.
-  - **OQ-S59.2** — pre-overnight smoke iter elapsed time vs. S-Auto-5 estimate (12-25 min target).
-  - **OQ-S59.3** — `--experiments <N>` value chosen for overnight + rationale (function of pre-overnight smoke + 6-8h budget).
-  - **OQ-S59.4** — whether overnight Spring spawn failure rate exceeds S-Auto-5 single observation (exp-2 1/3 = 33% of attempted spawns; if overnight reproduces, surface OQ to M-Auto-2 substrate optimization).
-  - **OQ-S59.5** — whether lessons_compactor K=10 trigger fires during overnight; if yes, first `lessons.md` LLM-distilled lesson content.
-  - **OQ-S59.6** — kept-candidate count distribution vs. S-Auto-5 augmented-evidence expectation. If 0 kept candidates from overnight, deliver-agent + human assess whether meta-prompt refinement is M-Auto-2+ scope.
-  - **OQ-S59.7** — whether any kept candidate touches `R-iwzx-uc-k-vs-uc-h-routing-spurious-distress` or `R-bad-case-suite-uc-ghij-seed-from-real-sessions` natural-target territory; if yes, the manual review specifically validates against those R-items' expected behaviour.
-  - **OQ-S59.8** — whether R-S58 zero-width-bypass shape manifests in overnight propose distribution (informs the R-S58 disposition recommendation at #5).
-  - **OQ-S59.9** — cherry-pick decision rationale + 0-cherry-pick justification (if applicable).
-  - **OQ-S59.10** — `config.fitness.baseline_dir` advance + new baseline directory path (if cherry-pick lands; deliver-agent close-bundle).
+- **OQ-S60.x candidates** (expected; dev surfaces as ambiguities encountered):
+  - **OQ-S60.1** — eval-interactive's auto-timestamped output format: directory shape per-suite (does `--path case_specs/bad_cases/` produce a `bad_cases/` subdir under the timestamp, or just a flat `results.json`? Verify).
+  - **OQ-S60.2** — `baseline_loader.load_baseline_snapshot` API contract: expects ONE aggregated baseline directory OR THREE separate per-suite directories. Read the loader BEFORE running the 47-case baseline + designing the directory structure.
+  - **OQ-S60.3** — eval-interactive subprocess elapsed times: bad_cases (12 cases parallel=1; ~30s/case → 6 min); anchor_outcome (12 cases parallel=4 → 1.5 min); shadow (23 cases parallel=4 → 3 min). Actual times for handoff §6 + smoke iter §7.
+  - **OQ-S60.4** — Smoke iter elapsed time vs. S-Auto-6 contract estimate (12-25 min target; 40 min cap).
+  - **OQ-S60.5** — Whether `_compute_scoring_code_sha()` is path-configurable OR hard-codes file paths. Read the helper signature BEFORE running #2.
+  - **OQ-S60.6** — Whether `autoloop/results/runs/exp-<smoke>/eval/` staging directory pattern needs creation OR if `SuiteRunResult.results_root` directly points to the eval-interactive auto-timestamped path. Plumbing design decision in #1.
+  - **OQ-S60.7** — Spring spawn success rate on smoke iter (S-Auto-5 OQ-S58.7 substrate observation: 1/3 = 33% failure on exp-2; first single-iter measurement post-Blocker-B).
+  - **OQ-S60.8** — Whether `--results-base` or equivalent flag exists in eval-interactive CLI (the simpler path if it does). Verify via `eval-interactive run --help`.
 
 Add OQ entries as ambiguities are encountered; record disposition per OQ in handoff §12.
