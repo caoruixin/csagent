@@ -22,16 +22,18 @@ ae0ec3e  Sprint 058 / S-Auto-5 / M-Auto-1B — live-iter bootstrap + Fix-C step 
          (NB: 6e8692d is the M-Auto-1B planning commit BEFORE b0ce174 + ae0ec3e per git log — confirm via `git log --oneline b6b627b..HEAD`)
 1943ed5  Sprint 059 / S-Auto-6 — close empty (Class C in-flight downgrade; substrate pre-flight blockers A + B surfaced)
 b6084f9  Sprint 059 / S-Auto-6 close-bundle — deliver-agent close-empty + S-Auto-7 contract + dev prompt + milestone in-place revision 2 → 4 sub-sprints
-60c5b67  Architecture README (standalone documentation commit; NOT part of any sub-sprint scope; out-of-scope-but-clean per S-Auto-7 Codex Axis I)
+60c5b67  Architecture README (standalone documentation commit by human; NOT part of any sub-sprint scope; out-of-scope-but-clean per S-Auto-7 Codex Axis I; touches only README.md)
 559927a  Sprint 060 / S-Auto-7 — Blocker B fix path (b) + scoring SHA rebaseline 5177b674→22548e20 + 5 new tests
 b0a3704  Sprint 060 / S-Auto-7 — Blocker A baseline_dir blessing + Blocker C in-session loader.py fix + handoff
 307f69a  Sprint 060 / S-Auto-7 close-bundle — deliver-agent close + S-Auto-7.1 contract + dev prompt + milestone in-place revision 4 → 5 sub-sprints + §6 fence #2 annotation
-19213b1  Sprint 061 / S-Auto-7.1 — Pre-flight env check + OQ-S60.10 dotenv + smoke iter (Goal #3 BLOCKED on OQ-S61.1 applier mvn module-selection)
-<S-Auto-7.1-close-bundle-sha>  Sprint 061 / S-Auto-7.1 close-bundle — deliver-agent close + M-Auto-1B milestone-shared Codex prompt + §0 + §1 + action_bank Sprint 61 row
-                              (this is the commit that BUNDLES THIS REVIEW PROMPT itself; final SHA will be the close-bundle commit human creates BEFORE dispatching this prompt to you)
+7871c62  "update budget and pii Sanitizer" (standalone ambient commit by human 2026-05-29 20:59 BJT; NOT part of any sub-sprint scope; **TOUCHES M-Auto-1B §6 FENCE #1 + #3 SURFACES** — verified by `git show --stat 7871c62`: server/src/main/java/.../ToolCallTraceSanitizer.java net −174 LOC refactor + server/src/main/resources/skills/discover_triage.yaml `max_tool_steps: 2→3` + server/src/main/resources/skills/resolve_faq_grounded_answer.yaml `max_tool_steps: 4→6` + Java tests + README + 1 runbook line. Deliver-agent + human disposition 2026-05-30 at M-Auto-1B close-bundle Phase 1.5: ambient human work outside M-Auto-1B substrate-fix + calibration scope; **NOT a deliver-agent scope-creep or a dev-session out-of-scope edit**; human explicitly authorized at close-bundle Phase 1.5 "这个提交是我做的，不要影响它 / this commit is mine, don't affect it"; treated as Codex Axis I-style out-of-scope-but-disclosed observation parallel to 60c5b67 README precedent. Codex DOES NOT BLOCK on this commit's fence-touching footprint per the explicit disposition recorded in `docs/milestone_objective.md` §12.9 + §12.13. See Axis M11 below for the dedicated Codex axis walk.)
+19213b1  Sprint 061 / S-Auto-7.1 — Pre-flight env check + OQ-S60.10 dotenv + smoke iter (Goal #3 BLOCKED on OQ-S61.1 applier mvn module-selection); S-Auto-7.1 dev commit is pure-autoloop scope (autoloop/{preflight.py NEW,cli.py,tests/test_preflight.py NEW,pyproject.toml,uv.lock}); VERIFIED DOES NOT DEPEND on 7871c62 content
+8e88273  Sprint 061 / S-Auto-7.1 / M-Auto-1B Phase 1 close-bundle — deliver-agent close + M-Auto-1B milestone-shared Codex prompt + §0 + §1 + action_bank Sprint 61 row
+<Phase 1.5 commit-sha>  Sprint 061 / S-Auto-7.1 / M-Auto-1B Phase 1.5 follow-up — 7871c62 ambient-human-work acknowledgment in §6 fence annotations + §12.9 cross-milestone observations + this prompt commit-range claim + Axis M11
+                              (this is the commit that bundles the 7871c62 disposition; final SHA will be the close-bundle commit human creates BEFORE dispatching this prompt to you)
 ```
 
-12 commits in cumulative range (verify via `git log --oneline b6b627b..HEAD`); 5 sub-sprints (S-Auto-5 + S-Auto-6 [empty] + S-Auto-7 + S-Auto-7.1 + the S-Auto-7.1 close-bundle); 3 per-sub-sprint Codex reviews (S-Auto-5 + S-Auto-7 + this milestone-shared pass which doubles as S-Auto-7.1 Codex by default).
+14 commits in cumulative range (verify via `git log --oneline b6b627b..HEAD`); 5 sub-sprints (S-Auto-5 + S-Auto-6 [empty] + S-Auto-7 + S-Auto-7.1 + the S-Auto-7.1 close-bundle + Phase 1.5); 3 per-sub-sprint Codex reviews (S-Auto-5 + S-Auto-7 + this milestone-shared pass which doubles as S-Auto-7.1 Codex by default); 2 ambient human commits (60c5b67 architecture README; 7871c62 "update budget and pii Sanitizer") both disposed under Codex Axis I-style framing (60c5b67 at S-Auto-7 close; 7871c62 at this M-Auto-1B Phase 1.5 close).
 
 The previous milestone (M-Auto-1A — Auto-Evolution Build) closed at commit `b6b627b` (A — Clean PASS sub-classified `approve with downgrade-to-signal follow-up` 2026-05-28). All Java + eval-interactive Python baselines from M-Auto-1A close are the inherited baselines this milestone-shared review compares against.
 
@@ -199,7 +201,7 @@ target.
 
 ---
 
-## Verification axes (M-Auto-1B-shared — 10 axes; walk in order)
+## Verification axes (M-Auto-1B-shared — 12 axes; walk in order; M11 added at Phase 1.5 for the 7871c62 ambient-human-work disposition)
 
 ### Axis M1 — §4.1 nine-question kernel walk (cumulative; cross-check the per-sub-sprint Codex verdicts hold under cumulative composition)
 
@@ -266,7 +268,15 @@ git diff --stat b6b627b..HEAD -- \
   docs/foundational/ docs/runtime_freeze_and_risk_policy.md docs/current/ docs/teams/
 ```
 
-Expected: empty (zero edits to all enumerated gated surfaces; cumulative across all sub-sprints).
+**Expected output is NOT empty due to ambient-human-work commit `7871c62`** (dispositioned at Axis M11). The walk WILL show:
+
+- `server/src/main/java/.../ToolCallTraceSanitizer.java` (162 lines refactor; net −174 LOC across main + test)
+- `server/src/main/resources/skills/discover_triage.yaml` (2 lines; `max_tool_steps: 2→3`)
+- `server/src/main/resources/skills/resolve_faq_grounded_answer.yaml` (2 lines; `max_tool_steps: 4→6`)
+
+These three entries are the ONLY expected non-empty findings; they all trace to `7871c62` (verify via `git log -p b6b627b..HEAD -- <file>` for each). The disposition is recorded in `docs/milestone_objective.md` §12.9 + §12.13 + Axis M11 above: ambient human work outside the M-Auto-1B agent-loop framing; explicitly authorized by the human at Phase 1.5 close-bundle; treated as Codex Axis I-style observation parallel to the `60c5b67` README precedent at S-Auto-7 close (which was the human's standalone documentation commit).
+
+**Any OTHER non-empty entries in the walk** (e.g., a server/ Java file NOT in 7871c62; a Skill YAML file NOT in 7871c62; any `data/`, `db/migration/`, `docs/foundational/`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/`, `docs/teams/`, `eval/src/main/java/`, `eval_interactive/case_specs/`, or `eval_interactive/case_specs_shadow/` change) would be a TRUE fence violation that Axis M5 should escalate to `fix_required` P0.
 
 Spot-check the two CONTROLLED OVERRIDES are correctly scoped:
 
@@ -356,7 +366,52 @@ Per `docs/action_bank.md` §5 + §6 close-action index:
 
 Verify these flips are correctly annotated in `docs/action_bank.md` §5 + §6.
 
-### Axis M10 — Architecture-health metric direction
+### Axis M11 — Ambient human commit `7871c62` disposition (Codex Axis I-style; out-of-scope-but-disclosed)
+
+Between the S-Auto-7 close-bundle commit (`307f69a` 2026-05-29) and the S-Auto-7.1 dev session commit (`19213b1` 2026-05-29), the human committed `7871c62 update budget and pii Sanitizer` 2026-05-29 20:59 BJT as **ambient out-of-scope work** parallel to the M-Auto-1B substrate-fix + calibration scope. Verified contents via `git show --stat 7871c62`:
+
+```
+ README.md                                          |   2 +-
+ docs/runbooks/admin-guide.md                       |   6 +
+ server/.../ToolCallTraceSanitizer.java             | 162 +++------------------
+ server/src/main/resources/skills/discover_triage.yaml             | 2 +-
+ server/src/main/resources/skills/resolve_faq_grounded_answer.yaml | 2 +-
+ server/src/test/.../Sprint049TraceObservabilityFidelityIntegrationTest.java | 27 +---
+ server/src/test/.../PhaseEvaluatorSkillIntegrationTest.java        | 2 +-
+ server/src/test/.../runtime/ToolCallTraceSanitizerTest.java        | 127 +++++-----------
+ server/src/test/.../service/runtime/skill/SkillLoaderTest.java     | 24 +--
+ 9 files changed, 93 insertions(+), 261 deletions(-)
+```
+
+**This commit TOUCHES M-Auto-1B §6 fence-protected surfaces**:
+
+- **Fence #1** (`server/src/main/java/**` byte-identical): `ToolCallTraceSanitizer.java` and 4 test files in `server/src/test/java/**`. Net −174 LOC refactor of the PII trace sanitizer + matching test simplification.
+- **Fence #3** (`server/src/main/resources/skills/*.yaml` conditionally writable EXACTLY ONCE during S-Auto-6 cherry-pick): `discover_triage.yaml max_tool_steps: 2→3` + `resolve_faq_grounded_answer.yaml max_tool_steps: 4→6`. S-Auto-6 closed empty so no cherry-pick was authorized via the mechanism; these edits bypass the cherry-pick mechanism.
+
+**Disposition** (deliver-agent + human joint 2026-05-30 at M-Auto-1B Phase 1.5 close-bundle):
+
+The human is the project lead and made the commit explicitly outside the M-Auto-1B sub-sprint/dev-agent framework. Per the human's AskUserQuestion answer 2026-05-30 verbatim "这个提交是我做的，不要影响它。你继续把其他更新提交就好了。" (= "This commit is mine, don't affect it. You just continue committing other updates."). The commit content is genuine production-readiness work — PII sanitizer refactor + Skill YAML budget tuning — not a deliver-agent scope-creep or a dev-session out-of-scope edit. Treating as **Codex Axis I-style ambient-human-work observation parallel to the 60c5b67 README precedent at S-Auto-7 close** — NOT a Codex blocker.
+
+**Why this is acceptable as a close-day disposition (NOT a precedent for runtime fence relaxation)**:
+
+1. The commit was authored by the human project lead, NOT by a deliver-agent / dev-agent / review-agent in the M-Auto-1B agent loop. Agent-scope discipline (per `iteration_governance.md` §1.7 + §6 hard fences) is enforced AGAINST agents to prevent scope creep WITHIN the agent loop. Human-authored commits outside the loop sit in a different governance class.
+2. The commit does NOT alter the M-Auto-1B substrate-fix + calibration scope. S-Auto-7's eval_runner.py / scoring SHA / loader.py changes are unaffected. S-Auto-7.1's preflight.py / cli.py changes are unaffected (verified `git diff 7871c62..19213b1 -- autoloop/` is non-empty with only pure-autoloop scope; the dev session work does not depend on 7871c62 content).
+3. The Skill YAML `max_tool_steps` tuning is a LLM-soft-field edit of the kind the M-Auto-1B cherry-pick mechanism was reserved for. The human exercised this OUTSIDE the cherry-pick mechanism (S-Auto-6 closed empty so no mechanism path was available). This is a one-off; M-Auto-1C's S-Auto-8 cherry-pick mechanism remains the canonical path for future LLM-soft-field edits.
+4. The PII sanitizer refactor (Java) is straight production-readiness work unrelated to auto-evolution. It would have happened in some milestone regardless; the human chose to land it during the M-Auto-1B close interim.
+5. The disposition is documented in TWO places for future audit: `docs/milestone_objective.md` §12.9 cross-milestone observations + §12.13 ambient-human-work disposition; this Codex prompt's commit range claim above + this Axis M11.
+
+**Your verification at Axis M11**:
+
+- Confirm the commit exists in the cumulative range (`git log --oneline b6b627b..HEAD | grep 7871c62`).
+- Confirm the commit content matches the disposition above (`git show --stat 7871c62`).
+- Confirm S-Auto-7.1 dev commit `19213b1` does NOT depend on `7871c62` (`git diff 7871c62..19213b1 --stat` shows only autoloop/ + handoff scope, no Java/skills).
+- Confirm the disposition is recorded in `docs/milestone_objective.md` §12.9 + §12.13.
+- DO NOT walk this as a §4.1 nine-question hardcode review (it is human ambient work, not agent-loop work; §4.1 applies to agent PRs).
+- DO NOT use this as evidence for §8.5 split decision (Axis M7); the §8.5 split is independent of `7871c62`.
+
+**Verdict implication**: Axis M11 should return PASS if all 5 verifications above hold + the disposition is documented as stated. If you judge that the disposition is insufficient (e.g., the runtime Java change is too invasive to dismiss as ambient work; OR the Skill YAML changes should have gone through the cherry-pick mechanism formally), return `approve with downgrade-to-signal follow-up` with trigger = "deliver-agent + human formalize a governance-doc note on ambient-human-work classification at milestone close" OR escalate to `needs human architecture decision`.
+
+### Axis M12 — Architecture-health metric direction
 
 Per `iteration_governance.md` §6:
 
@@ -382,7 +437,7 @@ blocking_count: <number>
 summary: <one paragraph naming the cumulative verdict + key axes findings + the §8.5 split decision verdict>
 ```
 
-Followed by per-axis findings (M1 through M10 above), each as a labelled subsection with:
+Followed by per-axis findings (M1 through M12 above; M11 = ambient-human-work `7871c62`; M12 = architecture-health), each as a labelled subsection with:
 
 - Axis name + one-sentence finding (PASS / FAIL / CONCERN).
 - If CONCERN or FAIL: paste diff snippet (≤200 chars) + reasoning + the §3 layer name where the fix should target + recommended verdict downgrade (if any).

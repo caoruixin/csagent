@@ -544,6 +544,7 @@ All §6 metrics remain `collection_status: not_started` per §5.5 (observation-o
 
 - Pre-flight env check infra delivered in S-Auto-7.1 is a general-purpose ergonomic that benefits M-Auto-2+ and beyond (every future auto-loop session can invoke `python -m autoloop preflight` or `python -m autoloop run --auto-reboot`). The `feedback_preflight_env_check_outer_loop` memory captures the durable principle "pre-flight env at outer-loop entry point; in dev, reboot misbehaving services rather than diagnose mid-iteration crashes" — applicable to future substrate-fix iterations beyond M-Auto-1B.
 - The OQ-S58.7 / OQ-S60.7 / OQ-S61.1 diagnostic chain is a useful case study in diagnostic-attribution error: the initial Spring spawn brittleness attribution to "Flyway lock + maven race + Redis pool" was a plausible-but-incorrect attribution masked by the foreground :8080 contention. The actual root cause (mvn module-selection on csagent-parent packaging=pom) only became visible after pre-flight cleared the masking. Future substrate-fix iterations should keep this in mind: a successful pre-flight does NOT guarantee the smoke iter will succeed; it just removes one layer of masking.
+- **Ambient-human-work commit `7871c62` "update budget and pii Sanitizer"** landed between S-Auto-7 close-bundle (`307f69a` 2026-05-29) and S-Auto-7.1 dev session (`19213b1` 2026-05-29) on 2026-05-29 20:59 BJT by the human (Rex1028). Touches §6 fence #1 (server/src/main/java/.../ToolCallTraceSanitizer.java net −174 LOC PII sanitizer refactor + matching test simplification in server/src/test/) + fence #3 (server/src/main/resources/skills/discover_triage.yaml max_tool_steps: 2→3 + resolve_faq_grounded_answer.yaml max_tool_steps: 4→6). NOT part of any sub-sprint scope. Explicit human authorization at Phase 1.5 close-bundle 2026-05-30 ("这个提交是我做的，不要影响它"); treated as ambient out-of-scope human work parallel to the 60c5b67 README precedent at S-Auto-7 close. Full disposition at §12.13 below + Codex Axis M11 in `compact/M-Auto-1B-review-prompt.md`. The two Skill YAML max_tool_steps tuning edits are the kind of LLM-soft-field edit M-Auto-1B's cherry-pick mechanism (fence #3) was reserved for; the human exercised this outside the mechanism because S-Auto-6 closed empty without exercising the mechanism. M-Auto-1C's S-Auto-8 cherry-pick mechanism remains the canonical path for future LLM-soft-field edits.
 - M3-B Single Handover Orchestrator P0 remains in candidate slate for milestone AFTER M-Auto-1C.
 - M5 carry-over projection-hygiene candidate remains independent milestone candidate.
 
@@ -570,6 +571,45 @@ Every numeric claim in §12.1-12.10 is reproducible:
 - `--auto-reboot` operator-verified: `docs/sprints/sprint-061-handoff.md` §4 transcript.
 - §5.6 + shadow rerun: Phase 2 evidence collection (commands in §12.5 above).
 - §6 fence #2 + #13 controlled-override annotations: `git log -p docs/milestone_objective.md` around commits `307f69a` (fence #2 annotation) + `b6084f9` / `307f69a` (fence #13 annotation).
+
+### 12.13 Ambient-human-work `7871c62` disposition (NEW Phase 1.5 2026-05-30)
+
+The human committed `7871c62 update budget and pii Sanitizer` 2026-05-29 20:59 BJT (Friday evening) between the S-Auto-7 close-bundle (`307f69a` 2026-05-29 morning BJT) and the S-Auto-7.1 dev session (`19213b1` 2026-05-29 evening BJT). The commit landed on `auto-loop-branch` outside any sub-sprint contract or dev-agent / deliver-agent / review-agent framing.
+
+**Commit contents (verified via `git show --stat 7871c62`)**:
+
+| File | Lines added | Lines removed | Fence touched |
+|---|---:|---:|---|
+| `README.md` | 1 | 1 | None (root README is not fenced) |
+| `docs/runbooks/admin-guide.md` | 6 | 0 | None (runbooks not fenced) |
+| `server/src/main/java/.../ToolCallTraceSanitizer.java` | 22 | 140 | **§6 fence #1** (server/src/main/java/** byte-identical) |
+| `server/src/main/resources/skills/discover_triage.yaml` | 1 | 1 | **§6 fence #3** (Skill YAML conditionally writable EXACTLY ONCE during S-Auto-6 cherry-pick; S-Auto-6 closed empty — this edit bypasses the cherry-pick mechanism) |
+| `server/src/main/resources/skills/resolve_faq_grounded_answer.yaml` | 1 | 1 | **§6 fence #3** (same as above) |
+| `server/src/test/.../Sprint049TraceObservabilityFidelityIntegrationTest.java` | 9 | 18 | §6 fence #1 (test/ also fenced under server/src/) |
+| `server/src/test/.../PhaseEvaluatorSkillIntegrationTest.java` | 1 | 1 | §6 fence #1 |
+| `server/src/test/.../runtime/ToolCallTraceSanitizerTest.java` | 45 | 82 | §6 fence #1 |
+| `server/src/test/.../service/runtime/skill/SkillLoaderTest.java` | 7 | 17 | §6 fence #1 |
+
+**Net**: −174 LOC across 9 files; primarily a PII sanitizer refactor (`ToolCallTraceSanitizer.java`) with matching test simplifications + 2 Skill YAML `max_tool_steps` tuning edits (`max_tool_steps: 2→3` on discover_triage + `4→6` on resolve_faq_grounded_answer).
+
+**Disposition** (deliver-agent + human joint AskUserQuestion 2026-05-30 at Phase 1.5):
+
+The human's verbatim response: "这个提交是我做的，不要影响它。你继续把其他更新提交就好了。" (= "This commit is mine, don't affect it. You just continue committing other updates."). Disposition selected: **ambient human work outside the M-Auto-1B agent-loop framing**, treated as Codex Axis I-style observation parallel to the `60c5b67` README precedent at S-Auto-7 close. The commit is NOT reverted; the close-bundle continues; Codex Axis M11 explicitly walks this disposition.
+
+**Why this is consistent with M-Auto-1B governance discipline (NOT a precedent for fence relaxation)**:
+
+1. **Agent vs human-scope distinction**: M-Auto-1B §6 fences are designed to enforce scope discipline AGAINST agents (deliver-agent / dev-agent / meta-agent / review-agent) within the auto-evolution loop, preventing them from expanding scope beyond the milestone contract. The fences are not a contract over the human project lead's ambient work — the human is the ultimate scope authority. Per `iteration_governance.md` §1.1 "Rules define boundaries; LLM owns semantic understanding" the agent-loop rules are agent-loop rules.
+2. **No agent-scope-creep involved**: the commit was authored by the human (Rex1028) directly, NOT by any agent in the M-Auto-1B loop. No deliver-agent / dev-agent / meta-agent scope expansion happened; no §1.7 forbidden-list red line was crossed by any agent.
+3. **No semantic surface invented by an agent**: the Skill YAML `max_tool_steps` tuning is a hand-edit of a numeric value; the Java refactor reduces LOC (simplification, not feature). Neither encodes a new keyword / regex / if-else / per-UC matrix per §1.7.
+4. **Substrate-fix scope unaffected**: S-Auto-7's eval_runner.py / scoring SHA / loader.py changes are byte-identical between `307f69a` and `19213b1` (verify `git diff 307f69a..19213b1 -- autoloop/autoloop/scoring/ eval_interactive/eval_interactive/case_spec/loader.py` empty). S-Auto-7.1's preflight.py / cli.py changes are pure-autoloop (`git diff 7871c62..19213b1 --stat` shows only autoloop/ + handoff scope; no Java/skills overlap).
+5. **Cherry-pick mechanism intent preserved for M-Auto-1C**: the M-Auto-1B fence #3 cherry-pick mechanism remains the canonical path for LLM-soft-field edits via the agent loop. The human's manual `max_tool_steps` edit was a one-off out-of-loop tuning; it does NOT establish precedent for future agent-loop work to bypass the mechanism.
+6. **Codex visibility preserved**: the disposition is recorded in TWO places for future audit (this §12.13 + `compact/M-Auto-1B-review-prompt.md` commit range claim + Axis M11). Codex Axis M5 hard-fence walk WILL find the fence-touching files; Axis M11 disposes them as ambient human work, NOT a Codex blocker.
+
+**M-Auto-1B closure verdict implication**: this disposition is reviewed by Codex at Axis M11 (Phase 2). If Codex accepts (likely PASS), no change to the M-Auto-1B classification. If Codex returns `approve with downgrade-to-signal follow-up` with trigger = "formalize a governance-doc note on ambient-human-work classification at milestone close", deliver-agent + human will draft a small `docs/current/iteration_governance.md` §X note on ambient-human-work governance at M-Auto-1C planning round. If Codex returns `needs human architecture decision` flagging this as a governance gap (e.g., the human's commit-during-milestone behavior needs a formal carve-out distinct from agent-scope), deliver-agent + human will surface for human architecture decision.
+
+**M-Auto-1C planning implication** (per §12.10): the cherry-pick mechanism remains the canonical path for agent-loop Skill YAML edits. S-Auto-7.2 (applier mvn fix) does NOT touch Skill YAMLs. S-Auto-8 (overnight + cherry-pick) WILL exercise the mechanism once per fence #7. The human's manual `max_tool_steps` edits do NOT pre-empt S-Auto-8's cherry-pick (S-Auto-8's overnight may surface a different Skill YAML candidate; the cherry-pick mechanism handles up to 1 per M-Auto-1C close).
+
+**Future ambient-human-work treatment** (M-Auto-2+ governance question; NOT decided here): whether to formalize "human commits outside the agent loop are governance-equivalent to ambient infrastructure work and don't require milestone-fence carve-outs" OR whether to require formal pre-authorization (similar to S-Auto-7's planning-blessed fence #13 override pattern). Deliver-agent recommends surfacing this as an M-Auto-2 governance-doc consideration if Codex flags it at Axis M11.
 
 ### 12.12 Phase 3 close artefacts checklist (deliver-agent owned)
 
