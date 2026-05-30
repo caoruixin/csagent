@@ -181,12 +181,19 @@ content_validator:
   # Adjusted per S-Auto-7.2 (OQ-S62.1): short policy fields (~150-200
   # chars) gaining coherent structural detail were rejected at ratio
   # 5.07x / 5.80x. The absolute_ceiling gives short fields room to
-  # grow up to ~1000 chars without weakening the bound on longer
-  # fields, where the relative ratio still dominates.
+  # grow without weakening the bound on longer fields, where the
+  # relative ratio still dominates.
+  # S-Auto-8 (2026-05-30): bumped ceiling 1000 → 1200 after exp-13
+  # smoke iter rejected `escalate.yaml $.procedure` 143 → 1089 chars
+  # (7.61x ratio, ceiling overflow at 1000). The expansion was
+  # coherent structural detail, not rambling. New 1200 cap retains
+  # the ~7-8x guard for short fields while admitting M-Auto-1B Goal
+  # #3 (tier_evaluator end-to-end exercise) on short-procedure
+  # propose distributions.
   # `length_underflow_ratio` rejects `after_value` < 0.1x
   # `before_value` IFF `before_value` >= `length_underflow_min_before`.
   length_overflow_ratio: 5.0
-  length_overflow_absolute_ceiling: 1000
+  length_overflow_absolute_ceiling: 1200
   length_underflow_ratio: 0.1
   length_underflow_min_before: 50
 
