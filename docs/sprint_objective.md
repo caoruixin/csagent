@@ -1,248 +1,269 @@
 ---
-title: Sprint 063 / S-Auto-8 — first overnight batch + first human review + first cherry-pick to main (M-Auto-1C — Auto-Evolution Calibration Continuation sub-sprint 2 of 2)
+title: Sprint 064 / S-Auto-9 — OQ-S62.3 local-Mac in-env diagnostic + resolution (M-Auto-2 — Local-Mac OQ-S62.3 diagnostic + first overnight + first cherry-pick sub-sprint 1 of 2-3)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
 last_reviewed: 2026-05-30
 review_cadence: per sub-sprint
-supersedes: [docs/sprints/sprint-062-objective.md]
+supersedes: [docs/sprints/sprint-063-objective.md]
 superseded_by: null
 notes: >
-  M-Auto-1C / Sprint 063 / S-Auto-8. **Layer**: `eval_spec` (consumes
-  per-iteration fitness verdict sequence on the now-validated substrate
-  after S-Auto-7.2 retired OQ-S61.1 + OQ-S62.1 + OQ-S62.2; §5.6 manual
-  review + cherry-pick are eval-side acceptance bars). **§7 stanza**:
-  REQUIRED (semantic-touching via cherry-pick if it lands). **Codex
-  review plan**: milestone-shared (default) at M-Auto-1C close UNLESS
-  cherry-pick candidate borderline-§5.3 surfaces (then per-sub-sprint
-  Codex pre-milestone-close per §4.3 trigger #2 — i.e., manual review
-  finds a candidate at the "drift to keyword bot" edge where
-  programmatic PASS but human judgment is split).
+  M-Auto-2 / Sprint 064 / S-Auto-9. **Layer**: `infra` (substrate-
+  environment diagnostic + resolution; OS-level instrumentation; no
+  semantic decision change; no projection / scoring logic edit; no
+  CaseSpec / judge change). **§7 stanza**: **EXEMPT** per pure-infra
+  carve-out (self-walked for paper-trail; the resolution is environmental
+  OR a fence-#20 controlled override on a narrow autoloop file). **Codex
+  review plan**: milestone-shared (default) at M-Auto-2 close UNLESS
+  dev mid-sprint surfaces substrate brittleness requiring NEW fence #20
+  controlled override (then per-sub-sprint Codex per §4.3 trigger #3
+  following S-Auto-7.2 fast-iteration precedent — user direction
+  2026-05-30 "像那种什么之前的什么 Content-length Validator，可以我
+  review后快速放宽通过").
 
-  **Estimated dev**: ~3-5 days total (1-2 days execution including the
-  ≥2 baseline rerun drift envelope per Codex M-Auto-1B Axis M6 trigger
-  #1 acceptance + 1 overnight via raw shell/screen/tmux per OQ-S62.3
-  operational workaround + 1-2 days deliver-agent + human manual
-  review + cherry-pick decision + apply + close-bundle).
+  **Estimated dev**: ~3-5 days total (1-2 days OS-level diagnostic
+  investigation including dtrace process_exit + taskpolicy + Console.app
+  + Apple system log + launchd / TAL / EDR investigation + alternate
+  detachment patterns + 1-2 days fix iteration + smoke iter through
+  Step 9 verification + handoff).
 
-  **CRITICAL operational workaround (OQ-S62.3 from S-Auto-7.2)**: the
-  Claude Code bash-tool harness sandbox SIGKILLs long-running Python
-  orchestrators mid-Step 7 eval_runner. S-Auto-8 dev MUST run the
-  smoke iter + overnight batch via **raw shell / screen / tmux /
-  nohup outside the bash-tool sandbox**, NOT via Claude Code's
-  Bash tool with long-running invocation. The harness limitation is
-  environment-level, not autoloop code; the substrate is already
-  fixed at S-Auto-7.2 close. If S-Auto-8 dev attempts via bash-tool
-  it will hit the same OQ-S62.3 termination and Step 9 / experiments.
-  jsonl row write will NOT capture. See §1 below for the embedded
-  workaround details.
+  **The OQ-S62.3 problem** (carry-over from sprint-063 handoff §8): an
+  OS-level kill consistently terminates the autoloop python process at
+  the 2-5 min mark on the developer's local Mac, regardless of:
+  - Launch source: Claude Code Bash, user's iTerm2, macOS Terminal.
+  - Detachment: bash nohup, bash disown, Python `subprocess.Popen
+    (start_new_session=True)`, GNU screen detached session.
+  - Power assertions: `caffeinate -d -i -s -t 32400` holding all 3
+    `PreventSystemSleep + PreventUserIdleSystemSleep +
+    PreventUserIdleDisplaySleep` assertions confirmed via `pmset -g
+    assertions`.
+  - Memory state: tested at 108MB free (OOM expected) AND at 7.5GB
+    free (no obvious pressure); both die similarly.
+  - AC power connected, lid open.
+  - Process tree: PPID=1 (init re-parent) post-launcher exit.
 
-  **Three pre-overnight readiness items inherited from S-Auto-7.2**:
+  Substrate Steps 1-6 work end-to-end on every attempt (preflight passes;
+  analyzer/proposer LLM calls return; sandbox/cv/anti_hardcode verdicts
+  compute; git branch creates; mvn boots Spring on alt port). mvn java
+  child process often outlives the python autoloop parent (visible as
+  PPID=1 orphan), suggesting selective python kill.
 
-  1. **≥2 baseline rerun drift envelope** (Codex M-Auto-1B Axis M6
-     trigger #1 acceptance per `docs/milestones/M-Auto-1B_objective.md`
-     §12.14): the elevated UC-D/E/F/FP LLM-provider drift signature
-     observed at M-Auto-1B Phase 2 (anchor_outcome 7/12 → 3/12 +
-     shadow 4/22 → 1/22; 7/34 = 20.6% vs M-Auto-1A close 5/34 =
-     14.7%) requires establishing a per-suite case_passed median + IQR
-     drift envelope BEFORE overnight kick-off. The ≥2 rerun discipline
-     is M-Auto-1C's primary risk mitigation against false-positive
-     "keeps" produced by overnight comparison against a single noisy
-     baseline. If baseline-vs-baseline drift exceeds 10/34 cases
-     (~30%; 2× the M-Auto-1A close-day signature), HALT + deliver-
-     agent + human jointly investigate per `iteration_governance.md`
-     §10 stop condition.
+  Smoke iter PID 64073 SURVIVED 17 min via Python wrapper — single
+  observation; suggests intermittent / probabilistic kill, not
+  deterministic.
 
-  2. **OQ-S62.3 operational workaround**: run autoloop via raw shell
-     (NOT Claude Code bash-tool) so the harness sandbox doesn't
-     SIGKILL the orchestrator. Recommended invocation:
-     `nohup python -m autoloop run --experiments 15 > autoloop-overnight.log 2>&1 &`
-     in a regular Terminal / iTerm / screen / tmux session.
+  **What is NOT YET diagnosed**: no matching kernel jetsam log entries
+  (memorystatus kill subsystem silent for killed PIDs); no `pmset -g log`
+  sleep events at death times; specific signal delivered (SIGKILL vs
+  SIGTERM vs other) unknown; whether macOS Background Activity Manager
+  (TAL), launchd policy, or some other OS subsystem is responsible (no
+  obvious EDR / security tool installed; standard developer environment).
 
-  3. **Stale autoloop/exp-* branch cleanup** (deferred per deliver-
-     agent + human joint decision 2026-05-30): the S-Auto-7.2 OQ-
-     S62.2 fix makes _git_create_branch idempotent so S-Auto-8 will
-     target exp-14 cleanly regardless, but the 8 stale exp-*
-     branches (autoloop/exp-2, exp-6, exp-7, exp-8, exp-10, exp-11,
-     exp-12, exp-13) add branch-listing noise. Recommended cleanup at
-     S-Auto-8 open: `git branch -D autoloop/exp-{2,6,7,8,10,11,12,13}`.
-     Destructive; requires explicit human authorization at dispatch.
+  **CRITICAL constraint (human-locked 2026-05-30)**: M-Auto-2 stays on
+  local Mac. **DO NOT pursue cloud / remote-server framing**. The local-
+  Mac constraint preserves the M-Auto-1A-onward substrate assumption
+  that the loop runs on the developer's actual workstation. If diagnostic
+  + fix iteration cannot resolve within 1-2 days, STOP-and-surface for
+  re-plan — do NOT silently switch to cloud / remote-server execution.
 
-  **Bad-case cherry-pick reference signals from M-Auto-1B Phase 2**:
-  cs001_uc_c_mechanical_template_escalate (Skill YAML edit candidate
-  on `resolve_faq_grounded_answer.yaml` procedure / critical_steps[*]
-  .desc to gate `goal_impossible` terminal-state on policy-mandated
-  `search_knowledge` completion) + wmkb_uc_a_trader_flag_secondary_uc_h
-  (Skill YAML edit candidate on `resolve_intake_collect_and_handover
-  .yaml` critical_steps[*].desc to gate handover on intake
-  completion). These are REFERENCE SIGNALS (deliver-agent + human use
-  during manual review at S-Auto-8 close), NOT pre-committed cherry-
-  picks; the meta-agent owns proposal authorship and the cherry-pick
-  decision is made via AskUserQuestion on the actual overnight kept-
-  candidate slate.
+  **Fast-iteration STOP-and-surface authorization on substrate
+  brittlenesses** (per S-Auto-7.2 precedent + user direction 2026-05-30
+  "像那种什么之前的什么 Content-length Validator，可以我review后快速放宽
+  通过"): if S-Auto-9 dev surfaces additional substrate brittleness or
+  needs a NEW fence #20 controlled override on a narrow autoloop file
+  (e.g., wrapping the orchestrator in a `launchd` user-agent plist that
+  survives parent termination), dev STOP-and-surfaces via AskUserQuestion;
+  human reviews + quickly authorizes via STOP-2-style "我觉得应该把这个
+  问题直接修掉" pattern; NEW fence #20 added post-hoc to M-Auto-2 §6 per
+  §8.3 in-place revision pattern; per §4.3 trigger #3 the mid-sprint
+  authorization UPGRADES Codex review plan from milestone-shared default
+  to PER-SUB-SPRINT REQUIRED at S-Auto-9 close.
 
-  **R-S58 propose-distribution scan**: during overnight monitoring,
-  accumulate per-iteration propose-stage real-meta-agent output
-  corpus. After overnight closes, scan corpus for U+200B / Unicode
-  `category() == "Cf"` format characters in propose text (especially
-  around WHEN / WHENEVER + arrow shapes). Provides evidence for R-S58
-  final disposition at M-Auto-1C close: defer-to-M-Auto-2 if 0
-  occurrences across overnight OR extend-with-S-Auto-9-Fix-D if the
-  bypass shape appears at meaningful rate.
+  **Diagnostic investigation hypotheses to test in priority order** (dev
+  may refine based on actual evidence):
 
-  Dev session source-of-truth: `compact/sprint-063-dev-prompt.md`
-  (self-contained per `iteration_governance.md` §9). Dev session
-  reads ONLY: `AGENTS.md` (auto-loaded) + the dev prompt.
+  1. **macOS Background Activity Manager (TAL)**: long-running python
+     processes spawned from a developer Terminal session may be subject
+     to TAL policy that kills them after a few minutes if not registered
+     as a system service. Check via `log show --predicate
+     'subsystem == "com.apple.WorkloadOptimization"' --start "<launch-
+     time>" --end "<death-time>"`.
+  2. **launchd-managed lifecycle**: even with `nohup + disown` and
+     `Popen(start_new_session=True)`, macOS may apply per-user-process
+     policy based on cgroup-like membership; check `launchctl print
+     gui/$(id -u)/<pid>` and `taskpolicy -p <pid>` during runtime.
+  3. **dtrace process_exit hook to identify signal + ustack**: `sudo
+     dtrace -n 'proc:::exit /pid == <autoloop-PID>/ { printf("%s %d %s
+     %s\n", execname, pid, args[0]->ev_signo, ustack()); }'` — captures
+     the signal number + the kernel stack at exit.
+  4. **Console.app filter on `process:python`**: filter for the actual
+     PID during overnight attempt + capture the last 5 lines before
+     death; look for jetsam / TAL / power-event / signal-from-PID entries.
+  5. **Alternate detachment via launchd user-agent plist**: create
+     `~/Library/LaunchAgents/com.user.autoloop.plist` with
+     `KeepAlive=false` + `RunAtLoad=false` + `LaunchOnlyOnce=true` +
+     `EnableTransactions=false` + explicit `Program` pointing at the
+     autoloop CLI + `WorkingDirectory` set; `launchctl bootstrap
+     gui/$(id -u) <plist>` + `launchctl kickstart gui/$(id -u)/
+     com.user.autoloop` to launch; survives Terminal close + parent
+     re-parent + TAL policy. **PREFERRED resolution if diagnostic
+     points at TAL / launchd parental policy.**
+  6. **Process-priority adjustment**: `renice -n -10 <pid>` OR
+     `taskpolicy -b <pid>` (background) vs `-B` (utility); test if
+     priority change shifts kill behaviour.
+
+  **Diagnostic scripts** (S-Auto-9 dev may author under pure-infra
+  carve-out; not load-bearing):
+
+  - `scripts/dtrace-autoloop-exit.d` — dtrace one-liner ready to run.
+  - `scripts/diagnose-oq-s62-3.sh` — composite diagnostic harness
+    launching one overnight attempt + capturing all the signals listed
+    above.
+  - `scripts/launch-autoloop-via-launchd.sh` + `templates/com.user.
+    autoloop.plist` — launchd-managed invocation pattern (if hypothesis
+    5 is the resolution path).
+
+  Dev session source-of-truth: `compact/sprint-064-dev-prompt.md`
+  (self-contained per `iteration_governance.md` §9). Dev session reads
+  ONLY: `AGENTS.md` (auto-loaded) + the dev prompt.
 ---
 
-# Sprint 063 / S-Auto-8 — first overnight batch + first human review + first cherry-pick to main
+# Sprint 064 / S-Auto-9 — OQ-S62.3 local-Mac in-env diagnostic + resolution
 
 ## Class
 
-- **Layer (primary)**: `eval_spec` (consumes per-iteration fitness verdict sequence on the now-validated substrate; cherry-pick decision via AskUserQuestion + §5.6 manual review).
-- **§7 stanza**: **REQUIRED** (semantic-touching via cherry-pick if it lands; see §7 below for stanza).
-- **Codex review plan (§4.3)**: milestone-shared (default) at M-Auto-1C close UNLESS cherry-pick candidate borderline-§5.3 surfaces (then per-sub-sprint per §4.3 trigger #2 pre-milestone-close).
-- **Sub-sprint position in milestone**: 2nd of 2 (S-Auto-7.2 substrate fix CLOSED → S-Auto-8 first overnight + first cherry-pick → M-Auto-1C close).
+- **Layer (primary)**: `infra` (substrate-environment diagnostic + resolution; OS-level instrumentation).
+- **§7 stanza**: **EXEMPT** per pure-infra carve-out (self-walked for paper-trail; see §7 below).
+- **Codex review plan (§4.3)**: milestone-shared (default) at M-Auto-2 close UNLESS dev mid-sprint surfaces substrate brittleness requiring NEW fence #20 controlled override (then per-sub-sprint per §4.3 trigger #3 fast-iteration).
+- **Sub-sprint position in milestone**: 1st of 2-3 (S-Auto-9 OQ-S62.3 diagnostic + resolution → S-Auto-10 first overnight + first cherry-pick → optional S-Auto-11 fix-iteration buffer → M-Auto-2 close).
 
 ## Goal
 
-Exercise the now-validated substrate (post-OQ-S61.1 + OQ-S62.1 + OQ-S62.2 fixes) end-to-end via first overnight batch + first human review of kept candidates + first cherry-pick to main. Retire the 5 M-Auto-1B deferred hard gates inherited by M-Auto-1C (live iter end-to-end through Step 9 + drift envelope + first overnight + first human review + first cherry-pick). Establish baseline drift envelope BEFORE overnight per Codex M-Auto-1B Axis M6 trigger #1 acceptance. Finalize R-S58 disposition based on overnight propose-distribution scan evidence.
+Diagnose the OS-level kill mechanism (OQ-S62.3 expansion from sprint-063 handoff §8) on local Mac + apply a fix that enables reliable overnight execution of `python -m autoloop run --experiments N` for N≥10. Retire M-Auto-1C §12.4 deferred hard gate #1 (live iter end-to-end through Step 9 with non-degenerate `tier_evaluator_verdict`). Set up the now-reliably-executable substrate for S-Auto-10 first overnight batch + first cherry-pick.
 
-## Scope (6 steps)
+**Acceptance**: at least ONE smoke iter via `python -m autoloop run --experiments 1` reaches Step 9 (`tier_evaluator.evaluate`) AND writes a row to `autoloop/results/experiments.jsonl` with non-null `verdict.layer_results` (Layer 0-4 all non-degenerate). The smoke iter may discard at any of Steps 1-8 (sandbox / cv / anti_hardcode reject is acceptable) as long as the substrate doesn't OS-kill before reaching Step 9 OR before writing the row.
 
-1. **Pre-overnight readiness** (~2-4 hours):
-   - **OQ-S62.3 workaround verified**: ensure dev session runs autoloop via raw shell / screen / tmux / `nohup ... &` outside Claude Code bash-tool sandbox. Do NOT run via Claude Code Bash tool with long-running invocation.
-   - **Stale-branch cleanup option**: at S-Auto-8 open, deliver-agent + human jointly decide whether to run `git branch -D autoloop/exp-{2,6,7,8,10,11,12,13}` to clean up the 8 stale dev-loop branches from S-Auto-7.2 attempts. NOT required (OQ-S62.2 idempotency fix means S-Auto-8 targets exp-14 cleanly regardless); only for branch-listing noise reduction. Record decision in handoff §0.
-   - **Foreground backend status**: verify the foreground :8080 backend is running OR ready to be auto-rebooted via S-Auto-7.1 `--auto-reboot` flag. Optionally run `python -m autoloop preflight` to confirm.
-   - **Smoke iter end-to-end on real backend** (the Goal #3 measurement that S-Auto-7.2 could not capture via standard path due to OQ-S62.3): `python -m autoloop run --experiments 1` outside bash-tool sandbox; verify `experiments.jsonl` row written + non-degenerate `tier_evaluator_verdict` (Layer 0-4 all non-null) + per-iter elapsed time recorded. This is the FIRST captured measurement of full Spring-spawn + 46-case-eval + tier_evaluator cycle.
+## Scope (4-5 steps)
 
-2. **Pre-batch baseline drift envelope (≥2 rerun; Codex M-Auto-1B Axis M6 trigger #1 acceptance)** — required BEFORE overnight kick-off:
-   - Run the v1 46-case fitness suite TWO OR MORE TIMES BEFORE overnight:
-     ```
-     cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1
-     cd eval_interactive && uv run eval-interactive run --path case_specs/anchor_outcome/ --parallel 4
-     cd eval_interactive && uv run eval-interactive run --path case_specs_shadow/ --parallel 4
-     ```
-   - Establish per-suite median + IQR + bidirectional drift count. Record in `docs/sprints/sprint-063-handoff.md` §X "Baseline drift envelope".
-   - If baseline-vs-baseline drift exceeds 10/34 cases (~30%; 2× the M-Auto-1A close-day signature; matches M-Auto-1B Phase 2's 7/34 = 20.6% elevated-but-in-envelope rate), surface to deliver-agent + human BEFORE starting overnight — provider drift may have widened; halt or proceed-with-widened-envelope is a joint call.
-   - **PURPOSE**: the ≥2 rerun discipline is M-Auto-1C's primary risk mitigation against false-positive "keeps" produced by overnight comparison against a single noisy baseline run.
+1. **Pre-flight env check + baseline reproduction** (~half-day):
+   - Verify foreground :8080 backend is running OR ready to auto-reboot via S-Auto-7.1 `--auto-reboot` flag.
+   - Reproduce one fresh overnight attempt via `python -m autoloop run --experiments 15` outside Claude Code bash-tool sandbox (raw shell / Terminal / iTerm; OQ-S62.3 baseline kill expected).
+   - Capture: launch timestamp + PID + death timestamp + last 5 lines of stdout/stderr + `ps` snapshot at death + Console.app last 50 lines for the PID.
+   - Record in `docs/sprints/sprint-064-handoff.md` §1 "Baseline reproduction".
 
-3. **Overnight batch**:
-   - Invocation (outside bash-tool sandbox): `nohup python -m autoloop run --experiments 15 > autoloop-overnight.log 2>&1 &` in a screen / tmux session.
-   - Target: 10-20 iterations; final count ≥10 is the close gate; budget 6-8h.
-   - Each iteration writes to `autoloop/results/runs/exp-<N>/` + `experiments.jsonl` + `iterations.sqlite` + `lessons.md` (first K=10 lesson compaction triggers automatically if iteration count reaches K).
-   - Crash recovery handles transient LLM API errors; if total errors >50% within first 5 iters, halt overnight + surface (loop crash recovery is M-Auto-1A S-Auto-3 substrate; M-Auto-1C does NOT add new recovery code).
+2. **OS-level diagnostic investigation** (~1-2 days; fast-iteration STOP-and-surface authorized):
+   - **Hypothesis 3 first**: `sudo dtrace -n 'proc:::exit /pid == <autoloop-PID>/ { printf("%s %d sig=%d ustack=%s\n", execname, pid, args[0]->ev_signo, ustack()); }'` on a fresh overnight attempt; this is the highest-information-density signal (exact signal + kernel stack at exit).
+   - **Hypothesis 1 + 4 in parallel**: `log show --predicate 'subsystem == "com.apple.WorkloadOptimization" OR subsystem == "com.apple.launchd" OR eventMessage CONTAINS "memorystatus" OR eventMessage CONTAINS "TAL"' --start "<launch>" --end "<death>"` + Console.app filter on `process:python` AND PID.
+   - **Hypothesis 2**: `launchctl print gui/$(id -u)/<pid>` + `sudo taskpolicy -p <pid>` during runtime; capture any policy entries.
+   - **Hypothesis 5 prep**: regardless of diagnostic outcome, prep a `~/Library/LaunchAgents/com.user.autoloop.plist` template + `launchctl bootstrap` runbook IF the diagnostic points at TAL / launchd parental policy.
+   - Record per-hypothesis evidence in `docs/sprints/sprint-064-handoff.md` §2 "Per-hypothesis diagnostic evidence".
+   - **STOP condition**: if 1-2 days produces NO actionable hypothesis (no signal captured by dtrace, no log entries, no policy entries), STOP-and-surface for deliver-agent + human re-plan (consider alternate-env framing reconsideration OR research-agent track).
 
-4. **Propose-distribution scan for R-S58 evidence** (concurrent with overnight monitoring):
-   - During overnight, accumulate per-iteration propose-stage real-meta-agent output corpus (the `propose` step outputs visible in `autoloop/results/runs/exp-<N>/propose_output.txt` or similar).
-   - After overnight closes, scan corpus for U+200B / Unicode `category() == "Cf"` format characters in propose text (especially around WHEN / WHENEVER + arrow shapes; see R-S58 entry in `docs/action_bank.md` §5).
-   - Record per-iteration occurrence count + frequency rate.
-   - **PURPOSE**: provides evidence for R-S58 final disposition at M-Auto-1C close (defer-to-M-Auto-2 if 0 occurrences across 10-20 iters OR extend-with-S-Auto-9-Fix-D if bypass shape appears at meaningful rate).
+3. **Fix iteration** (~1-2 days):
+   - Based on §2 evidence, apply fix candidate (priority order per planning notes):
+     - **Environmental fix preferred** (no autoloop code edit): launchd-managed plist invocation OR alternate detachment pattern OR system setting toggle (e.g., disable TAL for the python interpreter; `defaults write` system setting; etc.).
+     - **Autoloop code edit (CONDITIONAL fence #20)**: if environmental fix insufficient (e.g., the orchestrator must explicitly register itself with launchd; or must apply `taskpolicy` to itself at startup), open NEW fence #20 controlled override at S-Auto-9 mid-sprint via AskUserQuestion (S-Auto-7.2 precedent for fast-iteration authorization). Specific surface(s) TBD per actual fix — examples: `autoloop/autoloop/cli.py` (self-register with launchd if available); NEW `autoloop/autoloop/launchd_wrapper.py` (helper module).
+   - Document the fix in `docs/sprints/sprint-064-handoff.md` §3 "Fix delivered".
 
-5. **§5.6-style manual review of kept candidates** (morning after overnight):
-   - Deliver-agent + human read per-turn traces of EACH kept candidate's bad_cases + anchor_outcome runs (open `eval_interactive/results/<run-id>/` + `autoloop/results/runs/exp-<N>/`).
-   - For each kept candidate, judge PASS / FAIL / IMPROVING jointly (NOT programmatic alone), filter through the §2 drift envelope, and classify: **eligible for cherry-pick** (manual review PASS + no §5.3 borderline) OR **deferred to M-Auto-2+** (manual review PASS but borderline §5.3) OR **discarded** (manual review FAIL despite programmatic PASS).
-   - **Use the M-Auto-1B Phase 2 REFERENCE SIGNALS as orientation**: cs001 (`resolve_faq_grounded_answer.yaml` procedure / critical_steps[*].desc gating `goal_impossible` terminal-state on policy-mandated search) + wmkb (`resolve_intake_collect_and_handover.yaml` critical_steps[*].desc gating handover on intake completion) are existing failure shapes the meta-agent MAY propose candidates for. The manual review specifically validates against the cs001 + wmkb per-turn traces if such candidates surface, BUT does NOT pre-commit any specific cherry-pick. Reference signals are orientation only.
-   - Deliver-agent surfaces candidate slate to human via **AskUserQuestion**: each eligible cherry-pick candidate gets a row with (target_skill, target_field, edit_summary, programmatic verdict, manual review verdict, deliver-agent recommendation).
+4. **Smoke iter verification through Step 9** (~half-day):
+   - Run `python -m autoloop run --experiments 1` via the now-resolved overnight execution path.
+   - Verify the iteration reaches Step 9 (`tier_evaluator.evaluate`) AND writes a row to `autoloop/results/experiments.jsonl`.
+   - The row's `verdict.layer_results` must be non-null (Layer 0-4 all non-degenerate); the iteration may discard at any of Steps 1-8 (substrate rejection acceptable) as long as it doesn't OS-kill before Step 9 row write.
+   - Capture wall time + PID + final stdout + `experiments.jsonl` row content in `docs/sprints/sprint-064-handoff.md` §4 "Smoke iter Step 9 verification".
+   - **THIS retires M-Auto-1C §12.4 deferred hard gate #1**.
 
-6. **AskUserQuestion cherry-pick decision + apply Hybrid + close**:
-   - Human selects EXACTLY ONE candidate to cherry-pick OR 0 candidates with explicit "no human-approved candidate" justification (close PASS still possible on other gates).
-   - For the selected candidate, execute `python -m autoloop apply --experiment exp-<N>` in Hybrid mode (cherry-pick + emit baseline patch + NO auto-commit per OQ-S55.1). Human inspects `git status`, stages explicitly, commits manually with message `Sprint 063 / S-Auto-8 / M-Auto-1C — apply exp-<N> to main` and the standard deliver-agent footer.
-   - After cherry-pick (or 0-cherry-pick close decision):
-     - Record final observations (per-iteration elapsed-time average; cumulative FLAG rate across overnight; `shadow_disagreement_rate` first measurement against baseline envelope; gaming flag count + severity distribution).
-     - Update `autoloop/config.yaml` `fitness.baseline_dir` to advance past the cherry-pick commit (if any).
-     - Finalize R-S58 disposition based on §4 propose-distribution scan evidence.
-     - Recommend Stage-2 entry decision direction for M-Auto-2+ planning round (≥3 cumulative cherry-picks across M-Auto-1B + M-Auto-1C + 0 borderline §5.3 cases would be a positive signal).
-   - Author `docs/sprints/sprint-063-handoff.md` per §"Handoff requirements" below.
+5. **OQ ledger update + handoff** (~half-day):
+   - Update `docs/sprints/sprint-064-handoff.md` per §"Handoff requirements" below.
+   - If NEW fence #20 controlled override was authorized mid-sprint, ensure §M-Auto-2 §6 fence #20 is post-hoc-blessed per §8.3 in-place revision pattern (parallel to M-Auto-1C fence #19 precedent).
+   - Surface any new OQs (e.g., if Step 9 verification reveals additional substrate brittleness, capture as OQ-S64.x carry-over to S-Auto-10).
 
 ## Hard fences / STOP conditions
 
-**Hard fences** (M-Auto-1C §6 17+2 list inherited; see `docs/milestone_objective.md` §6):
+**Hard fences** (M-Auto-2 §6 17+2 list inherited; see `docs/milestone_objective.md` §6 once M-Auto-2 launches at post-Codex close-bundle):
 
-- **No edits** to `server/src/main/java/**`, `eval/src/main/java/**`, `eval_interactive/eval_interactive/**`, `eval_interactive/case_specs/**`, `eval_interactive/case_specs_shadow/**`, `data/**`, `db/**`, `docs/foundational/**`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/**`, `docs/teams/**`, sprint archives `docs/sprints/sprint-001-*` through `docs/sprints/sprint-062-*`, prior milestone archives under `docs/milestones/`.
+- **No edits** to `server/src/main/java/**`, `eval/src/main/java/**`, `eval_interactive/eval_interactive/**`, `eval_interactive/case_specs/**`, `eval_interactive/case_specs_shadow/**`, `data/**`, `db/**`, `docs/foundational/**`, `docs/runtime_freeze_and_risk_policy.md`, `docs/current/**`, `docs/teams/**`, sprint archives `docs/sprints/sprint-001-*` through `docs/sprints/sprint-063-*`, prior milestone archives under `docs/milestones/` (including `M-Auto-1C_*` archives).
 - **No edits** to `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py` (fence #13 reasserted at hash `22548e20…`).
-- **No edits** to `autoloop/autoloop/sandbox/{anti_hardcode_check,gaming}.py`, `autoloop/autoloop/sandbox/applier.py` (fence #18 envelope FINALIZED at S-Auto-7.2 close; NO new edits), `autoloop/autoloop/sandbox/content_validator.py` (fence #19 envelope FINALIZED at S-Auto-7.2 close; NO new edits), `autoloop/autoloop/loop.py`, `autoloop/autoloop/meta_agent/**`, `autoloop/autoloop/memory/**`, `autoloop/autoloop/preflight.py`, `autoloop/autoloop/cli.py`.
-- **Skill YAML cherry-pick is ALLOWED EXACTLY ONCE** during S-Auto-8 — for ONE human-approved kept candidate via `python -m autoloop apply --experiment exp-<N>` Hybrid mode. Any additional kept candidates stay on `autoloop/keep-<N>` branches awaiting M-Auto-2+ review.
-- **No new Tier-0 invariant**. C2/C3 DEFER continues per M2-close verdict.
-- **No `git add -A`** — stage only S-Auto-8 scope files explicitly.
+- **No edits** to `autoloop/autoloop/sandbox/{anti_hardcode_check,applier,content_validator}.py` (fence #15 + #18 + #19 envelopes FINALIZED at M-Auto-1C close; NO new edits at S-Auto-9 unless NEW fence #20 explicitly authorized — see CONDITIONAL fence #20 below).
+- **No edits** to `autoloop/autoloop/loop.py`, `autoloop/autoloop/meta_agent/**`, `autoloop/autoloop/memory/**`, `autoloop/autoloop/preflight.py` (unless NEW fence #20 explicitly authorized).
+- **No Skill YAML edits** in `server/src/main/resources/skills/**` (cherry-pick is S-Auto-10 scope; ZERO cherry-pick at S-Auto-9).
+- **No new Tier-0 invariant**.
+- **No `git add -A`** — stage only S-Auto-9 scope files explicitly.
+- **No cloud / remote-server framing**: M-Auto-2 stays local-Mac per human-locked direction 2026-05-30.
+
+**CONDITIONAL fence #20** (CONDITIONAL, S-Auto-9 ONLY; authorized at S-Auto-9 mid-sprint via AskUserQuestion if needed): if OQ-S62.3 resolution requires an autoloop code edit beyond environmental fixes, authorize NEW fence #20 controlled override on the specific file(s) touched. Authorization follows S-Auto-7.2 precedent (fast-iteration mode per user direction "可以我review后快速放宽通过"); per §4.3 trigger #3 the mid-sprint authorization UPGRADES Codex review plan to PER-SUB-SPRINT REQUIRED at S-Auto-9 close. S-Auto-10 MUST NOT edit the fence #20 surface.
 
 **STOP-and-surface conditions** (dev pauses + asks deliver-agent + human via AskUserQuestion):
 
-- Baseline drift envelope >10/34 cases (~30%; 2× the M-Auto-1A close-day signature) → halt; provider drift may have widened materially.
-- Overnight halts before iteration 5 with total errors >50% within first 5 iters → halt; LLM API + infrastructure investigation.
-- Smoke iter end-to-end via raw shell (step 1) crashes through a NEW unobserved path → root-cause investigation; possibly S-Auto-8.1 fix-iteration.
-- Overnight produces ZERO kept candidates AND deliver-agent + human jointly judge this is a meta-agent prompt issue → halt; surface as M-Auto-2 meta-prompt refinement R-item; close PASS still possible IF all other gates pass.
-- Cherry-pick candidate touches a §1.7 borderline (e.g., the edit moves a soft signal toward keyword routing; or the procedure narrative softens an LLM-owned decision per §1.3 in a way human review finds ambiguous) → upgrade to per-sub-sprint Codex per §4.3 trigger #2 BEFORE cherry-pick commits to main.
+- §2 diagnostic investigation produces NO actionable hypothesis within 1-2 days (no signal captured by dtrace, no log entries, no policy entries) → halt; deliver-agent + human re-plan (consider deeper substrate research-agent track OR research alternate-env framing reconsideration).
+- §3 fix iteration requires a hard-fence edit beyond fence #20 envelope (e.g., touching `autoloop/autoloop/scoring/` OR `autoloop/autoloop/sandbox/` OR `autoloop/autoloop/loop.py` substantively) → halt; deliver-agent + human authorize NEW fence override OR redirect the fix.
+- §3 environmental fix doesn't work AND autoloop code edit candidates are all non-trivial → halt; deliver-agent + human re-plan.
+- §4 smoke iter verification reveals NEW substrate pathology NOT explained by OQ-S62.3 (e.g., Spring spawn now fails for a different reason post-resolution) → halt; root-cause investigation.
+- Human cancels mid-sprint due to time / priority shift.
 
 ## Test / eval requirements
 
-- **Smoke iter via raw shell**: `experiments.jsonl` row captured with non-degenerate `tier_evaluator_verdict` (Layer 0-4 all non-null); per-iter elapsed time recorded.
-- **Baseline rerun ≥2**: 3 NEW timestamped run-IDs per suite under `eval_interactive/results/` (or alternative invocation paths). Drift envelope per-suite median + IQR recorded in handoff.
-- **Overnight ≥10 iters**: `experiments.jsonl` rows for all completed iters; `iterations.sqlite` rows; first K=10 lesson compaction if applicable.
-- **autoloop pytest baseline preserved**: `cd autoloop && uv run --extra dev pytest -q` returns ≥ 266 PASS (S-Auto-7.2 close baseline). S-Auto-8 typically adds 0 new tests (execution-driven sub-sprint).
+- **autoloop pytest baseline preserved**: `cd autoloop && uv run --extra dev pytest -q` returns ≥ 266 PASS (S-Auto-7.2 close baseline). S-Auto-9 typically adds 0-N new tests (only if NEW fence #20 helper code is authored with tests).
 - **eval_interactive pytest baseline UNCHANGED**: `cd eval_interactive && uv run python -m pytest --tb=no -q` returns `486 passed, 3 failed`.
 - **17-fixture detector sweep UNCHANGED**: `cd autoloop && uv run --extra dev pytest -p no:cacheprovider -q tests/test_anti_hardcode_check.py` returns `31 passed`.
 - **scoring_code_baseline_sha REASSERTED**: `22548e20ea50518b35c78cebddde891ddb46ea0452e32e49518ad4caab9188a9`; `_check_scoring_code_drift(config) == []` silent.
-- **Java baseline UNCHANGED**: zero-touch verified via `git diff --stat HEAD -- server/ eval/src/main/java/` returning empty (or only the conditional Skill YAML row if cherry-pick lands).
-- **§5.6 PRIMARY GATE manual review at M-Auto-1C close**: bad_cases (parallel=1) + anchor_outcome (parallel=4) + shadow (parallel=4) reruns + per-case PASS/FAIL/IMPROVING joint judgment recorded.
+- **Java baseline UNCHANGED**: zero-touch verified via `git diff --stat HEAD -- server/ eval/src/main/java/` returning empty.
+- **Smoke iter through Step 9 captured**: `experiments.jsonl` row with non-null `verdict.layer_results` (Layer 0-4 all non-degenerate); the iteration may discard at any of Steps 1-8.
 
-## §7 stanza (REQUIRED — semantic-touching via cherry-pick)
+## §7 stanza (EXEMPT — pure-infra carve-out self-walked for paper-trail)
 
-**Target failure layer**: `eval_spec` (per-iteration fitness verdict sequence consumption + manual review + cherry-pick decision; consumes cs001 + wmkb reference signals from M-Auto-1B Phase 2; potentially `semantic_planner` if a cherry-pick candidate edits Skill YAML procedure / critical_steps[*].desc fields).
+**Target failure layer**: `infra` (substrate-environment kill mechanism on local Mac; OS-level diagnostic + resolution; no semantic decision change; no projection / scoring semantic logic edit; no CaseSpec / judge change). Per `iteration_governance.md` §3.2 question 1 ("Is the session failing to start, crash on infra, or hit a timeout / OOM not caused by tool semantics?") → `infra`.
 
-**Tier-0 invariant**: This sub-sprint adds no Tier-0 invariant. C2/C3 candidates from M2 close remain DEFER unchanged. Any cherry-pick edit is on Skill YAML LLM-soft narrative fields (procedure / grounding_instruction / escalation_policy / critical_steps[*].desc), NOT a Tier-0 invariant addition.
+**Tier-0 invariant**: This sub-sprint adds no Tier-0 invariant. C2/C3 candidates from M2 close remain DEFER unchanged. No Tier-0 invariant is touched (the substrate-environment fix is OS-level; not a runtime contract change).
 
-**Semantic hardcode**: No semantic hardcode introduced by S-Auto-8 dev session itself. Any cherry-pick candidate goes through the meta-loop sandbox + anti-hardcode detector at propose stage; sandbox guarantees the cherry-picked edit does NOT introduce keyword / regex / if-else / enum patterns per §1.7 forbidden list. The manual review at S-Auto-8 close validates this guarantee against per-turn traces.
+**Semantic hardcode**: No semantic hardcode introduced. The fix is environmental (launchd plist / taskpolicy / system setting toggle) OR a narrow autoloop code edit under fence #20 (wrapping the orchestrator in a process-lifecycle pattern — no semantic decision logic). No keyword / regex / if-else / enum / per-UC matrix added.
 
-**Generalization coverage**: target = the failure shape addressed by the cherry-picked candidate (if any; e.g., cs001 mechanical-template-escalate OR wmkb intake-handover-gating OR a different shape surfaced by overnight). Neighbor = other UC-C / UC-A cases that the same Skill YAML edit could affect. Negative = UC unaffected by the cherry-picked field-class. Shadow = the 22 shadow cases as regression-safety parity gate at M-Auto-1C close.
+**Generalization coverage**: not applicable for pure-infra (§7 exempt for pure infra per `iteration_governance.md` §7 first paragraph carve-out). The OQ-S62.3 resolution applies to ALL overnight execution attempts; the smoke iter verification through Step 9 is the universal acceptance test.
 
 ## Codex review plan (per §4.3)
 
-**Default**: milestone-shared at M-Auto-1C close. Deliver-agent + human dispatch the M-Auto-1C milestone-shared review prompt at close-bundle commit (covers S-Auto-7.2 [already per-sub-sprint reviewed] + S-Auto-8 + cherry-pick commit if any).
+**Default**: milestone-shared at M-Auto-2 close. Deliver-agent + human dispatch the M-Auto-2 milestone-shared review prompt at close-bundle commit (covers S-Auto-9 + S-Auto-10 + cherry-pick commit if any + optional S-Auto-11).
 
 **Trigger conditions** (dev STOP-and-surfaces if any fire):
 
 - §4.3 trigger #2 (new Tier-0 candidate) DOES NOT fire (no Tier-0 invariant introduced).
-- §4.3 trigger #1 (§1.7 forbidden-list red line) DOES NOT fire by sub-sprint structure — but COULD fire if a cherry-pick candidate's manual review surfaces a borderline §5.3 case (the "drift to keyword bot" edge where programmatic PASS but human judgment is split). In that case, upgrade S-Auto-8 to per-sub-sprint Codex BEFORE the cherry-pick commits to main per the original M-Auto-1C planning round Codex review plan.
-- §4.3 trigger #3 (hard-fenced surface explicitly named out of scope) DOES NOT fire (cherry-pick on Skill YAML is the BLESSED path per §6 fence #3 + #7).
+- §4.3 trigger #1 (§1.7 forbidden-list red line) DOES NOT fire (substrate-environment fix is OS-level).
+- §4.3 trigger #3 (hard-fenced surface explicitly named out of scope) **CAN FIRE** if S-Auto-9 needs to touch a previously-fenced autoloop file beyond environmental fixes. In that case, upgrade S-Auto-9 to PER-SUB-SPRINT Codex per §4.3 trigger #3 at sub-sprint close BEFORE M-Auto-2 milestone-shared dispatches. Authorization follows S-Auto-7.2 + M-Auto-1C fence #19 precedent (mid-sprint AskUserQuestion + human-locked "我觉得应该把这个问题直接修掉"-style authorization).
 
 ## Handoff requirements
 
-`docs/sprints/sprint-063-handoff.md` author at sub-sprint close. Mandatory sections:
+`docs/sprints/sprint-064-handoff.md` author at sub-sprint close. Mandatory sections:
 
-1. **§0 Sub-sprint summary**: Goal, scope, cumulative commit list, final test counts, smoke iter terminal verdict + baseline drift envelope summary + overnight iter count + cherry-pick decision + R-S58 disposition recommendation.
-2. **§1 Cumulative changes**: per-commit + per-file LOC summary including the cherry-pick commit (if any); `git show --stat <commit>` outputs.
-3. **§2 OQ-S62.3 workaround verification**: invocation method used (raw shell / screen / tmux / `nohup`); whether harness sandbox kill was avoided; smoke iter `experiments.jsonl` row capture evidence (THIS retires the M-Auto-1B Goal #3 deferral inherited by M-Auto-1C).
-4. **§3 Pre-batch baseline drift envelope**: 3 NEW run-IDs per suite; per-suite median + IQR + bidirectional drift count; halt-or-proceed-with-widened-envelope decision recorded.
-5. **§4 Overnight batch evidence**: iteration count + per-iteration verdict distribution (keep / discard / error counts); per-iter elapsed time average + min/max; first K=10 lesson reference (if applicable); LLM API error rate.
-6. **§5 R-S58 propose-distribution scan evidence**: per-iteration U+200B / Cf occurrence count + frequency rate; final R-S58 disposition recommendation.
-7. **§6 §5.6 manual review**: deliver-agent + human joint per-candidate PASS/FAIL/IMPROVING/borderline-§5.3 classifications; per-candidate edit summary; deliver-agent recommendation.
-8. **§7 Cherry-pick decision via AskUserQuestion**: AskUserQuestion record; human selection (1 candidate OR 0 with justification); apply Hybrid evidence; human manual commit signature.
-9. **§8 OQs surfaced (if any)**: any new OQ-S63.x.
-10. **§9 STOP-and-surface log (if any)**: timestamps + AskUserQuestion records.
-11. **§10 M-Auto-1C close readiness checklist**: 13 hard gates from M-Auto-1C §5 acceptance bar tick-off; Stage-2 entry decision recommendation direction for M-Auto-2+ planning.
+1. **§0 Sub-sprint summary**: Goal, scope, cumulative commit list, final test counts, OQ-S62.3 root cause + fix path + smoke iter Step 9 verification evidence + M-Auto-1C §12.4 deferred hard gate #1 retirement confirmation.
+2. **§1 Baseline reproduction**: launch + PID + death timestamps + last 5 lines + Console.app capture.
+3. **§2 Per-hypothesis diagnostic evidence**: hypothesis 1-5 (or more) per-hypothesis test results + evidence.
+4. **§3 Fix delivered**: root cause + fix path (environmental OR fence #20 code edit) + per-commit per-file LOC summary.
+5. **§4 Smoke iter Step 9 verification**: wall time + PID + final stdout + `experiments.jsonl` row content (verdict.layer_results non-null).
+6. **§5 NEW fence #20 controlled override (if authorized)**: authorization timestamp + AskUserQuestion record + specific surface(s) touched + per §8.3 in-place revision pattern post-hoc-blessing.
+7. **§6 OQs surfaced (if any)**: any new OQ-S64.x carry-over to S-Auto-10.
+8. **§7 STOP-and-surface log (if any)**: timestamps + AskUserQuestion records.
+9. **§8 M-Auto-2 close-readiness checklist (S-Auto-9 contribution)**: tick-off M-Auto-2 §5 acceptance bar items addressed by S-Auto-9.
 
 ## Commit discipline
 
-- **Multi-commit pattern acceptable** (S-Auto-8 is execution-driven; not subject to single-commit preference of S-Auto-7.2 substrate fix).
-- **Commit message format**: `Sprint 063 / S-Auto-8 / M-Auto-1C — <commit description>` with bullet-point body summarizing the per-commit scope.
+- **Multi-commit pattern acceptable** (S-Auto-9 is investigation + iteration-heavy; may produce multiple commits including diagnostic scripts + fix + handoff). Single-commit pattern preferred for the FIX commit itself.
+- **Commit message format**: `Sprint 064 / S-Auto-9 / M-Auto-2 — <commit description>` with bullet-point body summarizing the per-commit scope.
 - **Standard deliver-agent footer** at commit message end.
-- **No `git add -A`** — stage explicitly. Each commit stages only the relevant scope files (e.g., baseline rerun results separately from overnight results separately from cherry-pick commit separately from handoff).
+- **No `git add -A`** — stage explicitly. Each commit stages only the relevant scope files.
 
 ## Self-check (dev MUST verify before claiming done)
 
-- [ ] OQ-S62.3 workaround verified: smoke iter via raw shell captured `experiments.jsonl` row with non-degenerate `tier_evaluator_verdict`.
-- [ ] Pre-batch baseline rerun ≥2 completed; drift envelope recorded; proceed-OR-halt decision documented.
-- [ ] Overnight ≥10 iterations completed; per-iter verdicts serialized.
-- [ ] R-S58 propose-distribution scan completed; per-iter occurrence count recorded.
-- [ ] §5.6 manual review of kept candidates jointly conducted; per-candidate classification recorded.
-- [ ] AskUserQuestion cherry-pick decision recorded; either 1 candidate cherry-picked OR 0 with justification.
-- [ ] (If cherry-pick lands) apply Hybrid + human manual commit successful; `config.fitness.baseline_dir` advances.
+- [ ] Baseline reproduction captured: launch + PID + death timestamps documented.
+- [ ] Per-hypothesis diagnostic evidence captured: dtrace signal (or no-signal observation) + Console.app + log show + launchctl + taskpolicy results documented for each tested hypothesis.
+- [ ] Fix delivered + documented (environmental OR fence #20 code edit).
+- [ ] Smoke iter through Step 9 verified: `experiments.jsonl` row with non-null `verdict.layer_results`.
+- [ ] If NEW fence #20 controlled override authorized: AskUserQuestion record captured + §8.3 in-place revision pattern applied to M-Auto-2 §6.
 - [ ] autoloop pytest passes (≥266 PASS).
 - [ ] eval_interactive baseline UNCHANGED (486 passed, 3 failed).
 - [ ] 17-fixture detector sweep PASS UNCHANGED.
 - [ ] scoring SHA reasserted; `_check_scoring_code_drift(config) == []` silent.
-- [ ] Hard-fence diff cumulative against all M-Auto-1C §6 gated paths returns empty (or only the conditional Skill YAML row if cherry-pick).
-- [ ] Handoff §0-§11 sections all filled per format.
-- [ ] M-Auto-1C close readiness: 13 hard gates tick-off (10 from M-Auto-1B inherited + 3 new); Stage-2 entry decision recommendation direction documented.
+- [ ] Java baseline UNCHANGED (zero-touch verified).
+- [ ] Hard-fence diff cumulative against all M-Auto-2 §6 gated paths returns empty (or only the conditional fence #20 surface).
+- [ ] Handoff §0-§9 sections all filled per format.
+- [ ] M-Auto-2 §5 acceptance bar S-Auto-9 contribution items ticked off.
+- [ ] Local-Mac constraint honored throughout (NO cloud / remote-server framing introduced).
