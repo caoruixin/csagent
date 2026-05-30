@@ -53,14 +53,24 @@ notes: >
   **§8.1 conformance**: M-Auto-1C has 2 sub-sprints within 3-5
   ceiling.
 
-  **Codex review plan (§4.3)**: milestone-shared at M-Auto-1C close
-  DEFAULT. S-Auto-7.2 expected to NOT trigger per-sub-sprint review
-  (1-line applier.py change isn't fenced surface or §1.7 borderline);
-  S-Auto-8 conditional per-sub-sprint per §4.3 trigger #3 if cherry-
-  pick candidate borderline-§5.3 surfaces (i.e., manual review finds
-  a candidate at the "drift to keyword bot" edge where programmatic
-  PASS but human judgment is split). Per-sub-sprint judged at
-  cherry-pick decision point.
+  **Codex review plan (§4.3) — UPDATED 2026-05-30 at S-Auto-7.2 close
+  per §8.3 in-place revision**: at planning round, milestone-shared
+  default; per-sub-sprint Codex on S-Auto-7.2 was not anticipated.
+  S-Auto-7.2 dev session mid-sprint surfaced TWO additional substrate
+  brittlenesses (OQ-S62.1 content_validator length_overflow false-
+  positive on short-before fields; OQ-S62.2 _git_create_branch
+  exit-128 on stale-branch collision) requiring fence touches beyond
+  the planning-blessed fence #18 (applier.py). Dev STOP-and-surfaced
+  twice; human authorized both fixes inline; NEW M-Auto-1C §6 fence
+  #19 (content_validator.py controlled override) added post-hoc.
+  Per §4.3 trigger #3, **S-Auto-7.2 per-sub-sprint Codex review
+  REQUIRED at close** (NOT deferrable to M-Auto-1C milestone-shared).
+  Review completed 2026-05-30 with verdict `decision: pass /
+  blocking_count: 0` sub-classified `approve with downgrade-to-
+  signal follow-up` (single non-blocking Axis E concern on stale
+  pre-expansion wording, addressed at S-Auto-7.2 close-bundle).
+  S-Auto-8 review plan UNCHANGED: milestone-shared default UNLESS
+  cherry-pick candidate borderline-§5.3 surfaces.
 
   **R-item coupling (consumed)**: M-Auto-1C consumes the
   **`OQ-S61.1-applier-mvn-module-selection-csagent-parent`**
@@ -142,10 +152,10 @@ notes: >
 
 | Sub-sprint | Layer (primary) | §7 stanza | Codex review |
 |---|---|---|---|
-| S-Auto-7.2 / Sprint 062 — applier.py:370 mvn module-selection fix | `infra` (substrate plumbing repair) | EXEMPT (pure-infra carve-out; self-walked for paper-trail) | Milestone-shared (default) — 1-line applier change isn't fenced surface or §1.7 borderline; no §4.3 trigger expected |
+| S-Auto-7.2 / Sprint 062 — applier mvn fix (OQ-S61.1) + post-hoc OQ-S62.1 cv length_overflow + OQ-S62.2 _git_create_branch idempotency (CLOSED 2026-05-30) | `infra` (substrate plumbing repair across 3 surfaces) | EXEMPT (pure-infra carve-out; self-walked for paper-trail) | **PER-SUB-SPRINT FIRED per §4.3 trigger #3** (fence #19 content_validator.py post-hoc override authorized at STOP-2 mid-sprint 2026-05-30); review completed 2026-05-30 `decision: pass / blocking_count: 0` sub-classified `approve with downgrade-to-signal follow-up` (single non-blocking Axis E concern addressed at close-bundle) |
 | S-Auto-8 / Sprint 063 — first overnight batch + first human review + first cherry-pick to main | `eval_spec` (per-iteration fitness on now-validated substrate; cherry-pick decision via AskUserQuestion + §5.6 manual review) | REQUIRED | Milestone-shared (default) UNLESS cherry-pick candidate borderline-§5.3 surfaces (then per-sub-sprint per §4.3 trigger #2 pre-milestone-close) |
 
-S-Auto-7.2 expected to land in ~half-day with single-commit pattern (1-line diff in `autoloop/autoloop/sandbox/applier.py:370-378` + 1-2 tests + handoff). S-Auto-8 expected ~3-5 days (1-2 days execution + 1 overnight + 1-2 days deliver-agent + human manual review + cherry-pick decision + apply + close-bundle).
+S-Auto-7.2 actually landed 2026-05-30 with **3-commit pattern** covering 3 substrate fixes + 506-line handoff + per-sub-sprint Codex review prompt; close-bundle 2026-05-30 deliver-agent + human. S-Auto-8 expected ~3-5 days (1-2 days execution including ≥2 baseline rerun drift envelope per Codex M-Auto-1B Axis M6 trigger #1 acceptance + 1 overnight via raw shell/screen/tmux per OQ-S62.3 operational workaround + 1-2 days deliver-agent + human manual review + cherry-pick decision + apply + close-bundle).
 
 ## 2. Goal
 
