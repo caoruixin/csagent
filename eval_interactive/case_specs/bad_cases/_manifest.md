@@ -395,3 +395,67 @@ cs11s01_uc_d_two_emails_one_account + cs11s02_uc_d_password_change_loop_high_dis
 ### Decision
 
 Deliver-agent + human jointly judge the **M-Auto-1B bad-case suite §5.6 PRIMARY GATE: PASS** (human concurred 2026-05-30). Bad-case suite-aggregate held at 5/12 case_passed; bidirectional drift signature; 2 NEW regressions (cs001 + wmkb) are GENUINE FAILs per closure_criterion BUT serve as **valuable S-Auto-8 cherry-pick candidates** rather than blocking M-Auto-1B close. Anchor_outcome + shadow regressions (7 cases) are observation-only at suite level; UC-D clustering signals LLM-provider drift on auth flows for M-Auto-1C drift-envelope consideration. **M-Auto-1B close-day disposition: PASS at §5.6 PRIMARY GATE; PROCEED to Codex Axis M6 + M11 verification + milestone-shared Codex review dispatch.** Tier-0 safety floor + grounding floor untouched. Reproducible: 3 commands documented in `docs/milestone_objective.md` §12.5 + run-IDs above.
+
+## M-Auto-1C close bad-case + anchor_outcome + shadow review (2026-05-30)
+
+### Posture
+
+This is the **M-Auto-1C milestone-close §5.6 manual review** at the Class C — In-flight downgrade close (M-Auto-1C closing now; OQ-S62.3 + first overnight + first cherry-pick → M-Auto-2 per joint deliver-agent + human AskUserQuestion 2026-05-30, recommended option). M-Auto-1C is the §8.5 continuation of M-Auto-1B (substrate-fix + first overnight + cherry-pick scope inherited; 2 sub-sprints S-Auto-7.2 substrate fixes [OQ-S61.1 + OQ-S62.1 + OQ-S62.2] + S-Auto-8 first overnight blocked by OQ-S62.3 expansion). Bot byte-identical on runtime path across M-Auto-1C agent-loop scope (zero `server/src/main/java/` + `eval/src/main/java/` + Skill YAML + `server/src/main/resources/` edits verified via `git diff --stat 586f138..<close-bundle> -- <gated prefixes>` empty). The §5.6 close-day rerun is the THIRD reference point beyond S-Auto-8 §3 baseline rounds 1 + 2.
+
+### Run paths
+
+- **Bad-case close-day rerun (12 cases, parallel=1)**: `eval_interactive/results/20260530-140537/results.json`; 643693ms (10m43s) wall-clock; mean_outcome 0.9583; mean_composite 0.1667; **4/12 case_passed (loader-counted, canonical authority)**.
+- **Anchor-outcome close-day rerun (12 cases, parallel=4)**: `eval_interactive/results/20260530-141621/results.json`; 151309ms (2m31s); mean_outcome 0.8333; mean_composite 0.1875; **5/12 case_passed (loader-counted)**.
+- **Shadow regression-safety close-day rerun (22 cases, parallel=4)**: `eval_interactive/results/20260530-141853/results.json`; 328963ms (5m29s); mean_outcome 0.6976; mean_composite 0.0455; **2/22 case_passed (loader-counted)**.
+- **S-Auto-8 baseline rounds 1 + 2 (CORRECTED run-IDs vs dev handoff §3 which had typo)**: bad_cases R1 = `20260530-073918` (6/12 case_passed) + R2 = `20260530-082909` (3/12); anchor_outcome R1 = `20260530-074858` (3/12) + R2 = `20260530-083810` (5/12; **NOT 094858 as the handoff §3 table claims**); shadow R1 = `20260530-075127` (0/22) + R2 = `20260530-075552` (1/22; **NOT 095127 as the handoff §3 table claims**).
+
+### Bad-case per-case verdict (12 cases — M-Auto-1C close-day)
+
+| case_id | M-Auto-1B Phase 2 (final state) | S-Auto-8 R1 (CP) | S-Auto-8 R2 (CP) | M-Auto-1C close-day (CP) | Verdict at M-Auto-1C close |
+|---|---|---|---|---|---|
+| `alice_uc_a_uc_h_misclass` | PASS-on-flake-clear | True | False | False | IMPROVING-shape with bidirectional drift; not a regression vs S-Auto-8 R2 |
+| `cs001_uc_c_mechanical_template_escalate` | FAIL (NEW REGRESSION at M-Auto-1B Phase 2) | False | False | False | FAIL-stable; remains the S-Auto-10 cherry-pick candidate (`resolve_faq_grounded_answer.yaml` procedure / critical_steps[*].desc gating goal_impossible terminal-state on policy-mandated search) |
+| `cs011_uc_c_faq_miss_not_distress` | PASS-shape stable | False | False | False | PASS-shape stable; closure_criterion programmatic still failing as documented at M-Auto-1B Phase 2 |
+| `cs012_uc_fp_late_phone_failure_path` | IMPROVING (case_passed=True) | False | True | True | PASS at close-day; consistent with M-Auto-1B Phase 2 IMPROVING |
+| `cs014_uc_c_faq_miss_not_distress` | PASS | True | False | False | DEGRADED vs M-Auto-1B Phase 2 PASS; bidirectional drift signature continues; not a NEW regression attributable to M-Auto-1C scope (bot byte-identical on agent-loop scope) |
+| `cs015_uc_fp_appeal_edit_repost` | IMPROVING-on-flake-clear (case_passed=True) | True | False | False | DEGRADED vs M-Auto-1B Phase 2; flake intermittency pattern continues per `R-bad-case-parallel-session-establishment-flakiness` |
+| `cs029_uc_d_account_locked_callback` | PASS-shape stable (case_passed=False) | False | False | False | PASS-shape stable; closure_criterion programmatic still failing |
+| `cs066_uc_k_in_app_feature_regression` | PASS-shape stable (case_passed=False) | False | False | False | PASS-shape stable |
+| `cs095_uc_d_email_recovery_misroute` | PASS | True | True | True | PASS-stable |
+| `fg5q_uc_fp_phone_rejected_repost` | PASS-shape with flake clear (case_passed=False) | True | False | True | PASS at close-day; reproduces M5 PASS-shape; consistent with intermittent flake clear pattern |
+| `iwzx_uc_k_advert_on_hold_restore` | FAIL-stable | False | False | False | FAIL-stable per `R-iwzx-uc-k-vs-uc-h-routing-spurious-distress` action_bank R-item |
+| `wmkb_uc_a_trader_flag_secondary_uc_h` | FAIL (NEW REGRESSION at M-Auto-1B Phase 2) | True | True | True | PASS at close-day; possible flake clear OR LLM-provider drift on this case; remains S-Auto-10 cherry-pick candidate (`resolve_intake_collect_and_handover.yaml` critical_steps[*].desc gating handover on intake completion) since the failure mode may re-surface |
+
+**Suite-aggregate bad_cases**: 4/12 case_passed at M-Auto-1C close-day. S-Auto-8 baseline rounds delivered 6/12 (R1) → 3/12 (R2) = 5-case bidirectional binary drift between R1 + R2 (alice/cs014/cs015/fg5q lost; cs012 gained). M-Auto-1C close-day vs S-Auto-8 R2 = 1-case binary drift (fg5q gained). M-Auto-1C close-day vs S-Auto-8 R1 = 4-case binary drift (alice/cs014/cs015 lost; cs012 gained). **Drift signature: bidirectional + within established envelope; no systematic regression direction; consistent with LLM-provider variance on a substrate that's byte-identical across M-Auto-1C agent-loop scope.**
+
+### Anchor_outcome per-case (12 cases — observation-only per §5.5)
+
+5/12 case_passed at close-day (UC-A + UC-E + UC-F + UC-FP + UC-K); vs S-Auto-8 R1 3/12 (4-case drift: UC-A + UC-FP + UC-K gained; UC-C lost) and S-Auto-8 R2 5/12 (6-case binary drift: UC-A + UC-FP gained; UC-C + UC-D + UC-G + UC-K mixed). Bidirectional UC-A / UC-FP / UC-K signals. M-Auto-1B Phase 2 close-day had 3/12; M-Auto-1C close-day is +2 vs M-Auto-1B Phase 2 reference (slight improvement direction). Observation-only at suite level.
+
+### Shadow per-case (22 cases — regression-safety parity surface)
+
+2/22 case_passed at close-day (cs01s01 + cs95s01); vs S-Auto-8 R1 0/22 (2-case gain) and S-Auto-8 R2 1/22 (3-case binary drift: cs01s01 + cs95s01 gained; cs95s02 lost). M-Auto-1B Phase 2 close-day had 1/22; M-Auto-1C close-day is +1 vs M-Auto-1B Phase 2 reference (slight improvement). No NEW shadow regression beyond `R-shadow-fixture-empty-form-session-create-400` (cs59s01 + cs59s02 stay excluded). Within regression-safety parity envelope.
+
+### Drift envelope discipline (Codex M-Auto-1B Axis M6 trigger #1 acceptance, corrected metrics)
+
+S-Auto-8 dev handoff §3 reported "0 cases drift across all 46 cases × 2 rounds each" + claimed "Gate <10/34 PASS ✓". **Data reconciliation 2026-05-30 at M-Auto-1C close-bundle**: the dev's "0 passed" figures referenced the CLI summary headline (which uses the broken judge dimension per `R-eval-interactive-judge-score-never-populated`; structurally returns 0 across all cases when judge_score is uniformly 0.0); the dev's drift count of "0" was computed against that broken metric. **Loader-counted case_passed authority shows non-zero bidirectional drift** between S-Auto-8 baseline rounds (per the corrected R1 + R2 numbers above). For the gate denominator (anchor_outcome + shadow only = 34 cases per existing convention):
+
+- S-Auto-8 R1 vs R2 binary drift on anchor + shadow = 6 + 1 = **7/34 cases (20.6%)** — below 10/34 (~30%) halt threshold; **PASS at the corrected metric**.
+- S-Auto-8 R2 vs M-Auto-1C close-day binary drift on anchor + shadow = 6 + 3 = **9/34 cases (26.5%)** — below threshold; PASS.
+- S-Auto-8 R1 vs M-Auto-1C close-day binary drift on anchor + shadow = 4 + 2 = **6/34 cases (17.6%)** — below threshold; PASS.
+
+**Suite-aggregate drift envelope verdict: PASS at the corrected metric** (3 reference points all within 30% threshold envelope). Note for M-Auto-2 S-Auto-10: drift envelope discipline at S-Auto-10 baseline ≥2 reruns should use loader-counted case_passed (per `composite.py` + `baseline_loader.load`) NOT the CLI summary "Passed: N" headline; deliver-agent + S-Auto-10 dev MUST explicitly cite loader-counted in handoff to avoid the metric-misuse pattern observed at S-Auto-8 §3.
+
+### Surfaced findings
+
+- **No NEW R-items opened at M-Auto-1C close**. OQ-S62.3 expansion becomes M-Auto-2 scope; the S-Auto-8 §3 data-accuracy issue is a one-time deliver-agent-noted observation reconciled at this close-bundle (no R-item warranted — the metric-misuse pattern is already captured under `R-eval-interactive-judge-score-never-populated` lifecycle as the canonical signal-vs-headline distinction).
+- **cs001 + wmkb remain S-Auto-10 cherry-pick candidates** (M-Auto-2 scope). The auto-loop's overnight batch should propose Skill YAML edits on `resolve_faq_grounded_answer.yaml` (cs001) + `resolve_intake_collect_and_handover.yaml` (wmkb); reference signals UNCHANGED from M-Auto-1B Phase 2.
+- **wmkb pass on close-day is bidirectional drift, NOT regression closure**: the failure shape (handover-gating-on-intake-completion) may re-surface; do NOT treat wmkb's close-day PASS as evidence the failure mode is resolved.
+- **`R-bad-case-parallel-session-establishment-flakiness`** — M-Auto-1C adds 2 data points (cs014 + cs015 both bidirectional drift across S-Auto-8 rounds + close-day; suggests intermittent session-establishment behaviour beyond cs029 + fg5q M-Auto-1B carry).
+- **`R-shadow-fixture-empty-form-session-create-400`** — cs59s01 + cs59s02 stay deterministic outcome=0.0 across all 3 reference points; structural fixture issue not regression.
+- **`R-S58` confirmation** — propose-distribution scan at S-Auto-8 baseline (13 historical experiments.jsonl rows) showed 0/13 Cf-char observations; supports CLOSED-AS-THEORETICAL-ONLY disposition. Reopen condition documented in `docs/action_bank.md` §5.2.
+- **R-eval-interactive-judge-score-never-populated annotation** — third reference point at M-Auto-1C close-day reconfirms mean_judge: 0.0000 across all 46 cases × 3 rounds. LOW priority M-Auto-2+ observability hygiene unchanged.
+
+### Decision
+
+Deliver-agent + human jointly judge the **M-Auto-1C bad-case suite §5.6 PRIMARY GATE: PASS** at close-day. Bad-case suite-aggregate 4/12 case_passed; bidirectional drift signature consistent with LLM-provider variance on byte-identical agent-loop scope; cs001 + wmkb tagged as M-Auto-2 S-Auto-10 cherry-pick candidates (wmkb's close-day PASS does NOT close the failure mode). Anchor_outcome + shadow at suite level within drift envelope (corrected metric: max 9/34 vs 10/34 halt threshold). Tier-0 safety floor + grounding floor untouched. **M-Auto-1C close-day disposition: PASS at §5.6 PRIMARY GATE; PROCEED to Codex milestone-shared review dispatch + M-Auto-1C close-bundle commit.** Reproducible: 3 commands run by deliver-agent 2026-05-30 against foreground :8080 backend (pid=7634 after auto-reboot from prior `mvn spring-boot:run`).

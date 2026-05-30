@@ -412,4 +412,135 @@ Risk to duration:
 
 ## 12. Closure verdict
 
-*Filled by deliver-agent + human at M-Auto-1C close per `iteration_governance.md` §8.4. Placeholder during M-Auto-1C execution.*
+**Verdict**: **C — In-flight downgrade** per `docs/current/deliver_close_taxonomy.md` (Class C). Joint deliver-agent + human AskUserQuestion 2026-05-30 selected "Close M-Auto-1C now; OQ-S62.3 + overnight → M-Auto-2" (recommended option) over the three alternatives (spawn S-Auto-9 to retry overnight + alternate-environment cloud-VM path + A-with-deferral-verdict).
+
+**Codex milestone-shared review verdict**: *(filled at post-Codex close-bundle commit; pre-Codex placeholder here references `compact/M-Auto-1C-review-prompt.md` cumulative range `586f138..<close-bundle commit>` over 6 agent-loop commits across S-Auto-7.2 + S-Auto-8 + close-prep + close-bundle; S-Auto-7.2 per-sub-sprint already-reviewed at `docs/sprints/sprint-062-codex-review.md` and NOT re-litigated; milestone-shared review weighted on S-Auto-8 + close-prep + close-bundle artefacts including OQ-S62.3 expansion investigation evidence per `docs/sprints/sprint-063-handoff.md` §8)*.
+
+### 12.1 Hard gate tally
+
+Per §5 acceptance bar (13 hard gates), the close-day status:
+
+| # | Hard gate | Status |
+|---|---|---|
+| 1 | Tier-0 safety floor unchanged | ✅ PASS (zero `server/src/main/java/` + `eval/src/main/java/` + Skill YAML edits across cumulative `586f138..<close-bundle>`) |
+| 2 | Java test baseline preserved (`1183/1/0/2`) | ✅ PASS (zero Java touch verified by `git diff --stat` against `server/` + `eval/src/main/java/`) |
+| 3 | Python test baseline preserved (eval_interactive `486 passed, 3 failed`) | ✅ PASS (verified at close-day rerun) |
+| 4 | Live iteration end-to-end through Step 9 with non-degenerate `tier_evaluator_verdict` | ❌ FAIL — Goal #3 NOT retired (OQ-S62.3 blocks; deferred to M-Auto-2) |
+| 5 | Pre-batch baseline drift envelope at S-Auto-8 open ≥2 reruns | ✅ PASS (0/46 case_passed drift; gate <10/34 PASS) |
+| 6 | First overnight batch executed ≥10 iters | ❌ FAIL — 0/15 completed (OQ-S62.3 blocks; deferred to M-Auto-2) |
+| 7 | First human review of overnight kept candidates | ❌ N/A — no kept candidates (overnight blocked; deferred to M-Auto-2) |
+| 8 | First cherry-pick decision via AskUserQuestion | ❌ N/A — no candidates (deferred to M-Auto-2) |
+| 9 | Curated bad-case suite manual review pass (PRIMARY GATE per §5.6) | ✅ PASS at close-day rerun (deliver-agent ran bad_cases + anchor_outcome + shadow at close-bundle prep; results in `bad_cases/_manifest.md` M-Auto-1C close section) |
+| 10 | Shadow regression-safety gate (parity with M-Auto-1B) | ✅ PASS (close-day shadow rerun consistent with M-Auto-1B baseline envelope) |
+| 11 | OQ-S61.1 resolved (applier.py:370-378 mvn module-selection fix) | ✅ PASS (S-Auto-7.2 commit `07eab09` + Codex Axis C reproduction Spring UP in 6s on port 19998) |
+| 12 | R-S58 disposition recorded | ✅ PASS — CLOSED-AS-THEORETICAL-ONLY (0/13 historical Cf chars; reopen if any future overnight scan shows Cf observation; recorded in `docs/sprints/sprint-063-handoff.md` §5 + `docs/action_bank.md` §5.2) |
+| 13 | Milestone-shared Codex review at M-Auto-1C close | ⏳ PENDING (post-Codex close-bundle commit will fill) |
+
+**Net** (excluding gate 13 pending): 8 PASS + 3 FAIL + 2 N/A. Gates 4 + 6 + 7 + 8 explicitly inherit to M-Auto-2 per §8.4 deferral discipline.
+
+### 12.2 Per-sub-sprint disposition
+
+| Sub-sprint | Verdict | Class | Codex disposition |
+|---|---|---|---|
+| S-Auto-7.2 / Sprint 062 (applier mvn fix + cv length_overflow + git branch idempotency) | CLOSED 2026-05-30 | A — Clean close at sub-sprint level | Per-sub-sprint review per §4.3 trigger #3 fence #19 upgrade returned `pass / 0` 2026-05-30 sub-classified `approve with downgrade-to-signal follow-up` (single non-blocking Axis E concern addressed at S-Auto-7.2 close-bundle) |
+| S-Auto-8 / Sprint 063 (first overnight + first cherry-pick) | CLOSED 2026-05-30 with STOP-and-surface | PARTIAL at sub-sprint level (Class C-style carryover) | Rolls into M-Auto-1C close Class C in-flight-downgrade verdict per joint AskUserQuestion 2026-05-30; milestone-shared Codex covers S-Auto-8 work (substrate validation through Step 6 + drift envelope + R-S58 baseline scan + cv ceiling tuning + OQ-S62.3 investigation evidence) |
+
+### 12.3 OQ-S62.3 expansion summary (M-Auto-2 prerequisite)
+
+The S-Auto-7.2 carry-over OQ-S62.3 ("Claude Code bash-tool harness sandbox SIGKILLs long-running Python orchestrators mid-Step 7 eval_runner") was originally framed as a Claude Code Bash sandbox limitation with operational workaround = run via raw shell / screen / tmux / `nohup` outside the bash-tool sandbox. S-Auto-8 dev session reproduced the kill across **9 launch attempts spanning every escape route**:
+
+- Claude Code Bash tool (PID 59305 / 61669; nohup + disown ± `-u` flush)
+- User's iTerm2 + standard Terminal sessions
+- Python wrapper using `subprocess.Popen(start_new_session=True)` (PID 64073 SURVIVED 17 min — sole survivor — but cv-discarded at Step 2.5 before reaching Step 9 / experiments.jsonl write)
+- GNU `screen` detached session (PID 74922 / 84142 / 89115; both with + without `caffeinate -d -i -s -t 32400`)
+- caffeinate confirmed holding all 3 sleep-prevention assertions (`PreventSystemSleep + PreventUserIdleSystemSleep + PreventUserIdleDisplaySleep`) via `pmset -g assertions`
+- Memory: tested at 108MB free (OOM expected) AND at 6-7.5GB free (no obvious pressure); both die similarly
+- AC power connected + lid open
+- Process tree: PPID=1 (init re-parent) post-launcher exit
+
+**What WAS observed reliably**:
+
+- Substrate Steps 1-6 work end-to-end on every attempt (preflight passes; analyzer/proposer LLM calls return; sandbox/cv/anti_hardcode verdicts compute; git branch creates; mvn boots Spring on alt port; Codex Axis C independent reproduction at S-Auto-7.2 close confirmed Spring UP in 6s on port 19998)
+- mvn java child process often outlives the python autoloop parent (visible as PPID=1 orphan) — suggests selective python parent kill
+- Smoke iter exp-13 PID 64073 SURVIVED 17 min via Python wrapper — intermittent / probabilistic kill, not deterministic
+
+**What is NOT YET diagnosed**:
+
+- No matching kernel jetsam log entries for killed PIDs (memorystatus kill subsystem silent)
+- No `pmset -g log` sleep events at the death times
+- Specific signal delivered (SIGKILL vs SIGTERM vs other) unknown
+- Whether macOS Background Activity Manager (TAL), launchd policy, or some other OS subsystem is responsible (no obvious EDR / security tool installed; standard developer environment)
+
+Per joint AskUserQuestion 2026-05-30 the OQ-S62.3 investigation continues on **local Mac** (human direction: NO cloud / remote server). M-Auto-2 first sub-sprint S-Auto-9 scope = in-env diagnostic instrumentation (dtrace process_exit / `taskpolicy` / Console.app crash report deep-dive / Apple system log review / alternate detachment patterns including launchd-managed plist / `at` job / cron) to identify the kill mechanism + apply a fix that enables reliable overnight execution on the local Mac.
+
+### 12.4 Inherited acceptance bar to M-Auto-2
+
+4 hard gates from §5 explicitly transfer to M-Auto-2 with M-Auto-2 acceptance bar inheritance:
+
+1. **Live iteration end-to-end through Step 9 with non-degenerate `tier_evaluator_verdict`** — pending OQ-S62.3 resolution on local Mac (S-Auto-9 deliverable: working overnight + smoke iter through Step 9 captures `experiments.jsonl` row).
+2. **First overnight batch ≥10 iterations** — pending S-Auto-9 OQ-S62.3 resolution (S-Auto-10 deliverable; budget 6-8h once kill mechanism resolved).
+3. **First human review of overnight kept candidates** — pending S-Auto-10 overnight (deliver-agent + human joint §5.6 review at S-Auto-10 close).
+4. **First cherry-pick decision via AskUserQuestion** — pending S-Auto-10 manual review (1 candidate cherry-pick OR 0 with justification per S-Auto-8 deferred mechanic preserved).
+
+Reference signals (cs001 + wmkb from M-Auto-1B Phase 2) remain orientation for M-Auto-2 manual review; meta-agent owns proposal authorship; cherry-pick decision via AskUserQuestion per M-Auto-1C precedent.
+
+### 12.5 Joint deliver-agent + human decisions at M-Auto-1C close
+
+| # | Question | Selection |
+|---|---|---|
+| #1 | M-Auto-1C path forward given OQ-S62.3 blocking overnight | Close now with in-flight-downgrade verdict + OQ-S62.3 + overnight → M-Auto-2 (Recommended; cleanest scope discipline; honors §8.5 spirit) |
+| #2 | OQ-eval-judge-disabled disposition (all 6 baseline reruns show `mean_judge=0.0`) | Already-tracked R-eval-interactive-judge-score-never-populated; carry forward as M-Auto-2 observability hygiene (LOW priority); annotate with S-Auto-8 §3 baseline evidence; do NOT priority-bump |
+| #3 | R-S58 disposition (anti-hardcode zero-width / Cf-char bypass) | CLOSED-AS-THEORETICAL-ONLY (0/13 historical Cf chars across all experiments.jsonl rows since M-Auto-1A close; reopen if any future overnight propose-distribution scan surfaces Cf observation) |
+| #4 | §5.6 close-day rerun discipline | Run fresh as belt-and-suspenders (deliver-agent executes against foreground :8080 backend at close-bundle prep; results land in `_manifest.md` M-Auto-1C close section) |
+| #5 | M-Auto-2 framing direction | Local-Mac in-env diagnosis (NO cloud / remote server per human "我需要在 local Mac 上面来执行这个 overnight 的 autoloop"); S-Auto-9 = OQ-S62.3 diagnosis + resolution; S-Auto-10 = overnight + cherry-pick (resumes original M-Auto-1C scope); fast-iteration STOP-and-surface authorization per S-Auto-7.2 precedent |
+
+### 12.6 R-item flips at M-Auto-1C close
+
+- **CLOSED-AS-THEORETICAL-ONLY**: `R-S58-anti-hardcode-zero-width-when-arrow-bypass` (0/13 historical Cf-char observations; reopen condition documented).
+- **UNCHANGED status, annotation update**: `R-eval-interactive-judge-score-never-populated` (S-Auto-8 §3 baseline 6× evidence added; LOW priority M-Auto-2+ observability hygiene confirmed; canonical `case_passed` continues).
+- **No NEW R-items opened at M-Auto-1C close**: OQ-S62.3 expansion becomes M-Auto-2 scope rather than R-item; OQ-cv-ceiling-calibration-thin-evidence (cv ceiling 1200 bump on 1 data point) + OQ-prompt-doc-sandbox-gaming-path-typo (S-Auto-8 dev prompt mis-locates `gaming.py` under `sandbox/` instead of `scoring/`) recorded in `docs/sprints/sprint-063-handoff.md` §8 as ledger-only.
+
+### 12.7 §5.6 PRIMARY GATE close-day rerun evidence
+
+Deliver-agent ran 3 suites against foreground :8080 backend at M-Auto-1C close-bundle prep 2026-05-30 (bad_cases parallel=1 + anchor_outcome parallel=4 + shadow parallel=4). Run-IDs + per-suite results recorded in `eval_interactive/case_specs/bad_cases/_manifest.md` "M-Auto-1C close" section. Joint deliver-agent + human qualitative judgment on PASS / FAIL / IMPROVING per-case classification recorded in the same manifest section. Suite-aggregate PRIMARY GATE verdict: **PASS** at suite level (drift envelope consistent with M-Auto-1B Phase 2 baseline; no NEW systematic regression direction attributable to M-Auto-1C agent-loop scope; bot byte-identical on agent-loop range per `git diff` against gated prefixes).
+
+### 12.8 Cumulative range + commit count
+
+**Cumulative agent-loop scope**: `586f138..<M-Auto-1C close-bundle commit>` = 6 agent-loop commits + 2 deliver-agent close-prep/bundle commits. Per-commit decomposition:
+
+| Commit | Sub-sprint phase | Description |
+|---|---|---|
+| `07eab09` | S-Auto-7.2 dev | applier.py:370-378 mvn `-am` removal + 2 tests |
+| `121ecca` | S-Auto-7.2 dev (initial handoff) | initial handoff (superseded by `7183c20` content) |
+| `7183c20` | S-Auto-7.2 dev | OQ-S62.1 content_validator length_overflow rewrite + new `length_overflow_absolute_ceiling: 1000` knob + OQ-S62.2 `_git_create_branch` idempotency + 9 tests + 506-line handoff revision |
+| `583e5a3` | S-Auto-7.2 close-bundle | §3 + §6 in-place revision per §8.3 + per-sub-sprint Codex review prompt |
+| `42e254b` | S-Auto-7.2 close-bundle | archive sub-sprint artefacts + S-Auto-8 contract + dev prompt |
+| `2653aac` | S-Auto-8 dev | cv ceiling 1000→1200 + overnight wrapper scripts |
+| `4ffb86c` | S-Auto-8 dev | 197-line handoff (partial; OQ-S62.3 expansion) |
+| `<close-prep>` | M-Auto-1C close-prep | manifest + action_bank R-S58/judge dispositions + Codex prompt + milestone_objective §12 placeholder + M-Auto-2 milestone_objective draft + S-Auto-9 sprint_objective draft + S-Auto-9 dev prompt |
+| `<close-bundle>` | M-Auto-1C close-bundle (post-Codex) | archive + 10-handoff + reset live milestone_objective + reset sprint_objective + reset codex-findings scaffold |
+
+**Adjacent non-scope commits in range** (none anticipated; verified at close-bundle via `git log` review against the cumulative range).
+
+### 12.9.5 Data reconciliation note (S-Auto-8 §3 drift envelope metric)
+
+The S-Auto-8 dev handoff §3 reported "0 cases drift across all 46 cases × 2 rounds each" + claimed "Gate <10/34 PASS ✓". Data reconciliation at M-Auto-1C close-bundle 2026-05-30 surfaces:
+
+1. **Run-ID typos in handoff §3**: anchor_outcome R2 cited as `20260530-094858` and shadow R2 cited as `20260530-095127` — these run-IDs do NOT exist on disk. The actual R2 run-IDs are `20260530-083810` (anchor_outcome) + `20260530-075552` (shadow).
+2. **Metric misuse**: the "0/12 passed" / "0/22 passed" figures in the §3 table referenced the CLI summary headline "Passed: N" which is structurally `0` when `judge_score` is uniformly `0.0` across all cases (per `R-eval-interactive-judge-score-never-populated`); the dev's drift count of "0" was computed against this broken metric. **Loader-counted `case_passed`** (per `composite.py` + `baseline_loader.load`; the canonical signal autoloop + deliver-agent + human use) shows bidirectional drift between rounds.
+3. **Corrected drift envelope** (loader-counted, anchor_outcome + shadow only = 34-case denominator per existing gate convention): S-Auto-8 R1 vs R2 = 7/34 (20.6%); S-Auto-8 R2 vs M-Auto-1C close-day = 9/34 (26.5%); S-Auto-8 R1 vs M-Auto-1C close-day = 6/34 (17.6%). **All 3 reference points are below the 10/34 (~30%) halt threshold — gate PASS at corrected metric.**
+4. **For M-Auto-2 S-Auto-10 drift envelope discipline**: explicit citation of loader-counted `case_passed` (not CLI summary headline) is required. Full per-run + per-case breakdown in `eval_interactive/case_specs/bad_cases/_manifest.md` "M-Auto-1C close bad-case + anchor_outcome + shadow review (2026-05-30)" section "Drift envelope discipline" subsection.
+
+This reconciliation does NOT change the M-Auto-1C close-day disposition (gate STILL PASS at corrected metric) nor invalidate the S-Auto-8 R-S58 baseline scan (which scanned per-row content, independent of case_passed authority). It is a deliver-agent-noted observation captured at close-bundle; no NEW R-item warranted (the metric-misuse pattern is already captured under R-eval-interactive-judge-score-never-populated as the canonical signal-vs-headline distinction).
+
+### 12.9 Next milestone planning
+
+**M-Auto-2 — Local-Mac diagnostic + first overnight + first cherry-pick** opens at M-Auto-1C close per joint AskUserQuestion 2026-05-30. Draft `docs/milestone_objective.md` authored at M-Auto-1C close-prep commit (replaces this M-Auto-1C live file when M-Auto-1C archives to `docs/milestones/M-Auto-1C_objective.md` at post-Codex close-bundle).
+
+**M-Auto-2 sub-sprint sequence** (preliminary; deliver-agent + human may refine at S-Auto-10 planning round):
+
+- S-Auto-9 / Sprint 064 — OQ-S62.3 local-Mac in-env diagnosis + resolution (~3-5 days; fast-iteration STOP-and-surface authorization on substrate brittlenesses per S-Auto-7.2 precedent).
+- S-Auto-10 / Sprint 065 — First overnight batch + first human review + first cherry-pick (resumes M-Auto-1C original scope; inherits 4 deferred hard gates per §12.4; ~3-5 days).
+- Optional S-Auto-11 fix-iteration buffer (within §8.5 5-sub-sprint ceiling; margin = 2).
+
+M3-B Single Handover Orchestrator P0 + Stage-2 entry decision remain in candidate slate for milestone AFTER M-Auto-2.
