@@ -310,7 +310,7 @@ Capture wall time + PID + final stdout + `experiments.jsonl` row content in `doc
 - [ ] autoloop pytest passes (≥266 PASS): `cd autoloop && uv run --extra dev pytest -q`.
 - [ ] eval_interactive baseline UNCHANGED (486 passed, 3 failed): `cd eval_interactive && uv run python -m pytest --tb=no -q`.
 - [ ] 17-fixture detector sweep PASS UNCHANGED: `cd autoloop && uv run --extra dev pytest -p no:cacheprovider -q tests/test_anti_hardcode_check.py`.
-- [ ] Scoring SHA reasserted: `cd autoloop && uv run python -c "from autoloop.scoring.gaming import _check_scoring_code_drift; from autoloop.config import load; cfg = load('config.yaml'); print(_check_scoring_code_drift(cfg))"` returns `[]`.
+- [ ] Scoring SHA reasserted: `cd autoloop && uv run python -c "import yaml; from pathlib import Path; from autoloop.scoring.gaming import _check_scoring_code_drift; cfg = yaml.safe_load(Path('config.yaml').read_text()); print(_check_scoring_code_drift(config=cfg))"` returns `[]`.
 - [ ] Java baseline UNCHANGED (zero-touch): `git diff --stat HEAD -- server/ eval/src/main/java/` returns empty.
 - [ ] Hard-fence diff cumulative against all M-Auto-2 §6 gated paths: `git diff --stat <S-Auto-9-start>..HEAD -- <gated prefixes>` returns empty (or only the conditional fence #20 surface).
 - [ ] Handoff §0-§9 sections all filled per format.

@@ -269,7 +269,7 @@ git diff --stat 586f138..HEAD -- autoloop/autoloop/scoring/
 # Expected: empty (zero touch across M-Auto-1C cumulative range)
 
 # Verify scoring SHA still 22548e20…
-cd autoloop && uv run python -c "from autoloop.scoring.gaming import _check_scoring_code_drift; from autoloop.config import load; cfg = load('config.yaml'); print(_check_scoring_code_drift(cfg))"
+cd autoloop && uv run python -c "import yaml; from pathlib import Path; from autoloop.scoring.gaming import _check_scoring_code_drift; cfg = yaml.safe_load(Path('config.yaml').read_text()); print(_check_scoring_code_drift(config=cfg))"
 # Expected: []
 
 # Fence #18 envelope on applier.py: only S-Auto-7.2 commits touched it
