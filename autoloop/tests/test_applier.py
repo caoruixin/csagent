@@ -307,3 +307,59 @@ def test_write_field_to_yaml_critical_steps_desc_round_trip():
 def test_read_field_value_from_yaml_returns_string():
     val = _applier._read_field_from_yaml(_FIXTURE_YAML, "$.grounding_instruction")
     assert val == "original grounding"
+
+
+# --- OQ-S62.2: idempotent branch creation -----------------------------
+
+
+def test_git_create_branch_idempotent_on_collision(tmp_path: Path):
+    """A stale `autoloop/exp-N` branch from a prior killed iteration
+    must not break the next `apply()` invocation. The applier should
+    switch to the existing branch without raising.
+    """
+    repo = _make_git_repo(tmp_path)
+    # Pre-create the autoloop/exp-X branch (simulates a prior killed
+    # iter that left the branch behind).
+    subprocess.run(
+        ["git", "branch", "autoloop/exp-X"],
+        cwd=repo, check=True, capture_output=True,
+    )
+    # Sanity: the branch should exist + we should be on the main
+    # branch (whichever the repo's default is).
+    assert _applier._branch_exists(repo, "autoloop/exp-X")
+    pre_branch = _applier._git_current_branch(repo)
+    assert pre_branch != "autoloop/exp-X"
+
+    # Calling _git_create_branch on the existing branch should
+    # silently switch to it, not raise.
+    _applier._git_create_branch(repo, "autoloop/exp-X")
+
+    assert _applier._git_current_branch(repo) == "autoloop/exp-X"
+
+
+def test_git_create_branch_creates_fresh_branch(tmp_path: Path):
+    """The non-collision happy path is unchanged: a fresh branch name
+    is created + switched to.
+    """
+    repo = _make_git_repo(tmp_path)
+    assert not _applier._branch_exists(repo, "autoloop/exp-fresh")
+    pre_branch = _applier._git_current_branch(repo)
+    assert pre_branch != "autoloop/exp-fresh"
+
+    _applier._git_create_branch(repo, "autoloop/exp-fresh")
+
+    assert _applier._branch_exists(repo, "autoloop/exp-fresh")
+    assert _applier._git_current_branch(repo) == "autoloop/exp-fresh"
+
+
+def test_branch_exists_helper(tmp_path: Path):
+    """`_branch_exists` returns True iff the named ref is in the
+    local heads tree.
+    """
+    repo = _make_git_repo(tmp_path)
+    assert not _applier._branch_exists(repo, "autoloop/does-not-exist")
+    subprocess.run(
+        ["git", "branch", "autoloop/created-by-test"],
+        cwd=repo, check=True, capture_output=True,
+    )
+    assert _applier._branch_exists(repo, "autoloop/created-by-test")

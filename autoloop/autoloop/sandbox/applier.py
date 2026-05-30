@@ -237,11 +237,39 @@ def _git_current_branch(root: Path) -> str:
 
 
 def _git_create_branch(root: Path, branch_name: str) -> None:
-    # `git switch -c` if available; fall back to `checkout -b`.
+    """Create + switch to the autoloop branch, idempotent on collision.
+
+    OQ-S62.2: a stale `autoloop/exp-N` branch from a prior iteration
+    that was killed before `cleanup()` could run (e.g. SIGKILL from
+    a harness sandbox) makes `git switch -c <name>` return rc=128
+    ("branch already exists"). The legacy `git checkout -b` fallback
+    fails the same way. Without an idempotent guard, the applier
+    cannot reuse the branch and the iteration enters `decision=error`
+    before any semantic work happens.
+
+    Fix: check existence first via `git show-ref`. If the branch
+    already exists, switch to it without an error — the upstream
+    YAML patch + commit at Step 6.4 lands on top of any prior
+    content. If it does not exist, attempt creation via `git switch
+    -c` with a `git checkout -b` legacy fallback.
+    """
+    if _branch_exists(root, branch_name):
+        _git_checkout(root, branch_name)
+        return
     try:
         _run_git(root, ["switch", "-c", branch_name])
     except subprocess.CalledProcessError:
         _run_git(root, ["checkout", "-b", branch_name])
+
+
+def _branch_exists(root: Path, branch_name: str) -> bool:
+    """True iff `branch_name` exists in the local repo at `root`."""
+    proc = subprocess.run(
+        ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+        cwd=str(root),
+        capture_output=True,
+    )
+    return proc.returncode == 0
 
 
 def _git_checkout(root: Path, branch_name: str) -> None:
