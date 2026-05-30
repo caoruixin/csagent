@@ -99,9 +99,14 @@ def test_placeholder_in_after_only_passes():
 
 
 def test_length_overflow_above_5x_fails():
+    # The 5x relative rule still fires when both bounds are crossed.
+    # Default absolute_ceiling=1000; the short-`before` case below is
+    # held to the ceiling, so we explicitly disable it via config to
+    # exercise the 5x relative rule in isolation.
     before = "step one"
     after = "x" * (5 * len(before) + 5)
-    res = validate_content(_hyp(after, before), config={})
+    cfg = {"content_validator": {"length_overflow_absolute_ceiling": 0}}
+    res = validate_content(_hyp(after, before), config=cfg)
     assert res.verdict == "FAIL"
     assert res.rule_id == "content_validator.length_overflow"
 
@@ -185,7 +190,14 @@ def test_empty_deny_list_passes():
 def test_custom_length_overflow_ratio_tightens():
     before = "step one"  # 8 chars
     after = "x" * 20     # 2.5x
-    cfg = {"content_validator": {"length_overflow_ratio": 2.0}}
+    cfg = {
+        "content_validator": {
+            "length_overflow_ratio": 2.0,
+            # Disable absolute_ceiling so the tightened relative rule
+            # is the dominant constraint for this small-field case.
+            "length_overflow_absolute_ceiling": 0,
+        }
+    }
     res = validate_content(_hyp(after, before), config=cfg)
     assert res.verdict == "FAIL"
     assert res.rule_id == "content_validator.length_overflow"
@@ -198,6 +210,81 @@ def test_custom_length_underflow_min_before_relaxes():
     res = validate_content(_hyp(after, before), config=cfg)
     # Floor raised above before_len; underflow does NOT fire.
     assert res.verdict == "PASS"
+
+
+# ---------------------------------------------------------------------
+# length_overflow absolute_ceiling (S-Auto-7.2, OQ-S62.1)
+# ---------------------------------------------------------------------
+
+
+def test_length_overflow_absolute_ceiling_short_before_passes_under_ceiling():
+    """A short `before_value` can grow up to `absolute_ceiling`
+    (default 1000) chars without firing overflow, even if the ratio
+    exceeds `overflow_ratio` (5.0). Models the exp-8 / exp-9
+    pattern: short policy fields gaining coherent structural detail.
+    """
+    before = "x" * 168
+    after = "x" * 974  # 5.80x, the exp-8 shape
+    res = validate_content(_hyp(after, before), config={})
+    assert res.verdict == "PASS"
+
+
+def test_length_overflow_exp9_shape_passes():
+    """Concrete regression-pin: exp-9 168 → 852 chars (5.07x) PASSES
+    under default absolute_ceiling=1000.
+    """
+    before = "x" * 168
+    after = "x" * 852
+    res = validate_content(_hyp(after, before), config={})
+    assert res.verdict == "PASS"
+
+
+def test_length_overflow_short_before_above_ceiling_fails():
+    """Short `before` + after above the absolute_ceiling still FAILS,
+    preventing gross expansion of small fields into multi-thousand-
+    char prose.
+    """
+    before = "x" * 168
+    after = "x" * 1500  # over the 1000 ceiling
+    res = validate_content(_hyp(after, before), config={})
+    assert res.verdict == "FAIL"
+    assert res.rule_id == "content_validator.length_overflow"
+
+
+def test_length_overflow_long_before_relative_rule_dominates():
+    """When 5x `before_value` exceeds the absolute_ceiling, the
+    relative rule dominates and an above-5x expansion still FAILS.
+    """
+    before = "x" * 500  # 5x = 2500 > 1000 ceiling, so 5x dominates
+    after = "x" * 3000  # 6x, above the relative cap
+    res = validate_content(_hyp(after, before), config={})
+    assert res.verdict == "FAIL"
+    assert res.rule_id == "content_validator.length_overflow"
+
+
+def test_length_overflow_absolute_ceiling_tunable_via_config():
+    """The `length_overflow_absolute_ceiling` knob is config-tunable;
+    a lower ceiling enforces a stricter bound on short-field expansion.
+    """
+    before = "x" * 100
+    after = "x" * 600
+    cfg = {"content_validator": {"length_overflow_absolute_ceiling": 500}}
+    res = validate_content(_hyp(after, before), config=cfg)
+    assert res.verdict == "FAIL"
+    assert res.rule_id == "content_validator.length_overflow"
+
+
+def test_length_overflow_absolute_ceiling_zero_disables_floor():
+    """Setting `length_overflow_absolute_ceiling: 0` restores
+    pre-S-Auto-7.2 5x-only behavior (for tests that want to isolate
+    the relative rule).
+    """
+    before = "x" * 100  # 5x = 500
+    after = "x" * 600  # 6x, above relative cap
+    cfg = {"content_validator": {"length_overflow_absolute_ceiling": 0}}
+    res = validate_content(_hyp(after, before), config=cfg)
+    assert res.verdict == "FAIL"
+    assert res.rule_id == "content_validator.length_overflow"
 
 
 # ---------------------------------------------------------------------

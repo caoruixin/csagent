@@ -177,9 +177,16 @@ content_validator:
     - "<<USER>>"
 
   # Length sanity bounds. `length_overflow_ratio` rejects `after_value`
-  # > 5x `before_value`. `length_underflow_ratio` rejects `after_value`
-  # < 0.1x `before_value` IFF `before_value` >= `length_underflow_min_before`.
+  # > max(5x `before_value`, `length_overflow_absolute_ceiling`).
+  # Adjusted per S-Auto-7.2 (OQ-S62.1): short policy fields (~150-200
+  # chars) gaining coherent structural detail were rejected at ratio
+  # 5.07x / 5.80x. The absolute_ceiling gives short fields room to
+  # grow up to ~1000 chars without weakening the bound on longer
+  # fields, where the relative ratio still dominates.
+  # `length_underflow_ratio` rejects `after_value` < 0.1x
+  # `before_value` IFF `before_value` >= `length_underflow_min_before`.
   length_overflow_ratio: 5.0
+  length_overflow_absolute_ceiling: 1000
   length_underflow_ratio: 0.1
   length_underflow_min_before: 50
 

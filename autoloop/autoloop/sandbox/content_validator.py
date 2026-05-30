@@ -97,7 +97,8 @@ def validate_content(
 
     1. zero_length              — `after_value.strip()` is empty.
     2. deny_list                — `after_value` contains a deny-list token.
-    3. length_overflow          — `after_value` > 5x `before_value`.
+    3. length_overflow          — `after_value` > max(5x `before_value`,
+                                  `length_overflow_absolute_ceiling`).
     4. length_underflow         — `after_value` < 0.1x `before_value` AND
                                   `before_value` is "substantial" (>= floor).
     5. placeholder_corrupted    — a placeholder token present in
@@ -131,16 +132,29 @@ def validate_content(
             )
 
     # ---- rule 3: length_overflow ------------------------------------
+    # Fires when `after_value` exceeds BOTH (a) `overflow_ratio` x
+    # `before_value` (default 5.0x) AND (b) an `absolute_ceiling`
+    # (default 1000 chars) — i.e. `after_len > max(ratio*before, ceiling)`.
+    # Short before_value fields would otherwise hit the 5x cap on the
+    # first non-trivial structural expansion; the absolute ceiling gives
+    # short fields room to grow without weakening the bound for long
+    # fields (where the relative ratio still dominates). Adjusted per
+    # S-Auto-7.2 (OQ-S62.1) after exp-8 (168 → 974 chars, 5.80x) and
+    # exp-9 (168 → 852 chars, 5.07x) were rejected for coherent
+    # architectural expansions just over the 5x line.
     overflow_ratio = float(cv_cfg.get("length_overflow_ratio", 5.0))
+    absolute_ceiling = int(cv_cfg.get("length_overflow_absolute_ceiling", 1000))
     before_len = len(before)
     after_len = len(after)
-    if before_len > 0 and after_len > overflow_ratio * before_len:
+    overflow_cap = max(overflow_ratio * before_len, float(absolute_ceiling))
+    if before_len > 0 and after_len > overflow_cap:
         return ContentValidationResult(
             verdict="FAIL",
             rule_id="content_validator.length_overflow",
             detail=(
                 f"after_value length {after_len} exceeds "
-                f"{overflow_ratio:.1f}x before_value length {before_len}"
+                f"max({overflow_ratio:.1f}x before_value length {before_len}, "
+                f"absolute_ceiling {absolute_ceiling})"
             ),
         )
 
