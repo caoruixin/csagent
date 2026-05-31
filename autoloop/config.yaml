@@ -156,7 +156,14 @@ fitness:
   # behaviour). If reset to null, the check emits WARN
   # `rule_id=scoring_code_drift.baseline_missing` (D3: never guess;
   # never silently hash-as-baseline).
-  scoring_code_baseline_sha: "22548e20ea50518b35c78cebddde891ddb46ea0452e32e49518ad4caab9188a9"
+  # S-Auto-10 (2026-05-31, OQ-S65.5): rebaselined after a human-authorized
+  # fence-#13 controlled override to eval_runner.run_suite — it now resolves the
+  # repo-root-relative suite path to an absolute path before passing --path to
+  # eval-interactive (cwd=eval_interactive previously doubled the path segment,
+  # so every candidate eval crashed with FileNotFoundError and was silently
+  # scored as 0 cases passed -> spurious tier1 5->0 on every iteration). Prior
+  # value (S-Auto-7 close): 22548e20ea50518b35c78cebddde891ddb46ea0452e32e49518ad4caab9188a9.
+  scoring_code_baseline_sha: "7b9954f212afe61946631afd1737f23f7b94f659095ab6b1769a0c86aa29a6e9"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the
