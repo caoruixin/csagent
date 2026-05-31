@@ -2,9 +2,9 @@
 title: Milestone M-Auto-2 — Local-Mac OQ-S62.3 diagnostic + first overnight + first cherry-pick
 doc_tier: current-runtime
 status: current
-implementation_status: not_started
+implementation_status: partial
 source_of_truth: this file
-last_reviewed: 2026-05-30
+last_reviewed: 2026-05-31
 review_cadence: per milestone
 supersedes: [docs/milestones/M-Auto-1C_objective.md]
 superseded_by: null
@@ -330,12 +330,17 @@ Reserved within §8.5 5-sub-sprint ceiling for fix-iteration if S-Auto-9 OR S-Au
 
 ## 6. Hard fences (milestone-level)
 
-M-Auto-2 inherits M-Auto-1C §6 17+2 hard fences with the loader.py + eval_runner.py + applier.py + content_validator.py controlled overrides ALL FINALIZED. Most fences unchanged; the conditional fence #20 (NEW) is enumerated below.
+M-Auto-2 inherits M-Auto-1C §6 17+2 hard fences (loader.py + eval_runner.py + applier.py + content_validator.py controlled overrides FINALIZED at M-Auto-1C close). S-Auto-9 post-hoc blessed **fence #20** (applier.py narrow follow-on controlled override; per §8.3 in-place revision 2026-05-31; authorized via mid-sprint AskUserQuestion + STOP-and-surface) — total M-Auto-2 fence count now **17+3** with fence #20 envelope finalized at S-Auto-9 close. Fences 1-17 unchanged; fence #18 + #19 envelopes unchanged outside the fence #20 envelope; fence #20 (NEW) is enumerated below.
 
 1-17 (same as M-Auto-1C §6 fences 1-17 verbatim — UNCHANGED).
-18. **APPLIER.PY FENCE #18 FINALIZED**: `autoloop/autoloop/sandbox/applier.py` byte-identical to M-Auto-1C S-Auto-7.2 close (post-OQ-S61.1 + OQ-S62.2 substrate fixes). S-Auto-9 + S-Auto-10 MUST NOT edit.
-19. **CONTENT_VALIDATOR.PY FENCE #19 FINALIZED**: `autoloop/autoloop/sandbox/content_validator.py` byte-identical to M-Auto-1C S-Auto-7.2 close (post-OQ-S62.1 rule 3 rewrite). S-Auto-9 + S-Auto-10 MUST NOT edit. `autoloop/config.yaml` `length_overflow_absolute_ceiling` knob remains TUNABLE (currently 1200 post-S-Auto-8; future overnight evidence may surface further calibration).
-20. **CONDITIONAL NEW FENCE (S-Auto-9 ONLY; authorized at S-Auto-9 mid-sprint via AskUserQuestion if needed)**: if OQ-S62.3 resolution requires an autoloop code edit beyond environmental fixes, authorize NEW fence #20 controlled override on the specific file(s) touched. Authorization follows S-Auto-7.2 precedent (fast-iteration mode per user direction "可以我review后快速放宽通过"); per §4.3 trigger #3 the mid-sprint authorization UPGRADES Codex review plan to PER-SUB-SPRINT REQUIRED at S-Auto-9 close. S-Auto-10 MUST NOT edit the fence #20 surface.
+18. **APPLIER.PY FENCE #18 FINALIZED (M-Auto-1C era)**: `autoloop/autoloop/sandbox/applier.py` byte-identical to M-Auto-1C S-Auto-7.2 close (post-OQ-S61.1 + OQ-S62.2 substrate fixes) **outside the narrow fence #20 envelope below**. S-Auto-9 authorized a follow-on controlled override per fence #20; fence #18's S-Auto-7.2-era surface otherwise remains in force. S-Auto-10 + S-Auto-11 MUST NOT edit.
+19. **CONTENT_VALIDATOR.PY FENCE #19 FINALIZED**: `autoloop/autoloop/sandbox/content_validator.py` byte-identical to M-Auto-1C S-Auto-7.2 close (post-OQ-S62.1 rule 3 rewrite). S-Auto-9 + S-Auto-10 + S-Auto-11 MUST NOT edit. `autoloop/config.yaml` `length_overflow_absolute_ceiling` knob remains TUNABLE (currently 1200 post-S-Auto-8; future overnight evidence may surface further calibration).
+20. **APPLIER.PY FENCE #20 POST-HOC BLESSED (S-Auto-9 ONLY; §8.3 in-place revision 2026-05-31)**: `autoloop/autoloop/sandbox/applier.py` writable in S-Auto-9 ONLY for THREE narrow process-lifecycle / IO / connectivity infra fixes (cumulative ~35 LOC at commit `e342d89`):
+    - **OQ-S62.3** — `_spawn_spring` adds `start_new_session=True` to the `mvn` `subprocess.Popen` so mvn + its JVM descendants occupy their own session / process group; `_terminate_process`'s `os.killpg(os.getpgid(proc.pid), …)` therefore targets only mvn's subtree, eliminating the self-inflicted "OS-level 2-5 min kill" of the autoloop orchestrator that sprint-063 §8 had mis-attributed to jetsam / launchd / TAL / memory pressure.
+    - **OQ-S64.1** — `_spawn_spring` routes mvn stdout to a per-port log file (`autoloop/results/spring-boot-<port>.log`) instead of an undrained `subprocess.PIPE` that would deadlock at the ~64KB macOS pipe buffer once the eval phase drove backend requests through the JVM.
+    - **OQ-S64.2** — `_probe_url_is_up` wraps the httpx GET in `httpx.Client(trust_env=False)` so the localhost health probe is never routed through a macOS system proxy (httpx 0.28.1 honors the system proxy but ignores its localhost ExceptionsList; was producing a spurious 120 s `SpringStartupTimeoutError`).
+
+    All three are structural plumbing on subprocess lifecycle / IO / connectivity; **no semantic decision logic**, **no keyword / regex / enum / per-UC matrix**, **no LLM call inside the validator surfaces** (fence #15 PRESERVED). Authorization: AskUserQuestion 2026-05-31 (mid-sprint STOP-and-surface; S-Auto-7.2 precedent for fast-iteration mode per user direction "可以我review后快速放宽通过"). Per §4.3 trigger #3 the mid-sprint fence-touch authorization **UPGRADES** Codex review plan for S-Auto-9 from milestone-shared default to **PER-SUB-SPRINT REQUIRED at S-Auto-9 close** (review prompt at `compact/sprint-064-codex-review-prompt.md`; verdict header lands in `docs/codex-findings.md` per §4.2; archived to `docs/sprints/sprint-064-codex-review.md` at S-Auto-9 close). S-Auto-10 + S-Auto-11 MUST NOT edit the fence #20 surface (envelope finalized at S-Auto-9 close).
 
 ### 6.1 OQ-S56.1 disposition (inherited UNCHANGED)
 
