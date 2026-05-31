@@ -157,7 +157,7 @@ def evaluate(
     short_circuit_at: int | None = None
 
     # --- Layer 0: Tier-0 safety floor --------------------------------
-    l0 = _evaluate_layer0(current_suites)
+    l0 = _evaluate_layer0(current_suites, baseline)
     layer_results.append(l0)
     tier_breakdown[_LAYER_NAMES[0]] = l0.metrics_observed
     if l0.passed is False:
@@ -232,8 +232,22 @@ def evaluate(
 # --- Layer 0: Tier-0 safety floor -----------------------------------
 
 
-def _evaluate_layer0(current_suites: dict[str, _CurrentSuite]) -> LayerResult:
-    """Tier-0 floor — any FAIL → discard.
+def _evaluate_layer0(
+    current_suites: dict[str, _CurrentSuite], baseline: BaselineSnapshot
+) -> LayerResult:
+    """Tier-0 floor — any NEW (loop-introduced) Tier-0 violation → discard.
+
+    DELTA semantics (OQ-S65.6 fix, 2026-05-31): the auto-loop only edits Skill
+    content, so Layer 0 measures the *delta the candidate's edit causes*, NOT
+    failures that already existed in the baseline before the loop ran. A
+    candidate fails Layer 0 only on a Tier-0-family check that is False in the
+    CANDIDATE but was True in the BASELINE for that same suite+case (a newly
+    introduced violation). Pre-existing baseline failures — e.g. a curated
+    bad_case that already fails escalation_compliance — are IGNORED, so the
+    `bad_cases` suite (the §5.6 human-judgment surface, curated to exhibit
+    failures) no longer makes Layer 0 unsatisfiable. A candidate failure whose
+    baseline status is unknown/missing is treated conservatively as a violation
+    (safety floor: do not mask).
 
     The Java GateEvaluator 11-gate replay is OPTIONAL: eval-interactive's
     results.json does not currently carry a `tier_breakdown` block
@@ -244,6 +258,26 @@ def _evaluate_layer0(current_suites: dict[str, _CurrentSuite]) -> LayerResult:
     """
     metrics: dict[str, Any] = {"java_gates": {}, "python_tier0_family": {}}
     failures: list[str] = []
+
+    # Baseline Tier-0-family per-case map for the delta: {(suite, case_id, check): passed}.
+    baseline_tier0: dict[tuple[str, str, str], bool] = {}
+    for suite_name, snap in (baseline.snapshots or {}).items():
+        rj = getattr(snap, "raw_results_json", None)
+        if not rj:
+            continue
+        rj = Path(rj)
+        if not rj.exists():
+            continue
+        try:
+            bdata = json.loads(rj.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for bcase in bdata.get("case_results") or []:
+            bcid = bcase.get("case_id", "<unknown>")
+            for bcheck in bcase.get("l1_results") or []:
+                cn = bcheck.get("check")
+                if cn in _TIER0_PY_FAMILY:
+                    baseline_tier0[(suite_name, bcid, cn)] = bcheck.get("passed") is True
 
     # Java replay 11 hard gates — read from tier_breakdown if present.
     for gate in _TIER0_JAVA_GATES:
@@ -261,22 +295,34 @@ def _evaluate_layer0(current_suites: dict[str, _CurrentSuite]) -> LayerResult:
             if not passed:
                 failures.append(f"tier0_{gate}_failed_on_aggregate")
 
-    # Python hard_check Tier-0 family — per-case across all suites.
+    # Python hard_check Tier-0 family — per-case across all suites, DELTA vs
+    # baseline (OQ-S65.6): only NEWLY-introduced violations count; pre-existing
+    # baseline failures are ignored so they cannot make the floor unsatisfiable.
     py_fail_cases: list[str] = []
+    py_pre_existing_ignored: list[str] = []
     py_total_cases = 0
     for suite_name, suite in current_suites.items():
         for case in suite.cases:
             py_total_cases += 1
-            l1_results = case.get("l1_results") or []
-            for check in l1_results:
-                if check.get("check") in _TIER0_PY_FAMILY and check.get("passed") is False:
-                    case_id = case.get("case_id", "<unknown>")
-                    check_name = check.get("check")
+            case_id = case.get("case_id", "<unknown>")
+            for check in case.get("l1_results") or []:
+                check_name = check.get("check")
+                if check_name not in _TIER0_PY_FAMILY or check.get("passed") is not False:
+                    continue
+                baseline_passed = baseline_tier0.get((suite_name, case_id, check_name))
+                if baseline_passed is False:
+                    # Pre-existing baseline failure — NOT caused by this candidate. Ignore.
+                    py_pre_existing_ignored.append(f"{check_name}@{case_id}")
+                else:
+                    # baseline passed (True) OR unknown/missing -> newly-introduced
+                    # violation (safety floor: conservative, do not mask).
                     py_fail_cases.append(f"{check_name}@{case_id}")
                     failures.append(f"tier0_{check_name}_failed_on_{case_id}")
     metrics["python_tier0_family"] = {
         "total_cases_checked": py_total_cases,
         "failing_cases": py_fail_cases,
+        "pre_existing_baseline_failures_ignored": py_pre_existing_ignored,
+        "delta_mode": True,
     }
 
     if failures:

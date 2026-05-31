@@ -163,7 +163,12 @@ fitness:
   # so every candidate eval crashed with FileNotFoundError and was silently
   # scored as 0 cases passed -> spurious tier1 5->0 on every iteration). Prior
   # value (S-Auto-7 close): 22548e20ea50518b35c78cebddde891ddb46ea0452e32e49518ad4caab9188a9.
-  scoring_code_baseline_sha: "7b9954f212afe61946631afd1737f23f7b94f659095ab6b1769a0c86aa29a6e9"
+  # S-Auto-10 (2026-05-31, OQ-S65.6): rebaselined again after a 2nd human-authorized
+  # fence-#13 override to tier_evaluator._evaluate_layer0 — Layer 0 is now a DELTA
+  # vs baseline (fails only on NEWLY-introduced Tier-0 violations; pre-existing
+  # baseline bad-case failures are ignored) instead of an absolute floor that made
+  # `keep` unsatisfiable. Prior value (OQ-S65.5): 7b9954f212afe61946631afd1737f23f7b94f659095ab6b1769a0c86aa29a6e9.
+  scoring_code_baseline_sha: "35305bd84402ac455b126be5bcf8b2cb3b3fa55e3399f2c02443ea74bd8704e8"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the
