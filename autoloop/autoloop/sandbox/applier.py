@@ -407,13 +407,31 @@ def _spawn_spring(root: Path, port: int) -> subprocess.Popen:
         "spring-boot:run",
         f"-Dspring-boot.run.arguments=--server.port={port}",
     ]
-    return subprocess.Popen(
-        cmd,
-        cwd=str(root),
-        env=os.environ.copy(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
+    # mvn/Spring stdout must go to a real file, NOT subprocess.PIPE: nothing
+    # in the loop drains backend_process.stdout, so a PIPE fills at the ~64KB
+    # OS buffer once the eval phase drives requests through the backend, the
+    # JVM blocks on write(stdout), and the backend freezes mid-eval (Step 9
+    # never reached). A log file also preserves Spring startup output for
+    # post-mortem. See OQ-S64.1 (Sprint 064 / S-Auto-9).
+    log_path = root / "autoloop" / "results" / f"spring-boot-{port}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # start_new_session puts mvn (and its JVM descendants) in its own
+    # session + process group. _terminate_process() tears the backend down
+    # with os.killpg(os.getpgid(proc.pid), ...); without a new session the
+    # mvn child shares the autoloop's process group, so that killpg would
+    # also kill the autoloop orchestrator itself (and its launching shell).
+    # See OQ-S62.3 (Sprint 064 / S-Auto-9): the "OS-level 2-5 min kill" was
+    # this self-inflicted process-group suicide, not jetsam/launchd/TAL.
+    with open(log_path, "wb") as spring_log:
+        return subprocess.Popen(
+            cmd,
+            cwd=str(root),
+            env=os.environ.copy(),
+            stdout=spring_log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
 
 
 def _health_probe(
@@ -455,7 +473,16 @@ def _probe_url_is_up(url: str) -> bool:
         import httpx  # type: ignore
 
         try:
-            r = httpx.get(url, timeout=5.0)
+            # trust_env=False: the probe always targets a localhost alt-port
+            # backend and must NOT be routed through a proxy. httpx (default
+            # trust_env=True) honors a macOS system proxy (e.g. a local
+            # Clash/V2Ray on 127.0.0.1:7890) but ignores its ExceptionsList
+            # bypass for 127.0.0.1, so the probe request never reaches Spring
+            # and the loop hits a spurious 120s SpringStartupTimeoutError.
+            # See OQ-S64.2 (Sprint 064 / S-Auto-9). urllib (fallback below)
+            # honors the localhost bypass and is unaffected.
+            with httpx.Client(trust_env=False) as _client:
+                r = _client.get(url, timeout=5.0)
             if r.status_code != 200:
                 return False
             try:
