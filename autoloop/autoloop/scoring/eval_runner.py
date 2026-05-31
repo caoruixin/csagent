@@ -117,13 +117,18 @@ def run_suite(
     suite_link = results_root / spec.name
 
     cwd = _REPO_ROOT / "eval_interactive"
+    # spec.path is repo-root-relative (per config.fitness.suites[].path), but
+    # eval-interactive runs with cwd=eval_interactive — a relative path would
+    # double the `eval_interactive/` segment and FileNotFoundError. Resolve to
+    # an absolute path so it is cwd-independent (OQ-S65.5 fix).
+    resolved_path = spec.path if spec.path.is_absolute() else (_REPO_ROOT / spec.path)
     cmd = [
         "uv",
         "run",
         "eval-interactive",
         "run",
         "--path",
-        str(spec.path),
+        str(resolved_path.resolve()),
         "--parallel",
         str(spec.parallel),
     ]

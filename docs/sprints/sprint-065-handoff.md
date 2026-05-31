@@ -15,12 +15,18 @@ notes: >
   cherry-pick). Layer: eval_spec. §7 stanza REQUIRED (semantic-touching via
   cherry-pick). Codex review plan: milestone-shared at M-Auto-2 close unless a
   borderline-§5.3 cherry-pick fires §4.3 trigger #2.
-  KEY OUTCOME: first reliable overnight batch executed (13/15 reached Step 9,
-  >=10 gate CLEARED); first §5.6 review + first cherry-pick decision performed
-  (slate empty -> 0 cherry-pick, human-justified); R-S58 reconfirmed
-  CLOSED-AS-THEORETICAL-ONLY (0 Cf). M-Auto-1C §12.4 deferred gates #2/#3/#4
-  RETIRED. Surfaced OQ-S65.1 (loop sweeps dirty staged index; resolved),
-  OQ-S65.2/3/4. No code touched; all test baselines preserved.
+  KEY OUTCOME: **found + fixed a critical bug (OQ-S65.5): the candidate fitness
+  eval had NEVER run** — a doubled `eval_interactive/` path made every candidate
+  eval crash (FileNotFoundError), silently scored as 0 -> spurious `tier1 5->0`
+  on every iteration across M-Auto-1A→M-Auto-2. Human-authorized fence-#13 fix to
+  eval_runner.run_suite (+ scoring-SHA rebaseline); confirmed end-to-end (exp-40:
+  44 candidate session-creates, real Layer-0 verdict). Consequence: the
+  "first overnight" (13/15 Step-9) ran on a non-functional fitness function ->
+  a post-fix re-run is required for a genuine first overnight; 0 keeps was a bug
+  artifact, NOT propose quality. Also: first §5.6 review + first cherry-pick
+  decision performed (slate empty -> 0 cherry-pick); R-S58 CLOSED-AS-THEORETICAL-ONLY
+  (0 Cf); OQ-S65.1 (dirty-index sweep; resolved), S65.2/S65.4. autoloop 266 /
+  eval_interactive 486+3f / 17-fixture 31 preserved.
 ---
 
 ## §0 Sub-sprint summary
@@ -33,15 +39,24 @@ notes: >
   review of kept candidates + first cherry-pick decision via AskUserQuestion.
   Retire M-Auto-1C §12.4 deferred hard gates #2 (first overnight >=10 iter), #3
   (first human review), #4 (first cherry-pick).
-- **Outcome**: **DONE**. First reliable overnight batch (13/15 Step-9; >=10 gate
-  cleared), first §5.6 review + first cherry-pick decision (empty slate -> 0
-  cherry-pick), R-S58 reconfirmed CLOSED-AS-THEORETICAL-ONLY. Gates #2/#3/#4
-  retired. Substrate held (no killpg/Spring-timeout). 0 code touched.
+- **Outcome**: **DONE, with a critical mid-sprint finding (OQ-S65.5).** The
+  overnight batch executed end-to-end (13/15 Step-9; first §5.6 review + first
+  cherry-pick decision -> empty slate -> 0 cherry-pick; R-S58 CLOSED-AS-THEORETICAL-ONLY).
+  BUT a human-directed deep-dive then found the **candidate fitness eval had never
+  run** (OQ-S65.5 doubled-path bug): every "Step-9 reach" produced a degenerate
+  verdict (crashed eval scored as 0 -> spurious `tier1 5->0`). Fixed under a
+  human-authorized fence-#13 controlled override + confirmed end-to-end (exp-40).
+  **Net: the substrate fix (S-Auto-9) + this eval fix (S-Auto-10) together make
+  the loop functional for the FIRST time; a post-fix overnight is now required to
+  obtain genuine first-overnight fitness evidence (M-Auto-2 gate #2 is NOT truly
+  satisfied by the degenerate-eval run).**
 - **Cumulative commits**:
   - `9126c6f` deliver close-bundle (S-Auto-9 close + S-Auto-10 setup), committed
     by this dev session at human instruction to clean the tree (see §9 / OQ-S65.1).
-  - `<handoff commit>` this handoff (docs/sprints/sprint-065-handoff.md).
-  - NO cherry-pick commit (0 cherry-pick); NO code commit (Java + eval zero-touch).
+  - `<fix commit>` OQ-S65.5 fix: eval_runner.py path resolution (fence-#13 override,
+    human-authorized) + config.yaml scoring-SHA rebaseline + this handoff.
+  - NO cherry-pick commit (0 cherry-pick). Code touched = ONLY the authorized
+    fence-#13 eval_runner.py + config.yaml fix; Java + eval/java zero-touch.
 - **Final test counts**: autoloop pytest **266 passed**; 17-fixture detector sweep
   **31 passed**; eval_interactive **486 passed, 3 failed** (UNCHANGED baseline);
   scoring SHA reasserted `22548e20…`; Java zero-touch (not re-run; baseline
@@ -56,9 +71,12 @@ notes: >
 - **Cherry-pick decision**: **0 cherry-pick** (empty slate; human-justified via
   AskUserQuestion 2026-05-31). `config.fitness.baseline_dir` unchanged.
 - **R-S58 disposition**: CLOSED-AS-THEORETICAL-ONLY confirmed (0 Cf observations).
-- **M-Auto-1C §12.4 deferred hard gates #2-#4 retirement**: #2 (first overnight
-  >=10 iter) ✅; #3 (first human review) ✅ (performed; empty slate); #4 (first
-  cherry-pick) ✅ (decision = 0 with justification). All three RETIRED.
+- **M-Auto-1C §12.4 deferred hard gates #2-#4**: #2 (first overnight >=10 iter)
+  ⚠️ ran mechanically (13/15 iters end-to-end) BUT on a non-functional fitness
+  eval (OQ-S65.5) — **NOT truly satisfied; needs a post-fix re-run**; #3 (first
+  human review) ✅ performed (empty slate — see §5); #4 (first cherry-pick) ✅
+  decision = 0 with justification. #3/#4 stand; #2 is reopened pending a genuine
+  post-fix overnight.
 
 ## §1 Pre-flight + pre-batch baseline drift envelope
 
@@ -254,6 +272,57 @@ exercise. No second batch run.
 
 ## §8 OQs surfaced
 
+### OQ-S65.5 — [CRITICAL, ROOT CAUSE, FIXED] candidate fitness eval never ran — doubled `eval_interactive/` path
+
+**This is the root cause of the 0-keeps / "5->0-on-every-iteration" pattern, found
+by deep-dive investigation after S-Auto-10's overnight (human-directed).**
+
+- **Bug**: `config.fitness.suites[].path` is repo-root-relative
+  (`eval_interactive/case_specs/bad_cases/`), but `eval_runner.run_suite`
+  (`eval_runner.py:119`) launches `uv run eval-interactive run --path <path>`
+  with `cwd=repo_root/eval_interactive` and passed the path **unchanged**. From
+  that cwd the path resolves to `eval_interactive/eval_interactive/case_specs/...`
+  — a **doubled segment that does not exist**.
+- **Effect**: every candidate eval crashed immediately with
+  `FileNotFoundError: Custom path not found: eval_interactive/case_specs/bad_cases`
+  (exit 1), **before any bot request**, writing **no results.json**. The loop
+  does NOT abort on a failed suite eval — it reads the missing candidate result
+  as `current_passed=0`, producing a spurious `tier1_bad_cases_regression_5->0`
+  on **every** iteration regardless of the proposal. The candidate Spring
+  received **only the health probe**, never a `/v1/chat/sessions`.
+- **Why it was invisible**: the loop reached Step 9 and produced 5-layer verdicts
+  (looked healthy), and the baseline (5/7/4) was blessed via a *correct* direct
+  invocation — so the broken candidate (0) vs real baseline (5) read as a clean
+  "regression". A failed eval is silently scored as 0 (secondary bug).
+- **Evidence (uv-shim capture of a live `autoloop run`)**: all 3 suite
+  invocations `EXIT=1`; stderr = the FileNotFoundError above; 0 candidate
+  session-creates; 0 eval-interactive result dirs written. Every Step-9 iter ever
+  recorded shows *exactly* `5->0` (never `5->4`/`5->6`) — the fingerprint of
+  "candidate eval never ran". **The fitness loop has never once evaluated a
+  candidate** (M-Auto-1A through M-Auto-2).
+- **Resolves OQ-S65.3**: the "5->0 on any prose edit" is an **eval artifact**, NOT
+  a semantic regression. Definitively answered.
+- **FIX (human-authorized fence-#13 controlled override, 2026-05-31)**:
+  `eval_runner.run_suite` now resolves `spec.path` to an absolute path
+  (`(_REPO_ROOT / spec.path).resolve()`) before passing `--path`, so it is
+  cwd-independent. `config.fitness.scoring_code_baseline_sha` rebaselined
+  `22548e20… -> 7b9954f2…`. Confirmed at run_suite level (config-style
+  repo-root-relative path now resolves + runs real cases, exit 0).
+  **Full-loop end-to-end confirmation (exp-40, post-fix, 2026-05-31)**: candidate
+  Spring received **44 session-creates + 44 message turns** (was 0); **3
+  eval-interactive results dirs written** (was 0); iter elapsed **962s (~16 min)**
+  — the eval actually ran (vs the ~14s crash before; this also explains the bogus
+  "~71s/iter" observation OQ-S64.3, which was the crash, not a real eval). The
+  verdict is now **real and non-degenerate**: discarded at **Layer 0
+  `tier0_no_pii_leakage_failed_on_cs011_uc_c_faq_miss_not_distress`** (the fitness
+  function correctly rejected a candidate `confirm.yaml $.grounding_instruction`
+  edit that introduced a real PII leak) — NOT the spurious blanket `tier1 5->0`.
+  **The fitness loop now evaluates candidates for real.**
+- **Recommended follow-up (NOT done here — loop.py is fenced)**: make the loop
+  ABORT/flag the iteration as `error` when a suite eval returns `exit_code != 0`
+  or writes no `results.json`, instead of silently scoring it as 0 passed. This
+  secondary hardening would have surfaced the bug on day one.
+
 ### OQ-S65.1 — `autoloop run` sweeps a dirty staged index into the first exp-branch commit
 
 - **Observed**: running `autoloop run` while the working tree had the
@@ -298,22 +367,14 @@ exercise. No second batch run.
   `runs/exp-N/eval/`. Matches the broader observability-debt pattern (eval/admin
   surfaces lag the architecture).
 
-### OQ-S65.3 — "Any prose edit collapses all bad_cases 5->0" — real regression vs eval artifact unverified
+### OQ-S65.3 — "Any prose edit collapses all bad_cases 5->0" — [RESOLVED by OQ-S65.5]
 
-- **Observed**: every Step-9 iter across exp-18/20..37 discarded at
-  `tier1_bad_cases_regression_5_to_0`; lessons L-002 generalizes that edits to
-  ANY prose field (4 field types, 3 skills) collapse all bad_cases to 0. The
-  candidate Spring starts and serves a clean verdict (not an error), so this is
-  NOT a Spring-startup failure.
-- **Open question**: cannot distinguish (a) genuine semantic regression (brittle,
-  marginally-passing curated hard fixtures tipping over on any wording shift —
-  plausible given baseline is only 5/12) from (b) a candidate-eval artifact
-  (e.g., edited Skill subtly mis-served per-request) — because the eval traces
-  are not persisted (OQ-S65.2). S-Auto-9 accepted the same 5->0 pattern as a
-  valid Step-9 verdict at close, so this sprint treats it consistently as a
-  legitimate (if blunt) tier1 verdict, but flags the attribution as open.
-- **Recommendation**: resolve jointly with OQ-S65.2 (persist traces), then attribute
-  one 5->0 candidate's per-turn failures (semantic miss vs malformed bot reply).
+- **RESOLVED**: this is an **eval artifact**, not a semantic regression. The
+  candidate eval never ran (doubled-path FileNotFoundError per OQ-S65.5); the
+  "5->0" is a crashed eval silently scored as 0. The candidate Spring's startup
+  was clean precisely because the eval crashed before sending any request. No
+  attribution of "semantic miss vs malformed reply" is needed — there were no
+  bot replies to attribute. See OQ-S65.5 for the root cause + fix.
 
 ### OQ-S65.4 — Meta-agent LLM propose-call APITimeoutError (~13% of overnight iters)
 
@@ -389,29 +450,31 @@ artefacts owned by deliver+human, not by this dev sub-sprint.
 
 ## §11 Stage-2 entry decision direction
 
-Evidence base: M-Auto-1B (substrate built) + M-Auto-1C (Class-C in-flight
-downgrade) + M-Auto-2 (OQ-S62.3 fix + first reliable overnight). The substrate
-is now **reliably executable** (13/15 Step-9; no killpg suicide; ~175s/iter).
-**The binding constraint is no longer execution — it is propose quality.**
+**CORRECTED after the OQ-S65.5 root-cause finding.** An earlier draft of this
+section concluded "the binding constraint is propose quality." **That was wrong.**
+The binding constraint was a bug: the candidate **fitness eval never ran** (doubled
+path, OQ-S65.5), so *every* iteration in M-Auto-1A→M-Auto-2 was scored on a
+crashed eval. 0 keeps was structurally guaranteed and tells us **nothing** about
+propose quality.
 
-- **Do NOT widen the mutable surface yet** (Stage-2 = unlocking additional Skill
-  files / fields per `config.yaml` `mutable_surface` + `program.md` §8). Across
-  37 iters the proposer has produced **0 keeps**: every prose edit to
-  intake/triage/FAQ skills collapses all bad_cases (lessons L-001/L-002).
-  Widening the surface now would only multiply 0-keep iters over more files.
-- **M-Auto-3 should target the PROPOSER, not the surface**: leverage the
-  lessons memory (already learning "additive, narrowly-scoped, verbatim-preserving
-  diffs") more directly — e.g., a minimal-diff / additive-only propose constraint,
-  or a pre-propose bad-case-clause-preservation check. Goal: produce the FIRST
-  keep candidate on the EXISTING 6-file / 4-field surface before unlocking more.
-- **Prerequisite observability (resolve before/with M-Auto-3)**: OQ-S65.2 (persist
-  per-iter eval traces) is a hard blocker for the §5.6 review the first time a
-  keep lands; OQ-S65.3 (attribute the 5->0 collapse: genuine regression vs eval
-  artifact) determines whether the tier1 gate is giving meaningful fitness signal
-  at all — both should be closed before declaring Stage-2 readiness.
-- **Substrate-hygiene fix (OQ-S65.1)**: the loop's dirty-index sweep should be
-  fixed (commit only the target Skill path; preflight hard-fail/auto-stash on
-  dirty index) so future overnights are safe to launch without a manual clean-tree
-  step.
+- **Stage-2 readiness is NOT established.** We have never observed the loop with
+  a functioning fitness eval. The "first reliable overnight" (S-Auto-10) executed
+  end-to-end but on a **non-functional fitness function**; its verdicts are
+  degenerate. The M-Auto-2 "first overnight >=10 iter" gate ran, but did not
+  exercise real fitness — a **post-fix re-run is required** for a genuine first
+  overnight.
+- **Immediate priority (M-Auto-2 fix-iteration or M-Auto-3 open)**: with the
+  OQ-S65.5 fix in place, run a real overnight and observe whether candidates now
+  produce **non-degenerate** tier1 verdicts (e.g., `5->4`, `5->5`, `5->6`) and
+  whether any **keep** is achievable on the EXISTING 6-file / 4-field surface.
+  Only THEN is there evidence about propose quality.
+- **Do NOT widen the mutable surface (Stage-2) yet** — for a different reason than
+  before: we lack any valid fitness evidence to justify it. Re-assess after a
+  post-fix overnight.
+- **Companion hardening (recommended, not done — fenced)**: (a) make the loop flag
+  a failed/empty suite eval as `error` rather than `0 passed` (OQ-S65.5 follow-up
+  — would have caught this on day one); (b) persist per-iter eval traces for the
+  §5.6 review (OQ-S65.2); (c) fix the dirty-index sweep + preflight enforcement
+  (OQ-S65.1).
 
 ## End of handoff
