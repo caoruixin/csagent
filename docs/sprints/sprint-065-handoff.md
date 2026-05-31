@@ -378,6 +378,63 @@ Layer 0 even though the eval now runs correctly (post OQ-S65.5).**
   flag a failed/empty suite eval as `error` not `0 passed` (OQ-S65.5 follow-up);
   (b) persist per-iter eval traces (OQ-S65.2).
 
+### OQ-S65.7 — [HARDENING, carry-forward] failed/empty suite eval must become iteration `error`, never `0 passed`
+
+- **Issue**: `eval_runner.run_suite` returns a `SuiteRunResult` with
+  `exit_code != 0` and a missing `results.json` when the candidate eval fails,
+  but the loop proceeds to `tier_evaluator` which reads the **missing** candidate
+  result as `current_passed = 0`. A crashed/empty eval is therefore scored as
+  "0 cases passed" (maximum regression) instead of being surfaced as an
+  iteration `error`. This is exactly what **masked OQ-S65.5** for the entire
+  history of the loop — the loop looked healthy (reached Step 9, produced
+  verdicts) while the eval never ran.
+- **Required hardening (carry-forward; NOT applied during the corrected
+  overnight per human instruction "do not change gated scoring logic unless a
+  new substrate bug is proven")**: the loop (`loop.py`) and/or `eval_runner`
+  must detect `exit_code != 0` OR absent `results.json` for any suite and set
+  `IterationResult.decision = "error"` (with the captured `error_tail`), NOT
+  pass a missing/zero candidate result into the lexicographic verdict. Fence:
+  `loop.py` (and/or `eval_runner.py`) — needs a future human-authorized override.
+- **Why it matters**: without this, any future eval-substrate breakage silently
+  degrades to "every candidate regresses" rather than a visible failure — the
+  single most important guard against another OQ-S65.5-class silent outage.
+
+### OQ-S65.8 — [substrate/env] corrected overnight polluted by LLM-deadline degradation; loop must DETECT the exception signal
+
+- **Observed (corrected overnight exp-52..58, 7 iters, 0 keeps)**: with both eval-path
+  (S65.5) and Layer-0-delta (S65.6) fixed, every candidate STILL died at Layer 0
+  `tier0_escalation_compliance` — but the reason is **infra, not the Skill edits**.
+  Across 230 overnight eval case-runs: **55 hit the LLM-timeout give-up**
+  (`LlmDeadlineExceededException` → ChatController returns "Sorry, I'm a bit slow…";
+  `USER_FACING_LLM_DEADLINE_MS = 30_000`) and **120 escalated with the coerced
+  `service_degraded` reason** (ToolDispatcher/EscalationReasonResolver fallback for
+  a non-canonical reason). `escalation_compliance` then hard-fails on the
+  cross-family mismatch (expected e.g. `faq_miss_threshold_exceeded`, actual
+  `service_degraded`). A FAQ-skill edit "breaking" UC-D/UC-K shadow cases has no
+  causal path → the failures are environmental.
+- **Diagnosis (2026-05-31, post-stop)**: LLM provider is healthy NOW — a minimal
+  deepseek completion returns in ~1.0s; api.deepseek.com / api.moonshot.ai reachable
+  in ~0.4s. The overnight timeouts were a **transient LLM-latency degradation under
+  sustained multi-hour load**: the bot's real per-turn calls are heavy (thinking-enabled
+  deepseek-v4-flash + 8592-char system prompt + tool-calling) and sit close to the 30s
+  deadline, tipping over when the provider slows under the loop's sustained concurrency
+  (candidate-Spring eval bad_cases p1 / anchor p4 / shadow p4 + meta-agent proposer).
+- **The important lesson (human, 2026-05-31)**: these are obvious infra problems
+  (backend service + LLM connectivity) that a restart + healthy LLM connection fixes.
+  The loop MUST **detect/respond to the exception signal** — an iteration whose eval
+  shows widespread `llm_deadline_exceeded` / `service_degraded` is running in a degraded
+  environment and MUST be treated as an **infra-error (invalid / retry)**, NOT scored as
+  a Tier-0 fitness regression. This is the same class as OQ-S65.7 (failed eval → error,
+  not 0): infra noise must never masquerade as a fitness verdict.
+- **FIX (carry-forward; NOT applied — fenced loop.py / eval_runner; no scoring-logic
+  change per human lock)**: (a) pre-iteration LLM-health gate (skip/pause if provider
+  latency > threshold); (b) per-iteration degradation detector — if `service_degraded`
+  / `llm_deadline_exceeded` rate across the eval exceeds a threshold, mark the iteration
+  `error` (infra) and do not emit a keep/discard fitness verdict; (c) optionally raise
+  the deadline or reduce eval concurrency for the loop. Operationally for the next
+  re-run: ensure a freshly-restarted backend + healthy LLM, and watch degradation
+  prevalence live (external monitor) to abort early rather than waste hours.
+
 ### OQ-S65.1 — `autoloop run` sweeps a dirty staged index into the first exp-branch commit
 
 - **Observed**: running `autoloop run` while the working tree had the
