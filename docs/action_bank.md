@@ -482,6 +482,24 @@ S-Auto-12 (A1 identical-retry-storm dedup; handoff `docs/sprints/sprint-067-hand
 
 - `R-runtime-identical-tool-call-retry-storm` (A1) → **addressed by S-Auto-12** (hybrid dedup: per-run `(toolName, canonicalArgumentsHash)` idempotency 回挡 serving `success==true` byte-identical repeats from cache without re-dispatch/budget + `already_called` observation→binding soft-signal upgrade; `IDENTICAL_RETRY` 0 across 3 passes; trace-annotated `deduplicated`/`original_at_step`). Successor to `R-runtime-orchestrator-tool-call-deduplication` write-side. CLOSE candidate at M-Auto-3 close.
 
+### Sprint 068 / S-Auto-13 surfaced OQs (2026-06-02)
+
+S-Auto-13 (A2 classify-first + A3 paraphrase discipline + OQ-S66.1 goldens; handoff `docs/sprints/sprint-068-handoff.md`) closed PARTIAL: A2 + OQ-S66.1 met; the A3 soft layer shipped + fires but its target was not met (the model ignores the soft signal) → the A3 deterministic backstop is deferred to the new S-Auto-13b. Four OQs surfaced.
+
+- **OQ-S68.1 — eval_interactive baseline drift from the 2026-06-01 action_bank split (`0323457`), NOT from S-Auto-13.** The true current eval_interactive baseline is **`495 passed, 8 failed`**, not the stated `499/4`. The +4 delta is `0323457` (the closed-index relocation to `docs/action_bank_archive.md`): 4 governance/lint tests assert on `action_bank.md` rows that moved to the archive. Disjoint from S-Auto-13's server-only changes (dev-verified). **Action**: a small housekeeping fix — point the 4 tests at `action_bank_archive.md` (or relax them) — OR accept `495/8` as the corrected baseline. Human owns (it is `0323457` fallout). **Status: proposed; quick-fix-or-accept decision needed before the M-Auto-3 close "Python baselines preserved" gate.**
+
+- **OQ-S68.2 — RESOLVE-phase 'none' rejections are a separate "UC not committed" symptom.** Distinct from the DISCOVER gating-race A2 closed: some `search_knowledge` rejections occur in RESOLVE because `active_use_case` is not committed at that point ("UC not committed"), a different root cause than the DISCOVER classify-first ordering. A2 dropped RESOLVE-phase 'none' rejections 5→0 incidentally, but the underlying symptom may recur. **Status: observation; revisit if it resurfaces (candidate B-family / classifier-stability).**
+
+- **OQ-S68.3 — A3 paraphrase-storm soft signal insufficient (→ S-Auto-13b backstop).** The soft `faq_miss`-keyed grounding instruction + projection echo are correct and demonstrably FIRE (15-17 `search_reuse_instruction`/run reach the LLM per-step before each re-search), but `deepseek-v4-flash` ignores the soft signal — `PARAPHRASE_STORM` stayed 16/16/7 vs the ≤3 target. Per the S-Auto-13 contract (soft-signal-first; surface before any hard cap), no hard cap was added and the A3 soft layer is kept as the correct first measure. **Routed to S-Auto-13b / Sprint 069** (faq_miss-state-aware same-turn re-search suppression backstop; per-sub-sprint Codex). **Status: open; S-Auto-13b consumes it.**
+
+- **OQ-S68.4 — a byte-identical re-search escaped S-Auto-12 A1's dedup.** A1's per-run `(toolName, canonicalArgumentsHash)` 回挡 did not catch one byte-identical `search_knowledge` re-search (A1 was fenced in S-Auto-13). Likely a scope boundary (A1's cache is per-`AgentRunLoop.run`; a re-search in a different turn/run is by-design not deduped) OR a genuine gap. The S-Auto-13b `faq_miss`-state gate (same dispatch path) may incidentally subsume it. **Status: observation; verify in S-Auto-13b or at milestone close whether it is a real A1 gap vs by-design per-turn scope.**
+
+**Addressed by S-Auto-13 (NOT flipped to closed until M-Auto-3 milestone close per §7 routing):**
+
+- `R-runtime-tool-gating-race-uc-none` (A2) → **addressed**: `discover_triage.yaml` classify-first (the `faq-uc-search-before-commit` critical step reconciled in place to `faq-uc-classify-first`; count invariant 3/18 preserved; `tool-policy.yaml` untouched); DISCOVER gating-race 0/1/0 across 3 passes (aggregate 1 ≤ target 1). CLOSE candidate at M-Auto-3 close.
+- `R-runtime-paraphrase-storm-search-knowledge` (A3) → **PARTIALLY addressed** (soft layer shipped + fires) but target not met (OQ-S68.3); the deterministic backstop is S-Auto-13b. Status remains `proposed`.
+- **OQ-S66.1 (Java golden drift) → RESOLVED**: the stale `max_tool_steps` goldens (`resolve_faq_grounded_answer` 4→6, `discover_triage` 2→3) were a stale-value sync from commit `7871c62` (NOT an intended cap); the `PhaseEvaluator` golden tests were updated to the shipped YAML values. Java `Failures 10 → 1` (only the inherited `SystemPromptUserRequestedTiebreakerTest` per OQ-S41.5 remains); +6 new A2/A3 tests → `Tests run 1192`.
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact

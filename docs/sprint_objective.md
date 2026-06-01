@@ -1,140 +1,133 @@
 ---
-title: Sprint 068 / S-Auto-13 — A2 classify-first gating-race + A3 paraphrase-storm skill-layer discipline (M-Auto-3 sub-sprint 3 of ~4)
+title: Sprint 069 / S-Auto-13b — A3 paraphrase-storm deterministic backstop (faq_miss-state-aware same-turn re-search suppression) (M-Auto-3 sub-sprint 4 of 5)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
-last_reviewed: 2026-06-01
+last_reviewed: 2026-06-02
 review_cadence: per sub-sprint
-supersedes: [docs/sprints/sprint-067-objective.md]
+supersedes: [docs/sprints/sprint-068-objective.md]
 superseded_by: null
 notes: >
-  M-Auto-3 / Sprint 068 / S-Auto-13. Third sub-sprint of M-Auto-3 (Substrate-hygiene).
-  **Layer**: `prompt_projection`/skill (A2 discover_triage procedure; A3 grounding_instruction
-  + projection echo) + config-governance (tool-policy alignment context) + `semantic_planner`
-  (A3 — LLM owns whether to re-search). **§7 stanza REQUIRED** (semantic-touching: skill soft-fields
-  + projection soft signals shape UC routing + search discipline). **Codex**: milestone-shared (default)
-  at M-Auto-3 close — A2/A3 are skill soft-fields + projection (no Tier-0, no §1.7 red line). UPGRADES
-  to per-sub-sprint ONLY if an A3 hard-cap or the OQ-S66.1 golden reconciliation raises a §1.7 concern →
-  STOP-and-surface.
+  M-Auto-3 / Sprint 069 / S-Auto-13b. Fourth sub-sprint of M-Auto-3 (Substrate-hygiene), the
+  fix-iteration follow-up to S-Auto-13's A3. **Layer**: `infra` (tool-dispatch `faq_miss`-state-aware
+  same-turn re-search suppression). **§7 stanza REQUIRED**. **Codex: PER-SUB-SPRINT REQUIRED** (§4.3
+  trigger #2 — a deterministic backstop on the LLM-owned "whether to re-search" decision; Codex must
+  verify the structural-cardinality justification, that it is keyed on the existing `faq_miss` flag and
+  NOT on query content, and that soft-signal-first was genuinely tried first).
 
-  Both fixes are delivered by MANUAL dev (NOT autoloop-generated) per milestone §4 non-goal — editing
-  `$.procedure` / `$.grounding_instruction` manually does NOT widen the autoloop mutable surface (Stage-2
-  remains a separate post-M-Auto-3 decision). After the skill edits, the autoloop baseline_dir may need
-  alignment at M-Auto-3 close (proposal §9 risk row — not this sub-sprint).
+  **Why this sub-sprint exists (OQ-S68.3)**: S-Auto-13 shipped the A3 soft layer (a `faq_miss`-keyed
+  `grounding_instruction` + a projection echo of the prior search result). It is correct and demonstrably
+  FIRES — 15-17 `search_reuse_instruction`/run reach the LLM per-step before each re-search — but
+  `deepseek-v4-flash` ignores the soft signal: `PARAPHRASE_STORM` stayed 16/16/7 vs the §11 ≤3 target.
+  Per the S-Auto-13 contract's soft-signal-first discipline (Constitution §1.5), the dev did NOT add a
+  hard backstop and surfaced OQ-S68.3 for this decision. S-Auto-13b adds the deterministic backstop the
+  proposal anticipated (Module A3-cap), but as a **`faq_miss`-state-aware gate** (more targeted than a raw
+  count cap): once a turn already has a viable hit, further same-turn re-search is genuinely redundant.
 
-  **A2 (gating-race, proposal §3 A2-A1)**: the root cause is two configs contradicting each other, NOT the
-  dispatcher. `discover_triage.yaml` instructs/rewards search-before-classify in the weak-candidate FAQ
-  path (Sprint-7 §I0 procedure cue + the `faq-uc-search-before-commit` behavior whose trace_check rewards
-  `tool_event_seq(search_knowledge) < tool_event_seq(classify_use_case)`), but `tool-policy.yaml` gates
-  `search_knowledge` to `[UC-A..UC-FP]` (NO `none`/DISCOVER) while `classify_use_case` is `[ALL]` — so a
-  search in DISCOVER (activeUseCase=none) is rejected "Tool 'search_knowledge' is not allowed for use case
-  'none'" (`ToolDispatcher.java:97-101` → `ToolPolicyEnforcer.isToolAllowed:65`), wasting a step. A2 makes
-  the skill tell the truth (classify FIRST, then search in RESOLVE), aligning the skill with the existing
-  tool-policy. Zero runtime code.
+  **This is the SAME justification pattern as A1 (S-Auto-12)**: soft-signal-first was tried and empirically
+  falsified, so a deterministic backstop that is the Runtime's existing idempotency/cardinality
+  responsibility (Constitution §1.4) is warranted — NOT a §1.5 keyword/regex/enum hardcode. The A3 soft
+  layer SHIPPED in S-Auto-13 STAYS (it is the correct first measure); S-Auto-13b adds the backstop beneath it.
 
-  **A3 (paraphrase-storm, proposal §3 A3)**: distinct from S-Auto-12 A1 — A1 deduped BYTE-IDENTICAL repeats;
-  A3 targets NON-identical paraphrase repeats (different `canonicalArgumentsHash`, same intent) that A1's
-  hash cannot catch. Fix: a soft grounding instruction (keyed on the EXISTING `faq_miss` flag) + a projection
-  echo of the prior search result so the LLM need not re-search to confirm. Soft-signal-first (§1.5); a hard
-  cap is a last-resort backstop only (STOP-and-surface before adding).
+  **Distinct from A1**: A1 dedups BYTE-IDENTICAL repeats (same `canonicalArgumentsHash`). A3's storm is
+  NON-identical paraphrase re-searches (different hash, same intent) that A1 cannot catch. S-Auto-13b's
+  gate keys on the `faq_miss` RESULT state, not on argument identity — so it catches paraphrases. It is
+  ADDED ALONGSIDE A1's `successfulDispatchCache` in `AgentRunLoopImpl`; it does NOT modify A1 (A1 is FINALIZED).
 
-  **OQ-S66.1 reconciliation (in-scope consequence)**: S-Auto-13 edits BOTH `discover_triage.yaml` (A2) and
-  `resolve_faq_grounded_answer.yaml` (A3) — exactly the two skills whose `max_tool_steps` goldens drifted
-  (the 9 pre-existing `PhaseEvaluator` failures in the Java `1186/10/0/2` baseline). Reconcile the goldens
-  here (pick the shipped YAML value as source of truth; update the `PhaseEvaluator` golden tests to match),
-  aiming to take the Java baseline from 10 failures toward 1 (the inherited tiebreaker). STOP-and-surface if
-  the entanglement is larger than a golden-value sync.
+  **Inherited substrate at HEAD (do NOT re-fix / revert)**: S-Auto-11 (`loop.py`) + S-Auto-12 (A1 hybrid
+  dedup) + S-Auto-13 (A2 `discover_triage` classify-first; A3 soft layer in `resolve_faq_grounded_answer`
+  + `ContextProjectionBuilder` echo; OQ-S66.1 goldens reconciled) are FINALIZED. `b351648` determinism
+  config in place. fence-#13 scoring SHA `35305bd8…`.
 
-  **Inherited substrate at HEAD (do NOT re-fix / do NOT revert)**: S-Auto-11 (`loop.py` trace persistence +
-  infra-error detection) + S-Auto-12 (A1 hybrid dedup in `AgentRunLoopImpl`/`ToolEvent`/`ControlKernel`/
-  `system_prompt.txt`) are FINALIZED. `b351648` determinism config in place. fence-#13 scoring SHA `35305bd8…`.
+  **CORRECTED baselines (post-S-Auto-13)**: Java **`1192 / 1 / 0 / 2`** (OQ-S66.1 resolved; only the
+  inherited tiebreaker remains); eval_interactive **`495 / 8`** (OQ-S68.1 — +4 from the `0323457`
+  action_bank split, NOT the agent; a quick test-fix or baseline-accept decision is pending — do NOT treat
+  the 4 split-failures as yours); autoloop `276`; 17-fixture `31`; scoring SHA `35305bd8…`.
 
-  **CORRECTED baselines (post-S-Auto-12)**: Java `1186/10/0/2` (S-Auto-12 +3 A1 tests; the 10 are the
-  OQ-S66.1 golden drift (9) + tiebreaker (1) — S-Auto-13 aims to clear the 9); eval_interactive `499/4`;
-  autoloop `276`; 17-fixture `31`; scoring SHA `35305bd8…`.
-
-  Dev session source-of-truth: `compact/sprint-068-dev-prompt.md` (self-contained per §9). Dev reads ONLY
+  Dev session source-of-truth: `compact/sprint-069-dev-prompt.md` (self-contained per §9). Dev reads ONLY
   `AGENTS.md` (auto-loaded) + that prompt; code anchors on demand.
 ---
 
-# Sprint 068 / S-Auto-13 — A2 classify-first gating-race + A3 paraphrase-storm skill-layer discipline
+# Sprint 069 / S-Auto-13b — A3 paraphrase-storm deterministic backstop
 
 ## Class
 
-- **Layer (primary)**: `prompt_projection`/skill (A2 `discover_triage.yaml` procedure; A3 `resolve_faq_grounded_answer.yaml` `grounding_instruction` + a `ContextProjectionBuilder` projection echo) + config-governance (tool-policy *alignment context* — the fix matches the skill to the existing policy, ideally without editing the policy) + `semantic_planner` (A3 — the LLM owns whether to re-search). No new runtime decision logic.
-- **§7 stanza**: **REQUIRED** (semantic-touching). Self-walked below.
-- **Codex review plan (§4.3)**: milestone-shared (default) at M-Auto-3 close. A2/A3 are skill soft-fields + a projection echo — no Tier-0, no §1.7 keyword/regex/enum hardcode. UPGRADES to per-sub-sprint ONLY IF an A3 hard-cap backstop or the OQ-S66.1 golden reconciliation crosses a §1.7 line → STOP-and-surface.
-- **Position in milestone**: 3rd of ~4 (S-Auto-11 ✅ → S-Auto-12 ✅ → **S-Auto-13 A2+A3** → S-Auto-14 B1 → optional S-Auto-15 buffer).
+- **Layer (primary)**: `infra` — a `faq_miss`-state-aware same-turn `search_knowledge` re-search suppression gate in the tool-dispatch path (`AgentRunLoopImpl`), added ALONGSIDE the S-Auto-12 A1 `successfulDispatchCache` (NOT modifying A1) + trace annotation. No UC-routing / drift / escalation-posture decision changes; the LLM still owns whether to search the FIRST time, which tool, and what content.
+- **§7 stanza**: **REQUIRED**. Self-walked below.
+- **Codex review plan (§4.3)**: **PER-SUB-SPRINT REQUIRED** (trigger #2 — a deterministic backstop on the LLM-owned "whether to re-search" decision is §1.7-adjacent; Codex verifies the structural-cardinality justification + keyed-on-`faq_miss`-not-content + soft-signal-first-was-tried). The deliver-agent authors the Codex prompt at S-Auto-13b close; the verdict lands in `docs/codex-findings.md`.
+- **Position in milestone**: 4th of 5 (S-Auto-11 ✅ → S-Auto-12 ✅ → S-Auto-13 ✅-partial → **S-Auto-13b A3 backstop** → S-Auto-14 B1 → M-Auto-3 close). The optional fix-iteration buffer is consumed by this sub-sprint; M-Auto-3 is at the §8.1 5-sub-sprint ceiling.
 
 ## Goal
 
-Close the two remaining upstream step-wasters in the proposal's fan-in model so the autoloop fitness signal stops measuring substrate noise: the DISCOVER **gating-race** (A2, `GATING_RACE` 4→≤1) and the RESOLVE **paraphrase-storm** (A3, `PARAPHRASE_STORM` 11/24→≤3). Both are skill-layer / projection soft-signal fixes (no runtime semantic decision changes), delivered by manual dev. As an in-scope consequence of editing both drift-affected skills, reconcile the OQ-S66.1 `max_tool_steps` goldens (take the Java baseline from 10 failures toward 1).
+Close the A3 paraphrase-storm to the §11 bar deterministically, since the soft signal (correct, and firing) is ignored by the model. After S-Auto-13b, once a `search_knowledge` in the current turn returns a viable hit (`faq_miss=false`), subsequent same-turn `search_knowledge` re-searches are served from the prior viable hit + trace-annotated instead of re-executing — so the loop stops burning steps re-confirming an answer it already has.
 
-**Acceptance**: on a 3-pass `bad_cases` rerun (sim_temp=0 + bot_temp=0 + 60s deadline + parallel=1, freshly-restarted backend, measured via the S-Auto-11 per-iter trace persistence): `GATING_RACE` 4→≤1 (DISCOVER `search_knowledge` "not allowed for use case 'none'" rejections drop); `PARAPHRASE_STORM` 11/24→≤3 (non-identical re-searches after a `faq_miss=false` hit drop); negative controls intact (legitimate distinct RESOLVE searches not suppressed; legitimate re-search after `faq_miss=true` still allowed; classify-first does not break a legitimate DISCOVER clarify-then-classify flow). Java baseline ideally `1186→ (failures 10→1)` via the OQ-S66.1 golden reconciliation (at minimum no NEW failures); eval `499/4`, autoloop `276`, 17-fixture `31`, scoring SHA `35305bd8…` preserved.
+**Acceptance**: on a 3-pass `bad_cases` rerun (sim_temp=0 + bot_temp=0 + 60s deadline + parallel=1, freshly-restarted backend, measured via the S-Auto-11 per-iter trace persistence) `PARAPHRASE_STORM` drops **16/16/7 → ≤3** with negative controls intact (the FIRST search of a turn is never suppressed; a re-search after `faq_miss=true` IS allowed; a search in a different turn/run is not suppressed; a legitimately-distinct needed second search is not wrongly suppressed — STOP-and-surface if it is). Baselines preserved: Java `1192/1/0/2` + new gate tests; eval_interactive `495/8` (the 8 unchanged — the 4 split-failures are OQ-S68.1, not yours); autoloop `276`; 17-fixture `31`; scoring SHA `35305bd8…`.
 
 ## Scope (4 steps)
 
-1. **A2 — `discover_triage.yaml` classify-first** (`server/src/main/resources/skills/discover_triage.yaml`). Edit `$.procedure` so DISCOVER classifies FIRST (do not instruct `search_knowledge` before `classify_use_case` while activeUseCase=none) — the weak-candidate FAQ path should gather enough to classify toward the right FAQ-path UC, then let RESOLVE run the grounded search. Reconcile the `faq-uc-search-before-commit` behavior (currently rewards `tool_event_seq(search_knowledge) < tool_event_seq(classify_use_case)`, which is exactly what drives the LLM into the `search`-in-`none` gating-race). Align the skill with the existing `tool-policy.yaml` (`classify_use_case:[ALL]`, `search_knowledge` requires a UC). PREFER NOT to edit `tool-policy.yaml` (A2-A1 is skill-only); if you believe the policy must change instead, STOP-and-surface (that is A2-A2, a different trade-off). Manual dev — NOT autoloop-generated.
+1. **`faq_miss`-state-aware re-search suppression gate** in `server/src/main/java/.../service/runtime/AgentRunLoopImpl.java`, in the dispatch path ALONGSIDE the S-Auto-12 A1 `successfulDispatchCache` (~:171 decl / ~:466-501 回挡 / ~:534-535 cache-put — confirm on read; do NOT modify A1's byte-identical logic). Track, per run (`AgentRunLoop.run` = one turn), the **most-recent `search_knowledge` result's `faq_miss` state** (read it from the dispatched `search_knowledge` `ToolResult` / the value that lands in `ToolEvent.resultData` — the same `faq_miss` flag B1 will read; source `server/src/main/java/.../model/KnowledgeSearchResult.java` + `service/tools/SearchKnowledgeTool.java`). When a NEW `search_knowledge` dispatch occurs and the most-recent prior `search_knowledge` in this run was `faq_miss=false` (viable hit): suppress it — serve the prior viable-hit result (so the LLM still sees the hit), do NOT re-execute the search, do NOT charge a step/budget (mirror A1). **Exception**: if the most-recent `search_knowledge` was `faq_miss=true` (no viable hit), DO allow the re-search (the LLM legitimately needs to try again).
 
-2. **A3 — `resolve_faq_grounded_answer.yaml` paraphrase discipline** (`server/src/main/resources/skills/resolve_faq_grounded_answer.yaml` `$.grounding_instruction` ~:31) + projection echo (`server/src/main/java/.../service/runtime/ContextProjectionBuilder.java`, coordinate with the existing search-echo at ~:738 "Do NOT call search_knowledge again" + `accumulated_tool_results` echo ~:847). Add: "after a `search_knowledge` returns a viable hit (`faq_miss=false`), do NOT re-search this turn — draft from the existing hits via `resolve_article`, or escalate; a fresh search is only warranted if the prior result was `faq_miss=true` or the query is materially different." Ensure the projection echoes the prior search result so the LLM need not re-search to confirm. **Soft-signal-first (§1.5)**: do NOT add a hard search-count cap as the primary fix; if soft-signal + echo prove insufficient, STOP-and-surface before adding an A3-cap backstop. Distinct from S-Auto-12 A1 (which only dedups byte-identical repeats; A3 covers paraphrase repeats A1's hash misses).
+2. **Trace annotation**: annotate each suppressed re-search distinctly from A1 — e.g. `paraphrase_suppressed:true` + `faq_hit_at_step:<n>` on the `ToolEvent` (reuse the S-Auto-12 `ToolEvent` annotation pattern; a distinct reason from `deduplicated`), and flatten onto the persisted `tool_calls` trace via `ControlKernel` (mirror the S-Auto-12 `deduplicated`/`original_at_step` flatten). Load-bearing for downstream report.html/admin trace (`project_observability_debt_pattern`).
 
-3. **OQ-S66.1 `max_tool_steps` golden reconciliation (in-scope consequence)**. Since this sub-sprint edits both `discover_triage.yaml` and `resolve_faq_grounded_answer.yaml`, reconcile their `max_tool_steps` goldens — the 9 pre-existing `PhaseEvaluator` failures (`PhaseEvaluatorPlanTest` ×2 + `PhaseEvaluatorResolveSkillIntegrationTest` ×7; golden asserts 4/2, shipped is 6/3). Pick the **shipped YAML value as source of truth** (post-A2/A3, re-derive if A2/A3 changed the needed step count) and update the `PhaseEvaluator` golden tests in `server/src/test/**` to match. Target: Java failures `10 → 1` (the inherited `SystemPromptUserRequestedTiebreakerTest` remains, OQ-S41.5 STATUS QUO). STOP-and-surface if the golden encodes an intended cap the team wants enforced (i.e. it is more than a stale-value sync).
+3. **Negative controls + tests** (`server/src/test/**`): (a) the FIRST `search_knowledge` of a turn is never suppressed; (b) a re-search after a `faq_miss=true` result IS dispatched (not suppressed); (c) a `search_knowledge` in a NEW run/turn is not suppressed (per-run scope); (d) a suppressed re-search returns the prior viable hit + writes the `paraphrase_suppressed`/`faq_hit_at_step` annotation + charges no step; (e) coexistence with A1 (a byte-identical re-search still hits A1's path; a paraphrase re-search hits the new gate). Validate against the bad_cases that no LEGITIMATELY-DISTINCT needed second search (a genuinely different sub-question after a viable hit) is wrongly suppressed — if one is, STOP-and-surface (the gate may need to allow N>1 distinct searches, i.e. fall back to a count-style cap).
 
-4. **3-pass `bad_cases` measurement + handoff + OQ ledger** (`docs/sprints/sprint-068-handoff.md`), including `GATING_RACE` + `PARAPHRASE_STORM` before/after.
+4. **3-pass `bad_cases` measurement + handoff + OQ ledger** (`docs/sprints/sprint-069-handoff.md`), including `PARAPHRASE_STORM` before/after + whether OQ-S68.4 (the byte-identical re-search that escaped A1) is incidentally subsumed.
 
 ## Hard fences / STOP conditions
 
-**In scope to edit**: `server/src/main/resources/skills/discover_triage.yaml` (A2) + `server/src/main/resources/skills/resolve_faq_grounded_answer.yaml` (A3) + `server/src/main/java/.../service/runtime/ContextProjectionBuilder.java` (A3 projection echo, only if the existing echo is insufficient) + `server/src/test/**` (OQ-S66.1 golden reconciliation + any new A2/A3 tests). `server/src/main/resources/config/tool-policy.yaml` only if A2 genuinely requires it (PREFER not — STOP-and-surface first). Read-only: the bad_cases suite (measurement).
+**In scope to edit**: `server/src/main/java/.../service/runtime/AgentRunLoopImpl.java` (the new `faq_miss`-state gate, alongside A1) + `server/src/main/java/.../model/ToolEvent.java` (annotation fields, if the existing `deduplicated`/`originalAtStep` pattern needs a distinct `paraphrase_suppressed` reason) + `server/src/main/java/.../service/runtime/ControlKernel.java` (trace flatten) + `server/src/test/**` (new tests). Read-only: `KnowledgeSearchResult.java` / `SearchKnowledgeTool.java` (faq_miss source); the bad_cases suite (measurement).
 
-**Hard-fenced (do NOT edit)**: `PhaseEvaluator.resolveMaxStepsReason` *logic* (B1 = S-Auto-14; you may update its golden TEST expectations for OQ-S66.1, NOT the resolver code); `AgentRunLoopImpl` / `ToolEvent` / `ControlKernel` / `system_prompt.txt` (S-Auto-12 A1 FINALIZED); `eval_interactive/case_specs/**` (B1 sync = S-Auto-14); `eval_interactive/.../user_simulator.py` (D1 FINALIZED); the 4 SHA-locked scoring files; `autoloop/autoloop/loop.py` (S-Auto-11 FINALIZED) + `sandbox/applier.py` + `sandbox/{anti_hardcode_check,content_validator}.py` + `meta_agent`/`memory`/`preflight.py`/`cli.py`; `docs/foundational/**`, `docs/current/**`, `docs/runtime_freeze_and_risk_policy.md`, `docs/teams/**`; prior sprint/milestone archives.
+**Hard-fenced (do NOT edit)**: the S-Auto-12 A1 byte-identical `successfulDispatchCache` LOGIC (extend the dispatch site with the new gate, do NOT alter A1's behavior); `PhaseEvaluator.resolveMaxStepsReason` (B1 = S-Auto-14); `server/src/main/resources/skills/**` (A2/A3 soft layer FINALIZED in S-Auto-13 — the soft layer STAYS, do NOT remove it); `tool-policy.yaml`; `eval_interactive/case_specs/**` (B1 = S-Auto-14); `eval_interactive/.../user_simulator.py`; the 4 SHA-locked scoring files; `autoloop/autoloop/loop.py` + `sandbox/applier.py` + sandbox + meta_agent + cli.py + preflight.py; `docs/foundational/**`, `docs/current/**`, `docs/runtime_freeze_and_risk_policy.md`, `docs/teams/**`; prior sprint/milestone archives. Do NOT "fix" the 4 OQ-S68.1 eval_interactive split-failures here (separate housekeeping; not server-side).
 
 **STOP-and-surface conditions**:
-- A2/A3 risk altering UC-routing / escalation / drift semantics beyond the storm fix (these are the LLM's by §1.3 — your edits must only re-order/soft-guide, not hardcode a UC decision).
-- The OQ-S66.1 golden reconciliation is more than a stale-value sync (the golden encodes an intended cap).
-- Soft-signal + projection echo prove insufficient for A3 and you are tempted to add a hard search-count cap (surface first — it is a backstop, not the first choice).
-- A2 seems to require editing `tool-policy.yaml` (that is A2-A2, a different trade-off).
-- Any hard-fenced surface needs editing. Do NOT revert S-Auto-11/12 or the `b351648` determinism config.
-- **No `git add -A`** — stage scope explicitly. Any `autoloop run` only on a clean committed tree. **Local-Mac only.** Restart the backend after skill/server changes (`mvn spring-boot:run` has no hot-reload) before the bad_cases measurement.
+- The gate wrongly suppresses a legitimately-distinct needed second search after a viable hit (a genuinely different sub-question) → halt; the gate may need to allow a small N of distinct searches (count-style cap) rather than hard-suppress after the first viable hit. Surface the trade-off.
+- Landing the gate appears to require MODIFYING A1's logic (vs adding alongside) → STOP-and-surface.
+- The design seems to need a new Tier-0 invariant → `human_review_required` (do NOT self-invent).
+- Any hard-fenced surface needs editing. Do NOT remove the S-Auto-13 A3 soft layer (it stays beneath the backstop). Do NOT revert S-Auto-11/12/13 or `b351648`.
+- **No `git add -A`** — stage explicitly. Any `autoloop run` only on a clean committed tree. **Local-Mac only.** Restart the backend after server changes (`mvn spring-boot:run` has no hot-reload) before the bad_cases measurement.
 
 ## Test / eval requirements
 
-- **Java**: from the S-Auto-12 baseline `1186/10/0/2`, S-Auto-13 should REDUCE failures via the OQ-S66.1 golden reconciliation — target `Failures: 1` (the tiebreaker) + any new A2/A3 tests (`Tests run` rises). At minimum: no NEW non-reconciled failures. If A2/A3 change a skill's `max_tool_steps`, the golden MUST be updated to the shipped value in the same sub-sprint (no red tests left).
-- **eval_interactive pytest**: `499 passed, 4 failed` preserved (A2/A3 are server/skill-side).
+- **Java**: no NEW failures beyond `1192 / 1 / 0 / 2` (the lone failure is the inherited tiebreaker); `Tests run` rises by the new gate + negative-control tests; `Failures` stays `1`.
+- **eval_interactive pytest**: `495 / 8` preserved (the 8 unchanged — the 4 OQ-S68.1 split-failures are not yours; A3 backstop is server-side). If you can cheaply confirm the 8 are the same 8, note it.
 - **autoloop pytest**: `276 passed`.
 - **17-fixture detector sweep**: `31 passed`.
 - **scoring SHA**: held at `35305bd8…`.
-- **A2/A3 measurement (deliverable)**: restart `:8080` backend, 3-pass `bad_cases` (`cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1`, ×3 at sim/bot temp=0/60s). Read the persisted per-iter traces; report `GATING_RACE` 4→≤1 (DISCOVER search "not allowed for use case 'none'" rejections) + `PARAPHRASE_STORM` 11/24→≤3 (non-identical re-searches after a `faq_miss=false` hit), negative controls intact.
+- **A3 backstop measurement (deliverable)**: restart `:8080` backend, 3-pass `bad_cases` (`cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1`, ×3 at sim/bot temp=0/60s). Read the persisted per-iter traces; report `PARAPHRASE_STORM` 16/16/7 → ≤3, the `paraphrase_suppressed` annotations visible in-trace, negative controls intact.
 
 ## §7 stanza (REQUIRED)
 
-**Target failure layer:** `prompt_projection`/skill (A2 `discover_triage` procedure; A3 `grounding_instruction` + projection echo) + `semantic_planner` (A3 — LLM owns whether to re-search) + config-governance (tool-policy alignment context). No runtime semantic-decision logic is added.
+**Target failure layer:** `infra` (a `faq_miss`-state-aware same-turn `search_knowledge` re-search suppression gate in the dispatch path). No agent semantic decision (UC hypothesis, drift, escalation posture, response strategy) is changed; the LLM still owns whether to search first, which tool, and what content.
 
-**Tier-0 invariant:** This sprint adds NO Tier-0 invariant. A2 aligns a skill with the existing tool-policy; A3 is a soft grounding signal + projection echo. Neither touches `docs/runtime_freeze_and_risk_policy.md` §1/§2.
+**Tier-0 invariant:** This sprint adds NO Tier-0 invariant. The gate extends the Runtime's existing idempotency / cardinality / budget responsibility (Constitution §1.4); it is NOT added to `docs/runtime_freeze_and_risk_policy.md` §1/§2. If review argues for elevating "per-turn search cardinality after a viable hit" to Tier-0 → `human_review_required` (do NOT self-invent).
 
-**Semantic hardcode:** None introduced. A2 RE-ORDERS the `discover_triage` procedure to match the EXISTING `tool-policy.yaml` (removing a self-contradiction) — no keyword/regex/enum/per-UC matrix added; the LLM still owns the UC choice (§1.3). A3 adds a soft `grounding_instruction` keyed on the EXISTING `faq_miss` flag + a projection echo of prior search results — the LLM still owns whether to re-search; soft-signal-first per §1.5. Any A3 hard-cap is a structural cardinality limit (not a semantic rule) and a last-resort backstop only (STOP-and-surface before adding). The OQ-S66.1 golden reconciliation aligns a stale TEST expectation to shipped behavior (not a runtime rule). Net effect: removes wasted DISCOVER/RESOLVE steps + a self-contradicting skill cue — net-lowers, not raises, the hardcode surface.
+**Semantic hardcode:** None introduced. The gate is a STRUCTURAL state/cardinality backstop keyed on the EXISTING `faq_miss` result flag — NOT on query content, keyword, regex, enum, or per-UC matrix; it makes no semantic judgment about what the LLM searched for. **Justification for the deterministic backstop (anti-hardcode):** soft-signal-first was satisfied — S-Auto-13 shipped the `faq_miss`-keyed soft `grounding_instruction` + projection echo, they demonstrably FIRE (15-17/run), and the model empirically ignored them (`PARAPHRASE_STORM` 16/16/7). This is the SAME falsification → deterministic-backstop pattern as A1 (Sprint 19/20 soft-signal-alone → S-Auto-12 hybrid 回挡). The soft layer STAYS beneath the backstop. Net effect: REMOVES wasted re-searches, adds no semantic rule.
 
-**Generalization coverage:** target = bad_cases `GATING_RACE` (4) + `PARAPHRASE_STORM` (11/24) subsets; neighbor = `anchor_outcome` / shadow same-storm shape; negative = (a) legitimate distinct RESOLVE searches (different queries) NOT suppressed, (b) legitimate re-search after `faq_miss=true` still allowed, (c) classify-first does NOT break a legitimate DISCOVER clarify-then-classify flow; shadow = held-out (not read by dev). Counts confirmed at handoff via the 3-pass bad_cases rerun.
+**Generalization coverage:** target = the bad_cases `PARAPHRASE_STORM` subset (16/16/7); neighbor = `anchor_outcome` / shadow same-storm shape; negative = (a) first search of a turn not suppressed, (b) re-search after `faq_miss=true` allowed, (c) cross-turn/new-run search not suppressed, (d) a legitimately-distinct needed second search not wrongly suppressed (STOP-and-surface if so); shadow = held-out (not read by dev). Counts confirmed at handoff via the 3-pass bad_cases rerun (`PARAPHRASE_STORM` 16→≤3).
 
 ## Codex review plan (per §4.3)
 
-Milestone-shared at M-Auto-3 close (default; cumulative S-Auto-11..14 + bundled M-Auto-2 residual). UPGRADES to per-sub-sprint ONLY IF an A3 hard-cap backstop is added or the OQ-S66.1 golden reconciliation raises a §1.7 / §5.4 concern (a test-expectation change that could look like masking) — then STOP-and-surface; the deliver-agent authors the per-sub-sprint Codex prompt.
+**PER-SUB-SPRINT REQUIRED** (trigger #2). At S-Auto-13b close the deliver-agent authors `compact/sprint-069-S-Auto-13b-codex-prompt.md` (or the per-sub-sprint equivalent) embedding the §4.1 nine-question kernel; Codex verifies: the gate is keyed on `faq_miss` state not query content (no semantic hardcode); soft-signal-first was genuinely tried in S-Auto-13 (the falsification evidence); the gate does not suppress legitimate distinct searches; A1 was not modified. Verdict → `docs/codex-findings.md`. (This sub-sprint's Codex is SEPARATE from the milestone-shared close Codex; the milestone close still bundles the cumulative range.)
 
 ## Handoff requirements
 
-`docs/sprints/sprint-068-handoff.md` at close. Mandatory: §0 summary (scope, commits, final counts incl. the post-reconciliation Java baseline); §1 A2 classify-first (before/after procedure + the `faq-uc-search-before-commit` behavior disposition + GATING_RACE evidence); §2 A3 paraphrase discipline (grounding_instruction + projection echo before/after + PARAPHRASE_STORM evidence + confirmation no hard-cap was added, or STOP-and-surface record if it was); §3 negative controls (distinct RESOLVE searches + faq_miss=true re-search + DISCOVER clarify-then-classify); §4 OQ-S66.1 golden reconciliation (which goldens, shipped values chosen, Java before/after); §5 baselines + §7-stanza self-walk + fence disposition; §6 OQs surfaced; §7 self-check tick-off.
+`docs/sprints/sprint-069-handoff.md` at close. Mandatory: §0 summary (scope, commits, final counts incl. Java `1192/1`+new tests); §1 the `faq_miss`-state gate mechanism (where it sits relative to A1; the most-recent-faq_miss tracking; suppression + step/budget non-charge); §2 trace annotation (`paraphrase_suppressed`/`faq_hit_at_step` before/after); §3 negative controls (first search / faq_miss=true re-search / cross-turn / distinct-need / A1 coexistence); §4 `PARAPHRASE_STORM` 3-pass bad_cases before/after + OQ-S68.4 subsumption note; §5 baselines + §7-stanza self-walk + fence disposition; §6 OQs surfaced; §7 self-check tick-off. (Codex is per-sub-sprint — note its dispatch status.)
 
 ## Commit discipline
 
-Multi-commit acceptable (A2 / A3 / golden reconciliation / handoff). Commit message: `Sprint 068 / S-Auto-13 / M-Auto-3 — <description>` + standard footer `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. No `git add -A` — stage explicitly. Do not push.
+Multi-commit acceptable (gate / trace / tests / handoff). Commit message: `Sprint 069 / S-Auto-13b / M-Auto-3 — <description>` + standard footer `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. No `git add -A` — stage explicitly. Do not push.
 
 ## Self-check (dev MUST verify before claiming done)
 
-- [ ] A2: `discover_triage.yaml` procedure classifies-first; the `faq-uc-search-before-commit` search-before-classify reward reconciled; aligned with existing tool-policy (tool-policy NOT edited, or STOP-and-surfaced); `GATING_RACE` 4→≤1 on a 3-pass rerun.
-- [ ] A3: `resolve_faq_grounded_answer.yaml` grounding_instruction + projection echo discourage re-search after a `faq_miss=false` hit; soft-signal-first (NO hard cap, or STOP-and-surfaced); `PARAPHRASE_STORM` 11/24→≤3.
-- [ ] Negative controls: distinct RESOLVE searches not suppressed; `faq_miss=true` re-search allowed; DISCOVER clarify-then-classify not broken.
-- [ ] OQ-S66.1: discover_triage + resolve_faq `max_tool_steps` goldens reconciled to shipped values; Java failures `10 → 1` (tiebreaker only) + any new tests; no red tests left.
-- [ ] eval_interactive `499/4` + autoloop `276` + 17-fixture `31` + scoring SHA `35305bd8…` preserved.
-- [ ] No edits to PhaseEvaluator resolver logic / AgentRunLoopImpl / ToolEvent / system_prompt / case_specs / user_simulator / loop.py / scoring / applier.py / sandbox / meta_agent; A2/A3 manual (not autoloop-generated); no Tier-0; no semantic hardcode (no A3 hard-cap without surfacing).
+- [ ] `faq_miss`-state gate added in `AgentRunLoopImpl` ALONGSIDE A1 (A1 byte-identical logic UNCHANGED); tracks most-recent `search_knowledge` `faq_miss` per run; suppresses same-turn re-search after `faq_miss=false`; serves prior hit; no step/budget charged.
+- [ ] Exception correct: re-search after `faq_miss=true` is ALLOWED (not suppressed).
+- [ ] Trace annotation `paraphrase_suppressed:true` + `faq_hit_at_step` on every suppression (distinct from A1's `deduplicated`); flattened onto `tool_calls` trace.
+- [ ] Negative controls pass: first search not suppressed; `faq_miss=true` re-search dispatched; cross-turn search not suppressed; distinct-need second search validated (STOP-and-surfaced if wrongly suppressed); A1 coexistence holds.
+- [ ] `PARAPHRASE_STORM` 16/16/7 → ≤3 on a 3-pass bad_cases rerun (backend restarted; via S-Auto-11 persisted traces); OQ-S68.4 subsumption checked.
+- [ ] The S-Auto-13 A3 soft layer (grounding_instruction + projection echo) was NOT removed (stays beneath the backstop).
+- [ ] Java no NEW failures beyond `1192/1/0/2` (+ new gate tests); did NOT touch the OQ-S68.1 eval split-failures.
+- [ ] eval_interactive `495/8` + autoloop `276` + 17-fixture `31` + scoring SHA `35305bd8…` preserved.
+- [ ] No edits to A1 logic / PhaseEvaluator resolver / skills / case_specs / user_simulator / loop.py / scoring / applier.py / sandbox / meta_agent; no Tier-0 self-invented; no semantic-content keying.
 - [ ] No `git add -A`; any autoloop run on a clean committed tree; backend restarted for measurement; local-Mac only.
-- [ ] Handoff §0-§7 filled.
+- [ ] Handoff §0-§7 filled; per-sub-sprint Codex dispatch status noted.
