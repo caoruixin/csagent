@@ -49,9 +49,30 @@ Respond with JSON: {"message": "your response", "goal_status": "in_progress|achi
 """)
 
 
-def _parse_simulator_response(raw_text: str) -> dict:
-    """Extract JSON from LLM response, handling markdown fences and fallbacks."""
-    # Strip markdown code fences if present
+# Maximum simulator LLM attempts per turn. A parse failure (the model
+# emitted prose or a wrong-shaped object) gets a corrective retry rather
+# than a single shot, since the original single retry could repeat the
+# same malformed reply.
+_MAX_SIMULATOR_ATTEMPTS = 3
+
+# Appended after a parse failure so the next attempt restates the exact
+# contract instead of re-emitting the same malformed shape.
+_PARSE_RETRY_INSTRUCTION = (
+    "Your previous response was malformed and could not be parsed. "
+    "Respond with EXACTLY this JSON object and nothing else (no prose, "
+    "no markdown fence): "
+    '{"message": "<your reply as the customer>", '
+    '"goal_status": "in_progress" | "achieved" | "impossible"}'
+)
+
+
+def _try_parse_simulator_response(raw_text: str) -> dict | None:
+    """Strict parse: return the dict on success, ``None`` on parse failure.
+
+    Lets the caller distinguish a genuinely malformed response (retry with
+    a schema reminder) from a valid one, instead of silently coercing every
+    failure into a raw-text message.
+    """
     cleaned = raw_text.strip()
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
     cleaned = re.sub(r"\s*```$", "", cleaned)
@@ -59,15 +80,28 @@ def _parse_simulator_response(raw_text: str) -> dict:
 
     try:
         parsed = json.loads(cleaned)
-        message = parsed.get("message", "")
-        goal_status = parsed.get("goal_status", "in_progress")
-        if goal_status not in ("in_progress", "achieved", "impossible"):
-            goal_status = "in_progress"
-        return {"message": message, "goal_status": goal_status}
-    except (json.JSONDecodeError, AttributeError):
-        logger.warning("Failed to parse simulator JSON, using raw text as message")
-        # Fall back: use the entire text as the message
-        return {"message": raw_text.strip(), "goal_status": "in_progress"}
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    message = parsed.get("message", "")
+    goal_status = parsed.get("goal_status", "in_progress")
+    if goal_status not in ("in_progress", "achieved", "impossible"):
+        goal_status = "in_progress"
+    return {"message": message, "goal_status": goal_status}
+
+
+def _parse_simulator_response(raw_text: str) -> dict:
+    """Lenient parse: JSON if possible, else fall back to raw text.
+
+    Kept as the final fallback after the retry budget is exhausted so a
+    persistently malformed response still yields a usable message.
+    """
+    parsed = _try_parse_simulator_response(raw_text)
+    if parsed is not None:
+        return parsed
+    logger.warning("Failed to parse simulator JSON, using raw text as message")
+    return {"message": raw_text.strip(), "goal_status": "in_progress"}
 
 
 class UserSimulator:
@@ -107,7 +141,17 @@ class UserSimulator:
         if case_spec.persona.seed_messages:
             message = case_spec.persona.seed_messages[0]
         else:
-            message = case_spec.form_context.description or case_spec.persona.goal_summary
+            message = (
+                case_spec.form_context.description
+                or case_spec.persona.user_goal_summary
+                or case_spec.form_context.topic_subject
+            )
+        # Defensive: turn0 must never be empty. An empty first message gives
+        # the bot nothing to route on, so the UC is never stamped and the
+        # strict trace contract raises CONTRACT_VIOLATION:active_use_case.
+        message = (message or "").strip()
+        if not message:
+            message = "Hi, I need help with my issue."
         return {"message": message, "goal_status": "in_progress"}
 
     def generate_next(
@@ -156,7 +200,13 @@ class UserSimulator:
         return self._call_llm(messages)
 
     def _call_llm(self, messages: list[dict]) -> dict:
-        """Call the LLM with retry-once on failure.
+        """Call the LLM, retrying up to ``_MAX_SIMULATOR_ATTEMPTS`` times.
+
+        Retries cover two distinct failures: a transport error (network /
+        provider) and an unparseable response. On a parse failure the next
+        attempt appends a corrective instruction restating the JSON schema
+        so the model gets a concrete second chance rather than repeating the
+        same malformed shape.
 
         Args:
             messages: The message list to send.
@@ -164,25 +214,52 @@ class UserSimulator:
         Returns:
             Parsed dict with "message" and "goal_status".
         """
+        working = list(messages)
         last_error: Exception | None = None
+        last_raw: str | None = None
         logger.info("LLM [simulator] call: model=%s", self._model)
-        for attempt in range(2):
+        for attempt in range(_MAX_SIMULATOR_ATTEMPTS):
             try:
                 response = self._client.chat.completions.create(
                     model=self._model,
-                    messages=messages,
+                    messages=working,
                     temperature=self._temperature,
                 )
                 raw_text = response.choices[0].message.content or ""
-                return _parse_simulator_response(raw_text)
+                last_raw = raw_text
+                parsed = _try_parse_simulator_response(raw_text)
+                if parsed is not None:
+                    return parsed
+                logger.warning(
+                    "Simulator response unparseable (attempt %d/%d); "
+                    "retrying with schema reminder",
+                    attempt + 1, _MAX_SIMULATOR_ATTEMPTS,
+                )
+                working = working + [
+                    {"role": "assistant", "content": raw_text},
+                    {"role": "user", "content": _PARSE_RETRY_INSTRUCTION},
+                ]
             except Exception as exc:
                 last_error = exc
                 logger.warning(
-                    "LLM call failed (attempt %d/2): %s", attempt + 1, exc
+                    "LLM call failed (attempt %d/%d): %s",
+                    attempt + 1, _MAX_SIMULATOR_ATTEMPTS, exc,
                 )
 
-        # Both attempts failed -- return fallback
-        logger.error("LLM call failed after 2 attempts: %s", last_error)
+        # Budget exhausted. If we ever got a (malformed) response, fall back
+        # to the lenient parse (raw text as the message) rather than a canned
+        # line; only a pure transport failure yields the canned fallback.
+        if last_raw is not None:
+            logger.error(
+                "Simulator response unparseable after %d attempts; "
+                "falling back to raw text",
+                _MAX_SIMULATOR_ATTEMPTS,
+            )
+            return _parse_simulator_response(last_raw)
+        logger.error(
+            "LLM call failed after %d attempts: %s",
+            _MAX_SIMULATOR_ATTEMPTS, last_error,
+        )
         return {
             "message": "I'm still waiting for help with my issue.",
             "goal_status": "in_progress",
