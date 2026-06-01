@@ -123,7 +123,12 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
                     + "before answering the customer; cite the source_id in your "
                     + "user_message. If search_knowledge returns no viable hit, "
                     + "request_handover with escalation_reason="
-                    + "'faq_miss_threshold_exceeded' is allowed.";
+                    + "'faq_miss_threshold_exceeded' is allowed. After a search_knowledge "
+                    + "returns a viable hit (faq_miss=false), do NOT re-search this turn — "
+                    + "draft your grounded answer from the existing hits via resolve_article, "
+                    + "or escalate; a fresh search_knowledge is only warranted if the prior "
+                    + "result was faq_miss=true or your new query is materially different "
+                    + "from what you already searched.";
 
     private static final String FAQ_ESCALATION =
             "Escalate via request_handover if (a) the user explicitly requests "
@@ -148,7 +153,7 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
                 plan.allowedTools());
         assertEquals(Set.of("form_context", "customer_context", "listing_context"),
                 plan.requiredContextKeys());
-        assertEquals(4, plan.maxToolSteps());
+        assertEquals(6, plan.maxToolSteps());
         assertEquals(false, plan.allowInterimMessage());
         assertEquals(Set.of(TerminalOutcome.FINAL_ANSWER,
                         TerminalOutcome.CLARIFICATION_NEEDED,

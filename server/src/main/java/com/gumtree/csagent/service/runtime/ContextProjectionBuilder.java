@@ -975,6 +975,35 @@ public class ContextProjectionBuilder {
                     }
                 }
                 projection.set("accumulated_tool_results", toolResultsNode);
+
+                // Sprint 068 (S-Auto-13, A3) — paraphrase-storm echo. This is
+                // the run-loop-path analogue of the legacy `knowledge_instruction`
+                // snippet in buildProjection (which only fires when knowledgeHits
+                // is pre-loaded — never the case in the loop, where knowledge
+                // arrives via accumulated_tool_results). When a prior
+                // search_knowledge has already landed a viable hit
+                // (faq_miss=false) this turn, surface a soft anti-re-search
+                // signal so the LLM drafts from the existing hits via
+                // resolve_article instead of re-issuing a paraphrased search.
+                // The LLM owns whether to re-search (§1.3 / §1.5 soft-signal-
+                // first); the runtime does NOT block a re-search dispatch on
+                // this slot. A fresh search remains warranted when the prior
+                // result was faq_miss=true or the new query is materially
+                // different.
+                JsonNode priorSearch = toolResultsNode.get("search_knowledge");
+                if (priorSearch != null && priorSearch.has("faq_miss")
+                        && !priorSearch.path("faq_miss").asBoolean(true)) {
+                    projection.put("prior_search_knowledge_viable_hit", true);
+                    projection.put("search_reuse_instruction",
+                            "A prior search_knowledge in this turn already returned a viable hit "
+                            + "(faq_miss=false); the hits are in "
+                            + "accumulated_tool_results.search_knowledge.hits. Do NOT call "
+                            + "search_knowledge again this turn — draft your grounded "
+                            + "customer-facing answer via resolve_article from those existing "
+                            + "hits (cite the source_id), or escalate. A fresh search_knowledge "
+                            + "is only warranted if the prior result was faq_miss=true or your "
+                            + "new query is materially different from what you already searched.");
+                }
             }
 
             return objectMapper.writeValueAsString(projection);

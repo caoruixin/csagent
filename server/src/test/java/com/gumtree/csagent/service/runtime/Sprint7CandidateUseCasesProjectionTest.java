@@ -161,9 +161,10 @@ class Sprint7CandidateUseCasesProjectionTest {
         assertTrue(si.contains("faq_miss_threshold_exceeded"),
                 "Cue must explicitly name faq_miss_threshold_exceeded as the wrong move");
         assertTrue(si.contains("search_knowledge"),
-                "Cue must direct the bot to call search_knowledge first");
+                "Cue must reference search_knowledge (S-Auto-13: do NOT pre-search in DISCOVER; "
+                        + "the grounded search runs in RESOLVE)");
         assertTrue(si.contains("classify_use_case"),
-                "Cue must direct the bot to call classify_use_case after search");
+                "Cue must direct the bot to call classify_use_case first (S-Auto-13 classify-first)");
     }
 
     @Test

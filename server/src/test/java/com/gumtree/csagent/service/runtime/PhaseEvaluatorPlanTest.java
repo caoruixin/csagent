@@ -84,7 +84,7 @@ class PhaseEvaluatorPlanTest {
         assertTrue(plan.allowedTools().contains("search_knowledge"));
         assertTrue(plan.allowedTools().contains("resolve_article"));
         assertTrue(plan.allowedTools().contains("request_handover"));
-        assertEquals(4, plan.maxToolSteps());
+        assertEquals(6, plan.maxToolSteps());
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.FINAL_ANSWER));
         assertNotNull(plan.systemInstruction());
         assertNotNull(plan.groundingInstruction());
@@ -262,7 +262,7 @@ class PhaseEvaluatorPlanTest {
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.CLARIFICATION_NEEDED));
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.FINAL_ANSWER));
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.ESCALATE));
-        assertEquals(2, plan.maxToolSteps());
+        assertEquals(3, plan.maxToolSteps());
     }
 
     @Test
