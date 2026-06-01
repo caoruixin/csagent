@@ -8,7 +8,7 @@ authored_date: 2026-05-25
 mode: bad-case-driven
 related_bad_case: eval_interactive/case_specs/bad_cases/alice_uc_a_uc_h_misclass.yaml
 related_r_items:
-  - R-loosen-topic-uc-binding-llm-owned-drift (action_bank.md:685)
+  - R-loosen-topic-uc-binding-llm-owned-drift (action_bank.md)
   - R-grounding-discipline-iterative-search-fabrication (consumed by Sprint 39 S1)
 session_id: 6252fb2e-af09-4768-bb61-d2766825d32b
 ---
@@ -197,7 +197,7 @@ status visibility” 是 UC-A 的字面名称（`use-case-registry.yaml:2-7`
   到 UC-A（FAQ-path）——但因为是 keyword-based、且 §1.7 明令禁止扩展，
   这条路无法兜底所有 UC-A 同义 phrasing。
 - backlog 上 `R-loosen-topic-uc-binding-llm-owned-drift`
-  （`action_bank.md:685`）已经把这层从“keyword/regex 路径”整体降级为
+  （`action_bank.md`）已经把这层从“keyword/regex 路径”整体降级为
   “LLM-owned drift”作为 M3+ 候选，但还没排期。
 
 **Layer E — escalation_reason 兜底掩盖根因（**observation**, 非可
@@ -220,7 +220,7 @@ status visibility” 是 UC-A 的字面名称（`use-case-registry.yaml:2-7`
 | Backlog item | 与本 case 关系 |
 |--------------|----------------|
 | **`alice_uc_a_uc_h_misclass`**（bad-case suite，tier 见 `_manifest.md`）| **完全同形态**。本 session 是第二条 production-like 实证。closure_criterion (a)(b)(c) 都未达成，bot 走 FAIL 条件（>5 turns + non-canonical request_handover）。本次 session 应**追加为 `alice_uc_a_uc_h_misclass` 的第二个 source_session_id 证据**，或开新 case `cs6252_uc_a_uc_h_misclass_real_session` 互为 anchor。|
-| `R-loosen-topic-uc-binding-llm-owned-drift`（action_bank.md:685）| **架构同源**。该 R-item 的目标是把 topic→candidate-UC 的 HARD gate 降级为 SOFT projection 让 LLM 拥有 cross-topic drift。本 case 是 **within-topic** disambiguation 失败（UC-A/UC-FP/UC-H 都属 Ad Support），所以**该 R-item 落地不会直接解决本 case**（cross-topic ≠ within-topic）。但解决方案的形态学相似（“demote Java cage to soft signal”），可以共享一些设计要素。|
+| `R-loosen-topic-uc-binding-llm-owned-drift`（action_bank.md）| **架构同源**。该 R-item 的目标是把 topic→candidate-UC 的 HARD gate 降级为 SOFT projection 让 LLM 拥有 cross-topic drift。本 case 是 **within-topic** disambiguation 失败（UC-A/UC-FP/UC-H 都属 Ad Support），所以**该 R-item 落地不会直接解决本 case**（cross-topic ≠ within-topic）。但解决方案的形态学相似（“demote Java cage to soft signal”），可以共享一些设计要素。|
 | `R-grounding-discipline-iterative-search-fabrication`（已被 Sprint 39 S1 `must_cite_source` consumed）| 不直接相关。Sprint 39 解决的是 FAQ-path 的 grounded-answer 引用，本 case 根本没走到 FAQ-path。|
 | `R-bad-case-suite-uc-ghij-seed-from-real-sessions`（752 行）| **直接相关**。该 R-item 就是要从真实 session 扩展 UC-G/H/I/J bad case。本 session 是一条新种子。|
 | `R-iwzx-uc-k-vs-uc-h-routing-spurious-distress`（760 行）| 相关但不同形态。iwzx 是 UC-K vs UC-H，本 case 是 UC-A/UC-FP vs UC-H。共享“within-topic 多 candidate UC + intake-path 锁定 → 用户被困”这一上位 pattern。|

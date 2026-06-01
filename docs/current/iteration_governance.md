@@ -766,8 +766,10 @@ At milestone close, the deliver-agent + human produce:
   to sprint handoff §12 — pass / fix_required / out-of-scope-review
   + classification + per-sub-sprint disposition).
 - Archive the milestone objective to `docs/milestones/M<N>_objective.md`.
-- Append a §6.5 "Closed milestone index" row to `docs/action_bank.md`
-  (NEW subsection alongside the existing §6 closed-action index).
+- Append the milestone's closed rows to `docs/action_bank_archive.md`
+  per the `docs/action_bank.md` §7.1 retention sweep: closed per-sprint
+  rows → §A, the closed-milestone row → §B, newly-closed R-item rows →
+  §C. (`docs/action_bank.md` keeps only open / active / deferred items.)
 - Refresh `docs/10-handoff.md` §0 table + §1 lead (demote current
   milestone to Preceding milestone; truncate §1 content older than
   the preceding milestone per `doc_governance.md` retention rule;

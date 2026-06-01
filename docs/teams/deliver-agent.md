@@ -220,7 +220,7 @@ Deliver agent + human：
 4. 归档 `docs/codex-findings.md` → `docs/milestones/M<N>_codex-review.md`，reset live file 为 scaffold
 4. 归档 `docs/milestone_objective.md` → `docs/milestones/M<N>_objective.md`
 5. Reset `docs/milestone_objective.md` + `docs/sprint_objective.md` 为 next-milestone-TBD placeholder
-6. 更新 `docs/action_bank.md`（§6.5 closed-milestone index row + R-item close annotations）
+6. 追加 closed 行到 `docs/action_bank_archive.md`（per `docs/action_bank.md` §7.1 retention sweep：closed per-sprint 行 → §A、closed-milestone 行 → §B、newly-closed R-item 行 → §C）；`docs/action_bank.md` 仅保留 open / active / deferred R-items
 7. Close 分类详见 `docs/current/deliver_close_taxonomy.md`
 
 **不再创建** `compact/context-handoff-*.md`。所有 cross-session state 通过 `docs/10-handoff.md` §0 传递。

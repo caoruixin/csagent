@@ -77,7 +77,7 @@ M5-S4 denoise 制造新的常驻投影噪声。
   `customer_context`/`listing_context`/`moderation_context`，且**主动剥离原始
   PII**（email/phone/full_name/address），只回派生事实（account_status、租龄、
   在架数量、verified 标志等）：`server/.../service/tools/GetCustomerContextTool.java`。
-- 关键文档证据（`docs/action_bank.md:397`，R-l3 rubric 关闭说明）：production 模型里
+- 关键文档证据（`docs/action_bank_archive.md`，R-l3 rubric 关闭说明）：production 模型里
   chat 是**账号绑定**的，`form_context.first_name` 是"平台账号绑定 chat session
   surfaced 的 canonical 预知身份，**不是**用户自填自由文本"。
 - **结论**：稳定账号身份在上游已认证存在，只是没有被 surface/persist 到

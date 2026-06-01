@@ -38,7 +38,7 @@ The `expected.*` and `scoring.*` blocks are populated with minimal valid values 
 
 ## Lifecycle
 
-- **Opened**: 2026-05-16 by Sprint 35 to close `R-option-beta-coverage-gap-uc-a-uc-c-shape` (`docs/action_bank.md:667`).
+- **Opened**: 2026-05-16 by Sprint 35 to close `R-option-beta-coverage-gap-uc-a-uc-c-shape` (`docs/action_bank_archive.md`).
 - **Active until**: superseded by an Option γ probe corpus (`R-option-gamma-alternate-uc-surveyor-design`, surfaced only if Sprint 35 decision (b) is confirmed) OR the (`topic_subject` × `description`-shape) routing surface materially changes (M2+ — fold-back trigger).
 - **Re-run permission**: any future sub-sprint may re-run this corpus to refresh the matrix against current `UseCaseRouter` behaviour. Re-runs are observation-only; new findings should land in the existing `option_beta_coverage_matrix.md` or a follow-on analysis doc, NOT in this directory's CaseSpec contents.
 - **Closure**: this directory is retained as the baseline reference once Sprint 35 ships, similar to the bad-cases retention convention. Probe CaseSpecs are not deleted at closure.

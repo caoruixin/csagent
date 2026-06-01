@@ -192,10 +192,10 @@ DISCOVER 走 **AgentRunLoop 路径**，`evaluateDiscover` 是 **legacy 未执行
 | 现有项 | 关系 | 本次结论 |
 |---|---|---|
 | `docs/solutions/escalation_reason_runtime_evidence_contract_maxsteps_misstamp.md`（已有 research 提案，2026-05-24） | **相邻、不重叠** | 那篇是 **FAQ/RESOLVE 路径 MAX_STEPS → `faq_miss_threshold_exceeded` 误盖**（`resolveMaxStepsReason` 不看 faq_miss 证据）。本案是 **DISCOVER 路径 + 预算 top-of-turn 强制升级 → `turn_budget_exhausted`**，文案/路径/触发都不同（§2.3）。**共享** `inferFallbackUseCase` 关键词盖戳（两条升级路径都经 `applyMissingUseCaseFallback`）与"运行时盖 LLM 没选的东西"家族。 |
-| `R-escalation-reason-runtime-evidence-contract-review`（`action_bank.md:390`，Tier-0 candidate） | **相邻** | 它管 evidence-claiming reasons（`faq_miss_threshold_exceeded` / `clarification_budget_exhausted` / `intake_complete_*`），**明确排除** `turn_budget_exhausted`（catch-all）。本案 T7 的 `turn_budget_exhausted` 其实是**诚实的兜底**（真耗尽了某预算）；问题不在 reason，在 RC3 的 **UC 关键词盖戳** + RC4 的 **错预算桶**。 |
-| `D-S3-no-prior-search-guard`（`action_bank.md:339`，deferred） | **反方向** | 它是"无前置 search 不许 `request_handover(faq_miss_threshold_exceeded)`"。本案 RC2 恰相反——是"DISCOVER 里**根本搜不了**"。不重叠。 |
-| `R-runtime-orchestrator-tool-call-deduplication`（`action_bank.md:426`，partial→semantic_planner） | 正交 | 那是 RESOLVE 内重复 search 的 dedup；本案 DISCOVER 不涉及 dedup。 |
-| `D-new-escalation-reason-enum`（`action_bank.md:347`，deferred/avoid） | **硬约束** | 修复**不得新增/重命名** enum 值（cross-cut eval `ESCALATION_TRIGGER_VALUES`）。本案不需要新 enum。 |
+| `R-escalation-reason-runtime-evidence-contract-review`（`action_bank.md`，Tier-0 candidate） | **相邻** | 它管 evidence-claiming reasons（`faq_miss_threshold_exceeded` / `clarification_budget_exhausted` / `intake_complete_*`），**明确排除** `turn_budget_exhausted`（catch-all）。本案 T7 的 `turn_budget_exhausted` 其实是**诚实的兜底**（真耗尽了某预算）；问题不在 reason，在 RC3 的 **UC 关键词盖戳** + RC4 的 **错预算桶**。 |
+| `D-S3-no-prior-search-guard`（`action_bank.md`，deferred） | **反方向** | 它是"无前置 search 不许 `request_handover(faq_miss_threshold_exceeded)`"。本案 RC2 恰相反——是"DISCOVER 里**根本搜不了**"。不重叠。 |
+| `R-runtime-orchestrator-tool-call-deduplication`（`action_bank.md`，partial→semantic_planner） | 正交 | 那是 RESOLVE 内重复 search 的 dedup；本案 DISCOVER 不涉及 dedup。 |
+| `D-new-escalation-reason-enum`（`action_bank.md`，deferred/avoid） | **硬约束** | 修复**不得新增/重命名** enum 值（cross-cut eval `ESCALATION_TRIGGER_VALUES`）。本案不需要新 enum。 |
 | M5（`milestone_objective.md`，Observability Coherence） | **明确排除（scope 边界）** | M5 §4 non-goals "**Not changing bot behaviour**"、"Not refactoring `ControlKernel`/`PhaseEvaluator` phase machine"。本案 RC1-RC4 全是 **bot 行为/运行时**修复 → **不属 M5**，进 M5 之后的语义里程碑。 |
 
 **缺口（本研究新识别，需登记 R-item，见 §9）**：现有 backlog **没有任何项**覆盖
@@ -239,7 +239,7 @@ contract-review` 的**邻居但不同对象**（那个管 reason，本案管 UC�
 ### 5.C RC1 降低过度澄清（`semantic_planner` via `prompt_projection`，高风险，需 real-LLM 重跑）
 
 - **C1（推荐）—— 把 commit 规则从长 procedure 里提到显著位置 + 投 clarification 计数软信号**：
-  discover_triage 的 procedure 现已 ~7900 字符（`action_bank.md:345` Sprint 40 记录），
+  discover_triage 的 procedure 现已 ~7900 字符（`action_bank.md (D-skill-runtime-framework)` Sprint 40 记录），
   "一次澄清后必须 commit 或 escalate"被埋没。把它提为 procedure 顶部的硬性一句，并投一个
   **soft signal**（如 `clarifications_asked_this_session: N` + "you have asked N
   questions; commit a use case or escalate"）让 LLM 看到自己已问太多。

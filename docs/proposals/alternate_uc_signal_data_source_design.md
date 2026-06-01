@@ -602,7 +602,7 @@ Each names the impasse and the decision the human is asked to make.
    (slot lands, behaviour validation deferred), or does a Sprint 31+1
    case-family-authoring sprint immediately follow?
 5. **Interaction with `R-uc-cdf-get-customer-context-bot-actual-usage`.**
-   The Sprint 22 surfaced R-item at `docs/action_bank.md:598` carries
+   The Sprint 22 surfaced R-item at `docs/action_bank.md (R-uc-cdf-get-customer-context-bot-actual-usage)` carries
    a related observation — does the bot use `get_customer_context`
    when account-state matters on FAQ-miss shapes in UC-C / UC-D /
    UC-F. The alternates-list slot's projection arguably overlaps that

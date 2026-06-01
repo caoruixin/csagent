@@ -16,7 +16,7 @@ human 提了三个看似独立的问题，但它们共享**同一个根因主题
 
 三个问题的精确诊断（全部 code-grounded，在 HEAD `84ae017` 验证）：
 
-1. **eval report 与四层评估设计不匹配** —— `report.html` 仍渲染 M3 之前的 Phase-5 §6.9「7 指标仪表盘」+ 单一二元 `case_passed` 徽章；不显示 Tier-2、不显示 `case_passed_authority`（human_review vs programmatic）。这**不是 copy、不是兼容旧逻辑的 shim、也不是刻意保留**，而是**延期的可观测性技术债**，已登记为 OPEN 低优先级 R-item `R-eval-report-observability`（`action_bank.md:779`）。**已有一份准确的 research proposal**：`docs/solutions/eval_report_coherence_proposal.md`（我已逐条在 HEAD 复核，结论成立）。本文档**背书并补充**它，不重复。
+1. **eval report 与四层评估设计不匹配** —— `report.html` 仍渲染 M3 之前的 Phase-5 §6.9「7 指标仪表盘」+ 单一二元 `case_passed` 徽章；不显示 Tier-2、不显示 `case_passed_authority`（human_review vs programmatic）。这**不是 copy、不是兼容旧逻辑的 shim、也不是刻意保留**，而是**延期的可观测性技术债**，已登记为 OPEN 低优先级 R-item `R-eval-report-observability`（`action_bank_archive.md`）。**已有一份准确的 research proposal**：`docs/solutions/eval_report_coherence_proposal.md`（我已逐条在 HEAD 复核，结论成立）。本文档**背书并补充**它，不重复。
 
 2. **admin trace 的 LLM Raw Response 只显示最后一次** —— 每个用户 turn 在 `AgentRunLoopImpl.run()` 里会触发**多次** LLM 调用（agentic loop，按 `maxToolSteps`，FAQ Skill 是 4 次），但 `BotTurn.llm_raw_response` 是**单列**，每个 loop step 被覆盖（`AgentRunLoopImpl.java:221`）。per-invocation 数据其实**已存在**于 `llm_call_log` 表（截断到 500 字符），并已通过 `GET /v1/demo/sessions/{id}/llm-calls` 端点暴露、被 eval harness 消费——只是 admin trace viewer 从没 join 它。
 
@@ -43,7 +43,7 @@ human 提了三个看似独立的问题，但它们共享**同一个根因主题
 | 每 case 仅渲染单一二元徽章 `case_passed` | `html_report.py:451-454` | ✓ |
 | report **无** `_render_tier2`、**无** `case_passed_authority`/`suite_authority` 渲染 | grep `html_report.py` 0 命中 | ✓ |
 | `_OPT_IN_SETS = ("bad_cases","anchor_outcome")` | `batch/sets.py:24` | ✓ |
-| `R-eval-report-observability` OPEN、低优先级、deferred M4+ | `action_bank.md:779` | ✓ |
+| `R-eval-report-observability` OPEN、低优先级、deferred M4+ | `action_bank_archive.md` | ✓ |
 
 **新增的一个上下文事实**（既有 proposal 未点明，对 human 理解 report 很关键）：human 打开的这份 `results/20260523-075141/report.html` 是 **M4-Eval-Cleanup 首轮（first-pass）run**——这也是为什么里面 `cs029` 是 0-turn `contract_violation`（report 第 363-378 行）。`10-handoff.md §0/§1` 记录：该 contract_violation 在隔离重跑 `20260523-095557` 上已清除，M4 最终以 A — Clean PASS 关闭。也就是说 human 正看着一份**未修复前的中间产物**，其「红」既有展示层错配（#1 主因），也叠加了一个已在重跑中消失的瞬时 flake。
 
@@ -273,7 +273,7 @@ UC 驱动 tool_schemas 计算）；**禁止** per-UC if-else 决定投哪些字�
 - **「这看起来像 copy 吗？」** —— 不是。`html_report.py` 是一份自 M3 前就存在、未更新的渲染器，不是从别处拷来的副本。
 - **「是为了兼容原来 100% 的逻辑吗？」** —— 不是兼容 shim。它就是**没及时清理**的旧渲染器；M3/M4 刻意把 report rendering 划出 scope。
 - **「用户可以参考它吗？」** —— 旧 7 指标盘对 **programmatic 套件（anchor/smoke）** 仍是有意义的趋势参考；但对 **human-judgment 套件（bad_cases/anchor_outcome）** 它**不是 gate**，会结构性全红（L3 维度为空 → composite ≤ 0.5 < 0.7）。bad-case 的权威结论在 `eval_interactive/case_specs/bad_cases/_manifest.md` 的「M4-Eval-Cleanup close」段，**不在 report 顶部数字**。
-- **「还是因为没及时清理？」** —— 正是。OPEN 低优先级 `R-eval-report-observability`（`action_bank.md:779`）已登记此债。
+- **「还是因为没及时清理？」** —— 正是。OPEN 低优先级 `R-eval-report-observability`（`action_bank_archive.md`）已登记此债。
 - **「新逻辑/旧逻辑应该标注（仅供参考 or deprecated）。」** —— 完全同意，这就是既有 proposal 的 **Alternative A**：四层视图为主、旧 7 指标盘标注为「Phase-5 趋势（informational；非 human-judgment suite 的 gate）」。建议 M5 把该 R-item 从低优先级**提升到中高**并排期。
 
 ---
