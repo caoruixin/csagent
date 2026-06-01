@@ -468,6 +468,20 @@ S-Auto-11 (eval-harness robustness + per-iter trace persistence + infra-error de
 - `R-simulator-first-message-contract-violation-flake` (D) → **partially addressed** (safe `user_simulator` hardening shipped) but the contract-violation ROOT is bot-side (OQ-S66.2), so this R-item's "→0" closure criterion moves to the bot-side owner. Status remains `proposed`.
 
 
+### Sprint 067 / S-Auto-12 surfaced OQs (2026-06-01)
+
+S-Auto-12 (A1 identical-retry-storm dedup; handoff `docs/sprints/sprint-067-handoff.md` §6) surfaced two OQs. Neither is a defect; both are observations for the M-Auto-3 close measurement.
+
+- **OQ-S67.1 — the deterministic 回挡 is load-bearing (hybrid confirmed, not a defect).** Across the 3 post-change passes the backstop fired 16× (1+6+9) — i.e. the bot LLM still ATTEMPTS byte-identical repeats even with the binding `already_called` soft signal in the prompt (e.g. cs095 turn1 re-emitted `search_knowledge` 4×; cs015 turn4 3×). Unmitigated `IDENTICAL_RETRY` was 0/89 bot-turns only because the §1.4 idempotency 回挡 caught the remainder — soft-signal-ALONE would have leaked all 16 (the Sprint-19/20 failure mode). No action; confirms red line #2. A FUTURE prompt-projection refinement (surface the dedup hit back to the LLM more loudly so it re-emits less, raising `planner_ownership_ratio`) is a separate prompt-tuning item, NOT A1. **Status: observation; no R-item.**
+
+- **OQ-S67.2 — A1 does NOT close the downstream max-steps/escalation mis-stamp (B1/S-Auto-14 owns it).** A1 stops the storm from CONSUMING steps, but the max-steps/budget-exhaustion → escalation-reason mis-stamp lives in `PhaseEvaluator.resolveMaxStepsReason` (hard-fenced from S-Auto-12; B1 = S-Auto-14). Whether eliminating the storm materially lowers max-steps EXITS (and thus mis-stamp frequency) should be re-measured at M-Auto-3 close once B1 lands. Links to `project_faq_overescalate_maxsteps_misstamp` + `R-runtime-escalation-reason-misstamp-maxsteps-faq` (B1 consumer). **Status: expected sequencing; closed by B1/S-Auto-14 + M-Auto-3 close re-measurement.**
+
+**Measurement caveat (for the §11 close measurement):** the documented historical `IDENTICAL_RETRY 15/24` was a PRE-determinism-config trace-dive; on the current `b351648` harness the pre-A1 residual storm was ~3-5 unmitigated turns per pass (4/30, 5/32, 3/34), and A1 took it to 0/25, 0/34, 0/30. The §11 "15/24→≤2" target is MET (0), but the close measurement should cite the same-harness before/after, not the stale 15/24.
+
+**R-item addressed by S-Auto-12 (NOT flipped to closed until M-Auto-3 milestone close per §7 routing):**
+
+- `R-runtime-identical-tool-call-retry-storm` (A1) → **addressed by S-Auto-12** (hybrid dedup: per-run `(toolName, canonicalArgumentsHash)` idempotency 回挡 serving `success==true` byte-identical repeats from cache without re-dispatch/budget + `already_called` observation→binding soft-signal upgrade; `IDENTICAL_RETRY` 0 across 3 passes; trace-annotated `deduplicated`/`original_at_step`). Successor to `R-runtime-orchestrator-tool-call-deduplication` write-side. CLOSE candidate at M-Auto-3 close.
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact
