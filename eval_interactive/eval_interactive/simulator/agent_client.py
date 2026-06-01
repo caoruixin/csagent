@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # and other HTTP failures remain non-retryable.
 SESSION_CREATE_READ_TIMEOUT_SECONDS = 120.0
 SESSION_CREATE_CONNECT_TIMEOUT_SECONDS = 10.0
-DEFAULT_READ_TIMEOUT_SECONDS = 60.0
+DEFAULT_READ_TIMEOUT_SECONDS = 90.0  # OQ-S65.8: must exceed bot USER_FACING_LLM_DEADLINE_MS (raised 30s->60s) with margin, else a slow turn becomes INFRA:ReadTimeout instead of a clean give-up
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 10.0
 
 
