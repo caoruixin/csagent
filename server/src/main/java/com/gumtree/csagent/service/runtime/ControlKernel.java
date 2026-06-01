@@ -1849,6 +1849,17 @@ public class ControlKernel {
                     entry.put("tool_name", te.toolName());
                     entry.put("success", te.success());
                     entry.put("latency_ms", te.latencyMs());
+                    // Sprint 067 / S-Auto-12 (A1 idempotency 回挡) — surface
+                    // the per-run dedup annotation on the persisted trace so
+                    // report.html / admin trace can show that a byte-
+                    // identical repeat was served from cache (tool not re-
+                    // executed) rather than mis-reading it as a fresh
+                    // dispatch. Only emitted on deduplicated events; a
+                    // normal dispatch carries neither key.
+                    if (te.deduplicated()) {
+                        entry.put("deduplicated", true);
+                        entry.put("original_at_step", te.originalAtStep());
+                    }
                     // Sprint 9.1 — sanitize the verbatim tool error
                     // message before it lands on the persisted trace
                     // column so secrets / sensitive PII that the tool

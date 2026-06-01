@@ -159,6 +159,16 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         // TraceWriter for persistence in `bot_turn_llm_calls`.
         List<LlmCallRecord> llmCallRecords = new ArrayList<>();
         Map<String, Object> accumulatedToolResults = new LinkedHashMap<>();
+        // Sprint 067 / S-Auto-12 (A1 idempotency 回挡, backstop half) —
+        // per-run identity cache: (toolName | canonicalArgumentsHash) ->
+        // the successful ToolEvent that first served that exact call this
+        // run. Only success==true dispatches are recorded (so an
+        // external-failure result is never cached and a legitimate retry
+        // re-dispatches). A byte-identical repeat returns the cached result
+        // without re-executing the tool — the deterministic backstop behind
+        // the `already_called` binding soft signal. Map lifetime is exactly
+        // one run() invocation, so it cannot leak across sessions/turns.
+        Map<String, ToolEvent> successfulDispatchCache = new LinkedHashMap<>();
         int sequence = 0;
         String lastProjection = null;
         String lastLlmRawResponse = null;
@@ -182,9 +192,20 @@ public class AgentRunLoopImpl implements AgentRunLoop {
             // Sprint 20 Track B (R-prompt-projection-already-called-soft-
             // signal): pass the per-run toolEvents list to the projection
             // builder so it can surface an `already_called` slot listing
-            // every successful prior tool dispatch in this run. Slot is
-            // observability-only; no short-circuit on dispatch (see
-            // Sprint 19 §4.2 + Sprint 20 objective §"Defer (Track B)").
+            // every successful prior tool dispatch in this run.
+            //
+            // Sprint 067 / S-Auto-12 (M-Auto-3, A1 hybrid): the slot is now
+            // a BINDING soft signal — the system prompt tells the LLM that
+            // byte-identical repeats are auto-deduplicated and waste a turn,
+            // so it should draft from accumulated_tool_results or take the
+            // next action (it still owns WHICH tool / WHAT content). The
+            // deterministic backstop half of the hybrid lives at the
+            // dispatch site below (`successfulDispatchCache`): a byte-
+            // identical success==true repeat is served from cache without
+            // re-executing the tool. Soft-signal-alone was empirically
+            // falsified (Sprint 19 chose soft-first, Sprint 20 shipped the
+            // slot, the identical-retry storm persisted at temp=0), so both
+            // halves ship together.
             String projection;
             try {
                 projection = contextProjectionBuilder.build(
@@ -442,6 +463,46 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     session.setRecordOutcomeGuardResult("allowed");
                 }
 
+                // 6a-bis. Sprint 067 / S-Auto-12 (A1 idempotency 回挡,
+                // backstop half) — if this exact call (tool name + canonical
+                // arguments hash) already SUCCEEDED earlier in THIS run,
+                // serve the cached result instead of re-dispatching. The
+                // tool is not re-executed (no external call / budget), the
+                // event is annotated `deduplicated` + `original_at_step`,
+                // and the cached payload is accumulated so the LLM still
+                // sees it under accumulated_tool_results. Read-only repeats
+                // (search_knowledge, get_customer_context) dominate the
+                // temp=0 identical-retry storm; the terminal / short-circuit
+                // tools (request_handover, classify_use_case on DISCOVER)
+                // end the run on first success so they can never be cached-
+                // then-repeated, and a repeat record_outcome is idempotent
+                // by design. No tool-name / UC branching: the key reuses the
+                // existing order-insensitive canonicalArgumentsHash for
+                // every tool. A "hash_error" arguments hash disables dedup
+                // for that call (it always re-dispatches).
+                String dedupHash = contextProjectionBuilder.canonicalArgumentsHash(
+                        call.getArguments());
+                String dedupKey = "hash_error".equals(dedupHash)
+                        ? null
+                        : toolName + "|" + dedupHash;
+                if (dedupKey != null) {
+                    ToolEvent cachedHit = successfulDispatchCache.get(dedupKey);
+                    if (cachedHit != null) {
+                        ToolEvent base3 = ToolEvent.deduplicated(
+                                step, call, cachedHit.resultData(), cachedHit.stepIndex());
+                        toolEvents.add(new ToolEvent(
+                                sequence++, step, base3.toolName(), base3.arguments(),
+                                base3.success(), base3.resultData(), base3.errorMessage(),
+                                base3.latencyMs(), base3.deduplicated(), base3.originalAtStep()));
+                        accumulatedToolResults.put(toolName, cachedHit.resultData());
+                        log.info(
+                                "AgentRunLoop A1 dedup: byte-identical {} at step {} served from "
+                                        + "per-run cache (original_at_step={}); tool not re-dispatched",
+                                toolName, step, cachedHit.stepIndex());
+                        continue;
+                    }
+                }
+
                 // 6b. Dispatch and record event
                 long tt = System.currentTimeMillis();
                 ToolResult result;
@@ -459,10 +520,20 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 }
                 long toolLatency = System.currentTimeMillis() - tt;
                 ToolEvent base2 = ToolEvent.of(step, call, result, toolLatency);
-                toolEvents.add(new ToolEvent(
+                ToolEvent recorded = new ToolEvent(
                         sequence++, step, base2.toolName(), base2.arguments(),
                         base2.success(), base2.resultData(), base2.errorMessage(),
-                        base2.latencyMs()));
+                        base2.latencyMs());
+                toolEvents.add(recorded);
+
+                // Sprint 067 / S-Auto-12 — only success==true dispatches
+                // enter the per-run identity cache, so an external-failure
+                // result is never cached and a same-args retry re-dispatches.
+                // putIfAbsent keeps the FIRST success as the canonical
+                // original_at_step for every later byte-identical repeat.
+                if (dedupKey != null && result != null && result.isSuccess()) {
+                    successfulDispatchCache.putIfAbsent(dedupKey, recorded);
+                }
 
                 // Sprint 12 §N0 — stamp terminal-evidence summary on the
                 // session as soon as a record_outcome dispatch lands so
