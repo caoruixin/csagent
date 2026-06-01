@@ -2,7 +2,7 @@
 title: Milestone M-Auto-3 — Substrate-hygiene (clean the autoloop fitness signal)
 doc_tier: current-runtime
 status: current
-implementation_status: not_started
+implementation_status: partial
 source_of_truth: this file
 last_reviewed: 2026-06-01
 review_cadence: per milestone
@@ -91,9 +91,11 @@ This is the **prerequisite** the M-Auto-2 Class C downgrade identified: M-Auto-2
 
 ## 3. Sub-sprint sequence
 
-### S-Auto-11 / Sprint 066 — Eval-harness robustness + per-iter trace persistence + infra-error detection (NEXT)
+### S-Auto-11 / Sprint 066 — Eval-harness robustness + per-iter trace persistence + infra-error detection (CLOSED 2026-06-01)
 
-**Layer:** `infra` + `eval_spec`/harness. **§7 stanza:** EXEMPT (harness/infra carve-out). **Codex:** Milestone-shared default UNLESS SHA-locked `eval_runner.py` (fence-#13) must be edited (then STOP-and-surface + per-sub-sprint Codex per §4.3 trigger #3). **Est:** ~2-3 days.
+**Outcome (closed 2026-06-01; Class A on #1/#3/#4):** #3 per-iter eval-trace persistence + #4 OQ-S65.7/8 infra-error detection shipped in `loop.py` + validated (read-back live + unit/integration + live vs real eval output); fence-#13 NOT touched; scoring SHA held. D1 shipped SAFE `user_simulator` hardening but its headline target `CONTRACT_VIOL_TURN0 3/24→0` was re-attributed BOT-SIDE (**OQ-S66.2**; human-authorized "safe hardening + surface"). Java baseline re-established `1183/10/0/2` (**OQ-S66.1** — 9 pre-existing golden-drift failures, NOT determinism-attributable; config NOT reverted). Gates: Java `1183/10/0/2`, eval_interactive `499/4`, autoloop `276`, 17-fixture `31`. No per-sub-sprint Codex trigger (milestone-shared). See `docs/sprints/sprint-066-handoff.md` + `docs/sprints/sprint-066-objective.md`.
+
+**Layer:** `infra` + `eval_spec`/harness. **§7 stanza:** EXEMPT (harness/infra carve-out). **Codex:** Milestone-shared default UNLESS SHA-locked `eval_runner.py` (fence-#13) must be edited (then STOP-and-surface + per-sub-sprint Codex per §4.3 trigger #3) — NOT triggered (loop.py orchestration sufficed). **Est:** ~2-3 days.
 
 **Scope:**
 1. **Re-establish Java test baseline** (first task — `b351648` determinism config touched `server/src/main/java`). Run the Java suite; record `Tests run/Failures/Errors/Skipped`; if any determinism-edit-attributable test broke, STOP-and-surface.
@@ -102,7 +104,7 @@ This is the **prerequisite** the M-Auto-2 Class C downgrade identified: M-Auto-2
 4. **OQ-S65.7/8 — infra-error detection** (`autoloop/autoloop/loop.py`): detect per-iter LLM-deadline / `service_degraded` prevalence + failed/empty suite eval (exit≠0 / missing results.json) → mark the iteration `infra-error`, NOT a Tier-0 fitness regression / discard. Prefer loop.py orchestration over editing the SHA-locked `eval_runner.py`.
 5. **Handoff** + OQ ledger.
 
-### S-Auto-12 / Sprint 067 — A1 identical-retry-storm dedup — AFTER S-Auto-11
+### S-Auto-12 / Sprint 067 — A1 identical-retry-storm dedup — NEXT
 
 **Layer:** `infra` + `prompt_projection`. **§7 stanza:** REQUIRED. **Codex:** milestone-shared default. **Est:** ~2-3 days.
 
@@ -140,9 +142,9 @@ Reserved within the §8.5 ceiling if S-Auto-11..14 surface second-order issues.
 
 **Hard gates (close PASS only if all clear):**
 
-- [ ] **§11 unlock criteria** — 3-pass `bad_cases` rerun (sim_temp=0 + bot_temp=0): `IDENTICAL_RETRY` 15/24→≤2; `PARAPHRASE_STORM` 11/24→≤3; `GATING_RACE` 4→≤1; `ESCALATION_MISSTAMP` 5/24→≤1; `CONTRACT_VIOL_TURN0` 3/24→0; 8-flipping-case 3-pass `case_passed` range 2→≤1. (Measured via the per-iter trace persistence shipped in S-Auto-11.)
-- [ ] **Java test baseline re-established (S-Auto-11) + preserved thereafter** — the post-`b351648` baseline is recorded at S-Auto-11 and held across S-Auto-12/14 (A1 + B1 are the agent-runtime edits; expect new targeted tests, no unexplained regression).
-- [ ] **Python test baselines preserved** — eval_interactive `486/3` (S-Auto-11 D1 may add tests); autoloop pytest ≥266 (S-Auto-11 loop.py changes add tests); 17-fixture detector sweep `31`; scoring SHA held UNLESS a sub-sprint takes an authorized fence-#13 controlled override (then re-baselined + recorded).
+- [ ] **§11 unlock criteria** — 3-pass `bad_cases` rerun (sim_temp=0 + bot_temp=0): `IDENTICAL_RETRY` 15/24→≤2; `PARAPHRASE_STORM` 11/24→≤3; `GATING_RACE` 4→≤1; `ESCALATION_MISSTAMP` 5/24→≤1; `CONTRACT_VIOL_TURN0` 3/24→0 **(⚠ RE-ATTRIBUTED BOT-SIDE per OQ-S66.2 — S-Auto-11 D1 confirmed this is a first-turn-abort `CONTRACT_VIOLATION:active_use_case`, NOT a `user_simulator` turn0 issue; owner = S-Auto-13 A2 first-turn classify-first discipline and/or optional `collector.py` leniency OQ-S66.4, NOT D1. S-Auto-11 #4 already classifies `cs015`/`fg5q` as infra-error so they no longer masquerade as a Tier-0 fitness regression; the raw-count→0 fix is a bot-side scope decision at S-Auto-13 planning)**; 8-flipping-case 3-pass `case_passed` range 2→≤1. (Measured via the per-iter trace persistence shipped in S-Auto-11.)
+- [ ] **Java test baseline re-established (S-Auto-11) + preserved thereafter** — the post-`b351648` baseline recorded at S-Auto-11 is **`1183 / 10 / 0 / 2`** (NOT the previously-stated `1183/1/0/2` — **OQ-S66.1**: the 9-failure delta is pre-existing `PhaseEvaluator max_tool_steps` golden drift, NOT determinism-attributable, so the determinism config was correctly NOT reverted) and held across S-Auto-12/14 (A1 + B1 are the agent-runtime edits; expect new targeted tests, no unexplained regression beyond the OQ-S66.1 9 — reconcile the goldens-vs-shipped `max_tool_steps` when S-Auto-13/14 touch `discover_triage.yaml` / `PhaseEvaluator`).
+- [ ] **Python test baselines preserved** — eval_interactive `499/4` post-S-Auto-11 (was stated `486/3`; **OQ-S66.3**: true pre-change baseline is `485/4` — the +14 D1 tests took it to `499 passed / 4 failed`, all 4 failures pre-existing); autoloop pytest `276` post-S-Auto-11 (was ≥266; +10 loop.py tests); 17-fixture detector sweep `31`; scoring SHA held at `35305bd8…` UNLESS a sub-sprint takes an authorized fence-#13 controlled override (then re-baselined + recorded).
 - [ ] **Safety floor unchanged** (Tier-0 invariants).
 - [ ] **Grounding floor unchanged** (per `faq_grounding_contract.md`).
 - [ ] **Curated bad-case suite manual review pass (PRIMARY GATE per §5.6)** — deliver-agent + human run bad_cases at M-Auto-3 close; this is also the §11 measurement run.
