@@ -15,6 +15,16 @@ import java.util.Map;
  * {@code sequenceIndex} preserves intra-step ordering when an LLM step
  * requests multiple tools at once (e.g. {@code [get_customer_context,
  * search_knowledge]} in a single response).
+ *
+ * <p>Sprint 067 / S-Auto-12 (A1 idempotency 回挡): {@code deduplicated}
+ * marks an event that was served from the per-run identity cache instead
+ * of being re-dispatched (a byte-identical {@code success==true} repeat of
+ * an earlier call in the same {@code AgentRunLoop.run(...)}). For such an
+ * event the tool was NOT re-executed (no external call / budget);
+ * {@code originalAtStep} names the {@code stepIndex} of the original
+ * dispatch whose result was reused, and is {@code -1} for every
+ * non-deduplicated event. Both fields are observation-only — they annotate
+ * the trace and never alter control flow.
  */
 public record ToolEvent(
         int sequenceIndex,
@@ -24,11 +34,26 @@ public record ToolEvent(
         boolean success,
         Object resultData,
         String errorMessage,
-        long latencyMs
+        long latencyMs,
+        boolean deduplicated,
+        int originalAtStep
 ) {
 
     public ToolEvent {
         arguments = arguments == null ? Map.of() : Map.copyOf(arguments);
+    }
+
+    /**
+     * Backward-compatible 8-arg constructor (pre-Sprint-067 shape) for the
+     * many call sites and tests that construct a normal, non-deduplicated
+     * event. Delegates to the canonical constructor with
+     * {@code deduplicated=false} and {@code originalAtStep=-1}.
+     */
+    public ToolEvent(int sequenceIndex, int stepIndex, String toolName,
+                     Map<String, Object> arguments, boolean success,
+                     Object resultData, String errorMessage, long latencyMs) {
+        this(sequenceIndex, stepIndex, toolName, arguments, success, resultData,
+                errorMessage, latencyMs, false, -1);
     }
 
     /**
@@ -68,6 +93,31 @@ public record ToolEvent(
                 null,
                 reason,
                 0L
+        );
+    }
+
+    /**
+     * Sprint 067 / S-Auto-12 — build an event for a tool call that was
+     * served from the per-run identity cache instead of being re-dispatched
+     * (a byte-identical {@code success==true} repeat). The tool was not
+     * re-executed, so {@code latencyMs} is zero; {@code resultData} is the
+     * cached payload from the original dispatch and {@code originalAtStep}
+     * is that dispatch's {@code stepIndex}. {@code success} is true because
+     * only successful results ever enter the cache.
+     */
+    public static ToolEvent deduplicated(int step, ToolCall call,
+                                         Object cachedResultData, int originalAtStep) {
+        return new ToolEvent(
+                step,
+                step,
+                call == null ? null : call.getName(),
+                call == null ? null : call.getArguments(),
+                true,
+                cachedResultData,
+                null,
+                0L,
+                true,
+                originalAtStep
         );
     }
 }
