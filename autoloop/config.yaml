@@ -83,10 +83,10 @@ fitness:
       parallel: 1                    # bad-case session-establishment flakiness mitigation per M5-close R-item
     - name: anchor_outcome
       path: eval_interactive/case_specs/anchor_outcome/
-      parallel: 4
+      parallel: 2                    # OQ-S65.8 mitigation: reduced from 4 to lower concurrent LLM load (give-up degradation)
     - name: shadow
       path: eval_interactive/case_specs_shadow/
-      parallel: 4
+      parallel: 2                    # OQ-S65.8 mitigation: reduced from 4 to lower concurrent LLM load (give-up degradation)
 
   # Layer 3 improvement-threshold mode. 'case_count' is the v1 choice
   # (2026-05-27 human-locked); a 'percent' mode is reserved for

@@ -111,7 +111,7 @@ public class LlmInvocationService {
                     .messages(List.of(
                             ChatMessage.builder().role("user").content(userMessage).build()
                     ))
-                    .temperature(0.3)
+                    .temperature(0.0)
                     .maxTokens(1024)
                     .responseFormat("json_object")
                     .build();
@@ -264,7 +264,7 @@ public class LlmInvocationService {
                     .messages(List.of(
                             ChatMessage.builder().role("user").content(prompt).build()
                     ))
-                    .temperature(0.1)
+                    .temperature(0.0)
                     .maxTokens(256)
                     .responseFormat("json_object")
                     .build();

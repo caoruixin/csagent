@@ -13,7 +13,12 @@ llm:
   api_key: ${SIMULATOR_API_KEY}
   model: ${SIMULATOR_MODEL}
   temperature: 0.0
-  simulator_temperature: 0.7
+  # OQ-S65.8: deterministic simulator. Default was 0.7 → bad_cases ranged
+  # 6/4/5 at bot temp=0; attribution analysis showed remaining variance
+  # came from moonshot simulator non-determinism + session-start flakiness.
+  # Set to 0.0 to remove the simulator-side variance source so candidate
+  # fitness signal in the autoloop is not noise-dominated.
+  simulator_temperature: 0.0
 
 simulator:
   max_turns: 15
