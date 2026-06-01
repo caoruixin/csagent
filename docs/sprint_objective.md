@@ -1,126 +1,140 @@
 ---
-title: Sprint 067 / S-Auto-12 — A1 identical-retry-storm dedup (M-Auto-3 sub-sprint 2 of ~4)
+title: Sprint 068 / S-Auto-13 — A2 classify-first gating-race + A3 paraphrase-storm skill-layer discipline (M-Auto-3 sub-sprint 3 of ~4)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
 last_reviewed: 2026-06-01
 review_cadence: per sub-sprint
-supersedes: [docs/sprints/sprint-066-objective.md]
+supersedes: [docs/sprints/sprint-067-objective.md]
 superseded_by: null
 notes: >
-  M-Auto-3 / Sprint 067 / S-Auto-12. Second sub-sprint of M-Auto-3 (Substrate-hygiene).
-  **Layer**: `infra` (tool-dispatch idempotency 回挡) + `prompt_projection` (`already_called`
-  observation→binding soft signal) + trace annotation. **§7 stanza**: REQUIRED (semantic-touching
-  surface — it shapes how many tool steps the LLM spends; self-walked below). **Codex**:
-  milestone-shared (default) at M-Auto-3 close — A1 adds NO Tier-0 and crosses NO §1.7 red line
-  (justification embedded), so it stays milestone-shared UNLESS review/work argues for a Tier-0
-  elevation of "per-turn tool-call idempotency" → then `human_review_required` (do NOT self-invent).
+  M-Auto-3 / Sprint 068 / S-Auto-13. Third sub-sprint of M-Auto-3 (Substrate-hygiene).
+  **Layer**: `prompt_projection`/skill (A2 discover_triage procedure; A3 grounding_instruction
+  + projection echo) + config-governance (tool-policy alignment context) + `semantic_planner`
+  (A3 — LLM owns whether to re-search). **§7 stanza REQUIRED** (semantic-touching: skill soft-fields
+  + projection soft signals shape UC routing + search discipline). **Codex**: milestone-shared (default)
+  at M-Auto-3 close — A2/A3 are skill soft-fields + projection (no Tier-0, no §1.7 red line). UPGRADES
+  to per-sub-sprint ONLY if an A3 hard-cap or the OQ-S66.1 golden reconciliation raises a §1.7 concern →
+  STOP-and-surface.
 
-  This sub-sprint is the **highest-leverage upstream cut** in the proposal's fan-in causal model
-  (`docs/solutions/runtime_substrate_hygiene_autoloop_signal_v1.md` §2.2): identical-retry-storm
-  is the single largest step-waster (15/24 case-runs at bot_temp=0). It is delivered by manual dev
-  (NOT autoloop-generated; does NOT widen the autoloop mutable surface).
+  Both fixes are delivered by MANUAL dev (NOT autoloop-generated) per milestone §4 non-goal — editing
+  `$.procedure` / `$.grounding_instruction` manually does NOT widen the autoloop mutable surface (Stage-2
+  remains a separate post-M-Auto-3 decision). After the skill edits, the autoloop baseline_dir may need
+  alignment at M-Auto-3 close (proposal §9 risk row — not this sub-sprint).
 
-  **Red line #2 (proposal §8.2): A1 MUST be hybrid** — deterministic idempotency 回挡 + `already_called`
-  soft-signal upgrade. Soft-signal-alone was FALSIFIED over 12 sprints (Sprint 19 §4.3 chose
-  soft-signal-first; Sprint 20 shipped the `already_called` slot; the storm persisted 15/24 at temp=0).
-  The deterministic backstop is the Runtime's existing idempotency responsibility (Constitution §1.4),
-  NOT a §1.5 keyword/regex hardcode.
+  **A2 (gating-race, proposal §3 A2-A1)**: the root cause is two configs contradicting each other, NOT the
+  dispatcher. `discover_triage.yaml` instructs/rewards search-before-classify in the weak-candidate FAQ
+  path (Sprint-7 §I0 procedure cue + the `faq-uc-search-before-commit` behavior whose trace_check rewards
+  `tool_event_seq(search_knowledge) < tool_event_seq(classify_use_case)`), but `tool-policy.yaml` gates
+  `search_knowledge` to `[UC-A..UC-FP]` (NO `none`/DISCOVER) while `classify_use_case` is `[ALL]` — so a
+  search in DISCOVER (activeUseCase=none) is rejected "Tool 'search_knowledge' is not allowed for use case
+  'none'" (`ToolDispatcher.java:97-101` → `ToolPolicyEnforcer.isToolAllowed:65`), wasting a step. A2 makes
+  the skill tell the truth (classify FIRST, then search in RESOLVE), aligning the skill with the existing
+  tool-policy. Zero runtime code.
 
-  **Inherited substrate state at HEAD (do NOT re-fix / do NOT revert)**: S-Auto-11 shipped
-  `loop.py` per-iter eval-trace persistence (#3) + infra-error detection (#4); fence-#13 untouched;
-  scoring SHA `35305bd8…`. D1 `user_simulator` safe hardening shipped (CONTRACT_VIOL_TURN0 re-attributed
-  bot-side per OQ-S66.2 — NOT this sub-sprint's scope). Determinism config (`b351648`: bot/sim temp→0,
-  LLM deadline 30→60s, eval concurrency 4→2) is M-Auto-2-shipped — do NOT revert.
+  **A3 (paraphrase-storm, proposal §3 A3)**: distinct from S-Auto-12 A1 — A1 deduped BYTE-IDENTICAL repeats;
+  A3 targets NON-identical paraphrase repeats (different `canonicalArgumentsHash`, same intent) that A1's
+  hash cannot catch. Fix: a soft grounding instruction (keyed on the EXISTING `faq_miss` flag) + a projection
+  echo of the prior search result so the LLM need not re-search to confirm. Soft-signal-first (§1.5); a hard
+  cap is a last-resort backstop only (STOP-and-surface before adding).
 
-  **CORRECTED baselines (per OQ-S66.1/S66.3 from S-Auto-11 — the prompt's prior numbers were STALE)**:
-  Java baseline is **`1183 / 10 / 0 / 2`** (the 9 over the old `1183/1/0/2` are PRE-EXISTING
-  `PhaseEvaluator max_tool_steps` golden drift, NOT determinism-attributable, NOT yours to fix here);
-  eval_interactive **`499 / 4`**; autoloop **`276`**; 17-fixture `31`; scoring SHA `35305bd8…`.
+  **OQ-S66.1 reconciliation (in-scope consequence)**: S-Auto-13 edits BOTH `discover_triage.yaml` (A2) and
+  `resolve_faq_grounded_answer.yaml` (A3) — exactly the two skills whose `max_tool_steps` goldens drifted
+  (the 9 pre-existing `PhaseEvaluator` failures in the Java `1186/10/0/2` baseline). Reconcile the goldens
+  here (pick the shipped YAML value as source of truth; update the `PhaseEvaluator` golden tests to match),
+  aiming to take the Java baseline from 10 failures toward 1 (the inherited tiebreaker). STOP-and-surface if
+  the entanglement is larger than a golden-value sync.
 
-  Dev session source-of-truth: `compact/sprint-067-dev-prompt.md` (self-contained per §9).
-  Dev reads ONLY `AGENTS.md` (auto-loaded) + that prompt; code anchors on demand.
+  **Inherited substrate at HEAD (do NOT re-fix / do NOT revert)**: S-Auto-11 (`loop.py` trace persistence +
+  infra-error detection) + S-Auto-12 (A1 hybrid dedup in `AgentRunLoopImpl`/`ToolEvent`/`ControlKernel`/
+  `system_prompt.txt`) are FINALIZED. `b351648` determinism config in place. fence-#13 scoring SHA `35305bd8…`.
+
+  **CORRECTED baselines (post-S-Auto-12)**: Java `1186/10/0/2` (S-Auto-12 +3 A1 tests; the 10 are the
+  OQ-S66.1 golden drift (9) + tiebreaker (1) — S-Auto-13 aims to clear the 9); eval_interactive `499/4`;
+  autoloop `276`; 17-fixture `31`; scoring SHA `35305bd8…`.
+
+  Dev session source-of-truth: `compact/sprint-068-dev-prompt.md` (self-contained per §9). Dev reads ONLY
+  `AGENTS.md` (auto-loaded) + that prompt; code anchors on demand.
 ---
 
-# Sprint 067 / S-Auto-12 — A1 identical-retry-storm dedup
+# Sprint 068 / S-Auto-13 — A2 classify-first gating-race + A3 paraphrase-storm skill-layer discipline
 
 ## Class
 
-- **Layer (primary)**: `infra` (tool-dispatch idempotency 回挡 in the `AgentRunLoopImpl` inner loop / `ToolDispatcher`) + `prompt_projection` (upgrade the existing `already_called` slot from observation-only to a binding soft signal) + trace annotation. The change shapes *how many tool steps the LLM spends*; it does NOT add a UC-routing / drift / escalation-posture decision.
-- **§7 stanza**: **REQUIRED** (semantic-touching: it constrains tool-call behavior the LLM owns). Self-walked below.
-- **Codex review plan (§4.3)**: milestone-shared (default) at M-Auto-3 close. A1 adds NO Tier-0 invariant and crosses NO §1.7 red line (it reuses an existing order-insensitive hash for byte-identical idempotency, no keyword/regex/enum). UPGRADES to per-sub-sprint REQUIRED ONLY IF the work surfaces a Tier-0 elevation argument for "per-turn tool-call idempotency" (§4.3 trigger #1) → STOP-and-surface; do NOT self-invent a Tier-0.
-- **Position in milestone**: 2nd of ~4 (S-Auto-11 ✅ → **S-Auto-12 A1 dedup** → S-Auto-13 A2+A3 skill → S-Auto-14 B1 → optional S-Auto-15 buffer).
+- **Layer (primary)**: `prompt_projection`/skill (A2 `discover_triage.yaml` procedure; A3 `resolve_faq_grounded_answer.yaml` `grounding_instruction` + a `ContextProjectionBuilder` projection echo) + config-governance (tool-policy *alignment context* — the fix matches the skill to the existing policy, ideally without editing the policy) + `semantic_planner` (A3 — the LLM owns whether to re-search). No new runtime decision logic.
+- **§7 stanza**: **REQUIRED** (semantic-touching). Self-walked below.
+- **Codex review plan (§4.3)**: milestone-shared (default) at M-Auto-3 close. A2/A3 are skill soft-fields + a projection echo — no Tier-0, no §1.7 keyword/regex/enum hardcode. UPGRADES to per-sub-sprint ONLY IF an A3 hard-cap backstop or the OQ-S66.1 golden reconciliation crosses a §1.7 line → STOP-and-surface.
+- **Position in milestone**: 3rd of ~4 (S-Auto-11 ✅ → S-Auto-12 ✅ → **S-Auto-13 A2+A3** → S-Auto-14 B1 → optional S-Auto-15 buffer).
 
 ## Goal
 
-Cut the single largest source of execution-path divergence at bot_temp=0: byte-identical tool calls re-dispatched within a run (the `IDENTICAL_RETRY` storm, 15/24 case-runs in the bad_cases 24-case trace-dive). After A1, identical `(toolName, canonicalArgumentsHash)` calls that already succeeded this run are served from cache without charging a step/budget AND the LLM is told (binding soft signal) it has already made them — so the loop stops burning max-steps on repeats, lowering the downstream max-steps/budget-exhaustion frequency that mis-stamps escalation reasons.
+Close the two remaining upstream step-wasters in the proposal's fan-in model so the autoloop fitness signal stops measuring substrate noise: the DISCOVER **gating-race** (A2, `GATING_RACE` 4→≤1) and the RESOLVE **paraphrase-storm** (A3, `PARAPHRASE_STORM` 11/24→≤3). Both are skill-layer / projection soft-signal fixes (no runtime semantic decision changes), delivered by manual dev. As an in-scope consequence of editing both drift-affected skills, reconcile the OQ-S66.1 `max_tool_steps` goldens (take the Java baseline from 10 failures toward 1).
 
-**Acceptance**: on a 3-pass `bad_cases` rerun (sim_temp=0 + bot_temp=0 + 60s deadline + parallel=1, measured via the S-Auto-11 per-iter trace persistence), `IDENTICAL_RETRY` drops **15/24 → ≤2/24** with the negative controls intact (a normal single call is never deduped; a legitimate same-args retry after an external FAILURE is never deduped); all corrected baselines preserved (Java no NEW failures beyond the OQ-S66.1 10 + new A1 tests; eval_interactive `499/4`; autoloop `276`; 17-fixture `31`; scoring SHA `35305bd8…`).
+**Acceptance**: on a 3-pass `bad_cases` rerun (sim_temp=0 + bot_temp=0 + 60s deadline + parallel=1, freshly-restarted backend, measured via the S-Auto-11 per-iter trace persistence): `GATING_RACE` 4→≤1 (DISCOVER `search_knowledge` "not allowed for use case 'none'" rejections drop); `PARAPHRASE_STORM` 11/24→≤3 (non-identical re-searches after a `faq_miss=false` hit drop); negative controls intact (legitimate distinct RESOLVE searches not suppressed; legitimate re-search after `faq_miss=true` still allowed; classify-first does not break a legitimate DISCOVER clarify-then-classify flow). Java baseline ideally `1186→ (failures 10→1)` via the OQ-S66.1 golden reconciliation (at minimum no NEW failures); eval `499/4`, autoloop `276`, 17-fixture `31`, scoring SHA `35305bd8…` preserved.
 
 ## Scope (4 steps)
 
-1. **Deterministic idempotency 回挡 (A1-x backstop)** in the tool-dispatch path (`server/src/main/java/.../runtime/AgentRunLoopImpl.java` inner dispatch loop ~:316/:449; and/or `ToolDispatcher.dispatch` ~:86-103). Maintain a per-run `Map<(toolName, canonicalArgumentsHash), cachedResult>` keyed by the **existing** `ContextProjectionBuilder.canonicalArgumentsHash` (~:1267, order-insensitive SHA-256 truncated). On a duplicate key whose prior result was `success==true`: return the cached result, **do NOT charge a step / budget**, and trace-annotate `deduplicated:true` + `original_at_step:<n>`. Only `success==true` results enter the cache (proposal §9 risk row).
+1. **A2 — `discover_triage.yaml` classify-first** (`server/src/main/resources/skills/discover_triage.yaml`). Edit `$.procedure` so DISCOVER classifies FIRST (do not instruct `search_knowledge` before `classify_use_case` while activeUseCase=none) — the weak-candidate FAQ path should gather enough to classify toward the right FAQ-path UC, then let RESOLVE run the grounded search. Reconcile the `faq-uc-search-before-commit` behavior (currently rewards `tool_event_seq(search_knowledge) < tool_event_seq(classify_use_case)`, which is exactly what drives the LLM into the `search`-in-`none` gating-race). Align the skill with the existing `tool-policy.yaml` (`classify_use_case:[ALL]`, `search_knowledge` requires a UC). PREFER NOT to edit `tool-policy.yaml` (A2-A1 is skill-only); if you believe the policy must change instead, STOP-and-surface (that is A2-A2, a different trade-off). Manual dev — NOT autoloop-generated.
 
-2. **`already_called` soft-signal upgrade (A1-x hybrid half)** (`ContextProjectionBuilder` `buildAlreadyCalledNode` ~:1235-1251 + the slot ~:857/:182-187). Upgrade the slot from observation-only ("Slot is observability-only; no short-circuit on dispatch") to a **binding soft signal**: the projection explicitly instructs the LLM "you already called these tools with these args this run — do NOT repeat; draft from the existing result or take the next action." Hybrid is mandatory (red line #2). The LLM still owns *which* tool / *what* content; the soft signal only discourages byte-identical repeats.
+2. **A3 — `resolve_faq_grounded_answer.yaml` paraphrase discipline** (`server/src/main/resources/skills/resolve_faq_grounded_answer.yaml` `$.grounding_instruction` ~:31) + projection echo (`server/src/main/java/.../service/runtime/ContextProjectionBuilder.java`, coordinate with the existing search-echo at ~:738 "Do NOT call search_knowledge again" + `accumulated_tool_results` echo ~:847). Add: "after a `search_knowledge` returns a viable hit (`faq_miss=false`), do NOT re-search this turn — draft from the existing hits via `resolve_article`, or escalate; a fresh search is only warranted if the prior result was `faq_miss=true` or the query is materially different." Ensure the projection echoes the prior search result so the LLM need not re-search to confirm. **Soft-signal-first (§1.5)**: do NOT add a hard search-count cap as the primary fix; if soft-signal + echo prove insufficient, STOP-and-surface before adding an A3-cap backstop. Distinct from S-Auto-12 A1 (which only dedups byte-identical repeats; A3 covers paraphrase repeats A1's hash misses).
 
-3. **Negative controls + trace** — add Java tests proving: (a) a normal single call is not deduped; (b) a legitimate same-args retry after a non-`success` (external-failure) result is NOT deduped (it re-dispatches); (c) the dedup 回挡 returns the cached result + writes the `deduplicated`/`original_at_step` trace annotation + charges no step; (d) the `already_called` binding soft signal is projected. (Trace annotation is load-bearing for downstream report.html/admin trace per `project_observability_debt_pattern`.)
+3. **OQ-S66.1 `max_tool_steps` golden reconciliation (in-scope consequence)**. Since this sub-sprint edits both `discover_triage.yaml` and `resolve_faq_grounded_answer.yaml`, reconcile their `max_tool_steps` goldens — the 9 pre-existing `PhaseEvaluator` failures (`PhaseEvaluatorPlanTest` ×2 + `PhaseEvaluatorResolveSkillIntegrationTest` ×7; golden asserts 4/2, shipped is 6/3). Pick the **shipped YAML value as source of truth** (post-A2/A3, re-derive if A2/A3 changed the needed step count) and update the `PhaseEvaluator` golden tests in `server/src/test/**` to match. Target: Java failures `10 → 1` (the inherited `SystemPromptUserRequestedTiebreakerTest` remains, OQ-S41.5 STATUS QUO). STOP-and-surface if the golden encodes an intended cap the team wants enforced (i.e. it is more than a stale-value sync).
 
-4. **Handoff + OQ ledger** (`docs/sprints/sprint-067-handoff.md`), including the 3-pass `bad_cases` `IDENTICAL_RETRY` before/after measurement.
+4. **3-pass `bad_cases` measurement + handoff + OQ ledger** (`docs/sprints/sprint-068-handoff.md`), including `GATING_RACE` + `PARAPHRASE_STORM` before/after.
 
 ## Hard fences / STOP conditions
 
-**In scope to edit**: `server/src/main/java/.../runtime/AgentRunLoopImpl.java` (inner dispatch loop dedup) + `server/src/main/java/.../ToolDispatcher.java` (dispatch gating, if the 回挡 lives here) + `server/src/main/java/.../ContextProjectionBuilder.java` (`already_called` slot upgrade; reuse `canonicalArgumentsHash`) + trace annotation plumbing; `server/src/test/**` (new A1 + negative-control tests). Read-only: the bad_cases suite for the measurement.
+**In scope to edit**: `server/src/main/resources/skills/discover_triage.yaml` (A2) + `server/src/main/resources/skills/resolve_faq_grounded_answer.yaml` (A3) + `server/src/main/java/.../service/runtime/ContextProjectionBuilder.java` (A3 projection echo, only if the existing echo is insufficient) + `server/src/test/**` (OQ-S66.1 golden reconciliation + any new A2/A3 tests). `server/src/main/resources/config/tool-policy.yaml` only if A2 genuinely requires it (PREFER not — STOP-and-surface first). Read-only: the bad_cases suite (measurement).
 
-**Hard-fenced (do NOT edit)**: `PhaseEvaluator.resolveMaxStepsReason` (B1 = S-Auto-14); `server/src/main/resources/skills/**` + `discover_triage.yaml` (A2/A3 = S-Auto-13); `server/src/main/resources/config/tool-policy.yaml` (A2 = S-Auto-13); `eval_interactive/case_specs/**` (B1 sync = S-Auto-14); `eval_interactive/.../user_simulator.py` (D1 FINALIZED in S-Auto-11); the 4 SHA-locked scoring files `autoloop/autoloop/scoring/{tier_evaluator,eval_runner,baseline_loader,gaming}.py` (fence-#13); `autoloop/autoloop/sandbox/applier.py` + `sandbox/{anti_hardcode_check,content_validator}.py`; `autoloop/autoloop/{meta_agent,memory}/**`, `preflight.py`, `cli.py`, `loop.py` (S-Auto-11 FINALIZED — A1 is server-side); `docs/foundational/**`, `docs/current/**`, `docs/runtime_freeze_and_risk_policy.md`, `docs/teams/**`; prior sprint/milestone archives.
+**Hard-fenced (do NOT edit)**: `PhaseEvaluator.resolveMaxStepsReason` *logic* (B1 = S-Auto-14; you may update its golden TEST expectations for OQ-S66.1, NOT the resolver code); `AgentRunLoopImpl` / `ToolEvent` / `ControlKernel` / `system_prompt.txt` (S-Auto-12 A1 FINALIZED); `eval_interactive/case_specs/**` (B1 sync = S-Auto-14); `eval_interactive/.../user_simulator.py` (D1 FINALIZED); the 4 SHA-locked scoring files; `autoloop/autoloop/loop.py` (S-Auto-11 FINALIZED) + `sandbox/applier.py` + `sandbox/{anti_hardcode_check,content_validator}.py` + `meta_agent`/`memory`/`preflight.py`/`cli.py`; `docs/foundational/**`, `docs/current/**`, `docs/runtime_freeze_and_risk_policy.md`, `docs/teams/**`; prior sprint/milestone archives.
 
 **STOP-and-surface conditions**:
-- A1 dedup regresses a legitimate retry (an external-failure non-`success` retry gets mis-deduped) → halt; refine the `success==true`-only 回挡 condition (proposal §10 stop condition #1).
-- The design appears to require a NEW Tier-0 invariant (someone argues "per-turn tool-call idempotency" must be Tier-0) → `human_review_required`; do NOT self-invent a Tier-0 (milestone §6 / Non-goals).
-- Any hard-fenced surface needs editing to land A1 → STOP-and-surface for authorization.
-- Do NOT revert the `b351648` determinism config or the S-Auto-11 `loop.py`/D1 work.
-- **No `git add -A`** — stage scope explicitly. Any `autoloop run` only on a clean committed tree (`project_autoloop_dirty_index_hazard`). **Local-Mac only.** Restart the backend after server changes (`mvn spring-boot:run` has no hot-reload) before the bad_cases measurement.
+- A2/A3 risk altering UC-routing / escalation / drift semantics beyond the storm fix (these are the LLM's by §1.3 — your edits must only re-order/soft-guide, not hardcode a UC decision).
+- The OQ-S66.1 golden reconciliation is more than a stale-value sync (the golden encodes an intended cap).
+- Soft-signal + projection echo prove insufficient for A3 and you are tempted to add a hard search-count cap (surface first — it is a backstop, not the first choice).
+- A2 seems to require editing `tool-policy.yaml` (that is A2-A2, a different trade-off).
+- Any hard-fenced surface needs editing. Do NOT revert S-Auto-11/12 or the `b351648` determinism config.
+- **No `git add -A`** — stage scope explicitly. Any `autoloop run` only on a clean committed tree. **Local-Mac only.** Restart the backend after skill/server changes (`mvn spring-boot:run` has no hot-reload) before the bad_cases measurement.
 
 ## Test / eval requirements
 
-- **Java**: no NEW failures beyond the **OQ-S66.1 baseline `1183 / 10 / 0 / 2`** (`mvn -q -pl server test`); the 9 `PhaseEvaluator max_tool_steps` golden-drift failures are PRE-EXISTING and out of scope (do NOT "fix" them here). `Tests run` RISES by the new A1 + negative-control tests; `Failures` stays `10`. If a determinism/golden-unrelated test newly breaks → investigate (it is A1-attributable).
-- **eval_interactive pytest**: `499 passed, 4 failed` preserved (A1 does not touch `eval_interactive`).
-- **autoloop pytest**: `276 passed` preserved (A1 does not touch `autoloop`).
+- **Java**: from the S-Auto-12 baseline `1186/10/0/2`, S-Auto-13 should REDUCE failures via the OQ-S66.1 golden reconciliation — target `Failures: 1` (the tiebreaker) + any new A2/A3 tests (`Tests run` rises). At minimum: no NEW non-reconciled failures. If A2/A3 change a skill's `max_tool_steps`, the golden MUST be updated to the shipped value in the same sub-sprint (no red tests left).
+- **eval_interactive pytest**: `499 passed, 4 failed` preserved (A2/A3 are server/skill-side).
+- **autoloop pytest**: `276 passed`.
 - **17-fixture detector sweep**: `31 passed`.
-- **scoring SHA**: held at `35305bd8…` (A1 touches no scoring file).
-- **A1 measurement (the deliverable)**: start a fresh `:8080` backend, then 3-pass `bad_cases` rerun (`cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1`, ×3 at sim_temp=0/bot_temp=0/60s deadline); read the persisted per-iter traces; report `IDENTICAL_RETRY` 15/24 → target ≤2/24, with the dedup `deduplicated:true` annotations visible in-trace and the negative controls intact.
+- **scoring SHA**: held at `35305bd8…`.
+- **A2/A3 measurement (deliverable)**: restart `:8080` backend, 3-pass `bad_cases` (`cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1`, ×3 at sim/bot temp=0/60s). Read the persisted per-iter traces; report `GATING_RACE` 4→≤1 (DISCOVER search "not allowed for use case 'none'" rejections) + `PARAPHRASE_STORM` 11/24→≤3 (non-identical re-searches after a `faq_miss=false` hit), negative controls intact.
 
 ## §7 stanza (REQUIRED)
 
-**Target failure layer:** `infra` (A1 idempotency 回挡 in the dispatch path) + `prompt_projection` (`already_called` observation→binding soft signal). No UC-hypothesis / drift / escalation-posture / response-strategy decision is changed.
+**Target failure layer:** `prompt_projection`/skill (A2 `discover_triage` procedure; A3 `grounding_instruction` + projection echo) + `semantic_planner` (A3 — LLM owns whether to re-search) + config-governance (tool-policy alignment context). No runtime semantic-decision logic is added.
 
-**Tier-0 invariant:** This sprint adds NO Tier-0 invariant. A1 dedup is an extension of the Runtime's existing idempotency / persistence responsibility (Constitution §1.4); it is NOT added to `docs/runtime_freeze_and_risk_policy.md` §1/§2. If review argues "per-turn tool-call idempotency" should be elevated to Tier-0 → `human_review_required` (do NOT self-invent).
+**Tier-0 invariant:** This sprint adds NO Tier-0 invariant. A2 aligns a skill with the existing tool-policy; A3 is a soft grounding signal + projection echo. Neither touches `docs/runtime_freeze_and_risk_policy.md` §1/§2.
 
-**Semantic hardcode:** None introduced. The dedup key REUSES the existing `canonicalArgumentsHash` (order-insensitive, identical for all tools — no keyword / regex / enum / per-UC matrix). The 回挡 fires only on byte-identical `(toolName, args)` calls whose prior result was `success==true`; it makes no semantic judgment, and the LLM still owns which tool to call and what content. **Justification for the deterministic backstop (anti-hardcode):** soft-signal-first was the Sprint 19 §4.3 choice and the `already_called` slot shipped Sprint 20 (observation-only); 12 sprints later the storm is still 15/24 at temp=0 → soft-signal-ALONE is empirically falsified. The idempotency backstop is the §1.4 Runtime responsibility, not a §1.5 violation; hybrid (回挡 + soft-signal upgrade) is mandatory (red line #2). Net effect: this REMOVES wasted re-dispatches, it does not add a semantic rule.
+**Semantic hardcode:** None introduced. A2 RE-ORDERS the `discover_triage` procedure to match the EXISTING `tool-policy.yaml` (removing a self-contradiction) — no keyword/regex/enum/per-UC matrix added; the LLM still owns the UC choice (§1.3). A3 adds a soft `grounding_instruction` keyed on the EXISTING `faq_miss` flag + a projection echo of prior search results — the LLM still owns whether to re-search; soft-signal-first per §1.5. Any A3 hard-cap is a structural cardinality limit (not a semantic rule) and a last-resort backstop only (STOP-and-surface before adding). The OQ-S66.1 golden reconciliation aligns a stale TEST expectation to shipped behavior (not a runtime rule). Net effect: removes wasted DISCOVER/RESOLVE steps + a self-contradicting skill cue — net-lowers, not raises, the hardcode surface.
 
-**Generalization coverage:** target = the bad_cases `IDENTICAL_RETRY` subset (15/24 case-runs); neighbor = `anchor_outcome` + shadow cases of the same storm shape; negative = (a) a normal single call must NOT be deduped, (b) a legitimate same-args retry after an external FAILURE (non-`success`) must still re-dispatch; shadow = held-out (not read by dev). Counts confirmed at handoff via the 3-pass bad_cases rerun (IMPROVING evidence per §11: `IDENTICAL_RETRY` 15/24 → ≤2/24).
+**Generalization coverage:** target = bad_cases `GATING_RACE` (4) + `PARAPHRASE_STORM` (11/24) subsets; neighbor = `anchor_outcome` / shadow same-storm shape; negative = (a) legitimate distinct RESOLVE searches (different queries) NOT suppressed, (b) legitimate re-search after `faq_miss=true` still allowed, (c) classify-first does NOT break a legitimate DISCOVER clarify-then-classify flow; shadow = held-out (not read by dev). Counts confirmed at handoff via the 3-pass bad_cases rerun.
 
 ## Codex review plan (per §4.3)
 
-Milestone-shared at M-Auto-3 close (default; cumulative S-Auto-11..14 range + bundled M-Auto-2 residual). UPGRADES to per-sub-sprint REQUIRED only if the work surfaces a Tier-0 elevation argument (§4.3 #1) — then STOP-and-surface; the deliver-agent authors the per-sub-sprint Codex prompt.
+Milestone-shared at M-Auto-3 close (default; cumulative S-Auto-11..14 + bundled M-Auto-2 residual). UPGRADES to per-sub-sprint ONLY IF an A3 hard-cap backstop is added or the OQ-S66.1 golden reconciliation raises a §1.7 / §5.4 concern (a test-expectation change that could look like masking) — then STOP-and-surface; the deliver-agent authors the per-sub-sprint Codex prompt.
 
 ## Handoff requirements
 
-`docs/sprints/sprint-067-handoff.md` at close. Mandatory: §0 summary (scope, commits, final test counts incl. Java `1183/10/0/2`+new tests); §1 A1 dedup mechanism (回挡 key + cache scope + step/budget non-charge + trace annotation); §2 `already_called` binding soft-signal upgrade (before/after projection); §3 negative controls (single-call + external-failure-retry NOT deduped); §4 `IDENTICAL_RETRY` 3-pass bad_cases before/after measurement; §5 baselines preserved + §7-stanza self-walk + fence disposition; §6 OQs surfaced (incl. any residual storm not closed by A1); §7 self-check tick-off.
+`docs/sprints/sprint-068-handoff.md` at close. Mandatory: §0 summary (scope, commits, final counts incl. the post-reconciliation Java baseline); §1 A2 classify-first (before/after procedure + the `faq-uc-search-before-commit` behavior disposition + GATING_RACE evidence); §2 A3 paraphrase discipline (grounding_instruction + projection echo before/after + PARAPHRASE_STORM evidence + confirmation no hard-cap was added, or STOP-and-surface record if it was); §3 negative controls (distinct RESOLVE searches + faq_miss=true re-search + DISCOVER clarify-then-classify); §4 OQ-S66.1 golden reconciliation (which goldens, shipped values chosen, Java before/after); §5 baselines + §7-stanza self-walk + fence disposition; §6 OQs surfaced; §7 self-check tick-off.
 
 ## Commit discipline
 
-Multi-commit acceptable (A1 runtime / projection / tests / handoff). Commit message: `Sprint 067 / S-Auto-12 / M-Auto-3 — <description>` + standard footer `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. No `git add -A` — stage explicitly. Do not push.
+Multi-commit acceptable (A2 / A3 / golden reconciliation / handoff). Commit message: `Sprint 068 / S-Auto-13 / M-Auto-3 — <description>` + standard footer `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. No `git add -A` — stage explicitly. Do not push.
 
 ## Self-check (dev MUST verify before claiming done)
 
-- [ ] Deterministic 回挡 implemented (per-run `(toolName, canonicalArgumentsHash)` cache; `success==true`-only; no step/budget charged on hit; reuses existing hash).
-- [ ] `already_called` slot upgraded observation-only → binding soft signal (hybrid; red line #2 satisfied).
-- [ ] Trace annotation `deduplicated:true` + `original_at_step` written on every 回挡 hit.
-- [ ] Negative controls pass: normal single call NOT deduped; external-failure (non-`success`) same-args retry re-dispatches.
-- [ ] `IDENTICAL_RETRY` 15/24 → ≤2/24 on a 3-pass bad_cases rerun (backend restarted; measured via S-Auto-11 persisted traces).
-- [ ] Java no NEW failures beyond the OQ-S66.1 baseline 10 (+ new A1/negative-control tests); did NOT touch the 9 golden-drift failures.
+- [ ] A2: `discover_triage.yaml` procedure classifies-first; the `faq-uc-search-before-commit` search-before-classify reward reconciled; aligned with existing tool-policy (tool-policy NOT edited, or STOP-and-surfaced); `GATING_RACE` 4→≤1 on a 3-pass rerun.
+- [ ] A3: `resolve_faq_grounded_answer.yaml` grounding_instruction + projection echo discourage re-search after a `faq_miss=false` hit; soft-signal-first (NO hard cap, or STOP-and-surfaced); `PARAPHRASE_STORM` 11/24→≤3.
+- [ ] Negative controls: distinct RESOLVE searches not suppressed; `faq_miss=true` re-search allowed; DISCOVER clarify-then-classify not broken.
+- [ ] OQ-S66.1: discover_triage + resolve_faq `max_tool_steps` goldens reconciled to shipped values; Java failures `10 → 1` (tiebreaker only) + any new tests; no red tests left.
 - [ ] eval_interactive `499/4` + autoloop `276` + 17-fixture `31` + scoring SHA `35305bd8…` preserved.
-- [ ] No edits to PhaseEvaluator / skills / case_specs / user_simulator / loop.py / scoring files / applier.py / sandbox / meta_agent; no Tier-0 self-invented.
-- [ ] No `git add -A`; any autoloop run on a clean committed tree; local-Mac only.
+- [ ] No edits to PhaseEvaluator resolver logic / AgentRunLoopImpl / ToolEvent / system_prompt / case_specs / user_simulator / loop.py / scoring / applier.py / sandbox / meta_agent; A2/A3 manual (not autoloop-generated); no Tier-0; no semantic hardcode (no A3 hard-cap without surfacing).
+- [ ] No `git add -A`; any autoloop run on a clean committed tree; backend restarted for measurement; local-Mac only.
 - [ ] Handoff §0-§7 filled.
