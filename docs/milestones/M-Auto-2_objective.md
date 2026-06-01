@@ -4,10 +4,10 @@ doc_tier: current-runtime
 status: current
 implementation_status: partial
 source_of_truth: this file
-last_reviewed: 2026-05-31
+last_reviewed: 2026-06-01
 review_cadence: per milestone
 supersedes: [docs/milestones/M-Auto-1C_objective.md]
-superseded_by: null
+superseded_by: docs/milestone_objective.md (M-Auto-3 — Substrate-hygiene; live)
 notes: >
   M-Auto-1C closed 2026-05-30 with Class C in-flight downgrade per
   joint deliver-agent + human AskUserQuestion 2026-05-30 (recommended
@@ -457,4 +457,64 @@ Risk to duration:
 
 ## 12. Closure verdict
 
-*Filled by deliver-agent + human at M-Auto-2 close per `iteration_governance.md` §8.4. Placeholder during M-Auto-2 execution.*
+**Verdict: C — In-flight downgrade** per `docs/current/deliver_close_taxonomy.md` (Class C). Joint deliver-agent + human decision 2026-06-01: M-Auto-2's core hypothesis — *"once OQ-S62.3 execution is resolved, the M-Auto-1A/B/C substrate yields a trustworthy first overnight + first cherry-pick"* — was **empirically falsified mid-flight** by the post-S-Auto-10 discovery that the autoloop candidate fitness eval had **never run** (OQ-S65.5), compounded by a Layer-0-absolute gate bug (OQ-S65.6) and LLM-deadline env degradation (OQ-S65.7/8). The work pivots to **M-Auto-3 — Substrate-hygiene**.
+
+> **This verdict supersedes the obsolete Class-A — Clean PASS close-prep draft** authored 2026-05-31 *before* the OQ-S65.5/6/7/8 findings. The human PAUSED that draft (per `compact/sprint-065-S-Auto-10-context-pack.md` D6); it is replaced wholesale here. The prior draft's "11/13 gates MET" tally was computed against a fitness eval that never executed.
+
+### 12.1 What falsified the milestone hypothesis (load-bearing close driver)
+
+Three layers of fitness-signal corruption surfaced by the S-Auto-10 deep-dive *after* the close-prep was drafted:
+
+1. **OQ-S65.5 — candidate fitness eval never ran** (FIXED `b71d6b5`). `config.fitness.suites[].path` is repo-root-relative but `eval_runner.run_suite` launched eval-interactive with `cwd=repo_root/eval_interactive` and passed the path unchanged → doubled to `eval_interactive/eval_interactive/case_specs/...` → `FileNotFoundError`, exit 1, no `results.json` written. Every candidate across **M-Auto-1A..M-Auto-2** was scored `current_passed=0` → spurious `tier1_bad_cases_regression_5_to_0` on every iteration. **The loop never once evaluated a candidate; "0 keeps" was a bug artifact, not propose quality.** Fix: resolve `spec.path` to absolute. fence-#13 controlled override (`eval_runner.py`) + scoring SHA rebaseline `22548e20…` → `7b9954f2…`.
+2. **OQ-S65.6 — Layer 0 was absolute, not a delta** (FIXED `8ff68c0`). `_evaluate_layer0` failed on any `_TIER0_PY_FAMILY` check False across all suites, but the baseline itself fails some bad cases (e.g. `cs011`) → no candidate could ever clear the floor. Fix: Layer 0 now fails ONLY on a check False-in-candidate-but-True-in-baseline (newly-introduced violation); pre-existing baseline failures recorded + ignored. fence-#13 override #2 (`tier_evaluator.py`) + SHA rebaseline `7b9954f2…` → `35305bd8…`.
+3. **OQ-S65.7/8 — corrected overnight polluted by LLM-deadline degradation** (carry-forward → **folded into M-Auto-3 scope** per joint decision 2026-06-01). With the eval finally running, the 7-iter corrected overnight had every candidate die at Layer 0 `escalation_compliance` because 55/230 case-runs hit the 30s LLM deadline → coerced `service_degraded` escalation → cross-family Tier-0 fail. Environmental (LLM healthy now), not edit-caused. The loop must DETECT the infra-error signal and never score it as a Tier-0 fitness regression — this detection logic is M-Auto-3 scope. The `b351648` determinism config mitigates the trigger (deadline 30→60s, bot/sim temp→0, eval concurrency 4→2) but does not implement the detection.
+
+**Net: M-Auto-2 never observed one clean, valid fitness run.** The 0-keep / 0-cherry-pick outcomes recorded at S-Auto-10 close are all artifacts of (1)+(2)+(3), not evidence about propose quality or substrate fitness.
+
+### 12.2 Hard-gate tally (honest, post-findings)
+
+| # | Gate | Status |
+|---|---|---|
+| 1 | Tier-0 safety floor unchanged (zero `server/src/main/java` edits) | ❌ BROKEN — `b351648` determinism config edited `ChatController` (deadline 30→60s), `LlmRequest` + `LlmInvocationService` (temp 0.3→0). Human-authorized substrate-hygiene-adjacent config; outside the M-Auto-2 §6 fence. |
+| 2 | Java test baseline (`1183/1/0/2`) preserved | ⚠️ NEEDS RE-VERIFICATION — `b351648` touched server Java; not re-run at this close. M-Auto-3 S-Auto-11 re-establishes the baseline. |
+| 3 | Python test baseline preserved | ⚠️ PARTIAL — eval_interactive `486/3` holds; autoloop pytest `266` held per OQ-S65.5/6 commit msgs (backward-compatible); but scoring SHA changed `22548e20…` → `35305bd8…` via two fence-#13 overrides (was a hard fence). |
+| 4 | Live iter end-to-end through Step 9, non-degenerate verdict | ⚠️ MECHANICAL-ONLY until OQ-S65.5 — first VALID Step-9 reach = exp-40 (post-fix). exp-18 / the 13/15 ran on the non-functional eval. |
+| 5 | Pre-batch drift envelope ≥2 reruns | ⚠️ MOOT — measured against the broken eval. |
+| 6 | First overnight ≥10 iter | ❌ INVALID — 13/15 ran on the non-functional eval (OQ-S65.5); the corrected 7-iter overnight was LLM-degradation-polluted (OQ-S65.8). No valid overnight. |
+| 7 | First human review of kept candidates | ❌ N/A — empty slate was a bug artifact. |
+| 8 | First cherry-pick decision | ❌ MOOT — the 0-cherry-pick decision was made before the fitness bug was known. |
+| 9 | §5.6 bad-case manual review (PRIMARY) | ✅-equivalent via the 24-case trace-dive (deeper than a close-day pass/fail rerun). Standalone close-day rerun SKIPPED per joint decision 2026-06-01 (§12.5). |
+| 10 | Shadow regression-safety | N/A — no valid cherry-pick landed. |
+| 11 | OQ-S62.3 resolved (S-Auto-9) | ✅ PASS — the milestone's solid win (self-inflicted killpg fix + OQ-S64.1/2; Codex per-sub-sprint `pass/0/approve`). |
+| 12 | R-S58 disposition | ✅ CLOSED-AS-THEORETICAL-ONLY (0 Cf across propose rows; the propose stage DID run even though the eval crashed). |
+| 13 | Milestone-shared Codex | ⏭ DEFERRED — bundled into M-Auto-3 milestone-shared close Codex with explicit range coverage of the fence-#13 + server-Java commits (§12.5; M-Auto-1B-style bundling). |
+
+**Net**: the milestone did NOT meet its overnight / cherry-pick gates with valid evidence (gates 4-8 invalid/moot; gates 1-3 disturbed by authorized substrate edits). It DID resolve OQ-S62.3, discover-and-fix the deeper fitness-calc corruption (OQ-S65.5/6), and reframe the binding constraint → M-Auto-3.
+
+### 12.3 What M-Auto-2 actually delivered (value despite the downgrade)
+
+- **S-Auto-9 / Sprint 064**: OQ-S62.3 self-inflicted-killpg fix + OQ-S64.1/2 (`applier.py`; Codex per-sub-sprint `pass/0/approve`). Solid.
+- **OQ-S65.5/6 fitness-calc fixes** (fence-#13; `b71d6b5` + `8ff68c0`): without these the autoloop measured *nothing* across M-Auto-1A..M-Auto-2 — arguably the milestone's most valuable output.
+- **Determinism config** (`b351648`): bot/sim temp→0, LLM deadline 30→60s, eval concurrency 4→2.
+- **bad_cases trace-dive** (24 case-runs; `b351648`): proved residual bad_cases variance is agent-runtime substrate bugs, not eval noise → **7 R-items**.
+- **Research brief + substrate-hygiene proposal** (`docs/solutions/runtime_substrate_hygiene_autoloop_signal_v1.md`) → M-Auto-3 scope.
+
+### 12.4 Sub-sprint dispositions (reframed)
+
+- **S-Auto-9 / Sprint 064**: **A — Clean close** at sub-sprint level (UNCHANGED; Codex per-sub-sprint `pass/0/approve`; OQ-S62.3 fix solid).
+- **S-Auto-10 / Sprint 065**: **REFRAMED** from the close-prep's "A — Clean PASS" to **Class C-style carryover** — it executed the planned steps but its core deliverable (a valid first overnight) was undermined by the OQ-S65.5/6 fitness-eval bugs it surfaced; the OQ-S65.5/6/7/8 discovery + the two fence-#13 fixes + the trace-dive are its substantive (and valuable) output. Mirrors how S-Auto-8 was Class C-style carryover in M-Auto-1C.
+
+### 12.5 §5.6 + Codex disposition (lean close, joint decision 2026-06-01)
+
+- **§5.6**: standalone close-day rerun **SKIPPED**. The substrate is known-corrupted (the whole finding); a close-day pass/fail rerun would only re-confirm storm noise + LLM-provider drift. The 24-case trace-dive IS the richer §5.6-equivalent evidence, and M-Auto-3's acceptance bar runs the authoritative 3-pass `bad_cases` measurement.
+- **Codex**: the M-Auto-2 cumulative-range review (incl. the fence-#13 `eval_runner.py` + `tier_evaluator.py` overrides and the `b351648` server-Java determinism edits — none of which S-Auto-9's `applier.py`-only per-sub-sprint Codex covered) is **BUNDLED into the M-Auto-3 milestone-shared close Codex**, with M-Auto-3's review range explicitly set to include these commits (M-Auto-1B-precedent for bundled reviews). Per `feedback_milestone_close_bad_case_before_codex` the §5.6-before-Codex discipline binds at the M-Auto-3 close, where M-Auto-3's §5.6 evidence precedes the bundled Codex dispatch.
+
+### 12.6 R-item flips
+
+- **7 trace-dive R-items + 3 OQ-S65.x R-items** (`docs/action_bank.md` §5.2): status `proposed` → **routed to M-Auto-3 substrate-hygiene scope**. Mapping: A1 ← `R-runtime-identical-tool-call-retry-storm`; A2 ← `R-runtime-tool-gating-race-uc-none`; A3 ← `R-runtime-paraphrase-storm-search-knowledge`; B1 ← `R-runtime-escalation-reason-misstamp-maxsteps-faq`; D ← `R-simulator-first-message-contract-violation-flake`; observability ← `R-overnight-eval-traces-not-persisted` + `R-tier1-bad-cases-regression-5-to-0-attribution-unverified`; substrate-hygiene ← `R-autoloop-run-sweeps-dirty-index`; infra-error-detection ← OQ-S65.7/8. **Deferred to M-Auto-4+**: `R-runtime-escalation-reason-turn-budget-conflated-with-intent` (Module B3 / R5), `R-classifier-non-deterministic-uc-selection-at-temp-zero` (Module C / R7).
+- **R-S58**: CLOSED-AS-THEORETICAL-ONLY reconfirmed (caveat: the propose-distribution scan ran on broken-eval iterations, but the propose *stage* executed; 0 Cf observed).
+- **R-eval-interactive-judge-score-never-populated**: UNCHANGED `proposed`, LOW priority observability hygiene → M-Auto-3+.
+
+### 12.7 Next milestone
+
+**M-Auto-3 — Substrate-hygiene (clean the autoloop fitness signal)** opens at this close. Scope = proposal Module **A** (tool-call discipline: dedup + classify-first + paraphrase) + **B1** (escalation-reason honesty) + **D** (eval-harness robustness) + **OQ-S65.7/8 infra-error detection**. Sub-sprint sequence S-Auto-11 (harness + per-iter trace persistence + infra-error detection) → S-Auto-12 (A1 dedup) → S-Auto-13 (A2+A3 skill-layer) → S-Auto-14 (B1 + minimal eval valid_reasons sync). Acceptance bar = proposal §11 unlock criteria (IDENTICAL_RETRY 15/24→≤2, PARAPHRASE_STORM 11/24→≤3, GATING_RACE 4→≤1, ESCALATION_MISSTAMP 5/24→≤1, CONTRACT_VIOL_TURN0 3/24→0). Stage-2 unlock decision remains deferred to AFTER M-Auto-3 close. Source-of-truth proposal: `docs/solutions/runtime_substrate_hygiene_autoloop_signal_v1.md`.
