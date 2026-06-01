@@ -112,6 +112,18 @@ class IterationResult:
     content_validator_verdict: ContentValidationResult | None = None
     gaming_flags: list[dict[str, Any]] = field(default_factory=list)
     anti_hardcode_flag_for_codex: bool = False
+    # S-Auto-11: per-iter eval traces persisted for §5.6 / §11 review
+    # (R-overnight-eval-traces-not-persisted). Path to the consolidated
+    # eval-results.json, or None if persistence failed / no eval ran.
+    eval_traces_path: str | None = None
+    # S-Auto-11 (OQ-S65.7/8): an iteration whose eval evidence is
+    # infra-degraded (failed/empty suite OR pervasive LLM-deadline /
+    # service_degraded prevalence) is marked infra-error. It is reported
+    # with decision="error" (the non-fitness bucket) so it is NEVER scored
+    # as a Tier-0 fitness regression; `infra_error_reason` makes it
+    # distinct from a generic code-exception error in the iter row.
+    infra_error: bool = False
+    infra_error_reason: str | None = None
 
 
 def run_one_iteration(
@@ -252,6 +264,18 @@ def run_one_iteration(
                 results_root=results_root,
                 config=config,
             )
+        except eval_runner.EvalRunnerTimeoutError as e:
+            # A suite timeout is infra degradation, not a fitness verdict.
+            # Mark infra-error so it is never scored as a Tier-0 regression
+            # (OQ-S65.7/8) — distinct from a generic code-exception error.
+            result.infra_error = True
+            result.infra_error_reason = f"eval_suite_timeout:{e.suite}"
+            result.decision = "error"
+            result.error = f"infra-error: {result.infra_error_reason}"
+            _persist_iteration(
+                result, config, root, dry_run=dry_run, applied=applied,
+            )
+            return _finalize(result, started)
         finally:
             # Restore old env var (no leakage into other tests / iters).
             if old_url is None:
@@ -261,6 +285,32 @@ def run_one_iteration(
         result.eval_results = {
             name: _safe_asdict(r) for name, r in suite_run_results.items()
         }
+
+        # --- 7a. Persist per-iter eval traces (R-overnight-eval-traces-not-
+        # persisted). eval_runner symlinks each suite to the volatile
+        # eval_interactive/results/<ts>/ dir; copy the per-case traces into a
+        # real file under the iter dir so §5.6 / §11 review survives applier
+        # cleanup. Best-effort — never crashes the iteration.
+        result.eval_traces_path = _persist_eval_traces(
+            results_root, suite_run_results, iteration_id
+        )
+
+        # --- 7b. Infra-error detection (OQ-S65.7/8). A failed/empty suite or
+        # pervasive LLM-deadline / service_degraded prevalence means the eval
+        # evidence is infra-degraded, not a fitness signal. Mark infra-error
+        # and skip Tier-0 scoring so degradation never masquerades as a
+        # regression. Only transport/deadline/first-turn-abort signals trigger
+        # this — a genuine Tier-0 FAIL still reaches the tier evaluator.
+        is_infra, infra_reason = _assess_infra_error(suite_run_results, config)
+        if is_infra:
+            result.infra_error = True
+            result.infra_error_reason = infra_reason
+            result.decision = "error"
+            result.error = f"infra-error: {infra_reason}"
+            _persist_iteration(
+                result, config, root, dry_run=dry_run, applied=applied,
+            )
+            return _finalize(result, started)
 
         # --- 8. Baseline.
         baseline = _load_baseline(config, root)
@@ -486,6 +536,9 @@ def _build_record_dict(
         "discard_reason": result.discard_reason,
         "error": result.error,
         "elapsed_seconds": result.elapsed_seconds,
+        "eval_traces_path": result.eval_traces_path,
+        "infra_error": result.infra_error,
+        "infra_error_reason": result.infra_error_reason,
     }
 
 
@@ -710,3 +763,176 @@ def _git_tag(root: Path, *, tag: str, target: str) -> None:
 def _finalize(result: IterationResult, started: float) -> IterationResult:
     result.elapsed_seconds = time.monotonic() - started
     return result
+
+
+# --- S-Auto-11: eval trace persistence + infra-error detection -------
+
+# Raw `escalation_reason` values the runtime coerces when it gives up on a
+# transport/deadline failure (see eval_interactive hard_checks
+# `_ESCALATION_REASON_FAMILY` "service_degraded" family +
+# ChatController LlmDeadlineExceededException give-up). These are infra
+# signals, NOT semantic escalations — `out_of_scope` / `tool_scope_blocked`
+# are deliberately excluded because they are legitimate semantic outcomes.
+_INFRA_ESCALATION_REASONS = frozenset({"service_degraded", "runtime_error_threshold"})
+
+_INFRA_FAILURE_TAG_SUBSTRINGS = ("ReadTimeout", "Timeout", "Deadline", "service_degraded")
+
+
+def _read_suite_results_json(sr: Any) -> dict[str, Any] | None:
+    """Load a SuiteRunResult's results.json, or None if unreadable.
+
+    Tolerates non-SuiteRunResult inputs (e.g. test MagicMocks): a
+    `results_json` that is not a real str/Path yields None rather than
+    raising.
+    """
+    results_json = getattr(sr, "results_json", None)
+    if not isinstance(results_json, (str, Path)):
+        return None
+    rj = Path(results_json)
+    if not rj.exists():
+        return None
+    try:
+        with rj.open(encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _persist_eval_traces(
+    results_root: Path,
+    suite_run_results: dict[str, Any],
+    iteration_id: str,
+) -> str | None:
+    """Copy each suite's per-case eval results (incl. per_turn_trace) into a
+    real file so they survive the volatile eval_interactive/results/<ts>/
+    symlink and applier cleanup.
+
+    Writes ``<runs>/<id>/eval-results.json`` (sibling of the ``eval/``
+    symlink dir). Best-effort: any failure returns None without raising, so
+    trace persistence never crashes an iteration.
+    """
+    try:
+        out_path = Path(results_root).parent / "eval-results.json"
+        payload: dict[str, Any] = {
+            "iteration_id": iteration_id,
+            "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "suites": {},
+        }
+        for name, sr in (suite_run_results or {}).items():
+            results_json = getattr(sr, "results_json", None)
+            exit_code = getattr(sr, "exit_code", None)
+            error_tail = getattr(sr, "error_tail", None)
+            data = _read_suite_results_json(sr)
+            entry: dict[str, Any] = {
+                "exit_code": exit_code if isinstance(exit_code, int) else None,
+                "error_tail": error_tail if isinstance(error_tail, str) else None,
+                "results_json": (
+                    str(results_json) if isinstance(results_json, (str, Path)) else None
+                ),
+                "source_dir": None,
+                "results": data,
+                "missing": data is None,
+            }
+            if isinstance(results_json, (str, Path)):
+                try:
+                    entry["source_dir"] = str(Path(results_json).resolve().parent)
+                except Exception:
+                    pass
+            payload["suites"][name] = entry
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, default=str)
+        return str(out_path)
+    except Exception:
+        return None
+
+
+def _case_is_infra_degraded(case: dict[str, Any]) -> bool:
+    """True if a single case shows a transport / deadline / first-turn-abort
+    signal.
+
+    A generic fitness FAIL is deliberately NOT an infra signal — it must
+    still reach the tier evaluator as a real regression (negative control
+    for the OQ-S65.7/8 masquerade fence).
+    """
+    if not isinstance(case, dict):
+        return False
+    status = case.get("status")
+    if status == "ERROR":
+        # Executor-level error (session-create failure, ReadTimeout, etc.).
+        return True
+    if status == "CONTRACT_VIOLATION":
+        cv = case.get("contract_violation") or {}
+        # active_use_case missing after a ~0-turn session is the first-turn
+        # LLM-deadline / give-up masquerade (S-Auto-11 cs015/fg5q finding).
+        if isinstance(cv, dict) and cv.get("field") == "active_use_case":
+            return True
+    if case.get("escalation_reason") in _INFRA_ESCALATION_REASONS:
+        return True
+    for tag in case.get("failure_tags") or []:
+        tag_s = str(tag)
+        if any(sub in tag_s for sub in _INFRA_FAILURE_TAG_SUBSTRINGS):
+            return True
+    return False
+
+
+def _assess_infra_error(
+    suite_run_results: dict[str, Any],
+    config: dict[str, Any],
+) -> tuple[bool, str | None]:
+    """Detect whether the eval evidence is infra-degraded rather than a
+    fitness signal (OQ-S65.7/8).
+
+    Two independent triggers:
+      1. A failed / empty suite — a real SuiteRunResult with a non-zero
+         exit code OR a missing results.json (the eval produced no
+         evidence).
+      2. Pervasive LLM-deadline / service_degraded prevalence across the
+         cases that did run (>= ``fitness.infra_error_degraded_fraction``,
+         default 0.5).
+
+    Returns ``(is_infra_error, reason)``. Inputs that are not real
+    SuiteRunResults (e.g. test MagicMocks, or an empty dict) yield
+    ``(False, None)`` so the normal fitness path is preserved.
+    """
+    fitness_cfg = (config or {}).get("fitness") or {}
+    try:
+        threshold = float(fitness_cfg.get("infra_error_degraded_fraction", 0.5))
+    except (TypeError, ValueError):
+        threshold = 0.5
+
+    failed_suites: list[str] = []
+    total_cases = 0
+    degraded_cases = 0
+
+    for name, sr in (suite_run_results or {}).items():
+        exit_code = getattr(sr, "exit_code", None)
+        is_real_suite = isinstance(exit_code, int)
+        if is_real_suite and exit_code != 0:
+            failed_suites.append(f"{name}:exit={exit_code}")
+            continue
+        data = _read_suite_results_json(sr)
+        if data is None:
+            if is_real_suite:
+                # A real suite that exited 0 but wrote no readable
+                # results.json = empty eval evidence.
+                failed_suites.append(f"{name}:missing_results_json")
+            # Non-real suite (mock / unexpected shape): contribute nothing.
+            continue
+        for case in data.get("case_results") or []:
+            total_cases += 1
+            if _case_is_infra_degraded(case):
+                degraded_cases += 1
+
+    if failed_suites:
+        return True, "eval_suite_failed:" + ",".join(failed_suites)
+
+    if total_cases > 0:
+        fraction = degraded_cases / total_cases
+        if fraction >= threshold:
+            return True, (
+                f"infra_degradation_prevalence:{degraded_cases}/{total_cases}"
+                f"={fraction:.2f}>=threshold:{threshold:.2f}"
+            )
+
+    return False, None

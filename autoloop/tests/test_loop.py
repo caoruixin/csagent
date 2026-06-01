@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -508,3 +509,226 @@ def test_adversarial_fixture_fails_real_detection(tmp_path: Path):
     assert r.decision == "discard"
     assert r.discard_reason is not None
     assert r.discard_reason.startswith("anti_hardcode_rejected:")
+
+
+# --- S-Auto-11: eval trace persistence + infra-error detection -------
+
+
+def _write_results_json(path: Path, cases: list[dict]) -> None:
+    """Write a minimal eval-interactive results.json with the given cases."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "run_id": path.parent.name,
+        "label": "test",
+        "timestamp": "2026-06-01T00:00:00+00:00",
+        "summary": {"total_cases": len(cases)},
+        "case_results": cases,
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _suite(results_json: Path | str | None, *, exit_code: int = 0, error_tail=None):
+    """A SuiteRunResult-shaped stand-in (loop helpers use getattr)."""
+    return SimpleNamespace(
+        suite_name="bad_cases",
+        results_dir=None,
+        results_json=results_json,
+        elapsed_seconds=1.0,
+        exit_code=exit_code,
+        error_tail=error_tail,
+    )
+
+
+def _ok_case(cid="c_ok"):
+    return {"case_id": cid, "status": "FAIL", "stop_reason": "bot_ended",
+            "escalation_reason": "user_requested", "failure_tags": [],
+            "per_turn_trace": [{"turn_index": 1, "phase": "DISCOVER"}]}
+
+
+def _degraded_case(cid="c_deg", kind="service_degraded"):
+    if kind == "service_degraded":
+        return {"case_id": cid, "status": "FAIL", "escalation_reason": "service_degraded",
+                "failure_tags": [], "per_turn_trace": []}
+    if kind == "contract_violation":
+        return {"case_id": cid, "status": "CONTRACT_VIOLATION", "stop_reason": "contract_violation",
+                "contract_violation": {"field": "active_use_case", "reason": "missing_after_turns"},
+                "failure_tags": ["CONTRACT_VIOLATION:active_use_case"]}
+    if kind == "error":
+        return {"case_id": cid, "status": "ERROR", "failure_tags": ["ReadTimeout"]}
+    raise ValueError(kind)
+
+
+# ---- _case_is_infra_degraded ----
+
+
+def test_case_is_infra_degraded_signals():
+    assert _loop._case_is_infra_degraded(_degraded_case(kind="service_degraded"))
+    assert _loop._case_is_infra_degraded(_degraded_case(kind="contract_violation"))
+    assert _loop._case_is_infra_degraded(_degraded_case(kind="error"))
+    assert _loop._case_is_infra_degraded(
+        {"case_id": "x", "status": "FAIL", "failure_tags": ["LlmDeadlineExceeded"]}
+    )
+    # Negative control: a genuine fitness FAIL is NOT infra.
+    assert not _loop._case_is_infra_degraded(_ok_case())
+    assert not _loop._case_is_infra_degraded(
+        {"case_id": "x", "status": "CONTRACT_VIOLATION",
+         "contract_violation": {"field": "current_phase"}}
+    )
+
+
+# ---- _assess_infra_error ----
+
+
+def test_assess_infra_error_empty_and_mock_inputs_not_infra():
+    # Empty suite map (degenerate / config-less) and bare MagicMocks must
+    # not be flagged infra-error (preserves the normal fitness path).
+    assert _loop._assess_infra_error({}, {}) == (False, None)
+    assert _loop._assess_infra_error({"bad_cases": MagicMock()}, {}) == (False, None)
+
+
+def test_assess_infra_error_failed_suite_nonzero_exit():
+    is_infra, reason = _loop._assess_infra_error(
+        {"bad_cases": _suite("/does/not/matter", exit_code=2)}, {}
+    )
+    assert is_infra
+    assert "exit=2" in reason
+
+
+def test_assess_infra_error_missing_results_json_on_real_suite(tmp_path):
+    missing = tmp_path / "nope.json"
+    is_infra, reason = _loop._assess_infra_error(
+        {"bad_cases": _suite(missing, exit_code=0)}, {}
+    )
+    assert is_infra
+    assert "missing_results_json" in reason
+
+
+def test_assess_infra_error_high_deadline_prevalence(tmp_path):
+    rj = tmp_path / "results.json"
+    _write_results_json(rj, [
+        _degraded_case("a", "service_degraded"),
+        _degraded_case("b", "contract_violation"),
+        _degraded_case("c", "error"),
+        _ok_case("d"),
+    ])
+    is_infra, reason = _loop._assess_infra_error({"bad_cases": _suite(rj)}, {})
+    assert is_infra
+    assert reason.startswith("infra_degradation_prevalence:3/4")
+
+
+def test_assess_infra_error_genuine_fails_not_infra(tmp_path):
+    # NEGATIVE CONTROL (OQ-S65.7/8 fence): a suite full of genuine fitness
+    # FAILs must NOT be masked as infra-error — it must reach tier eval.
+    rj = tmp_path / "results.json"
+    _write_results_json(rj, [_ok_case(f"c{i}") for i in range(6)])
+    assert _loop._assess_infra_error({"bad_cases": _suite(rj)}, {}) == (False, None)
+
+
+def test_assess_infra_error_threshold_configurable(tmp_path):
+    rj = tmp_path / "results.json"
+    _write_results_json(rj, [
+        _degraded_case("a", "service_degraded"), _ok_case("b"),
+        _ok_case("c"), _ok_case("d"),
+    ])  # 1/4 = 0.25
+    assert _loop._assess_infra_error({"bad_cases": _suite(rj)}, {}) == (False, None)
+    cfg = {"fitness": {"infra_error_degraded_fraction": 0.2}}
+    is_infra, reason = _loop._assess_infra_error({"bad_cases": _suite(rj)}, cfg)
+    assert is_infra
+
+
+# ---- _persist_eval_traces ----
+
+
+def test_persist_eval_traces_roundtrip(tmp_path):
+    results_root = tmp_path / "runs" / "exp-9" / "eval"
+    suite_dir = results_root / "bad_cases"
+    rj = suite_dir / "results.json"
+    case = _ok_case("c1")
+    case["per_turn_trace"] = [{"turn_index": 1, "phase": "DISCOVER", "tool_calls": ["x"]}]
+    _write_results_json(rj, [case])
+
+    out = _loop._persist_eval_traces(results_root, {"bad_cases": _suite(rj)}, "exp-9")
+    assert out is not None
+    out_path = Path(out)
+    assert out_path == results_root.parent / "eval-results.json"
+    assert out_path.exists()
+
+    persisted = json.loads(out_path.read_text(encoding="utf-8"))
+    assert persisted["iteration_id"] == "exp-9"
+    suite = persisted["suites"]["bad_cases"]
+    assert suite["missing"] is False
+    # The per-turn trace survives as a real copy (not a volatile symlink).
+    ptt = suite["results"]["case_results"][0]["per_turn_trace"]
+    assert ptt[0]["phase"] == "DISCOVER"
+
+
+def test_persist_eval_traces_marks_missing_suite(tmp_path):
+    results_root = tmp_path / "runs" / "exp-10" / "eval"
+    results_root.mkdir(parents=True, exist_ok=True)
+    out = _loop._persist_eval_traces(
+        results_root, {"bad_cases": _suite(tmp_path / "gone.json")}, "exp-10"
+    )
+    persisted = json.loads(Path(out).read_text(encoding="utf-8"))
+    assert persisted["suites"]["bad_cases"]["missing"] is True
+    assert persisted["suites"]["bad_cases"]["results"] is None
+
+
+# ---- integration: infra-error iter is decision=error, skips tier eval ----
+
+
+def test_infra_error_iter_marked_error_and_skips_tier_eval(tmp_path: Path):
+    repo = _make_repo(tmp_path)
+    cfg = _config_for(repo)
+
+    # All three suites point at a results.json dominated by service_degraded
+    # / first-turn-abort cases -> infra-degraded eval evidence.
+    rj = repo / "autoloop" / "results" / "degraded.json"
+    _write_results_json(rj, [
+        _degraded_case("a", "service_degraded"),
+        _degraded_case("b", "contract_violation"),
+        _degraded_case("c", "error"),
+    ])
+    suite_map = {
+        "bad_cases": _suite(rj),
+        "anchor_outcome": _suite(rj),
+        "shadow": _suite(rj),
+    }
+
+    fake_applied = AppliedExperiment(
+        iteration_id="exp-7",
+        branch_name="autoloop/exp-7",
+        commit_sha="abc",
+        skill_file_path=repo / "server/src/main/resources/skills/discover_triage.yaml",
+        backend_port=18777,
+        backend_process=None,
+        original_branch="master",
+    )
+    tier_eval_mock = MagicMock()
+
+    with patch.object(_loop._analyzer, "analyze", return_value={}), \
+         patch.object(_loop._proposer, "propose", return_value=_hypothesis()), \
+         patch.object(_loop._applier, "apply", return_value=fake_applied), \
+         patch.object(_loop._applier, "cleanup") as mock_cleanup, \
+         patch.object(_loop, "_build_baseline_summary", return_value={}), \
+         patch.object(_loop.eval_runner, "run_v1_fitness_suite", return_value=suite_map), \
+         patch.object(_loop.tier_evaluator, "evaluate", tier_eval_mock):
+        r = run_one_iteration(
+            config=cfg, iteration_id="exp-7",
+            client=_fake_client(), repo_root=repo,
+        )
+
+    assert r.decision == "error"
+    assert r.infra_error is True
+    assert r.infra_error_reason and r.infra_error_reason.startswith(
+        "infra_degradation_prevalence:"
+    )
+    # The masquerade fence: a degraded iter is NEVER scored by the tier
+    # evaluator (so it cannot register as a Tier-0 fitness regression).
+    tier_eval_mock.assert_not_called()
+    mock_cleanup.assert_called()
+
+    # The infra-error reason is persisted in the experiments_log row.
+    rows = experiments_log.read_all(repo / "autoloop/results/experiments.jsonl")
+    row = next(r for r in rows if r.get("iteration_id") == "exp-7")
+    assert row["infra_error"] is True
+    assert row["decision"] == "error"
