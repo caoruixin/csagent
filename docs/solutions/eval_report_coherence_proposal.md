@@ -20,7 +20,7 @@ The result is the contradiction the human observed in `eval_interactive/results/
 
 None of these three signals contradict each other on the underlying data; they answer different questions. The report does not say which question it is answering, does not surface that the suite is `case_passed_authority="human_review"`, does not show Tier-2 results at all, and does not distinguish Tier-3 advisories from gating checks. To a human opening `report.html` cold (as the user did), it looks like the post-M3/M4 system regressed catastrophically when in fact the milestone closed A — Clean PASS.
 
-This is **not a copy** and **not a backwards-compatibility shim**. It is **debt deferred to a future observability milestone**, already tracked as the OPEN R-item `R-eval-report-observability` (action_bank.md:779, opened S-Cleanup-2 close 2026-05-23). The renderer has not been touched since before M3-Eval; M3-Eval and M4-Eval-Cleanup intentionally scoped their changes to schema/executor/scoring/fixture layers and explicitly excluded report rendering ("display-only; no scoring change" — R-item text).
+This is **not a copy** and **not a backwards-compatibility shim**. It is **debt deferred to a future observability milestone**, already tracked as the OPEN R-item `R-eval-report-observability` (action_bank_archive.md, opened S-Cleanup-2 close 2026-05-23). The renderer has not been touched since before M3-Eval; M3-Eval and M4-Eval-Cleanup intentionally scoped their changes to schema/executor/scoring/fixture layers and explicitly excluded report rendering ("display-only; no scoring change" — R-item text).
 
 Recommendation: schedule a small (1–2 sub-sprint) **Eval Report Coherence** sub-sprint that consumes `R-eval-report-observability` in one pass. Display-only, zero scoring change, zero `server/` touch. Path-A "additive + clearly labelled" rendering is the recommended option — the OLD 7-metric dashboard stays accessible as a "Phase-5 legacy view" but the new pyramid view becomes the primary surface, with `suite_authority` clearly badged at the top. Path-B "delete legacy view" is cleaner long-term but loses Phase-5 trend continuity on the 159-case anchor suite; not recommended.
 
@@ -91,7 +91,7 @@ The headline "Task Success Rate 0.0%" on the bad-case suite report is precisely 
 
 ### 2.5 What the OPEN R-item already documents
 
-`docs/action_bank.md:779` (`R-eval-report-observability`, opened S-Cleanup-2 close 2026-05-23, deferred to M4+ planning):
+`docs/action_bank_archive.md` (`R-eval-report-observability`, opened S-Cleanup-2 close 2026-05-23, deferred to M4+ planning):
 
 > Bundles three report-observability gaps:
 > (a) OQ-S48.2 — `_resolve_case_passed_authority` surfaces `case_passed_authority` per-case but does NOT propagate to `RunResult.summary` as a top-level `suite_authority: human_review | programmatic | mixed` aggregate flag;
@@ -159,9 +159,9 @@ Per `iteration_governance.md` research-agent process, comparison against existin
 
 | Existing R-item | Overlap with this proposal |
 |---|---|
-| `R-eval-report-observability` (action_bank.md:779) | **Direct overlap — this proposal IS the consumption of this R-item.** Bundles (a) `suite_authority` summary flag, (b) HTML render `case_passed_authority`, (c) HTML render Tier-2 / severity. All three are core to this proposal. |
-| `R-bad-case-metadata-field-name-canonicalize` (action_bank.md:778) | Adjacent; the metadata field-name variance (Alice `original_session_id` vs cs001 `source_session_id`) does not affect rendering. Could optionally be bundled if the proposal touches per-case metadata display, but the metadata is human-judgment context already in YAML; orthogonal. |
-| `R-case-families-manifest-cs095-smoke-vs-anchor-orphan` (action_bank.md:770) | Unrelated (case_families docs-only). |
+| `R-eval-report-observability` (action_bank_archive.md) | **Direct overlap — this proposal IS the consumption of this R-item.** Bundles (a) `suite_authority` summary flag, (b) HTML render `case_passed_authority`, (c) HTML render Tier-2 / severity. All three are core to this proposal. |
+| `R-bad-case-metadata-field-name-canonicalize` (action_bank.md) | Adjacent; the metadata field-name variance (Alice `original_session_id` vs cs001 `source_session_id`) does not affect rendering. Could optionally be bundled if the proposal touches per-case metadata display, but the metadata is human-judgment context already in YAML; orthogonal. |
+| `R-case-families-manifest-cs095-smoke-vs-anchor-orphan` (action_bank.md) | Unrelated (case_families docs-only). |
 | `R-bad-case-parallel-session-establishment-flakiness` | Unrelated (parallel session establishment is bot-side / harness session-create). |
 
 | Active milestone scope | Overlap |

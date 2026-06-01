@@ -147,7 +147,7 @@ brief 走路径 ①，所以 `faq_miss_count` 全程停在 0，`BudgetChecker.ja
 agentic 重搜。** 且 2026-05-13 那个"orchestrator dup bug"**本身已被 Sprint 19 §4.3 推翻**：
 
 - `R-runtime-orchestrator-tool-call-deduplication` 现状 **partial / 已 reclassify 为 `semantic_planner`**
-  （`docs/action_bank.md:426`）："LLM emitted three identical search_knowledge calls across three
+  （`docs/action_bank.md`）："LLM emitted three identical search_knowledge calls across three
   consecutive AgentRunLoop steps … **no orchestrator-side amplification; `AgentRunLoopImpl.java` has no
   de-duplication path**"。
 - Sprint 19 handoff §4 逐条否掉了三个 orchestrator 放大假设（phase-transition replay / 失败重放 /
@@ -216,7 +216,7 @@ agentic 重搜。** 且 2026-05-13 那个"orchestrator dup bug"**本身已被 Sp
 3. **跨 UC 跨 reason 的系统性**：`resolveMaxStepsReason` 同一函数还会盖 `incomplete_intake`
    （cs040 的 `intake_complete_for_uc_k` 同源）/ `clarification_budget_exhausted`——**同一回退面**
    服务多个 evidence-claiming reason，修一处护多 UC。
-4. **R-item 本就标注 Tier-0-candidate**（`action_bank.md:390`，"Tier-0 promotion requires
+4. **R-item 本就标注 Tier-0-candidate**（`action_bank.md`，"Tier-0 promotion requires
    `human_review_required` per §3.2 Q2"）；本次证据正是触发该 human 决策的时机。
 
 **层归属**（§3.2，多层）：
@@ -238,7 +238,7 @@ agentic 重搜。** 且 2026-05-13 那个"orchestrator dup bug"**本身已被 Sp
 |---|---|---|---|
 | **infra / java_guard 候选（主）** | `faq_miss_threshold_exceeded` 与 `faq_miss:false` 矛盾的**真凶是运行时 MAX_STEPS 回退**，非 LLM 自盖 | `resolveMaxStepsReason` 只问"搜过没"，不看 faq_miss 证据；guardrail 只堵 LLM 自发向量，回退向量敞开 | `PhaseEvaluator.java:183-193,594-610`；`AgentRunLoopImpl.java:516-519,548-554`；guardrail `SkillGuardrailDispatcher.java:217-257` |
 | **infra（澄清）** | `record_outcome` ERROR 是 redaction 误伤的 premature-resolve guard reject，非 infra bug，不直接触发升级 | LONG_TOKEN regex 吞 44 字符 label；tool error 回灌 LLM 不强制升级 | `ToolCallTraceSanitizer.java:122-123,399`；`SkillGuardrailDispatcher.java:89-90,307-327`；`AgentRunLoopImpl.java:393-432,486-492` |
-| **semantic_planner（澄清）** | dup search 非 orchestrator bug，是 LLM 跨 step 重发（record_outcome 被拒后的重搜）；加速 loop 耗尽 | 无 orchestrator dedup 路径；LLM 见"已搜过"仍重发 | Sprint 19 §4.3 + `action_bank.md:426`；`AgentRunLoopImpl.java:161,179` |
+| **semantic_planner（澄清）** | dup search 非 orchestrator bug，是 LLM 跨 step 重发（record_outcome 被拒后的重搜）；加速 loop 耗尽 | 无 orchestrator dedup 路径；LLM 见"已搜过"仍重发 | Sprint 19 §4.3 + `action_bank.md`；`AgentRunLoopImpl.java:161,179` |
 | **prompt_projection（从属）** | `moderation_context` 投影槽缺失、`required_context_keys` 死声明；数据源已在 session 上被丢弃 | 投影硬编码 form/customer/listing，不读 `requiredContextKeys`；不读 `session.moderationContext` | `ContextProjectionBuilder.java:636-648`（无 moderation 槽）；`FormContextIngestionService.java:125-127`（已填充）；`BotSession.java:114-115` |
 | **semantic_planner（从属）** | LLM 没对 viable hits 调 resolve_article、没在 "saw it yesterday" pivot 到 moderation | LLM-owned 决策，投影未给足证据（faq_miss 旗标/ moderation 原因） | skill `resolve_faq_grounded_answer.yaml:31-33,115-129`（moderation step 仅 UC-FP） |
 
@@ -248,13 +248,13 @@ agentic 重搜。** 且 2026-05-13 那个"orchestrator dup bug"**本身已被 Sp
 
 | 现有项 | 关系 | 本次结论 |
 |---|---|---|
-| `R-escalation-reason-runtime-evidence-contract-review`（`action_bank.md:390`，Tier-0 candidate） | **确认 + 显著扩展** | 现 4 实例（cs040 + cs176 + 2026-05-13 + 2026-05-24）。**扩展点**：R-item 原表述只问"运行时是否该强制 LLM-claimed escalation_reason 带证据"；本次证明**运行时自己的 MAX_STEPS 回退（`resolveMaxStepsReason`）也是同一矛盾的独立来源**。契约必须覆盖**两条向量**：(A) LLM-emitted（已被 Sprint 39 guardrail 部分覆盖）+ (B) runtime-fallback（敞开）。 |
-| `R-runtime-orchestrator-tool-call-deduplication`（`action_bank.md:426`，partial→semantic_planner） | **再确认，无新增** | 2026-05-24 dup 同源（LLM 跨 step 重发）。**不开新 infra dedup 项**；前提（"orchestrator bug"）在 2026-05-13 已被 Sprint 19 §4.3 推翻。 |
-| `D-S3-no-prior-search-guard`（`action_bank.md:339`，deferred） | 已被 Sprint 39 部分实现 | "无前置 search 不许 faq_miss handover"——Sprint 39 的 `faq_miss_handover_requires_resolve_attempt` guardrail 已覆盖"有 hits 须先 resolve"的相邻语义；本提案不重开 D-S3，转而补回退向量。 |
-| `D-faq-grounded-resolve-bypass`（`action_bank.md:349`，deferred） | 相邻 | "对 viable hits 不 resolve 就收尾"正是本案 LLM 行为之一；本提案的 prompt_projection（投 faq_miss 证据）+ semantic_planner enable 与之同向。 |
-| `D-new-escalation-reason-enum`（`action_bank.md:347`，deferred/avoid） | **硬约束** | 修复**不得新增/重命名** enum 值（cross-cut eval `ESCALATION_TRIGGER_VALUES`）。推荐复用既有 `turn_budget_exhausted`（`PhaseEvaluator.java:169,195` 已是 catch-all）。 |
+| `R-escalation-reason-runtime-evidence-contract-review`（`action_bank.md`，Tier-0 candidate） | **确认 + 显著扩展** | 现 4 实例（cs040 + cs176 + 2026-05-13 + 2026-05-24）。**扩展点**：R-item 原表述只问"运行时是否该强制 LLM-claimed escalation_reason 带证据"；本次证明**运行时自己的 MAX_STEPS 回退（`resolveMaxStepsReason`）也是同一矛盾的独立来源**。契约必须覆盖**两条向量**：(A) LLM-emitted（已被 Sprint 39 guardrail 部分覆盖）+ (B) runtime-fallback（敞开）。 |
+| `R-runtime-orchestrator-tool-call-deduplication`（`action_bank.md`，partial→semantic_planner） | **再确认，无新增** | 2026-05-24 dup 同源（LLM 跨 step 重发）。**不开新 infra dedup 项**；前提（"orchestrator bug"）在 2026-05-13 已被 Sprint 19 §4.3 推翻。 |
+| `D-S3-no-prior-search-guard`（`action_bank.md`，deferred） | 已被 Sprint 39 部分实现 | "无前置 search 不许 faq_miss handover"——Sprint 39 的 `faq_miss_handover_requires_resolve_attempt` guardrail 已覆盖"有 hits 须先 resolve"的相邻语义；本提案不重开 D-S3，转而补回退向量。 |
+| `D-faq-grounded-resolve-bypass`（`action_bank.md`，deferred） | 相邻 | "对 viable hits 不 resolve 就收尾"正是本案 LLM 行为之一；本提案的 prompt_projection（投 faq_miss 证据）+ semantic_planner enable 与之同向。 |
+| `D-new-escalation-reason-enum`（`action_bank.md`，deferred/avoid） | **硬约束** | 修复**不得新增/重命名** enum 值（cross-cut eval `ESCALATION_TRIGGER_VALUES`）。推荐复用既有 `turn_budget_exhausted`（`PhaseEvaluator.java:169,195` 已是 catch-all）。 |
 | M5 S3 C1 moderation 审计（`milestone_objective.md` §3 S3） | **从属 + 顺序耦合** | S3 只 DOCUMENT moderation_context 缺口；本提案的 moderation 行为修复**排在 M5 之后**，不得塞进 M5（§8）。 |
-| `R-faqMissCount-threshold-and-timing-review`（`action_bank.md:399`） | 正交 | 那是 legacy 路径 ② 的阈值/时序；本案在路径 ①，计数器停 0，不重叠。 |
+| `R-faqMissCount-threshold-and-timing-review`（`action_bank.md`） | 正交 | 那是 legacy 路径 ② 的阈值/时序；本案在路径 ①，计数器停 0，不重叠。 |
 
 **缺口**：现有 backlog **没有任何项**覆盖"运行时 MAX_STEPS 回退误盖 evidence-claiming reason"
 这一确定性根因——这是本研究新识别、需登记的 R-item 扩展（见 §9）。

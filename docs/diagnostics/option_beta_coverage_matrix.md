@@ -14,7 +14,7 @@ notes: >
   (`alternate_candidate_use_cases` projection slot, Sprint 31 ship +
   Sprint 32 case family) coverage surface across the
   (`topic_subject` × `description`-shape) dimensions. Used to close
-  `R-option-beta-coverage-gap-uc-a-uc-c-shape` (`docs/action_bank.md:667`)
+  `R-option-beta-coverage-gap-uc-a-uc-c-shape` (`docs/action_bank_archive.md`)
   with a re-anchor decision on `iteration_governance.md` §7.2 worked
   example and an Option γ follow-on R-item draft.
 
@@ -528,7 +528,7 @@ by:
 - `docs/milestone_objective.md` (M1) §5 — secondary observation; M1
   acceptance bar.
 - `docs/action_bank.md` `R-option-beta-coverage-gap-uc-a-uc-c-shape`
-  (`docs/action_bank.md:667`) — the R-item this artefact closes.
+  (`docs/action_bank_archive.md`) — the R-item this artefact closes.
 - `docs/current/iteration_governance.md` §7.2 — the governance
   worked-example the recommendation re-anchors (post-Sprint-35-close
   deliver-agent fold-back, if decision (a) confirmed).
