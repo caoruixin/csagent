@@ -527,6 +527,35 @@ S-Auto-13b (A3 paraphrase-storm deterministic backstop — a `faq_miss`-state-aw
 
 - `R-runtime-paraphrase-storm-search-knowledge` (A3) → **within-turn surface addressed by S-Auto-13b** (deterministic `faq_miss`-state gate; within-turn PARAPHRASE_STORM 12→0; soft layer retained beneath). The **cross-turn surface remains open as OQ-S69.1** (BotSession-scoped state; §8.5 split / post-M-Auto-3). Within-turn = CLOSE candidate at M-Auto-3 close; the R-item stays `proposed` until the cross-turn carrier decision is made. Supersedes the S-Auto-13 "PARTIALLY addressed" note above.
 
+### M-Auto-3 CLOSE (2026-06-03) — R-item dispositions + OQ ledger + M-Auto-4 handoff
+
+**Milestone M-Auto-3 — Substrate-hygiene CLOSED 2026-06-03 (Class A)**; milestone-shared Codex `pass / 0` (`docs/milestones/M-Auto-3_codex-review.md`; range S-Auto-11..15 + bundled M-Auto-2 residual). This subsection is the AUTHORITATIVE close record; the per-sprint "surfaced OQs / addressed-by" notes above (Sprint 065-069) + the Sprint-065 7-R-item catalog are SUPERSEDED by it and are pending a §7.1 inline-history strip (deferred housekeeping, file still under budget).
+
+**R-items CLOSED at this close (relocated to `action_bank_archive.md` §C):**
+
+- `R-runtime-identical-tool-call-retry-storm` — A1 hybrid dedup (S-Auto-12).
+- `R-runtime-tool-gating-race-uc-none` — A2 classify-first (S-Auto-13).
+- `R-runtime-paraphrase-storm-search-knowledge` — within-turn (S-Auto-13b) + cross-turn rank-2+ (S-Auto-15) deterministic `faq_miss`-state gates, no content matching. **cross-turn rank-1 first-refinement = OBSERVATION carry** (not a defect; escalates to M-Auto-4 as a product/semantic-policy question ONLY if a future overnight shows it materially corrupts fitness — see the §11 three-class taxonomy in archived `M-Auto-3_objective.md` §5).
+- `R-runtime-escalation-reason-misstamp-maxsteps-faq` — B1 evidence-aware `resolveMaxStepsReason` (S-Auto-14); NO new enum (reuses `turn_budget_exhausted`; the §4 `D-new-escalation-reason-enum` avoid-item respected — the old R-item "path 1" `max_steps_exhausted` enum was NOT taken).
+- `R-simulator-first-message-contract-violation-flake` — S-Auto-11 safe hardening; root re-attributed bot-side (OQ-S66.2) + fitness-neutralized by #4 infra-error detection.
+- `R-overnight-eval-traces-not-persisted` — S-Auto-11 #3.
+- `R-tier1-bad-cases-regression-5-to-0-attribution-unverified` — SUPERSEDED: 0-keep re-attributed to provider MEASUREMENT noise (the M-Auto-4 thesis below).
+
+**OQ ledger at close:** OQ-S65.7/8 RESOLVED (S-Auto-11 #4); OQ-S66.1 RESOLVED (S-Auto-13); OQ-S67.1/67.2 observation/closed-by-B1; OQ-S68.1 + OQ-S70.1 RESOLVED (S-Auto-15 B, `503/0` under `uv run`); OQ-S68.2/68.3/68.4 resolved/subsumed; OQ-S69.1 RESOLVED via the three-class taxonomy; OQ-S71.1 RESOLVED via the metric-classification re-frame (Codex `approve`, not §5.4 masking); **OQ-S71.2 (trace `active_use_case` null observability debt) = CARRY** (live session populated, gate unaffected) → M-Auto-4 observability sweep; OQ-S66.2/66.4 bot-side/optional carries.
+
+**STILL OPEN / DEFERRED (NOT closed):**
+
+- `R-runtime-escalation-reason-turn-budget-conflated-with-intent` (B3/R5) — deferred M-Auto-4+.
+- `R-classifier-non-deterministic-uc-selection-at-temp-zero` (C/R7) — deferred M-Auto-4+; its root (temp-0 provider non-determinism) is the SAME one the M-Auto-4 measurement-reliability proposal addresses at the harness layer.
+- `R-autoloop-run-sweeps-dirty-index` — standing hazard (`project_autoloop_dirty_index_hazard`); honored operationally, no code fix scoped.
+- `R-eval-interactive-judge-score-never-populated` — LOW priority.
+
+**M-Auto-4 candidate slate (advisory; human selects scope):**
+
+- **Autoloop fitness MEASUREMENT reliability** — `docs/proposals/autoloop_fitness_measurement_reliability.md` (Codex-authored draft 2026-06-03): k-of-n majority sampling + rebaseline + bounded escalation-spec loosening; explains the 0-keep the cleaned substrate still shows (residual provider noise, temp already 0.0, seed/top_p unavailable). Touches the 4 SHA-locked scoring files → fence-#13 controlled override + per-sub-sprint Codex. **Lead candidate.**
+- **M3-B Single Handover Orchestrator** — P0 release-gate blocker (`docs/proposals/handover_orchestrator_design.md`).
+- M-Auto-1A carry-overs (7).
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact
