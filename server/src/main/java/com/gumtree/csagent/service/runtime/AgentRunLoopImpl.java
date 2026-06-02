@@ -67,6 +67,25 @@ public class AgentRunLoopImpl implements AgentRunLoop {
     private static final String RECORD_OUTCOME_TOOL = "record_outcome";
 
     /**
+     * Sprint 071 / S-Auto-15 (workstream A) — the ONLY tool the cross-turn
+     * gate may ever consider. Read-only retrieval; write / side-effect tools
+     * are structurally excluded from the gate (GUARDRAIL 0). The existing A1
+     * / A3 within-turn blocks keep their inline {@code "search_knowledge"}
+     * literals byte-untouched; this constant is used only by the NEW
+     * cross-turn code so the read-only-only invariant is explicit.
+     */
+    private static final String SEARCH_KNOWLEDGE_TOOL = "search_knowledge";
+
+    /**
+     * Sprint 071 / S-Auto-15 (workstream A) — the FIXED cross-turn
+     * suppression budget. The first cross-turn {@code search_knowledge} for a
+     * UC after a standing viable hit is ALWAYS allowed (the legitimate
+     * refinement); only the 2nd+ is eligible for suppression. FIXED at 1 by
+     * GUARDRAIL 0 — lowering it re-introduces 误杀 and is forbidden.
+     */
+    private static final int CROSS_TURN_SUPPRESSION_BUDGET = 1;
+
+    /**
      * Sprint 8.1 §M3 — DISCOVER classification phase boundary. When the
      * LLM successfully calls this tool inside a DISCOVER plan and
      * {@link com.gumtree.csagent.service.tools.ClassifyUseCaseTool}
@@ -207,6 +226,80 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         // shape). Runs once per user turn since userMessage / formContext
         // are stable across loop iterations.
         mergePartialIntakeFromContext(session, plan, userMessage);
+
+        // Sprint 071 / S-Auto-15 (workstream A) — NEW, SEPARATE,
+        // BotSession-scoped CROSS-TURN search_knowledge re-search
+        // suppression gate. Runs ALONGSIDE — never modifying — the A1
+        // per-run dedup cache (505-526) and the A3 within-turn
+        // paraphrase gate (558-576); both of those `continue` first, so a
+        // call only ever reaches this gate's dispatch-site check after they
+        // have not fired.
+        //
+        // THE NARROW CROSS-TURN INVARIANT (default = ALLOW; suppress ONLY
+        // when ALL four conditions PROVE true; FAIL OPEN on any ambiguity):
+        //   1. session.getActiveUseCase() is non-null AND EQUAL to the UC at
+        //      which the standing viable hit was captured (no UC change);
+        //   2. NO drift this turn — driftType null/"none" AND
+        //      activeUseCase == previousActiveUseCase;
+        //   3. a standing viable-hit marker exists for THAT exact UC
+        //      (persisted; set only on a search_knowledge faq_miss=false);
+        //   4. [budget] at least ONE cross-turn search_knowledge for this UC
+        //      has ALREADY been allowed since the standing hit (checked at
+        //      the dispatch site below) — so the FIRST post-hit cross-turn
+        //      re-search is NEVER suppressed.
+        //
+        // Conditions 1–3 are turn-stable, so they are evaluated ONCE here at
+        // run start from a SNAPSHOT of the persisted standing state (loaded
+        // from the DB this turn). Condition 4 (the budget) is the only
+        // per-call check and lives at the dispatch site. Keyed PURELY on the
+        // EXISTING activeUseCase / driftType / faq_miss signals + a
+        // cardinality budget — NO query-content / keyword / regex /
+        // similarity / per-UC matching.
+        //
+        // Reset (gate disabled + standing state CLEARED) on ANY drift signal
+        // or UC change is handled right here at run start; the genuine-miss /
+        // resolution / escalation / record_outcome resets clear the standing
+        // state at their dispatch sites below. Because SessionManager saves
+        // the session AFTER run() returns, every mutation below is written to
+        // the entity directly (no per-return write-back needed).
+        final String standingHitUcSnapshot = session.getCrossTurnFaqHitUseCase();
+        final String standingHitPayloadSnapshot = session.getCrossTurnFaqHitPayload();
+        final Integer standingBudgetBoxed = session.getCrossTurnSearchAllowedSinceHit();
+        final int standingBudgetSnapshot = standingBudgetBoxed == null ? 0 : standingBudgetBoxed;
+        final int standingHitTurnSnapshot = session.getTotalBotTurns() == null
+                ? -1 : session.getTotalBotTurns();
+
+        final String activeUc = session.getActiveUseCase();
+        final boolean driftThisTurn = isDriftThisTurn(session);
+
+        // If ANY drift signal (incl. a UC change) is observed this turn, the
+        // standing marker is no longer valid for the current intent — DISABLE
+        // the gate (handled by crossTurnGateConditionsHold below, which is
+        // false when driftThisTurn) and CLEAR the persisted standing state so
+        // the marker does not leak into the next turn. clearCrossTurnStandingHit
+        // is a no-op when nothing is set.
+        if (driftThisTurn) {
+            clearCrossTurnStandingHit(session,
+                    "drift signal this turn (driftType="
+                            + session.getDriftType() + ")");
+        }
+
+        // Conditions 1–3: same non-null un-drifted UC AND a standing viable
+        // hit (UC marker + payload) exists for THAT exact UC. Default ALLOW:
+        // any null / missing signal leaves this false.
+        final boolean crossTurnGateConditionsHold =
+                !driftThisTurn
+                        && activeUc != null
+                        && standingHitUcSnapshot != null
+                        && standingHitUcSnapshot.equals(activeUc)
+                        && standingHitPayloadSnapshot != null
+                        && !standingHitPayloadSnapshot.isBlank();
+
+        // Run-local guard so the FIXED budget is spent at most ONCE per turn
+        // for the first allowed cross-turn refinement (a turn has at most one
+        // search_knowledge that escapes the within-turn A3 gate, but this
+        // guards against any double-count).
+        boolean crossTurnRefinementCountedThisTurn = false;
 
         for (int step = 0; step < maxSteps; step++) {
             // 1. Build plan-aware projection.
@@ -575,6 +668,73 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     continue;
                 }
 
+                // 6a-quater. Sprint 071 / S-Auto-15 (workstream A) — NEW
+                // BotSession-scoped CROSS-TURN search_knowledge re-search
+                // suppression gate. Runs AFTER A1 (505-526) and the A3
+                // within-turn gate (558-576) — both `continue` first — so
+                // reaching here means this search_knowledge call was neither
+                // a byte-identical repeat nor a same-run paraphrase of a
+                // viable hit captured THIS turn. It IS eligible for the
+                // cross-turn gate ONLY when conditions 1–3 held at run start
+                // (crossTurnGateConditionsHold: same non-null un-drifted UC +
+                // a standing viable hit persisted for that exact UC from a
+                // PRIOR turn) AND condition 4 (the FIXED budget) is spent.
+                //
+                // Default = ALLOW. The gate is structurally limited to
+                // search_knowledge (read-only); the conditions are checked
+                // against snapshots of the EXISTING activeUseCase / driftType
+                // / faq_miss signals + a cardinality budget — NO content /
+                // keyword / regex / similarity / per-UC matching. Drift and
+                // UC change disabled it at run start.
+                if (SEARCH_KNOWLEDGE_TOOL.equals(toolName)
+                        && crossTurnGateConditionsHold) {
+                    if (standingBudgetSnapshot >= CROSS_TURN_SUPPRESSION_BUDGET) {
+                        // Budget spent: the legitimate first cross-turn
+                        // refinement already happened in a PRIOR turn. Serve
+                        // the standing payload + annotate; do NOT re-dispatch
+                        // or charge a step (mirror A1 / within-turn A3).
+                        Object standingPayload = deserializeStandingPayload(
+                                standingHitPayloadSnapshot);
+                        if (standingPayload != null) {
+                            ToolEvent base5 = ToolEvent.crossTurnParaphraseSuppressed(
+                                    step, call, standingPayload, standingHitTurnSnapshot);
+                            toolEvents.add(new ToolEvent(
+                                    sequence++, step, base5.toolName(), base5.arguments(),
+                                    base5.success(), base5.resultData(), base5.errorMessage(),
+                                    base5.latencyMs(), base5.deduplicated(),
+                                    base5.originalAtStep(), base5.paraphraseSuppressed(),
+                                    base5.faqHitAtStep(), base5.crossTurnParaphraseSuppressed(),
+                                    base5.crossTurnHitAtTurn()));
+                            accumulatedToolResults.put(toolName, standingPayload);
+                            log.info(
+                                    "AgentRunLoop A(cross-turn) backstop: cross-turn "
+                                            + "search_knowledge re-search at step {} suppressed "
+                                            + "(standing viable hit for UC={} captured at turn {}, "
+                                            + "budget {} spent); tool not re-dispatched",
+                                    step, standingHitUcSnapshot, standingHitTurnSnapshot,
+                                    standingBudgetSnapshot);
+                            continue;
+                        }
+                        // Malformed / unreadable standing payload → FAIL OPEN:
+                        // fall through to a normal dispatch. (Never suppress
+                        // on evidence we cannot serve.)
+                    } else if (!crossTurnRefinementCountedThisTurn) {
+                        // First cross-turn refinement since the standing hit —
+                        // ALWAYS allowed (budget-1). Spend the budget so the
+                        // NEXT turn's snapshot sees it as >= 1. Counted once
+                        // per turn; the call falls through to a normal
+                        // dispatch below.
+                        crossTurnRefinementCountedThisTurn = true;
+                        session.setCrossTurnSearchAllowedSinceHit(
+                                standingBudgetSnapshot + 1);
+                        log.info(
+                                "AgentRunLoop A(cross-turn) backstop: first cross-turn "
+                                        + "search_knowledge refinement for UC={} ALLOWED "
+                                        + "(budget-1); spending budget to {}",
+                                standingHitUcSnapshot, standingBudgetSnapshot + 1);
+                    }
+                }
+
                 // 6b. Dispatch and record event
                 long tt = System.currentTimeMillis();
                 ToolResult result;
@@ -639,6 +799,41 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     }
                 }
 
+                // 6c-ter. Sprint 071 / S-Auto-15 (workstream A) — refresh /
+                // reset the PERSISTED cross-turn standing viable-hit marker on
+                // every fresh search_knowledge dispatch. SEPARATE from the A3
+                // per-run tracker above (which lives only one turn). Mirrors
+                // the same faq_miss-state rules but writes to the BotSession
+                // columns so the marker carries to the NEXT turn:
+                //   * faq_miss=false (viable hit) → capture the standing hit
+                //     for the CURRENT active_use_case (UC marker + serialized
+                //     payload) and RESET the budget to 0 — the legitimate
+                //     first cross-turn refinement on the next turn is then
+                //     allowed before any suppression.
+                //   * faq_miss=true (genuine miss), a malformed result map, or
+                //     any external-failure dispatch → CLEAR the standing state
+                //     (a genuine miss warrants fresh searching; never freeze
+                //     the gate on a non-viable result).
+                if (SEARCH_KNOWLEDGE_TOOL.equals(toolName) && session != null) {
+                    boolean viableHit = false;
+                    if (result != null && result.isSuccess()) {
+                        Object data = result.getData();
+                        if (data instanceof Map<?, ?> dataMap) {
+                            Object faqMissFlag = dataMap.get("faq_miss");
+                            if (faqMissFlag instanceof Boolean fm) {
+                                viableHit = !fm;
+                            }
+                        }
+                    }
+                    if (viableHit) {
+                        captureCrossTurnStandingHit(session, result.getData());
+                    } else {
+                        clearCrossTurnStandingHit(session,
+                                "non-viable search_knowledge result (genuine "
+                                        + "miss / malformed / failure)");
+                    }
+                }
+
                 // Sprint 12 §N0 — stamp terminal-evidence summary on the
                 // session as soon as a record_outcome dispatch lands so
                 // every run-loop exit path (final answer, escalate,
@@ -655,6 +850,11 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     } else if (session.getRecordOutcomeSucceeded() == null) {
                         session.setRecordOutcomeSucceeded(Boolean.FALSE);
                     }
+                    // Sprint 071 / S-Auto-15 (workstream A) — record_outcome is
+                    // a resolution/terminal signal; CLEAR the cross-turn
+                    // standing marker so it never carries past a recorded
+                    // outcome.
+                    clearCrossTurnStandingHit(session, "record_outcome dispatch");
                 }
 
                 // 6c. Accumulate result so the next iteration sees it.
@@ -680,6 +880,13 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                         && result != null && result.isSuccess()) {
                     handoverRequested = true;
                     handoverReason = extractHandoverReason(call);
+                    // Sprint 071 / S-Auto-15 (workstream A) — escalation /
+                    // handover is a terminal signal; CLEAR the cross-turn
+                    // standing marker.
+                    if (session != null) {
+                        clearCrossTurnStandingHit(session,
+                                "successful request_handover dispatch");
+                    }
                 }
 
                 // 6e. Sprint 8.1 §M3 — DISCOVER deterministic phase
@@ -803,6 +1010,107 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         if (call == null || call.getArguments() == null) return null;
         Object reason = call.getArguments().get("escalation_reason");
         return reason == null ? null : reason.toString();
+    }
+
+    /**
+     * Sprint 071 / S-Auto-15 (workstream A) — is there ANY drift signal this
+     * turn? Returns true (gate DISABLED) when {@code driftType} is non-null
+     * and not the literal {@code "none"}, OR when {@code activeUseCase}
+     * differs from {@code previousActiveUseCase} (a UC change). Both
+     * transient slots are populated by
+     * {@code ControlKernel.applyRerouteDecision} (it runs BEFORE
+     * {@code AgentRunLoop.run}), so they are reliably available at gate time.
+     * GUARDRAIL 0: drift always wins — any drift signal disables the gate,
+     * no exception. Null/blank driftType + equal UCs = no drift.
+     */
+    static boolean isDriftThisTurn(BotSession session) {
+        if (session == null) return true; // fail-open: no session → never suppress
+        String drift = session.getDriftType();
+        if (drift != null && !drift.isBlank() && !"none".equalsIgnoreCase(drift.trim())) {
+            return true;
+        }
+        String active = session.getActiveUseCase();
+        String previous = session.getPreviousActiveUseCase();
+        // A null previous (first turn after intake) is NOT a drift signal by
+        // itself; the standing-hit UC equality check (condition 1/3) already
+        // requires a prior viable hit, which cannot exist on turn 0. Only a
+        // CONCRETE change (both non-null and unequal) counts as a UC change.
+        return active != null && previous != null && !active.equals(previous);
+    }
+
+    /**
+     * Sprint 071 / S-Auto-15 (workstream A) — capture the PERSISTED standing
+     * cross-turn viable-hit marker for the CURRENT active use case: the UC
+     * marker, the serialized result payload (served on a future suppression),
+     * and a budget RESET to 0 (so the next turn's first cross-turn refinement
+     * is always allowed). Tolerant: a serialization failure clears the marker
+     * (fail-open — never freeze the gate on payload we cannot store/serve).
+     */
+    private void captureCrossTurnStandingHit(BotSession session, Object resultData) {
+        if (session == null) return;
+        String uc = session.getActiveUseCase();
+        if (uc == null || uc.isBlank() || resultData == null) {
+            clearCrossTurnStandingHit(session,
+                    "viable hit but no committed active_use_case / null payload");
+            return;
+        }
+        String payloadJson;
+        try {
+            payloadJson = objectMapper.writeValueAsString(resultData);
+        } catch (Exception ex) {
+            log.warn("AgentRunLoop cross-turn: failed to serialize standing "
+                    + "viable-hit payload; clearing marker (fail-open): {}",
+                    ex.getMessage());
+            clearCrossTurnStandingHit(session, "payload serialization failure");
+            return;
+        }
+        session.setCrossTurnFaqHitUseCase(uc);
+        session.setCrossTurnFaqHitPayload(payloadJson);
+        session.setCrossTurnSearchAllowedSinceHit(0);
+        log.info("AgentRunLoop cross-turn: captured standing viable hit for "
+                + "UC={} at turn {} (budget reset to 0)",
+                uc, session.getTotalBotTurns());
+    }
+
+    /**
+     * Sprint 071 / S-Auto-15 (workstream A) — CLEAR the PERSISTED standing
+     * cross-turn viable-hit marker (UC marker + payload + budget). Called on
+     * every reset event: drift / UC change (run start), genuine miss /
+     * malformed / failed search, resolution (record_outcome), and escalation
+     * (request_handover). No-op when already clear (avoids churn).
+     */
+    private void clearCrossTurnStandingHit(BotSession session, String reason) {
+        if (session == null) return;
+        boolean wasSet = session.getCrossTurnFaqHitUseCase() != null
+                || session.getCrossTurnFaqHitPayload() != null
+                || (session.getCrossTurnSearchAllowedSinceHit() != null
+                        && session.getCrossTurnSearchAllowedSinceHit() != 0);
+        if (!wasSet) return;
+        session.setCrossTurnFaqHitUseCase(null);
+        session.setCrossTurnFaqHitPayload(null);
+        session.setCrossTurnSearchAllowedSinceHit(0);
+        log.info("AgentRunLoop cross-turn: cleared standing viable-hit marker "
+                + "({})", reason);
+    }
+
+    /**
+     * Sprint 071 / S-Auto-15 (workstream A) — deserialize the persisted
+     * standing payload JSON back into a Map to SERVE on suppression. Returns
+     * {@code null} on any failure → the caller FAILS OPEN (falls through to a
+     * normal dispatch; never suppresses on evidence it cannot serve).
+     */
+    private Object deserializeStandingPayload(String payloadJson) {
+        if (payloadJson == null || payloadJson.isBlank()) return null;
+        try {
+            return objectMapper.readValue(payloadJson,
+                    new com.fasterxml.jackson.core.type.TypeReference<
+                            java.util.Map<String, Object>>() {});
+        } catch (Exception ex) {
+            log.warn("AgentRunLoop cross-turn: failed to deserialize standing "
+                    + "payload; failing open (will re-dispatch): {}",
+                    ex.getMessage());
+            return null;
+        }
     }
 
     // Sprint 39 (NEW M2) — the three Sprint 6 §G2 / Sprint 7 §I2 / Sprint 11

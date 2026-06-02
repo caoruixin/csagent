@@ -1874,6 +1874,22 @@ public class ControlKernel {
                         entry.put("paraphrase_suppressed", true);
                         entry.put("faq_hit_at_step", te.faqHitAtStep());
                     }
+                    // Sprint 071 / S-Auto-15 (workstream A) — mirror the
+                    // within-turn paraphrase_suppressed flatten for the NEW,
+                    // SEPARATE BotSession-scoped cross-turn gate so
+                    // report.html / admin trace can show that a cross-turn
+                    // search_knowledge re-search was suppressed (served from
+                    // the standing viable-hit payload captured in a prior
+                    // bot turn, tool not re-executed). Distinct annotation
+                    // from both the A1 deduplicated pair and the within-turn
+                    // paraphrase_suppressed pair: this gate keys on the
+                    // PERSISTED standing-hit UC + drift + a cardinality
+                    // budget across turns. A given event carries at most one
+                    // of the three annotations.
+                    if (te.crossTurnParaphraseSuppressed()) {
+                        entry.put("cross_turn_paraphrase_suppressed", true);
+                        entry.put("cross_turn_hit_at_turn", te.crossTurnHitAtTurn());
+                    }
                     // Sprint 9.1 — sanitize the verbatim tool error
                     // message before it lands on the persisted trace
                     // column so secrets / sensitive PII that the tool

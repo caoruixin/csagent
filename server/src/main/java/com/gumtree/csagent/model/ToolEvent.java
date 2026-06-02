@@ -38,6 +38,20 @@ import java.util.Map;
  * arguments hash (same query string), this gate keys on the {@code faq_miss}
  * RESULT state (different query string, same intent — paraphrase). A given
  * event carries one annotation or the other, never both.
+ *
+ * <p>Sprint 071 / S-Auto-15 (M-Auto-3, workstream A):
+ * {@code crossTurnParaphraseSuppressed} marks a {@code search_knowledge}
+ * re-search that the NEW, SEPARATE, BotSession-scoped cross-turn gate
+ * suppressed because a standing viable hit ({@code faq_miss=false}) for the
+ * SAME un-drifted use case was captured in a PRIOR bot turn and the budget-1
+ * cross-turn refinement was already spent. The tool was NOT re-executed; the
+ * standing payload is reused. {@code crossTurnHitAtTurn} names the
+ * {@code total_bot_turns} value at which the standing hit was captured, and
+ * is {@code -1} for every event the cross-turn gate did not suppress.
+ * Distinct from {@code paraphraseSuppressed} (the within-turn A3 gate, which
+ * keys on a prior viable hit in the SAME run/turn): a given event carries at
+ * most one of {@code deduplicated} / {@code paraphraseSuppressed} /
+ * {@code crossTurnParaphraseSuppressed}.
  */
 public record ToolEvent(
         int sequenceIndex,
@@ -51,7 +65,9 @@ public record ToolEvent(
         boolean deduplicated,
         int originalAtStep,
         boolean paraphraseSuppressed,
-        int faqHitAtStep
+        int faqHitAtStep,
+        boolean crossTurnParaphraseSuppressed,
+        int crossTurnHitAtTurn
 ) {
 
     public ToolEvent {
@@ -69,7 +85,7 @@ public record ToolEvent(
                      Map<String, Object> arguments, boolean success,
                      Object resultData, String errorMessage, long latencyMs) {
         this(sequenceIndex, stepIndex, toolName, arguments, success, resultData,
-                errorMessage, latencyMs, false, -1, false, -1);
+                errorMessage, latencyMs, false, -1, false, -1, false, -1);
     }
 
     /**
@@ -84,7 +100,26 @@ public record ToolEvent(
                      Object resultData, String errorMessage, long latencyMs,
                      boolean deduplicated, int originalAtStep) {
         this(sequenceIndex, stepIndex, toolName, arguments, success, resultData,
-                errorMessage, latencyMs, deduplicated, originalAtStep, false, -1);
+                errorMessage, latencyMs, deduplicated, originalAtStep, false, -1,
+                false, -1);
+    }
+
+    /**
+     * Backward-compatible 12-arg constructor (Sprint-069 within-turn A3
+     * paraphrase-suppressed shape) for the A3 dispatch site that
+     * materializes an event annotated only with {@code paraphraseSuppressed}
+     * / {@code faqHitAtStep}. Delegates to the canonical constructor with
+     * {@code crossTurnParaphraseSuppressed=false} and
+     * {@code crossTurnHitAtTurn=-1}.
+     */
+    public ToolEvent(int sequenceIndex, int stepIndex, String toolName,
+                     Map<String, Object> arguments, boolean success,
+                     Object resultData, String errorMessage, long latencyMs,
+                     boolean deduplicated, int originalAtStep,
+                     boolean paraphraseSuppressed, int faqHitAtStep) {
+        this(sequenceIndex, stepIndex, toolName, arguments, success, resultData,
+                errorMessage, latencyMs, deduplicated, originalAtStep,
+                paraphraseSuppressed, faqHitAtStep, false, -1);
     }
 
     /**
@@ -182,6 +217,41 @@ public record ToolEvent(
                 -1,
                 true,
                 faqHitAtStep
+        );
+    }
+
+    /**
+     * Sprint 071 / S-Auto-15 — build an event for a {@code search_knowledge}
+     * re-search that the NEW cross-turn gate suppressed because a standing
+     * viable hit ({@code faq_miss=false}) for the SAME un-drifted use case
+     * was captured in a PRIOR bot turn and the budget-1 cross-turn
+     * refinement was already spent. The tool was not re-executed, so
+     * {@code latencyMs} is zero; {@code resultData} is the standing payload
+     * served back to the LLM and {@code crossTurnHitAtTurn} is the
+     * {@code total_bot_turns} value at which the standing hit was captured.
+     * {@code success} is true because only viable hits ever feed the gate.
+     * Distinct from {@link #paraphraseSuppressed(int, ToolCall, Object, int)}
+     * (within-turn) and {@link #deduplicated(int, ToolCall, Object, int)}
+     * (byte-identical) — a given event carries at most one annotation.
+     */
+    public static ToolEvent crossTurnParaphraseSuppressed(
+            int step, ToolCall call, Object standingResultData,
+            int crossTurnHitAtTurn) {
+        return new ToolEvent(
+                step,
+                step,
+                call == null ? null : call.getName(),
+                call == null ? null : call.getArguments(),
+                true,
+                standingResultData,
+                null,
+                0L,
+                false,
+                -1,
+                false,
+                -1,
+                true,
+                crossTurnHitAtTurn
         );
     }
 }
