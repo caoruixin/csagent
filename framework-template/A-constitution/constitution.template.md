@@ -42,6 +42,10 @@ Eval Acceptance); §7 is the sprint-objective stanza. Process mechanics
 (milestone cadence, prompt-artifact rules, bad-case lifecycle, review
 cadence, metrics) live in Layer B and are reached through the §-stubs.
 
+**Role names** (dev / deliver / review / research) used below refer to the
+framework's role registry in `../B-process/roles/`; rename them per
+project if your team uses different labels.
+
 **Governance-doc editing discipline** (PORTABLE — keep verbatim):
 planning-time scope authorization (e.g., "if (a), fold back §X") does NOT
 authorize execution-time content. Before editing any governance-tier doc,
@@ -62,10 +66,12 @@ quality bar that distinguishes it from a naive implementation.>>
 
 ### 1.2 Primary principle
 
-Rules define boundaries. The model owns semantic understanding.
-<!-- PORTABLE default for any LLM-first project. Adjust only if your
-     project intends a different determinism/intelligence boundary;
-     if so, restate it here in one line. -->
+<<PROJECT: state in one line the boundary between what rules/runtime
+decide and what the model decides. This is the project's defining stance;
+affirm it explicitly even if you adopt the framework default.>>
+<!-- recommended default (any LLM-first project):
+     "Rules define boundaries. The model owns semantic understanding."
+     e.g. (csagent): adopts the default above verbatim. -->
 
 ### 1.3 The model (LLM) owns — the semantic / judgment layer
 
@@ -111,7 +117,7 @@ ones.
 - encoding raw eval phrases into runtime code or the prompt
 - adding case-specific hard rules for soft semantic decisions
 - widening the eval spec to accept a genuine agent mistake
-- optimizing visible eval at the cost of shadow / generalization
+- optimizing visible eval at the cost of held-out generalization
 - using the prompt as an if-else rule dump
 - <<PROJECT: additional forbidden anti-patterns specific to your
   architecture, if any>>
@@ -120,9 +126,12 @@ ones.
 
 A **Failure Brief** is a short, structured record of one observed agent
 failure, filed jointly by a human (who labels expected behaviour) and the
-deliver agent (who labels the layer hypothesis and the "do not do" list).
-They live under <<PROJECT: failure-briefs directory>> and are the input to
-the case-family / bad-case pipeline.
+planning/review role (who labels the layer hypothesis and the "do not do"
+list). They live under <<PROJECT: failure-briefs directory>> and feed the
+project's failure-to-eval pipeline (the path from an observed failure to a
+coverage case).
+<!-- e.g. (csagent): the deliver agent labels the hypothesis; the pipeline
+     is the case-family / bad-case pipeline. -->
 <!-- e.g. (csagent): docs/diagnostics/failure-briefs/<brief-id>.md -->
 
 Every brief has these six fields (keep all six — the structure is the
@@ -159,29 +168,36 @@ guard.
 
 ### 3.1 Layer set
 
-<<PROJECT: define the fix-layer set for YOUR architecture. The set is
-architecture-specific, but a portable set should include at least:
-  - an `infra` layer (orchestration, transport, persistence, timeouts);
-  - a deterministic-guard layer that may ONLY be extended when an
-    immutable (Tier-0) invariant is at stake;
-  - one or more "what the model was shown / how state carried" layers
-    (context projection, multi-turn state);
-  - the model's own decision layer (the semantic planner);
-  - an eval/spec layer (is the test asking for something valid?);
-  - a judge/eval-stability layer if you use an LLM judge;
-  - a `human_review_required` escape hatch for "looks like a guard but no
-    current invariant covers it — do not invent one".>>
-<!-- e.g. (csagent) 9-layer set: infra | java_guard | prompt_projection |
-     skill_state | semantic_planner | eval_spec | product_policy |
-     judge_calibration | human_review_required. -->
+<<PROJECT: define the fix-layer set for YOUR architecture — the set,
+names, count, and granularity are entirely project-defined. A useful set
+routes each observed failure to exactly one owner and reserves
+deterministic-guard changes for immutable-invariant violations.
+
+As a thinking aid only (NOT requirements, NOT a fixed taxonomy), common
+diagnostic dimensions a project MIGHT turn into layers: orchestration /
+infra; the immutable deterministic-guard boundary; what the model was
+shown (context); what state carried across turns; the model's own
+decision; whether the eval / spec itself is valid; product / policy
+decisions; eval- or judge-stability (if you use a model judge); and a
+human-review escape hatch for "looks like a guard but no current invariant
+covers it — do not invent one". Pick, drop, rename, split, or merge these
+freely.>>
+<!-- e.g. (csagent) chose a 9-layer set: infra | java_guard |
+     prompt_projection | skill_state | semantic_planner | eval_spec |
+     product_policy | judge_calibration | human_review_required. -->
 
 ### 3.2 Decision questions (first match wins)
 
-<<PROJECT: an ordered list of yes/no questions, each routing to a layer
-from §3.1. First match wins. Order them so the cheap/structural causes
-(infra, broken invariant, impoverished context, lost state) are ruled out
-before blaming the model's own choice.>>
-<!-- e.g. (csagent), abbreviated:
+<<PROJECT: an ordered list of yes/no questions, each routing to one §3.1
+layer. The first-match-wins mechanic is portable; the ORDERING is
+project-specific — sequence the questions so the failure modes your
+architecture most needs to rule out first come first (e.g. safety /
+policy, tool-contract, retrieval / data-freshness, context, or state,
+depending on your system).>>
+<!-- Heuristic (optional): ruling out structural / upstream causes before
+     attributing a failure to the model's own judgment tends to prevent
+     reflexive hardcoding — but the right order is yours to decide.
+     e.g. (csagent), abbreviated:
      1. Session won't start / crash / timeout not caused by tool
         semantics? -> infra
      2. A current Tier-0 invariant is being broken? -> java_guard
@@ -197,12 +213,15 @@ before blaming the model's own choice.>>
      7. The ask is a product/policy decision the runtime can't make? ->
         product_policy -->
 
-**Tail rule (judge stability, PORTABLE):** if the same case flips across
-reruns of the *same prompt and spec*, reclassify as the judge/eval-
-stability layer regardless of which question matched.
+**Tail rule (judge stability, PORTABLE mechanic):** if the same case flips
+across reruns of the *same prompt and spec*, reclassify it as the
+project's judge- / eval-stability layer regardless of which question
+matched.
 
-**Default tail (PORTABLE):** if no question matches cleanly →
-`human_review_required`.
+**Default tail (PORTABLE mechanic):** if no question matches cleanly →
+the project's human-review escape hatch (§3.1).
+<!-- e.g. (csagent): the judge-stability layer is judge_calibration; the
+     escape hatch is human_review_required. -->
 
 ### 3.3 Why no deterministic guard by default (PORTABLE)
 
@@ -211,22 +230,24 @@ keyword / regex / if-else can paper over the symptom in one PR. The
 iteration rule (§1.5) and the forbidden list (§1.7) rule this out for soft
 semantic decisions: those belong to the model. A new deterministic guard
 is only justified when it protects a current immutable (Tier-0) invariant.
-If no current invariant covers it, `human_review_required` is the correct
-exit — the human decides whether to open a new invariant or push the fix
-back to a context / state / planner layer.
+If no current invariant covers it, the human-review escape hatch (§3.1) is
+the correct exit — the human decides whether to open a new invariant or
+push the fix back to a context / state / decision layer.
 
 ## 4. Anti-Hardcode Review
 
-### 4.1 Nine-question anti-hardcode kernel
+### 4.1 Anti-hardcode review kernel
 
 The canonical copy-pastable review kernel lives at
 `../B-process/anti-hardcode-review-kernel.template.md` (Layer B). It
 contains the question set, a scope-exemption clause, and the verdict set.
+The number of questions is project-defined there (it is not fixed by this
+constitution).
 
 ### 4.2 Sprint-close review header (PORTABLE convention)
 
-At sprint close, the review agent writes a sprint-level decision to the
-top of <<PROJECT: review-findings file>> using this header:
+At sprint close, the review role writes a sprint-level decision to the top
+of <<PROJECT: review-findings file>> using this header:
 
 ```
 ## Sprint Review Decision
@@ -253,19 +274,24 @@ enough.
 
 ### 5.1 Acceptance bars
 
-Portable bars (keep):
-- **Target cases pass** — the cases the change named as in scope.
-- **Neighbor cases no regression** — cases sharing the failure shape.
-- **Negative-control cases unchanged** — cases designed to NOT trigger
-  the new behaviour must not start triggering it.
-- **Shadow cases no regression** — held-out cases not visible to the dev
-  agent; readable only by human / review agent.
+Portable hard defaults (keep — true for any project):
+- **In-scope / target cases pass** — the cases the change named as in
+  scope.
+- **No regression on related cases** — cases sharing the failure shape or
+  surface must not regress.
 - **Safety floor unchanged** — the immutable safety invariants stay green.
 
-Project-specific floors (add yours):
-- <<PROJECT: domain floors that must not regress — e.g. grounding floor,
-  wrong-containment rate, over-escalation rate, architecture-health
-  metrics>>.
+Eval partition model (project-specific):
+- <<PROJECT: how you slice coverage beyond the three defaults above —
+  e.g. dedicated negative-controls, and held-out cases not visible to the
+  implementation role.>>
+<!-- e.g. (csagent) partitions: target / neighbor / negative-control /
+     shadow (held-out, dev-blind; readable only by human + review role). -->
+
+Project-specific floors (add yours, if any):
+- <<PROJECT: domain floors that must not regress — e.g. a grounding
+  floor, wrong-containment rate, over-escalation rate, or
+  architecture-health metrics>>.
 
 ### 5.2 Baseline pointer
 
@@ -273,41 +299,50 @@ The canonical baseline is <<PROJECT: baseline doc path>>. Verify the date
 and run reference before trusting any specific number.
 <!-- e.g. (csagent): docs/current_eval_baseline.md -->
 
-### 5.3 Visible-eval vs shadow (PORTABLE)
+### 5.3 Visible-eval vs held-out generalization (PORTABLE)
 
-A visible-eval improvement that ships with a shadow regression is a
-**fail**, not a pass. Enforces the §1.7 "do not optimize visible eval at
-the cost of shadow/generalization" line.
+A visible-eval improvement that ships with a held-out / generalization
+regression is a **fail**, not a pass. Enforces the §1.7 "do not optimize
+visible eval at the cost of held-out generalization" line.
+<!-- e.g. (csagent): the held-out partition is the dev-blind shadow set. -->
 
 ### 5.4 No eval-side override of a real bug (PORTABLE)
 
 An eval-side override — widening the spec to accept the agent's actual
 output, relaxing the rubric, or downgrading a judge — may NOT mask a
 genuine agent mistake (§1.7). If the agent is wrong, fix the agent; if the
-spec is wrong, fix the spec and document the override with its §3 layer
-classification (`eval_spec`).
+spec is wrong, fix the spec and document the override with its §3.1 layer
+classification (the project's eval/spec layer).
+<!-- e.g. (csagent): the eval/spec layer is eval_spec. -->
 
 ### 5.5 Hard gates vs observation (PORTABLE pattern)
 
-Metrics that have accumulated confounds (provider drift, judge variance,
-mock-vs-real gap) cannot gate close (§1.6); demote them to **observation**
-(still computed and tracked, but non-blocking). The hard close gates are:
+**If — and only if —** a metric has accumulated confounds (e.g. provider
+drift, judge variance, mock-vs-real gap) that prevent reliable
+attribution, it MAY be demoted to **observation** (still computed and
+tracked, but non-blocking). A project may demote nothing. The hard close
+gates are:
 
 - the §4.1 anti-hardcode kernel pass (per the §4 dispatch convention);
 - the test suite shows no new regression beyond the documented baseline;
 - the safety floor unchanged (§5.1);
-- <<PROJECT: any additional hard floors — e.g. grounding floor>>;
+- <<PROJECT: any additional hard floors — e.g. a grounding floor>>;
 - the **primary acceptance gate** below (§5.6).
 
-<<PROJECT: name the noisy metric(s) you demote to observation>>.
+<<PROJECT: metric(s) demoted to observation, or "none">>.
 <!-- e.g. (csagent): the 14-case smoke composite_score / pass-rate /
      judge dims are observation-only. -->
 
-### 5.6 Curated bad-case suite (primary acceptance gate)
+### 5.6 Primary acceptance gate
 
-→ Moved to Layer B: `../B-process/badcase-lifecycle.md` §5.6 (suite
-schema, tiering, lifecycle, manual-review process). Cite as
+<<PROJECT: define the primary acceptance gate — the high-signal, typically
+human-judgment gate that, together with the §5.5 hard gates, decides
+close.>> Its mechanics (schema, tiering, lifecycle, review process) live
+in Layer B → `../B-process/badcase-lifecycle.md`. Cite as
 "badcase-lifecycle §5.6".
+<!-- e.g. (csagent): a curated bad-case suite with manual trace review.
+     Other projects might use a red-team suite, live canaries, a benchmark
+     gate, or human QA. -->
 
 ### 5.7 Eval evidence gate (PORTABLE)
 
@@ -318,10 +353,12 @@ rerun is the eval evidence gate; mocked tests cover projection / rendering
 
 ## 6. Architecture-health metrics
 
-→ Moved to Layer B: `../B-process/architecture-health-metrics.template.md`
-§6 (metric definitions). Cite as "architecture-health-metrics §6". §5.1's
-"architecture-health metrics not regressed" bar consults these once
-collection lands.
+**If your project defines** architecture-health metrics (a §5.1 project
+floor), their definitions live in Layer B →
+`../B-process/architecture-health-metrics.template.md` §6 (cite as
+"architecture-health-metrics §6"), and the corresponding §5.1 floor
+consults them once collection lands. Projects without such metrics may
+omit this.
 
 ## 7. Required sprint-objective stanza
 
@@ -345,14 +382,15 @@ pointer to the invariant being protected in the project's risk-policy doc>
 <named hardcode>; justification: <reason>; sunset plan: <downgrade-to-
 signal trigger + target sprint id>">
 
-**Generalization coverage:** <"target / neighbor / negative / shadow case
-counts: <T>/<N>/<G>/<S>" OR "case family not yet built; deferred to
-<case-family sprint id>">
+**Generalization coverage:** <coverage stated in terms of your §5.1 eval
+partition model, OR "case family not yet built; deferred to <sprint id>">
 ```
+<!-- e.g. (csagent) coverage line: "target / neighbor / negative / shadow
+     case counts: <T>/<N>/<G>/<S>". -->
 
 Each field has one acceptable form. A sprint that cannot fill a field
 without a stretch has not yet decided what it is doing; re-scope before
-the dev agent runs.
+the implementation role runs.
 
 **Multi-layer prospective variant (PORTABLE):** investigation +
 bundle-or-defer sprints span multiple candidate layers; the stanza is then
