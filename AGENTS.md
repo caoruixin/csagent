@@ -61,14 +61,32 @@ this file loads the three governance docs above. That means:
   cadence in `doc_governance.md` apply to every docs PR.
 - The per-task reading lists and the Context Pack Prompt in
   `agent_context_guide.md` apply before any non-trivial task.
-- The Constitution (§1), the Failure Brief Template (§2), the Fix
-  Layer Classification Checklist (§3), the Anti-Hardcode Review
-  Prompt (§4), the Eval Acceptance Rules (§5 incl. §5.5 smoke
-  demotion and §5.6 curated bad-case suite as human-judgment primary
-  gate), the Architecture-Health Metric definitions (§6), the required
-  sprint-objective stanza (§7), and the Milestone framework (§8) in
-  `iteration_governance.md` apply to every change that touches the
-  agent's behaviour.
+- The always-loaded Layer-A core in `iteration_governance.md` applies
+  to every change that touches the agent's behaviour: the Constitution
+  (§1), the Failure Brief Template (§2), the Fix Layer Classification
+  Checklist (§3), the Anti-Hardcode Review kernel pointer + sprint-close
+  header (§4.1/§4.2), the Eval Acceptance Rules (§5, including the §5.5
+  smoke-demotion rule and the §5.7 mocked-LLM evidence gate), and the
+  required sprint-objective stanza template (§7.1). On 2026-06-02 the
+  high-churn role-specific process material was carved into on-demand
+  Layer-B process docs (below); moved sections leave one-line stubs in
+  `iteration_governance.md` so §-number citations still resolve.
+
+**Process docs — load on demand by role** (not auto-loaded; read when
+your task touches the surface):
+
+- `docs/current/process/milestone-framework.md` — §8 milestone
+  framework + §4.3 milestone-shared Codex review (deliver-agent
+  planning + close cadence).
+- `docs/current/process/prompt-artifact-rules.md` — §9 dev/review
+  prompt self-containment invariant (deliver-agent prompt authoring).
+- `docs/current/process/badcase-lifecycle.md` — §5.6 curated bad-case
+  suite gate + lifecycle + the §5.5 demotion rationale (deliver-agent
+  + human close review).
+- `docs/current/process/architecture-health-metrics.md` — §6 metric
+  definitions (uncollected; proposal-tier).
+- `docs/current/governance-examples.md` — the §2 `cs_example_001`
+  Failure-Brief example and the §7.2 worked sprint-objective stanza.
 
 Sprint-specific scope lives in `docs/sprint_objective.md` (current
 sub-sprint contract) and `docs/milestone_objective.md` (current
