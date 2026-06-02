@@ -169,6 +169,28 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         // the `already_called` binding soft signal. Map lifetime is exactly
         // one run() invocation, so it cannot leak across sessions/turns.
         Map<String, ToolEvent> successfulDispatchCache = new LinkedHashMap<>();
+        // Sprint 069 / S-Auto-13b (A3 deterministic backstop) — per-run
+        // tracker for the most-recent SUCCESSFUL search_knowledge dispatch
+        // this run whose result carried `faq_miss=false` (a viable hit).
+        // When a NEW search_knowledge dispatch arrives and this slot is
+        // non-null, the gate below serves the cached viable-hit result
+        // instead of re-executing the tool. Cleared (reset to null) on
+        // any subsequent search_knowledge that returns `faq_miss=true` or
+        // fails — so a re-search after a non-viable result is allowed and
+        // a transient external failure does not freeze the gate. Lifetime
+        // is one run() invocation (one outer turn); it cannot leak across
+        // turns or sessions. Keyed purely on the `faq_miss` RESULT state
+        // (not on query content / keyword / regex / enum / per-UC), so the
+        // LLM still owns the FIRST search, what tool, what content — this
+        // is the same falsification-→-deterministic-backstop pattern as
+        // A1 (Sprint 19/20 soft-signal-alone falsified → S-Auto-12 hybrid),
+        // applied to the paraphrase shape A1 (byte-identical only) cannot
+        // catch. The S-Auto-13 A3 soft layer (`search_reuse_instruction`
+        // projection echo + `grounding_instruction` paraphrase-discipline
+        // line in resolve_faq_grounded_answer.yaml) STAYS beneath this
+        // backstop as the soft-signal-first measure that fires before the
+        // deterministic gate.
+        ToolEvent lastSearchKnowledgeViableHit = null;
         int sequence = 0;
         String lastProjection = null;
         String lastLlmRawResponse = null;
@@ -503,6 +525,56 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                     }
                 }
 
+                // 6a-ter. Sprint 069 / S-Auto-13b (A3 deterministic backstop)
+                // — faq_miss-state-aware same-turn `search_knowledge`
+                // re-search suppression gate. Runs AFTER A1 has cleared a
+                // byte-identical match, so A1's logic is untouched: A1
+                // catches byte-identical repeats (same query string), this
+                // gate catches paraphrases of the same intent (different
+                // query string, same `faq_miss=false` result state). The
+                // gate is keyed on the EXISTING `faq_miss` RESULT flag
+                // (NOT on query content / keyword / regex / enum / per-UC):
+                // when a NEW search_knowledge dispatch arrives and the
+                // most-recent prior search_knowledge this run returned a
+                // viable hit (`faq_miss=false`, tracked above), serve that
+                // prior hit + annotate `paraphrase_suppressed` + flatten
+                // onto the trace via ControlKernel. The tool is NOT
+                // re-executed (no step / budget charged — mirror A1). A
+                // re-search after the most-recent search_knowledge returned
+                // `faq_miss=true` (no viable hit) or failed is ALLOWED;
+                // the tracker reset in 6c handles that case.
+                //
+                // The S-Auto-13 A3 soft layer (`search_reuse_instruction`
+                // projection echo + `grounding_instruction` paraphrase-
+                // discipline line in resolve_faq_grounded_answer.yaml) was
+                // empirically falsified — `deepseek-v4-flash` ignores the
+                // soft signal, the PARAPHRASE_STORM stayed 16/16/7 vs the
+                // §11 ≤3 target. Per the soft-signal-first rule the soft
+                // layer STAYS beneath this backstop as the first measure;
+                // the backstop is the deterministic substrate the LLM
+                // cannot route around. Same falsification-→-deterministic-
+                // backstop pattern as A1 (Sprint 19/20 soft-signal-alone
+                // → S-Auto-12 hybrid 回挡).
+                if ("search_knowledge".equals(toolName)
+                        && lastSearchKnowledgeViableHit != null) {
+                    ToolEvent base4 = ToolEvent.paraphraseSuppressed(
+                            step, call, lastSearchKnowledgeViableHit.resultData(),
+                            lastSearchKnowledgeViableHit.stepIndex());
+                    toolEvents.add(new ToolEvent(
+                            sequence++, step, base4.toolName(), base4.arguments(),
+                            base4.success(), base4.resultData(), base4.errorMessage(),
+                            base4.latencyMs(), base4.deduplicated(), base4.originalAtStep(),
+                            base4.paraphraseSuppressed(), base4.faqHitAtStep()));
+                    accumulatedToolResults.put(toolName,
+                            lastSearchKnowledgeViableHit.resultData());
+                    log.info(
+                            "AgentRunLoop A3 backstop: same-turn search_knowledge re-search at "
+                                    + "step {} suppressed (prior viable hit at step {}); tool not "
+                                    + "re-dispatched",
+                            step, lastSearchKnowledgeViableHit.stepIndex());
+                    continue;
+                }
+
                 // 6b. Dispatch and record event
                 long tt = System.currentTimeMillis();
                 ToolResult result;
@@ -533,6 +605,38 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 // original_at_step for every later byte-identical repeat.
                 if (dedupKey != null && result != null && result.isSuccess()) {
                     successfulDispatchCache.putIfAbsent(dedupKey, recorded);
+                }
+
+                // 6c-bis. Sprint 069 / S-Auto-13b (A3 deterministic
+                // backstop) — refresh the per-run viable-hit tracker on
+                // every fresh search_knowledge dispatch. The slot points
+                // at the most-recent search_knowledge ToolEvent whose
+                // result carried `faq_miss=false`; the next time the LLM
+                // tries to re-search this turn, the gate above (6a-ter)
+                // serves that cached result instead of re-executing.
+                //
+                // Reset rules: a successful search whose result is
+                // `faq_miss=true` (no viable hit), a malformed result map
+                // (cannot read the flag), or any external-failure dispatch
+                // ALL reset the tracker to null. This is the same
+                // principle A1 follows ("failures don't enter the cache,
+                // legitimate retries re-dispatch") applied to the
+                // paraphrase shape: after a non-viable result, a fresh
+                // search is warranted and the gate must not block it.
+                if ("search_knowledge".equals(toolName)) {
+                    if (result != null && result.isSuccess()) {
+                        Object data = result.getData();
+                        boolean viableHit = false;
+                        if (data instanceof Map<?, ?> dataMap) {
+                            Object faqMissFlag = dataMap.get("faq_miss");
+                            if (faqMissFlag instanceof Boolean fm) {
+                                viableHit = !fm;
+                            }
+                        }
+                        lastSearchKnowledgeViableHit = viableHit ? recorded : null;
+                    } else {
+                        lastSearchKnowledgeViableHit = null;
+                    }
                 }
 
                 // Sprint 12 §N0 — stamp terminal-evidence summary on the
