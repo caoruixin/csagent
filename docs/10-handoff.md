@@ -6,6 +6,25 @@ Last close: Sub-sprint **S-Auto-13b / Sprint 069 — CLOSED 2026-06-02 (CLEAN on
 
 ## 0. Deliver-agent cold-start state
 
+> **STATUS BANNER (2026-06-03, M-Auto-3 close-in-progress)**: S-Auto-14 (B1)
+> AND S-Auto-15 (§8.5-split: cross-turn paraphrase backstop + eval pytest
+> baseline housekeeping) are BOTH DONE + committed (HEAD `ad715d5`, branch
+> local-only). All M-Auto-3 §11 HARD gates met: IDENTICAL_RETRY ✅,
+> within-turn PARAPHRASE_STORM ✅, cross-turn rank-2+ ✅ (S-Auto-15 gate, 9
+> suppressions, ZERO 误杀), GATING_RACE ✅, ESCALATION_MISSTAMP ✅,
+> CONTRACT_VIOL ✅; Java `1213/1`; eval pytest `503/0` under `uv run`.
+> **PARAPHRASE_STORM was RE-FRAMED into three classes** (within / cross
+> rank-2+ = HARD gates met; cross rank-1 first-refinement = OBSERVATION only,
+> not gated — see `milestone_objective.md` §5 + `sprint-071-handoff.md`).
+> **ONLY remaining close gate: the milestone-shared Codex review** — prompt
+> authored at `compact/M-Auto-3-review-prompt.md` (range S-Auto-11..15 +
+> M-Auto-2 residual), PENDING human dispatch. On Codex `pass` → final close
+> mechanics (archive sprint/milestone docs, §0/§1/§2 refresh, action_bank
+> sweep, codex-findings archive). **The first overnight launch is HELD for
+> explicit human instruction** (substrate is ready; creds in
+> `autoloop/.env.local`). The cells BELOW are pre-S-Auto-14 and are refreshed
+> at the final close.
+
 | Field | Value |
 |-------|-------|
 | **Current phase** | **M-Auto-3 — Substrate-hygiene OPEN; S-Auto-13b (sub-sprint 4 of 5) CLOSED 2026-06-02 CLEAN (on its own contract)** (A3 deterministic backstop: within-turn `PARAPHRASE_STORM` 12→0; cross-turn residual = OQ-S69.1; per-sub-sprint Codex `pass/0/approve`; Java re-verified `1198/1`). **S-Auto-14 / Sprint 070 (B1 escalation-reason honesty + minimal eval valid_reasons sync; per-sub-sprint Codex REQUIRED) is NEXT and LAST → M-Auto-3 close.** M-Auto-3 now at the §8.1 5-sub-sprint ceiling (buffer consumed by S-Auto-13b). Preceding sub-sprints S-Auto-13 (A2 classify-first + OQ-S66.1; PARTIAL), S-Auto-12 (A1 dedup; Class A), S-Auto-11 (trace persistence + infra-error + D1; Class A). M-Auto-3 scope = Module A (tool-call discipline) + B1 (escalation honesty) + D (eval-harness robustness) + OQ-S65.7/8; acceptance bar = proposal §11 unlock criteria (`docs/solutions/runtime_substrate_hygiene_autoloop_signal_v1.md`) — **note §11 PARAPHRASE_STORM is a within-turn(✅)/cross-turn(⏳ OQ-S69.1)/total(not ≤3) SPLIT decision for the deliver+human M-Auto-3 close**. S-Auto-13b/13 outcome figures + the M-Auto-2 Class-C close narrative: see §1 below + `docs/sprints/sprint-069-handoff.md` + `sprint-068-handoff.md`; preceding milestone `docs/milestones/M-Auto-2_objective.md` §12. | (`docs/current/deliver_close_taxonomy.md`: M-Auto-2 = C — In-flight downgrade; S-Auto-9 = A — Clean close; S-Auto-10 = Class C-style carryover.) |
