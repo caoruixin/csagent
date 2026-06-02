@@ -45,8 +45,8 @@ docs, eval results, git diff, handoffs, and review findings.
 | Cold-start state | `docs/10-handoff.md` §0 (structured table) + §1 (narrative) | Deliver agent updates at close |
 | Current milestone | `docs/milestone_objective.md` | Deliver agent drafts; human approves |
 | Current sub-sprint | `docs/sprint_objective.md` | Deliver agent drafts; human approves |
-| Dev implementation brief | `compact/sprint-NNN-dev-prompt.md` (self-contained executable view of `sprint_objective.md`; see `iteration_governance.md` §9) | Deliver agent authors |
-| Review brief | `compact/M<N>-review-prompt.md` (self-contained executable view of `milestone_objective.md`; see `iteration_governance.md` §9) | Deliver agent authors |
+| Dev implementation brief | `compact/sprint-NNN-dev-prompt.md` (self-contained executable view of `sprint_objective.md`; see `docs/current/process/prompt-artifact-rules.md` §9) | Deliver agent authors |
+| Review brief | `compact/M<N>-review-prompt.md` (self-contained executable view of `milestone_objective.md`; see `docs/current/process/prompt-artifact-rules.md` §9) | Deliver agent authors |
 | Sub-sprint result | `docs/sprints/sprint-NNN-handoff.md` | Dev agent authors |
 | Review findings | `docs/codex-findings.md` | Review agent authors |
 | Backlog | `docs/action_bank.md` | Deliver agent maintains R-items |
@@ -58,7 +58,7 @@ docs, eval results, git diff, handoffs, and review findings.
 The agent's evolution is driven by two distinct input paths. Both
 converge on the same downstream loop (research-agent proposal →
 deliver-agent milestone planning → dev/review/close per
-`iteration_governance.md` §8).
+`docs/current/process/milestone-framework.md` §8).
 
 ### Path 1 — Research-driven (forward-looking)
 
@@ -78,7 +78,7 @@ human reviews + selects proposal
   ↓
 selected proposal → deliver agent
   ↓
-deliver agent plans milestone / sub-sprint per §8
+deliver agent plans milestone / sub-sprint per process/milestone-framework.md §8
   ↓
 [downstream loop: dev → review → close]
 ```
@@ -91,7 +91,7 @@ sprint-surfaced).
 ```
 real session surfaces a failure
   ↓
-human + deliver agent triage: load-bearing? (§5.6 criteria)
+human + deliver agent triage: load-bearing? (process/badcase-lifecycle.md §5.6 criteria)
   → if NO: discard / log only
   → if YES: proceed
   ↓
@@ -116,7 +116,7 @@ deliver agent encodes bad case + routes to 4-route fit:
 - Treating Path 1 proposals as binding (proposals are suggestions)
 - Path 2 without coverage check (non-optional)
 - Encoding every bad case as `core` tier (bloats regression suite)
-- Mid-milestone scope expansion (wait for next planning round per §8.5)
+- Mid-milestone scope expansion (wait for next planning round per `process/milestone-framework.md` §8.5)
 - Fixing symptoms without fixing causes (compounding-effect analysis is non-optional)
 
 ## 4. Milestone Loop
@@ -144,11 +144,11 @@ Deliver agent + human assess sub-sprint:
   ↓
 Milestone close trigger
   ↓
-Review agent does milestone-level review (§4.3)
+Review agent does milestone-level review (process/milestone-framework.md §4.3)
   → updates docs/codex-findings.md
   ↓
 Deliver agent + human:
-  1. Manual review bad-case suite (primary gate per §5.6)
+  1. Manual review bad-case suite (primary gate per process/badcase-lifecycle.md §5.6)
   2. Classify codex findings:
      A. No blockers → close milestone
      B. P0/P1 in scope → fix-iteration
@@ -160,15 +160,13 @@ Archive + plan next milestone
 
 ## 5. Acceptance Gates
 
-| Gate | Status | Source |
-|------|--------|--------|
-| Codex §4.1 anti-hardcode kernel | **HARD GATE** | `docs/current/anti-hardcode-review-kernel.md` |
-| Java test suite no new regression | **HARD GATE** | Baseline preservation |
-| Safety floor unchanged (Tier-0) | **HARD GATE** | `runtime_freeze_and_risk_policy.md` §1/§2 |
-| Grounding floor unchanged | **HARD GATE** | `faq_grounding_contract.md` |
-| Curated bad-case suite manual review | **HARD GATE (primary)** | `eval_interactive/case_specs/bad_cases/` per §5.6 |
-| Smoke composite_score / pass-rate | **OBSERVATION** (demoted) | per §5.5 |
-| Architecture-health metrics (§6) | **OBSERVATION** | §6 |
+Canonical gate definitions: `iteration_governance.md` §5.5 (hard-gate
+list + smoke demotion) and `docs/current/process/badcase-lifecycle.md`
+§5.6 (curated bad-case primary gate). In short — curated bad-case suite
+manual review is the **HARD primary gate**; Codex §4.1 kernel, Java
+no-regression, safety floor, and grounding floor are **HARD gates**;
+smoke composite_score / pass-rate and architecture-health metrics are
+**OBSERVATION** (recorded, do not block close).
 
 ## 6. File Topology
 
@@ -184,7 +182,13 @@ docs/teams/
   └── research-agent.md               (research agent role guide)
 
 docs/current/
-  ├── iteration_governance.md         (§1-§8 operational rules)
+  ├── iteration_governance.md         (Layer A: §1 Constitution, §3 fix-layer, §5 eval-accept, §7 stanza)
+  ├── process/                        (Layer B — on-demand process docs)
+  │   ├── milestone-framework.md      (§8 milestone framework + §4.3 Codex cadence)
+  │   ├── prompt-artifact-rules.md    (§9 dev/review prompt self-containment)
+  │   ├── badcase-lifecycle.md        (§5.6 bad-case suite + lifecycle)
+  │   └── architecture-health-metrics.md (§6 metric definitions)
+  ├── governance-examples.md          (§2 + §7.2 worked examples)
   ├── anti-hardcode-review-kernel.md  (§4.1 nine-question kernel)
   ├── doc_governance.md               (tier model + decision rules)
   └── agent_context_guide.md          (per-task reading lists)
@@ -192,10 +196,10 @@ docs/current/
 compact/                              (working directory for per-sprint artifacts)
   ├── sprint-NNN-dev-prompt.md        (deliver agent creates per sub-sprint;
   │                                    self-contained executable view of
-  │                                    sprint_objective.md; see iteration_governance.md §9)
+  │                                    sprint_objective.md; see process/prompt-artifact-rules.md §9)
   └── M<N>-review-prompt.md           (deliver agent creates at milestone close;
                                        self-contained executable view of
-                                       milestone_objective.md; see §9)
+                                       milestone_objective.md; see process/prompt-artifact-rules.md §9)
 
 docs/milestone_objective.md           (current milestone contract)
 docs/sprint_objective.md              (current sub-sprint contract)
