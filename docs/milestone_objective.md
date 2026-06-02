@@ -94,7 +94,7 @@ This is the **prerequisite** the M-Auto-2 Class C downgrade identified: M-Auto-2
 
 ### S-Auto-11 / Sprint 066 — Eval-harness robustness + per-iter trace persistence + infra-error detection (CLOSED 2026-06-01)
 
-**Outcome (closed 2026-06-01; Class A on #1/#3/#4):** #3 per-iter eval-trace persistence + #4 OQ-S65.7/8 infra-error detection shipped in `loop.py` + validated (read-back live + unit/integration + live vs real eval output); fence-#13 NOT touched; scoring SHA held. D1 shipped SAFE `user_simulator` hardening but its headline target `CONTRACT_VIOL_TURN0 3/24→0` was re-attributed BOT-SIDE (**OQ-S66.2**; human-authorized "safe hardening + surface"). Java baseline re-established `1183/10/0/2` (**OQ-S66.1** — 9 pre-existing golden-drift failures, NOT determinism-attributable; config NOT reverted). Gates: Java `1183/10/0/2`, eval_interactive `499/4`, autoloop `276`, 17-fixture `31`. No per-sub-sprint Codex trigger (milestone-shared). See `docs/sprints/sprint-066-handoff.md` + `docs/sprints/sprint-066-objective.md`.
+**Outcome (closed 2026-06-01; Class A on #1/#3/#4):** per-iter eval-trace persistence + OQ-S65.7/8 infra-error detection shipped + validated (loop.py orchestration; fence-#13 untouched; SHA held); D1 SAFE `user_simulator` hardening shipped but its `CONTRACT_VIOL_TURN0` target re-attributed BOT-SIDE (OQ-S66.2); Java baseline re-established + OQ-S66.1 golden-drift surfaced. Detail: `docs/sprints/sprint-066-handoff.md`.
 
 **Layer:** `infra` + `eval_spec`/harness. **§7 stanza:** EXEMPT (harness/infra carve-out). **Codex:** Milestone-shared default UNLESS SHA-locked `eval_runner.py` (fence-#13) must be edited (then STOP-and-surface + per-sub-sprint Codex per §4.3 trigger #3) — NOT triggered (loop.py orchestration sufficed). **Est:** ~2-3 days.
 
@@ -107,7 +107,7 @@ This is the **prerequisite** the M-Auto-2 Class C downgrade identified: M-Auto-2
 
 ### S-Auto-12 / Sprint 067 — A1 identical-retry-storm dedup — CLOSED 2026-06-01
 
-**Outcome (closed 2026-06-01; Class A — Clean close):** A1 hybrid dedup shipped (`17991c6`) — per-run `(toolName, canonicalArgumentsHash)` idempotency 回挡 (serves `success==true` byte-identical repeats from cache, no re-dispatch/budget) + `already_called` observation→binding soft-signal upgrade + `deduplicated`/`original_at_step` trace annotation. **`IDENTICAL_RETRY` eliminated: 0/25, 0/34, 0/30 across 3 bad_cases passes** (target ≤2/24; backstop fired 16× — hybrid empirically required per red line #2). NO Tier-0, NO semantic hardcode (reuses existing hash). Gates: Java `1186/10/0/2` (+3 tests), eval `499/4`, autoloop `276`, SHA held. Surfaced OQ-S67.1 (backstop load-bearing) + OQ-S67.2 (max-steps mis-stamp NOT closed by A1 → B1/S-Auto-14). See `docs/sprints/sprint-067-{objective,handoff}.md`.
+**Outcome (closed 2026-06-01; Class A — Clean close):** A1 hybrid dedup shipped (per-run idempotency 回挡 + `already_called` binding soft-signal upgrade + trace annotation); `IDENTICAL_RETRY` eliminated to 0 across 3 passes (hybrid empirically required per red line #2); NO Tier-0, NO semantic hardcode. Surfaced OQ-S67.1 (backstop load-bearing) + OQ-S67.2 (max-steps mis-stamp → B1/S-Auto-14). Detail: `docs/sprints/sprint-067-handoff.md`.
 
 **Layer:** `infra` + `prompt_projection`. **§7 stanza:** REQUIRED. **Codex:** milestone-shared default. **Est:** ~2-3 days.
 
@@ -115,7 +115,7 @@ A1-x hybrid (proposal §3 Module A): in the tool dispatch path maintain a per-ru
 
 ### S-Auto-13 / Sprint 068 — A2 classify-first + A3 paraphrase skill-layer discipline — CLOSED 2026-06-02 (PARTIAL)
 
-**Outcome (closed 2026-06-02; PARTIAL — A2 + OQ-S66.1 met, A3 deferred to S-Auto-13b):** A2 shipped (`discover_triage.yaml` classify-first; the `faq-uc-search-before-commit` critical step reconciled in place to `faq-uc-classify-first`, count invariant 3/18 preserved; `tool-policy.yaml` untouched) → `GATING_RACE` 0/1/0 across 3 passes (aggregate 1 ≤ target 1); RESOLVE-phase 'none' rejections 5→0. OQ-S66.1 RESOLVED (stale `max_tool_steps` goldens synced to shipped — `resolve_faq` 4→6, `discover_triage` 2→3, a `7871c62` stale-value sync NOT an intended cap; Java `Failures 10→1`, `Tests run 1192`, +6 tests). **A3 NOT met**: the soft `faq_miss`-keyed grounding instruction + projection echo ship + fire (15-17/run) but the model ignores them — `PARAPHRASE_STORM` 16/16/7 vs ≤3; per contract NO hard cap added (soft-first; surfaced OQ-S68.3) → deterministic backstop = **S-Auto-13b**. Also surfaced OQ-S68.1/2/4 (see `docs/sprints/sprint-068-handoff.md`). Commits `d4e3c61` + `93c1682`.
+**Outcome (closed 2026-06-02; PARTIAL — A2 + OQ-S66.1 met, A3 deferred to S-Auto-13b):** A2 classify-first + OQ-S66.1 golden reconciliation MET (`GATING_RACE` met; Java `1192/1`); A3 soft layer ships + fires but the model ignores it (`PARAPHRASE_STORM` over target) → per the soft-signal-first contract NO hard cap added (OQ-S68.3) and the deterministic backstop is the new **S-Auto-13b**. Surfaced OQ-S68.1/2/4. Commits `d4e3c61` + `93c1682`. Full A2/A3 mechanics + per-pass figures: `docs/sprints/sprint-068-handoff.md`.
 
 **Layer:** `prompt_projection`/skill + config-governance + `semantic_planner`. **§7 stanza:** REQUIRED. **Codex:** milestone-shared default. **Est:** ~2-3 days.
 
