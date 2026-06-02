@@ -1064,12 +1064,28 @@ public class AgentRunLoopImpl implements AgentRunLoop {
             clearCrossTurnStandingHit(session, "payload serialization failure");
             return;
         }
+        // Preserve the budget when a standing marker ALREADY stands for the
+        // SAME UC: a same-UC viable refinement just refreshes the payload; it
+        // must NOT reset the cardinality budget, otherwise every cross-turn
+        // re-search that itself returns a viable hit would perpetually reset
+        // the budget to 0 and the gate could never reach its suppression
+        // branch (the storm beyond the first refinement would never be
+        // caught). The budget is reset to 0 ONLY on a genuinely NEW capture
+        // (no prior marker, or a marker for a DIFFERENT UC) — that is the
+        // point at which "the first cross-turn refinement is always allowed"
+        // begins. GUARDRAIL 0 budget semantics are preserved: it still counts
+        // ALLOWED cross-turn searches since the standing hit.
+        Integer existingBudget = session.getCrossTurnSearchAllowedSinceHit();
+        boolean sameUcMarkerStands = uc.equals(session.getCrossTurnFaqHitUseCase());
+        int budgetToWrite = (sameUcMarkerStands && existingBudget != null)
+                ? existingBudget
+                : 0;
         session.setCrossTurnFaqHitUseCase(uc);
         session.setCrossTurnFaqHitPayload(payloadJson);
-        session.setCrossTurnSearchAllowedSinceHit(0);
+        session.setCrossTurnSearchAllowedSinceHit(budgetToWrite);
         log.info("AgentRunLoop cross-turn: captured standing viable hit for "
-                + "UC={} at turn {} (budget reset to 0)",
-                uc, session.getTotalBotTurns());
+                + "UC={} at turn {} (budget={}, sameUcMarkerStands={})",
+                uc, session.getTotalBotTurns(), budgetToWrite, sameUcMarkerStands);
     }
 
     /**
