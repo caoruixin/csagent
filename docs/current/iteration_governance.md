@@ -4,27 +4,49 @@ doc_tier: current-runtime
 status: current
 implementation_status: partial
 source_of_truth: this file
-last_reviewed: 2026-05-11
+last_reviewed: 2026-06-02
 review_cadence: every 3-5 sprints
 supersedes: []
 superseded_by: null
 notes: >
-  Iteration constitution + governance bundle. Section 1 is the LLM-first
-  constitution. Sections 2-6 are the operational gates: Failure Brief
-  template, Fix Layer Classification checklist, Anti-Hardcode review
-  prompt, Eval Acceptance Rules, and Architecture-Health Metric
-  definitions. Metrics are defined only; collection lands in a later
-  sprint. The Failure Brief and Fix Layer checklist drive G1 / G2.
+  Always-loaded Layer-A constitution + the gates every role needs every
+  session: §1 (LLM-first constitution), §2 (Failure Brief template),
+  §3 (Fix Layer Classification checklist), §4.1/§4.2 (anti-hardcode
+  kernel pointer + sprint-close header), §5.1-§5.5/§5.7 (Eval
+  Acceptance Rules + smoke-demotion rule + mocked-LLM evidence gate),
+  §7.1 (sprint-objective stanza template). On 2026-06-02 the high-churn
+  role-specific process material was carved into on-demand Layer-B docs
+  under docs/current/process/ (milestone-framework §8 + §4.3,
+  prompt-artifact-rules §9, badcase-lifecycle §5.6 + §5.5 rationale,
+  architecture-health-metrics §6) plus docs/current/governance-examples.md
+  (the §2 and §7.2 worked examples). Moved sections leave a one-line stub
+  here so §-number citations from archives still resolve. The Failure
+  Brief and Fix Layer checklist drive G1 / G2.
 ---
 
 # Iteration governance
 
-This document is the operational rulebook for how we iterate on the
-customer-service agent. §1 is the LLM-first **Constitution**; §2–§6
-are operational gates (Failure Brief, Fix Layer Classification,
-Anti-Hardcode Review, Eval Acceptance, Architecture-Health Metrics);
-§7 specifies the sprint-objective stanza; §8 defines the milestone
-framework.
+This document is the always-loaded **Layer-A** core: the timeless
+LLM-first **Constitution** (§1) plus the gates every role needs every
+session — the Failure Brief template (§2), the Fix Layer Classification
+checklist (§3), the Anti-Hardcode review kernel pointer + sprint-close
+header (§4.1/§4.2), the Eval Acceptance Rules (§5, including the
+smoke-demotion rule §5.5 and the mocked-LLM evidence gate §5.7), and
+the required sprint-objective stanza template (§7.1).
+
+High-churn, role-specific process material has been carved into
+on-demand **Layer-B** process docs (load by role when relevant); the
+numbers below stay as one-line stubs so §-number citations still
+resolve:
+
+- `process/milestone-framework.md` — §8 milestone framework + §4.3
+  milestone-shared Codex review.
+- `process/prompt-artifact-rules.md` — §9 agent prompt artifact rules.
+- `process/badcase-lifecycle.md` — §5.6 curated bad-case suite
+  lifecycle + the §5.5 dated rationale.
+- `process/architecture-health-metrics.md` — §6 metric definitions.
+- `governance-examples.md` — the §2 `cs_example_001` brief and the
+  §7.2 worked sprint stanza.
 
 Doc-tier and source-of-truth conventions are defined in
 [`doc_governance.md`](doc_governance.md). Per-task reading lists and
@@ -135,43 +157,12 @@ Every brief has these six fields:
   short-term hardcode that would close the symptom without solving
   the failure.*
 
-### Example brief — `cs_example_001` (hypothetical; not a real CaseSpec id)
+### Example brief — `cs_example_001`
 
-**What happened?**
-A UC-A user (listing visibility / paid Top Ad) says on turn 2 "and BTW
-the replies to my buyer aren't coming through either, can you check?"
-The bot continues to stamp `active_use_case=UC-A` and answers the
-messaging complaint as if it were a follow-up about the listing.
-
-**What should a good CS agent have done?**
-Recognize the topic shift on turn 2, treat the messaging complaint as
-a new issue, and reroute to UC-C (Replies / Messaging) — or, if
-ambiguous, ask one clarifying question — instead of carrying UC-A
-forward.
-
-**Why does this matter?**
-Carrying the prior UC through a topic shift corrupts intake, gives an
-off-topic answer, and is exactly the failure mode the Constitution's
-drift / topic-shift bullet (§1.3) says the LLM is supposed to own.
-
-**Is this a one-off or a pattern?**
-Pattern. UC-A↔UC-C soft-shift is a documented cross-UC scenario
-already partly covered by the Sprint 10 §L1 reroute pipeline. The
-remaining question is whether the projection / signals reaching the
-LLM are sufficient on a soft shift.
-
-**Which layer is likely responsible?**
-Most likely `prompt_projection` (the LLM did not see a sufficient
-alternate-UC signal on turn 2) or `semantic_planner` (the LLM saw the
-signal and still chose UC-A). Section 3's checklist disambiguates.
-
-**What should NOT be done?**
-Adding a regex on "replies" / "messages not coming through" to
-`DriftDetector` to force the reroute. That is a keyword / regex
-semantic hardcode and breaks the Constitution's Iteration rule
-(§1.5). The fix lives in `prompt_projection` (surface a soft
-alternate-UC signal) or `semantic_planner`, not in Java pattern
-matching.
+Moved to [`governance-examples.md`](governance-examples.md) on 2026-06-02
+to keep this file always-loadable. The worked six-field example
+(hypothetical, not a real CaseSpec id) lives there; cite as
+"governance-examples (§2 example)".
 
 ## 3. Fix Layer Classification Checklist
 
@@ -303,40 +294,9 @@ The per-PR verdict set in §4.1 and the sprint-close header in §4.2
 are different artefacts. The per-PR verdict reviews a single PR; the
 sprint-close header reviews the sprint as a whole and gates closure.
 
-### 4.3 Milestone-shared Codex review (2026-05-16 update)
+### 4.3 Milestone-shared Codex review
 
-Per the §8 milestone framework introduced 2026-05-16: sub-sprints
-within an active milestone may share a single Codex sprint-close
-review at **milestone close** rather than dispatching Codex per
-sub-sprint. The §4.1 nine-question kernel and the §4.2 sprint-close
-header are written once per milestone, against the cumulative commit
-range of all sub-sprints in that milestone.
-
-**Per-sub-sprint Codex review remains REQUIRED** when the sub-sprint:
-
-1. Introduces a new Tier-0 candidate (a candidate invariant for
-   `docs/runtime_freeze_and_risk_policy.md` §1 / §2) — Codex must
-   verify the candidate at sprint close before the next sub-sprint
-   begins;
-2. Crosses a §1.7 forbidden-list red line — Codex must verify the
-   justification at sprint close;
-3. Touches a hard-fenced surface that the milestone objective
-   explicitly named out of scope (e.g., editing an existing case
-   family per cascade fence);
-4. Closes a sub-sprint with a `fix_required` outcome that needs
-   per-sub-sprint re-review before the milestone can continue.
-
-For default sub-sprints (semantic-touching but not Tier-0-adjacent,
-not §1.7-adjacent, not hard-fence-violating, not fix-iteration on
-prior sub-sprint), Codex is deferred to milestone close. The
-deliver-agent surfaces the per-sub-sprint deferral choice in
-`docs/milestone_objective.md` and the dev session records it in
-each sub-sprint handoff §11 (the dev does NOT dispatch Codex
-themselves; the deliver-agent + human dispatch at milestone close).
-
-Sub-sprints exempted from the §7 stanza (pure infra, docs-only,
-config-governance, characterization-test) remain Codex-exempt per
-§4.1 exemption clause regardless of milestone framing.
+Moved to [`process/milestone-framework.md`](process/milestone-framework.md) on 2026-06-02 to keep this file always-loadable. Cite as "milestone-framework §4.3".
 
 ## 5. Eval Acceptance Rules
 
@@ -394,7 +354,7 @@ if the CaseSpec is wrong, fix the CaseSpec and document the override
 in the sprint handoff with the layer classification
 (`eval_spec`) from Section 3.
 
-### 5.5 Smoke composite_score demoted to observation (2026-05-16 update)
+### 5.5 Smoke composite_score demoted to observation
 
 The 14-case smoke summary metrics
 (`mean_composite_score` / `mean_outcome_score` / `mean_judge_score` /
@@ -402,187 +362,37 @@ The 14-case smoke summary metrics
 hard close gates to observations**. They continue to be computed,
 recorded in `eval_interactive/results/*/results.json`, and tracked
 across sprints, but they no longer block sprint or milestone close.
-
-**Rationale:** the smoke composite_score has accumulated multiple
-independent confounding sources (external LLM provider drift, judge
-calibration variance, mocked-vs-real-LLM gap, unvalidated weighting
-dimensions) that cannot be reliably attributed to sprint-side causes.
-Per Constitution §1.6, such a metric cannot gate sprint close. See
-sprint archives (Sprints 24-32) for detailed evidence history.
+The dated rationale for this demotion is preserved in
+[`process/badcase-lifecycle.md`](process/badcase-lifecycle.md) §5.5
+(historical).
 
 **What stays as hard close gate** (unchanged):
 
 - **Codex §4.1 nine-question anti-hardcode kernel pass** at the
   PR / sprint / milestone level per the §4 dispatch convention.
-- **Java test suite no new regression** (baseline preservation; the
-  inherited `SystemPromptUserRequestedTiebreakerTest` failure since
-  Sprint 24-era working-tree mod is the documented baseline).
+- **Java test suite no new regression** (baseline preservation
+  against the documented inherited-failure baseline).
 - **Safety floor unchanged** — per §5.1.
 - **Grounding floor unchanged** — per §5.1.
 
-**NEW primary gate (per §5.6 below):** curated bad-case suite
-manual review pass.
+**Primary gate:** the curated bad-case suite manual review pass. The
+suite lifecycle, tiering, and selection rules live in
+[`process/badcase-lifecycle.md`](process/badcase-lifecycle.md) §5.6.
 
-**2026-05-21 update (Sprint 42 / M3-Eval S-Eval-1):** the outcome-only
-`anchor_outcome` suite at `eval_interactive/case_specs/anchor_outcome/`
-is the second human-judgment surface beside the curated bad-case suite
-at `eval_interactive/case_specs/bad_cases/`; smoke remains
-observation-only by design.
+### 5.6 Curated bad-case suite (primary acceptance gate)
 
-### 5.6 Curated bad-case suite as new primary acceptance gate
+Moved to [`process/badcase-lifecycle.md`](process/badcase-lifecycle.md) on 2026-06-02 to keep this file always-loadable. Cite as "badcase-lifecycle §5.6" (incl. §5.6.1 / §5.6.2 / §5.6.3).
 
-Starting 2026-05-16, the new primary acceptance gate is **manual
-review of the curated bad-case suite** at
-`eval_interactive/case_specs/bad_cases/`. The bad-case suite is a
-deliver-agent + human curated directory of CaseSpecs derived from:
-
-- Real user / colleague / human sessions that surfaced a multi-layer
-  failure (e.g., Alice session `3772e56b-caa7-4e0a-84fc-75a26ffbe2b2`
-  UC-A vs UC-H mis-classification).
-- Architectural findings from sprints (e.g., Sprint 32 in-flight
-  downgrade investigation findings).
-- Production-readiness regression candidates the human flags as
-  load-bearing for the release gate.
-
-Each bad-case CaseSpec carries the standard CaseSpec schema PLUS:
-
-- A `bad_case_metadata` block naming: `source_session_id` (the
-  original real session that surfaced it), `surfaced_by` (the
-  human / sprint that flagged it), `surfaced_date`, `failure_shape`
-  (one-line description), `expected_behavior` (human-verified, NOT
-  bot trace text).
-- A `closure_criterion` field naming the deliver-agent + human-
-  verified condition under which this bad case is considered
-  "resolved" — typically expressed as observable trace evidence on
-  a sprint or milestone rerun (e.g., "bot routes the topic-shift
-  message to UC-C OR asks one focused clarifying question, instead
-  of stamping UC-A through the drift").
-
-**Manual review process at sprint or milestone close:**
-
-1. Run the bad-case suite via
-   `cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/`
-   (or the scope-relevant subset per §5.6.2 below).
-2. Deliver-agent + human read the per-case traces in
-   `case_results[].per_turn_trace[]`.
-3. For each bad case, the human (with deliver-agent's assistance)
-   judges PASS / FAIL / IMPROVING **qualitatively** against the
-   `closure_criterion`. This is a **human-judgment gate**, not a
-   programmatic gate — the `closure_criterion` is guidance naming
-   observable end-states, but the human reads the trace and decides
-   based on overall situation. Programmatic scores are unstable
-   (per §5.5) and cannot substitute for human review at this stage.
-
-**Sprint or milestone close decision** is made by the human (with
-deliver-agent's recommendation) based on the per-case manual
-review results PLUS the other §5.5 hard gates (Codex anti-hardcode,
-Java tests, safety floor, grounding floor). FAIL on a bad case
-does not auto-block close; it triggers a deliver-agent + human
-conversation about whether the failure is in-scope for the closing
-milestone or surfaces a new R-item for a future milestone.
-
-### 5.6.1 Bad case tiering (2026-05-17 update)
-
-Bad cases in `eval_interactive/case_specs/bad_cases/` carry a
-`tier` field in their `bad_case_metadata` block:
-
-- **`core`** — the case is load-bearing across all milestones
-  (touches a release-gate-relevant failure mode). Re-run at every
-  milestone close, regardless of which milestone is closing.
-- **`scope-relevant`** — the case is relevant to a specific
-  architectural surface that some milestones touch and others
-  don't. Re-run only at milestone closes where the closing
-  milestone's `milestone_objective.md` §5 explicitly names this
-  bad case in the acceptance bar.
-- **`closed-as-regression-guard`** — the case has met its closure
-  criterion in N ≥ 2 consecutive milestone closes (see §5.6.3
-  downgrade rule). Stays in the suite; runs automatically; if
-  `case_results[].terminal_outcome` returns to FAIL on a future
-  run, the case auto-promotes back to active and triggers
-  deliver-agent attention. No human manual review required while
-  in this state unless the auto-detection fires.
-- **`archived`** — the underlying failure surface has been
-  structurally removed; the case can no longer manifest. Removed
-  from active runs but kept in the directory as history. Requires
-  deliver-agent + human joint decision documented in
-  `bad_cases/_manifest.md` lifecycle ledger.
-
-### 5.6.2 Per-milestone bad case selection
-
-At milestone planning, the deliver-agent picks which bad cases
-the closing milestone is expected to address:
-
-- `core` cases: always run at the close (no opt-out at milestone
-  planning).
-- `scope-relevant` cases: named in `milestone_objective.md` §5
-  acceptance bar if the milestone's scope touches the relevant
-  surface. The deliver-agent SHALL list the named cases verbatim
-  in the milestone objective.
-- `closed-as-regression-guard` cases: run automatically; no
-  scope decision required.
-
-A bad case the closing milestone does NOT touch is NOT re-run at
-that close (saves manual review time). The deliver-agent + human
-revisit at the next planning round.
-
-### 5.6.3 Bad case lifecycle downgrade (closed-as-regression-guard)
-
-A bad case downgrades from `active` (or `scope-relevant`) to
-`closed-as-regression-guard` when:
-
-- The case has been judged PASS (per §5.6 manual review) by the
-  human in **N ≥ 2 consecutive milestone closes** (deliver-agent
-  + human jointly confirm at each close).
-- The deliver-agent + human jointly agree at a milestone close to
-  apply the downgrade (this is a planning-round decision, not
-  automatic on the N=2 trigger).
-
-Downgraded cases stay in the suite as regression guards. They
-run automatically; auto-detection of FAIL via
-`case_results[].terminal_outcome` or `composite_score` collapse
-re-promotes them to `active` and triggers deliver-agent attention.
-
-A case never automatically removes itself from the suite;
-`archived` requires explicit deliver-agent + human joint decision
-documented in `bad_cases/_manifest.md`.
-
-**Bad case lifecycle:**
-
-- **Opened** when a real session or sprint-derived finding surfaces
-  a failure the deliver-agent + human agree is load-bearing.
-- **Active** while the failure persists. Each milestone close
-  records per-case status (PASS / FAIL / IMPROVING).
-- **Closed** when the failure no longer manifests on a milestone
-  rerun and the deliver-agent + human jointly confirm at milestone
-  close. Closed bad cases stay in the directory as regression
-  guards.
-
-The bad-case suite directory is governance-tracked (per `doc_governance.md`
-front matter equivalent); see `eval_interactive/case_specs/bad_cases/_manifest.md`
-for the lifecycle ledger.
+### 5.7 Eval evidence gate (mocked-LLM)
 
 **Eval evidence gate**: mocked-LLM tests cannot be primary evidence that
 a prompt change caused a behaviour change — the mock controls the measured
 variable. Real-LLM rerun is the eval evidence gate; mocked-LLM tests
 cover projection/rendering/dispatch wiring only.
 
-## 6. Architecture-Health Metrics (definitions only)
+## 6. Architecture-Health Metrics
 
-These four metrics are defined here and are referenced by Section 5's
-acceptance bars. Collection lands in a later sprint; no metric is
-collected, dashboard'd, or alerted on as of Sprint 17.
-
-| metric | definition | unit | observation cadence | source artifact | collection_status |
-| --- | --- | --- | --- | --- | --- |
-| `new_semantic_hardcode_count` | Number of new keyword / regex / if-else / enum entries added to runtime or prompt for a semantic decision in a PR | count per PR | per PR | PR diff + Anti-Hardcode review verdict | not_started |
-| `soft_signal_conversion_count` | Number of existing semantic hardcodes downgraded to LLM-projected soft signals | count per sprint | per sprint close | sprint handoff | not_started |
-| `planner_ownership_ratio` | Fraction of semantic decisions in the runtime owned by LLM planning vs Java guard / regex | percentage | per sprint close (manual count) | runtime survey | not_started |
-| `shadow_disagreement_rate` | Fraction of shadow cases where LLM decision disagrees with the human-labelled expected behaviour | percentage | per shadow run | shadow eval result | not_started |
-
-The direction of health is: `new_semantic_hardcode_count` down,
-`soft_signal_conversion_count` up, `planner_ownership_ratio` up,
-`shadow_disagreement_rate` down. When collection lands, Section 5.1's
-"Architecture-health metrics not regressed" bar consults these.
+Moved to [`process/architecture-health-metrics.md`](process/architecture-health-metrics.md) on 2026-06-02 to keep this file always-loadable. Cite as "architecture-health-metrics §6". The four metrics are defined only; collection is not implemented.
 
 ## 7. Required sprint-objective stanza for semantic-touching sprints
 
@@ -623,342 +433,21 @@ the four fields without a stretch is a sprint that has not yet
 decided what it is doing; it should be re-scoped before the dev
 agent runs.
 
-### 7.2 Worked example — hypothetical Sprint 18 fix for `cs_example_001`
+### 7.2 Worked example — hypothetical Sprint 18 fix
 
-The Section 2 brief for `cs_example_001` hypothesized that the
-UC-A↔UC-C topic-shift failure lives in `prompt_projection`. A
-hypothetical Sprint 18 takes the fix:
-
-```markdown
-## Layer-classification + anti-hardcode stanza
-
-**Target failure layer:** prompt_projection
-
-**Tier-0 invariant:** This sprint adds no Tier-0 invariant. The
-Constitution's drift / topic-shift bullet (§1.3 LLM owns) governs the
-behaviour the projection enables; the projection itself sits inside
-the Runtime's "trace and eval contract" responsibility (§1.4).
-
-**Semantic hardcode:** No semantic hardcode introduced. The new
-`alternate_candidate_use_cases` projected slot is a soft signal — a
-list of UCs the existing `RuntimeIntentClassifier` already surfaces —
-exposed to the LLM through the per-turn projection. The LLM owns
-whether to act on it. No new keyword, regex, or per-UC matrix is
-added to `DriftDetector` or the prompt.
-
-**Generalization coverage:** target = UC-A↔UC-C drift (including
-`cs_example_001` once promoted from a hypothetical brief).
-Neighbor = UC-A↔UC-D, UC-A↔UC-F drift on the same projection.
-Negative = UC-A single-issue follow-up that should stay in UC-A
-(no false positive on the soft signal). Shadow = held-out UC-A↔UC-C
-and UC-A↔UC-D drift traces, not visible to the dev agent. Counts
-deferred to the G2 case-family sprint; this Sprint 18 stanza names
-the required families.
-```
-
-A future deliver agent should be able to paste this template into a
-new `docs/sprint_objective.md` and fill the four fields without
-further interpretation. If filling a field requires guessing intent,
-the sprint is not ready to start.
+Moved to [`governance-examples.md`](governance-examples.md) on 2026-06-02
+to keep this file always-loadable. The filled-in stanza example for
+`cs_example_001` lives there; cite as "governance-examples (§7.2 example)".
 
 **Multi-layer prospective variant**: investigation + bundle-or-defer
 sprints span multiple candidate layers; §7 stanza is per-decision-outcome
 multi-layer prospective (enumerate possible §3.2 layers per case). Bundle
 policy must live in sprint_objective so Codex can verify scope discipline.
 
-## 8. Milestone framework (2026-05-16 update)
+## 8. Milestone framework
 
-This section introduces the **milestone framework** that groups
-sub-sprints into architectural themes. The framework is additive on
-top of the existing sprint + governance structure; it does NOT
-replace sprints, the §7 stanza, or any §1 constitutional rule.
+Moved to [`process/milestone-framework.md`](process/milestone-framework.md) on 2026-06-02 to keep this file always-loadable. Cite as "milestone-framework §8.N" (§8.1–§8.7).
 
-### 8.1 Definition
+## 9. Agent prompt artifact rules
 
-A **milestone** is a coordinated bundle of 3–5 sub-sprints sharing
-a single architectural theme. Each milestone has:
-
-- **One milestone objective document** at `docs/milestone_objective.md`
-  (active milestone; archived to `docs/milestones/M<N>_objective.md`
-  at milestone close).
-- **One or more sub-sprint contracts** at `docs/sprint_objective.md`
-  (active sub-sprint; archived to `docs/sprints/sprint-NNN-objective.md`
-  at sub-sprint close per existing convention).
-- **One milestone acceptance bar** derived from the curated
-  bad-case suite (`eval_interactive/case_specs/bad_cases/`) per §5.6
-  — typically a named bad case must close or improve materially.
-- **Codex review at milestone close** per §4.3 (sub-sprints share
-  one Codex review unless a per-sub-sprint trigger fires).
-
-A **sub-sprint** within a milestone is a single dev-session unit of
-work that ships a coherent slice of the milestone scope. Each
-sub-sprint:
-
-- Still has its own §7 stanza if semantic-touching.
-- Still produces a `docs/sprints/sprint-NNN-handoff.md` dev-authored
-  archive at sub-sprint close.
-- Still flips relevant R-items in `docs/action_bank.md` per
-  existing convention.
-- Defers Codex review to milestone close per §4.3 default
-  (unless a §4.3 per-sub-sprint trigger fires).
-
-### 8.2 Why milestones (vs single-feature sprints)
-
-Milestone-grained planning cuts deliver-agent and Codex overhead by
-bundling 3–5 related sub-sprints under one planning round and one
-close review, while preserving §1.7 anti-hardcode discipline (each
-sub-sprint still fills the §7 stanza; Codex verifies at milestone
-close). The framework changes cadence, not architecture.
-
-### 8.3 Milestone objective document schema
-
-`docs/milestone_objective.md` carries:
-
-```yaml
----
-title: Milestone M<N> — <name>
-doc_tier: current-runtime
-status: current
-implementation_status: not_started | partial | implemented
-source_of_truth: this file
-last_reviewed: <YYYY-MM-DD>
-review_cadence: per milestone
-notes: >
-  free-form context (scope rationale, hard-fenced surfaces, why
-  this is one milestone not split across two).
----
-```
-
-Body sections (analogous to `sprint_objective.md` shape):
-
-1. **Milestone class** (semantic-touching layer breakdown across
-   sub-sprints; §7 stanza coverage at the milestone level).
-2. **Goal** — the architectural outcome the milestone targets,
-   expressed as user-facing or bad-case-suite-anchored behaviour
-   change (not as code paths).
-3. **Sub-sprint sequence** — preliminary list of 3-5 sub-sprints
-   with class, layer, scope (3 sentences each), and dependency
-   relationships. Deliver-agent + human may refine at each sub-
-   sprint planning round; the milestone objective is updated
-   in-place.
-4. **Non-goals** (explicit; what the milestone does NOT cover,
-   including which Alice / bad-case dimensions are deferred to
-   later milestones).
-5. **Milestone acceptance bar** — one or more bad cases (per
-   §5.6) that the milestone is expected to close or improve;
-   per-bad-case closure criterion.
-6. **Hard fences** at the milestone level (no edits to existing
-   case families per cascade fence; no Tier-0 invention without
-   human review; etc.).
-7. **R-items consumed / surfaced** — which `action_bank.md`
-   R-items the milestone is expected to consume; which new R-items
-   the deliver-agent expects to surface.
-8. **Codex review plan** per §4.3 — default milestone-shared OR
-   per-sub-sprint triggers expected.
-9. **Estimated milestone duration** (calendar weeks) — informational,
-   not a gate.
-
-### 8.4 Milestone close artefacts (deliver-agent owned)
-
-At milestone close, the deliver-agent + human produce:
-
-- Update `docs/milestone_objective.md` closure verdict (analogous
-  to sprint handoff §12 — pass / fix_required / out-of-scope-review
-  + classification + per-sub-sprint disposition).
-- Archive the milestone objective to `docs/milestones/M<N>_objective.md`.
-- Append the milestone's closed rows to `docs/action_bank_archive.md`
-  per the `docs/action_bank.md` §7.1 retention sweep: closed per-sprint
-  rows → §A, the closed-milestone row → §B, newly-closed R-item rows →
-  §C. (`docs/action_bank.md` keeps only open / active / deferred items.)
-- Refresh `docs/10-handoff.md` §0 table + §1 lead (demote current
-  milestone to Preceding milestone; truncate §1 content older than
-  the preceding milestone per `doc_governance.md` retention rule;
-  add row to §2 archive index).
-- Reset `docs/sprint_objective.md` to the first sub-sprint of the
-  next milestone (or to a planning placeholder if no next milestone
-  is locked).
-- Optionally start a new `docs/milestone_objective.md` for the next
-  milestone.
-
-The deliver-agent's existing close-out artefacts (per
-`feedback_commit_at_end_bundles_deliver_artefacts.md`) move from
-per-sprint to per-milestone cadence; per-sub-sprint dev handoff
-files still ship per sub-sprint close.
-
-### 8.5 When to break milestone framing
-
-The framework is not mandatory. A single high-risk feature (e.g.,
-the Single Handover Orchestrator P0 launch blocker per
-`docs/release_gate.md` §1.1) may be its own "milestone of one
-sub-sprint" if that better matches the scope discipline. The
-deliver-agent + human decide at planning round.
-
-A milestone that exceeds 5 sub-sprints is a signal that the
-milestone scope is too large; the deliver-agent SHALL split it at
-the next milestone planning round.
-
-A sub-sprint that crosses an unrelated architectural surface is a
-signal that the sub-sprint belongs to a different milestone; the
-deliver-agent SHALL surface this at sub-sprint planning round
-rather than smuggle the scope across milestones.
-
-### 8.6 Sprint vs milestone vs R-item relationship
-
-```
-docs/action_bank.md  (backlog, cross-milestone persistent;
-                     R-items flow in from research / bad cases /
-                     sprint findings, flow out on close)
-       ↓ (deliver-agent picks 3-5 related R-items into a milestone)
-docs/milestone_objective.md  (current milestone north star;
-                              names sub-sprints + acceptance bar;
-                              archived to docs/milestones/M<N>_*.md
-                              at close)
-       ↓ (deliver-agent picks one sub-sprint contract from milestone)
-docs/sprint_objective.md  (current sub-sprint dev/review contract;
-                           archived to docs/sprints/sprint-NNN-objective.md
-                           at sub-sprint close)
-```
-
-R-items are the persistent backlog. Milestones are the planning
-horizon. Sub-sprints are the execution unit. The dev session
-consumes the sub-sprint contract; the review session consumes
-either the sub-sprint or the milestone (per §4.3); the deliver-
-agent + human consume all three layers.
-
-### 8.7 Backwards compatibility
-
-Pre-2026-05-16 sprints (Sprint 1 through Sprint 32) were planned
-under the single-feature cadence and do not retroactively become
-milestones. They remain in `docs/sprints/sprint-NNN-*` archives
-unchanged. The milestone framework applies prospectively from
-Milestone M1 onward (2026-05-16+).
-
-A sprint started without an explicit milestone (e.g., a
-single-feature follow-on between milestones) is allowed; it
-defaults to "milestone-of-one" framing per §8.5 and follows
-existing per-sprint conventions for Codex review, deliver-agent
-close-out, etc.
-
-**Commit-at-end bundling**: in commit-at-end workflows, dev working
-trees accumulate uncommitted deliver-agent-owned files. Dev should stage
-only authorized-scope files (not `git add -A`); deliver-agent files are
-bundled by human at close commit. If bundled anyway, classify per
-`docs/current/deliver_close_taxonomy.md` A-with-packaging-note.
-
-## 9. Agent prompt artifact rules (2026-05-26 update)
-
-This section codifies the **self-containment invariant** for the
-prompt files that the deliver-agent produces for dev and review
-agents. The invariant exists so that a fresh dev or review session
-can be started by pasting a single prompt file into a new session,
-without that session having to read any further repo doc (other
-than `AGENTS.md` governance chain, which is auto-loaded).
-
-### 9.1 Invariant
-
-A **prompt artifact** (`compact/sprint-NNN-dev-prompt.md` for dev,
-`compact/M<N>-review-prompt.md` for review) is a **self-contained
-executable view** of its source-of-truth contract:
-
-- Dev prompt source-of-truth = `docs/sprint_objective.md`
-- Review prompt source-of-truth = `docs/milestone_objective.md` + the
-  per-sub-sprint objective archives + the per-sub-sprint dev handoffs
-
-**Self-contained** means: a fresh dev / review session, given ONLY
-this prompt file (plus `AGENTS.md` governance chain, auto-loaded),
-has every piece of information it needs to:
-
-- understand its role and the bounded scope of the session;
-- execute the contract end-to-end (write code / run tests / author
-  handoff for dev; walk §4.1 kernel + verify scope discipline +
-  produce `docs/codex-findings.md` for review);
-- self-check that the work is complete before claiming so.
-
-The prompt MUST embed (not reference) all contract content. The
-single exception is artefacts that the prompt's consumer is
-expected to produce (e.g., per-sub-sprint dev handoff is consumed
-by review but produced by dev; review prompt references handoff
-paths but cannot embed handoff content because it does not yet
-exist at prompt-authoring time).
-
-### 9.2 Embed vs reference rules
-
-| Content | Embed in prompt | Reference only |
-|---|---|---|
-| Role identity, goal, scope, hard fences, test/eval requirements, §7 stanza, handoff requirements, commit discipline | ✓ | |
-| §4.1 nine-question kernel (in review prompt) | ✓ | |
-| Sub-sprint cumulative scope claim (in review prompt) | ✓ | |
-| Governance chain (Constitution, doc_governance, agent_context_guide, iteration_governance) | — | Via AGENTS.md (auto-loaded) |
-| Per-sub-sprint dev handoff (in review prompt) | — | Path reference only (dev produces these AFTER review prompt is authored) |
-| Code anchors (specific file:line references the agent needs to read or modify) | — | Path reference (the agent reads them on demand during work) |
-| Research-agent solutions in `docs/solutions/` | — | Reference if needed; do NOT embed (proposal-tier, may be out of date relative to milestone scope decisions) |
-
-### 9.3 Source-of-truth synchronization
-
-`docs/sprint_objective.md` is the canonical sub-sprint contract
-that the human reviews and approves. `compact/sprint-NNN-dev-prompt.md`
-is its self-contained executable view. The same relationship holds
-between `docs/milestone_objective.md` and `compact/M<N>-review-prompt.md`.
-
-**Synchronization rules:**
-
-1. The deliver-agent generates objective.md and prompt.md **in one
-   pass** (objective first, then prompt as embedded view). Both are
-   surfaced for human review together.
-2. If the human modifies objective.md during review, the deliver-agent
-   regenerates prompt.md from the modified objective before dispatch
-   to dev / review.
-3. If, during a sub-sprint or milestone, the contract changes
-   (e.g., scope adjustment from STOP-and-surface or in-flight downgrade),
-   both objective.md and prompt.md are updated together; the
-   modification cadence is "objective first, prompt regenerated."
-4. At sub-sprint close, the deliver-agent archives the objective.md
-   to `docs/sprints/sprint-NNN-objective.md` per existing convention
-   (§8.3). The prompt.md file at `compact/sprint-NNN-dev-prompt.md`
-   stays in place as the historical executable view; it is NOT
-   re-archived elsewhere unless the deliver-agent explicitly decides
-   to compress the `compact/` directory at a future milestone.
-
-### 9.4 Exemptions
-
-The self-containment invariant is **not required** for:
-
-- The research-agent's `docs/solutions/<name>.md` proposal artefact
-  — it is a human-facing proposal, not an agent-execution prompt.
-- The deliver-agent's own activation template
-  `docs/teams/deliver-activation.md` — it is intentionally minimal
-  and points to `docs/teams/deliver-agent.md` for full role definition.
-- Cross-session continuity scaffolding in `docs/10-handoff.md` — it
-  is structurally a session-handoff log, not an executable prompt.
-
-### 9.5 Backwards compatibility
-
-Pre-2026-05-26 prompts (Sprint 1 through Sprint 53; M1 through M5)
-were authored under the older reference-based convention and remain
-in their archived form. The self-containment invariant applies
-prospectively from the next sub-sprint and the next milestone
-review onward.
-
-If a future fold-back pass discovers a historical prompt that
-violates this invariant in a way that would meaningfully impair
-re-running that session, the deliver-agent SHALL note the issue in
-the sprint archive but SHALL NOT retroactively edit the archived
-prompt (per `doc_governance.md` "Sprint archives never edited"
-rule).
-
-### 9.6 Auto-loop readiness footnote
-
-This section is a prerequisite for the auto-evolution / auto-loop
-direction proposed in `docs/solutions/auto_evolution_skill_driven_v1.md`:
-a meta-agent driving sub-sprint iterations needs self-contained
-prompt artefacts so that each spawned dev / review session is a
-deterministic executable unit. The §9.3 synchronization rule
-ensures the meta-agent can rely on prompt.md being authoritative
-without needing to cross-check objective.md at session-spawn time.
-
-A separate milestone may later evolve §9 into a richer "session
-pack" concept (per the deliver-agent proposal options under
-discussion 2026-05-26) — bundling prompt + context snapshots + bad
-case fixtures into a single archivable directory. §9 as authored
-here is the minimum invariant; the session-pack evolution is
-additive on top.
+Moved to [`process/prompt-artifact-rules.md`](process/prompt-artifact-rules.md) on 2026-06-02 to keep this file always-loadable. Cite as "prompt-artifact-rules §9.N" (§9.1–§9.6).
