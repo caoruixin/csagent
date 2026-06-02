@@ -1860,6 +1860,20 @@ public class ControlKernel {
                         entry.put("deduplicated", true);
                         entry.put("original_at_step", te.originalAtStep());
                     }
+                    // Sprint 069 / S-Auto-13b (A3 deterministic backstop) —
+                    // mirror the deduplicated flatten for the faq_miss-state
+                    // gate so report.html / admin trace can show that a
+                    // same-turn search_knowledge re-search was suppressed
+                    // (served from the prior viable-hit result, tool not
+                    // re-executed) rather than mis-reading it as a fresh
+                    // dispatch. Distinct annotation from the A1 deduplicated
+                    // pair: A1 keys on a byte-identical arguments hash,
+                    // this gate keys on the faq_miss RESULT state — a given
+                    // event carries one annotation or the other, never both.
+                    if (te.paraphraseSuppressed()) {
+                        entry.put("paraphrase_suppressed", true);
+                        entry.put("faq_hit_at_step", te.faqHitAtStep());
+                    }
                     // Sprint 9.1 — sanitize the verbatim tool error
                     // message before it lands on the persisted trace
                     // column so secrets / sensitive PII that the tool

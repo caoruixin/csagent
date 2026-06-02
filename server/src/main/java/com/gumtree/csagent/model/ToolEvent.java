@@ -25,6 +25,19 @@ import java.util.Map;
  * dispatch whose result was reused, and is {@code -1} for every
  * non-deduplicated event. Both fields are observation-only — they annotate
  * the trace and never alter control flow.
+ *
+ * <p>Sprint 069 / S-Auto-13b (A3 deterministic backstop):
+ * {@code paraphraseSuppressed} marks a {@code search_knowledge} re-search
+ * inside the same {@code AgentRunLoop.run(...)} that was suppressed by the
+ * {@code faq_miss}-state gate because a prior {@code search_knowledge} in
+ * the same run already returned a viable hit ({@code faq_miss=false}). The
+ * tool was NOT re-executed; the prior viable-hit result is reused.
+ * {@code faqHitAtStep} names the {@code stepIndex} of that prior viable-hit
+ * dispatch, and is {@code -1} for every event the gate did not suppress.
+ * Distinct from {@code deduplicated} on purpose: A1 keys on a byte-identical
+ * arguments hash (same query string), this gate keys on the {@code faq_miss}
+ * RESULT state (different query string, same intent — paraphrase). A given
+ * event carries one annotation or the other, never both.
  */
 public record ToolEvent(
         int sequenceIndex,
@@ -36,7 +49,9 @@ public record ToolEvent(
         String errorMessage,
         long latencyMs,
         boolean deduplicated,
-        int originalAtStep
+        int originalAtStep,
+        boolean paraphraseSuppressed,
+        int faqHitAtStep
 ) {
 
     public ToolEvent {
@@ -45,15 +60,31 @@ public record ToolEvent(
 
     /**
      * Backward-compatible 8-arg constructor (pre-Sprint-067 shape) for the
-     * many call sites and tests that construct a normal, non-deduplicated
-     * event. Delegates to the canonical constructor with
-     * {@code deduplicated=false} and {@code originalAtStep=-1}.
+     * many call sites and tests that construct a normal, non-deduplicated,
+     * non-paraphrase-suppressed event. Delegates to the canonical
+     * constructor with both annotation flags false and both step indices
+     * {@code -1}.
      */
     public ToolEvent(int sequenceIndex, int stepIndex, String toolName,
                      Map<String, Object> arguments, boolean success,
                      Object resultData, String errorMessage, long latencyMs) {
         this(sequenceIndex, stepIndex, toolName, arguments, success, resultData,
-                errorMessage, latencyMs, false, -1);
+                errorMessage, latencyMs, false, -1, false, -1);
+    }
+
+    /**
+     * Backward-compatible 10-arg constructor (Sprint-067 dedup shape) for
+     * the A1 dispatch site that materializes an event annotated only with
+     * {@code deduplicated} / {@code originalAtStep}. Delegates to the
+     * canonical constructor with {@code paraphraseSuppressed=false} and
+     * {@code faqHitAtStep=-1}.
+     */
+    public ToolEvent(int sequenceIndex, int stepIndex, String toolName,
+                     Map<String, Object> arguments, boolean success,
+                     Object resultData, String errorMessage, long latencyMs,
+                     boolean deduplicated, int originalAtStep) {
+        this(sequenceIndex, stepIndex, toolName, arguments, success, resultData,
+                errorMessage, latencyMs, deduplicated, originalAtStep, false, -1);
     }
 
     /**
@@ -118,6 +149,39 @@ public record ToolEvent(
                 0L,
                 true,
                 originalAtStep
+        );
+    }
+
+    /**
+     * Sprint 069 / S-Auto-13b — build an event for a {@code search_knowledge}
+     * re-search that the {@code faq_miss}-state gate suppressed inside the
+     * same run because a prior {@code search_knowledge} this run already
+     * returned a viable hit ({@code faq_miss=false}). The tool was not
+     * re-executed, so {@code latencyMs} is zero; {@code resultData} is the
+     * cached payload from that prior viable-hit dispatch and
+     * {@code faqHitAtStep} is that dispatch's {@code stepIndex}.
+     * {@code success} is true because only viable hits ever feed the gate.
+     * Distinct from {@link #deduplicated(int, ToolCall, Object, int)} on
+     * purpose: A1 catches byte-identical repeats (same query string), this
+     * gate catches paraphrases of the same intent (different query string,
+     * same {@code faq_miss=false} result state).
+     */
+    public static ToolEvent paraphraseSuppressed(int step, ToolCall call,
+                                                 Object cachedResultData,
+                                                 int faqHitAtStep) {
+        return new ToolEvent(
+                step,
+                step,
+                call == null ? null : call.getName(),
+                call == null ? null : call.getArguments(),
+                true,
+                cachedResultData,
+                null,
+                0L,
+                false,
+                -1,
+                true,
+                faqHitAtStep
         );
     }
 }
