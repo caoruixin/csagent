@@ -163,11 +163,18 @@ public class PhaseEvaluator {
      *   <li>Session has at least one logged clarification turn → {@code
      *       clarification_budget_exhausted} (the agent kept asking instead of
      *       converging).</li>
-     *   <li>Loop ran search_knowledge at least once → {@code
-     *       faq_miss_threshold_exceeded} (only reachable when the agent did
-     *       not also stall on clarification).</li>
+     *   <li>The most-recent {@code search_knowledge} result was a genuine miss
+     *       ({@code faq_miss=true}) → {@code faq_miss_threshold_exceeded} (only
+     *       reachable when the agent did not also stall on clarification).
+     *       Sprint 070 / S-Auto-14 (B1) made this step evidence-aware: a
+     *       search that returned a viable hit ({@code faq_miss=false}) no
+     *       longer attributes here — the loop ran out of budget with a usable
+     *       answer in hand, which is the catch-all below, not a knowledge
+     *       miss. A null / malformed result map also falls through (no
+     *       positive miss evidence).</li>
      *   <li>Otherwise → {@code turn_budget_exhausted} (catch-all per Phase 2
-     *       §2.4).</li>
+     *       §2.4 — also covers a viable-hit exhaustion and a turn with no
+     *       {@code search_knowledge} call).</li>
      * </ol>
      */
     String resolveMaxStepsReason(PhasePlan plan,
@@ -180,16 +187,24 @@ public class PhaseEvaluator {
                 && session.getClarificationCount() > 0) {
             return "clarification_budget_exhausted";
         }
-        boolean searchedKnowledge = false;
+        // Step 3 (Sprint 070 / S-Auto-14, B1) — evidence-aware FAQ attribution.
+        // Attribute to faq_miss_threshold_exceeded ONLY when the MOST-RECENT
+        // search_knowledge result was a genuine miss (faq_miss=true). When the
+        // last search returned a viable hit (faq_miss=false) the loop ran out
+        // of budget WITH a usable answer, which is the turn_budget_exhausted
+        // catch-all below, not a knowledge miss. The faq_miss flag is read off
+        // the dispatched result map (the same flag the S-Auto-13b A3 gate
+        // reads); a null / malformed map falls through (no positive miss).
+        ToolEvent lastSearch = null;
         if (result != null && result.toolEvents() != null) {
             for (ToolEvent te : result.toolEvents()) {
                 if ("search_knowledge".equals(te.toolName())) {
-                    searchedKnowledge = true;
-                    break;
+                    lastSearch = te;
                 }
             }
         }
-        if (searchedKnowledge) {
+        if (lastSearch != null && lastSearch.resultData() instanceof Map<?, ?> data
+                && Boolean.TRUE.equals(data.get("faq_miss"))) {
             return "faq_miss_threshold_exceeded";
         }
         return "turn_budget_exhausted";
