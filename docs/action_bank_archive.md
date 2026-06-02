@@ -88,11 +88,17 @@ index of pointers; the authoritative detail lives in the linked archives.
 | Sprint 64 | S-Auto-9 (M-Auto-2 — Local-Mac OQ-S62.3  | closed (Class A — Clean PASS at sub-sprint lev | docs/sprints/sprint-064-* |
 | Sprint 65 | S-Auto-10 (M-Auto-2 — Local-Mac OQ-S62.3 | closed (**REFRAMED at M-Auto-2 close 2026-06-0 | docs/sprints/sprint-065-* |
 | Sprint 66 | S-Auto-11 (M-Auto-3 — Substrate-hygiene  | closed | docs/sprints/sprint-066-* |
+| Sprint 67 | S-Auto-12 (M-Auto-3 — A1 identical-retry-storm dedup) | closed (A — Clean close) | docs/sprints/sprint-067-* |
+| Sprint 68 | S-Auto-13 (M-Auto-3 — A2 classify-first + A3 soft layer) | closed (PARTIAL — A2 met; A3→S-Auto-13b) | docs/sprints/sprint-068-* |
+| Sprint 69 | S-Auto-13b (M-Auto-3 — A3 within-turn deterministic backstop) | closed (CLEAN; per-sub-sprint Codex pass/0) | docs/sprints/sprint-069-* |
+| Sprint 70 | S-Auto-14 (M-Auto-3 — B1 evidence-aware resolveMaxStepsReason) | closed (ESCALATION_MISSTAMP →0; per-sub-sprint Codex folded into M-Auto-3 close) | docs/sprints/sprint-070-* |
+| Sprint 71 | S-Auto-15 (M-Auto-3 — §8.5-split: cross-turn paraphrase backstop + eval pytest baseline housekeeping) | closed (cross-turn rank-2+ gated 0-误杀; eval 12→503; per-sub-sprint Codex folded into M-Auto-3 close) | docs/sprints/sprint-071-* |
 
 ## B. Closed milestone index
 
 | milestone | archive |
 |-----------|---------|
+| M-Auto-3 — Substrate-hygiene (clean the autoloop fitness signal) | docs/milestones/M-Auto-3_objective.md + M-Auto-3_codex-review.md |
 | M-Auto-2 — Local-Mac OQ-S62.3 diagnostic + first ove | docs/milestones/M-Auto-2_objective.md |
 | M1 — DISCOVER + Intake | docs/milestones/M1_objective.md |
 | M2 — Skill Registry Abstraction + Wholesale Retroact | docs/milestones/M2_codex-review.md |
@@ -130,4 +136,11 @@ index of pointers; the authoritative detail lives in the linked archives.
 | R-eval-report-observability | Sprint 50 (M5 S1) | 2026-05-24 | docs/sprints/sprint-050-* |
 | R-S57-anti-hardcode-whenever-arrow-synonym-bypass | Sprint 58 (S-Auto-5) | 2026-05-28 | docs/sprints/sprint-058-* |
 | R-S58-anti-hardcode-zero-width-when-arrow-bypass | Sprint 63 (S-Auto-8) | 2026-05-30 | docs/sprints/sprint-063-* |
+| R-runtime-identical-tool-call-retry-storm | Sprint 67 (S-Auto-12, A1 hybrid dedup) | 2026-06-03 | docs/sprints/sprint-067-* |
+| R-runtime-tool-gating-race-uc-none | Sprint 68 (S-Auto-13, A2 classify-first) | 2026-06-03 | docs/sprints/sprint-068-* |
+| R-runtime-paraphrase-storm-search-knowledge | Sprint 69 (S-Auto-13b within-turn) + Sprint 71 (S-Auto-15 cross-turn rank-2+); cross-turn rank-1 first-refinement = OBSERVATION carry (M-Auto-4 if it corrupts fitness), NOT closed | 2026-06-03 | docs/sprints/sprint-069-* + sprint-071-* |
+| R-runtime-escalation-reason-misstamp-maxsteps-faq | Sprint 70 (S-Auto-14, B1 evidence-aware resolver; no new enum) | 2026-06-03 | docs/sprints/sprint-070-* |
+| R-simulator-first-message-contract-violation-flake | Sprint 66 (S-Auto-11 safe hardening; root re-attributed bot-side OQ-S66.2, fitness-neutralized by #4 infra-error) | 2026-06-03 | docs/sprints/sprint-066-* |
+| R-overnight-eval-traces-not-persisted | Sprint 66 (S-Auto-11 #3 per-iter trace persistence) | 2026-06-03 | docs/sprints/sprint-066-* |
+| R-tier1-bad-cases-regression-5-to-0-attribution-unverified | superseded at M-Auto-3 close: 0-keep re-attributed to provider MEASUREMENT noise → M-Auto-4 candidate | 2026-06-03 | docs/proposals/autoloop_fitness_measurement_reliability.md |
 
