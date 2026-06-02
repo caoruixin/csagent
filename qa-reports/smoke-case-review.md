@@ -12,13 +12,15 @@ Inputs reviewed for each smoke case:
 
 | review_status | count |
 | --- | ---: |
-| ok | 9 |
+| ok | 8 |
 | generator_bug | 0 |
 | policy_ambiguity | 0 |
-| needs_override | 5 |
+| needs_override | 6 |
 | needs_human_decision | 0 |
 
-Smoke set under review (14 cases): cs_interactive_001, cs_interactive_002, cs_interactive_011, cs_interactive_014, cs_interactive_015, cs_interactive_029, cs_interactive_036, cs_interactive_038, cs_interactive_040, cs_interactive_066, cs_interactive_095, cs_interactive_176, cs_interactive_192, cs_interactive_259.
+Smoke set under review (14 cases): cs_interactive_001, cs_interactive_002, cs_interactive_011, cs_interactive_014, cs_interactive_015, cs_interactive_029, cs_interactive_036, cs_interactive_038, cs_interactive_040, cs_interactive_066, cs_interactive_176, cs_interactive_190, cs_interactive_192, cs_interactive_259.
+
+Sprint 071 / S-Auto-15 (B4) doc-sync: cs_interactive_095 left the smoke set and cs_interactive_190 joined it; cs_interactive_001's recommended outcome was brought in line with its approved `case_spec_overrides.yaml` entry (`faq_miss_threshold_exceeded`). Status counts updated accordingly (cs_001 ok -> needs_override).
 
 Notable follow-up:
 - `cs_interactive_004` has been removed from the smoke fixture set; its review row is removed here. `cs_interactive_176` joins the smoke set as the new UC-E escalate / `user_requested` handover anchor and is reviewed below.
@@ -33,10 +35,10 @@ Notable follow-up:
 ### cs_interactive_001
 
 - Source: `badcase`, session `570Q5000008kr6LIAQ`
-- Status: `ok`
-- Recommended outcome: UC-C escalate, `clarification_budget_exhausted`
+- Status: `needs_override` (applied)
+- Recommended outcome: UC-C escalate, `faq_miss_threshold_exceeded`
 - Supporting turns: 12, 13, 18, 19
-- Rationale: HR, transcript, YAML, and audit align. The user remains confused about two emails and the agent says further investigation is needed.
+- Rationale: HR, transcript, YAML, and audit align that the user remains confused about two emails and the agent says further investigation is needed. The approved override in `case_spec_overrides.yaml` (`source_session_id 570Q5000008kr6LIAQ`) pins the escalation trigger to `faq_miss_threshold_exceeded`: the FAQ corpus has no useful article for the two-email confusion, so the truthful Phase 2 §2.4 reason is FAQ-miss rather than `clarification_budget_exhausted`. Sprint 071 / S-Auto-15 (B4) doc-sync: this recommended-outcome line is brought in line with the override-pipeline smoke YAML.
 - Confidence: high
 
 ### cs_interactive_002
@@ -120,15 +122,6 @@ Notable follow-up:
 - Rationale: Codex 2026-05-04 round 6 §P0 reclassification, formalized through the Wave A6.6 v2 override path during Sprint 4 §E3. The form description ("Why am I not getting the option to add my phone number as a point of contact when listening an item any more") is an in-app technical regression — a contact option that used to be available has disappeared. Phase 2 §2.2:500 places this under UC-K (Technical Support intake), not UC-E (product/feature explanation FAQ). `UseCaseRouter.matchUcKTechnicalRegression` deterministically routes this to UC-K, and the runtime escalates with the UC-K-specific `intake_complete_for_uc_k` reason once intake fields are collected. Pinned by `Cs014RouteAndDistressRegressionTest` and `ClassifyUseCaseToolStrongPriorTest`. Override approved and applied in `case_spec_overrides.yaml`; the round 6 §P0 smoke-only hand-edit was outside the override registry and is now superseded by this entry.
 - Confidence: high
 
-### cs_interactive_095
-
-- Source: `drift_control`, session `570Q5000008U5C9IAK`
-- Status: `ok`
-- Recommended outcome: UC-A resolve, no escalation trigger
-- Supporting turns: 6, 7, 9, 10, 12, 13, 16, 17
-- Rationale: The UC-B to UC-A reclassification is defensible for "wrong email, no adverts showing", and the selected transcript resolves the issue by identifying the correct account/email and advising sign-out/sign-in. The final YAML resolves with no handover.
-- Confidence: high
-
 ### cs_interactive_176
 
 - Source: `handover`, session `570Q5000008NMRRIA4`
@@ -136,6 +129,15 @@ Notable follow-up:
 - Recommended outcome: UC-E escalate, `user_requested`
 - Supporting turns: 2, 3, 5, 7, 10
 - Rationale: HR, selected transcript, YAML, and audit align on a paid-listing complaint that escalates because the user explicitly asks for phone support. The form description ("I pad to put my ad for my business and it's not at the top") is a paid-promotion complaint that fits UC-E (FAQ/explanation), and the seed messages ("Give me my £50 back or put my business to the top like I paid for", "What about giving a phone number to talk to someone") trigger the explicit-callback path that resolves to `user_requested`. The audit's `evidence signal counts.user_requested_human=True` corroborates the UC-E escalate / `user_requested` outcome the YAML pins. UC-K appears in `secondary_ucs` because the underlying complaint also has a paid-promotion-defect reading, but the runtime explicit-handover path takes precedence.
+- Confidence: high
+
+### cs_interactive_190
+
+- Source: `golden`, session `570Q5000009060DIAQ`
+- Status: `ok`
+- Recommended outcome: UC-A resolve, no escalation trigger
+- Supporting turns: -
+- Rationale: Sprint 071 / S-Auto-15 (B4) doc-sync: cs_interactive_190 joined the smoke fixture set (replacing cs_interactive_095 as the UC-A resolve anchor). The golden source session resolves an account/advert-visibility question with grounded guidance and no handover; the smoke YAML pins UC-A resolve with no escalation trigger. Reviewed against the smoke YAML's expected block.
 - Confidence: high
 
 ### cs_interactive_192

@@ -806,10 +806,21 @@ class TestRItemClosuresRecordedInActionBank:
 
     @pytest.fixture
     def action_bank_text(self) -> str:
-        path = (
-            Path(__file__).resolve().parents[2] / "docs" / "action_bank.md"
-        )
-        return path.read_text(encoding="utf-8")
+        # Sprint 071 / S-Auto-15 (B2): the 4 M3-Eval R-item closure rows
+        # were moved from ``docs/action_bank.md`` §6 into the new
+        # ``docs/action_bank_archive.md`` by the 2026-06-01 ledger/archive
+        # split (commit 0323457): the live ledger keeps only OPEN items,
+        # closed items live in the archive. Read BOTH files so this
+        # regression guard tracks the closure annotation wherever it
+        # currently lives (live ledger or archive) without reverting the
+        # split. Doc-governance/test-infra only; no agent behaviour masked.
+        docs_dir = Path(__file__).resolve().parents[2] / "docs"
+        parts: list[str] = []
+        for name in ("action_bank.md", "action_bank_archive.md"):
+            path = docs_dir / name
+            if path.exists():
+                parts.append(path.read_text(encoding="utf-8"))
+        return "\n".join(parts)
 
     @pytest.mark.parametrize(
         "r_item_id",
@@ -833,21 +844,38 @@ class TestRItemClosuresRecordedInActionBank:
         # confirms the dev-side append (per dev contract §5 file in
         # scope: ``docs/action_bank.md``).
         assert r_item_id in action_bank_text, (
-            f"R-item {r_item_id!r} must appear in docs/action_bank.md for "
-            "S-Eval-5 close per docs/sprint_objective.md §2.4 + §5"
+            f"R-item {r_item_id!r} must appear in docs/action_bank.md or "
+            "docs/action_bank_archive.md for S-Eval-5 close per "
+            "docs/sprint_objective.md §2.4 + §5"
         )
-        # Find the position of the R-item id and look for a closure
-        # marker in the surrounding window (±400 chars).
-        idx = action_bank_text.find(r_item_id)
-        window = action_bank_text[max(0, idx - 50) : idx + 400]
+        # Sprint 071 / S-Auto-15 (B2): scan EVERY occurrence of the R-item
+        # for a closure marker in the ±400-char window, not just the first.
+        # An R-item id can also appear in a non-closure context (e.g. the
+        # Sprint 20 "next sprint should pick the L3 review batch"
+        # recommendation list in action_bank.md mentions
+        # R-cs038-/R-cs040- as future work); the closure annotation itself
+        # lives in the archive table row after the ledger/archive split.
+        # Requiring the marker near the FIRST occurrence would spuriously
+        # fail on that earlier mention.
         closure_markers = [
             "Sprint 46",
             "S-Eval-5",
             "succeeded-by",
             "M3-Eval close",
         ]
-        assert any(marker in window for marker in closure_markers), (
+        annotated = False
+        search_from = 0
+        while True:
+            idx = action_bank_text.find(r_item_id, search_from)
+            if idx == -1:
+                break
+            window = action_bank_text[max(0, idx - 50) : idx + 400]
+            if any(marker in window for marker in closure_markers):
+                annotated = True
+                break
+            search_from = idx + len(r_item_id)
+        assert annotated, (
             f"R-item {r_item_id!r} must carry a close annotation in "
-            f"docs/action_bank.md §6 (one of {closure_markers!r} near the "
-            f"entry)"
+            f"docs/action_bank.md §6 or docs/action_bank_archive.md "
+            f"(one of {closure_markers!r} near the entry)"
         )
