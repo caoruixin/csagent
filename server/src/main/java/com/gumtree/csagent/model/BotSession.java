@@ -114,6 +114,51 @@ public class BotSession {
     @Column(name = "moderation_context", columnDefinition = "jsonb")
     private String moderationContext;
 
+    /**
+     * Sprint 071 / S-Auto-15 (M-Auto-3, workstream A) — PERSISTED
+     * cross-turn search_knowledge re-search suppression state. Carried
+     * across turns (NOT {@code @Transient}) because
+     * {@code SessionManager.processMessage} reloads the BotSession from the
+     * DB every turn, so the within-turn A3 per-run tracker cannot see a
+     * paraphrase the LLM issues in a SUBSEQUENT bot turn. These three
+     * columns let a NEW, SEPARATE, fail-open, drift-aware cross-turn gate
+     * in {@code AgentRunLoopImpl.run} suppress only the cross-turn storm
+     * beyond the first allowed refinement, ALONGSIDE — not modifying — the
+     * within-turn A3 gate and the A1 dedup cache.
+     *
+     * <p>{@link #crossTurnFaqHitUseCase}: the {@code active_use_case} at
+     * which a standing {@code search_knowledge} viable hit
+     * ({@code faq_miss=false}) was captured. Invariant condition 1 compares
+     * it to the current {@code active_use_case}. Null = no standing hit =
+     * gate disabled (fail-open).
+     */
+    @Column(name = "cross_turn_faq_hit_use_case")
+    private String crossTurnFaqHitUseCase;
+
+    /**
+     * The serialized {@code search_knowledge} result payload (JSON) of the
+     * standing viable hit, served back to the LLM on suppression so a
+     * suppressed cross-turn re-search still sees the prior viable hit under
+     * {@code accumulated_tool_results}. Null = no standing payload = gate
+     * disabled.
+     */
+    @Column(name = "cross_turn_faq_hit_payload", columnDefinition = "jsonb")
+    private String crossTurnFaqHitPayload;
+
+    /**
+     * Cardinality budget counter: how many cross-turn
+     * {@code search_knowledge} calls for the standing-hit UC have ALREADY
+     * been allowed since the standing hit was captured. Budget FIXED at 1 —
+     * the FIRST post-hit cross-turn re-search (the legitimate refinement) is
+     * always allowed (counter -> 1); only the 2nd+ (counter &gt;= 1) is
+     * eligible for suppression. Reset to 0 when a fresh standing hit is
+     * captured and on every reset event (UC change, drift, genuine miss,
+     * resolution, escalation, record_outcome).
+     */
+    @Column(name = "cross_turn_search_allowed_since_hit", nullable = false)
+    @Builder.Default
+    private Integer crossTurnSearchAllowedSinceHit = 0;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "articles_shown", columnDefinition = "text[]")
     private String[] articlesShown;
