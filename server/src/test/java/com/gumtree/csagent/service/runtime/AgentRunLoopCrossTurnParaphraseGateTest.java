@@ -240,6 +240,51 @@ class AgentRunLoopCrossTurnParaphraseGateTest {
                 "the faq_miss refinement result clears the standing marker");
     }
 
+    // ── end-to-end VIABLE-HIT CHAIN (the cs001 storm shape): turn0 capture
+    //    → turn1 first-refinement allowed (budget preserved, NOT reset by the
+    //    same-UC viable re-capture) → turn2 SUPPRESSED. This is the real
+    //    storm pattern: every same-UC re-search returns faq_miss=false, so a
+    //    same-UC viable re-capture must NOT reset the budget, else the gate
+    //    could never reach suppression. ───────────────────────────────────
+    @Test
+    void viableHitChain_budgetAccumulates_thirdTurnSuppressed() {
+        BotSession s = session("xt-chain", "UC-A");
+
+        // Turn 0: first search, viable hit → capture marker, budget 0.
+        markNoDrift(s);
+        s.setTotalBotTurns(0);
+        AgentRunResult t0 = runTurnWithSearch(s, search(argsA()),
+                ToolResult.ok(viableHitData()));
+        assertFalse(anyCrossTurnSuppressed(t0), "turn 0 capture must not suppress");
+        assertEquals("UC-A", s.getCrossTurnFaqHitUseCase());
+        assertEquals(0, s.getCrossTurnSearchAllowedSinceHit(), "budget 0 after capture");
+
+        // Turn 1: paraphrase re-search, viable hit again. FIRST refinement →
+        // allowed (budget-1); the same-UC viable re-capture PRESERVES budget=1
+        // (does NOT reset to 0).
+        markNoDrift(s);
+        s.setTotalBotTurns(1);
+        AgentRunResult t1 = runTurnWithSearch(s, search(argsB()),
+                ToolResult.ok(viableHitData()));
+        assertFalse(anyCrossTurnSuppressed(t1),
+                "first cross-turn refinement must be allowed (budget-1); got "
+                        + t1.toolEvents());
+        assertEquals("UC-A", s.getCrossTurnFaqHitUseCase(),
+                "same-UC viable re-capture keeps the marker");
+        assertEquals(1, s.getCrossTurnSearchAllowedSinceHit(),
+                "a same-UC viable re-capture must PRESERVE the spent budget (not reset to 0)");
+
+        // Turn 2: another paraphrase re-search. budget now >= 1, same un-drifted
+        // UC, standing hit present → SUPPRESSED.
+        markNoDrift(s);
+        s.setTotalBotTurns(2);
+        AgentRunResult t2 = runTurnWithSearch(s, search(argsNewIntent()),
+                ToolResult.ok(viableHitData()));
+        assertTrue(anyCrossTurnSuppressed(t2),
+                "the 2nd+ cross-turn re-search (budget spent) must be suppressed; got "
+                        + t2.toolEvents());
+    }
+
     // ── (f) all four conditions true → SUPPRESS ────────────────────────
     @Test
     void allFourConditionsTrue_crossTurnReSearch_isSuppressed() {
