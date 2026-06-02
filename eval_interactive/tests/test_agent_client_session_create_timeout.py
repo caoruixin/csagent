@@ -84,8 +84,15 @@ def _build_case(case_id: str) -> CaseSpec:
 
 def test_session_create_timeout_constants_widened_to_120s() -> None:
     assert SESSION_CREATE_READ_TIMEOUT_SECONDS == 120.0
-    # Default (used for send_message / get_trace etc.) stays at 60s.
-    assert DEFAULT_READ_TIMEOUT_SECONDS == 60.0
+    # Default (used for send_message / get_trace etc.). Sprint 071 /
+    # S-Auto-15 (B4): re-pinned 60.0 -> 90.0 to track the intentional
+    # OQ-S65.8 widening of DEFAULT_READ_TIMEOUT_SECONDS in
+    # eval_interactive/simulator/agent_client.py (the default must exceed
+    # the bot's USER_FACING_LLM_DEADLINE_MS, raised 30s->60s, with margin
+    # so a slow turn becomes a clean give-up rather than INFRA:ReadTimeout).
+    # The production constant is the source of truth; this assertion was
+    # the stale side. No agent behaviour masked.
+    assert DEFAULT_READ_TIMEOUT_SECONDS == 90.0
 
 
 def test_create_session_does_not_retry_on_read_timeout() -> None:

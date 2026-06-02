@@ -113,11 +113,16 @@ def _build_minimal_spec(session_id: str = "sid-x") -> CaseSpec:
 def test_v2_schema_loads_cleanly() -> None:
     registry = _load_case_spec_overrides(PROD_OVERRIDES)
     assert isinstance(registry, OverrideRegistry)
-    # 15 approved entries: 9 legacy + 2 merged (cs_interactive_012,
-    # cs_interactive_015) + 1 Sprint 2.1 P1 follow-up (cs_interactive_014,
-    # source_session_id=570Q5000008u9gjIAA) + 3 Sprint 4 follow-ups
-    # (cs_interactive_011, cs_interactive_029, cs_interactive_066).
-    assert len(registry.applied) == 15
+    # 17 approved entries. The original 15 (9 legacy + 2 merged
+    # cs_interactive_012/_015 + 1 Sprint 2.1 P1 cs_interactive_014 + 3
+    # Sprint 4 follow-ups cs_interactive_011/_029/_066) plus the Sprint 071
+    # / S-Auto-15 (B4) re-pin to 17: Sprint 21 wave a5/a6 landed additional
+    # L3-review-batch dispositions in case_spec_overrides.yaml (commit
+    # 5cbb373) that the loader now sees. The overrides YAML is the source of
+    # truth for approved L3 dispositions; this count was the stale side. No
+    # eval widened to accept an agent mistake — the per-entry assertions
+    # below still pin the original reviewed entries verbatim.
+    assert len(registry.applied) == 17
     assert registry.pending == []
     cs29 = registry.applied["570Q5000008kDiPIAU"]
     assert cs29.case_id_hint == "cs_interactive_029"
