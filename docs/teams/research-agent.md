@@ -128,8 +128,8 @@ Research agent 需要频繁引用的 governance sections（完整内容见对应
 |------|------|------|
 | §1 Constitution | `iteration_governance.md` | LLM-vs-Runtime 边界、禁止列表 |
 | §3.2 Fix Layer Classification | `iteration_governance.md` | 9 层分类 + decision questions |
-| §5.6 Bad-case suite | `iteration_governance.md` | bad case schema + lifecycle |
+| §5.6 Bad-case suite | `docs/current/process/badcase-lifecycle.md` | bad case schema + lifecycle |
 | §7 Stanza template | `iteration_governance.md` | 预填 target layer / Tier-0 / hardcode / coverage |
-| §8 Milestone framework | `iteration_governance.md` | milestone planning context |
+| §8 Milestone framework | `docs/current/process/milestone-framework.md` | milestone planning context |
 | Context Pack Prompt | `agent_context_guide.md` | 非 trivial 任务前的 context 收集 |
 | Source-of-truth hierarchy | `doc_governance.md` | code > current > foundational > proposal > archive |
