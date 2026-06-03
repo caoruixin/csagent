@@ -205,8 +205,14 @@ fitness:
   # aggregation), `tier_evaluator.py` (majority signal + L0 stable-
   # reproduction), and `gaming.py` (widened set) were edited. All edits are
   # n=1-inert (committed samples_per_case=1 is byte-identical to today).
-  # Prior value (OQ-S65.6): 35305bd84402ac455b126be5bcf8b2cb3b3fa55e3399f2c02443ea74bd8704e8.
-  scoring_code_baseline_sha: "d62537d23f9707231aa8599a1c1853e9b2d1c58686afe3198fdf489e48bd2cbd"
+  # Pre-S-Auto-16 value (OQ-S65.6): 35305bd84402ac455b126be5bcf8b2cb3b3fa55e3399f2c02443ea74bd8704e8.
+  # S-Auto-16 §0 fix (same sub-sprint): the per-attempt provider-comparability
+  # detection was scoped to the agent `chat` callType (rerank/embedding use a
+  # different model BY DESIGN — they are not fallbacks). This corrected a
+  # mis-detection that flagged ~93% of attempts as provider_mixed and edited
+  # eval_runner.py again. Superseded intra-sprint value:
+  # d62537d23f9707231aa8599a1c1853e9b2d1c58686afe3198fdf489e48bd2cbd.
+  scoring_code_baseline_sha: "bb3ced3d37b9d39dd527a0f5be4dcbb0bfea41370ecfccb0b0d317b5c6a26e8d"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the
