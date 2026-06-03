@@ -18,6 +18,7 @@ from .baseline_loader import (
     load,
 )
 from .eval_runner import (
+    EvalRunnerConfigError,
     EvalRunnerTimeoutError,
     SuiteRunResult,
     SuiteRunSpec,
@@ -35,6 +36,7 @@ from .tier_evaluator import (
 __all__ = [
     "BaselineLoadError",
     "BaselineSnapshot",
+    "EvalRunnerConfigError",
     "EvalRunnerTimeoutError",
     "GamingFlag",
     "LayerResult",

@@ -38,6 +38,59 @@ INVALID_PROVIDER_MIXED = "provider_mixed"
 INVALID_INFRA_ERROR = "infra_error"
 
 
+# --- S-Auto-17: per-case stability classification --------------------
+#
+# A cardinality policy over the MAJORITY pass_rate (NOT over case content):
+# how reproducible is a case's pass/fail under repeated sampling. The
+# classification is the input to the re-bless stability report and the
+# overnight go/no-go gate (OQ-S72.2): near-coinflip cases (p≈0.5) get ~0
+# variance reduction from a k-of-n majority, so they are surfaced as an
+# eval_spec / semantic-ambiguity signal rather than force-stabilized with a
+# larger n. Thresholds are a tunable config knob
+# (`fitness.stability_thresholds`), defaulted here.
+STABILITY_STABLE = "stable"
+STABILITY_REDUCIBLE_FLAKY = "reducible-flaky"
+STABILITY_NEAR_COINFLIP = "near-coinflip"
+STABILITY_NON_COMPARABLE = "non_comparable"
+
+DEFAULT_STABILITY_THRESHOLDS: dict[str, float] = {
+    # stable if pass_rate <= stable_low OR >= stable_high (a hard anchor).
+    "stable_low": 0.2,
+    "stable_high": 0.8,
+    # near-coinflip if coinflip_low <= pass_rate <= coinflip_high (≈0.5;
+    # an eval_spec / semantic-ambiguity candidate, NOT an n=5 candidate).
+    "coinflip_low": 0.4,
+    "coinflip_high": 0.6,
+}
+
+
+def classify_stability(
+    pass_rate: float | None,
+    thresholds: dict[str, float] | None = None,
+) -> str:
+    """Classify a case's reproducibility from its majority pass_rate.
+
+    Returns one of `stable` / `reducible-flaky` / `near-coinflip` /
+    `non_comparable`. A `None` pass_rate (non-comparable case) yields
+    `non_comparable`. This is a pure threshold on a rate (a cardinality
+    policy); it never reads case content, so it introduces no semantic
+    hardcode (§1.7-clean).
+
+    Default bands (tunable via `thresholds`):
+      - `stable`         pass_rate <= 0.2 or >= 0.8
+      - `near-coinflip`  0.4 <= pass_rate <= 0.6
+      - `reducible-flaky` everything else (a clear lean that still jitters)
+    """
+    if pass_rate is None:
+        return STABILITY_NON_COMPARABLE
+    t = {**DEFAULT_STABILITY_THRESHOLDS, **(thresholds or {})}
+    if pass_rate <= t["stable_low"] or pass_rate >= t["stable_high"]:
+        return STABILITY_STABLE
+    if t["coinflip_low"] <= pass_rate <= t["coinflip_high"]:
+        return STABILITY_NEAR_COINFLIP
+    return STABILITY_REDUCIBLE_FLAKY
+
+
 @dataclass
 class AttemptRecord:
     """One repeated sample of a single case.

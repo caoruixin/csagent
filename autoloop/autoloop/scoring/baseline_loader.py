@@ -50,7 +50,17 @@ class BaselineLoadError(Exception):
 
 @dataclass
 class SuiteSnapshot:
-    """Aggregated counts for one suite at the baseline run."""
+    """Aggregated counts for one suite at the baseline run.
+
+    S-Auto-17: when the baseline is an aggregated (re-blessed) artifact
+    (`<suite>/aggregated.json`), `case_passed_count` is the count of cases
+    whose MAJORITY verdict passed (symmetric with the candidate's
+    majority side), `is_aggregated` is True, and the per-case
+    `stability_by_case` / `pass_rate_by_case` maps carry the re-bless
+    stability classification. For the legacy single-draw baseline
+    (`<suite>/results.json`), `is_aggregated` is False and the maps are
+    empty (byte-identical to the pre-sprint snapshot).
+    """
 
     suite_name: str
     case_passed_count: int | None
@@ -60,6 +70,9 @@ class SuiteSnapshot:
     raw_results_json: Path | None = None
     total_cases: int = 0
     warning: str | None = None
+    is_aggregated: bool = False
+    stability_by_case: dict[str, str] = field(default_factory=dict)
+    pass_rate_by_case: dict[str, float | None] = field(default_factory=dict)
 
 
 @dataclass
@@ -114,9 +127,17 @@ def load(baseline_dir: Path, *, config: dict[str, Any]) -> BaselineSnapshot:
             continue
 
         suite_dir = baseline_dir / suite_name
+        aggregated_json = suite_dir / "aggregated.json"
         per_suite_json = suite_dir / "results.json"
 
-        if per_suite_json.exists():
+        if aggregated_json.exists():
+            # S-Auto-17 re-blessed baseline: per-case MAJORITY verdict +
+            # stability classification. Preferred over results.json so the
+            # baseline side of the tier_evaluator is majority-symmetric with
+            # the candidate side.
+            data = _read_json(aggregated_json)
+            snapshot = _summarize_aggregated(suite_name, data, aggregated_json)
+        elif per_suite_json.exists():
             data = _read_json(per_suite_json)
             snapshot = _summarize(suite_name, data, per_suite_json)
         elif flat_data is not None:
@@ -124,7 +145,8 @@ def load(baseline_dir: Path, *, config: dict[str, Any]) -> BaselineSnapshot:
         else:
             msg = (
                 f"baseline missing suite '{suite_name}': "
-                f"neither {per_suite_json} nor a flat results.json found"
+                f"none of {aggregated_json}, {per_suite_json}, "
+                f"nor a flat results.json found"
             )
             warnings.warn(msg)
             snapshot_warnings.append(msg)
@@ -175,6 +197,69 @@ def _summarize(
     """Aggregate one suite's cases into a `SuiteSnapshot`."""
     cases = data.get("case_results") or []
     return _aggregate_cases(suite_name, cases, json_path)
+
+
+def _summarize_aggregated(
+    suite_name: str, data: dict[str, Any], json_path: Path
+) -> SuiteSnapshot:
+    """Aggregate a re-blessed (`aggregated.json`) baseline suite.
+
+    The baseline pass count is the count of cases whose MAJORITY verdict
+    passed (`majority_passed is True`) — symmetric with the candidate's
+    majority side in the tier_evaluator. A non-comparable baseline case
+    (`majority_passed is None`) counts as neither passed nor a tier2
+    failure. Per-case stability classification + pass_rate are surfaced for
+    the stability report and overnight gate.
+    """
+    cases = data.get("case_results") or []
+    if not cases:
+        return SuiteSnapshot(
+            suite_name=suite_name,
+            case_passed_count=0,
+            case_passed_rate=0.0,
+            tier2_mandatory_failure_count=0,
+            raw_results_json=json_path,
+            total_cases=0,
+            is_aggregated=True,
+        )
+
+    passed = sum(1 for c in cases if c.get("majority_passed") is True)
+    total = len(cases)
+
+    mandatory_fail_count = 0
+    by_uc: dict[str, int] = {}
+    stability_by_case: dict[str, str] = {}
+    pass_rate_by_case: dict[str, float | None] = {}
+    for c in cases:
+        cid = c.get("case_id", "<unknown>")
+        stability_by_case[cid] = c.get("stability_class") or "unknown"
+        pass_rate_by_case[cid] = c.get("pass_rate")
+        # Prefer the majority-collapsed tier2 (a mandatory step counts only
+        # if it FAILs in the majority of valid attempts); fall back to the
+        # single-draw tier2_result for robustness.
+        tier2 = c.get("tier2_result_majority") or c.get("tier2_result") or {}
+        per_step = tier2.get("per_step") or []
+        mandatory_fails = [
+            s for s in per_step
+            if s.get("severity") == "mandatory" and s.get("outcome") == "FAIL"
+        ]
+        if mandatory_fails:
+            mandatory_fail_count += len(mandatory_fails)
+            uc = c.get("primary_uc") or "unknown"
+            by_uc[uc] = by_uc.get(uc, 0) + len(mandatory_fails)
+
+    return SuiteSnapshot(
+        suite_name=suite_name,
+        case_passed_count=passed,
+        case_passed_rate=passed / total if total else 0.0,
+        tier2_mandatory_failure_count=mandatory_fail_count,
+        tier2_mandatory_failure_by_uc=by_uc,
+        raw_results_json=json_path,
+        total_cases=total,
+        is_aggregated=True,
+        stability_by_case=stability_by_case,
+        pass_rate_by_case=pass_rate_by_case,
+    )
 
 
 def _summarize_from_flat(

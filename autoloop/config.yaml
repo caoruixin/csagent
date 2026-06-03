@@ -147,12 +147,38 @@ fitness:
     # is over one model population (the product runtime keeps its own
     # fallback chain — this governs the FITNESS harness only). Fallback
     # comparability is derived from the eval results.json llm_calls[].model
-    # field (modal model = primary); no server change, no fallback-decision
-    # edit. An attempt served by the fallback is dropped (provider_mixed).
+    # field. An attempt served by the fallback is dropped (provider_mixed).
     fitness_provider: primary_only
     prefer_retry_primary: true
     on_fallback: drop_attempt_non_comparable
     record_per_attempt: [actual_provider, actual_model, fallback_count, request_id]
+    # S-Auto-17 (OQ-S72.1): the CONFIGURED primary chat model name. Provider
+    # comparability anchors on THIS string, not the per-run empirical modal
+    # model. A `chat`-callType call whose `model` != this value is a real
+    # fallback (provider_mixed → dropped from the vote), even when the
+    # fallback engaged for the WHOLE run (the bug the modal heuristic missed).
+    # Source of truth: the backend's configured chat model — the exact string
+    # eval-interactive records in `llm_calls[].model` for callType=="chat".
+    # Sourced 2026-06-03 from DEEPSEEK_MODEL in the repo-root .env.local and
+    # cross-checked against the M-Auto-1B baseline results.json (chat model
+    # = `deepseek-v4-flash` across all three suites). Fail-safe: if unset/
+    # empty, eval_runner._run_majority_passes RAISES EvalRunnerConfigError
+    # rather than degrading to "modal == primary".
+    primary_model: deepseek-v4-flash
+
+  # S-Auto-17 (OQ-S72.2): per-case stability classification thresholds for
+  # the baseline re-bless. A cardinality policy over the majority pass_rate
+  # (NOT over case content). `stable` cases are hard anchors; `near-coinflip`
+  # cases (p≈0.5) get ~0 variance reduction from a k-of-n majority and are
+  # surfaced as an eval_spec / semantic-ambiguity signal (NOT force-stabilized
+  # with a larger n). Defaults: stable if pass_rate <= 0.2 or >= 0.8;
+  # near-coinflip if 0.4 <= pass_rate <= 0.6; reducible-flaky otherwise.
+  # Consumed by autoloop/scripts/rebless_baseline.py + aggregate.classify_stability.
+  stability_thresholds:
+    stable_low: 0.2
+    stable_high: 0.8
+    coinflip_low: 0.4
+    coinflip_high: 0.6
 
   # S-Auto-4 — scoring-code drift baseline. The value here is the
   # SHA-256 content hash produced by `gaming._compute_scoring_code_sha()`
@@ -212,7 +238,19 @@ fitness:
   # mis-detection that flagged ~93% of attempts as provider_mixed and edited
   # eval_runner.py again. Superseded intra-sprint value:
   # d62537d23f9707231aa8599a1c1853e9b2d1c58686afe3198fdf489e48bd2cbd.
-  scoring_code_baseline_sha: "bb3ced3d37b9d39dd527a0f5be4dcbb0bfea41370ecfccb0b0d317b5c6a26e8d"
+  # S-Auto-17 (2026-06-03, M-Auto-4): rebaselined after the configured-primary
+  # detector fix (OQ-S72.1) edited `eval_runner.py` (anchor on
+  # provider_policy.primary_model + EvalRunnerConfigError fail-safe; removed
+  # `_modal_model`), `aggregate.py` gained `classify_stability` (per-case
+  # stability cardinality policy), `baseline_loader.py` gained the aggregated
+  # (re-blessed) artifact loader (majority + stability_class), and
+  # `tier_evaluator.py` `_baseline_case_pass_map` now reads `majority_passed`
+  # for baseline-majority symmetry. `gaming.py` is byte-identical. Recompute:
+  # `uv run --extra dev python -c "from autoloop.scoring.gaming import \
+  # _compute_scoring_code_sha; print(_compute_scoring_code_sha())"` at
+  # S-Auto-17 HEAD must reproduce the value below. Pre-S-Auto-17 value:
+  # bb3ced3d37b9d39dd527a0f5be4dcbb0bfea41370ecfccb0b0d317b5c6a26e8d.
+  scoring_code_baseline_sha: "0d86b08fc0309196d9fc49f4924fe446b36d6c04301c4bcb406ca12337dd149e"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the

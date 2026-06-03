@@ -195,3 +195,121 @@ def test_load_flat_results_json_fallback(tmp_path: Path):
         assert s.case_passed_count == 3  # all 3 attributed to each suite
         assert s.warning is not None
         assert "flat results.json" in s.warning
+
+
+# --- S-Auto-17: aggregated (re-blessed) baseline ---------------------
+
+
+def _write_aggregated(path: Path, cases: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema": "autoloop.baseline.aggregated.v1",
+        "suite": path.parent.name,
+        "git_commit": "deadbeef",
+        "captured_at": "2026-06-03T00:00:00+00:00",
+        "n": 5,
+        "case_results": cases,
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _agg_case(
+    case_id: str,
+    *,
+    majority_passed: bool | None,
+    pass_rate: float | None,
+    stability_class: str,
+    primary_uc: str = "UC-A",
+    mandatory_failures: list[str] | None = None,
+) -> dict:
+    per_step = [
+        {"step_id": sid, "severity": "mandatory", "outcome": "FAIL"}
+        for sid in (mandatory_failures or [])
+    ]
+    return {
+        "case_id": case_id,
+        "primary_uc": primary_uc,
+        "majority_passed": majority_passed,
+        "pass_rate": pass_rate,
+        "comparable": majority_passed is not None,
+        "stability_class": stability_class,
+        "tier2_result_majority": {"per_step": per_step},
+    }
+
+
+def test_load_aggregated_uses_majority_passed_for_count(tmp_path: Path):
+    """The re-blessed baseline counts a case as passed iff its MAJORITY
+    verdict passed — symmetric with the candidate's majority side."""
+    base = tmp_path / "baseline"
+    _write_aggregated(base / "bad_cases" / "aggregated.json", [
+        _agg_case("bc01", majority_passed=True, pass_rate=1.0, stability_class="stable"),
+        _agg_case("bc02", majority_passed=False, pass_rate=0.2, stability_class="stable"),
+        _agg_case("bc03", majority_passed=None, pass_rate=None, stability_class="non_comparable"),
+    ])
+    _write_aggregated(base / "anchor_outcome" / "aggregated.json", [
+        _agg_case("ao01", majority_passed=True, pass_rate=0.8, stability_class="stable"),
+    ])
+    _write_aggregated(base / "shadow" / "aggregated.json", [
+        _agg_case("sh01", majority_passed=True, pass_rate=0.6, stability_class="near-coinflip"),
+    ])
+
+    snap = load(base, config=DEFAULT_CONFIG)
+    bc = snap.snapshots["bad_cases"]
+    assert bc.is_aggregated is True
+    # bc01 passes (majority True); bc02 fails; bc03 non-comparable → 1 passed.
+    assert bc.case_passed_count == 1
+    assert bc.total_cases == 3
+    assert bc.stability_by_case["bc03"] == "non_comparable"
+    assert bc.pass_rate_by_case["bc01"] == 1.0
+    assert snap.snapshots["shadow"].stability_by_case["sh01"] == "near-coinflip"
+
+
+def test_load_aggregated_tier2_from_majority(tmp_path: Path):
+    """Tier-2 mandatory-failure count for the aggregated baseline reads the
+    majority-collapsed tier2_result_majority."""
+    base = tmp_path / "baseline"
+    _write_aggregated(base / "bad_cases" / "aggregated.json", [
+        _agg_case("bc01", majority_passed=False, pass_rate=0.0,
+                  stability_class="stable", mandatory_failures=["s1", "s2"]),
+    ])
+    _write_aggregated(base / "anchor_outcome" / "aggregated.json", [
+        _agg_case("ao01", majority_passed=True, pass_rate=1.0, stability_class="stable"),
+    ])
+    _write_aggregated(base / "shadow" / "aggregated.json", [
+        _agg_case("sh01", majority_passed=True, pass_rate=1.0, stability_class="stable"),
+    ])
+    snap = load(base, config=DEFAULT_CONFIG)
+    assert snap.snapshots["bad_cases"].tier2_mandatory_failure_count == 2
+    assert snap.snapshots["bad_cases"].tier2_mandatory_failure_by_uc == {"UC-A": 2}
+
+
+def test_load_aggregated_preferred_over_results_json(tmp_path: Path):
+    """When both aggregated.json and results.json exist in a suite dir, the
+    aggregated artifact wins (is_aggregated True)."""
+    base = tmp_path / "baseline"
+    _write_results(base / "bad_cases" / "results.json", [_case("bc01", passed=True)])
+    _write_aggregated(base / "bad_cases" / "aggregated.json", [
+        _agg_case("bc01", majority_passed=False, pass_rate=0.2, stability_class="stable"),
+    ])
+    _write_aggregated(base / "anchor_outcome" / "aggregated.json", [
+        _agg_case("ao01", majority_passed=True, pass_rate=1.0, stability_class="stable"),
+    ])
+    _write_aggregated(base / "shadow" / "aggregated.json", [
+        _agg_case("sh01", majority_passed=True, pass_rate=1.0, stability_class="stable"),
+    ])
+    snap = load(base, config=DEFAULT_CONFIG)
+    bc = snap.snapshots["bad_cases"]
+    assert bc.is_aggregated is True
+    assert bc.case_passed_count == 0  # majority False from aggregated, not results.json
+
+
+def test_load_legacy_results_json_not_aggregated(tmp_path: Path):
+    """The retained single-draw baseline (results.json only) stays
+    is_aggregated=False — byte-identical to the pre-sprint snapshot."""
+    base = tmp_path / "baseline"
+    _write_results(base / "bad_cases" / "results.json", [_case("bc01")])
+    _write_results(base / "anchor_outcome" / "results.json", [_case("ao01")])
+    _write_results(base / "shadow" / "results.json", [_case("sh01")])
+    snap = load(base, config=DEFAULT_CONFIG)
+    assert snap.snapshots["bad_cases"].is_aggregated is False
+    assert snap.snapshots["bad_cases"].stability_by_case == {}

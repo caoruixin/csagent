@@ -75,6 +75,19 @@ class EvalRunnerTimeoutError(Exception):
         self.elapsed = elapsed
 
 
+class EvalRunnerConfigError(Exception):
+    """Raised when the k-of-n majority path cannot run because a required
+    fitness config value is missing — currently the configured primary
+    model name for provider-comparability anchoring (S-Auto-17 / OQ-S72.1).
+
+    Fail-safe by design: provider comparability MUST anchor on the
+    configured primary, never on the empirical modal chat model (a
+    whole-run fallback would otherwise be silently scored as all-primary).
+    When the anchor cannot be sourced the run fails loudly rather than
+    degrading to the unsafe modal heuristic.
+    """
+
+
 # --- Dataclasses -----------------------------------------------------
 
 
@@ -370,6 +383,22 @@ def _run_majority_passes(
     except (TypeError, ValueError):
         retry_cap = 2
 
+    # Configured-primary anchor (OQ-S72.1 fix): provider comparability is
+    # measured against the CONFIGURED primary chat model, sourced ONCE for the
+    # whole run, never against the per-run empirical modal model. Fail-safe:
+    # when unset we raise rather than degrade to "modal == primary" (which
+    # would silently treat a whole-run fallback as all-primary).
+    primary_model = _configured_primary_model(config)
+    if primary_model is None:
+        raise EvalRunnerConfigError(
+            "fitness.provider_policy.primary_model is unset/empty; provider "
+            "comparability cannot anchor on the configured primary. Refusing "
+            "to fall back to the empirical modal chat model (a whole-run "
+            "fallback would be mis-scored as all-primary). Set "
+            "fitness.provider_policy.primary_model to the backend's configured "
+            "chat model (e.g. 'deepseek-v4-flash')."
+        )
+
     specs = _suite_specs(fitness_cfg)
     attempts_root = Path(results_root) / "_attempts"
 
@@ -392,7 +421,7 @@ def _run_majority_passes(
             )
             per_suite_attempts[spec.name].append(sr)
             per_suite_records[spec.name].append(
-                _attempt_records_for_suite(sr, attempt_index)
+                _attempt_records_for_suite(sr, attempt_index, primary_model)
             )
 
     for i in range(n):
@@ -418,16 +447,38 @@ def _run_majority_passes(
     return results
 
 
+def _configured_primary_model(config: dict[str, Any]) -> str | None:
+    """The CONFIGURED primary chat model name (OQ-S72.1 anchor).
+
+    Read from `config.fitness.provider_policy.primary_model`. Returns None
+    when unset/empty so the caller can apply the fail-safe (raise) instead
+    of degrading to the empirical modal model. Source of truth: the
+    backend's configured chat model — the exact string eval-interactive
+    records in `llm_calls[].model` for `callType=="chat"` (e.g.
+    `deepseek-v4-flash`). The product runtime keeps its own fallback chain;
+    this governs the FITNESS harness comparability anchor only.
+    """
+    pp = ((config or {}).get("fitness") or {}).get("provider_policy") or {}
+    val = pp.get("primary_model")
+    if isinstance(val, str) and val.strip():
+        return val.strip()
+    return None
+
+
 def _attempt_records_for_suite(
-    sr: SuiteRunResult, attempt_index: int
+    sr: SuiteRunResult, attempt_index: int, primary_model: str
 ) -> dict[str, AttemptRecord]:
     """Build {case_id: AttemptRecord} for one attempt of one suite by
     reading its results.json and deriving provider comparability from the
     existing `llm_calls[].model` field (no server change, no log parsing).
+
+    `primary_model` is the CONFIGURED primary chat model (OQ-S72.1): a
+    `chat` call whose model differs from it is a real fallback
+    (`fallback_count>0` → provider_mixed), regardless of how often the
+    fallback was engaged across the run.
     """
     data = _read_results_json(sr)
     cases = (data or {}).get("case_results") or []
-    primary_model = _modal_model(cases)
     out: dict[str, AttemptRecord] = {}
     for case in cases:
         cid = case.get("case_id", "<unknown>")
@@ -469,27 +520,6 @@ def _chat_models(case: dict[str, Any]) -> list[str]:
         if isinstance(model, str) and model:
             out.append(model)
     return out
-
-
-def _modal_model(cases: list[dict[str, Any]]) -> str | None:
-    """The dominant (modal) AGENT `chat`-callType model across every case in
-    a single suite run = the primary provider's model for this attempt.
-
-    Fallback engagement is rare and transient by design, so the mode is
-    overwhelmingly the primary; any `chat` call deviating from it is a real
-    fallback. Non-`chat` calls (rerank/embedding) are excluded — they use a
-    different model by design and would otherwise swamp the mode. No config
-    knob and no server change — the per-call model + callType are already
-    persisted by eval-interactive. If no `chat` model is present, returns
-    None and comparability cannot be enforced (attempts treated as valid).
-    """
-    counter: Counter[str] = Counter()
-    for case in cases:
-        for model in _chat_models(case):
-            counter[model] += 1
-    if not counter:
-        return None
-    return counter.most_common(1)[0][0]
 
 
 def _case_attempt_record(
