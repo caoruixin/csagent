@@ -48,11 +48,18 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Files whose SHA is rolled into `scoring_code_drift`. Order matters
 # only for determinism of the resulting hash.
+# S-Auto-16: widened to FIVE — `aggregate.py` produces the
+# `majority_passed` per-case verdict the fitness gate consumes, so it MUST
+# live inside the scoring-code drift coverage (leaving it out would be a
+# scoring-code drift hole). Append-only (aggregate.py last) to keep the
+# diff localized; the hash recomputes regardless of order, but a stable
+# order documents intent.
 _SCORING_CODE_FILES = (
     "autoloop/autoloop/scoring/tier_evaluator.py",
     "autoloop/autoloop/scoring/eval_runner.py",
     "autoloop/autoloop/scoring/baseline_loader.py",
     "autoloop/autoloop/scoring/gaming.py",
+    "autoloop/autoloop/scoring/aggregate.py",
 )
 
 

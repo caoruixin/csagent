@@ -126,10 +126,41 @@ fitness:
   # session-establishment flakiness interaction.
   parallel_suites: false
 
+  # S-Auto-16 (M-Auto-4) — k-of-n fitness-measurement reliability.
+  # COMMITTED INERT: samples_per_case=1 is byte-identical to the
+  # pre-sprint single-draw path (eval_runner takes the single-pass
+  # branch; no aggregation file is written; tier_evaluator falls back to
+  # the single-draw case_passed). The live flip to 3 + the symmetric
+  # majority gate are S-Auto-17, gated on the baseline re-bless —
+  # flipping >1 against today's single-draw baseline would be asymmetric
+  # and could MANUFACTURE spurious regressions. DO NOT set to 3 here.
+  samples_per_case: 1
+  aggregation:
+    method: majority
+    # Floor of provider-comparable attempts for a gating verdict. Below
+    # it a case is non_comparable / infra_error and does NOT gate.
+    min_valid_attempts: 3
+    # Extra full passes run when a case is short of min_valid_attempts.
+    attempt_retry_cap: 2
+  provider_policy:
+    # Autoloop fitness eval is primary-provider-only so the majority vote
+    # is over one model population (the product runtime keeps its own
+    # fallback chain — this governs the FITNESS harness only). Fallback
+    # comparability is derived from the eval results.json llm_calls[].model
+    # field (modal model = primary); no server change, no fallback-decision
+    # edit. An attempt served by the fallback is dropped (provider_mixed).
+    fitness_provider: primary_only
+    prefer_retry_primary: true
+    on_fallback: drop_attempt_non_comparable
+    record_per_attempt: [actual_provider, actual_model, fallback_count, request_id]
+
   # S-Auto-4 — scoring-code drift baseline. The value here is the
   # SHA-256 content hash produced by `gaming._compute_scoring_code_sha()`
-  # over the four files (`tier_evaluator.py` + `eval_runner.py` +
-  # `baseline_loader.py` + `gaming.py`).
+  # over the five files (`tier_evaluator.py` + `eval_runner.py` +
+  # `baseline_loader.py` + `gaming.py` + `aggregate.py`). S-Auto-16
+  # widened the set from four to five: `aggregate.py` produces the
+  # majority_passed verdict the fitness gate consumes, so it joins the
+  # drift coverage.
   #
   # Original M-Auto-1A close value (2026-05-27 against commit `1feef1f`)
   # was `5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c`.
@@ -151,7 +182,7 @@ fitness:
   # at S-Auto-7 HEAD must reproduce the value below. See
   # `docs/sprints/sprint-060-handoff.md` §5.
   #
-  # Subsequent commits touching any of these four files will
+  # Subsequent commits touching any of these five files will
   # trigger `gaming.scoring_code_drift.sha_changed` ERROR (intended
   # behaviour). If reset to null, the check emits WARN
   # `rule_id=scoring_code_drift.baseline_missing` (D3: never guess;
@@ -168,7 +199,14 @@ fitness:
   # vs baseline (fails only on NEWLY-introduced Tier-0 violations; pre-existing
   # baseline bad-case failures are ignored) instead of an absolute floor that made
   # `keep` unsatisfiable. Prior value (OQ-S65.5): 7b9954f212afe61946631afd1737f23f7b94f659095ab6b1769a0c86aa29a6e9.
-  scoring_code_baseline_sha: "35305bd84402ac455b126be5bcf8b2cb3b3fa55e3399f2c02443ea74bd8704e8"
+  # S-Auto-16 (2026-06-03, M-Auto-4): rebaselined after the k-of-n fitness-
+  # measurement machinery landed — `aggregate.py` (NEW) joined the hash set
+  # (four -> five files), and `eval_runner.py` (n-loop + per-attempt
+  # aggregation), `tier_evaluator.py` (majority signal + L0 stable-
+  # reproduction), and `gaming.py` (widened set) were edited. All edits are
+  # n=1-inert (committed samples_per_case=1 is byte-identical to today).
+  # Prior value (OQ-S65.6): 35305bd84402ac455b126be5bcf8b2cb3b3fa55e3399f2c02443ea74bd8704e8.
+  scoring_code_baseline_sha: "d62537d23f9707231aa8599a1c1853e9b2d1c58686afe3198fdf489e48bd2cbd"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the
