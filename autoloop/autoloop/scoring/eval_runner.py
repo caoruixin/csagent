@@ -449,22 +449,44 @@ def _read_results_json(sr: SuiteRunResult) -> dict[str, Any] | None:
         return None
 
 
+# Only the AGENT chat call is fitness-relevant for provider comparability.
+# eval-interactive's results.json tags each llm_call with `callType`: the
+# agent loop is `chat` (the model FallbackLlmClient wraps), while `rerank`
+# / embedding / judge calls legitimately use a DIFFERENT model by design
+# (e.g. chat=deepseek, rerank=kimi). A true fallback is a `chat` call whose
+# model differs from the chat primary — NOT model diversity across call
+# types. Scoping to `chat` is what keeps the vote over one agent-model
+# population. A call with no `callType` is treated as `chat` (back-compat).
+_FITNESS_CALL_TYPE = "chat"
+
+
+def _chat_models(case: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for call in case.get("llm_calls") or []:
+        if call.get("callType", _FITNESS_CALL_TYPE) != _FITNESS_CALL_TYPE:
+            continue
+        model = call.get("model")
+        if isinstance(model, str) and model:
+            out.append(model)
+    return out
+
+
 def _modal_model(cases: list[dict[str, Any]]) -> str | None:
-    """The dominant (modal) `llm_calls[].model` across every case in a
-    single suite run = the primary provider's model for this attempt.
+    """The dominant (modal) AGENT `chat`-callType model across every case in
+    a single suite run = the primary provider's model for this attempt.
 
     Fallback engagement is rare and transient by design, so the mode is
-    overwhelmingly the primary; any call deviating from it is a fallback.
-    No config knob and no server change — the per-call model is already
-    persisted by eval-interactive. If `llm_calls` is absent, returns None
-    and comparability cannot be enforced (attempts are treated as valid).
+    overwhelmingly the primary; any `chat` call deviating from it is a real
+    fallback. Non-`chat` calls (rerank/embedding) are excluded — they use a
+    different model by design and would otherwise swamp the mode. No config
+    knob and no server change — the per-call model + callType are already
+    persisted by eval-interactive. If no `chat` model is present, returns
+    None and comparability cannot be enforced (attempts treated as valid).
     """
     counter: Counter[str] = Counter()
     for case in cases:
-        for call in case.get("llm_calls") or []:
-            model = call.get("model")
-            if isinstance(model, str) and model:
-                counter[model] += 1
+        for model in _chat_models(case):
+            counter[model] += 1
     if not counter:
         return None
     return counter.most_common(1)[0][0]
@@ -473,10 +495,7 @@ def _modal_model(cases: list[dict[str, Any]]) -> str | None:
 def _case_attempt_record(
     case: dict[str, Any], attempt_index: int, primary_model: str | None
 ) -> AttemptRecord:
-    calls = case.get("llm_calls") or []
-    models = [
-        c.get("model") for c in calls if isinstance(c.get("model"), str)
-    ]
+    models = _chat_models(case)
     distinct = sorted({m for m in models if m})
     fallback_count = (
         sum(1 for m in models if m and m != primary_model)

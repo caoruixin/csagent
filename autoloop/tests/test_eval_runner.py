@@ -662,6 +662,40 @@ def test_majority_tier0_check_majority(tmp_path: Path):
     assert agg["tier0_majority"]["no_pii_leakage"] is True  # minority fail → still passed
 
 
+def test_majority_non_chat_calltype_not_counted_as_fallback(tmp_path: Path):
+    """A different model on a NON-chat callType (rerank/embedding) is NOT a
+    fallback — provider comparability is scoped to the agent `chat` call.
+    Regression guard for the modal-over-all-calltypes bug (S-Auto-16 §0:
+    rerank=kimi swamped the mode and misflagged every deepseek chat call)."""
+    def _mixed_calltype_case(passed: bool) -> dict:
+        c = _mk_case("c1", passed)
+        # 1 chat (deepseek, primary) + 2 rerank (kimi, by design — NOT fallback)
+        c["llm_calls"] = [
+            {"callType": "chat", "model": "deepseek-v4-flash"},
+            {"callType": "rerank", "model": "kimi-k2.6"},
+            {"callType": "rerank", "model": "kimi-k2.6"},
+        ]
+        return c
+    cfg = _single_suite_config(3)
+    scripts = {"bad_cases": [
+        [_mixed_calltype_case(True)],
+        [_mixed_calltype_case(True)],
+        [_mixed_calltype_case(False)],
+    ]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    # all 3 attempts valid (no provider_mixed) → comparable majority.
+    assert agg["valid_attempts"] == 3
+    assert agg["comparable"] is True
+    assert agg["majority_passed"] is True  # 2/3
+    for a in agg["attempts"]:
+        assert a["invalid_reason"] is None
+        assert a["fallback_count"] == 0
+        assert a["actual_model"] == "deepseek-v4-flash"
+
+
 def test_majority_tier2_step_majority(tmp_path: Path):
     # mandatory step s1 fails in MAJORITY (2 of 3) → appears in majority per_step.
     cfg = _single_suite_config(3)
