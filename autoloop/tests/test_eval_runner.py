@@ -429,3 +429,250 @@ def test_eval_runner_subprocess_cwd_is_eval_interactive(tmp_path: Path):
     cwd_arg = mock_run.call_args.kwargs.get("cwd")
     assert cwd_arg is not None
     assert Path(cwd_arg).name == "eval_interactive"
+
+
+# --- S-Auto-16: k-of-n majority pass ---------------------------------
+
+import json as _json
+
+
+def _mk_case(
+    cid: str,
+    passed: bool,
+    *,
+    models: list[str] | None = None,
+    status: str = "OK",
+    escalation_reason: str | None = None,
+    failure_tags: list | None = None,
+    l1_results: list[dict] | None = None,
+    tier2_mandatory_fail_steps: list[str] | None = None,
+) -> dict:
+    calls = [{"model": m} for m in (models or ["deepseek-v4-flash"])]
+    per_step = [
+        {"step_id": sid, "severity": "mandatory", "outcome": "FAIL"}
+        for sid in (tier2_mandatory_fail_steps or [])
+    ]
+    return {
+        "case_id": cid,
+        "primary_uc": "UC-A",
+        "case_passed": passed,
+        "status": status,
+        "escalation_reason": escalation_reason,
+        "failure_tags": failure_tags or [],
+        "stop_reason": "bot_ended",
+        "llm_calls": calls,
+        "l1_results": l1_results or [],
+        "tier2_result": {"per_step": per_step},
+    }
+
+
+def _single_suite_config(n: int, *, min_valid: int = 3, retry_cap: int = 2) -> dict:
+    return {
+        "fitness": {
+            "suites": [
+                {"name": "bad_cases", "path": "eval_interactive/case_specs/bad_cases/",
+                 "parallel": 1},
+            ],
+            "eval_suite_timeout_seconds": 1800,
+            "parallel_suites": False,
+            "samples_per_case": n,
+            "aggregation": {
+                "method": "majority",
+                "min_valid_attempts": min_valid,
+                "attempt_retry_cap": retry_cap,
+            },
+        }
+    }
+
+
+def _fake_run_suite_factory(scripts: dict[str, list[list[dict]]]):
+    """Returns a fake `run_suite` that writes the scripted per-attempt
+    case_results to a real results.json under results_root/<suite>/ and
+    returns a SuiteRunResult. Attempt index is tracked per suite; indices
+    beyond the script clamp to the last scripted attempt.
+    """
+    counters: dict[str, int] = {}
+
+    def _fake(spec, *, results_root, config, timeout_seconds):
+        idx = counters.get(spec.name, 0)
+        counters[spec.name] = idx + 1
+        attempts = scripts[spec.name]
+        cases = attempts[min(idx, len(attempts) - 1)]
+        suite_dir = Path(results_root) / spec.name
+        suite_dir.mkdir(parents=True, exist_ok=True)
+        rj = suite_dir / "results.json"
+        rj.write_text(
+            _json.dumps({"run_id": f"{spec.name}-{idx}", "case_results": cases,
+                         "summary": {}}),
+            encoding="utf-8",
+        )
+        return SuiteRunResult(
+            suite_name=spec.name,
+            results_dir=suite_dir,
+            results_json=rj,
+            elapsed_seconds=1.0,
+            exit_code=0,
+        )
+
+    return _fake, counters
+
+
+def _read_aggregated(results_root: Path, suite: str = "bad_cases") -> dict:
+    return _json.loads(
+        (results_root / suite / "results.json").read_text(encoding="utf-8")
+    )
+
+
+def test_majority_n_loop_runs_n_attempts_and_aggregates(tmp_path: Path):
+    cfg = _single_suite_config(3)
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True)],
+        [_mk_case("c1", True)],
+        [_mk_case("c1", True)],
+    ]}
+    fake, counters = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        results = run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    assert counters["bad_cases"] == 3
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    assert agg["case_id"] == "c1"
+    assert agg["majority_passed"] is True
+    assert agg["valid_attempts"] == 3
+    assert agg["comparable"] is True
+    assert len(agg["attempts"]) == 3
+    # original fields preserved
+    assert agg["primary_uc"] == "UC-A"
+    # SuiteRunResult carries the per-attempt list.
+    assert results["bad_cases"].attempts is not None
+    assert len(results["bad_cases"].attempts) == 3
+
+
+def test_majority_provider_mixed_dropped(tmp_path: Path):
+    # attempt 2 is fallback-served (kimi minority among deepseek) → dropped.
+    cfg = _single_suite_config(3, retry_cap=0)
+    # attempt 2: 2 deepseek + 1 kimi → modal=deepseek, kimi counts as fallback.
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True, models=["deepseek-v4-flash"])],
+        [_mk_case("c1", True, models=["deepseek-v4-flash"])],
+        [_mk_case("c1", False,
+                  models=["deepseek-v4-flash", "deepseek-v4-flash", "kimi-k2"])],
+    ]}
+    fake, counters = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    assert agg["valid_attempts"] == 2  # mixed attempt dropped
+    assert agg["comparable"] is False  # 2 < min_valid 3
+    assert agg["majority_passed"] is None
+    assert agg["aggregate_status"] == "non_comparable"
+    mixed = [a for a in agg["attempts"] if a["invalid_reason"] == "provider_mixed"]
+    assert len(mixed) == 1
+    assert mixed[0]["fallback_count"] == 1
+
+
+def test_majority_infra_error_dropped(tmp_path: Path):
+    cfg = _single_suite_config(3, retry_cap=0)
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True)],
+        [_mk_case("c1", False, status="ERROR")],
+        [_mk_case("c1", False, escalation_reason="service_degraded")],
+    ]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    assert agg["valid_attempts"] == 1
+    assert agg["comparable"] is False
+    assert agg["aggregate_status"] == "infra_error"
+    infra = [a for a in agg["attempts"] if a["invalid_reason"] == "infra_error"]
+    assert len(infra) == 2
+
+
+def test_majority_retry_to_cap(tmp_path: Path):
+    # n=3 with attempt 2 mixed → 2 valid < 3 → retry one extra valid pass.
+    cfg = _single_suite_config(3, retry_cap=2)
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True)],
+        [_mk_case("c1", True)],
+        [_mk_case("c1", False,
+                  models=["deepseek-v4-flash", "deepseek-v4-flash", "kimi-k2"])],
+        [_mk_case("c1", True)],  # retry attempt (valid)
+    ]}
+    fake, counters = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    assert counters["bad_cases"] == 4  # 3 initial + 1 retry
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    assert agg["valid_attempts"] == 3
+    assert agg["comparable"] is True
+    assert agg["majority_passed"] is True
+
+
+def test_majority_insufficient_non_comparable(tmp_path: Path):
+    cfg = _single_suite_config(2, min_valid=3, retry_cap=0)
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True)],
+        [_mk_case("c1", True)],
+    ]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    assert agg["valid_attempts"] == 2
+    assert agg["majority_passed"] is None
+    assert agg["aggregate_status"] == "non_comparable"
+
+
+def test_majority_persistence_shape(tmp_path: Path):
+    cfg = _single_suite_config(3)
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True)],
+        [_mk_case("c1", True)],
+        [_mk_case("c1", False)],
+    ]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    payload = _read_aggregated(tmp_path)
+    assert payload["_aggregation"]["method"] == "majority"
+    assert payload["_aggregation"]["min_valid_attempts"] == 3
+    agg = payload["case_results"][0]
+    for key in ("majority_passed", "pass_rate", "valid_attempts", "total_attempts",
+                "comparable", "flaky", "aggregate_status", "attempts",
+                "tier0_majority", "tier2_result_majority"):
+        assert key in agg, f"missing aggregated key {key}"
+    assert agg["majority_passed"] is True  # 2/3
+    assert agg["flaky"] is True
+
+
+def test_majority_tier0_check_majority(tmp_path: Path):
+    # PII check fails in MINORITY (1 of 3) → tier0_majority keeps it passed.
+    pii_fail = [{"check": "no_pii_leakage", "passed": False}]
+    pii_ok = [{"check": "no_pii_leakage", "passed": True}]
+    cfg = _single_suite_config(3)
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True, l1_results=pii_ok)],
+        [_mk_case("c1", True, l1_results=pii_ok)],
+        [_mk_case("c1", False, l1_results=pii_fail)],
+    ]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    assert agg["tier0_majority"]["no_pii_leakage"] is True  # minority fail → still passed
+
+
+def test_majority_tier2_step_majority(tmp_path: Path):
+    # mandatory step s1 fails in MAJORITY (2 of 3) → appears in majority per_step.
+    cfg = _single_suite_config(3)
+    scripts = {"bad_cases": [
+        [_mk_case("c1", False, tier2_mandatory_fail_steps=["s1"])],
+        [_mk_case("c1", False, tier2_mandatory_fail_steps=["s1"])],
+        [_mk_case("c1", True, tier2_mandatory_fail_steps=[])],
+    ]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    steps = agg["tier2_result_majority"]["per_step"]
+    assert any(s["step_id"] == "s1" and s["outcome"] == "FAIL" for s in steps)
