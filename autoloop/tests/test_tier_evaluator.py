@@ -829,3 +829,134 @@ def test_n1_unanimous_majority_reproduces_single_draw_verdict(tmp_path: Path):
     assert v_agg.discard_reason == v_plain.discard_reason
     assert [lr.passed for lr in v_agg.layer_results] == \
            [lr.passed for lr in v_plain.layer_results]
+
+
+# --- S-Auto-17: baseline-majority symmetry (aggregated baseline) -----
+
+
+def _agg_baseline_case(
+    case_id: str,
+    *,
+    majority_passed: bool | None,
+    pass_rate: float | None = None,
+    stability_class: str = "stable",
+    primary_uc: str = "UC-A",
+) -> dict:
+    """An aggregated.json BASELINE case. Carries ONLY `majority_passed`
+    (NOT `case_passed`) so a test that passes proves the baseline side reads
+    the MAJORITY verdict, not a single draw."""
+    return {
+        "case_id": case_id,
+        "primary_uc": primary_uc,
+        "majority_passed": majority_passed,
+        "pass_rate": pass_rate,
+        "comparable": majority_passed is not None,
+        "stability_class": stability_class,
+        "l1_results": [
+            {"check": "no_pii_leakage", "passed": True, "detail": "majority"},
+            {"check": "no_critical_policy_violation", "passed": True, "detail": "majority"},
+            {"check": "escalation_compliance", "passed": True, "detail": "majority"},
+            {"check": "phase_transition_validity", "passed": True, "detail": "majority"},
+            {"check": "no_human_only_tool_exposure", "passed": True, "detail": "majority"},
+        ],
+        "tier2_result_majority": {"per_step": []},
+    }
+
+
+def _aggregated_baseline(tmp_path: Path, *, suites: dict[str, list[dict]]) -> BaselineSnapshot:
+    """Build a BaselineSnapshot from a re-blessed `aggregated.json` layout."""
+    from autoloop.scoring import load
+    base_dir = tmp_path / "agg_baseline"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    for suite_name, cases in suites.items():
+        suite_dir = base_dir / suite_name
+        suite_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema": "autoloop.baseline.aggregated.v1",
+            "suite": suite_name,
+            "git_commit": "deadbeef",
+            "captured_at": "2026-06-03T00:00:00+00:00",
+            "n": 5,
+            "case_results": cases,
+        }
+        (suite_dir / "aggregated.json").write_text(json.dumps(payload), encoding="utf-8")
+    return load(base_dir, config=DEFAULT_CONFIG)
+
+
+def test_symmetry_candidate_majority_vs_baseline_majority_keep(tmp_path: Path):
+    """Both sides majority at n=3: baseline majority-pass + candidate
+    majority-pass (a single noisy minority flip) → Layer 1 does NOT gate."""
+    baseline = _aggregated_baseline(tmp_path, suites={
+        "bad_cases": [_agg_baseline_case("bc01", majority_passed=True)],
+        "anchor_outcome": [_agg_baseline_case("ao01", majority_passed=True)],
+        "shadow": [_agg_baseline_case("sh01", majority_passed=True)],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=True)],  # 2/3 pass
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.layer_results[1].passed is True
+    assert v.tier_breakdown["tier1_outcome"]["bad_cases"]["baseline_passed"] == 1
+
+
+def test_symmetry_stable_candidate_regression_vs_baseline_majority_gates(tmp_path: Path):
+    """The discriminator: baseline blessed bc01 as a MAJORITY pass; a stable
+    candidate majority-FAIL regresses Layer 1. This gates ONLY if the
+    baseline side reads `majority_passed` (=1). If it read the absent
+    single-draw `case_passed` (=0) the regression would be masked."""
+    baseline = _aggregated_baseline(tmp_path, suites={
+        "bad_cases": [_agg_baseline_case("bc01", majority_passed=True)],
+        "anchor_outcome": [_agg_baseline_case("ao01", majority_passed=True)],
+        "shadow": [_agg_baseline_case("sh01", majority_passed=True)],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=False)],  # 2/3 fail
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.decision == "discard"
+    assert v.layer_results[1].passed is False
+    assert "tier1_bad_cases_regression" in v.discard_reason
+
+
+def test_symmetry_baseline_majority_fail_no_new_regression(tmp_path: Path):
+    """When the re-bless blessed bc01 as a MAJORITY fail (baseline pass
+    count 0), a candidate that also majority-fails is NOT a new regression."""
+    baseline = _aggregated_baseline(tmp_path, suites={
+        "bad_cases": [_agg_baseline_case("bc01", majority_passed=False)],
+        "anchor_outcome": [_agg_baseline_case("ao01", majority_passed=True)],
+        "shadow": [_agg_baseline_case("sh01", majority_passed=True)],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=False)],
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.layer_results[1].passed is True
+    assert v.tier_breakdown["tier1_outcome"]["bad_cases"]["baseline_passed"] == 0
+
+
+def test_symmetry_noncomparable_credit_uses_baseline_majority(tmp_path: Path):
+    """`_baseline_case_pass_map` symmetry: a candidate case that became
+    non-comparable is credited against the baseline MAJORITY pass. bc02 is
+    non-comparable this run and was a baseline majority-pass → credited, so
+    no false regression."""
+    baseline = _aggregated_baseline(tmp_path, suites={
+        "bad_cases": [_agg_baseline_case("bc01", majority_passed=True),
+                      _agg_baseline_case("bc02", majority_passed=True)],
+        "anchor_outcome": [_agg_baseline_case("ao01", majority_passed=True)],
+        "shadow": [_agg_baseline_case("sh01", majority_passed=True)],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=True),
+                      _agg_case("bc02", majority_passed=None, comparable=False)],
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.layer_results[1].passed is True
+    assert v.tier_breakdown["tier1_outcome"]["bad_cases"]["non_comparable_excluded"] == 1

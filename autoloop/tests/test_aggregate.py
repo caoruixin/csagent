@@ -10,9 +10,11 @@ variance run).
 from __future__ import annotations
 
 from autoloop.scoring.aggregate import (
+    DEFAULT_STABILITY_THRESHOLDS,
     AttemptRecord,
     CaseAggregate,
     aggregate_case,
+    classify_stability,
     majority_bool,
 )
 
@@ -203,3 +205,44 @@ def test_majority_bool_basic():
     assert majority_bool([True, False]) is False  # even split → False
     assert majority_bool([]) is None
     assert majority_bool([True]) is True
+
+
+# --- S-Auto-17: per-case stability classification -------------------
+
+
+def test_classify_stability_stable_low_and_high():
+    # ≤0.2 or ≥0.8 → stable hard anchor (boundaries inclusive).
+    assert classify_stability(0.0) == "stable"
+    assert classify_stability(0.2) == "stable"
+    assert classify_stability(0.8) == "stable"
+    assert classify_stability(1.0) == "stable"
+
+
+def test_classify_stability_near_coinflip_band():
+    # 0.4..0.6 inclusive → near-coinflip (an eval_spec/semantic candidate).
+    assert classify_stability(0.4) == "near-coinflip"
+    assert classify_stability(0.5) == "near-coinflip"
+    assert classify_stability(0.6) == "near-coinflip"
+
+
+def test_classify_stability_reducible_flaky_between_bands():
+    # a clear lean that still jitters → reducible-flaky.
+    assert classify_stability(0.3) == "reducible-flaky"
+    assert classify_stability(0.7) == "reducible-flaky"
+
+
+def test_classify_stability_none_is_non_comparable():
+    assert classify_stability(None) == "non_comparable"
+
+
+def test_classify_stability_custom_thresholds_override():
+    # Tighten the coinflip band so 0.3 falls inside it.
+    thr = {"coinflip_low": 0.25, "coinflip_high": 0.75, "stable_low": 0.1, "stable_high": 0.9}
+    assert classify_stability(0.3, thr) == "near-coinflip"
+    assert classify_stability(0.05, thr) == "stable"
+    assert classify_stability(0.85, thr) == "reducible-flaky"
+
+
+def test_classify_stability_defaults_constant_shape():
+    for k in ("stable_low", "stable_high", "coinflip_low", "coinflip_high"):
+        assert k in DEFAULT_STABILITY_THRESHOLDS

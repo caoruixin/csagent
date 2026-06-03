@@ -839,13 +839,18 @@ def _suite_passed_count(suite: _CurrentSuite | None) -> int | None:
 def _baseline_case_pass_map(
     baseline: BaselineSnapshot, suite_name: str
 ) -> dict[str, bool]:
-    """Per-case `case_passed` map from the (single-draw) baseline snapshot.
+    """Per-case pass map from the baseline snapshot.
 
     Used only to give non-comparable candidate cases the benefit of the
     doubt: a candidate case that is non-comparable this run is excluded
     from BOTH the candidate count and the baseline count so it cannot
-    masquerade as a regression. At n=1 there are no non-comparable cases,
-    so this map is never consulted and the counts are unchanged.
+    masquerade as a regression.
+
+    S-Auto-17 symmetry: when the baseline is a re-blessed aggregated
+    artifact each case carries `majority_passed`; the map keys on that
+    MAJORITY verdict so the baseline side matches the candidate's majority
+    side. The legacy single-draw baseline carries only `case_passed`, used
+    verbatim (byte-identical to the pre-sprint behaviour).
     """
     out: dict[str, bool] = {}
     snap = baseline.snapshots.get(suite_name)
@@ -860,7 +865,10 @@ def _baseline_case_pass_map(
     except (OSError, json.JSONDecodeError):
         return out
     for c in data.get("case_results") or []:
-        out[c.get("case_id", "<unknown>")] = c.get("case_passed") is True
+        if "majority_passed" in c:
+            out[c.get("case_id", "<unknown>")] = c.get("majority_passed") is True
+        else:
+            out[c.get("case_id", "<unknown>")] = c.get("case_passed") is True
     return out
 
 

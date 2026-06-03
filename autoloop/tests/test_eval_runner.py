@@ -23,6 +23,7 @@ from autoloop.scoring import (
     run_v1_fitness_suite,
 )
 from autoloop.scoring import eval_runner as _eval_runner_module
+from autoloop.scoring.eval_runner import EvalRunnerConfigError
 
 
 DEFAULT_CONFIG = {
@@ -466,8 +467,14 @@ def _mk_case(
     }
 
 
-def _single_suite_config(n: int, *, min_valid: int = 3, retry_cap: int = 2) -> dict:
-    return {
+def _single_suite_config(
+    n: int,
+    *,
+    min_valid: int = 3,
+    retry_cap: int = 2,
+    primary_model: str | None = "deepseek-v4-flash",
+) -> dict:
+    cfg: dict = {
         "fitness": {
             "suites": [
                 {"name": "bad_cases", "path": "eval_interactive/case_specs/bad_cases/",
@@ -483,6 +490,12 @@ def _single_suite_config(n: int, *, min_valid: int = 3, retry_cap: int = 2) -> d
             },
         }
     }
+    # S-Auto-17 (OQ-S72.1): provider comparability anchors on the configured
+    # primary chat model. Omitting it (primary_model=None) exercises the
+    # fail-safe (EvalRunnerConfigError).
+    if primary_model is not None:
+        cfg["fitness"]["provider_policy"] = {"primary_model": primary_model}
+    return cfg
 
 
 def _fake_run_suite_factory(scripts: dict[str, list[list[dict]]]):
@@ -710,3 +723,79 @@ def test_majority_tier2_step_majority(tmp_path: Path):
     agg = _read_aggregated(tmp_path)["case_results"][0]
     steps = agg["tier2_result_majority"]["per_step"]
     assert any(s["step_id"] == "s1" and s["outcome"] == "FAIL" for s in steps)
+
+
+# --- S-Auto-17 (OQ-S72.1): configured-primary provider-comparability -----
+
+
+def test_configured_primary_detects_fallback_attempt(tmp_path: Path):
+    """A `chat` attempt whose model != the CONFIGURED primary is a fallback
+    (provider_mixed → dropped), even though it is the only deviating draw.
+    Anchored on config.fitness.provider_policy.primary_model, NOT the modal
+    model of the run.
+    """
+    cfg = _single_suite_config(3, retry_cap=0, primary_model="deepseek-v4-flash")
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True, models=["deepseek-v4-flash"])],
+        [_mk_case("c1", True, models=["deepseek-v4-flash"])],
+        # a single fallback-served chat draw on a different model.
+        [_mk_case("c1", False, models=["deepseek-v3-legacy"])],
+    ]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    assert agg["valid_attempts"] == 2  # the fallback draw dropped
+    mixed = [a for a in agg["attempts"] if a["invalid_reason"] == "provider_mixed"]
+    assert len(mixed) == 1
+    assert mixed[0]["actual_model"] == "deepseek-v3-legacy"
+    assert mixed[0]["fallback_count"] == 1
+
+
+def test_configured_primary_whole_run_fallback_flagged(tmp_path: Path):
+    """The bug the modal heuristic MISSED: when EVERY chat draw across the
+    whole run is the fallback model, the empirical modal would call the
+    fallback 'primary' and treat all attempts as comparable. Anchored on the
+    configured primary, every draw is provider_mixed → non-comparable.
+    """
+    cfg = _single_suite_config(3, retry_cap=0, primary_model="deepseek-v4-flash")
+    scripts = {"bad_cases": [
+        [_mk_case("c1", True, models=["kimi-k2-fallback"])],
+        [_mk_case("c1", True, models=["kimi-k2-fallback"])],
+        [_mk_case("c1", True, models=["kimi-k2-fallback"])],
+    ]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    agg = _read_aggregated(tmp_path)["case_results"][0]
+    assert agg["valid_attempts"] == 0  # all 3 dropped as provider_mixed
+    assert agg["comparable"] is False
+    assert agg["majority_passed"] is None
+    assert all(a["invalid_reason"] == "provider_mixed" for a in agg["attempts"])
+    assert all(a["fallback_count"] == 1 for a in agg["attempts"])
+
+
+def test_unset_primary_model_fail_safe_raises(tmp_path: Path):
+    """Fail-safe (OQ-S72.1): with samples_per_case>1 and no configured
+    primary_model, the run RAISES rather than degrading to the empirical
+    modal model.
+    """
+    cfg = _single_suite_config(3, primary_model=None)
+    scripts = {"bad_cases": [[_mk_case("c1", True)]]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        with pytest.raises(EvalRunnerConfigError):
+            run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+
+
+def test_unset_primary_model_n1_single_pass_unaffected(tmp_path: Path):
+    """The fail-safe only guards the n>1 majority path. At n=1 (single pass)
+    there is no provider-comparability vote, so an absent primary_model does
+    NOT raise — byte-identical to the pre-sprint single-draw path.
+    """
+    cfg = _single_suite_config(1, primary_model=None)
+    scripts = {"bad_cases": [[_mk_case("c1", True)]]}
+    fake, _ = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        results = run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    assert results["bad_cases"].exit_code == 0
