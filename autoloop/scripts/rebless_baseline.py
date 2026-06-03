@@ -239,9 +239,12 @@ def main() -> int:
     min_valid = int((fitness_cfg.get("aggregation") or {}).get("min_valid_attempts", 3))
     git_commit = _git_head()
 
+    # Resolve a relative --out-dir against the CURRENT working directory
+    # (the intuitive behaviour when invoked as `cd autoloop && ... --out-dir
+    # ../eval_interactive/...`), NOT against the repo root.
     out_dir = Path(args.out_dir)
     if not out_dir.is_absolute():
-        out_dir = _REPO_ROOT / out_dir
+        out_dir = (Path.cwd() / out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     scratch = Path(args.scratch_dir) if args.scratch_dir else (out_dir / "_rebless_scratch")
