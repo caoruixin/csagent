@@ -115,7 +115,23 @@ fitness:
   # case_spec; loader fix landed in S-Auto-7 skips `_*.yaml` files.
   # Re-blessing at any future milestone is a deliver-agent + human
   # decision per `gaming.suspect_baseline_manipulation` notes.
-  baseline_dir: eval_interactive/results/m-auto-1b-baseline-20260529
+  #
+  # S-Auto-17 (2026-06-04, M-Auto-4): re-blessed as an AGGREGATED (majority-
+  # over-n=5) artifact so the baseline side is symmetric with the live n=3
+  # candidate (flipping n>1 against a single-draw baseline manufactures
+  # regressions — the asymmetry this sub-sprint removes). Each suite dir holds
+  # `aggregated.json` (per-case majority_passed + pass_rate + stability_class);
+  # baseline_loader prefers it over results.json. Honest-majority shift vs the
+  # retained single-draw baseline: bad_cases 5→5, anchor_outcome 7→4 (3 lucky
+  # single-draw passes are majority-fails), shadow 4→2 (+2 now non_comparable
+  # instead of mis-counted as failures: cs59s01/cs59s02 hard-error on session
+  # create — pre-existing infra, see sprint-073 handoff §3). The OLD single-run
+  # baseline is RETAINED on disk (m-auto-1b-baseline-20260529) and never
+  # overwritten — only this POINTER moves (reversible). git_commit recorded in
+  # each aggregated.json. Expect `gaming.suspect_baseline_manipulation` to
+  # observe this change (intended; recorded in the handoff).
+  # Prior pointer: eval_interactive/results/m-auto-1b-baseline-20260529.
+  baseline_dir: eval_interactive/results/m-auto-4-baseline-20260604
 
   # Hard cap per suite (30 min). A timeout aborts the loop iteration
   # — partial fitness evidence is worse than no fitness evidence.
@@ -127,14 +143,18 @@ fitness:
   parallel_suites: false
 
   # S-Auto-16 (M-Auto-4) — k-of-n fitness-measurement reliability.
-  # COMMITTED INERT: samples_per_case=1 is byte-identical to the
-  # pre-sprint single-draw path (eval_runner takes the single-pass
-  # branch; no aggregation file is written; tier_evaluator falls back to
-  # the single-draw case_passed). The live flip to 3 + the symmetric
-  # majority gate are S-Auto-17, gated on the baseline re-bless —
-  # flipping >1 against today's single-draw baseline would be asymmetric
-  # and could MANUFACTURE spurious regressions. DO NOT set to 3 here.
-  samples_per_case: 1
+  # S-Auto-17 (2026-06-04) FLIPPED LIVE 1→3: now sound because the baseline
+  # was re-blessed as an aggregated majority-over-n=5 artifact FIRST (see
+  # baseline_dir above), so BOTH sides are majority — the candidate path
+  # (tier_evaluator._effective_case_passed) and the baseline path
+  # (baseline_loader._summarize_aggregated / _baseline_case_pass_map read
+  # majority_passed) are symmetric. Each live iteration runs every suite 3×
+  # and collapses per-case pass/fail to a strict majority over provider-
+  # comparable (configured-primary) draws; a single noisy flip no longer
+  # gates. n=5 is NOT pulled forward (near-coinflip cases get ~0 variance
+  # reduction from a larger n — surfaced for eval_spec/semantic triage instead;
+  # OQ-S72.2). Provider comparability anchors on provider_policy.primary_model.
+  samples_per_case: 3
   aggregation:
     method: majority
     # Floor of provider-comparable attempts for a gating verdict. Below
