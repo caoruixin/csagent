@@ -301,14 +301,33 @@ def _evaluate_layer0(
     py_fail_cases: list[str] = []
     py_pre_existing_ignored: list[str] = []
     py_total_cases = 0
+    stable_reproduction = False
     for suite_name, suite in current_suites.items():
         for case in suite.cases:
             py_total_cases += 1
             case_id = case.get("case_id", "<unknown>")
-            for check in case.get("l1_results") or []:
-                check_name = check.get("check")
-                if check_name not in _TIER0_PY_FAMILY or check.get("passed") is not False:
-                    continue
+            # Candidate per-check violation signal. S-Auto-16 stable-
+            # reproduction: when the case is aggregated (`tier0_majority`
+            # present), a Tier-0 violation counts only if it reproduces in
+            # the MAJORITY of candidate samples — a single noisy flip no
+            # longer discards. Absent (committed n=1) → the single-draw
+            # `l1_results` scan, byte-identical to the pre-sprint floor.
+            tier0_majority = case.get("tier0_majority")
+            if isinstance(tier0_majority, dict) and tier0_majority:
+                stable_reproduction = True
+                violated_checks = [
+                    cn
+                    for cn, passed in tier0_majority.items()
+                    if cn in _TIER0_PY_FAMILY and passed is False
+                ]
+            else:
+                violated_checks = [
+                    check.get("check")
+                    for check in (case.get("l1_results") or [])
+                    if check.get("check") in _TIER0_PY_FAMILY
+                    and check.get("passed") is False
+                ]
+            for check_name in violated_checks:
                 baseline_passed = baseline_tier0.get((suite_name, case_id, check_name))
                 if baseline_passed is False:
                     # Pre-existing baseline failure — NOT caused by this candidate. Ignore.
@@ -323,6 +342,7 @@ def _evaluate_layer0(
         "failing_cases": py_fail_cases,
         "pre_existing_baseline_failures_ignored": py_pre_existing_ignored,
         "delta_mode": True,
+        "stable_reproduction": stable_reproduction,
     }
 
     if failures:
@@ -390,34 +410,55 @@ def _evaluate_layer1(
     metrics: dict[str, Any] = {}
     anchor_max_drop_cases = int(fitness_cfg.get("anchor_outcome_max_drop_cases", 0))
 
-    # --- bad_cases: strict no-regression on programmatic case_passed.
+    # --- bad_cases: strict no-regression on the (majority) per-case signal.
+    # The baseline pass count is reduced by any non-comparable candidate
+    # case that passed in the baseline so a merely-non-comparable case is
+    # not scored as a regression (credit is 0 at the committed n=1).
     bc_current = _suite_passed_count(current_suites.get("bad_cases"))
     bc_baseline = _suite_baseline_passed(baseline, "bad_cases")
+    bc_credit = _noncomparable_baseline_credit(
+        current_suites.get("bad_cases"), baseline, "bad_cases"
+    )
+    bc_baseline_eff = bc_baseline - bc_credit if bc_baseline is not None else None
     metrics["bad_cases"] = {
         "baseline_passed": bc_baseline,
         "current_passed": bc_current,
     }
-    if bc_baseline is not None and bc_current is not None and bc_current < bc_baseline:
+    if bc_credit:
+        metrics["bad_cases"]["baseline_passed_comparable"] = bc_baseline_eff
+        metrics["bad_cases"]["non_comparable_excluded"] = bc_credit
+    if (
+        bc_baseline_eff is not None
+        and bc_current is not None
+        and bc_current < bc_baseline_eff
+    ):
         return LayerResult(
             layer=1,
             name=_LAYER_NAMES[1],
             passed=False,
-            reason=f"tier1_bad_cases_regression_{bc_baseline}_to_{bc_current}",
+            reason=f"tier1_bad_cases_regression_{bc_baseline_eff}_to_{bc_current}",
             metrics_observed=metrics,
         )
 
     # --- anchor_outcome: max-drop bounded by config.
     ao_current = _suite_passed_count(current_suites.get("anchor_outcome"))
     ao_baseline = _suite_baseline_passed(baseline, "anchor_outcome")
+    ao_credit = _noncomparable_baseline_credit(
+        current_suites.get("anchor_outcome"), baseline, "anchor_outcome"
+    )
+    ao_baseline_eff = ao_baseline - ao_credit if ao_baseline is not None else None
     metrics["anchor_outcome"] = {
         "baseline_passed": ao_baseline,
         "current_passed": ao_current,
         "max_drop_cases": anchor_max_drop_cases,
     }
+    if ao_credit:
+        metrics["anchor_outcome"]["baseline_passed_comparable"] = ao_baseline_eff
+        metrics["anchor_outcome"]["non_comparable_excluded"] = ao_credit
     if (
-        ao_baseline is not None
+        ao_baseline_eff is not None
         and ao_current is not None
-        and (ao_baseline - ao_current) > anchor_max_drop_cases
+        and (ao_baseline_eff - ao_current) > anchor_max_drop_cases
     ):
         return LayerResult(
             layer=1,
@@ -530,12 +571,22 @@ def _evaluate_layer3(
     """
     min_cases = int(fitness_cfg.get("improvement_min_cases", 1))
 
+    # Non-comparable candidate cases are excluded from BOTH sides of the
+    # delta (credit is 0 at the committed n=1 → byte-identical).
     bc_current = _suite_passed_count(current_suites.get("bad_cases")) or 0
-    bc_baseline = _suite_baseline_passed(baseline, "bad_cases") or 0
+    bc_baseline = (_suite_baseline_passed(baseline, "bad_cases") or 0) - (
+        _noncomparable_baseline_credit(
+            current_suites.get("bad_cases"), baseline, "bad_cases"
+        )
+    )
     bc_delta = bc_current - bc_baseline
 
     ao_current = _suite_passed_count(current_suites.get("anchor_outcome")) or 0
-    ao_baseline = _suite_baseline_passed(baseline, "anchor_outcome") or 0
+    ao_baseline = (_suite_baseline_passed(baseline, "anchor_outcome") or 0) - (
+        _noncomparable_baseline_credit(
+            current_suites.get("anchor_outcome"), baseline, "anchor_outcome"
+        )
+    )
     ao_delta = ao_current - ao_baseline
 
     # Tier-2 mandatory failure reduction across anchor_outcome + bad_cases.
@@ -757,10 +808,80 @@ def _safe_read_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def _effective_case_passed(case: dict[str, Any]) -> bool | None:
+    """The per-case pass signal the layers gate on.
+
+    S-Auto-16 majority awareness: when the case carries an aggregated
+    `majority_passed` (n>1), that majority verdict is authoritative — a
+    `comparable=False` (non-comparable) case returns None and is EXCLUDED
+    from gating (neither improvement nor regression). When no aggregation
+    fields are present (the committed `samples_per_case=1` single-pass
+    path), this returns the single-draw `case_passed` verbatim, so every
+    layer's behaviour is byte-identical to the pre-sprint evaluator.
+    """
+    if "majority_passed" in case:
+        if case.get("comparable") is True:
+            return case.get("majority_passed")
+        return None  # non_comparable → excluded from gating
+    return case.get("case_passed")
+
+
+def _is_non_comparable(case: dict[str, Any]) -> bool:
+    return "majority_passed" in case and case.get("comparable") is False
+
+
 def _suite_passed_count(suite: _CurrentSuite | None) -> int | None:
     if suite is None:
         return None
-    return sum(1 for c in suite.cases if c.get("case_passed") is True)
+    return sum(1 for c in suite.cases if _effective_case_passed(c) is True)
+
+
+def _baseline_case_pass_map(
+    baseline: BaselineSnapshot, suite_name: str
+) -> dict[str, bool]:
+    """Per-case `case_passed` map from the (single-draw) baseline snapshot.
+
+    Used only to give non-comparable candidate cases the benefit of the
+    doubt: a candidate case that is non-comparable this run is excluded
+    from BOTH the candidate count and the baseline count so it cannot
+    masquerade as a regression. At n=1 there are no non-comparable cases,
+    so this map is never consulted and the counts are unchanged.
+    """
+    out: dict[str, bool] = {}
+    snap = baseline.snapshots.get(suite_name)
+    rj = getattr(snap, "raw_results_json", None) if snap is not None else None
+    if not rj:
+        return out
+    rj = Path(rj)
+    if not rj.exists():
+        return out
+    try:
+        data = json.loads(rj.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return out
+    for c in data.get("case_results") or []:
+        out[c.get("case_id", "<unknown>")] = c.get("case_passed") is True
+    return out
+
+
+def _noncomparable_baseline_credit(
+    suite: _CurrentSuite | None,
+    baseline: BaselineSnapshot,
+    suite_name: str,
+) -> int:
+    """Count of non-comparable candidate cases that PASSED in the baseline.
+
+    Subtracted from the baseline pass count so a case that merely became
+    non-comparable this run is not counted as a regression. Returns 0 when
+    there are no non-comparable cases (i.e. always at the committed n=1).
+    """
+    if suite is None:
+        return 0
+    noncomp = [c.get("case_id", "<unknown>") for c in suite.cases if _is_non_comparable(c)]
+    if not noncomp:
+        return 0
+    bmap = _baseline_case_pass_map(baseline, suite_name)
+    return sum(1 for cid in noncomp if bmap.get(cid) is True)
 
 
 def _suite_baseline_passed(baseline: BaselineSnapshot, suite_name: str) -> int | None:
@@ -776,7 +897,10 @@ def _tier2_mandatory_metrics(
     total = 0
     by_uc: dict[str, int] = {}
     for c in cases:
-        tier2 = c.get("tier2_result") or {}
+        # S-Auto-16: prefer the majority-collapsed tier2 (a mandatory step
+        # counts only if it FAILs in the majority of valid attempts). Absent
+        # at n=1 → falls back to the single-draw tier2_result (byte-identical).
+        tier2 = c.get("tier2_result_majority") or c.get("tier2_result") or {}
         per_step = tier2.get("per_step") or []
         n_fails = sum(
             1 for s in per_step

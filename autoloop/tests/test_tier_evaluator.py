@@ -638,3 +638,194 @@ def _to_dict(v: LexicographicVerdict) -> dict:
             for lr in v.layer_results
         ],
     }
+
+
+# --- S-Auto-16: majority-awareness (n>1) -----------------------------
+
+
+def _agg_case(
+    case_id: str,
+    *,
+    majority_passed: bool | None,
+    comparable: bool = True,
+    primary_uc: str = "UC-A",
+    tier0_majority: dict | None = None,
+    tier2_majority_steps: list[str] | None = None,
+) -> dict:
+    """A case carrying S-Auto-16 aggregation fields (the n>1 shape)."""
+    base = _make_case(
+        case_id,
+        primary_uc,
+        case_passed=bool(majority_passed) if majority_passed is not None else False,
+    )
+    base["majority_passed"] = majority_passed
+    base["comparable"] = comparable
+    base["pass_rate"] = None
+    base["valid_attempts"] = 3 if comparable else 1
+    base["aggregate_status"] = (
+        "non_comparable" if not comparable
+        else ("stable_pass" if majority_passed else "stable_fail")
+    )
+    if tier0_majority is not None:
+        base["tier0_majority"] = tier0_majority
+    if tier2_majority_steps is not None:
+        base["tier2_result_majority"] = {
+            "per_step": [
+                {"step_id": s, "severity": "mandatory", "outcome": "FAIL"}
+                for s in tier2_majority_steps
+            ]
+        }
+    return base
+
+
+def test_majority_l1_flaky_minority_fail_does_not_gate(tmp_path: Path):
+    """A bad_case that passed in baseline and whose candidate MAJORITY
+    still passes (a minority flaky fail) does NOT regress Layer 1."""
+    baseline = _baseline_from_dir(tmp_path, current={
+        "bad_cases": [_make_case("bc01", case_passed=True)],
+        "anchor_outcome": [_make_case("ao01")],
+        "shadow": [_make_case("sh01")],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=True)],  # 2/3 pass
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.layer_results[1].passed is True
+
+
+def test_majority_l1_stable_majority_fail_gates(tmp_path: Path):
+    """A bad_case that passed in baseline and whose candidate MAJORITY
+    fails (stable reproduction) DOES regress Layer 1."""
+    baseline = _baseline_from_dir(tmp_path, current={
+        "bad_cases": [_make_case("bc01", case_passed=True)],
+        "anchor_outcome": [_make_case("ao01")],
+        "shadow": [_make_case("sh01")],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=False)],  # 2/3 fail
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.decision == "discard"
+    assert v.layer_results[1].passed is False
+    assert "tier1_bad_cases_regression" in v.discard_reason
+
+
+def test_majority_l1_non_comparable_does_not_gate(tmp_path: Path):
+    """A baseline-passing bad_case that becomes non-comparable this run is
+    excluded from BOTH counts, so it is not scored as a regression."""
+    baseline = _baseline_from_dir(tmp_path, current={
+        "bad_cases": [_make_case("bc01", case_passed=True),
+                      _make_case("bc02", case_passed=True)],
+        "anchor_outcome": [_make_case("ao01")],
+        "shadow": [_make_case("sh01")],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=True),
+                      _agg_case("bc02", majority_passed=None, comparable=False)],
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    # bc02 non-comparable → baseline credit 1 → effective baseline 1 == current 1.
+    assert v.layer_results[1].passed is True
+    assert v.tier_breakdown["tier1_outcome"]["bad_cases"]["non_comparable_excluded"] == 1
+
+
+def test_majority_l0_minority_violation_does_not_discard(tmp_path: Path):
+    """A Tier-0 violation in the MINORITY of candidate samples
+    (tier0_majority keeps it passed) does NOT trip Layer 0."""
+    baseline = _baseline_from_dir(tmp_path, current={
+        "bad_cases": [_make_case("bc01", case_passed=True)],
+        "anchor_outcome": [_make_case("ao01")],
+        "shadow": [_make_case("sh01")],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=True,
+                                tier0_majority={"no_pii_leakage": True})],
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.layer_results[0].passed is True
+    assert v.tier_breakdown["tier0_safety"]["python_tier0_family"]["stable_reproduction"] is True
+
+
+def test_majority_l0_majority_violation_discards(tmp_path: Path):
+    """A Tier-0 violation reproduced in the MAJORITY of candidate samples
+    (and absent from baseline) trips Layer 0."""
+    baseline = _baseline_from_dir(tmp_path, current={
+        "bad_cases": [_make_case("bc01", case_passed=True)],
+        "anchor_outcome": [_make_case("ao01")],
+        "shadow": [_make_case("sh01")],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=False,
+                                tier0_majority={"no_pii_leakage": False})],
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.decision == "discard"
+    assert v.layer_results[0].passed is False
+    assert "no_pii_leakage" in v.discard_reason
+    assert "bc01" in v.discard_reason
+
+
+def test_majority_l3_improvement_uses_majority(tmp_path: Path):
+    """Layer 3 improvement counts the candidate MAJORITY pass."""
+    baseline = _baseline_from_dir(tmp_path, current={
+        "bad_cases": [_make_case("bc01", case_passed=False)],
+        "anchor_outcome": [_make_case("ao01")],
+        "shadow": [_make_case("sh01")],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=True)],  # majority improvement
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.layer_results[3].passed is True
+    assert v.decision == "keep"
+
+
+def test_n1_unanimous_majority_reproduces_single_draw_verdict(tmp_path: Path):
+    """n=1 invariance proxy: an aggregated case set whose every majority
+    equals the single draw (unanimous, comparable) produces an IDENTICAL
+    verdict to the plain single-draw shape. Proves the majority path does
+    not diverge from the pre-sprint evaluator when attempts agree."""
+    # Plain (n=1) candidate.
+    baseline = _baseline_from_dir(tmp_path / "a", current={
+        "bad_cases": [_make_case("bc01", case_passed=False)],
+        "anchor_outcome": [_make_case("ao01", case_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    plain = _current_dir(tmp_path / "a", suites={
+        "bad_cases": [_make_case("bc01", case_passed=True)],
+        "anchor_outcome": [_make_case("ao01", case_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    v_plain = evaluate(plain, baseline, config=DEFAULT_CONFIG)
+
+    # Aggregated (n>1) candidate with the SAME logical outcomes.
+    baseline2 = _baseline_from_dir(tmp_path / "b", current={
+        "bad_cases": [_make_case("bc01", case_passed=False)],
+        "anchor_outcome": [_make_case("ao01", case_passed=True)],
+        "shadow": [_make_case("sh01")],
+    })
+    agg = _current_dir(tmp_path / "b", suites={
+        "bad_cases": [_agg_case("bc01", majority_passed=True,
+                                tier0_majority={"no_pii_leakage": True})],
+        "anchor_outcome": [_agg_case("ao01", majority_passed=True,
+                                     tier0_majority={"no_pii_leakage": True})],
+        "shadow": [_make_case("sh01")],
+    })
+    v_agg = evaluate(agg, baseline2, config=DEFAULT_CONFIG)
+
+    assert v_agg.decision == v_plain.decision
+    assert v_agg.discard_reason == v_plain.discard_reason
+    assert [lr.passed for lr in v_agg.layer_results] == \
+           [lr.passed for lr in v_plain.layer_results]
