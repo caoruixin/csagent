@@ -721,27 +721,49 @@ class HardChecker:
             f"request_handover tool call recorded",
         )
 
-    # S-Auto-19 (#1): simulator stop_reasons that represent a VALID measured
-    # terminal — a blank containment_outcome under one of these is not a
-    # partial-instrumentation failure (the simulator ended the session before
-    # the runtime reached a CLOSE turn that would stamp the outcome). The case
-    # may still fail other checks for the right reason; trace_minimum's Mode-1
-    # blank-outcome arm simply does not fire.
-    # Per the S-Auto-19 #1 contract these are the named simulator terminals
-    # where a blank outcome is valid: ``goal_achieved`` (one-shot resolve the
-    # simulator ended before CLOSE) plus the measured non-resolved terminals
-    # ``goal_impossible`` / ``loop_detected`` / ``max_turns_exceeded`` (the
-    # case may still fail OTHER checks for the right reason — Mode-1 just
-    # does not fire). Any stop_reason NOT in this set (including ``bot_ended``,
-    # ``error``, ``contract_violation``, ``session_create_failed``,
-    # ``timeout``, or an unknown value) falls through to the strict blank-fail
-    # arm — anti-误杀 conservative: we only suppress Mode-1 for terminals we
-    # can affirmatively justify, never broaden the accepted set.
+    # S-Auto-19 (#1) / S-Auto-20 (#2): simulator stop_reasons that represent a
+    # VALID measured terminal — a blank containment_outcome under one of these
+    # is not a partial-instrumentation failure (the simulator ended the session
+    # before the runtime reached a CLOSE turn that would stamp the outcome).
+    # The case may still fail other checks for the right reason; trace_minimum's
+    # Mode-1 blank-outcome arm simply does not fire.
+    #
+    # S-Auto-20 (#2) REMOVED ``loop_detected`` from this set. A ``loop_detected``
+    # terminal means the bot emitted two IDENTICAL consecutive replies
+    # (``simulator/session_runner.py``: ``bot_replies[-1] == bot_replies[-2]``)
+    # — a genuine bot FAILURE, not a fully-measured session the simulator merely
+    # ended early. With ``loop_detected`` in the valid set a looping session
+    # with blank containment slipped through ``trace_minimum`` and (with no
+    # other gate) VACUOUS-PASSED (case_passed=true, composite=0, l2=[], judge=0;
+    # observed on the m-auto-5 re-bless across multiple draws). Removing it
+    # routes a looped blank-containment session to the strict blank-fail arm so
+    # it FAILS ``trace_minimum``. ANTI-误杀: a genuinely-resolved one-shot answer
+    # never loops, so this never fails a real resolve.
+    #
+    # ``goal_achieved`` stays valid — and is now ALSO backed by the S-Auto-20
+    # Fix-#1 runtime stamp (the broadened ``isResolvedSuccessTerminal`` now
+    # stamps containment_outcome="resolved" on that path, so the case earns a
+    # real L2 outcome judgment rather than relying only on this blank tolerance).
+    #
+    # ``goal_impossible`` is INTENTIONALLY KEPT in the valid set: it is the
+    # simulator persona declaring the issue unresolvable (giving up), which is
+    # ambiguous ground truth — it can reflect a hard-to-satisfy persona rather
+    # than a bot fault, and several ``either``-outcome anchor cases reach it
+    # legitimately. Removing it would majority-fail at least one case
+    # (``cs015``) on weak evidence (an anti-误杀 risk). It is surfaced as an open
+    # question for a future eval_spec sub-sprint rather than acted on here.
+    # ``max_turns_exceeded`` is kept (the corpus exercises ZERO such draws, so
+    # there is no evidence to act on; not speculatively narrowed).
+    #
+    # Any stop_reason NOT in this set (including ``bot_ended``, ``loop_detected``,
+    # ``error``, ``contract_violation``, ``session_create_failed``, ``timeout``,
+    # or an unknown value) falls through to the strict blank-fail arm — anti-误杀
+    # conservative: we only suppress Mode-1 for terminals we can affirmatively
+    # justify.
     _VALID_TERMINAL_STOP_REASONS = frozenset(
         {
             "goal_achieved",
             "goal_impossible",
-            "loop_detected",
             "max_turns_exceeded",
         }
     )

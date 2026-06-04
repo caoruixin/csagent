@@ -597,14 +597,40 @@ class TestTraceMinimumTerminalDisposition:
         tm = next(r for r in results if r.check_name == "trace_minimum")
         assert tm.passed is True
 
-    def test_pass_blank_containment_max_turns_and_loop(self):
+    def test_pass_blank_containment_max_turns(self):
+        # ``max_turns_exceeded`` remains a valid measured terminal (the
+        # corpus exercises zero such draws; not speculatively narrowed).
         checker = HardChecker()
         case = _make_case_spec(hard_checks=[])
-        for sr in ("max_turns_exceeded", "loop_detected"):
-            trace = _make_trace(turns=[_make_turn()], containment_outcome="")
-            results = checker.run_checks(case, trace, stop_reason=sr)
-            tm = next(r for r in results if r.check_name == "trace_minimum")
-            assert tm.passed is True, f"{sr} should not Mode-1-fail"
+        trace = _make_trace(turns=[_make_turn()], containment_outcome="")
+        results = checker.run_checks(
+            case, trace, stop_reason="max_turns_exceeded"
+        )
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is True, "max_turns_exceeded should not Mode-1-fail"
+
+    # ---- S-Auto-20 (#2): loop_detected is a GENUINE FAILURE, not a valid terminal
+
+    def test_fail_blank_containment_loop_detected(self):
+        """S-Auto-20 (#2): a ``loop_detected`` terminal (the bot repeated an
+        identical reply) with blank containment is a genuine bot failure and
+        must now FAIL trace_minimum -- it can no longer vacuous-pass."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        trace = _make_trace(turns=[_make_turn()], containment_outcome="")
+        results = checker.run_checks(case, trace, stop_reason="loop_detected")
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is False, "loop_detected blank-containment must FAIL"
+        assert "blank" in tm.detail.lower()
+        assert "loop_detected" in tm.detail.lower()
+
+    def test_loop_detected_not_in_valid_terminal_set(self):
+        """S-Auto-20 (#2): loop_detected removed from the valid-terminal set;
+        the named non-resolved terminals that remain are explicit."""
+        assert "loop_detected" not in HardChecker._VALID_TERMINAL_STOP_REASONS
+        assert "goal_achieved" in HardChecker._VALID_TERMINAL_STOP_REASONS
+        assert "goal_impossible" in HardChecker._VALID_TERMINAL_STOP_REASONS
+        assert "max_turns_exceeded" in HardChecker._VALID_TERMINAL_STOP_REASONS
 
     # ---- anti-误杀 counter-tests: a genuine same-shape failure still FAILs
 
