@@ -1,261 +1,204 @@
 ---
-title: Sprint 074 / S-Auto-19 — verdict corrections (eval + runtime) + re-bless (M-Auto-5, single sub-sprint)
+title: Sprint 075 / S-Auto-20 — corrective: real goal_achieved containment stamp + loop_detected no-vacuous-pass (M-Auto-5 sub-sprint 2)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
 last_reviewed: 2026-06-04
 review_cadence: per sub-sprint
-supersedes: [docs/sprints/sprint-073-objective.md]
+supersedes: [docs/sprints/sprint-074-objective.md]
 superseded_by: null
 notes: >
-  The single sub-sprint of M-Auto-5 (docs/milestone_objective.md). Corrects all five
-  measurement artifacts diagnosed on m-auto-4-baseline-20260604 on BOTH the eval side
-  (eval_interactive) and the runtime side (server trace contract), then re-blesses.
-  Central discipline = anti-误杀: every structural fix corrects HOW a check reads
-  the trace, never WHAT counts as success, and ships with a counter-test proving a
-  genuine same-shape failure still fails. #5 (no_pii_leakage) is an explicitly-
-  authorized LIGHT relaxation per human (2026-06-04), not a focus. Dev session
-  source-of-truth: compact/sprint-074-dev-prompt.md (self-contained per
-  prompt-artifact-rules §9).
+  Corrective sub-sprint of M-Auto-5. S-Auto-19's eval-side read-corrections are kept
+  (sound). The m-auto-5-baseline-20260604 re-bless exposed two blockers this
+  sub-sprint closes: (1) the runtime resolved-stamp was INERT on the real
+  goal_achieved one-shot path (READY_TO_CONFIRM gate too narrow), leaving containment
+  blank → 4 cases pass GATE-VACUOUSLY (composite=0, l2_count=0, judge=0, no outcome
+  judged); (2) loop_detected in eval#1's valid-terminal set lets a LOOPING bot
+  vacuous-pass. Diagnosis is the FIRST STEP (read-only, on the existing m-auto-5
+  scratch — no re-run). Then the two fixes. Pointer NOT moved; overnight NOT launched;
+  S-Auto-18 NOT started. Dev session source-of-truth: compact/sprint-075-dev-prompt.md.
 ---
 
-# Sprint 074 / S-Auto-19 — verdict corrections (eval + runtime) + re-bless
+# Sprint 075 / S-Auto-20 — corrective: real containment stamp + no loop_detected vacuous-pass
 
 ## Class
 
-- **Layer (primary)**: `infra` — eval-harness measurement correctness
-  (`eval_interactive/eval_interactive/scoring/`) + runtime trace-contract completion
-  (`server/.../runtime/`; §1.4 persistence + trace contract). No prompt / routing /
-  UC-hypothesis / escalation-posture / CaseSpec rubric edit.
-- **§7 stanza**: technically **§7-EXEMPT** (measurement-infra / characterization).
-  **Included below** for rigor — edits gate-contributing checks + the runtime trace
-  contract + re-blesses.
-- **Codex review plan (§4.3)**: **PER-SUB-SPRINT RECOMMENDED** (gate-contributing
-  eval checks + server runtime + re-bless). NOT a fence-#13 SHA trigger (the autoloop
-  5-file `scoring_code_baseline_sha` set is untouched). Folds into the M-Auto-5
-  milestone-shared close. Codex focus: anti-误杀 (each structural fix paired with a
-  counter-test) + the runtime stamping not firing on unresolved terminals + the PII
-  relaxation scoped to first-party addresses.
-- **Position in milestone**: the single sub-sprint of M-Auto-5; then M-Auto-4's
-  S-Auto-18 (escalation tiers) resumes on the honest baseline.
+- **Layer (primary)**: `infra` — runtime trace-contract completion
+  (`server/.../runtime/ControlKernel.java`) + eval-harness measurement correctness
+  (`eval_interactive/.../scoring/hard_checks.py`). §1.4 (persistence / trace contract)
+  + measurement; NOT §1.3 semantics. No prompt / routing / UC-hypothesis /
+  escalation-posture / CaseSpec rubric edit.
+- **§7 stanza**: §7-EXEMPT (characterization / measurement-infra); included below for
+  rigor (touches gate-contributing checks + the runtime trace contract + re-bless).
+- **Codex review plan (§4.3)**: PER-SUB-SPRINT RECOMMENDED; folds into the M-Auto-5
+  milestone-shared close. NOT a fence-#13 SHA trigger (autoloop 5-file scoring set
+  untouched). Codex focus: the runtime stamp's anti-误杀 gating + real-trace validation
+  (§5.7); loop_detected no longer vacuous-passes; no rubric widening.
+- **Position**: M-Auto-5 sub-sprint 2 of 2 (S-Auto-19 accepted → **S-Auto-20**), then
+  M-Auto-4's S-Auto-18 resumes on the corrected, re-blessed baseline.
 
 ## Goal
 
-Correct all five measurement artifacts so each per-case verdict reflects the bot's
-actual behaviour, on both the eval side and the runtime trace-contract source, then
-re-bless. Preserve every structural check's ability to catch genuine failures
-(anti-误杀). Output: corrected eval checks + runtime trace contract + paired tests +
-a re-blessed `m-auto-5-baseline-YYYYMMDD` whose verdict-distribution shift vs
-`m-auto-4-baseline-20260604` is explained per artifact.
+Close the two blockers S-Auto-19's re-bless exposed so the goal_achieved / one-shot
+grounded-answer cases get a **real outcome judgment** (not a gate-vacuous pass) and a
+**looping** session can no longer vacuous-pass. Diagnosis first; then fix runtime
+stamping + the loop_detected leniency; validate.
 
 **This sub-sprint does NOT change the bot's customer-service ability** (no semantic /
-routing / prompt / CaseSpec edit). The runtime edits are trace-contract completions.
+routing / prompt / CaseSpec edit). The runtime edit is a trace-contract completion.
 
-## Execution order
+## Step 0 — diagnosis FIRST (read-only; existing m-auto-5 scratch; NO re-run)
 
-eval fixes → runtime fixes → backend rebuild + restart → re-score captured traces
-(eval-only verdict-delta, deterministic) → real-LLM re-bless on a clean tree →
-surface the held S-Auto-17 overnight as launchable (do NOT launch it here).
+Using `eval_interactive/results/m-auto-5-baseline-20260604/_rebless_scratch/_attempts/a0..a6/<suite>/results.json`
+(7 draws/case, already on disk — deterministic, no LLM), produce a table covering
+EVERY gate-vacuous case (a full scan across all 46 cases × 7 draws — do NOT assume the
+4 known are exhaustive; known: `cs095_uc_d_email_recovery_misroute`,
+`cs012_uc_fp_late_phone_failure_path`, `anchor_outcome_uc_a_visibility`,
+`anchor_outcome_uc_b_posting`). A draw is **gate-vacuous** when
+`case_passed==true AND composite_score==0 AND l2_results==[] AND judge_score==0`. For
+each affected case report:
+- the 7-draw distribution of `stop_reason` (goal_achieved / loop_detected /
+  goal_impossible / max_turns_exceeded / bot_ended / error / …);
+- per draw: gate-vacuous vs **real** (has L2 / outcome / escalation evidence,
+  composite>0);
+- the case's `majority_passed` and how many of its passing draws are vacuous.
 
-## Scope — eval side (`eval_interactive/.../scoring/`)
+This sizes the blast radius + pins the exact vacuous set the fixes must convert from
+"vacuous pass" to "real pass/fail". Put the table in the handoff. (No behaviour change
+in this step.)
 
-### #3 — `accumulated_tool_results` always unions across turns
-- **Bug**: `TraceView.accumulated_tool_results` (skill_procedure_check.py:487-506)
-  returns the final-turn ATR when non-empty, unioning only when the final turn omits
-  the key. A partial final-turn ATR (e.g. `{resolve_article}` after `search_knowledge`
-  was evicted) bypasses the union → mandatory `search-knowledge-before-faq-answer`
-  false-fails (17/17 gated; search was called in every one).
-- **Target**: union ATR across ALL turns unconditionally (presence-preserving).
-- **Anti-误杀 counter-test**: a session that NEVER calls `search_knowledge` still FAILs.
-- **Characterization test**: early-turn search + different-tool final turn → PASSes.
+## Fix #1 — runtime resolved-stamp fires on the real goal_achieved / one-shot grounded-answer path (THE blocker)
 
-### #4 — `intake_fields_collected` accepts the dict the backend emits
-- **Bug**: `TraceView.intake_fields_collected` (skill_procedure_check.py:520-537)
-  returns a tuple only for a list/tuple; the backend emits a dict/object
-  (ContextProjectionBuilder.java:387-393) → `()` → `contains()` always false →
-  `*-intake-complete-before-handover` can NEVER pass (0 PASS / 76 instances; proof:
-  cs066 `intake_complete=true` still FAILs).
-- **Target**: when `fields_collected` is a Mapping, use its keys.
-- **Anti-误杀 counter-test**: `anchor_outcome_uc_g_gdpr` (only `registered_email`,
-  missing `data_request_type`) still FAILs.
-- **Characterization test**: cs066 (both fields, `intake_complete=true`) → PASSes.
+- **Problem**: `ControlKernel.isResolvedSuccessTerminal` requires
+  `terminalOutcome==FINAL_ANSWER && resolveDisposition==READY_TO_CONFIRM`. On the
+  simulator-preempted `goal_achieved` path the bot delivers a grounded answer and the
+  sim ends (user satisfied) BEFORE the bot reaches a CONFIRM turn, so READY_TO_CONFIRM
+  never holds → the stamp NEVER fires → containment stays blank (0 `resolved` stamps
+  across the entire m-auto-5 re-bless). S-Auto-19's unit test passed only because it
+  *set* READY_TO_CONFIRM — the §5.7 mock-vs-real gap.
+- **Target**: stamp `containment_outcome="resolved"` when the loop terminates having
+  delivered a **substantive grounded customer-facing answer that resolved the issue**,
+  on the real one-shot path — WITHOUT requiring READY_TO_CONFIRM. Find the right
+  positive signal (e.g. FINAL_ANSWER + a delivered grounded answer with no escalation
+  and no pending intake/clarification) — the dev determines the precise condition from
+  the runtime state, justified in the handoff.
+- **Anti-误杀 (hard)**: NEVER stamp `resolved` on a genuinely unresolved terminal —
+  escalation (already `escalated`), `error`/`ERROR`, `DEADLINE_EXCEEDED`,
+  `LLM_UNAVAILABLE`, MAX_STEPS, a loop, or a mid-resolution turn (asked-for-slot /
+  continue-resolve). Never overwrite a non-null containment. Counter-test each.
+- **§5.7 validation (REQUIRED — the lesson from S-Auto-19)**: validate the stamp
+  actually FIRES against a **real** goal_achieved trace — run a single real-LLM
+  goal_achieved case (e.g. cs095) against the rebuilt backend and confirm the persisted
+  `containment_outcome=="resolved"`. A unit test that sets the disposition is NOT
+  sufficient evidence.
+- **Effect**: once stamped, L2 `correct_outcome` (reads `containment_outcome`,
+  outcome_checks.py:226 — unchanged) judges the case: for `expected_outcome="either"`
+  resolve is acceptable → real pass; for escalate-expected cases resolve correctly
+  FAILS. The gate-vacuous pass becomes a real pass/fail.
 
-### #5 — `no_pii_leakage` light relaxation (NOT a focus)
-- **Bug**: the email regex (hard_checks.py:489-501) flags the first-party system
-  address `noreply@gumtree.com` (13/13 fails).
-- **Target**: stop flagging benign first-party / system addresses. Per human
-  direction PII detection is to be relaxed anyway — keep this simple (a small
-  first-party exclusion); do NOT build heavy Tier-0 ceremony around it.
-- **Sanity test (single)**: a real user/third-party email (e.g. `someone@gmail.com`)
-  still flags. No further counter-test burden.
+## Fix #2 — `loop_detected` must not vacuous-pass
 
-### #1 (eval side) — `trace_minimum` terminal-disposition-aware
-- **Bug**: `_check_trace_minimum` Mode-1 (hard_checks.py:680-686) hard-fails on blank
-  `containment_outcome` regardless of WHY. A one-shot `goal_achieved` resolve
-  (simulator-ended, session_runner.py:223) never reaches CLOSE → blank → score zeroed
-  before L2/judge. 55 goal_achieved + 10 goal_impossible draws.
-- **Target**: when blank, consult the simulator `stop_reason`: `goal_achieved` →
-  valid resolved terminal (no Mode-1 fail); `goal_impossible`/`loop_detected`/
-  `max_turns_exceeded` → valid measured terminal (Mode-1 does not fire; the case may
-  still fail other checks for the right reason); `error`/`contract_violation`/
-  `session_create_failed` → genuine partial instrumentation → still FAIL. Mode-2
-  (non-empty user turn, blank bot reply, no handover) UNCHANGED.
-- **Data dependency**: thread the simulator `stop_reason` (or equivalent terminal
-  classification) into `_check_trace_minimum` (eval-harness plumbing).
-- **Anti-误杀 counter-test**: blank + `stop_reason=error`/`contract_violation` still
-  FAILs; Mode-2 still FAILs.
-- **Characterization test**: cs095-style `goal_achieved` + blank containment +
-  delivered grounded answer → `trace_minimum` PASSes (and L2/judge then run).
+- **Problem**: eval#1 put `loop_detected` in
+  `hard_checks.HardChecker._VALID_TERMINAL_STOP_REASONS`, so a looped session with
+  blank containment does NOT fail trace_minimum and (with no other gate) vacuous-passes
+  — a looping bot blessed as pass (cs012).
+- **Target**: remove `loop_detected` from the valid-terminal set (a loop is a genuine
+  failure, not a valid measured terminal) so a looped session with blank containment
+  FAILS trace_minimum. Re-examine `max_turns_exceeded` and `goal_impossible` with the
+  Step-0 evidence: a budget-exhausted / gave-up no-resolution should not vacuous-pass
+  either — the dev decides each with the data and justifies it. `goal_achieved` stays
+  valid (now backed by the Fix-#1 runtime stamp).
+- **Anti-误杀**: a genuinely-resolved case must still PASS (don't over-correct into
+  failing real resolves). Counter-test.
 
-### #2 (eval side) — `source_citation_present` session-accumulated grounding
-- **Bug**: `_check_source_citation_present` (hard_checks.py:819-842) requires
-  per-turn `source_ids` on each substantive answer turn; per-turn `source_ids` come
-  only from the retrieval turn (ControlKernel.java:1661-1681), but the prompt tells
-  the bot to answer from accumulated hits on a LATER turn → answer turn empty (16/35
-  fails are artifacts; all 3 visible-suite fails).
-- **Target**: a substantive answer turn is grounded if its own `source_ids` is
-  non-empty OR any earlier turn in the session had `source_ids` (session-accumulated
-  union of per-turn source_ids — works with existing trace data; the runtime-side
-  cleaner attach is below).
-- **Anti-误杀 counter-test**: a session that retrieves on NO turn but emits a
-  substantive factual answer still FAILs (genuine ungrounded — shadow never-searched).
-- **Characterization test**: alice-style (search+resolve early, grounded answer
-  later) → PASSes.
+## Validation / acceptance
 
-## Scope — runtime side (`server/.../runtime/`; §1.4 trace contract, not semantic)
-
-### #1 runtime — stamp containment on the success terminal
-- **Target**: when the agent loop terminates having delivered a substantive answer
-  with no escalation/error, stamp `containment_outcome="resolved"` (a complete
-  terminal disposition) even without a dedicated record_outcome-only CLOSE turn.
-  Today only CLOSE / ESCALATE stamp it (ControlKernel.java:555-558,
-  PhaseEvaluator.java:1403/1416).
-- **Hard constraint**: NEVER stamp "resolved" on a genuinely unresolved terminal
-  (`goal_impossible` from the bot's view / `error` / `loop_detected` / escalation).
-  This is the runtime anti-误杀: a complete disposition, not a blanket "resolved".
-- **Tests**: Java unit/integration — a one-shot grounded-answer terminal now records
-  `containment_outcome=resolved`; an escalation still records `escalated`; an error
-  terminal records neither (left blank → eval Mode-1 still catches it).
-
-### #2 runtime — attach resolved source ids to the answer turn
-- **Target**: persist the session's resolved source ids on the answer-turn
-  `BotTurn.sourceIds` (ControlKernel.java:1661-1681 builds it only from the current
-  turn's `knowledgeHits()`), so the answer turn carries its grounding for the trace
-  UI + downstream consumers as well as the eval.
-- **Tests**: Java — an answer turn composed from a prior retrieval turn now carries
-  the resolved source ids; a turn with no session grounding carries none.
-
-## Re-bless (after eval + runtime land + backend restart)
-
-- On a **clean committed tree**, real-LLM, backend up (creds in
-  `autoloop/.env.local`), run each suite via the existing re-bless tool → new
-  `baseline_dir` `m-auto-5-baseline-YYYYMMDD`. **Retain** `m-auto-4-baseline-20260604`
-  (pointer-only move, reversible). Expect `suspect_baseline_manipulation` (explain).
-- Keep the Mac awake for the full real-LLM run (a sleep-spanned run is uncertifiable
-  — kill + re-run fresh).
-- Do NOT launch the held S-Auto-17 validation overnight here — only surface it as now
-  launchable on the honest baseline.
+- **Deterministic re-score** of the existing m-auto-5 scratch with the Fix-#2 eval
+  change: confirm `cs012` (loop_detected) now FAILS (no vacuous pass); confirm the
+  S-Auto-19 legitimate flips (`alice`, `cs066`, `uc_f_billing`, `uc_fp_removed`) still
+  PASS; eval_interactive pytest no regression vs `522`.
+- **Fix-#1 real-trace check** (single goal_achieved case, NOT the full re-bless):
+  containment now stamped `resolved` on the rebuilt backend.
+- **Java**: no regression vs `1229/1/0/2`; new/updated runtime unit tests green.
+- **Re-bless is the human-launched final step** (same pattern as S-Auto-19): the dev
+  STOPS before the multi-hour real-LLM re-bless, leaving it re-bless-ready with the
+  exact command. The full re-bless (validating the stamp at corpus scale + producing
+  the corrected honest baseline) + the pointer decision happen AFTER, human-gated.
 
 ## Hard fences / STOP conditions
 
 - **No prompt / routing / UC-hypothesis / escalation-posture / skill soft field /
-  CaseSpec rubric edit.** Runtime edits are trace-contract only.
-- **No rubric widening to accept a bot mistake (§1.7 / §5.4).** Structural fixes
-  correct how the trace is read, never what counts as success.
-- **Every structural fix (#1/#2/#3/#4) ships its anti-误杀 counter-test.** Incomplete
-  without it.
-- **#1 runtime stamping** must not fire on unresolved terminals.
-- **#5 PII**: light first-party relaxation only; one sanity test that real
-  user/third-party PII still flags. Not a focus.
-- **Re-bless reversible**: fresh dated dir; never overwrite the retained baseline.
-- **Run re-bless / eval only on a clean committed tree** (dirty-index hazard); keep
-  the Mac awake.
-- **Do NOT launch the overnight.**
+  CaseSpec rubric edit.** Runtime edit is trace-contract only.
+- **No rubric widening to accept a bot mistake (§1.7 / §5.4).**
+- **Fix #1 anti-误杀**: never stamp resolved on an unresolved terminal; real-trace
+  validation REQUIRED (no mock-only evidence).
+- **Fix #2 anti-误杀**: a genuinely-resolved case still passes.
+- **Do NOT move `baseline_dir`** (stays m-auto-4-baseline-20260604).
+- **Do NOT launch the held S-Auto-17 overnight. Do NOT start S-Auto-18.**
+- **Do NOT run the full real-LLM re-bless** in this dispatch (human-launched after).
+- Diagnosis (Step 0) is read-only.
 
 ## §7 Layer-classification + anti-hardcode stanza
 
-**Target failure layer:** `infra` — eval-harness measurement correctness
-(`eval_interactive/.../scoring/`) + runtime trace-contract completion
-(`server/.../runtime/`). No `eval_spec` / `semantic_planner` / `prompt_projection` /
-routing change.
+**Target failure layer:** `infra` — runtime trace-contract completion
+(`ControlKernel.java`) + eval-harness measurement correctness (`hard_checks.py`). No
+`eval_spec` rubric / `semantic_planner` / `prompt_projection` / routing change.
 
-**Tier-0 invariant:** adds none; preserves Tier-0 families at current strictness
-EXCEPT the explicitly-authorized `no_pii_leakage` first-party relaxation (real
-user/third-party PII still flags — sanity-tested).
+**Tier-0 invariant:** adds none; preserves Tier-0 families at current strictness. The
+runtime stamp records a disposition the bot already reached; it changes no decision.
 
-**Semantic hardcode:** none. Structural reads (cross-turn union; dict-key read;
-stop_reason-aware terminal disposition; session-accumulated source-id read) +
-runtime containment/source_ids emission. First-party address exclusion is
-declarative (company's own published system addresses), not a content rule.
+**Semantic hardcode:** none. Fix #1 keys on runtime terminal state (outcome /
+disposition / escalation), not content. Fix #2 removes a stop_reason from a set; no
+keyword/regex/enum routing.
 
-**Generalization coverage:** measurement-infra — evidence is the paired
-characterization + anti-误杀 counter-tests per structural artifact + the re-bless
-verdict-distribution shift over all suites, not target/neighbor/negative/shadow
-case-family counts. L4 shadow firewall unchanged.
-
-## Test / eval requirements
-
-- **eval_interactive pytest**: new characterization + anti-误杀 counter-tests green;
-  no regression vs `503/0` under `uv run`.
-- **Java**: runtime trace-contract change must not regress vs `1213/1/0/2`; new unit/
-  integration tests for #1/#2 runtime green.
-- **autoloop pytest**: untouched → no regression vs `324`.
-- **Eval-only verdict-delta**: re-score the captured `m-auto-4-baseline-20260604`
-  draws with the corrected eval checks (deterministic, no LLM) to isolate the
-  eval-side contribution before the runtime change.
-- **Real-LLM re-bless (§5.7)**: required — the authoritative `m-auto-5-baseline`
-  artifact + the runtime-emission confirmation (containment/source_ids now present
-  in real traces). Captured-trace fixtures are valid evidence for eval-side
-  read-correctness.
+**Generalization coverage:** measurement-infra — evidence is the Step-0 vacuous
+distribution + anti-误杀 counter-tests + the deterministic re-score (loop_detected
+fails, legitimate flips preserved) + the real-trace stamp validation, not
+target/neighbor/negative/shadow case-family counts. L4 shadow firewall unchanged.
 
 ## Codex review plan (§4.3)
 
-PER-SUB-SPRINT RECOMMENDED; folds into M-Auto-5 milestone-shared close. NOT a
-fence-#13 SHA trigger. Codex checklist: (1) each structural fix paired with an
-anti-误杀 counter-test that genuinely fails; (2) #1 runtime never stamps resolved on
-an unresolved terminal; (3) #5 PII relaxation scoped to first-party addresses, real
-PII still flags; (4) no rubric widening — reads corrected, success-definition
-unchanged; (5) no semantic/routing edit; (6) re-bless reversible + recorded.
+PER-SUB-SPRINT RECOMMENDED; folds into M-Auto-5 milestone-shared close. NOT a fence-#13
+SHA trigger. Codex focus: (1) Fix #1 never stamps resolved on an unresolved terminal +
+is validated against a REAL goal_achieved trace (not mock-only); (2) Fix #2 — a looped
+session no longer vacuous-passes, a genuine resolve still passes; (3) no rubric
+widening / no semantic edit; (4) the Step-0 vacuous diagnosis is read-only.
 
-## Handoff requirements (dev authors `docs/sprints/sprint-074-handoff.md`)
+## Handoff requirements (dev authors `docs/sprints/sprint-075-handoff.md`)
 
-MUST include: per-artifact before/after (bug, corrected read/emission, file:line);
-paired characterization + anti-误杀 counter-test for #1/#2/#3/#4 + the #5 sanity
-test; the eval-only verdict-delta + the post-re-bless verdict-distribution shift vs
-m-auto-4-baseline-20260604 (per suite + per artifact: false-fails cleared vs genuine
-failures now surfaced); the re-bless record (new dir, old retained,
-human-authorization, suspect_baseline_manipulation note); confirmation the held
-overnight is now launchable (NOT launched); the list of genuine failures the
-corrected measurement surfaces (input to the later semantic milestone — UC routing,
-escalation posture); §7 self-classification; Codex deferral note.
+MUST include: the **Step-0 vacuous 7-draw distribution table** (per case: stop_reason
+distribution; per-draw vacuous-vs-real; majority + vacuous-pass count; the full
+gate-vacuous set); Fix #1 before/after (the runtime condition chosen + justification +
+file:line) + the **real-trace validation** (a real goal_achieved session now stamps
+resolved); Fix #2 before/after + the deterministic re-score (cs012 now FAILS;
+legitimate flips preserved); anti-误杀 counter-tests for both; Java + eval_interactive
+no-regression; the re-bless-ready command + preconditions (backend rebuilt, clean tree,
+Mac awake); confirmation pointer NOT moved / overnight NOT launched / S-Auto-18 NOT
+started; §7 self-classification; Codex deferral note.
 
 ## Commit discipline
 
-Stage only authorized eval_interactive + server scope (NOT `git add -A`). One commit
-per fix where practical (eval fixes / runtime fixes / re-bless artifact + pointer).
-Run re-bless / eval only on a clean committed tree; keep the Mac awake for the
-real-LLM run. Do NOT launch the overnight.
+Stage only authorized `server` + `eval_interactive` scope (NOT `git add -A`). One commit
+per fix where practical. Run any eval/re-score only on a clean committed tree. Do NOT
+run the full re-bless / launch the overnight. Deliver-owned docs bundled by the human.
 
 ## Self-check checklist (dev completes before claiming done)
 
-- [ ] #3 ATR unions across all turns; never-searched still FAILs; early-search +
-      other-final-turn PASSes.
-- [ ] #4 `intake_fields_collected` reads dict keys; cs066 PASSes; uc_g_gdpr still FAILs.
-- [ ] #5 first-party exclusion (`noreply@gumtree.com` + confirmed set); real
-      user/third-party email sanity-test still FAILs. (light — not a focus)
-- [ ] #1 eval `trace_minimum` terminal-disposition-aware; goal_achieved/goal_impossible
-      blank not Mode-1-fail; error/contract_violation blank + Mode-2 still FAIL;
-      stop_reason threaded.
-- [ ] #2 eval `source_citation_present` session-accumulated; alice-style PASSes;
-      never-searched still FAILs.
-- [ ] #1 runtime stamps `containment_outcome=resolved` on the success terminal; never
-      on unresolved terminals; Java tests green.
-- [ ] #2 runtime attaches resolved source ids to the answer turn; Java tests green.
-- [ ] Backend rebuilt + restarted; eval-only verdict-delta produced.
-- [ ] Real-LLM re-bless on a clean tree → `m-auto-5-baseline-YYYYMMDD`; old retained;
-      Mac kept awake; suspect_baseline_manipulation explained.
-- [ ] Java / autoloop / eval_interactive baselines no regression.
-- [ ] No semantic / routing / CaseSpec-rubric edit; overnight NOT launched.
-- [ ] Handoff written (per-artifact before/after + paired tests + verdict-delta +
-      re-bless record + surfaced-genuine-failures list).
+- [ ] Step-0 vacuous distribution table produced (full 46×7 scan; stop_reason
+      distribution + vacuous-vs-real per draw + the complete gate-vacuous set).
+- [ ] Fix #1: runtime stamps `containment_outcome=resolved` on the real goal_achieved
+      one-shot grounded-answer path; never on escalation/error/loop/MAX_STEPS/mid-
+      resolution; never overwrites non-null; Java tests green.
+- [ ] Fix #1 §5.7: validated against a REAL goal_achieved session (containment now
+      `resolved` in the persisted trace) — not a mock-only test.
+- [ ] Fix #2: `loop_detected` removed from `_VALID_TERMINAL_STOP_REASONS` (+ max_turns/
+      goal_impossible reconsidered with Step-0 evidence); a looped blank-containment
+      session now FAILS; a genuine resolve still PASSES (counter-test).
+- [ ] Deterministic re-score: cs012 now FAILS; alice/cs066/uc_f/uc_fp still PASS;
+      eval_interactive pytest no regression vs 522.
+- [ ] Java no regression vs 1229/1/0/2.
+- [ ] baseline_dir NOT moved; overnight NOT launched; S-Auto-18 NOT started; full
+      re-bless NOT run (left re-bless-ready).
+- [ ] Handoff written (Step-0 table + per-fix before/after + real-trace validation +
+      re-score + re-bless-ready command).

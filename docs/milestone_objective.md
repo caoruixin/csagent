@@ -127,15 +127,22 @@ high-risk under-escalations, the escalation-reason cross-family question) — ar
 **deferred to a later semantic milestone**, to be designed against the honest
 re-blessed baseline.
 
-## Sub-sprint sequence (SINGLE sub-sprint per human direction; M-Auto-4's S-Auto-18 resumes after)
+## Sub-sprint sequence (S-Auto-19 + corrective S-Auto-20; M-Auto-4's S-Auto-18 resumes after)
 
 > Merged to one sub-sprint to speed close: eval-side corrections + runtime
 > trace-contract completion + authoritative re-bless ship together. Internal order:
 > eval fixes → runtime fixes → backend rebuild/restart → re-bless on a clean tree.
 
-1. **S-Auto-19 / Sprint 074 — verdict corrections (eval + runtime) + re-bless.**
-   Layer `infra`. Contract: `docs/sprint_objective.md`; dev prompt:
-   `compact/sprint-074-dev-prompt.md`.
+1. **S-Auto-19 / Sprint 074 — verdict corrections (eval + runtime) + re-bless.
+   [ACCEPTED-WITH-FOLLOWUP 2026-06-04]** Layer `infra`. Archived:
+   `docs/sprints/sprint-074-{objective,handoff}.md`; dev prompt
+   `compact/sprint-074-dev-prompt.md`. The 5 eval-side read-corrections are SOUND
+   (eval pytest 522/0). But the `m-auto-5-baseline-20260604` re-bless exposed: runtime
+   #1/#2 were INERT on the real corpus (`isResolvedSuccessTerminal`'s READY_TO_CONFIRM
+   gate never holds on the sim-preempted goal_achieved path → 0 `resolved` stamps →
+   containment still blank → 4 cases pass GATE-VACUOUSLY: composite=0/l2=0/judge=0), and
+   `loop_detected` in eval#1's valid set lets a looping bot vacuous-pass. → corrected by
+   S-Auto-20. `baseline_dir` NOT moved.
    **Eval side** (`eval_interactive/.../scoring/`):
    - #3 `accumulated_tool_results` → always union across turns
      (skill_procedure_check.py:487-506), clearing `search-knowledge-before-faq-answer`
@@ -170,7 +177,19 @@ re-blessed baseline.
    clean tree (dirty-index hazard). The **held S-Auto-17 validation overnight becomes
    launchable** on the honest baseline after this.
 
-2. **(resumes M-Auto-4) S-Auto-18 / Sprint 075 — bounded §5 escalation-family tiers
+2. **S-Auto-20 / Sprint 075 — corrective: real goal_achieved containment stamp +
+   loop_detected no-vacuous-pass. [ACTIVE]** Layer `infra`. Contract:
+   `docs/sprint_objective.md`; dev prompt `compact/sprint-075-dev-prompt.md`. Diagnosis
+   FIRST (vacuous 7-draw distribution on the existing m-auto-5 scratch — read-only, no
+   re-run), then: (#1) runtime stamps `containment_outcome=resolved` on the real
+   goal_achieved one-shot grounded-answer path (S-Auto-19's READY_TO_CONFIRM gate was
+   too narrow → the stamp never fired; **validate against a REAL trace per §5.7**, the
+   gap that made S-Auto-19 inert); (#2) remove `loop_detected` from eval#1's
+   valid-terminal set so a looping bot can't vacuous-pass. Anti-误杀 both ways (never
+   stamp resolved on an unresolved terminal; a genuine resolve still passes). The full
+   real-LLM re-bless + the `baseline_dir` pointer move are the human-gated steps AFTER.
+
+3. **(resumes M-Auto-4) S-Auto-18 / Sprint 076 — bounded §5 escalation-family tiers
    (`eval_spec`).** Unchanged from M-Auto-4's plan; runs against the M-Auto-5 honest
    baseline. The escalation-reason cross-family question
    (`faq_miss_threshold_exceeded ↔ user_requested`, an `eval_spec`-vs-
