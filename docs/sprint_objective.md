@@ -62,7 +62,12 @@ Per the M-Auto-5 acceptance bar in `docs/milestone_objective.md`:
    the sanity test.
 2. Verdict-distribution shift vs `m-auto-4-baseline-20260604` is
    explained (S-Auto-19 reads, S-Auto-20 runtime stamp, S-Auto-21
-   simulator-clean traces) — no unexplained verdict flip.
+   simulator-clean traces) — no unexplained verdict flip. **Judge layer
+   EXCLUDED** per OQ-S76.judge-zero resolution 2026-06-05 (`mean_judge=0.0`
+   is chronic by-config, byte-identical 0.0 across all four bracketing
+   runs; close write-up cites the four-run evidence table at
+   `action_bank.md` `R-eval-interactive-judge-score-never-populated`).
+   Canonical signal = composite + outcome + L1 + L2 `failure_tags`.
 3. Grounding floor intact; safety floor intact (PII relaxation scoped).
 4. Codex §4.1 nine-question kernel pass at milestone close.
 5. Re-bless recorded + reversible (pointer move is the deliver-agent
@@ -109,10 +114,18 @@ plans the milestone after their reports.
   `stop_reason="error"`, which already fails `trace_minimum` correctly;
   label fidelity only). One-line fix when the `session_runner.py` fence
   next opens. Not a blocker.
-- **OQ-S76.judge-zero** — `mean_judge=0.0` across the simfixed
-  bad-case re-render. A judge / observability surface, unrelated to the
-  simulator fix; must be checked / triaged BEFORE M-Auto-5 close so the
-  paired-evidence review can attribute the score shape.
+- **OQ-S76.judge-zero RESOLVED 2026-06-05** (route c per research-agent
+  investigation, collapsed into the chronic
+  `R-eval-interactive-judge-score-never-populated` R-item). Chronic by-
+  configuration; byte-identical 0.0 across all four M-Auto-5 bracketing
+  runs; NOT a regression; NOT a re-bless blocker. Both sub-variants
+  (bad_cases / anchor_outcome empty `llm_judge_dimensions` arrays + shadow
+  L3 dims all `severity="advisory"` stripped by `composite.py:228`) folded
+  into the same R-item. M-Auto-5 paired-evidence review EXCLUDES the judge
+  layer (canonical signal = composite + outcome + L1 + L2 `failure_tags`);
+  close write-up cites the four-run evidence table at `action_bank.md`
+  `R-eval-interactive-judge-score-never-populated`. R-item stays LOW
+  priority; NOT promoted to M-Auto-6.
 - **OQ-S76.A6** (carry from audit §2.6) — bot self-diagnoses simulator
   drift in its own LLM reasoning; runtime ignores. With S-Auto-21
   shipping clean (0 contamination), A.6 may dissolve; otherwise it is
