@@ -92,27 +92,84 @@ that subsequent state invalidates); the eval edit is gate logic
 (promote STALL / terminal-failure shapes to fail; refuse semantic-pass-
 by-default on empty-L2).
 
+## Naming clarifications (read before §Scope — there are two fields named with "2")
+
+The four-tier scoring framework persists multiple fields per case in
+`results.json`. Two of them carry "2" in their name and **are not the
+same layer**:
+
+- **`l2_results`** (plural list of `OutcomeCheckResult`) — the **L2
+  outcome checks** layer (the historical L2). This is the field
+  OQ-S77.stall-not-gated targets. `l2_results=[]` means no outcome
+  check is defined / fired for the case; the mandatory-L2 filter
+  becomes vacuously True at `composite.py:182-196`. Fixes #2 and #3
+  below operate on this field.
+- **`tier2_result`** (singular dict, `Tier2Result`) — the
+  **skill-procedure check** (a DIFFERENT, fourth tier). It emits tags
+  like `TIER2_ADVISORY:record-outcome-on-grounded-answer` and gates
+  `case_passed` only when `severity="critical"` (at `composite.py:203`).
+  Do NOT confuse `TIER2_ADVISORY:*` strings in `failure_tags` (which
+  come from this skill-procedure layer) with `l2_results` (L2 outcome
+  checks). They are separate signals; this sub-sprint does NOT modify
+  `tier2_result` semantics.
+
+The `case_passed` formula at `composite.py:205` is:
+
+```
+case_passed = l1_passed AND mandatory_l2_passed AND not tier2_critical_failed
+```
+
+— so when `l2_results=[]`, `mandatory_l2_passed` is vacuously True;
+`tier2_critical_failed` is False if `tier2_result.severity == "advisory"`;
+and `l1_passed` may still be True even when a stall happened
+(stalls are not L1 checks). That's the gap OQ-S77 closes.
+
 ## Scope (executable, #1-#6)
 
-### #1 — Eval gate: STALL:* promotion (`hard_checks.py` or `composite.py`)
+### #1 — Eval gate: STALL signal promotion to `case_passed=false`
 
-When the per-case `failure_tags` list (or equivalent structural failure
-signal in the scoring pipeline) contains ANY tag matching the pattern
-`STALL:*` (e.g. `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP` plus any future
-stall families), the case MUST be marked `case_passed=false` regardless
-of `composite_score`, `l2_results`, `judge_score`, or
-`containment_outcome`. Determine the right insertion point by reading
+When the per-case result indicates a stall, the case MUST be marked
+`case_passed=false` regardless of `composite_score`, `l2_results`,
+`judge_score`, or `containment_outcome`. The framework already records
+the stall signal on multiple equivalent surfaces — the dev picks ONE
+of the three below as the structural read (justify the choice in
+handoff §1):
+
+- **(1a) `stall_detected == True`** (structured boolean on the
+  case_result) — preferred. It is a typed boolean produced by the
+  stall detector itself; reading it avoids string-prefix matching and
+  is the most stable surface.
+- **(1b) `status == "FAIL"`** — the framework already sets a per-case
+  status field that says FAIL on these draws even when `case_passed`
+  is True. Promoting status=FAIL to case_passed=false closes the
+  internal inconsistency; the read is structured.
+- **(1c) `failure_tags` contains `STALL:*` (prefix match)** —
+  the failure-tags catalogue read. Less preferred because it relies
+  on string conventions; use only if (1a) / (1b) are not viable for
+  some reason discovered during implementation.
+
+All three are equivalent on the OQ-S77 vacuous-pass corpus (every
+draw with `stall_detected=True` also has `STALL:*` in `failure_tags`
+and `status="FAIL"`); the dev's choice optimises code clarity, not
+semantic coverage. Determine the right insertion point by reading
 the composite/case_passed computation flow (likely lives in
-`composite.py` around the same fall-through region as the
+`composite.py` around `:205` and the fall-through region near
 `gating_l3 = [r for r in l3_results if severity != "advisory"]` at
 `composite.py:228`).
 
-Anti-误杀: a case with `STALL:*` AND a legitimate resolved answer
-(rare; would be a partial-resolution-then-stall) still fails — STALL
-overrides resolve. The cost of a false-fail on this rare combo is much
-less than the cost of false-passing every stall. The §1.6 evaluation
-rule supports this: a session that stalled is not "generalizable
-customer problem-solving".
+Anti-误杀: a case with stall AND a legitimate partial-resolved answer
+(rare) still fails — stall overrides resolve. The cost of a false-fail
+on this rare combo is much less than the cost of false-passing every
+stall. §1.6: a session that stalled is not "generalizable customer
+problem-solving".
+
+**Scope discipline**: this sub-sprint promotes the STALL signal only.
+Do NOT promote `TIER2_ADVISORY:*` (those come from the skill-procedure
+tier; their advisory severity is intentional). Do NOT promote
+generic `failure_tags` populations. The cleaner read on a typed
+field (1a/1b) is preferred over string-prefix matching, but the
+scope is the same: one selective promotion of the existing stall
+signal.
 
 ### #2 — Eval gate: terminal-failure stop_reason overrides earlier resolved stamp
 
@@ -400,9 +457,11 @@ MUST include:
 
 ## Self-check checklist (dev completes before claiming done)
 
-- [ ] #1 STALL:* promotion in `composite.py` or `hard_checks.py`; only
-      `STALL:*` family promoted (NOT `TIER2_ADVISORY:*` or other
-      tag families).
+- [ ] #1 STALL signal promotion landed; one of (1a) `stall_detected`,
+      (1b) `status=="FAIL"`, or (1c) `failure_tags STALL:*` chosen +
+      justified in handoff §1; selective, NOT blanket failure_tags
+      promotion; `TIER2_ADVISORY:*` NOT promoted; `tier2_result`
+      semantics unchanged.
 - [ ] #2 terminal-failure stop_reason override (enumerated set
       `{loop_detected, goal_impossible, error, contract_violation,
       max_turns_exceeded}`); `goal_achieved` and `bot_ended` NOT in
