@@ -559,6 +559,28 @@ public class ControlKernel {
                     }
                     eventEmitter.emitSessionClosed(session.getSessionId(),
                             session.getContainmentOutcome());
+                } else if (isResolvedSuccessTerminal(session, runResult)) {
+                    // Sprint 074 / S-Auto-19 (#1 runtime — trace-contract
+                    // completion, NOT a semantic change). Stamp a complete
+                    // terminal disposition when the agent loop delivered a
+                    // substantive grounded answer that resolved the issue
+                    // (terminalOutcome FINAL_ANSWER + resolve_disposition
+                    // READY_TO_CONFIRM) WITHOUT yet reaching a dedicated
+                    // record_outcome-only CLOSE turn. Before this fix the
+                    // session terminated with a blank containment_outcome on
+                    // such one-shot resolutions, which the eval mis-judged as
+                    // partially-instrumented. ANTI-误杀 hard constraint: this
+                    // NEVER fires on an unresolved terminal — MAX_STEPS /
+                    // ERROR / DEADLINE_EXCEEDED / LLM_UNAVAILABLE /
+                    // CLARIFICATION_NEEDED / USE_CASE_IDENTIFIED are excluded
+                    // by the FINAL_ANSWER gate; escalation is excluded because
+                    // it already stamped "escalated" above; progressive RESOLVE
+                    // turns (ASKED_FOR_SLOT / CONTINUE_RESOLVE / ANSWERED_SUBTASK)
+                    // are excluded by the READY_TO_CONFIRM gate; and a
+                    // pre-existing non-null containment is never overwritten.
+                    session.setContainmentOutcome("resolved");
+                    eventEmitter.emitSessionClosed(session.getSessionId(),
+                            session.getContainmentOutcome());
                 }
 
                 boolean shouldEndChat = "CLOSE".equals(phaseAfter) || "ESCALATE".equals(phaseAfter);
@@ -1243,6 +1265,92 @@ public class ControlKernel {
                 || session.getCandidateUseCases().length == 0) {
             session.setCandidateUseCases(new String[]{fallbackUc});
         }
+    }
+
+    /**
+     * Sprint 074 / S-Auto-19 (#1 runtime — trace-contract completion):
+     * true when the agent loop reached a RESOLVED success terminal that did
+     * NOT route through a dedicated record_outcome-only CLOSE turn, so the
+     * runtime should stamp {@code containment_outcome="resolved"} as a
+     * complete terminal disposition.
+     *
+     * <p>This fires ONLY when ALL of these hold (anti-误杀 — it must never
+     * stamp "resolved" on a genuinely unresolved terminal):
+     * <ul>
+     *   <li>{@code runResult.terminalOutcome() == FINAL_ANSWER} — the LLM
+     *       produced a customer-facing answer with no further tool calls.
+     *       This deliberately EXCLUDES {@code MAX_STEPS}, {@code ERROR},
+     *       {@code DEADLINE_EXCEEDED}, {@code LLM_UNAVAILABLE},
+     *       {@code CLARIFICATION_NEEDED}, {@code USE_CASE_IDENTIFIED}, and
+     *       {@code ESCALATE} (escalation already stamps "escalated").</li>
+     *   <li>{@code session.getResolveDisposition() == READY_TO_CONFIRM} —
+     *       the answer fully resolved the issue. Progressive RESOLVE turns
+     *       ({@code ASKED_FOR_SLOT} / {@code CONTINUE_RESOLVE} /
+     *       {@code ANSWERED_SUBTASK}) are NOT terminal resolutions and are
+     *       excluded.</li>
+     *   <li>{@code session.getContainmentOutcome() == null} — never
+     *       overwrite a containment value already stamped (e.g. escalated).</li>
+     * </ul>
+     * The {@code goal_impossible} / {@code loop_detected} eval terminals
+     * have no {@code FINAL_ANSWER}+{@code READY_TO_CONFIRM} pairing and so
+     * never reach this branch.
+     */
+    static boolean isResolvedSuccessTerminal(BotSession session, AgentRunResult runResult) {
+        if (session == null || runResult == null) {
+            return false;
+        }
+        if (session.getContainmentOutcome() != null) {
+            return false;
+        }
+        if (runResult.terminalOutcome() != com.gumtree.csagent.model.TerminalOutcome.FINAL_ANSWER) {
+            return false;
+        }
+        return com.gumtree.csagent.model.ResolveDisposition.READY_TO_CONFIRM.name()
+                .equals(session.getResolveDisposition());
+    }
+
+    /**
+     * Sprint 074 / S-Auto-19 (#2 runtime — trace-contract completion):
+     * decide which source ids the answer-turn {@code BotTurn.sourceIds}
+     * should carry.
+     *
+     * <p>The prompt directs the bot to retrieve on one turn and ANSWER from
+     * the accumulated hits on a LATER turn. That later answer turn runs no
+     * {@code search_knowledge}, so {@code thisTurnSourceIds} (collected from
+     * this run's tool events) is empty even though the session is grounded.
+     * {@code sessionResolvedSourceIds} ({@code session.getArticlesShown()},
+     * read BEFORE the per-turn merge) is the durable session-wide set of
+     * source ids surfaced on EARLIER turns. We carry it on the answer turn so
+     * the trace UI and downstream grounding consumers see the answer's
+     * grounding without re-deriving it from prior turns.
+     *
+     * <p>Read-correctness only, not a grounding-rule change:
+     * <ul>
+     *   <li>a non-empty per-turn set is never overwritten;</li>
+     *   <li>the fallback applies only to a substantive (non-blank) answer
+     *       turn that did NOT escalate — escalation/handover turns make no
+     *       grounding claim and keep null;</li>
+     *   <li>a session with no prior grounding leaves the turn ungrounded, so
+     *       a genuinely never-searched answer still carries none.</li>
+     * </ul>
+     */
+    static String[] resolveAnswerTurnSourceIds(String[] thisTurnSourceIds,
+                                               String[] sessionResolvedSourceIds,
+                                               String persistedBotResponse,
+                                               String phaseAfter) {
+        if (thisTurnSourceIds != null && thisTurnSourceIds.length > 0) {
+            return thisTurnSourceIds;
+        }
+        boolean substantiveAnswerTurn =
+                persistedBotResponse != null
+                        && !persistedBotResponse.isBlank()
+                        && !"ESCALATE".equals(phaseAfter);
+        if (substantiveAnswerTurn
+                && sessionResolvedSourceIds != null
+                && sessionResolvedSourceIds.length > 0) {
+            return sessionResolvedSourceIds.clone();
+        }
+        return thisTurnSourceIds;
     }
 
     /**
@@ -2075,6 +2183,29 @@ public class ControlKernel {
                         session.getSessionId(), ex.getMessage());
             }
 
+            // Sprint 074 / S-Auto-19 (#2 runtime — trace-contract completion,
+            // not semantic): attach the session's resolved grounding to the
+            // answer turn when this turn retrieved nothing itself. The prompt
+            // directs the bot to search on one turn and then ANSWER from the
+            // accumulated hits on a LATER turn; that later answer turn ran no
+            // search_knowledge, so {@code sourceIds} (built above from THIS
+            // run's tool events only) is empty even though the session is
+            // grounded. {@code articlesShown} is the durable session-wide set
+            // of source ids surfaced on prior turns (it is merged AFTER the
+            // BotTurn build below, so reading it here reflects EARLIER turns).
+            // Carrying it on {@code BotTurn.sourceIds} lets the trace UI and
+            // downstream grounding consumers see the answer turn's grounding
+            // without re-deriving it from prior turns. Guard rails:
+            //   - only when this turn produced a substantive (non-blank) reply
+            //     and is NOT an escalation/handover turn (no grounding claim
+            //     to back on those — they keep null);
+            //   - never overwrite a non-empty per-turn {@code sourceIds};
+            //   - a session with no prior grounding leaves the turn ungrounded
+            //     (so a genuinely never-searched answer still carries none).
+            String[] answerTurnSourceIds = resolveAnswerTurnSourceIds(
+                    sourceIds, session.getArticlesShown(),
+                    persistedBotResponse, phaseAfter);
+
             BotTurn turn = BotTurn.builder()
                     .turnId(UUID.randomUUID().toString())
                     .sessionId(session.getSessionId())
@@ -2084,7 +2215,7 @@ public class ControlKernel {
                     .llmRawResponse(result.lastLlmRawResponse())
                     .botResponse(persistedBotResponse)
                     .toolCalls(toolCallsJson)
-                    .sourceIds(sourceIds)
+                    .sourceIds(answerTurnSourceIds)
                     .phaseBefore(phaseBefore)
                     .phaseAfter(phaseAfter)
                     .activeUseCase(session.getActiveUseCase())
