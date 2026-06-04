@@ -4,24 +4,26 @@ doc_tier: current-runtime
 status: current
 implementation_status: partial
 source_of_truth: this file
-last_reviewed: 2026-06-02
+last_reviewed: 2026-06-04
 review_cadence: every 3-5 sprints
 supersedes: []
 superseded_by: null
 notes: >
   Always-loaded Layer-A constitution + the gates every role needs every
-  session: §1 (LLM-first constitution), §2 (Failure Brief template),
-  §3 (Fix Layer Classification checklist), §4.1/§4.2 (anti-hardcode
-  kernel pointer + sprint-close header), §5.1-§5.5/§5.7 (Eval
-  Acceptance Rules + smoke-demotion rule + mocked-LLM evidence gate),
-  §7.1 (sprint-objective stanza template). On 2026-06-02 the high-churn
+  session: §1 (LLM-first constitution), §2 (Failure Brief template;
+  covers agent semantic + eval-framework failures via §3 `infra`), §3
+  (Fix Layer Classification checklist), §4.1/§4.2 (anti-hardcode kernel
+  pointer + sprint-close header), §5.1-§5.5/§5.7-§5.9 (Eval Acceptance
+  Rules + smoke-demotion rule + mocked-LLM evidence gate +
+  framework-defect priority + pre-flight QA gate), §7.1
+  (sprint-objective stanza template). On 2026-06-02 the high-churn
   role-specific process material was carved into on-demand Layer-B docs
   under docs/current/process/ (milestone-framework §8 + §4.3,
   prompt-artifact-rules §9, badcase-lifecycle §5.6 + §5.5 rationale,
   architecture-health-metrics §6) plus docs/current/governance-examples.md
-  (the §2 and §7.2 worked examples). Moved sections leave a one-line stub
-  here so §-number citations from archives still resolve. The Failure
-  Brief and Fix Layer checklist drive G1 / G2.
+  (the §2 and §7.2 worked examples). Moved sections leave a one-line
+  stub here so §-number citations from archives still resolve. The
+  Failure Brief and Fix Layer checklist drive G1 / G2.
 ---
 
 # Iteration governance
@@ -31,7 +33,8 @@ LLM-first **Constitution** (§1) plus the gates every role needs every
 session — the Failure Brief template (§2), the Fix Layer Classification
 checklist (§3), the Anti-Hardcode review kernel pointer + sprint-close
 header (§4.1/§4.2), the Eval Acceptance Rules (§5, including the
-smoke-demotion rule §5.5 and the mocked-LLM evidence gate §5.7), and
+smoke-demotion rule §5.5, the mocked-LLM evidence gate §5.7, the
+framework-defect priority §5.8, and the pre-flight QA gate §5.9), and
 the required sprint-objective stanza template (§7.1).
 
 High-churn, role-specific process material has been carved into
@@ -116,10 +119,11 @@ regress safety, grounding, wrong containment, or architecture health.
 
 ## 2. Failure Brief Template
 
-A **Failure Brief** is a short, structured record of one observed agent
-failure. Briefs are filed jointly by a human (who labels the expected
-behaviour) and a deliver agent (who labels the layer hypothesis and the
-"do not do" list). They live under
+A **Failure Brief** is a short, structured record of one observed
+failure — either an agent semantic failure or an eval-framework /
+infrastructure failure. Briefs are filed jointly by a human (who labels
+the expected behaviour) and a deliver agent (who labels the layer
+hypothesis and the "do not do" list). They live under
 `docs/diagnostics/failure-briefs/<brief-id>.md` once the directory is
 populated in Sprint 18 (G1). Briefs are the input to G1 / G2: they
 become the source for Failure Portfolio entries and, downstream, the
@@ -389,6 +393,29 @@ Moved to [`process/badcase-lifecycle.md`](process/badcase-lifecycle.md) on 2026-
 a prompt change caused a behaviour change — the mock controls the measured
 variable. Real-LLM rerun is the eval evidence gate; mocked-LLM tests
 cover projection/rendering/dispatch wiring only.
+
+### 5.8 Framework-defect priority
+
+A brief whose §3 layer is `infra` AND whose scope is the eval
+framework (simulator, trace emitter, scoring, baseline
+aggregation, judge harness) preempts semantic sub-sprints: while
+such a brief is open, do not launch new semantic sub-sprints and
+do not perform §5.6 bad-case rerun. Human override is permitted
+and must be recorded in the sprint handoff. Rationale: §1.7.
+
+### 5.9 Pre-flight QA before batch eval runs
+
+Before any expensive batch eval run, execute the standing
+pre-flight checklist on a sample of the target run; output is
+go / no-go with cited evidence. The checklist is incremental:
+each new §3 `infra` framework brief contributes the cheapest
+read-only check that would have caught it. The checklist lives
+in the most recent `docs/diagnostics/` eval-framework audit
+until it outgrows one audit's scope, then is promoted to
+`docs/current/process/preflight-eval-checks.md`. The pass may
+be executed by a human or by a coding sub-agent on the human's
+behalf; the same pattern applies to the §5.6 post-batch manual
+review pass.
 
 ## 6. Architecture-Health Metrics
 

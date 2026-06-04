@@ -66,7 +66,8 @@ this file loads the three governance docs above. That means:
   (§1), the Failure Brief Template (§2), the Fix Layer Classification
   Checklist (§3), the Anti-Hardcode Review kernel pointer + sprint-close
   header (§4.1/§4.2), the Eval Acceptance Rules (§5, including the §5.5
-  smoke-demotion rule and the §5.7 mocked-LLM evidence gate), and the
+  smoke-demotion rule, the §5.7 mocked-LLM evidence gate, the §5.8
+  framework-defect priority, and the §5.9 pre-flight QA gate), and the
   required sprint-objective stanza template (§7.1). On 2026-06-02 the
   high-churn role-specific process material was carved into on-demand
   Layer-B process docs (below); moved sections leave one-line stubs in
