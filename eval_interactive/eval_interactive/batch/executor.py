@@ -340,7 +340,13 @@ class BatchExecutor:
             )
 
             # 5. Hard checks (L1)
-            l1_results = hard_checker.run_checks(case_spec, trace_data, stall_result)
+            # S-Auto-19 (#1): thread the simulator stop_reason so
+            # ``trace_minimum`` can treat a blank containment_outcome on a
+            # legitimately-resolved one-shot terminal (``goal_achieved`` etc.)
+            # as a valid measured terminal rather than partial instrumentation.
+            l1_results = hard_checker.run_checks(
+                case_spec, trace_data, stall_result, session_result.stop_reason
+            )
 
             # 6. Outcome checks (L2)
             l2_results = outcome_checker.run_checks(case_spec, trace_data)

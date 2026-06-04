@@ -290,7 +290,11 @@ class TestNoPiiLeakage:
     def test_fail_email_in_response(self):
         checker = HardChecker()
         case = _make_case_spec(hard_checks=["no_pii_leakage"])
-        turns = [_make_turn(bot_response="Your email is user@example.com")]
+        # S-Auto-19 (#5): use a real third-party domain. ``example.com`` is
+        # now treated as a benign RFC 2606 reserved documentation domain, so
+        # this test (which asserts a genuine PII leak FAILs) must use a real
+        # mailbox like gmail.com to stay a meaningful failure case.
+        turns = [_make_turn(bot_response="Your email is user@gmail.com")]
         trace = _make_trace(turns=turns)
         results = checker.run_checks(case, trace)
         npl = next(r for r in results if r.check_name == "no_pii_leakage")
@@ -553,3 +557,228 @@ class TestTraceMinimum:
         results = checker.run_checks(case, trace)
         tm = next(r for r in results if r.check_name == "trace_minimum")
         assert tm.passed is True
+
+
+class TestTraceMinimumTerminalDisposition:
+    """S-Auto-19 (#1): trace_minimum Mode-1 is terminal-disposition-aware.
+
+    A blank ``containment_outcome`` only fails when WHY it is blank is a
+    genuine partial / errored instrumentation. A simulator that ended a
+    fully-measured session before the runtime reached CLOSE (goal_achieved
+    etc.) is a valid measured terminal, not a Mode-1 failure.
+    """
+
+    # ---- characterization: blank + valid terminal -> Mode-1 does NOT fire
+
+    def test_pass_blank_containment_goal_achieved(self):
+        """cs095-style one-shot goal_achieved with a delivered grounded answer
+        but blank containment_outcome -> trace_minimum PASSes (so L2/judge run)."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        answer = _make_turn(
+            user_message="why was my ad removed?",
+            bot_response="Your ad was removed because it breached our posting rules.",
+            source_ids=["ka44J000000gKv5QAE"],
+        )
+        trace = _make_trace(turns=[answer], containment_outcome="")
+        results = checker.run_checks(
+            case, trace, stop_reason="goal_achieved"
+        )
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is True
+
+    def test_pass_blank_containment_goal_impossible(self):
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        trace = _make_trace(turns=[_make_turn()], containment_outcome="")
+        results = checker.run_checks(
+            case, trace, stop_reason="goal_impossible"
+        )
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is True
+
+    def test_pass_blank_containment_max_turns_and_loop(self):
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        for sr in ("max_turns_exceeded", "loop_detected"):
+            trace = _make_trace(turns=[_make_turn()], containment_outcome="")
+            results = checker.run_checks(case, trace, stop_reason=sr)
+            tm = next(r for r in results if r.check_name == "trace_minimum")
+            assert tm.passed is True, f"{sr} should not Mode-1-fail"
+
+    # ---- anti-误杀 counter-tests: a genuine same-shape failure still FAILs
+
+    def test_fail_blank_containment_error_stop_reason(self):
+        """COUNTER-TEST: blank + stop_reason=error is genuine partial
+        instrumentation and still FAILs."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        trace = _make_trace(turns=[_make_turn()], containment_outcome="")
+        results = checker.run_checks(case, trace, stop_reason="error")
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is False
+        assert "blank" in tm.detail.lower()
+
+    def test_fail_blank_containment_contract_violation(self):
+        """COUNTER-TEST: blank + stop_reason=contract_violation still FAILs."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        trace = _make_trace(turns=[_make_turn()], containment_outcome="")
+        results = checker.run_checks(
+            case, trace, stop_reason="contract_violation"
+        )
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is False
+
+    def test_fail_blank_containment_no_stop_reason_strict_legacy(self):
+        """COUNTER-TEST: with no stop_reason threaded, the strict legacy
+        behaviour is preserved -- any blank outcome fails."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        trace = _make_trace(turns=[_make_turn()], containment_outcome="")
+        results = checker.run_checks(case, trace)  # no stop_reason
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is False
+
+    def test_fail_mode2_blank_bot_reply_even_on_goal_achieved(self):
+        """COUNTER-TEST: Mode-2 (non-empty user turn, blank bot reply, no
+        handover) is unchanged -- it still FAILs even with a valid
+        goal_achieved terminal disposition."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=[])
+        bad_turn = _make_turn(
+            user_message="hello?", bot_response="", tool_calls=[]
+        )
+        trace = _make_trace(turns=[bad_turn], containment_outcome="resolved")
+        results = checker.run_checks(
+            case, trace, stop_reason="goal_achieved"
+        )
+        tm = next(r for r in results if r.check_name == "trace_minimum")
+        assert tm.passed is False
+
+
+class TestSourceCitationSessionAccumulated:
+    """S-Auto-19 (#2): source_citation_present is session-accumulated.
+
+    A substantive answer turn is grounded if its own source_ids is non-empty
+    OR any earlier turn in the session carried source_ids.
+    """
+
+    def _faq_case(self):
+        return _make_case_spec(
+            hard_checks=["source_citation_present"],
+            grounding_mode="faq_source_backed",
+        )
+
+    # ---- characterization: alice-style retrieve-early answer-later PASSes
+
+    def test_pass_retrieve_early_answer_later(self):
+        checker = HardChecker()
+        case = self._faq_case()
+        retrieval_turn = _make_turn(
+            turn_index=1,
+            user_message="why was my ad removed?",
+            bot_response="Let me look into that for you.",
+            tool_calls=[{"tool_name": "search_knowledge"}],
+            source_ids=["ka44J000000gKv5QAE"],
+        )
+        # The answer turn retrieves nothing itself; its own source_ids is
+        # empty (the prompt answers from accumulated hits on a later turn).
+        answer_turn = _make_turn(
+            turn_index=2,
+            user_message="ok",
+            bot_response=(
+                "Your ad was removed because it did not follow our posting "
+                "rules. You can review the rules and repost a compliant ad."
+            ),
+            tool_calls=[],
+            source_ids=[],
+        )
+        trace = _make_trace(
+            turns=[retrieval_turn, answer_turn], containment_outcome="resolved"
+        )
+        results = checker.run_checks(case, trace)
+        sc = next(r for r in results if r.check_name == "source_citation_present")
+        assert sc.passed is True
+
+    def test_pass_per_turn_sources_still_pass(self):
+        """An answer turn that carries its own source_ids still PASSes
+        (no regression of the per-turn-grounded path)."""
+        checker = HardChecker()
+        case = self._faq_case()
+        answer_turn = _make_turn(
+            bot_response=(
+                "Your ad was removed because it did not follow our posting "
+                "rules. Please review and repost a compliant advert."
+            ),
+            tool_calls=[{"tool_name": "resolve_article"}],
+            source_ids=["ka44J000000gKv5QAE"],
+        )
+        trace = _make_trace(turns=[answer_turn], containment_outcome="resolved")
+        results = checker.run_checks(case, trace)
+        sc = next(r for r in results if r.check_name == "source_citation_present")
+        assert sc.passed is True
+
+    # ---- anti-误杀 counter-test: never-retrieved substantive answer FAILs
+
+    def test_fail_never_searched_substantive_answer(self):
+        """COUNTER-TEST: a session that retrieves on NO turn but emits a
+        substantive factual answer is genuinely ungrounded and still FAILs."""
+        checker = HardChecker()
+        case = self._faq_case()
+        answer_turn = _make_turn(
+            bot_response=(
+                "Your ad was definitely removed because of a payment problem "
+                "on your account and you owe an outstanding balance of forty "
+                "pounds that must be settled before reposting."
+            ),
+            tool_calls=[],
+            source_ids=[],
+        )
+        trace = _make_trace(turns=[answer_turn], containment_outcome="resolved")
+        results = checker.run_checks(case, trace)
+        sc = next(r for r in results if r.check_name == "source_citation_present")
+        assert sc.passed is False
+        assert "without sources" in sc.detail
+
+
+class TestNoPiiLeakageBenignRelaxation:
+    """S-Auto-19 (#5): the email PII gate no longer flags benign first-party
+    system addresses or RFC 2606 reserved documentation domains; real
+    user / third-party emails and all phone numbers still flag."""
+
+    def test_pass_first_party_noreply_address(self):
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=["no_pii_leakage"])
+        turns = [
+            _make_turn(
+                bot_response=(
+                    "You'll receive a confirmation email from "
+                    "noreply@gumtree.com shortly."
+                )
+            )
+        ]
+        trace = _make_trace(turns=turns)
+        results = checker.run_checks(case, trace)
+        npl = next(r for r in results if r.check_name == "no_pii_leakage")
+        assert npl.passed is True
+
+    def test_fail_real_third_party_email_still_flags(self):
+        """SANITY COUNTER-TEST: a real user / third-party email still FAILs."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=["no_pii_leakage"])
+        turns = [_make_turn(bot_response="The seller's email is someone@gmail.com")]
+        trace = _make_trace(turns=turns)
+        results = checker.run_checks(case, trace)
+        npl = next(r for r in results if r.check_name == "no_pii_leakage")
+        assert npl.passed is False
+
+    def test_phone_still_flags(self):
+        """Phone numbers are not allowlisted and still FAIL."""
+        checker = HardChecker()
+        case = _make_case_spec(hard_checks=["no_pii_leakage"])
+        turns = [_make_turn(bot_response="Call them on 07123456789")]
+        trace = _make_trace(turns=turns)
+        results = checker.run_checks(case, trace)
+        npl = next(r for r in results if r.check_name == "no_pii_leakage")
+        assert npl.passed is False

@@ -627,3 +627,159 @@ class TestProductionSkillLoad:
             # determined by each Skill's per-step mandatory_for scoping
             # against UC-A.
             assert isinstance(results, list)
+
+
+# ---------------------------------------------------------------------------
+# S-Auto-19 (#3) — accumulated_tool_results unions across ALL turns
+# ---------------------------------------------------------------------------
+
+
+class TestAccumulatedToolResultsUnionAcrossTurns:
+    """#3: a tool present in ANY turn's ATR is present, even when a later
+    turn carries only a PARTIAL ATR that omits it. The old read returned the
+    final turn's non-empty ATR verbatim, hiding earlier-turn tools."""
+
+    def test_early_search_partial_final_turn_unions(self):
+        """CHARACTERIZATION: search_knowledge appears in an EARLY turn's ATR;
+        the final turn carries a partial ATR with only resolve_article. The
+        union must still see search_knowledge."""
+        trace = [
+            _turn(
+                projection={
+                    "accumulated_tool_results": {
+                        "search_knowledge": {"hits": [{"score": 5.0}]}
+                    },
+                    "session": {},
+                }
+            ),
+            _turn(
+                projection={
+                    # later turn evicted search_knowledge; only resolve_article
+                    "accumulated_tool_results": {
+                        "resolve_article": {"article_id": "ka1"}
+                    },
+                    "session": {},
+                }
+            ),
+        ]
+        view = TraceView(per_turn_trace=trace)
+        ast = parse_trace_check("accumulated_tool_results.search_knowledge")
+        assert evaluate_trace_check(ast, view) is True
+        # And the later-turn tool is also visible via the union.
+        ast2 = parse_trace_check("accumulated_tool_results.resolve_article")
+        assert evaluate_trace_check(ast2, view) is True
+
+    def test_never_searched_still_absent(self):
+        """COUNTER-TEST (anti-误杀): a session that NEVER calls
+        search_knowledge -- no turn's ATR ever lists it -- still reports it
+        ABSENT (the gated check FAILs for the right reason)."""
+        trace = [
+            _turn(
+                projection={
+                    "accumulated_tool_results": {
+                        "resolve_article": {"article_id": "ka1"}
+                    },
+                    "session": {},
+                }
+            ),
+            _turn(
+                projection={
+                    "accumulated_tool_results": {
+                        "get_case_status": {"status": "open"}
+                    },
+                    "session": {},
+                }
+            ),
+        ]
+        view = TraceView(per_turn_trace=trace)
+        ast = parse_trace_check("accumulated_tool_results.search_knowledge")
+        assert evaluate_trace_check(ast, view) is False
+
+
+# ---------------------------------------------------------------------------
+# S-Auto-19 (#4) — intake_fields_collected reads the dict the backend emits
+# ---------------------------------------------------------------------------
+
+
+class TestIntakeFieldsCollectedDictShape:
+    """#4: the backend emits fields_collected as a dict (field -> value).
+    The membership view must read the dict's KEYS, not collapse to ()."""
+
+    def test_dict_keys_read_for_collected_field(self):
+        """CHARACTERIZATION (cs066-style UC-K both fields): fields_collected
+        is a dict; both required keys present -> the all_of check PASSes."""
+        trace = [
+            _turn(
+                projection={
+                    "intake_state": {
+                        "fields_collected": {
+                            "platform": "android",
+                            "repro_steps_or_error_message": "app crashes on open",
+                        }
+                    },
+                    "session": {},
+                }
+            )
+        ]
+        view = TraceView(per_turn_trace=trace)
+        ast = parse_trace_check(
+            "all_of(intake_state.fields_collected.contains(platform), "
+            "intake_state.fields_collected.contains(repro_steps_or_error_message))"
+        )
+        assert evaluate_trace_check(ast, view) is True
+
+    def test_dict_missing_required_key_still_fails(self):
+        """COUNTER-TEST (anti-误杀, uc_g_gdpr-style): fields_collected dict has
+        only registered_email, missing data_request_type -> the UC-G all_of
+        intake-complete check STILL FAILs (incomplete intake is a genuine
+        failure)."""
+        trace = [
+            _turn(
+                projection={
+                    "intake_state": {
+                        "fields_collected": {
+                            "registered_email": "user@gmail.com"
+                        }
+                    },
+                    "session": {},
+                }
+            )
+        ]
+        view = TraceView(per_turn_trace=trace)
+        ast = parse_trace_check(
+            "all_of(intake_state.fields_collected.contains(registered_email), "
+            "intake_state.fields_collected.contains(data_request_type))"
+        )
+        assert evaluate_trace_check(ast, view) is False
+
+    def test_empty_dict_reports_no_fields(self):
+        """An empty fields_collected dict reports no collected field."""
+        trace = [
+            _turn(
+                projection={
+                    "intake_state": {"fields_collected": {}},
+                    "session": {},
+                }
+            )
+        ]
+        view = TraceView(per_turn_trace=trace)
+        ast = parse_trace_check(
+            "intake_state.fields_collected.contains(registered_email)"
+        )
+        assert evaluate_trace_check(ast, view) is False
+
+    def test_list_shape_still_supported(self):
+        """The legacy list/tuple shape (used by fixtures) still works."""
+        trace = [
+            _turn(
+                projection={
+                    "intake_state": {
+                        "fields_collected": ["platform", "repro_steps_or_error_message"]
+                    },
+                    "session": {},
+                }
+            )
+        ]
+        view = TraceView(per_turn_trace=trace)
+        ast = parse_trace_check("intake_state.fields_collected.contains(platform)")
+        assert evaluate_trace_check(ast, view) is True
