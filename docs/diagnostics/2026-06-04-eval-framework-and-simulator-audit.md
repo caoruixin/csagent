@@ -293,6 +293,23 @@ Clusters A–C before a week of compute was burned.
 5. **Same-case-cross-time** — pick one case from a prior known-clean
    run; rerun it; confirm transcript shape matches. Drift here is
    the canary for any new framework regression.
+6. **Vacuous-pass + terminal-failure fingerprint sweep** — added
+   2026-06-05 from OQ-S77.stall-not-gated (`docs/diagnostics/
+   failure-briefs/oq-s77-stall-not-gated.md`). Across the target run's
+   per-attempt `results.json` files, count draws matching the
+   fingerprint `case_passed=true AND composite_score=0 AND
+   l2_results=[]`. For every match, halt if any of:
+   `failure_tags` contains any tag matching `STALL:*` (prefix match);
+   OR final `stop_reason` is in `{loop_detected, goal_impossible,
+   error, contract_violation, max_turns_exceeded}`. Reference
+   implementation: a single Python scan over the output dir
+   (`for attempt in _rebless_scratch/_attempts/a*/: for suite in
+   {bad_cases, anchor_outcome, shadow}: read results.json's
+   case_results array; emit matching draws`). Expected on a
+   properly-gated corpus: ZERO matches. A non-zero count means the
+   eval gate is computing `case_passed=true` on stalled or
+   terminal-failure sessions; halt the batch, route to the eval
+   gate (S-Auto-22 or successor), then re-run.
 
 This checklist is a **diagnostic checklist**, not a code gate. It
 should be folded into `process/badcase-lifecycle.md` §5.6 as a

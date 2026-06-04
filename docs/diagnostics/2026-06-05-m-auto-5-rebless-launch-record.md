@@ -245,3 +245,132 @@ Confirmed with human 2026-06-05 — none of these gate the launch:
   R-item `R-eval-interactive-judge-score-never-populated` (four-run
   table + sub-variant breakdown).
 - Cold-start state at launch: `docs/10-handoff.md` §0 (HEAD `1bc77c1`).
+
+## 9. Post-run outcome classification (appended 2026-06-05)
+
+The re-bless launched per §2-3 above completed cleanly (exit 0,
+background task `blg2ajs8f`, multi-hour). Provenance recorded by the
+script: HEAD `0bc37e2a796da1696f221b9a275f649e26fe23c7`, primary_model
+`deepseek-v4-flash`, n=7 (actual a0-a8 attempt dirs written, the
+aggregator retried 2 attempts on suite-level infra-error). All three
+suite aggregates wrote (`bad_cases/aggregated.json` +
+`anchor_outcome/aggregated.json` + `shadow/aggregated.json`) plus the
+run-level `_rebless_report.json`. The `baseline_dir` pointer was NOT
+moved per §6 / §7.
+
+### 9.1 What this run PROVES (positive evidence)
+
+- **Near-coinflip ELIMINATED across all three suites.** Stability
+  shift vs `m-auto-4-baseline-20260604`: bad_cases 2 near-coinflip →
+  **0**; anchor_outcome 1 → **0**; shadow 1 → **0**. OQ-S72.2 (the
+  S-Auto-17 concern that ~50/50 anchor bad_cases could not be
+  stabilized by k-of-n majority) dissolves — the corrected measurement
+  no longer puts any case at p ≈ 0.5.
+- **S-Auto-20 runtime stamp fires at corpus scale.** Anchor_outcome:
+  9/9 `goal_achieved` draws stamped `containment_outcome="resolved"`
+  (vs 0 non-blank in any prior baseline). Containment non-blank rate:
+  bad_cases 95.4 % / anchor 96.3 % / shadow 82.3 %. The §5.7 mock-vs-
+  real gap that made S-Auto-19's runtime stamp inert is closed.
+- **Anti-误杀 in the false-negative direction holds.** 9 F→P
+  case-level flips, 0 P→F flips vs `m-auto-4-baseline-20260604`. Per-
+  case verdict shift (m-auto-4 → simfixed): alice 0.43 → 0.89, cs012
+  0.00 → 0.78, cs015 0.29 → 0.67, cs066 0.00 → 1.00, cs095 0.43 →
+  1.00, anchor uc_a_visibility 0.00 → 1.00, uc_f_billing 0.29 → 0.89,
+  uc_fp_removed 0.43 → 0.89, shadow cs01s01 0.43 → 0.89. Persistent
+  failures preserved: anchor uc_g_gdpr / uc_h_appeal / uc_i_payment /
+  uc_j_safety all 0.00 stable; shadow cs38s scam+harassment all 0.00
+  stable; cs15s* / cs76s* / cs92s* / cs32s* unchanged. No silent
+  over-correction.
+- **Shadow's 18 errors (9.6 %) are entirely the known Cluster C.1**
+  (`cs59s01_uc_d_empty_form_account_recovery` + `cs59s02_uc_f_empty_
+  form_payout_timing`, both `session_create_failed:400`; 9 errors per
+  case across attempts; already routed to M-Auto-6). Not a regression.
+- **S-Auto-21 simulator fix held at corpus scale.** No spike of
+  `simulator_drift_blocked` end-of-session events; drift guard fired
+  zero times on the focused S-Auto-21 12-case re-render (`results/
+  20260604-152103/`) and the full re-bless extended that finding.
+
+### 9.2 What this run REVEALED (negative evidence — close blocker)
+
+Inline trace review at the deliver-agent close-evidence stage
+(2026-06-05) surfaced an OPPOSITE-direction measurement artifact:
+
+- **12 of 216 bad_cases+anchor_outcome draws (5.5 %)** match the
+  fingerprint `case_passed=true + composite_score=0 + l2_results=[]
+  + containment_outcome="resolved"`. Distribution: cs012 × 2
+  (bad_cases reducible-flaky), cs095 × 4 (bad_cases stable),
+  uc_b_posting × 4 (anchor reducible-flaky), uc_a_visibility × 1
+  (anchor stable), uc_fp_removed × 2 (anchor stable).
+- **8 of 12 carry `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP`**. Three
+  sampled traces (one per pattern): cs012_uc_fp_late_phone_failure_path
+  a3 (REAL stall — bot stamped resolved early, then "I'm looking into
+  this for you." × 2 → loop_detected); anchor_outcome_uc_fp_removed
+  a3 (REAL stall — same shape, 10 turns); anchor_outcome_uc_b_posting
+  a0 (LEGITIMATE pass — clean give-away-items answer + thanks +
+  goal_achieved; only TIER2_ADVISORY housekeeping nit). 2 of 3
+  sampled are real bot stalls being marked PASS.
+- **Flip-magnitude contamination**: cs095 stable 0.43 → 1.00 with
+  4/9 draws vacuous (real ~5/9 ≈ 0.56 reducible-flaky); uc_a_visibility
+  stable 0.00 → 1.00 with 1/9 vacuous (real ~8/9 ≈ 0.89);
+  uc_fp_removed stable 0.43 → 0.89 with ≥2/9 vacuous (real ~7/9 ≈
+  0.78 reducible-flaky). The 9 F→P flips' *direction* is supported
+  by the simulator-fix evidence (clean input → bot can succeed); the
+  *magnitude* is inflated by this gate gap.
+
+### 9.3 Forensic classification (per human direction 2026-06-05)
+
+The S-Auto-21 simfixed run is **FORENSIC evidence, NOT an
+authoritative M-Auto-5 baseline**. It is retained on disk at
+`eval_interactive/results/m-auto-5-baseline-20260604-simfixed/` and
+must NOT be:
+
+- Consumed as input to any downstream semantic sprint (its
+  stability classifications mix legitimate verdicts with vacuous-pass
+  inflated ones).
+- Used as the target of a `baseline_dir` pointer move (the pointer
+  stays at `m-auto-4-baseline-20260604` until S-Auto-22 ships + the
+  re-re-bless on the corrected framework produces an authoritative
+  baseline).
+- Used as the comparator for an autoloop fitness gate (the inflation
+  would manufacture spurious "regressions" against any future run on
+  a corrected framework).
+
+It IS valid evidence for:
+
+- Proving the simulator role-inversion fix (S-Auto-21) eliminated
+  near-coinflip and removed the 14.4 % framework-contamination
+  thesis at the source.
+- Proving the runtime resolved-stamp (S-Auto-20) fires at corpus
+  scale (9/9 anchor goal_achieved → resolved).
+- Discovering the stall-not-gated gap that opens S-Auto-22 / Sprint
+  077.
+
+### 9.4 Routing
+
+- **S-Auto-22 / Sprint 077 — corrective #3 / M-Auto-5 close blocker.**
+  Contract: `docs/sprint_objective.md`. Dev prompt:
+  `compact/sprint-077-dev-prompt.md`. Framework-defect brief:
+  `docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md`. Scope:
+  eval-gate STALL:* promotion + terminal-failure stop_reason override
+  + empty-L2 refusal + runtime stamp-downgrade companion + anti-误杀
+  deterministic re-score + audit-doc §6 pre-flight check addition.
+- **Framework-defect priority (§5.8) ACTIVE**: while OQ-S77.stall-not-
+  gated is open, do NOT launch new semantic sub-sprints; do NOT
+  perform §5.6 bad-case rerun for milestone-close evidence.
+- **M-Auto-5 close path**: after S-Auto-22 ships + the HUMAN-launched
+  re-re-bless on the corrected framework produces an authoritative
+  baseline (suggested output dir `m-auto-5-baseline-20260604-simfixed-
+  stalledfix`) + paired-evidence review against the bad-case suite
+  on the corrected baseline + milestone-shared Codex passes →
+  deliver moves `baseline_dir` + flips `docs/current_eval_baseline.md`
+  + executes the standard milestone-close archive sweep + opens
+  M-Auto-6 (audit Clusters B + C, parallel research-agent dispatch).
+
+### 9.5 §5.9 pre-flight checklist contribution
+
+The cheapest read-only check that would have caught this gate gap
+before the human-launched the re-bless has been added as step 6 in
+`docs/diagnostics/2026-06-04-eval-framework-and-simulator-audit.md`
+§6: the vacuous-pass + terminal-failure fingerprint sweep. Expected
+result on a properly-gated corpus: zero matches. The check is part
+of the standing pre-flight checklist for future batch eval runs.

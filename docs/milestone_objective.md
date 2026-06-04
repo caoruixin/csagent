@@ -138,14 +138,20 @@ high-risk under-escalations, the escalation-reason cross-family question) — ar
 **deferred to a later semantic milestone**, to be designed against the honest
 re-blessed baseline.
 
-## Sub-sprint sequence (S-Auto-19 → S-Auto-20 → S-Auto-21; M-Auto-4's S-Auto-18 DEFERRED behind M-Auto-6)
+## Sub-sprint sequence (S-Auto-19 → S-Auto-20 → S-Auto-21 → S-Auto-22; M-Auto-4's S-Auto-18 DEFERRED behind M-Auto-6)
 
 > Originally scoped as ONE sub-sprint (eval + runtime + re-bless together). Re-bless
 > verdict-review exposed a second blocker (runtime stamp inert; `loop_detected`
 > vacuous-pass) → corrective S-Auto-20. The 2026-06-04 simulator/eval-framework
 > audit exposed a third blocker (input-column contamination via simulator role
-> inversion) → corrective S-Auto-21. The authoritative simulator-fixed re-bless
-> happens at the end of S-Auto-21; pointer move is human-gated.
+> inversion) → corrective S-Auto-21. The S-Auto-21 simfixed re-bless (real-LLM,
+> 2026-06-05) was structurally sound (0 contamination, near-coinflip eliminated,
+> stamp fires at corpus scale, 9 F→P / 0 P→F flips) but inline trace review
+> surfaced an OPPOSITE-direction artifact (stall-not-gated when L2 is empty +
+> early resolved-stamp masks subsequent loop/impossible) → corrective S-Auto-22
+> (M-Auto-5 close blocker). S-Auto-21 simfixed run kept as FORENSIC evidence;
+> NOT authoritative. The authoritative simulator-AND-stall-fixed re-bless
+> happens at the end of S-Auto-22; pointer move is human-gated.
 
 1. **S-Auto-19 / Sprint 074 — verdict corrections (eval + runtime) + re-bless.
    [ACCEPTED-WITH-FOLLOWUP 2026-06-04]** Layer `infra`. Archived:
@@ -249,12 +255,44 @@ re-blessed baseline.
    at `action_bank.md` `R-eval-interactive-judge-score-never-populated`.
    R-item stays LOW priority; NOT promoted to M-Auto-6.
 
-4. **(M-Auto-6, opened after M-Auto-5 close) — audit Clusters B + C.** Two-track
+4. **S-Auto-22 / Sprint 077 — corrective #3 / M-Auto-5 close blocker: eval-gate
+   stall-not-gated fix + runtime resolved-stamp loop-aware downgrade. [ACTIVE
+   2026-06-05]** Layer `infra`. Contract: `docs/sprint_objective.md`; dev prompt
+   `compact/sprint-077-dev-prompt.md`. Input artifact:
+   `docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md`. Opened from
+   S-Auto-21 close-evidence review when the simfixed re-bless surfaced an
+   OPPOSITE-direction measurement artifact (12/216 = 5.5 % gate-vacuous passes
+   with `case_passed=true + composite=0 + l2_results=[] + containment=resolved`;
+   8/12 carry `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP`; 2/3 sampled traces are real
+   bot stalls being marked PASS; cs095 stable 0.43→1.00 with 4/9 vacuous;
+   uc_a_visibility / uc_fp_removed similarly inflated). Per human direction
+   2026-06-05: M-Auto-5 close is BLOCKED on this fix; the S-Auto-21 simfixed
+   run is retained as **forensic evidence** (proves: simulator-fix eliminated
+   near-coinflip + S-Auto-20 stamp fires at corpus + this gate gap discovered).
+   `baseline_dir` NOT moved; `docs/current_eval_baseline.md` NOT flipped.
+   Scope: (#1) eval gate STALL:* → `case_passed=false`; (#2) eval gate
+   terminal-failure stop_reason `{loop_detected, goal_impossible, error,
+   contract_violation, max_turns_exceeded}` overrides earlier `resolved` stamp;
+   (#3) refuse semantic-pass-by-default when `l2_results=[]+composite=0`
+   (allowlist mechanism or null-verdict, dev picks); (#4) runtime companion —
+   void/downgrade the `containment_outcome="resolved"` stamp when session
+   terminates in a failure shape after the per-turn stamp fired; (#5) anti-误杀
+   deterministic re-score on the simfixed scratch (12 vacuous → FAIL; 9
+   legitimate F→P flips reassessed honestly, expected softening on cs095 /
+   uc_a / uc_fp_removed but no silent flip-back); (#6) HUMAN-launched re-re-
+   bless on the corrected framework (`m-auto-5-baseline-20260604-simfixed-
+   stalledfix`) as the authoritative M-Auto-5 baseline; (#7) §5.9 pre-flight
+   check added to audit doc §6 (vacuous-pass + terminal-failure fingerprint
+   sweep). NO bot semantic / prompt / routing / UC-hypothesis / escalation /
+   skill / CaseSpec-rubric edit. Framework-defect priority (§5.8) ACTIVE —
+   no semantic sub-sprints; no §5.6 bad-case rerun for close evidence.
+
+5. **(M-Auto-6, opened after M-Auto-5 close) — audit Clusters B + C.** Two-track
    research-agent dispatch (B: `per_turn_trace` truncation + primary_uc/
    active_use_case authority; C: cs59s session_create 400, 46f5b2e9 500 +
    double-send, intake clarifier branch). NOT this milestone.
 
-5. **(deferred to M-Auto-7 or later) S-Auto-18 — bounded §5 escalation-family
+6. **(deferred to M-Auto-7 or later) S-Auto-18 — bounded §5 escalation-family
    tiers (`eval_spec`).** Pushed behind M-Auto-6.
 
 ## Non-goals

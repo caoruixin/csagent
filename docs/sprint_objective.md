@@ -1,148 +1,426 @@
 ---
-title: (no active sub-sprint — M-Auto-5 close evidence generation in progress; the human-launched authoritative re-bless ≠ M-Auto-5 close itself)
+title: Sprint 077 / S-Auto-22 — eval-gate stall-not-gated fix + runtime resolved-stamp loop-aware downgrade (M-Auto-5 corrective #3 / close blocker)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
-source_of_truth: docs/milestone_objective.md (M-Auto-5)
+source_of_truth: this file
 last_reviewed: 2026-06-05
 review_cadence: per sub-sprint
 supersedes: [docs/sprints/sprint-076-objective.md]
 superseded_by: null
 notes: >
-  All three M-Auto-5 dev sub-sprints have shipped: S-Auto-19 (eval-read
-  column), S-Auto-20 (runtime-stamp column), S-Auto-21 (input column /
-  simulator role-inversion fix). S-Auto-21 evidence: 0/40 contamination on
-  the re-rendered bad-case suite (real-LLM); cross-time OLD→NEW 3→0;
-  pre-fix corpus sweep 852→0 contaminated turns. Audit's 14.4 % framework
-  contamination thesis closed at the source.
+  Corrective sub-sprint #3 of M-Auto-5. Opened 2026-06-05 from the framework-
+  defect brief `docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md`.
 
-  **State 2026-06-05**: human authorized the authoritative multi-suite
-  re-bless on the simulator-fixed corpus. Launch record at
-  `docs/diagnostics/2026-06-05-m-auto-5-rebless-launch-record.md` (exact
-  SHA + command + preconditions + forensic policy + interpretation
-  guides). **This re-bless is M-Auto-5 close EVIDENCE GENERATION, not
-  M-Auto-5 close.** The close is the deliver+human paired-evidence review
-  + milestone-shared Codex + (if both gates pass) `baseline_dir` pointer
-  move + `docs/current_eval_baseline.md` flip + standard archive sweep —
-  none of which happen by the act of the re-bless completing.
+  Background: the S-Auto-21 simfixed re-bless (`eval_interactive/results/
+  m-auto-5-baseline-20260604-simfixed/`) eliminated near-coinflip, fired the
+  S-Auto-20 stamp at corpus scale, and produced 9 F→P verdict flips with 0
+  P→F flips — but inline trace review of the residual 12/216 gate-vacuous
+  passes (5.5 %) revealed an OPPOSITE-direction measurement artifact: when
+  `l2_results=[]` AND `containment_outcome="resolved"`, the eval gate
+  computes `case_passed=true` regardless of whether `failure_tags` carry
+  `STALL:*` or the FINAL `stop_reason` is a terminal-failure shape
+  (loop_detected / goal_impossible / error). 2 of 3 sampled vacuous traces
+  are real bot stalls being marked PASS (cs012 / uc_fp_removed — bot
+  delivered a resolved-stamped answer earlier, then stalled on
+  "I'm looking into this for you." until loop_detected fired). This
+  inflates F→P-flip magnitudes (notably cs095 0.43→1.00 stable with 4/9
+  vacuous; uc_a_visibility 0.00→1.00 stable; uc_fp_removed 0.43→0.89
+  stable with ≥2/9 vacuous).
 
-  No new sub-sprint contract is written here. The next milestone
-  (M-Auto-6 = audit Clusters B + C with parallel research-agent dispatch)
-  is opened AFTER M-Auto-5 close.
+  Per human direction 2026-06-05: M-Auto-5 close is BLOCKED on this fix.
+  The S-Auto-21 simfixed run remains on disk as FORENSIC evidence (proves:
+  simulator fix eliminated near-coinflip; S-Auto-20 stamp fires at corpus
+  scale; this stall-not-gated gap discovered). It is NOT an authoritative
+  M-Auto-5 baseline. baseline_dir pointer NOT moved.
+  docs/current_eval_baseline.md NOT flipped.
+
+  S-Auto-22 ships the structural fix (eval-side gate + runtime-side
+  stamp-downgrade companion), then a fresh re-bless on the corrected
+  framework produces the authoritative M-Auto-5 baseline. Then paired-
+  evidence review + milestone-shared Codex + (if both pass) pointer move
+  + close.
+
+  Framework-defect priority (§5.8): active — while this brief is open, do
+  NOT launch new semantic sub-sprints; do NOT perform §5.6 bad-case rerun
+  for milestone-close evidence.
+
+  Dev session source-of-truth: compact/sprint-077-dev-prompt.md.
 ---
 
-# (no active dev sub-sprint)
+# Sprint 077 / S-Auto-22 — eval-gate stall-not-gated fix + runtime resolved-stamp loop-aware downgrade
 
-M-Auto-5 has no remaining dev work. The three corrective sub-sprints
-(S-Auto-19 → S-Auto-20 → S-Auto-21) all shipped. What remains is the
-human-launched authoritative re-bless followed by the deliver+human
-milestone close.
+## Class
 
-## Next actions (NOT a dev sub-sprint)
+- **Layer (primary)**: `infra` — eval-framework scoring gate
+  (`eval_interactive/eval_interactive/scoring/composite.py` +
+  `eval_interactive/eval_interactive/scoring/hard_checks.py`) and runtime
+  trace-contract completion companion (`server/.../runtime/ControlKernel.java`
+  + the BotSession containment-stamp persistence). §1.4 (eval contract +
+  persistence); NOT §1.3 semantics. NO bot semantic / prompt / routing /
+  UC-hypothesis / escalation-posture / skill / CaseSpec-rubric edit.
+- **§7 stanza**: §7-EXEMPT (characterization / measurement-infra); stanza
+  included below for rigor (touches gate-contributing eval checks + the
+  runtime trace contract).
+- **Codex review plan (§4.3)**: PER-SUB-SPRINT RECOMMENDED; folds into the
+  M-Auto-5 milestone-shared close. NOT a fence-#13 SHA trigger (autoloop
+  5-file scoring set untouched).
+- **Framework-defect priority (§5.8) active**: while OQ-S77.stall-not-gated
+  is open, NO new semantic sub-sprints; NO §5.6 bad-case rerun for
+  milestone-close evidence (only the within-sub-sprint anti-误杀 counter-
+  test reruns).
+- **Position**: M-Auto-5 sub-sprint 4 of 4 (S-Auto-19 → S-Auto-20 →
+  S-Auto-21 → **S-Auto-22**). After this sub-sprint ships + the re-re-bless
+  on the corrected framework produces an authoritative baseline + paired-
+  evidence review + Codex pass, M-Auto-5 closes. M-Auto-4 S-Auto-18
+  deferred behind M-Auto-6.
 
-### Step 1 — HUMAN launches the authoritative re-bless (evidence generation — NOT M-Auto-5 close)
+## Goal
 
-Authoritative launch record:
-`docs/diagnostics/2026-06-05-m-auto-5-rebless-launch-record.md` —
-exact SHA (`1bc77c1`), exact command, preconditions, forensic-baseline
-policy, expected anomalies (incl. `suspect_baseline_manipulation` as the
-simulator-fix expected distribution shift), and post-run procedure.
-Read that doc, not this section, before launch.
+Close the OPPOSITE-direction measurement artifact the S-Auto-21 simfixed
+re-bless exposed: the eval gate computes `case_passed=true` for stalled /
+looped / impossible sessions when the per-turn `containment_outcome=
+"resolved"` stamp fires earlier and `l2_results=[]` masks the structural
+fail. Ship the structural fix in both layers (eval gate + runtime
+companion) so the corrected framework can produce a verdict distribution
+that reflects the bot's actual behaviour in BOTH directions (no
+false-negatives AND no false-positives).
 
-```bash
-# Preconditions per the launch record §3:
-# - clean working tree (per project_autoloop_dirty_index_hazard);
-# - HEAD = 1bc77c1 or later;
-# - backend booted fresh (mvn -o spring-boot:run; curl
-#   /actuator/health → UP);
-# - Mac kept awake (caffeinate -dimsu …);
-# - Postgres + Redis up; creds in repo-root .env.local + autoloop/.env.local.
+**This sub-sprint does NOT change the bot's customer-service ability.**
+The runtime edit is a trace-contract correction (don't credit a stamp
+that subsequent state invalidates); the eval edit is gate logic
+(promote STALL / terminal-failure shapes to fail; refuse semantic-pass-
+by-default on empty-L2).
 
-cd autoloop && uv run python scripts/rebless_baseline.py \
-    --n 7 \
-    --out-dir ../eval_interactive/results/m-auto-5-baseline-20260604-simfixed
-```
+## Scope (executable, #1-#6)
 
-Writes a fresh dated dir; `m-auto-4-baseline-20260604`,
-`m-auto-5-baseline-20260604`, and `m-auto-5-baseline-20260605` are all
-RETAINED as forensic. **`baseline_dir` is NOT moved by the act of running
-this** — the deliver-agent moves it only after the paired-evidence review
-+ milestone-shared Codex (Steps 2 + 3) pass.
+### #1 — Eval gate: STALL:* promotion (`hard_checks.py` or `composite.py`)
 
-### Step 2 — Deliver + human paired-evidence review (M-Auto-5 close primary gate)
+When the per-case `failure_tags` list (or equivalent structural failure
+signal in the scoring pipeline) contains ANY tag matching the pattern
+`STALL:*` (e.g. `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP` plus any future
+stall families), the case MUST be marked `case_passed=false` regardless
+of `composite_score`, `l2_results`, `judge_score`, or
+`containment_outcome`. Determine the right insertion point by reading
+the composite/case_passed computation flow (likely lives in
+`composite.py` around the same fall-through region as the
+`gating_l3 = [r for r in l3_results if severity != "advisory"]` at
+`composite.py:228`).
 
-Per the M-Auto-5 acceptance bar in `docs/milestone_objective.md`:
+Anti-误杀: a case with `STALL:*` AND a legitimate resolved answer
+(rare; would be a partial-resolution-then-stall) still fails — STALL
+overrides resolve. The cost of a false-fail on this rare combo is much
+less than the cost of false-passing every stall. The §1.6 evaluation
+rule supports this: a session that stalled is not "generalizable
+customer problem-solving".
 
-1. Structural fixes carry paired evidence (#1/#2/#3/#4 from S-Auto-19 +
-   S-Auto-20's runtime stamp + S-Auto-21's simulator); #5 (PII) shipped
-   the sanity test.
-2. Verdict-distribution shift vs `m-auto-4-baseline-20260604` is
-   explained (S-Auto-19 reads, S-Auto-20 runtime stamp, S-Auto-21
-   simulator-clean traces) — no unexplained verdict flip. **Judge layer
-   EXCLUDED** per OQ-S76.judge-zero resolution 2026-06-05 (`mean_judge=0.0`
-   is chronic by-config, byte-identical 0.0 across all four bracketing
-   runs; close write-up cites the four-run evidence table at
-   `action_bank.md` `R-eval-interactive-judge-score-never-populated`).
-   Canonical signal = composite + outcome + L1 + L2 `failure_tags`.
-3. Grounding floor intact; safety floor intact (PII relaxation scoped).
-4. Codex §4.1 nine-question kernel pass at milestone close.
-5. Re-bless recorded + reversible (pointer move is the deliver-agent
-   action; old baselines retained).
+### #2 — Eval gate: terminal-failure stop_reason overrides earlier resolved stamp
 
-### Step 3 — Pointer move + `docs/current_eval_baseline.md` flip
+When the FINAL `stop_reason` is in `{loop_detected, goal_impossible,
+error, contract_violation, max_turns_exceeded}`, the gate MUST NOT
+credit an earlier `containment_outcome="resolved"` stamp as success.
+The session terminated in a failure shape regardless of any per-turn
+observation upstream. Enumerate this set explicitly (do not use a "any
+non-bot_ended/goal_achieved" complement — the explicit set is auditable
+and won't accidentally promote a future benign stop_reason). Decide
+whether to (a) override the gate's read of `containment_outcome` for
+this case, or (b) fail the trace_minimum check on the stop_reason set
+alone (similar to how S-Auto-20 removed `loop_detected` from
+`_VALID_TERMINAL_STOP_REASONS`). Dev decides; justify in handoff.
 
-Deliver-agent action AFTER step 2 review passes:
+Anti-误杀: `goal_achieved` and `bot_ended` are NOT in the override set
+— a legitimately-completed session is still a pass. The override is
+narrowly scoped to terminal-failure shapes.
 
-- Move `config.fitness.baseline_dir` from `m-auto-4-baseline-20260604` to
-  `m-auto-5-baseline-20260604-simfixed`.
-- Flip `docs/current_eval_baseline.md` `implementation_status` to
-  `current` (file is presently stale — dated 2026-05-06; a fold-back to
-  capture the M-Auto-1 → M-Auto-5 sequence is overdue and out of scope
-  for the pointer-move action).
+### #3 — Eval gate: refuse semantic-pass-by-default when `l2_results=[]` + `composite=0`
 
-### Step 4 — M-Auto-5 milestone close
+When `l2_results=[]` (i.e. the CaseSpec has no L2 outcome checks AND/OR
+no L2 check fired) AND `composite_score=0` AND
+`containment_outcome="resolved"`, the gate MUST NOT mark
+`case_passed=true` solely on the strength of the stamp. Options:
 
-Per deliver-agent role §Close — milestone close:
+- **(3a)** Require an explicit case-level allowlist for "L2-not-
+  applicable" cases (e.g. a CaseSpec field `l2_not_applicable: true` or
+  similar). Cases not on the allowlist that arrive at this state are
+  inconclusive → `case_passed=false` with a `verdict_reason=
+  "no_l2_evidence_to_pass"` tag.
+- **(3b)** Treat this state as inconclusive → `case_passed=null` (not
+  true, not false) + `verdict_reason="no_l2_evidence"`. This requires
+  downstream aggregation (`_rebless_report.json` stability + autoloop
+  `tier_evaluator`) to handle `null`; verify before picking.
+- **(3c)** Author L2 outcome checks for the 5 affected cases as a
+  compensating CaseSpec edit, leaving the gate's fall-through behavior
+  unchanged. This is `eval_spec` work, not `infra`, and it doesn't
+  close the gap for the next case that's added without an L2 check —
+  so it's a partial fix at best.
 
-- Archive `docs/codex-findings.md` → `docs/milestones/M-Auto-5_codex-review.md`.
-- Archive `docs/milestone_objective.md` → `docs/milestones/M-Auto-5_objective.md`.
-- Reset `docs/milestone_objective.md` + `docs/sprint_objective.md` to
-  next-milestone-TBD placeholders.
-- Update `docs/10-handoff.md` §0 (no active milestone; next = M-Auto-6
-  open / research dispatch) + §1 (M-Auto-5 close lead; truncate older
-  per `doc_governance.md` retention rule) + §2 (append M-Auto-5
-  archive row).
-- Run `docs/action_bank.md` §7.1 retention sweep.
+Dev picks one (or hybrid) and justifies in handoff. Recommended:
+(3a) as the structural fix; (3c) only if a small number of cases are
+genuinely L2-not-applicable AND the allowlist mechanism doesn't exist
+yet (in which case land the allowlist mechanism + populate it).
 
-### Step 5 — Open M-Auto-6 (audit Clusters B + C)
+### #4 — Runtime companion: void/downgrade `containment_outcome="resolved"` stamp when session subsequently fails
 
-Per the human direction at S-Auto-21 open: M-Auto-6 = parallel
-research-agent dispatch on audit Clusters B (B.1 `per_turn_trace`
-truncation + B.2 `primary_uc` vs `active_use_case` authority) and C
-(C.1 cs59s session_create 400 + C.2 46f5b2e9 500 + double-send + C.3
-generic clarifier branch). Two research agents in parallel; deliver
-plans the milestone after their reports.
+`server/.../runtime/ControlKernel.java` (or wherever the BotSession
+`containment_outcome` field is persisted from the per-turn evaluation).
+Add a session-level invariant: when the loop terminates in a failure
+shape (`loop_detected` / `error` / `MAX_STEPS` / mid-resolution-without-
+completion) AFTER an earlier turn had already stamped
+`containment_outcome="resolved"`, void or downgrade the stamp so the
+persisted trace's session-level field reflects the final state.
 
-## Carry items (NOT a sub-sprint)
+Three implementation options:
 
-- **OQ-S76.drift-stop** — surface the literal
-  `stop_reason="simulator_drift_blocked"` (currently recorded as
-  `stop_reason="error"`, which already fails `trace_minimum` correctly;
-  label fidelity only). One-line fix when the `session_runner.py` fence
-  next opens. Not a blocker.
-- **OQ-S76.judge-zero RESOLVED 2026-06-05** (route c per research-agent
-  investigation, collapsed into the chronic
-  `R-eval-interactive-judge-score-never-populated` R-item). Chronic by-
-  configuration; byte-identical 0.0 across all four M-Auto-5 bracketing
-  runs; NOT a regression; NOT a re-bless blocker. Both sub-variants
-  (bad_cases / anchor_outcome empty `llm_judge_dimensions` arrays + shadow
-  L3 dims all `severity="advisory"` stripped by `composite.py:228`) folded
-  into the same R-item. M-Auto-5 paired-evidence review EXCLUDES the judge
-  layer (canonical signal = composite + outcome + L1 + L2 `failure_tags`);
-  close write-up cites the four-run evidence table at `action_bank.md`
-  `R-eval-interactive-judge-score-never-populated`. R-item stays LOW
-  priority; NOT promoted to M-Auto-6.
-- **OQ-S76.A6** (carry from audit §2.6) — bot self-diagnoses simulator
-  drift in its own LLM reasoning; runtime ignores. With S-Auto-21
-  shipping clean (0 contamination), A.6 may dissolve; otherwise it is
-  a M-Auto-6 candidate (decided at M-Auto-6 planning).
+- **(4a)** Overwrite to a more accurate value (e.g.
+  `containment_outcome="incomplete_after_partial_answer"` or
+  `containment_outcome=null` with a separate
+  `partial_resolution_history` field preserving the prior stamp's
+  provenance).
+- **(4b)** Add a session-level `containment_outcome_overridden_by:
+  "loop_detected"` provenance field so the trace shows what happened.
+- **(4c)** Leave the per-turn stamp alone but expose a derived
+  session-level field `final_containment_outcome` that downstream
+  consumers (including the eval gate from #2/#3) read instead.
+
+Dev picks one; justify in handoff. Anti-误杀 (HARD): NEVER void a
+stamp on a legitimately-completed session (`bot_ended` /
+`goal_achieved` with no subsequent loop / error). The override is
+strictly scoped to terminal-failure shapes.
+
+Java unit tests required for each change: counter-test for legitimate
+resolve still stamps `resolved` end-to-end; counter-test for earlier-
+resolved-then-loop ends with the overridden / downgraded field.
+
+### #5 — Anti-误杀 counter-tests (eval + runtime)
+
+The structural fix above MUST preserve all 9 legitimate F→P flips the
+S-Auto-21 simfixed run produced. Counter-tests:
+
+- Re-score (deterministic, on the existing simfixed
+  `_rebless_scratch/_attempts/a*/`) every case under the corrected eval
+  gate. Expect:
+  - 12 vacuous-pass draws (cs012 × 2, cs095 × 4, uc_b × 4, uc_a × 1,
+    uc_fp_removed × 2) flip to FAIL.
+  - The 9 legitimate F→P case-level flips (alice, cs012 majority,
+    cs015, cs066, cs095 majority, uc_a_visibility majority,
+    uc_f_billing, uc_fp_removed majority, cs01s01) — re-evaluate their
+    `majority_passed` under the corrected gate. cs095 stable 1.00
+    should become reducible-flaky or near-coinflip; uc_a_visibility
+    stable 1.00 should soften; uc_fp_removed stable 0.89 should soften.
+    cs066 1.00 stable, cs014 0.89 stable, fg5q 1.00 stable, cs029 1.00
+    stable — these are NOT in the vacuous set; they should still PASS
+    on the corrected gate. **A genuine F→P flip lost = anti-误杀
+    regression; surface and route before close.**
+- Java side: characterization test for the runtime stamp-downgrade
+  (#4). A new test that asserts: (a) a goal_achieved/grounded-answer
+  one-shot leaves `containment_outcome="resolved"` (S-Auto-20
+  behavior preserved); (b) a resolve-then-loop session ends with
+  the downgraded / overridden field.
+
+### #6 — Re-bless on the corrected framework (real-LLM, §5.7 — HUMAN-LAUNCHED)
+
+After #1-#5 ship + tests pass + Codex per-sub-sprint review passes:
+
+- Author the re-re-bless command in the handoff §6 (analogous to
+  S-Auto-21 handoff §6). Output dir suggestion:
+  `eval_interactive/results/m-auto-5-baseline-20260604-simfixed-
+  stalledfix` (or current-dated variant).
+- Dev STOPS before launching. The HUMAN launches the re-bless after
+  rebooting the backend (since #4 touches `server/`, this run requires
+  a rebuilt backend, not the existing `45618df`/`1bc77c1` build).
+- Deliver-agent runs paired-evidence review on the corrected baseline
+  + drafts milestone-shared Codex prompt.
+
+## Anti-误杀 invariants (HARD, non-negotiable)
+
+1. **Preserve the 9 legitimate F→P flips from S-Auto-21**, modulo the
+   vacuous-pass corrections in cs095 / uc_a / uc_fp_removed (those
+   case-level pass_rates SHOULD soften, but the case shouldn't flip
+   back to majority-FAIL unless evidence shows it deserves to).
+2. **Stamp downgrade is scoped to terminal-failure shapes**, never to
+   legitimate completion (`bot_ended` / `goal_achieved` with no
+   subsequent loop).
+3. **STALL:* promotion is selective**, not blanket-failure-tags
+   promotion (`TIER2_ADVISORY:*` stays advisory; only `STALL:*` and
+   future explicitly-promoted families warrant fail).
+4. **No CaseSpec-specific allowlist for cs012/cs095/uc_b/uc_a/
+   uc_fp_removed** — the fix is structural, not per-case (§1.7).
+5. **No promotion of `TIER2_ADVISORY:*` to fail** — they exist for a
+   reason; the M-Auto-5 close should not re-introduce false-fail bias
+   in the opposite direction.
+
+## Hard fences / STOP conditions
+
+- Edit ONLY: `eval_interactive/eval_interactive/scoring/composite.py`
+  + `eval_interactive/eval_interactive/scoring/hard_checks.py` (+ test
+  files in `eval_interactive/tests/`); `server/.../runtime/ControlKernel.java`
+  (+ Java test files). NO bot prompt / NO routing / NO UC-hypothesis
+  / NO escalation / NO skill / NO CaseSpec rubric / NO simulator edit.
+- DO NOT touch the simfixed S-Auto-21 forensic dir or any of the older
+  baselines.
+- DO NOT move `baseline_dir`; the post-S-Auto-22 re-re-bless is
+  HUMAN-LAUNCHED; pointer move happens only after paired-evidence +
+  Codex pass on the corrected baseline.
+- DO NOT touch the autoloop 5-file scoring SHA-locked set.
+- DO NOT launch a multi-suite re-bless from this dev session (HUMAN-
+  GATED, §6).
+- DO NOT open S-Auto-18 / M-Auto-4 / M-Auto-6 work.
+- All eval / rerun only on a clean committed tree.
+
+## Test / eval requirements
+
+- `eval_interactive` pytest under `uv run pytest`: no regression vs
+  current `538 passed` (S-Auto-21 baseline). New tests for #1/#2/#3
+  + the anti-误杀 #5 set increment, not replace.
+- Java suite: target `1232 / 1 / 0 / 2` baseline; new tests for #4 +
+  the #5 runtime counter-test increment. The 1 inherited failure
+  (`SystemPromptUserRequestedTiebreakerTest`, OQ-S41.5) stays.
+- autoloop pytest: untouched. Confirm `324` unchanged.
+- Deterministic re-score on the existing simfixed
+  `_rebless_scratch/_attempts/a*/`: 12 vacuous-pass draws flip to
+  FAIL; 9 legitimate F→P case-level flips reassessed (specific
+  expectations in #5).
+- §5.9 pre-flight check (new, added to audit doc §6):
+  `case_passed=true AND composite_score=0 AND l2_results=[] AND
+  (failure_tags contains STALL:* OR stop_reason in
+  {loop_detected, goal_impossible, error, contract_violation,
+  max_turns_exceeded})` returns ZERO matches on the re-re-bless
+  output. (Self-validating check that #1+#2 closed the gap.)
+
+## §7 Layer-classification + anti-hardcode stanza
+
+**Target failure layer:** `infra` — eval-framework scoring gate
+(`composite.py` + `hard_checks.py`) + runtime trace-contract companion
+(`ControlKernel.java` + BotSession persistence). NO `semantic_planner`
+/ `prompt_projection` / `skill_state` / `eval_spec` / `judge_calibration`
+/ `product_policy` edit. The §3 layer for OQ-S77.stall-not-gated is
+`infra` (eval-framework gate logic) — see brief.
+
+**Tier-0 invariant:** adds none; preserves all Tier-0 families at
+current strictness. The eval-gate edits and the runtime stamp downgrade
+are measurement/persistence corrections, not bot-decision invariants.
+
+**Semantic hardcode:** none. The STALL:* promotion (#1) keys on a
+structural tag family the eval framework already emits; the terminal-
+failure stop_reason override (#2) keys on an explicit enumerated set
+(loop_detected / goal_impossible / error / contract_violation /
+max_turns_exceeded), not on content/wording; the empty-L2 refusal (#3)
+keys on data-shape; the runtime stamp downgrade (#4) keys on session
+terminal state. None of these are keyword/regex/UC routing of the bot
+or any §1.3 LLM-owned decision.
+
+**Generalization coverage:** measurement-infra sub-sprint — evidence
+is (a) deterministic re-score on the existing simfixed
+`_rebless_scratch/_attempts/a*/` showing the 12 vacuous-pass draws now
+FAIL and the 9 legitimate F→P case-level flips reassessed, (b) Java
+counter-tests for #4, (c) eval contract-test for the §5.9 pre-flight
+check on a synthetic vacuous-pass fixture, (d) the HUMAN-launched
+re-re-bless real-LLM evidence — NOT target/neighbor/negative/shadow
+case-family counts.
+
+## Codex review plan (§4.3)
+
+PER-SUB-SPRINT RECOMMENDED; folds into M-Auto-5 milestone-shared
+close. NOT a fence-#13 SHA trigger.
+
+Codex focus (in priority order):
+
+1. No semantic-side rubric widening / no bot edit / no per-case
+   allowlist for the affected cases.
+2. STALL:* promotion (#1) is selective to `STALL:*` family, not
+   blanket failure_tags promotion.
+3. Terminal-failure stop_reason override (#2) is an enumerated
+   explicit set, not a non-bot-ended complement.
+4. Empty-L2 refusal (#3) is structural, not a per-case allowlist
+   (unless the chosen option IS an allowlist mechanism — then verify
+   the mechanism is generic, not cs-specific).
+5. Runtime stamp downgrade (#4) preserves legitimate resolve
+   (`bot_ended` + `goal_achieved` no-loop sessions still stamp
+   `resolved`); fires only on terminal-failure shapes.
+6. Anti-误杀 #5 evidence shows the 9 legitimate F→P flips reassessed
+   honestly — not silently flipped back to FAIL.
+7. §5.7 evidence gate: the HUMAN-launched re-re-bless is the real-LLM
+   evidence; the deterministic re-score on simfixed scratch is
+   evidence of #1/#2/#3 wiring but NOT primary evidence of the
+   corrected baseline.
+8. §5.9 pre-flight check is added to the audit doc §6 and the new
+   check returns ZERO matches on the re-re-blessed corpus.
+
+## Handoff requirements (dev authors `docs/sprints/sprint-077-handoff.md`)
+
+MUST include:
+
+- §0 cold-start summary (commits, test counts, what shipped / what
+  NOT shipped / re-re-bless-ready confirmation).
+- §1 #1 STALL:* promotion diff (file:line before/after + justification
+  for insertion point).
+- §2 #2 terminal-failure stop_reason override diff + the enumerated
+  set + justification for option (a/b chosen).
+- §3 #3 empty-L2 refusal diff + option (3a/3b/3c) chosen + justification
+  + allowlist mechanism details if applicable.
+- §4 #4 runtime stamp downgrade diff + option (4a/4b/4c) chosen +
+  justification + Java unit-test evidence.
+- §5 Anti-误杀 deterministic re-score table: per-case before/after
+  pass_rate + stability classification under the corrected gate, on
+  the simfixed scratch. Highlight any genuine F→P flip that softened
+  vs the 12 vacuous-pass draws that correctly flipped to FAIL.
+- §6 Re-re-bless-ready command + preconditions (backend rebuilt for
+  #4; clean tree; Mac caffeinate; etc., analogous to S-Auto-21
+  handoff §6).
+- §7 STOP confirmations (`baseline_dir` NOT moved; old baselines
+  retained; S-Auto-21 simfixed dir retained as forensic; full re-re-
+  bless NOT run by dev; S-Auto-17 overnight / S-Auto-18 / M-Auto-6
+  NOT touched).
+- §8 §5.9 pre-flight check addition to audit doc §6 (new check text
+  + insertion location).
+- §9 OQ-S77.stall-not-gated framework-defect brief reference
+  (`docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md`) +
+  confirmation the brief's #1-#5 scope items are all addressed.
+
+## Commit discipline
+
+- Stage ONLY authorized files (NOT `git add -A`):
+  - `eval_interactive/eval_interactive/scoring/composite.py`
+  - `eval_interactive/eval_interactive/scoring/hard_checks.py`
+  - `eval_interactive/tests/test_*.py` (new + updated)
+  - `server/...runtime/ControlKernel.java` (+ companion files for #4)
+  - `server/...test/...` (Java unit tests for #4)
+  - `docs/sprints/sprint-077-handoff.md` (when written)
+  - `docs/diagnostics/2026-06-04-eval-framework-and-simulator-audit.md`
+    (§6 pre-flight check addition)
+- One commit per substantive step where practical (#1, #2, #3
+  separately if non-trivial; #4 + tests one commit; handoff one
+  commit; audit doc edit one commit).
+- The re-re-bless output dir is gitignored — reference in handoff §6,
+  do not commit.
+- Deliver-owned docs (this sprint_objective, the dev prompt, the
+  milestone_objective update, the 10-handoff update, action_bank,
+  launch-record §9) are committed separately by the deliver-agent +
+  human bundle.
+
+## Self-check checklist (dev completes before claiming done)
+
+- [ ] #1 STALL:* promotion in `composite.py` or `hard_checks.py`; only
+      `STALL:*` family promoted (NOT `TIER2_ADVISORY:*` or other
+      tag families).
+- [ ] #2 terminal-failure stop_reason override (enumerated set
+      `{loop_detected, goal_impossible, error, contract_violation,
+      max_turns_exceeded}`); `goal_achieved` and `bot_ended` NOT in
+      the set.
+- [ ] #3 empty-L2 refusal landed; option (3a/3b/3c) chosen + justified;
+      no per-case allowlist for cs012/cs095/uc_b/uc_a/uc_fp_removed.
+- [ ] #4 runtime stamp downgrade scoped to terminal-failure shapes;
+      `bot_ended`/`goal_achieved` no-loop sessions still stamp
+      `resolved` end-to-end (counter-test green).
+- [ ] #5 deterministic re-score on simfixed scratch: 12 vacuous-pass
+      draws → FAIL; 9 legitimate F→P flips reassessed (table in
+      handoff §5); no silent flip-back.
+- [ ] eval pytest no regression vs 538; new tests increment.
+- [ ] Java `1232 / 1 / 0 / 2` baseline + new test count delta; the 1
+      inherited failure stays.
+- [ ] autoloop pytest 324 unchanged.
+- [ ] §5.9 pre-flight check added to audit doc §6; the check returns
+      ZERO matches when applied to the re-re-blessed corpus.
+- [ ] `baseline_dir` NOT moved; S-Auto-21 simfixed dir NOT touched;
+      full re-re-bless NOT run (left re-bless-ready).
+- [ ] Handoff written per §Handoff requirements.
