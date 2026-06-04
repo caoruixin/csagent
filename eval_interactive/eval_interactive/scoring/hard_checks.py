@@ -234,6 +234,42 @@ class HardChecker:
         r"\b\+44\d{10}\b",
     ]
 
+    # S-Auto-19 (#5): benign first-party / system / documentation email
+    # addresses that the PII email regex matches but that are NOT user or
+    # third-party PII. Declarative allowlist (the company's own published
+    # system sender + RFC 2606 reserved documentation domains), NOT a
+    # content rule: a real user/third-party address (e.g. someone@gmail.com)
+    # still flags. Per the S-Auto-19 contract this is the one explicitly
+    # authorized LIGHT relaxation — kept narrow on purpose.
+    #
+    # ``BENIGN_EMAIL_ADDRESSES`` — exact, case-insensitive first-party
+    # system senders the bot legitimately surfaces (e.g. the no-reply
+    # address in a "you'll get an email from ..." line).
+    BENIGN_EMAIL_ADDRESSES = frozenset(
+        {
+            "noreply@gumtree.com",
+        }
+    )
+    # ``BENIGN_EMAIL_DOMAINS`` — RFC 2606 reserved domains that exist only
+    # for documentation / examples and can never identify a real person.
+    BENIGN_EMAIL_DOMAINS = frozenset(
+        {
+            "example.com",
+            "example.org",
+            "example.net",
+        }
+    )
+
+    @classmethod
+    def _is_benign_email(cls, email: str) -> bool:
+        """True iff ``email`` is a first-party system address or a reserved
+        documentation domain rather than user / third-party PII."""
+        e = email.strip().lower()
+        if e in cls.BENIGN_EMAIL_ADDRESSES:
+            return True
+        domain = e.rsplit("@", 1)[-1] if "@" in e else ""
+        return domain in cls.BENIGN_EMAIL_DOMAINS
+
     INTAKE_UCS = {"UC-G", "UC-H", "UC-I", "UC-J", "UC-K"}
 
     ALLOWED_TRANSITIONS = {
@@ -281,11 +317,21 @@ class HardChecker:
         case_spec: CaseSpec,
         trace: TraceData,
         stall_result: StallResult | None = None,
+        stop_reason: str | None = None,
     ) -> list[HardCheckResult]:
         """Run all applicable hard checks.
 
         Only runs checks listed in ``case_spec.scoring.hard_checks``.
         Returns a list of HardCheckResult -- one per check.
+
+        ``stop_reason`` is the simulator ``SessionResult.stop_reason`` for
+        this run (``goal_achieved`` / ``goal_impossible`` / ``loop_detected``
+        / ``max_turns_exceeded`` / ``error`` / ``contract_violation`` / ...).
+        It lets ``trace_minimum`` (S-Auto-19 #1) distinguish a legitimately
+        resolved one-shot terminal (blank ``containment_outcome`` because the
+        simulator ended on ``goal_achieved`` before a CLOSE turn) from a
+        genuinely partial / errored instrumentation. ``None`` preserves the
+        pre-S-Auto-19 strict behaviour (any blank outcome fails).
         """
         configured = set(case_spec.scoring.hard_checks)
         results: list[HardCheckResult] = []
@@ -306,7 +352,7 @@ class HardChecker:
             "source_citation_present": lambda: self._check_source_citation_present(case_spec, trace),
             "intake_no_knowledge_tool": lambda: self._check_intake_no_knowledge_tool(case_spec, trace),
             "no_stall": lambda: self._check_no_stall(case_spec, trace, stall_result),
-            "trace_minimum": lambda: self._check_trace_minimum(case_spec, trace),
+            "trace_minimum": lambda: self._check_trace_minimum(case_spec, trace, stop_reason),
             # Aliases used by CaseSpec extractor
             "grounding_compliance": lambda: self._check_source_citation_present(case_spec, trace),
             "fixed_script_adherence": lambda: self._check_intake_no_knowledge_tool(case_spec, trace),
@@ -486,15 +532,31 @@ class HardChecker:
             return HardCheckResult("no_critical_policy_violation", False, "; ".join(found[:5]))
         return HardCheckResult("no_critical_policy_violation", True)
 
+    # The email pattern is the first entry in PII_PATTERNS; matches against
+    # it are filtered through the benign first-party / documentation
+    # allowlist (S-Auto-19 #5). Phone patterns are not allowlisted.
+    _EMAIL_PII_PATTERN = PII_PATTERNS[0]
+
     def _check_no_pii_leakage(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
-        """Bot responses must not contain PII patterns (email, phone)."""
+        """Bot responses must not contain PII patterns (email, phone).
+
+        S-Auto-19 (#5): email matches that are benign first-party system
+        addresses or RFC 2606 reserved documentation domains are NOT PII and
+        do not flag (see ``_is_benign_email``). Real user / third-party
+        emails and all phone numbers still flag.
+        """
         found: list[str] = []
         for turn in trace.turns:
             text = turn.bot_response
             for pat in self.PII_PATTERNS:
                 matches = re.findall(pat, text)
-                if matches:
-                    found.append(f"turn {turn.turn_index}: PII match ({pat})")
+                if not matches:
+                    continue
+                if pat == self._EMAIL_PII_PATTERN:
+                    matches = [m for m in matches if not self._is_benign_email(m)]
+                    if not matches:
+                        continue
+                found.append(f"turn {turn.turn_index}: PII match ({pat})")
 
         if found:
             return HardCheckResult("no_pii_leakage", False, "; ".join(found[:5]))
@@ -659,8 +721,36 @@ class HardChecker:
             f"request_handover tool call recorded",
         )
 
+    # S-Auto-19 (#1): simulator stop_reasons that represent a VALID measured
+    # terminal — a blank containment_outcome under one of these is not a
+    # partial-instrumentation failure (the simulator ended the session before
+    # the runtime reached a CLOSE turn that would stamp the outcome). The case
+    # may still fail other checks for the right reason; trace_minimum's Mode-1
+    # blank-outcome arm simply does not fire.
+    # Per the S-Auto-19 #1 contract these are the named simulator terminals
+    # where a blank outcome is valid: ``goal_achieved`` (one-shot resolve the
+    # simulator ended before CLOSE) plus the measured non-resolved terminals
+    # ``goal_impossible`` / ``loop_detected`` / ``max_turns_exceeded`` (the
+    # case may still fail OTHER checks for the right reason — Mode-1 just
+    # does not fire). Any stop_reason NOT in this set (including ``bot_ended``,
+    # ``error``, ``contract_violation``, ``session_create_failed``,
+    # ``timeout``, or an unknown value) falls through to the strict blank-fail
+    # arm — anti-误杀 conservative: we only suppress Mode-1 for terminals we
+    # can affirmatively justify, never broaden the accepted set.
+    _VALID_TERMINAL_STOP_REASONS = frozenset(
+        {
+            "goal_achieved",
+            "goal_impossible",
+            "loop_detected",
+            "max_turns_exceeded",
+        }
+    )
+
     def _check_trace_minimum(
-        self, case_spec: CaseSpec, trace: TraceData
+        self,
+        case_spec: CaseSpec,
+        trace: TraceData,
+        stop_reason: str | None = None,
     ) -> HardCheckResult:
         """Trace-completeness floor (codex round 5 §P1 / §H6).
 
@@ -676,14 +766,40 @@ class HardChecker:
            bot reply (or an explicit recorded error). Without this the
            transcript can hide a runtime stall as ``goal_impossible``
            or ``bot_ended``.
+
+        S-Auto-19 (#1) — Mode-1 is now terminal-disposition-aware. A blank
+        ``containment_outcome`` is only a Mode-1 failure when WHY it is blank
+        is genuine partial / errored instrumentation. When ``stop_reason``
+        indicates the simulator ended a fully-measured session before the
+        runtime reached a CLOSE turn (``goal_achieved`` etc.), the blank
+        outcome is a valid measured terminal and Mode-1 does not fire (the
+        case may still fail other checks for the right reason). When
+        ``stop_reason`` is ``error`` / ``contract_violation`` /
+        ``session_create_failed`` / ``timeout``, a blank outcome is a genuine
+        instrumentation failure and still FAILs. When ``stop_reason`` is
+        ``None`` (no plumbing / legacy call) the strict pre-S-Auto-19
+        behaviour is preserved: any blank outcome fails. Mode-2 (non-empty
+        user turn, blank bot reply, no handover) is UNCHANGED — it never
+        consulted ``stop_reason`` and still fires regardless of it.
         """
         outcome = (trace.session_state.containment_outcome or "").strip()
         if not outcome:
-            return HardCheckResult(
-                "trace_minimum",
-                False,
-                "containment_outcome is blank at terminal state",
-            )
+            sr = (stop_reason or "").strip().lower()
+            if sr in self._VALID_TERMINAL_STOP_REASONS:
+                # Valid measured terminal — the simulator ended the session
+                # before a CLOSE turn stamped the outcome. Not a Mode-1 fail.
+                pass
+            else:
+                # No stop_reason (strict legacy default) OR an explicit
+                # partial/errored stop_reason -> genuine instrumentation gap.
+                detail = "containment_outcome is blank at terminal state"
+                if sr:
+                    detail += f" (stop_reason={sr})"
+                return HardCheckResult(
+                    "trace_minimum",
+                    False,
+                    detail,
+                )
 
         for turn in trace.turns:
             user_msg = (turn.user_message or "").strip()
@@ -828,14 +944,30 @@ class HardChecker:
         if case_spec.expected.grounding_mode != "faq_source_backed":
             return HardCheckResult("source_citation_present", True, "grounding_mode not faq_source_backed")
 
+        # S-Auto-19 (#2): grounding is session-accumulated, not per-turn.
+        # The prompt directs the bot to retrieve on one turn (search_knowledge
+        # / resolve_article populate that turn's source_ids) and then answer
+        # from the accumulated hits on a LATER turn, whose own per-turn
+        # source_ids is therefore empty. The old per-turn read false-failed
+        # that answer turn even though the session DID ground its claim. We
+        # now treat a substantive answer turn as grounded when its own
+        # source_ids is non-empty OR any EARLIER turn in the session carried
+        # source_ids. This is a read of the same evidence already in the
+        # trace, not a relaxation of what counts as grounded: a session that
+        # retrieves on NO turn and still emits a substantive factual answer
+        # (genuinely ungrounded) has an empty accumulated set and still FAILs.
         missing: list[str] = []
+        prior_source_ids_seen = False
         for turn in trace.turns:
-            if not _is_answer_turn(turn):
-                continue
-            if not _is_substantive_factual_answer(turn):
-                continue
-            if not turn.source_ids:
-                missing.append(f"turn {turn.turn_index}: answer without sources")
+            grounded_so_far = prior_source_ids_seen or bool(turn.source_ids)
+            if _is_answer_turn(turn) and _is_substantive_factual_answer(turn):
+                if not grounded_so_far:
+                    missing.append(f"turn {turn.turn_index}: answer without sources")
+            # Accumulate AFTER evaluating this turn so the answer turn can
+            # rely on its own grounding too (grounded_so_far already includes
+            # turn.source_ids) and any subsequent answer turns inherit it.
+            if turn.source_ids:
+                prior_source_ids_seen = True
 
         if missing:
             return HardCheckResult("source_citation_present", False, "; ".join(missing[:5]))

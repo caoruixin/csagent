@@ -486,17 +486,24 @@ class TraceView:
 
     @property
     def accumulated_tool_results(self) -> Mapping[str, Any]:
-        """Return the final turn's ``accumulated_tool_results`` map, or the
-        union across turns if the final turn omits the key. Empty map if
-        no turn provides one.
+        """Return the union of every turn's ``accumulated_tool_results`` map.
+
+        S-Auto-19 (#3): the union runs unconditionally across ALL turns,
+        presence-preserving. The previous read returned the final turn's ATR
+        verbatim when it was non-empty and only unioned when the final turn
+        omitted the key entirely. That bypassed earlier-turn tool results
+        whenever a later turn carried a *partial* ATR — e.g. the projection
+        evicts ``search_knowledge`` from the final turn's ATR once
+        ``resolve_article`` is in flight, so a ``search_knowledge`` that ran
+        on turn 1 was invisible to ``search-knowledge-before-faq-answer``
+        even though it was unambiguously called. Unconditional union keeps
+        the membership semantics of the DSL (``tool in ATR``) honest: a tool
+        that appeared in any turn's ATR is present; success/failure of a
+        genuine never-called case is preserved because no turn ever lists it.
+        Empty map if no turn provides one.
         """
         if not self.per_turn_trace:
             return {}
-        last = self.per_turn_trace[-1]
-        proj = last.get("projection") or {}
-        atr = proj.get("accumulated_tool_results")
-        if isinstance(atr, Mapping) and atr:
-            return atr
         merged: dict[str, Any] = {}
         for turn in self.per_turn_trace:
             proj = turn.get("projection") or {}
@@ -532,6 +539,17 @@ class TraceView:
                 intake_state = session.get("intake_state")
             if isinstance(intake_state, Mapping):
                 fields = intake_state.get("fields_collected")
+                # S-Auto-19 (#4): the backend emits ``fields_collected`` as
+                # a dict/object (field-name -> value), not a list. The old
+                # read only accepted a list/tuple, so the membership view
+                # collapsed to ``()`` and ``*-intake-complete-before-handover``
+                # could never pass on a real trace. Read the dict's KEYS as
+                # the collected-field set when it is a Mapping; keep the
+                # list/tuple path for fixtures and any legacy list shape.
+                # This is a shape read, not a success-rule change: a field
+                # only appears if the backend actually recorded it.
+                if isinstance(fields, Mapping):
+                    return tuple(fields.keys())
                 if isinstance(fields, (list, tuple)):
                     return tuple(fields)
         return ()
