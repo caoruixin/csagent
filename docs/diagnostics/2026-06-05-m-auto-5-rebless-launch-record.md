@@ -44,7 +44,7 @@ record of the launch conditions to reproduce against.
 | Field | Value |
 |---|---|
 | Branch | `auto-loop-branch` |
-| HEAD SHA at launch | `1bc77c153ddf11c4647c6658dc0c911a563ac153` (short `1bc77c1`) |
+| HEAD SHA at launch | `9e4907e` or later (the launch-record commit itself; `1bc77c1` and earlier in the same `auto-loop-branch` line are documentation-only ancestors and contain no code changes affecting this run) |
 | Working tree | MUST be clean before launch (see §3 preconditions) |
 | Bot code base | byte-identical to the S-Auto-21 dev build (`45618df`); no `server/` files changed since |
 | Simulator code base | `eval_interactive/eval_interactive/simulator/user_simulator.py` at `1bc77c1` — includes the S-Auto-21 role-map fix + per-turn re-anchor + negative-form Forbidden block + D1/D2/D3 drift guard + 3-attempt retry + `SimulatorDriftError` escape |
@@ -71,8 +71,12 @@ Source: copied verbatim from `docs/sprints/sprint-076-handoff.md` §6
    poisons per-exp commits and is the historical OQ-S65.1 root cause.
    Any in-progress governance / unrelated edits must be committed or
    stashed before launch.
-2. **HEAD = `1bc77c1` or later** — the bookkeeping commit that resolves
-   OQ-S76.judge-zero into the chronic R-item.
+2. **HEAD = `9e4907e` or later** — the launch-record commit itself.
+   Ancestors `1bc77c1` (OQ-S76.judge-zero resolution bookkeeping) and
+   `681b492` (S-Auto-21 sub-sprint close) are documentation-only and do
+   not affect the run; launching from any of them is equivalent code-
+   wise but cite `9e4907e` so the launch record is included in the run
+   provenance.
 3. **Backend booted fresh** — per
    `feedback_restart_backend_before_eyeball`, `mvn spring-boot:run` has
    no hot-reload, so a stale backend masks any in-flight runtime change.
