@@ -11,8 +11,19 @@ superseded_by: null
 notes: >
   Promoted 2026-06-04 from the deliver-agent draft. M-Auto-4 is PAUSED (not
   superseded) — its objective is preserved at
-  `docs/milestones/M-Auto-4_objective_PAUSED.md` and resumes at S-Auto-18 after
-  the M-Auto-5 re-bless.
+  `docs/milestones/M-Auto-4_objective_PAUSED.md`. **Update 2026-06-04 (S-Auto-21
+  open):** M-Auto-4's S-Auto-18 is DEFERRED to M-Auto-7 or later, behind M-Auto-6
+  (Clusters B + C of the simulator/eval-framework audit
+  `docs/diagnostics/2026-06-04-eval-framework-and-simulator-audit.md`). The audit
+  surfaced a third blocker for "honest verdicts" — the customer simulator at
+  `user_simulator.py:187` inverts roles when sending the transcript to the
+  chat-completions API, conditioning the simulator LLM to behave as the support
+  agent from turn ~3+ (1,017 / 7,071 sessions contaminated, 14.4 %). S-Auto-19
+  corrected the EVAL read column; S-Auto-20 corrected the RUNTIME stamp column;
+  **S-Auto-21 corrects the INPUT column**. M-Auto-5 closes after S-Auto-21 + the
+  authoritative simulator-fixed re-bless. Then M-Auto-6 = Clusters B + C
+  (parallel research-agent dispatch). Then M-Auto-7 may pick up M-Auto-4's
+  S-Auto-18 or a semantic-remediation milestone on the honest baseline.
 
   M-Auto-5 north star = make every per-case eval VERDICT reflect the bot's actual
   behaviour, by (a) correcting eval-harness checks that read session-accumulated
@@ -127,11 +138,14 @@ high-risk under-escalations, the escalation-reason cross-family question) — ar
 **deferred to a later semantic milestone**, to be designed against the honest
 re-blessed baseline.
 
-## Sub-sprint sequence (S-Auto-19 + corrective S-Auto-20; M-Auto-4's S-Auto-18 resumes after)
+## Sub-sprint sequence (S-Auto-19 → S-Auto-20 → S-Auto-21; M-Auto-4's S-Auto-18 DEFERRED behind M-Auto-6)
 
-> Merged to one sub-sprint to speed close: eval-side corrections + runtime
-> trace-contract completion + authoritative re-bless ship together. Internal order:
-> eval fixes → runtime fixes → backend rebuild/restart → re-bless on a clean tree.
+> Originally scoped as ONE sub-sprint (eval + runtime + re-bless together). Re-bless
+> verdict-review exposed a second blocker (runtime stamp inert; `loop_detected`
+> vacuous-pass) → corrective S-Auto-20. The 2026-06-04 simulator/eval-framework
+> audit exposed a third blocker (input-column contamination via simulator role
+> inversion) → corrective S-Auto-21. The authoritative simulator-fixed re-bless
+> happens at the end of S-Auto-21; pointer move is human-gated.
 
 1. **S-Auto-19 / Sprint 074 — verdict corrections (eval + runtime) + re-bless.
    [ACCEPTED-WITH-FOLLOWUP 2026-06-04]** Layer `infra`. Archived:
@@ -178,22 +192,46 @@ re-blessed baseline.
    launchable** on the honest baseline after this.
 
 2. **S-Auto-20 / Sprint 075 — corrective: real goal_achieved containment stamp +
-   loop_detected no-vacuous-pass. [ACTIVE]** Layer `infra`. Contract:
-   `docs/sprint_objective.md`; dev prompt `compact/sprint-075-dev-prompt.md`. Diagnosis
-   FIRST (vacuous 7-draw distribution on the existing m-auto-5 scratch — read-only, no
-   re-run), then: (#1) runtime stamps `containment_outcome=resolved` on the real
-   goal_achieved one-shot grounded-answer path (S-Auto-19's READY_TO_CONFIRM gate was
-   too narrow → the stamp never fired; **validate against a REAL trace per §5.7**, the
-   gap that made S-Auto-19 inert); (#2) remove `loop_detected` from eval#1's
-   valid-terminal set so a looping bot can't vacuous-pass. Anti-误杀 both ways (never
-   stamp resolved on an unresolved terminal; a genuine resolve still passes). The full
-   real-LLM re-bless + the `baseline_dir` pointer move are the human-gated steps AFTER.
+   loop_detected no-vacuous-pass. [ACCEPTED 2026-06-04]** Layer `infra`. Archived:
+   `docs/sprints/sprint-075-{objective,handoff}.md`; dev prompt
+   `compact/sprint-075-dev-prompt.md`. Step-0 vacuous 7-draw scan found 11 cases
+   with ≥1 gate-vacuous draw (not 4 as initially scoped); Fix #1 broadened
+   `ControlKernel.isResolvedSuccessTerminal` (also accepts ANSWERED_SUBTASK +
+   grounding) — validated against a REAL goal_achieved trace per §5.7 (session
+   `6965f6dc-…` persisted `containment_outcome="resolved"`); Fix #2 removed
+   `loop_detected` from `HardChecker._VALID_TERMINAL_STOP_REASONS`. Java
+   `1232 / 1 / 0 / 2`, eval pytest 524 (+2 net new), commits `95cd0f4` + `e6e57ec`
+   + `da7ef15`. `baseline_dir` NOT moved.
 
-3. **(resumes M-Auto-4) S-Auto-18 / Sprint 076 — bounded §5 escalation-family tiers
-   (`eval_spec`).** Unchanged from M-Auto-4's plan; runs against the M-Auto-5 honest
-   baseline. The escalation-reason cross-family question
-   (`faq_miss_threshold_exceeded ↔ user_requested`, an `eval_spec`-vs-
-   `semantic_planner` call) is decided here, on honest measurement.
+3. **S-Auto-21 / Sprint 076 — corrective #2: simulator role-inversion fix +
+   bad-case suite re-render + M-Auto-5 authoritative re-bless. [ACTIVE]** Layer
+   `infra`. Contract: `docs/sprint_objective.md`; dev prompt
+   `compact/sprint-076-dev-prompt.md`. Input artifact:
+   `docs/diagnostics/2026-06-04-eval-framework-and-simulator-audit.md`. Closes the
+   third (and final) blocker for honest verdicts — the simulator at
+   `user_simulator.py:187` inverts roles when sending the transcript to the
+   chat-completions API, conditioning the simulator LLM to behave as the support
+   agent from turn ~3+ (audit lower-bound: 14.4 % of sessions contaminated).
+   Bundled fix: (#1) root-cause role-map inversion; (#2) per-turn persona
+   re-anchor; (#3) negative-form rules in the simulator system prompt; (#4)
+   post-generation customer-voice drift guard with retry-and-escape (3-attempt
+   budget; `simulator_drift_blocked` end-of-session — anti-误杀); (#5) multi-turn
+   contract tests T1-T7 (audit §7 explicitly called out the existing test file
+   covers JSON parsing only); (#6) bad-case suite re-render on the simulator-fixed
+   code with real-LLM evidence per §5.7; (#7) authoritative re-bless left
+   **re-bless-ready** — HUMAN launches; deliver moves the `baseline_dir` pointer
+   and flips `docs/current_eval_baseline.md` status. The still-running
+   `m-auto-5-baseline-20260605` is NOT killed — it is retained as forensic data.
+   NO bot / runtime / prompt / routing / UC / escalation / skill / CaseSpec edit.
+   Audit Clusters B and C are routed to M-Auto-6 (not in this sub-sprint).
+
+4. **(M-Auto-6, opened after M-Auto-5 close) — audit Clusters B + C.** Two-track
+   research-agent dispatch (B: `per_turn_trace` truncation + primary_uc/
+   active_use_case authority; C: cs59s session_create 400, 46f5b2e9 500 +
+   double-send, intake clarifier branch). NOT this milestone.
+
+5. **(deferred to M-Auto-7 or later) S-Auto-18 — bounded §5 escalation-family
+   tiers (`eval_spec`).** Pushed behind M-Auto-6.
 
 ## Non-goals
 
