@@ -1,10 +1,10 @@
 ---
-title: (no active sub-sprint — M-Auto-5 close-pending on human-launched authoritative re-bless)
+title: (no active sub-sprint — M-Auto-5 close evidence generation in progress; the human-launched authoritative re-bless ≠ M-Auto-5 close itself)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: docs/milestone_objective.md (M-Auto-5)
-last_reviewed: 2026-06-04
+last_reviewed: 2026-06-05
 review_cadence: per sub-sprint
 supersedes: [docs/sprints/sprint-076-objective.md]
 superseded_by: null
@@ -14,13 +14,21 @@ notes: >
   simulator role-inversion fix). S-Auto-21 evidence: 0/40 contamination on
   the re-rendered bad-case suite (real-LLM); cross-time OLD→NEW 3→0;
   pre-fix corpus sweep 852→0 contaminated turns. Audit's 14.4 % framework
-  contamination thesis closed at the source. What remains for M-Auto-5
-  close is NOT a dev sub-sprint — it is the HUMAN-LAUNCHED authoritative
-  multi-suite re-bless + the deliver+human paired-evidence review + the
-  milestone-shared Codex + the `baseline_dir` pointer move + flipping
-  `docs/current_eval_baseline.md` status. No new sub-sprint contract is
-  written here. The next milestone (M-Auto-6 = audit Clusters B + C with
-  parallel research-agent dispatch) is opened AFTER M-Auto-5 close.
+  contamination thesis closed at the source.
+
+  **State 2026-06-05**: human authorized the authoritative multi-suite
+  re-bless on the simulator-fixed corpus. Launch record at
+  `docs/diagnostics/2026-06-05-m-auto-5-rebless-launch-record.md` (exact
+  SHA + command + preconditions + forensic policy + interpretation
+  guides). **This re-bless is M-Auto-5 close EVIDENCE GENERATION, not
+  M-Auto-5 close.** The close is the deliver+human paired-evidence review
+  + milestone-shared Codex + (if both gates pass) `baseline_dir` pointer
+  move + `docs/current_eval_baseline.md` flip + standard archive sweep —
+  none of which happen by the act of the re-bless completing.
+
+  No new sub-sprint contract is written here. The next milestone
+  (M-Auto-6 = audit Clusters B + C with parallel research-agent dispatch)
+  is opened AFTER M-Auto-5 close.
 ---
 
 # (no active dev sub-sprint)
@@ -32,26 +40,34 @@ milestone close.
 
 ## Next actions (NOT a dev sub-sprint)
 
-### Step 1 — HUMAN launches the authoritative re-bless
+### Step 1 — HUMAN launches the authoritative re-bless (evidence generation — NOT M-Auto-5 close)
 
-Per the dev-authored re-bless-ready command in
-`docs/sprints/sprint-076-handoff.md` §6:
+Authoritative launch record:
+`docs/diagnostics/2026-06-05-m-auto-5-rebless-launch-record.md` —
+exact SHA (`1bc77c1`), exact command, preconditions, forensic-baseline
+policy, expected anomalies (incl. `suspect_baseline_manipulation` as the
+simulator-fix expected distribution shift), and post-run procedure.
+Read that doc, not this section, before launch.
 
 ```bash
-# Preconditions: clean tree at ba47ec6 or later; backend booted fresh
-# (mvn -o spring-boot:run -Dspring-boot.run.profiles=local); curl
-# /actuator/health → UP; Mac kept awake (caffeinate). See feedback memories:
-# feedback_restart_backend_before_eyeball + feedback_long_llm_run_no_sleep.
+# Preconditions per the launch record §3:
+# - clean working tree (per project_autoloop_dirty_index_hazard);
+# - HEAD = 1bc77c1 or later;
+# - backend booted fresh (mvn -o spring-boot:run; curl
+#   /actuator/health → UP);
+# - Mac kept awake (caffeinate -dimsu …);
+# - Postgres + Redis up; creds in repo-root .env.local + autoloop/.env.local.
 
 cd autoloop && uv run python scripts/rebless_baseline.py \
     --n 7 \
     --out-dir ../eval_interactive/results/m-auto-5-baseline-20260604-simfixed
 ```
 
-Writes a fresh dated dir; the old `m-auto-4-baseline-20260604` and the
-forensic `m-auto-5-baseline-20260604` + `m-auto-5-baseline-20260605` are
-RETAINED. Expect `suspect_baseline_manipulation` to fire — the corrected
-measurement legitimately shifts the verdict distribution.
+Writes a fresh dated dir; `m-auto-4-baseline-20260604`,
+`m-auto-5-baseline-20260604`, and `m-auto-5-baseline-20260605` are all
+RETAINED as forensic. **`baseline_dir` is NOT moved by the act of running
+this** — the deliver-agent moves it only after the paired-evidence review
++ milestone-shared Codex (Steps 2 + 3) pass.
 
 ### Step 2 — Deliver + human paired-evidence review (M-Auto-5 close primary gate)
 
