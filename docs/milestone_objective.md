@@ -234,9 +234,20 @@ re-blessed baseline.
    construction. STOP confirmations honored: `baseline_dir` NOT moved;
    `m-auto-5-baseline-20260605` not killed (no live process existed); full
    authoritative re-bless NOT run (left re-bless-ready, §6); S-Auto-17
-   overnight / S-Auto-18 / M-Auto-6 untouched. Observation flagged for
-   M-Auto-5 close: `mean_judge=0.0` across the simfixed re-render (carried
-   as OQ-S76.judge-zero, MUST be checked before milestone close).
+   overnight / S-Auto-18 / M-Auto-6 untouched. OQ-S76.judge-zero resolved
+   2026-06-05 (route c per research-agent investigation): `mean_judge=0.0`
+   collapsed into the chronic `R-eval-interactive-judge-score-never-populated`
+   R-item — byte-identical 0.0 across all four M-Auto-5 bracketing runs
+   (m-auto-4 / m-auto-5-0604 / m-auto-5-0605 / simfixed 20260604-152103);
+   NOT a regression; NOT a re-bless blocker. Both sub-variants folded into
+   the same R-item: (a) `bad_cases/*.yaml` + `anchor_outcome/*.yaml` ship
+   `llm_judge_dimensions: []` → no L3 calls → `composite.py:228-232` fallback
+   0.0; (b) `shadow/*.yaml` invokes L3 but every dim is `severity="advisory"`
+   → S-Eval-5 advisory-strip removes them → same fallback. M-Auto-5 paired-
+   evidence review EXCLUDES the judge layer (canonical signal = composite +
+   outcome + L1 + L2 `failure_tags`); close write-up cites the four-run table
+   at `action_bank.md` `R-eval-interactive-judge-score-never-populated`.
+   R-item stays LOW priority; NOT promoted to M-Auto-6.
 
 4. **(M-Auto-6, opened after M-Auto-5 close) — audit Clusters B + C.** Two-track
    research-agent dispatch (B: `per_turn_trace` truncation + primary_uc/
