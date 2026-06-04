@@ -84,6 +84,37 @@ sub-sprint.
 
 ## 4. Scope
 
+### 4.0 Naming clarifications (read before Step 0 — there are two fields named with "2")
+
+The four-tier scoring framework persists multiple fields per case in
+`results.json`. Two of them carry "2" in their name and **are not the
+same layer**:
+
+- **`l2_results`** (plural list of `OutcomeCheckResult`) — the **L2
+  outcome-checks layer**. This is the field OQ-S77.stall-not-gated
+  targets. `l2_results=[]` means no outcome check defined/fired; the
+  mandatory-L2 filter at `composite.py:182-196` becomes vacuously True.
+  Fixes #2 and #3 operate on this field.
+- **`tier2_result`** (singular dict, `Tier2Result`) — the
+  **skill-procedure check**, a DIFFERENT, fourth tier. It emits tags
+  like `TIER2_ADVISORY:record-outcome-on-grounded-answer` and only
+  flips `case_passed` when `severity == "critical"` (at
+  `composite.py:203`). Do NOT confuse `TIER2_ADVISORY:*` strings in
+  `failure_tags` (from this skill-procedure layer) with `l2_results`
+  (L2 outcome checks). They are separate signals; this sub-sprint
+  does NOT modify `tier2_result` semantics.
+
+The `case_passed` formula at `composite.py:205`:
+
+```
+case_passed = l1_passed AND mandatory_l2_passed AND not tier2_critical_failed
+```
+
+— so when `l2_results=[]`, `mandatory_l2_passed` is vacuously True;
+`tier2_critical_failed` is False if `tier2_result.severity == "advisory"`;
+and `l1_passed` may still be True (stalls are not L1 checks). That's
+the gap OQ-S77 closes.
+
 ### Step 0 — verification (read-only)
 
 Read `docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md` end-to-
@@ -96,24 +127,48 @@ uc_fp_removed×2) and the fingerprint pattern (`case_passed=true AND
 composite_score=0 AND l2_results=[]`). Write a brief one-paragraph
 confirmation in your handoff §0 BEFORE editing any code.
 
-### #1 — Eval gate: STALL:* promotion to `case_passed=false`
+### #1 — Eval gate: STALL signal promotion to `case_passed=false`
 
 Insertion point: the case-pass computation in `eval_interactive/
-eval_interactive/scoring/composite.py` (same module that, around line
-228-232, falls through to `judge_score=0.0` per OQ-S76.judge-zero
-resolution — the analogous case_passed fall-through path likely lives
-nearby). Read the module top-to-bottom; identify where `case_passed` is
-finalized; find the existing read of `failure_tags`.
+eval_interactive/scoring/composite.py` around `:205` (where
+`case_passed = l1_passed AND mandatory_l2_passed AND not
+tier2_critical_failed` is computed) and the fall-through region near
+`gating_l3 = [r for r in l3_results if ...]` at `:228` (the same area
+that OQ-S76.judge-zero documented as falling through to
+`judge_score=0.0` when the L3 list is empty). Read the module
+top-to-bottom; identify where `case_passed` is finalized.
 
-Rule: if the per-case `failure_tags` list contains any tag matching the
-pattern `STALL:*` (compile-time constant prefix match, not regex
-content), the case is `case_passed=false` regardless of
-`composite_score`, `l2_results`, `judge_score`, or
+The framework already records the stall signal on multiple equivalent
+surfaces. Pick ONE of the three below as the structural read (justify
+the choice in handoff §1):
+
+- **(1a) `stall_detected == True`** — preferred. Typed boolean on the
+  case_result, produced by the stall detector at
+  `eval_interactive/eval_interactive/scoring/stall_detector.py`.
+  Reading the boolean directly avoids string-prefix matching and is
+  the most stable surface.
+- **(1b) `status == "FAIL"`** — the framework already sets a per-case
+  status field that says FAIL on these draws even when
+  `case_passed=True`. Promoting status=FAIL → case_passed=false
+  closes the internal inconsistency; the read is structured.
+- **(1c) `failure_tags` contains `STALL:*`** (prefix match) —
+  the failure-tags catalogue read. Less preferred because it relies
+  on string conventions; use only if (1a) / (1b) are not viable for
+  some reason discovered during implementation.
+
+All three are equivalent on the OQ-S77 vacuous-pass corpus (every
+draw with `stall_detected=True` also carries `STALL:*` in
+`failure_tags` and `status="FAIL"`); the choice optimises code
+clarity, not semantic coverage. Promoted to `case_passed=false`
+regardless of `composite_score`, `l2_results`, `judge_score`, or
 `containment_outcome`. Set a `verdict_reason="stall_promoted"` field
 (or analogous) so the trace records why.
 
-Selective, NOT blanket: do NOT promote `TIER2_ADVISORY:*` or any other
-failure_tags family. Only `STALL:*`.
+**Scope discipline (HARD)**: selective, NOT blanket. Do NOT promote
+`TIER2_ADVISORY:*` (those come from the skill-procedure tier; their
+advisory severity is intentional). Do NOT promote any other
+`failure_tags` family. Only the stall signal (whichever of 1a/1b/1c
+you choose).
 
 ### #2 — Eval gate: terminal-failure stop_reason overrides earlier resolved stamp
 
@@ -405,7 +460,11 @@ MUST include:
 ## 13. Self-check checklist
 
 - [ ] Step 0 verification paragraph in handoff §0.
-- [ ] #1 STALL:* promotion (only `STALL:*` family; not TIER2_ADVISORY).
+- [ ] #1 STALL signal promotion landed; one of (1a) `stall_detected`,
+      (1b) `status=="FAIL"`, or (1c) `failure_tags STALL:*` chosen +
+      justified in handoff §1; NOT a blanket failure_tags promotion;
+      `TIER2_ADVISORY:*` NOT promoted; `tier2_result` semantics
+      unchanged.
 - [ ] #2 enumerated terminal-failure stop_reasons (loop_detected,
       goal_impossible, error, contract_violation, max_turns_exceeded);
       goal_achieved + bot_ended NOT in set.
