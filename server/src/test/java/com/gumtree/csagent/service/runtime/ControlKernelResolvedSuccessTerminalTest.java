@@ -12,28 +12,46 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Sprint 074 / S-Auto-19 (#1 runtime — trace-contract completion).
+ * Sprint 074 / S-Auto-19 (#1 runtime — trace-contract completion) +
+ * Sprint 075 / S-Auto-20 (#1 broadening).
  *
  * <p>Pins {@link ControlKernel#isResolvedSuccessTerminal} — the gate that
  * decides whether the agent loop should stamp {@code
  * containment_outcome="resolved"} on a one-shot grounded-answer terminal
- * that did not route through a dedicated record_outcome-only CLOSE turn.
+ * that did not route through a dedicated record_outcome / CONFIRM turn.
+ *
+ * <p>S-Auto-20 broadened the disposition gate from {@code READY_TO_CONFIRM}-
+ * only to also accept {@code ANSWERED_SUBTASK} (the disposition the bot holds
+ * at a simulator-preempted {@code goal_achieved} one-shot terminal, where the
+ * sim ends before a CONFIRM turn) AND added a substantive-grounding
+ * requirement ({@code articlesShown} non-empty) so the stamp only fires on a
+ * grounded resolution.
  *
  * <p>The central discipline is anti-误杀: the gate must ONLY fire on a
- * genuinely resolved success terminal (FINAL_ANSWER + READY_TO_CONFIRM) and
- * must NEVER fire on an unresolved terminal (MAX_STEPS / ERROR / escalation /
- * progressive RESOLVE). The static helper is pinned directly so the rule is
- * verifiable without the full Spring context.
+ * genuinely resolved success terminal (FINAL_ANSWER + READY_TO_CONFIRM /
+ * ANSWERED_SUBTASK + grounding) and must NEVER fire on an unresolved
+ * terminal (MAX_STEPS / ERROR / escalation / mid-resolution / ungrounded).
+ * The static helper is pinned directly so the rule is verifiable without the
+ * full Spring context.
  */
 class ControlKernelResolvedSuccessTerminalTest {
 
+    private static final String[] GROUNDED = {"ka44J000000gKxqQAE", "ka4P200000005MHIAY"};
+
+    /** Backward-compat helper: sets grounding so READY_TO_CONFIRM still fires. */
     private BotSession session(ResolveDisposition disposition, String containment) {
+        return session(disposition, containment, GROUNDED);
+    }
+
+    private BotSession session(ResolveDisposition disposition, String containment,
+                               String[] articlesShown) {
         BotSession s = new BotSession();
         s.setSessionId("sess-st");
         if (disposition != null) {
             s.setResolveDisposition(disposition.name());
         }
         s.setContainmentOutcome(containment);
+        s.setArticlesShown(articlesShown);
         return s;
     }
 
@@ -49,7 +67,40 @@ class ControlKernelResolvedSuccessTerminalTest {
     void finalAnswer_readyToConfirm_blankContainment_isResolvedTerminal() {
         BotSession s = session(ResolveDisposition.READY_TO_CONFIRM, null);
         assertTrue(ControlKernel.isResolvedSuccessTerminal(s, finalAnswer()),
-                "FINAL_ANSWER + READY_TO_CONFIRM + blank containment is a resolved success terminal");
+                "FINAL_ANSWER + READY_TO_CONFIRM + grounding + blank containment is a resolved success terminal");
+    }
+
+    // ---- S-Auto-20 broadening: the real goal_achieved one-shot path ----
+
+    @Test
+    void finalAnswer_answeredSubtask_grounded_blankContainment_isResolvedTerminal() {
+        // The simulator-preempted goal_achieved shape: the bot delivered a
+        // substantive grounded FINAL_ANSWER and the sim ended the session
+        // (user satisfied) BEFORE a CONFIRM turn could promote the disposition
+        // to READY_TO_CONFIRM. The disposition at terminal is ANSWERED_SUBTASK.
+        // This is THE case S-Auto-19's READY_TO_CONFIRM-only gate left inert.
+        BotSession s = session(ResolveDisposition.ANSWERED_SUBTASK, null);
+        assertTrue(ControlKernel.isResolvedSuccessTerminal(s, finalAnswer()),
+                "FINAL_ANSWER + ANSWERED_SUBTASK + grounding + blank containment is the "
+                        + "real goal_achieved one-shot resolved terminal");
+    }
+
+    // ---- S-Auto-20 anti-误杀: grounding is required ----
+
+    @Test
+    void finalAnswer_answeredSubtask_ungrounded_notResolved() {
+        // An ANSWERED_SUBTASK FINAL_ANSWER with NO grounding (no articlesShown)
+        // is not a substantive grounded resolution and must not stamp resolved.
+        BotSession s = session(ResolveDisposition.ANSWERED_SUBTASK, null, new String[0]);
+        assertFalse(ControlKernel.isResolvedSuccessTerminal(s, finalAnswer()),
+                "an ungrounded ANSWERED_SUBTASK answer does not earn 'resolved'");
+    }
+
+    @Test
+    void finalAnswer_readyToConfirm_ungrounded_notResolved() {
+        BotSession s = session(ResolveDisposition.READY_TO_CONFIRM, null, null);
+        assertFalse(ControlKernel.isResolvedSuccessTerminal(s, finalAnswer()),
+                "even READY_TO_CONFIRM requires substantive grounding to stamp 'resolved'");
     }
 
     // ---- anti-误杀 counter-tests: unresolved terminals NEVER stamp resolved

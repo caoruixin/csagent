@@ -560,24 +560,32 @@ public class ControlKernel {
                     eventEmitter.emitSessionClosed(session.getSessionId(),
                             session.getContainmentOutcome());
                 } else if (isResolvedSuccessTerminal(session, runResult)) {
-                    // Sprint 074 / S-Auto-19 (#1 runtime — trace-contract
-                    // completion, NOT a semantic change). Stamp a complete
-                    // terminal disposition when the agent loop delivered a
-                    // substantive grounded answer that resolved the issue
-                    // (terminalOutcome FINAL_ANSWER + resolve_disposition
-                    // READY_TO_CONFIRM) WITHOUT yet reaching a dedicated
-                    // record_outcome-only CLOSE turn. Before this fix the
-                    // session terminated with a blank containment_outcome on
-                    // such one-shot resolutions, which the eval mis-judged as
-                    // partially-instrumented. ANTI-误杀 hard constraint: this
-                    // NEVER fires on an unresolved terminal — MAX_STEPS /
-                    // ERROR / DEADLINE_EXCEEDED / LLM_UNAVAILABLE /
-                    // CLARIFICATION_NEEDED / USE_CASE_IDENTIFIED are excluded
-                    // by the FINAL_ANSWER gate; escalation is excluded because
-                    // it already stamped "escalated" above; progressive RESOLVE
-                    // turns (ASKED_FOR_SLOT / CONTINUE_RESOLVE / ANSWERED_SUBTASK)
-                    // are excluded by the READY_TO_CONFIRM gate; and a
-                    // pre-existing non-null containment is never overwritten.
+                    // Sprint 074 / S-Auto-19 (#1) + Sprint 075 / S-Auto-20 (#1
+                    // broadening) — runtime trace-contract completion, NOT a
+                    // semantic change. Stamp a complete terminal disposition
+                    // when the agent loop delivered a SUBSTANTIVE GROUNDED
+                    // answer that resolved the issue (terminalOutcome
+                    // FINAL_ANSWER + resolve_disposition READY_TO_CONFIRM OR
+                    // ANSWERED_SUBTASK + non-empty articlesShown) WITHOUT yet
+                    // reaching a dedicated record_outcome / CONFIRM turn.
+                    // S-Auto-19 gated only on READY_TO_CONFIRM, which was INERT
+                    // on the simulator-preempted goal_achieved one-shot path
+                    // (the sim ends the session before the CONFIRM turn, so the
+                    // disposition stays ANSWERED_SUBTASK) — leaving 0 resolved
+                    // stamps across the whole m-auto-5 re-bless and a blank
+                    // containment_outcome the eval mis-judged as partially
+                    // instrumented. ANTI-误杀 hard constraint (see
+                    // isResolvedSuccessTerminal): NEVER fires on an unresolved
+                    // terminal — MAX_STEPS / ERROR / DEADLINE_EXCEEDED /
+                    // LLM_UNAVAILABLE / CLARIFICATION_NEEDED /
+                    // USE_CASE_IDENTIFIED are excluded by the FINAL_ANSWER gate;
+                    // escalation is excluded (it already stamped "escalated"
+                    // above and the non-null containment guard also returns
+                    // false); mid-resolution turns (ASKED_FOR_SLOT /
+                    // CONTINUE_RESOLVE) are excluded by the disposition
+                    // allow-list; an ungrounded answer is excluded by the
+                    // articlesShown requirement; and a pre-existing non-null
+                    // containment is never overwritten.
                     session.setContainmentOutcome("resolved");
                     eventEmitter.emitSessionClosed(session.getSessionId(),
                             session.getContainmentOutcome());
@@ -1283,30 +1291,80 @@ public class ControlKernel {
      *       {@code DEADLINE_EXCEEDED}, {@code LLM_UNAVAILABLE},
      *       {@code CLARIFICATION_NEEDED}, {@code USE_CASE_IDENTIFIED}, and
      *       {@code ESCALATE} (escalation already stamps "escalated").</li>
-     *   <li>{@code session.getResolveDisposition() == READY_TO_CONFIRM} —
-     *       the answer fully resolved the issue. Progressive RESOLVE turns
-     *       ({@code ASKED_FOR_SLOT} / {@code CONTINUE_RESOLVE} /
-     *       {@code ANSWERED_SUBTASK}) are NOT terminal resolutions and are
-     *       excluded.</li>
+     *   <li>{@code session.getResolveDisposition()} is {@code READY_TO_CONFIRM}
+     *       OR {@code ANSWERED_SUBTASK} — the answer resolved the issue.
+     *       Sprint 075 / S-Auto-20 broadened this from {@code READY_TO_CONFIRM}-
+     *       only: on the simulator-preempted {@code goal_achieved} one-shot path
+     *       the disposition at terminal is {@code ANSWERED_SUBTASK} (a non-
+     *       question / non-slot-request grounded answer), and the session ends
+     *       before a dedicated CONFIRM / record_outcome turn could promote it
+     *       to {@code READY_TO_CONFIRM}. The mid-resolution dispositions
+     *       {@code ASKED_FOR_SLOT} and {@code CONTINUE_RESOLVE} remain
+     *       EXCLUDED — the bot is still working the issue / asked for a missing
+     *       slot, so it has not resolved.</li>
+     *   <li>{@code session.getArticlesShown()} is non-empty — the answer is a
+     *       SUBSTANTIVE GROUNDED resolution, not an ungrounded reply. An
+     *       answer that never surfaced any retrieved knowledge does not earn
+     *       {@code "resolved"}.</li>
      *   <li>{@code session.getContainmentOutcome() == null} — never
      *       overwrite a containment value already stamped (e.g. escalated).</li>
      * </ul>
-     * The {@code goal_impossible} / {@code loop_detected} eval terminals
-     * have no {@code FINAL_ANSWER}+{@code READY_TO_CONFIRM} pairing and so
-     * never reach this branch.
+     * The {@code goal_impossible} / {@code loop_detected} eval terminals do
+     * not present a {@code FINAL_ANSWER}+grounded-resolved-disposition pairing
+     * (a loop repeats an identical reply; {@code goal_impossible} is the
+     * simulator persona giving up) and so never reach this branch.
      */
     static boolean isResolvedSuccessTerminal(BotSession session, AgentRunResult runResult) {
         if (session == null || runResult == null) {
             return false;
         }
         if (session.getContainmentOutcome() != null) {
+            // Sprint 075 / S-Auto-20 anti-误杀: never overwrite a containment
+            // value already stamped (e.g. "escalated").
             return false;
         }
         if (runResult.terminalOutcome() != com.gumtree.csagent.model.TerminalOutcome.FINAL_ANSWER) {
+            // FINAL_ANSWER gate excludes every genuinely-unresolved terminal:
+            // MAX_STEPS / ERROR / DEADLINE_EXCEEDED / LLM_UNAVAILABLE /
+            // CLARIFICATION_NEEDED / USE_CASE_IDENTIFIED / ESCALATE.
             return false;
         }
-        return com.gumtree.csagent.model.ResolveDisposition.READY_TO_CONFIRM.name()
-                .equals(session.getResolveDisposition());
+        // Sprint 075 / S-Auto-20 (#1 runtime — trace-contract completion).
+        // Broaden the disposition gate from READY_TO_CONFIRM-only to also
+        // accept ANSWERED_SUBTASK. RATIONALE: on the simulator-preempted
+        // ``goal_achieved`` one-shot path the bot delivers a substantive
+        // grounded FINAL_ANSWER and the simulator ends the session (user
+        // satisfied) BEFORE the bot reaches a dedicated record_outcome /
+        // CONFIRM turn — so READY_TO_CONFIRM never holds and the
+        // S-Auto-19 gate was INERT (0 ``resolved`` stamps across the whole
+        // m-auto-5 re-bless; all 51 goal_achieved draws left blank). The
+        // disposition at that terminal is ANSWERED_SUBTASK
+        // (ResolveDispositionEvaluator: a non-question / non-slot-request
+        // grounded answer), which the contract defines as "the bot
+        // delivered a grounded answer or a soft next step". Stamping
+        // "resolved" here records the disposition the bot ALREADY reached;
+        // it changes no decision (§1.4 trace-contract, not §1.3 semantics).
+        //
+        // ANTI-误杀 (counter-tested) — this NEVER fires on an unresolved
+        // terminal:
+        //   * ASKED_FOR_SLOT / CONTINUE_RESOLVE (mid-resolution: the bot is
+        //     still working the issue / asked for a missing slot) are
+        //     EXCLUDED by the disposition allow-list below;
+        //   * ESCALATE is excluded (it already stamped "escalated" above and
+        //     the non-null containment guard returns false anyway);
+        //   * a substantive grounding requirement (getArticlesShown
+        //     non-empty) ensures we only stamp a GROUNDED answer that
+        //     actually resolved the issue — an ungrounded FINAL_ANSWER
+        //     (e.g. a never-searched reply) does not earn "resolved".
+        String disposition = session.getResolveDisposition();
+        boolean dispositionResolved =
+                com.gumtree.csagent.model.ResolveDisposition.READY_TO_CONFIRM.name().equals(disposition)
+                        || com.gumtree.csagent.model.ResolveDisposition.ANSWERED_SUBTASK.name().equals(disposition);
+        if (!dispositionResolved) {
+            return false;
+        }
+        String[] articlesShown = session.getArticlesShown();
+        return articlesShown != null && articlesShown.length > 0;
     }
 
     /**
