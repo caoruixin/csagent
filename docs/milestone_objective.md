@@ -204,26 +204,39 @@ re-blessed baseline.
    + `da7ef15`. `baseline_dir` NOT moved.
 
 3. **S-Auto-21 / Sprint 076 — corrective #2: simulator role-inversion fix +
-   bad-case suite re-render + M-Auto-5 authoritative re-bless. [ACTIVE]** Layer
-   `infra`. Contract: `docs/sprint_objective.md`; dev prompt
-   `compact/sprint-076-dev-prompt.md`. Input artifact:
-   `docs/diagnostics/2026-06-04-eval-framework-and-simulator-audit.md`. Closes the
-   third (and final) blocker for honest verdicts — the simulator at
-   `user_simulator.py:187` inverts roles when sending the transcript to the
-   chat-completions API, conditioning the simulator LLM to behave as the support
-   agent from turn ~3+ (audit lower-bound: 14.4 % of sessions contaminated).
-   Bundled fix: (#1) root-cause role-map inversion; (#2) per-turn persona
-   re-anchor; (#3) negative-form rules in the simulator system prompt; (#4)
-   post-generation customer-voice drift guard with retry-and-escape (3-attempt
-   budget; `simulator_drift_blocked` end-of-session — anti-误杀); (#5) multi-turn
-   contract tests T1-T7 (audit §7 explicitly called out the existing test file
-   covers JSON parsing only); (#6) bad-case suite re-render on the simulator-fixed
-   code with real-LLM evidence per §5.7; (#7) authoritative re-bless left
-   **re-bless-ready** — HUMAN launches; deliver moves the `baseline_dir` pointer
-   and flips `docs/current_eval_baseline.md` status. The still-running
-   `m-auto-5-baseline-20260605` is NOT killed — it is retained as forensic data.
-   NO bot / runtime / prompt / routing / UC / escalation / skill / CaseSpec edit.
-   Audit Clusters B and C are routed to M-Auto-6 (not in this sub-sprint).
+   bad-case suite re-render + M-Auto-5 authoritative re-bless. [ACCEPTED
+   2026-06-04]** Layer `infra`. Archived: `docs/sprints/sprint-076-{objective,
+   handoff}.md`; dev prompt `compact/sprint-076-dev-prompt.md`. Input artifact:
+   `docs/diagnostics/2026-06-04-eval-framework-and-simulator-audit.md`.
+   Closed the third (and final) blocker for honest verdicts — the simulator at
+   `user_simulator.py:187` was inverting roles when sending the transcript to
+   the chat-completions API (transcript `role="user"` mapped to `assistant`,
+   transcript `role="bot"` mapped to `user`), conditioning the simulator LLM
+   to behave as the support agent from turn ~3+. Shipped:
+   (#1) root-cause role-map inversion + line-191 latest-bot-reply fallback;
+   (#2) per-turn persona re-anchor; (#3) negative-form `Forbidden` block in
+   `_SYSTEM_PROMPT_TEMPLATE`; (#4) post-generation customer-voice drift guard
+   (D1 keyword set / D2 verbatim regurgitation 8-gram Jaccard ≥ 0.8 / D3
+   system-prompt leakage probes) with 3-attempt retry budget +
+   `SimulatorDriftError` end-of-session escape (in-fence equivalent of the
+   literal `stop_reason="simulator_drift_blocked"`; recorded as
+   `stop_reason="error"` which already fails `trace_minimum` — label fidelity
+   carried as OQ-S76.drift-stop); (#5) contract tests T1-T7 + drift-detector
+   unit coverage; (#6) bad-case suite re-render real-LLM evidence per §5.7 —
+   **0/40 contamination** on the simfixed run (`results/20260604-152103/`),
+   cross-time OLD→NEW 3→0 D1-contaminated customer turns (alice turn 3 went
+   from a verbatim agent reply with `(source: ka44…)` citation to a genuine
+   customer question), pre-fix corpus sweep `2026*/` 852→0 contaminated
+   turns; drift guard never had to fire (0 detected / 0 blocked) — the
+   role-map fix removed the contamination at its source. Commits `5471f9e`
+   + `ba47ec6` + `45618df`. eval pytest **538 passed** (+14 net new on top
+   of S-Auto-20's 524); autoloop pytest 324 unchanged; Java untouched-by-
+   construction. STOP confirmations honored: `baseline_dir` NOT moved;
+   `m-auto-5-baseline-20260605` not killed (no live process existed); full
+   authoritative re-bless NOT run (left re-bless-ready, §6); S-Auto-17
+   overnight / S-Auto-18 / M-Auto-6 untouched. Observation flagged for
+   M-Auto-5 close: `mean_judge=0.0` across the simfixed re-render (carried
+   as OQ-S76.judge-zero, MUST be checked before milestone close).
 
 4. **(M-Auto-6, opened after M-Auto-5 close) — audit Clusters B + C.** Two-track
    research-agent dispatch (B: `per_turn_trace` truncation + primary_uc/
