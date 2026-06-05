@@ -1,7 +1,7 @@
 ---
 title: Milestone M-Auto-6 — Runtime substrate hygiene at intake + DISCOVER surfaces (unlock honest autoloop signal)
 doc_tier: current-runtime
-status: proposal
+status: current
 implementation_status: not_started
 source_of_truth: this file + docs/solutions/2026-06-05-runtime-bad-cases-handover-schema-discover-counter.md (research-agent input)
 last_reviewed: 2026-06-05

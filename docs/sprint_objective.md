@@ -1,7 +1,7 @@
 ---
 title: Sub-sprint A — S-Auto-23 / Sprint 078 — R1+R2+R4 bundle (intake-UC schema + DISCOVER counter wiring + ad-context premise projection slot)
 doc_tier: current-runtime
-status: proposal
+status: current
 implementation_status: not_started
 source_of_truth: this file + docs/solutions/2026-06-05-runtime-bad-cases-handover-schema-discover-counter.md §6.1 + §6.2 + §6.4
 last_reviewed: 2026-06-05
