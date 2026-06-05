@@ -1,11 +1,25 @@
-# Codex Findings (live scaffold)
+## Sprint Review Decision
+decision: <pass | fix_required | out_of_scope_review>
+blocking_count: <number>
+final_verdict: <APPROVE_M_<N>_CLOSE | APPROVE_WITH_NON_BLOCKING_OBSERVATIONS | BLOCK_M_<N>_CLOSE>
+summary: <one paragraph>
 
-This file is the live `docs/codex-findings.md` scaffold. Per `iteration_governance.md` §4.2, Codex sprint-close / milestone-shared reviews write their verdict here using the §4.2 header format. Closed milestones / sub-sprints are archived to `docs/milestones/M<N>_codex-review.md` or `docs/sprints/sprint-NNN-codex-review.md` per `iteration_governance.md` §8.4 + deliver-agent close maintenance procedure.
+## §1 Cumulative Scope Assessment
 
-**Most recent archive**: `docs/milestones/M-Auto-3_codex-review.md` (2026-06-03; milestone-shared close review for **Milestone M-Auto-3 — Substrate-hygiene**, cumulative range `b71d6b5~1..HEAD` = S-Auto-11..15 **PLUS the bundled M-Auto-2 residual** (fence-#13 OQ-S65.5/6 `eval_runner.py`+`tier_evaluator.py` + `b351648` server-Java determinism); `decision: pass / blocking_count: 0`; every per-sub-sprint + residual concern verdict `approve` — A1 dedup, A2 classify-first, A3 within-turn + cross-turn backstops keyed on existing `faq_miss`/`activeUseCase`/`driftType` (no content matching), B1 evidence-aware resolver (no new enum, zero-case §5.4-honest sync), the PARAPHRASE_STORM three-class re-frame (legitimate metric-classification correction, not §5.4 masking), and the S-Auto-15 test-infra housekeeping; scoring SHA verified `35305bd8…704e8`; A1/A3 within-turn gates + B1 resolver verified byte-untouched by S-Auto-15 (`git diff --stat 4efc825..37dbb35`)).
+<per-sub-sprint approve/reject + one-paragraph rationale per sub-sprint>
 
-**Preceding archive**: `docs/sprints/sprint-069-codex-review.md` (2026-06-02; per-sub-sprint review for S-Auto-13b / Sprint 069 — A3 within-turn paraphrase-storm deterministic backstop; `decision: pass / blocking_count: 0` / §4.1 `approve`).
+## §2 Nine-Question Kernel Walkthrough
 
-**Next Codex review**: the next milestone (M-Auto-4 TBD — candidate slate includes the autoloop fitness MEASUREMENT-reliability proposal `docs/proposals/autoloop_fitness_measurement_reliability.md` and the M3-B Single Handover Orchestrator). Default = milestone-shared review at that milestone's close per `iteration_governance.md` §4.3, with §5.6 bad-case evidence recorded before dispatch per `feedback_milestone_close_bad_case_before_codex`. If a sub-sprint touches the 4 SHA-locked scoring files (the measurement-reliability proposal does), that is a fence-#13 controlled override → per-sub-sprint Codex per §4.3 trigger #3.
+<answer Q1–Q9 from `docs/current/anti-hardcode-review-kernel.md` against the cumulative milestone diff; cite file:line evidence>
 
-(Scaffold awaiting next Codex verdict content.)
+## §3 Specific-Focus-Points Verdicts
+
+<one verdict per focus-point listed in `compact/M<N>-review-prompt.md`>
+
+## §4 Blocking Findings
+
+<None | P0/P1 list with minimal required fix scope>
+
+## §5 Non-Blocking Observations
+
+<numbered observations that do not block close but should route to action_bank / OQ queue / future milestone>

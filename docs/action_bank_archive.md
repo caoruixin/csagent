@@ -93,11 +93,18 @@ index of pointers; the authoritative detail lives in the linked archives.
 | Sprint 69 | S-Auto-13b (M-Auto-3 — A3 within-turn deterministic backstop) | closed (CLEAN; per-sub-sprint Codex pass/0) | docs/sprints/sprint-069-* |
 | Sprint 70 | S-Auto-14 (M-Auto-3 — B1 evidence-aware resolveMaxStepsReason) | closed (ESCALATION_MISSTAMP →0; per-sub-sprint Codex folded into M-Auto-3 close) | docs/sprints/sprint-070-* |
 | Sprint 71 | S-Auto-15 (M-Auto-3 — §8.5-split: cross-turn paraphrase backstop + eval pytest baseline housekeeping) | closed (cross-turn rank-2+ gated 0-误杀; eval 12→503; per-sub-sprint Codex folded into M-Auto-3 close) | docs/sprints/sprint-071-* |
+| Sprint 72 | S-Auto-16 (M-Auto-4 — k-of-n fitness-measurement machinery; INERT at n=1) | closed (A — Route A Clean PASS; per-sub-sprint Codex deferred to M-Auto-4 milestone-shared close; M-Auto-4 subsequently PAUSED) | docs/sprints/sprint-072-* |
+| Sprint 73 | S-Auto-17 (M-Auto-4 — re-bless + configured-primary detector + live n=3 flip) | closed (A; baseline re-blessed; M-Auto-4 subsequently PAUSED behind M-Auto-5) | docs/sprints/sprint-073-* |
+| Sprint 74 | S-Auto-19 (M-Auto-5 — eval-read column: 5 measurement-artifact fixes + runtime trace-contract stamp) | closed (ACCEPTED-WITH-FOLLOWUP; per-sub-sprint Codex folded into M-Auto-5 milestone-shared close) | docs/sprints/sprint-074-* |
+| Sprint 75 | S-Auto-20 (M-Auto-5 — runtime-stamp column: isResolvedSuccessTerminal broadened + loop_detected eval-side fix) | closed (A — Clean PASS; §5.7 real-trace validated; per-sub-sprint Codex folded into M-Auto-5 close) | docs/sprints/sprint-075-* |
+| Sprint 76 | S-Auto-21 (M-Auto-5 — input column / simulator role-inversion fix + drift guard D1/D2/D3) | closed (A — Clean PASS; 0/40 focused bad-case + 852→0 corpus sweep §5.7 evidence; per-sub-sprint Codex folded into M-Auto-5 close) | docs/sprints/sprint-076-* |
+| Sprint 77 | S-Auto-22 (M-Auto-5 — eval-gate vacuous-pass + runtime stamp downgrade) | closed (ACCEPTED-WITH-DEVIATIONS-DOCUMENTED 2026-06-05; both deviations independently verified by Codex at M-Auto-5 milestone close) | docs/sprints/sprint-077-* |
 
 ## B. Closed milestone index
 
 | milestone | archive |
 |-----------|---------|
+| M-Auto-5 — Eval Verdict Correctness + Trace-Contract Honesty (CLOSED 2026-06-05; APPROVE_WITH_NON_BLOCKING_OBSERVATIONS; Codex blocking_count=0; §5.9 sweep 0/414; paired-evidence 10 F→P / 0 P→F; near-coinflip ELIMINATED across all suites; OQ-S77.stall-not-gated CLOSED + framework-defect priority §5.8 LIFTED) | docs/milestones/M-Auto-5_objective.md + M-Auto-5_codex-review.md |
 | M-Auto-3 — Substrate-hygiene (clean the autoloop fitness signal) | docs/milestones/M-Auto-3_objective.md + M-Auto-3_codex-review.md |
 | M-Auto-2 — Local-Mac OQ-S62.3 diagnostic + first ove | docs/milestones/M-Auto-2_objective.md |
 | M1 — DISCOVER + Intake | docs/milestones/M1_objective.md |

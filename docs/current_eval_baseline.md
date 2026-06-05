@@ -1,33 +1,118 @@
 # Current Eval Baseline
 
-Date: 2026-05-06 (post Sprint 8 — cs259 active-use-case contract hardening)
+Date: 2026-06-05 (M-Auto-5 close — Eval Verdict Correctness + Trace-Contract Honesty)
 
 ## Purpose
 
-This file freezes the accepted baseline for the next targeted
-sprint (recommended: Eval Governance Sprint).
+This file freezes the accepted authoritative baseline for the next
+milestone. As of M-Auto-5 close (2026-06-05), the canonical artifact
+is the simulator-fixed + stall-not-gated re-re-bless at
+`eval_interactive/results/m-auto-5-baseline-20260604-simfixed-stalledfix/`.
+All prior baselines (post-Sprint-8 / M-Auto-1B / M-Auto-4) are
+historical reference only and remain in this file for cross-time
+comparison.
 
-The next sprint should compare new results against the
-**post-Sprint-8** accepted state. Sprint 8 implemented exactly one
-action (K0): cs259 active-use-case contract hardening — a narrow
-deterministic UC-F fallback at the AgentRunLoop ESCALATE branch in
-`ControlKernel.processMessage` so the cs259 r2 shape (LLM emits
-`request_handover(faq_miss_threshold_exceeded)` after two
-`search_knowledge` calls without ever calling `classify_use_case`)
-no longer trips `CONTRACT_VIOLATION:active_use_case` — see
-`docs/10-handoff.md` "Sprint 8 — Targeted cs259 Active-Use-Case
-Contract Hardening" section. Sprint 7 + Sprint 7.1 contracts (I0
-candidate_use_cases / DISCOVER cue, I1 moderation routing
-tiebreaker, I2 intake_state projection + guard, J0 partial-intake
-persistence) remain pinned by the Sprint 7 focused regression
-suite; their before/after evidence remains in the
-`docs/current_eval_baseline.md` historical-reference section
-below. The post-Sprint-7-clean r1 baseline remains the historical
-reference for the Sprint 8 before/after comparison; the
-post-Sprint-8 r1 baseline is the current canonical reference for
-the next sprint.
+The pre-Sprint-8 / smoke-anchored historical text below predates the
+four-tier eval framework (M3-Eval), the bad-case + anchor + shadow
+suite split (M-Auto-1A onward), and the simulator role-inversion fix
+(S-Auto-21). It is preserved verbatim for forensic provenance but is
+NOT the current measurement reference.
 
-## Current sprint baseline (post Sprint 8)
+## Current canonical baseline (M-Auto-5)
+
+Canonical artifact:
+
+`eval_interactive/results/m-auto-5-baseline-20260604-simfixed-stalledfix/`
+
+Suite layout:
+
+- `bad_cases/` — 12 cases × 9 attempts (curated bad-case suite, primary
+  acceptance gate per `process/badcase-lifecycle.md` §5.6)
+- `anchor_outcome/` — 12 cases × 9 attempts (anchor UCs A/B/C/D/E/F/FP/G/H/I/J/K)
+- `shadow/` — 22 cases × 9 attempts (held-out; dev does NOT read)
+- `_rebless_scratch/` — per-attempt scratch retained as forensic
+- `_rebless_report.json` — aggregated case-level pass_rate +
+  stability_class (stable / reducible-flaky / near-coinflip / non_comparable)
+
+`autoloop/config.yaml:baseline_dir` points here as of 2026-06-05. The
+baseline path is referenced via `aggregated.json` per-suite (k-of-n
+majority over n=5 baseline aggregate) so live n=3 candidate evaluation
+is symmetric (both sides majority — the asymmetry M-Auto-4 / S-Auto-17
+removed).
+
+What M-Auto-5 corrected (in order shipped):
+
+1. **S-Auto-19 / Sprint 074 — eval-read column** (5 measurement-artifact
+   fixes): `trace_minimum` unions all turns; intake reads dict keys;
+   source citations accumulate across the session; `trace_minimum` reads
+   terminal disposition; PII relaxation limited to first-party / system /
+   RFC 2606 documentation email addresses. Plus runtime `ControlKernel`
+   stamps trace-contract fields + answer-turn `sourceIds`.
+2. **S-Auto-20 / Sprint 075 — runtime-stamp column**:
+   `ControlKernel.isResolvedSuccessTerminal` broadened to `FINAL_ANSWER` +
+   `READY_TO_CONFIRM|ANSWERED_SUBTASK` with grounding; `loop_detected`
+   removed from valid blank-containment terminals (an eval framework
+   correction — a looped session can no longer pass on absent evidence).
+3. **S-Auto-21 / Sprint 076 — input column / simulator**: customer
+   simulator role-inversion fix at `user_simulator.py:187` + per-turn
+   persona re-anchor + negative-form `Forbidden` block + customer-voice
+   drift guard (D1 keywords / D2 8-gram Jaccard ≥ 0.8 / D3 leakage
+   probes; 3-attempt retry + `SimulatorDriftError` escape). Pre-fix
+   corpus sweep 852 → 0 contaminated customer turns on the simfixed run;
+   focused bad-case re-render 0/40.
+4. **S-Auto-22 / Sprint 077 — vacuous-pass gate + runtime stamp downgrade**:
+   STALL signal promoted to `case_passed=false` when scoped to
+   `composite==0`; terminal-failure `_TERMINAL_FAILURE_STOP_REASONS`
+   override (`goal_impossible` excluded); zero-evidence refusal
+   `composite==0 AND l2_results==[]` structural rule (no per-case
+   allowlist); runtime `ControlKernel.shouldVoidResolvedStamp` voids
+   stale resolved stamp on `{MAX_STEPS, ERROR, DEADLINE_EXCEEDED,
+   LLM_UNAVAILABLE}` to `CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER`.
+
+Close evidence:
+
+- Codex §4.1 milestone-shared review:
+  `APPROVE_WITH_NON_BLOCKING_OBSERVATIONS`, `blocking_count: 0`
+  (archived `docs/milestones/M-Auto-5_codex-review.md`). Both S-Auto-22
+  deviations (#1 STALL scoped to `composite==0`; #2 terminal-failure
+  excluding `goal_impossible`) independently verified + accepted with
+  evidence.
+- §5.9 pre-flight sweep: 0/414 vacuous-pass + terminal-failure matches
+  on the re-re-blessed corpus (framework-defect priority §5.8 LIFTS).
+- Paired-evidence review: 10 F→P case-level flips / 0 P→F across
+  bad_cases (5) + anchor_outcome (3) + shadow (2). Anti-误杀 held in
+  both directions (persistent high-risk anchor uc_g_gdpr / uc_h_appeal /
+  uc_i_payment / uc_j_safety + shadow cs38s* preserved at 0.000; near-
+  coinflip ELIMINATED across all three suites — OQ-S72.2 dissolved).
+
+Forensic-only retained dirs (do NOT consume as input):
+
+- `eval_interactive/results/m-auto-1b-baseline-20260529/`
+- `eval_interactive/results/m-auto-4-baseline-20260604/`
+- `eval_interactive/results/m-auto-5-baseline-20260604/`
+- `eval_interactive/results/m-auto-5-baseline-20260605/`
+- `eval_interactive/results/m-auto-5-baseline-20260604-simfixed/`
+
+Non-blocking observations carried forward to M-Auto-6 (from Codex):
+
+- `OQ-S77.stall-detector-window` — detector window-tuning question
+  (infra / possibly eval_spec); the #1 scoping handles the M-Auto-5
+  case set, but calibration remains forward work.
+- `OQ-S77.goal-impossible-resolved-evidence` — whether
+  `resolved+goal_impossible+positive-evidence` should be hard-fail is an
+  `eval_spec` policy question.
+- `R-aggregate-retains-per-attempt-composite-l2` — new R-item: per-attempt
+  `composite_score` + `l2_results` are not retained in compact aggregate
+  attempt rows, so the §5.9 414-draw predicate could not be independently
+  reproduced from the aggregate alone (Codex used run-local data). Track
+  with M-Auto-6 Cluster B observability bundle.
+- Cluster C.1 (cs59s 400 session-create) — pre-existing infra error,
+  routed to M-Auto-6.
+- Judge layer chronic zero (`R-eval-interactive-judge-score-never-populated`)
+  — excluded per OQ-S76.judge-zero resolution; canonical signals
+  (composite + outcome + L1 + L2 `failure_tags`) are populated.
+
+## Previous sprint baseline (post Sprint 8) — historical reference
 
 Canonical current result:
 
