@@ -255,9 +255,94 @@ re-blessed baseline.
    at `action_bank.md` `R-eval-interactive-judge-score-never-populated`.
    R-item stays LOW priority; NOT promoted to M-Auto-6.
 
-4. **S-Auto-22 / Sprint 077 — corrective #3 / M-Auto-5 close blocker: eval-gate
-   stall-not-gated fix + runtime resolved-stamp loop-aware downgrade. [ACTIVE
-   2026-06-05]** Layer `infra`. Contract: `docs/sprint_objective.md`; dev prompt
+4. **S-Auto-22 / Sprint 077 — corrective #3: eval-gate stall-not-gated fix +
+   runtime resolved-stamp loop-aware downgrade. [ACCEPTED-WITH-DEVIATIONS-
+   DOCUMENTED 2026-06-05]** Layer `infra`. Archived:
+   `docs/sprints/sprint-077-{objective,handoff}.md`; dev prompt
+   `compact/sprint-077-dev-prompt.md`. Dev commit `2ea65de`. Shipped: (#1)
+   eval-gate STALL signal promotion to `case_passed=false` via option 1a
+   (typed `stall_result.detected` boolean read; cleanest surface; not
+   string-prefix match); (#2) eval-gate terminal-failure stop_reason override
+   via option 2b (separate `_check_trace_minimum` failure arm, frozenset
+   `{loop_detected, error, contract_violation, max_turns_exceeded}` — see
+   deviation #2 below for the `goal_impossible` exclusion); (#3) zero-
+   evidence refusal via structural rule `composite==0 AND l2_results==[]`
+   (no per-case allowlist, no CaseSpec edit); (#4) runtime companion in
+   `ControlKernel.shouldVoidResolvedStamp` + `voidResolvedStamp` +
+   `BotSession.priorContainmentOutcome` provenance field — runtime voids
+   stale resolved stamp on runtime-observable failure terminals
+   `{MAX_STEPS, ERROR, DEADLINE_EXCEEDED, LLM_UNAVAILABLE}` →
+   `"incomplete_after_partial_answer"`, preserving prior value as
+   provenance (option 4a). Tests: 15 new in
+   `test_oq_s77_false_positive_gates.py`; 12 new in
+   `ControlKernelVoidResolvedStampTest`; existing
+   `ControlKernelResolvedSuccessTerminalTest` (19 tests) all pass (S-Auto-20
+   stamp behavior preserved); eval pytest **553** (538 + 15); Java
+   **1244 / 1 / 0 / 2** (1232 + 12; the 1 failure is the inherited
+   `SystemPromptUserRequestedTiebreakerTest`); autoloop pytest 324 unchanged.
+   Deterministic re-score on the simfixed scratch:
+   **12 vacuous draws → FAIL + 1 correct extra (csmp_s01 a6 `loop_detected
+   + resolved + composite=0.5` caught by Fix #2); all 9 legitimate F→P
+   flips PRESERVED majority-PASS; 0 silent flip losses**. cs012 5/9 = 0.556
+   exact match to prompt §4 #5 expectation; cs095 5/9 = 0.556 exact match.
+   §5.9 pre-flight check (#7) already present in audit doc §6 step 6 at
+   brief filing — verified, no edit needed. STOP confirmations: `baseline_dir`
+   NOT moved; S-Auto-21 simfixed dir retained read-only as forensic;
+   full re-re-bless NOT run; autoloop 5-file SHA-locked scoring set
+   untouched; no CaseSpec / `case_spec_overrides.yaml` / FAQ / judge /
+   prompt-template / schema.py / executor edit.
+
+   **Deviation #1 (carried to Codex): Fix #1 STALL promotion scoped to
+   `composite == 0`, not blanket.** Dev's evidence (handoff §1): cs095 a4
+   has `stall_detected=True + composite=0.5 + containment=escalated`
+   (validly escalated; stall_detector false-positive on out-of-window
+   recovery — verified by reading the a4 transcript). A blanket Fix #1
+   would mis-fail cs095 a4 and drop cs095 to 4/9 majority FAIL, losing a
+   tracked F→P flip — a §5 anti-误杀 invariant #1 regression. The
+   `composite == 0` guard isolates genuine terminal stalls (no scored
+   recovery) from the detector's out-of-window false positives. The
+   prompt's own §4 #5 expected cs095 at 5/9 ("4 vacuous out of 9 passes
+   flip → 5/9 PASS"); the deviation produces exactly that outcome. OQ
+   surfaced: stall_detector window-tuning (`OQ-S77.stall-detector-window`)
+   — not a re-re-bless blocker; may be M-Auto-6 or later candidate.
+
+   **Deviation #2 (carried to Codex): Fix #2 terminal-failure set excludes
+   `goal_impossible`.** Dev's three-fold justification (handoff §2): (a)
+   S-Auto-20 precedent — the `_VALID_TERMINAL_STOP_REASONS` comment
+   deliberately kept `goal_impossible` as AMBIGUOUS ground truth ("the
+   simulator persona declaring the issue unresolvable can reflect a
+   hard-to-satisfy persona rather than a bot fault"); (b) anti-误杀
+   evidence — including `goal_impossible` would mis-fail full-evidence
+   shadow draws cs32s02 a0/a2/a4 (`composite=0.5, l2n=5,
+   goal_impossible, resolved`); (c) #2 ↔ #4 consistency — `goal_impossible`
+   is a SIMULATOR-side verdict the runtime never observes, so the #4
+   companion cannot mirror it; the prompt's own #4 set is
+   `{loop_detected, error, MAX_STEPS}` — `goal_impossible` is absent.
+   The vacuous-goal_impossible draws that MUST fail (cs095 a0/a6/a8)
+   are still gated by Fix #3. OQ surfaced: whether
+   `resolved+goal_impossible+positive-evidence` should be hard-fail is
+   an `eval_spec` judgment (`OQ-S77.goal-impossible-resolved-evidence`),
+   deferred to a future sub-sprint consistent with S-Auto-20's own
+   goal_impossible deferral.
+
+   **Both deviations are surfaced for milestone-shared Codex (§4.1)
+   verdict.** Deliver's read: both are evidence-grounded, anti-误杀
+   preserving, consistent with broader system invariants (S-Auto-20
+   precedent; runtime/eval boundary); the cs095 = 5/9 exact match to the
+   prompt's own §4 #5 expectation is decisive evidence the §1 deviation
+   reads the contract holistically (§4 #5 + §5 #1 + §4 #1) rather than
+   literally. Codex's verdict on each carries into the M-Auto-5 close
+   decision. **Acceptance NOT pre-judged** by deliver; final acceptance
+   awaits Codex at milestone close.
+
+   **One bookkeeping correction surfaced by dev (handoff §0):** the
+   OQ-S77 brief's actual distribution is `cs012×2, cs095×4,
+   uc_b_posting×3, uc_a_visibility×1, uc_fp_removed×2` = 12; the prompt
+   §4 #5 and the brief both wrote `uc_b×4` (double-listed `uc_b a8`).
+   Headline count of 12 vacuous draws unchanged.
+
+5. **(M-Auto-6, opened after M-Auto-5 close) — audit Clusters B + C.** Two-track
+   research-agent dispatch (B: `per_turn_trace` truncation + primary_uc/ Contract: `docs/sprint_objective.md`; dev prompt
    `compact/sprint-077-dev-prompt.md`. Input artifact:
    `docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md`. Opened from
    S-Auto-21 close-evidence review when the simfixed re-bless surfaced an
