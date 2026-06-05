@@ -121,6 +121,13 @@ class CompositeScore:
     tier2_result: Tier2Result = field(
         default_factory=lambda: tier2_results_to_gate(())
     )
+    # OQ-S77 (S-Auto-22): when a post-composite false-positive gate promotes
+    # an otherwise-"passing" verdict to FAIL, records which gate fired
+    # (``stall_promoted`` / ``no_l2_evidence_to_pass``). Empty string when no
+    # override applied. The same reason is also surfaced as a
+    # ``VERDICT_OVERRIDE:<reason>`` failure tag so it reaches the serialised
+    # ``case_results[].failure_tags`` without a separate executor field.
+    verdict_reason: str = ""
     detail: str = ""
 
 
@@ -237,6 +244,64 @@ def compute_composite(
     else:
         composite = 0.0
 
+    # -- OQ-S77 (S-Auto-22): post-composite false-positive gates --
+    # The S-Auto-21 simfixed re-bless exposed an OPPOSITE-direction
+    # measurement artifact to the S-Auto-19/20/21 false-negative fixes: a
+    # session that stalled / looped / reached an impossible terminal could
+    # still report ``case_passed=True`` when an earlier turn stamped
+    # ``containment_outcome="resolved"`` AND ``l2_results=[]`` left the
+    # mandatory-L2 gate vacuously True (see
+    # ``docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md``). The two
+    # gates below promote such a verdict to FAIL. They ONLY ever flip
+    # pass->fail (never fail->pass), so they cannot mask a real L1/L2/Tier-2
+    # failure already caught above. The terminal-failure-vs-resolved-stamp
+    # contradiction (OQ-S77 #2) is handled upstream in
+    # ``hard_checks._check_trace_minimum`` (an L1 fail that flows through
+    # ``l1_passed`` here), so it is not re-implemented in this block.
+    verdict_reason = ""
+    if case_passed:
+        if stall_result.detected and composite == 0.0:
+            # OQ-S77 #1 (option 1a — read the typed ``stall_result.detected``
+            # boolean directly; no string-prefix matching). A detected stall
+            # that produced NO positively-scored outcome (composite == 0) is a
+            # session-level failure regardless of L2/judge/containment.
+            #
+            # Scope discipline: gated on ``composite == 0`` rather than a
+            # blanket "any stall -> fail". A blanket promotion would mis-fail a
+            # draw the stall detector FALSE-flags on an early "let me look into
+            # this" that the session then recovers from with a valid scored
+            # outcome (composite > 0) — e.g. a validly-escalated draw whose
+            # recovery/escalation falls outside the detector's follow-up window
+            # (observed on cs095 a4: stall_detected=True, escalated,
+            # composite=0.5). Flipping such a draw would drop its case below
+            # majority and silently lose a legitimate F->P flip
+            # (anti-误杀 invariant §5.1). ``composite == 0`` isolates the
+            # genuine terminal stalls (no scored recovery) from the detector's
+            # out-of-window false positives. This selectivity is also why
+            # ``TIER2_ADVISORY:*`` and other tag families are NOT promoted.
+            case_passed = False
+            composite = 0.0
+            verdict_reason = "stall_promoted"
+        elif composite == 0.0 and not l2_results:
+            # OQ-S77 #3: refuse a "pass" that rests on ZERO positive evidence —
+            # no L2 outcome checks recorded (``l2_results == []``) AND a zero
+            # composite (so no gating L3 signal either). A ``resolved``
+            # containment stamp alone is not a sufficient basis to pass; the
+            # case needs an L2 outcome check or a judge signal.
+            #
+            # This is the structural form of option 3a WITHOUT a per-case
+            # allowlist: ``composite == 0`` is itself self-limiting, so a
+            # legitimately-resolved case that earned any L2/L3 credit
+            # (composite > 0) is never caught, and no legitimate pass on the
+            # corpus matches this fingerprint. We deliberately do NOT key on
+            # ``containment_outcome`` here (which would require threading the
+            # trace into ``compute_composite`` / editing the executor, outside
+            # this sub-sprint's scope): a pass with zero scored evidence has no
+            # basis to pass regardless of the stamp, so the broader predicate
+            # is strictly more conservative and stays within the scoring layer.
+            case_passed = False
+            verdict_reason = "no_l2_evidence_to_pass"
+
     # -- Failure tags --
     failure_tags: list[str] = []
 
@@ -275,6 +340,12 @@ def compute_composite(
         tag = stall_result.failure_tag or "STALL"
         failure_tags.append(f"STALL:{tag}")
 
+    # OQ-S77 (S-Auto-22): record which post-composite false-positive gate (if
+    # any) flipped the verdict, so the reason reaches the serialised
+    # ``case_results[].failure_tags`` without adding a new executor field.
+    if verdict_reason:
+        failure_tags.append(f"VERDICT_OVERRIDE:{verdict_reason}")
+
     # Sprint 43 (S-Eval-2): Tier-2 failure tags. Only critical-severity
     # failures contribute to the case_passed gate but advisory failures
     # are still surfaced as tags for trend reporting (mirrors how
@@ -299,6 +370,7 @@ def compute_composite(
         tier2_failed_step_ids=(
             list(tier2_result.failed_step_ids) if tier2_critical_failed else []
         ),
+        verdict_reason=verdict_reason,
     )
 
     return CompositeScore(
@@ -315,6 +387,7 @@ def compute_composite(
         mandatory_l2_passed=mandatory_l2_passed,
         mandatory_l2_failures=mandatory_l2_failures,
         tier2_result=tier2_result,
+        verdict_reason=verdict_reason,
         detail=detail,
     )
 
@@ -350,6 +423,7 @@ def _build_detail(
     l1_failures: list[str],
     mandatory_l2_failures: list[str],
     tier2_failed_step_ids: list[str],
+    verdict_reason: str = "",
 ) -> str:
     """Human-readable explanation of the gate outcome."""
     if case_passed:
@@ -365,4 +439,9 @@ def _build_detail(
         parts.append(f"mandatory L2 failed/missing: {mandatory_l2_failures}")
     if tier2_critical_failed:
         parts.append(f"Tier-2 mandatory critical_steps failed: {tier2_failed_step_ids}")
+    # OQ-S77 (S-Auto-22): a post-composite false-positive gate may flip the
+    # verdict even when L1 / mandatory-L2 / Tier-2 all passed; name the gate so
+    # the detail is not just a bare "case_passed=False".
+    if verdict_reason:
+        parts.append(f"OQ-S77 false-positive gate: {verdict_reason}")
     return "; ".join(parts)

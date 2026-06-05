@@ -47,6 +47,16 @@ public class ControlKernel {
      */
     private static final long MIN_RESOLVE_REPLAN_BUDGET_MS = 8_000L;
 
+    // Sprint 077 / S-Auto-22 (OQ-S77 #4): the downgraded containment value
+    // written when a prior "resolved" stamp is invalidated by a later
+    // runtime-observable failure terminal (see shouldVoidResolvedStamp). A
+    // free-form trace-contract value (the containment column is not enforced
+    // against the ContainmentOutcome enum); it is intentionally NOT "resolved"
+    // / "escalated" / "abandoned" so the trace honestly records "an earlier
+    // turn answered, but the session then failed before completing".
+    static final String CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER =
+            "incomplete_after_partial_answer";
+
     private final BotTurnRepository turnRepository;
     private final BotEventRepository eventRepository;
     private final BudgetChecker budgetChecker;
@@ -587,6 +597,35 @@ public class ControlKernel {
                     // articlesShown requirement; and a pre-existing non-null
                     // containment is never overwritten.
                     session.setContainmentOutcome("resolved");
+                    eventEmitter.emitSessionClosed(session.getSessionId(),
+                            session.getContainmentOutcome());
+                } else if (shouldVoidResolvedStamp(session, runResult)) {
+                    // Sprint 077 / S-Auto-22 (OQ-S77 #4) — runtime trace-contract
+                    // honesty, NOT a semantic change. An EARLIER turn stamped
+                    // containment_outcome="resolved" (via the CLOSE /
+                    // isResolvedSuccessTerminal arms above on a prior turn), but
+                    // THIS turn reached a runtime-observable unresolved failure
+                    // terminal (MAX_STEPS / ERROR / DEADLINE_EXCEEDED /
+                    // LLM_UNAVAILABLE). The resolved stamp is now stale; voiding
+                    // it keeps the trace internally consistent (the §1.4
+                    // trace-contract owner must not credit a success that
+                    // subsequent state invalidated). The prior value is preserved
+                    // on priorContainmentOutcome + the emitted SESSION_CLOSED
+                    // event for provenance. ANTI-误杀: shouldVoidResolvedStamp
+                    // fires ONLY when containment is exactly "resolved" AND the
+                    // terminal is one of the runtime failure shapes, so a
+                    // legitimate FINAL_ANSWER resolve (goal_achieved one-shot) is
+                    // never voided. loop_detected / goal_impossible are
+                    // simulator-side terminals the runtime never sees; those are
+                    // gated eval-side (OQ-S77 #2).
+                    String prior = session.getContainmentOutcome();
+                    voidResolvedStamp(session);
+                    log.info("Session {}: OQ-S77 #4 voided stale containment "
+                                    + "'{}' -> '{}' on terminalOutcome={} (earlier "
+                                    + "turn stamped resolved; session then failed)",
+                            session.getSessionId(), prior,
+                            session.getContainmentOutcome(),
+                            runResult.terminalOutcome());
                     eventEmitter.emitSessionClosed(session.getSessionId(),
                             session.getContainmentOutcome());
                 }
@@ -1365,6 +1404,72 @@ public class ControlKernel {
         }
         String[] articlesShown = session.getArticlesShown();
         return articlesShown != null && articlesShown.length > 0;
+    }
+
+    /**
+     * Sprint 077 / S-Auto-22 (OQ-S77 #4 — runtime trace-contract honesty):
+     * the COMPANION to {@link #isResolvedSuccessTerminal}. True when a later
+     * turn reaches a runtime-observable UNRESOLVED FAILURE terminal on a
+     * session that an EARLIER turn already stamped {@code "resolved"} — i.e.
+     * the resolved stamp is now stale and must be downgraded so the trace does
+     * not credit a success that subsequent state invalidated.
+     *
+     * <p>Fires ONLY when BOTH hold (anti-误杀 — never voids a legitimate
+     * resolve):
+     * <ul>
+     *   <li>{@code session.getContainmentOutcome()} is exactly
+     *       {@code "resolved"} — only a prior resolved stamp can be voided;
+     *       {@code "escalated"} / blank / an already-downgraded value are left
+     *       untouched.</li>
+     *   <li>{@code runResult.terminalOutcome()} is a runtime-observable
+     *       unresolved failure: {@code MAX_STEPS}, {@code ERROR},
+     *       {@code DEADLINE_EXCEEDED}, or {@code LLM_UNAVAILABLE}.</li>
+     * </ul>
+     *
+     * <p>{@code FINAL_ANSWER} is deliberately EXCLUDED, so the goal_achieved
+     * one-shot path (FINAL_ANSWER) NEVER downgrades — that path stamps
+     * resolved via {@link #isResolvedSuccessTerminal} and stays resolved.
+     * {@code ESCALATE} is excluded (escalation already stamps "escalated", so
+     * containment is not "resolved" by the time this runs).
+     *
+     * <p>SCOPE NOTE: the {@code loop_detected} and {@code goal_impossible}
+     * terminals from the S-Auto-21 corpus are SIMULATOR-side verdicts computed
+     * ACROSS turns (the simulator sees two identical bot replies, or the
+     * persona gives up) and are never delivered to the runtime, which processes
+     * one turn at a time. The runtime therefore cannot observe them and cannot
+     * downgrade on them; those are handled eval-side by OQ-S77 #2
+     * ({@code hard_checks._check_trace_minimum} Mode-3). This guard and the
+     * eval-side gate are complementary: together they ensure a "resolved" stamp
+     * contradicted by ANY terminal failure (runtime- or simulator-observed) is
+     * not credited.
+     */
+    static boolean shouldVoidResolvedStamp(BotSession session, AgentRunResult runResult) {
+        if (session == null || runResult == null) {
+            return false;
+        }
+        if (!"resolved".equals(session.getContainmentOutcome())) {
+            return false;
+        }
+        com.gumtree.csagent.model.TerminalOutcome t = runResult.terminalOutcome();
+        return t == com.gumtree.csagent.model.TerminalOutcome.MAX_STEPS
+                || t == com.gumtree.csagent.model.TerminalOutcome.ERROR
+                || t == com.gumtree.csagent.model.TerminalOutcome.DEADLINE_EXCEEDED
+                || t == com.gumtree.csagent.model.TerminalOutcome.LLM_UNAVAILABLE;
+    }
+
+    /**
+     * Sprint 077 / S-Auto-22 (OQ-S77 #4): apply the resolved-stamp downgrade.
+     * Preserves the prior {@code "resolved"} value on
+     * {@link BotSession#getPriorContainmentOutcome()} (provenance) and
+     * overwrites {@code containment_outcome} with
+     * {@link #CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER}. Callers MUST gate
+     * this behind {@link #shouldVoidResolvedStamp} — this method does not
+     * re-check the precondition so it stays a pure mutation that is trivially
+     * unit-testable in both directions.
+     */
+    static void voidResolvedStamp(BotSession session) {
+        session.setPriorContainmentOutcome(session.getContainmentOutcome());
+        session.setContainmentOutcome(CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER);
     }
 
     /**

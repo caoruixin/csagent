@@ -768,6 +768,48 @@ class HardChecker:
         }
     )
 
+    # OQ-S77 (S-Auto-22, Fix #2): terminal-failure stop_reasons that
+    # CONTRADICT an earlier ``containment_outcome="resolved"`` stamp. When the
+    # FINAL stop_reason is one of these AND the session nonetheless carries a
+    # ``resolved`` containment, the resolved stamp is stale — an earlier turn
+    # stamped success but the session then looped / errored / ran out — so
+    # ``trace_minimum`` must FAIL rather than credit the stale stamp (the
+    # S-Auto-21 simfixed re-bless found such draws VACUOUS-PASSING:
+    # case_passed=true, composite=0, l2=[]; see
+    # ``docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md``).
+    #
+    # Membership rationale (anti-误杀):
+    #   - ``loop_detected`` — the bot emitted two identical consecutive replies
+    #     (``simulator/session_runner.py``); a genuine bot failure. S-Auto-20
+    #     already REMOVED it from ``_VALID_TERMINAL_STOP_REASONS`` for the same
+    #     reason.
+    #   - ``error`` / ``contract_violation`` / ``max_turns_exceeded`` —
+    #     infra / contract / budget failures; a "resolved" stamp under any of
+    #     them is an instrumentation contradiction.
+    #   - ``goal_impossible`` is DELIBERATELY EXCLUDED. It is the SIMULATOR
+    #     persona declaring the issue unsolvable (giving up), which S-Auto-20
+    #     (the comment on ``_VALID_TERMINAL_STOP_REASONS`` above) kept as
+    #     AMBIGUOUS ground truth — it can reflect a hard-to-satisfy persona
+    #     rather than a bot fault, and it is a simulator-side signal the
+    #     RUNTIME never observes (so the ControlKernel companion downgrade
+    #     for OQ-S77 #4 cannot mirror it either — keeping #2 and #4 on the
+    #     same runtime-failure set). Forcing ``goal_impossible+resolved`` to
+    #     FAIL would mis-fail full-evidence draws (observed on shadow
+    #     ``cs32s02``: composite=0.5, l2n=5). The vacuous ``goal_impossible``
+    #     draws that MUST fail (e.g. cs095) are already gated by the
+    #     composite-side zero-evidence rule (OQ-S77 #3), so excluding it here
+    #     loses no in-scope draw. Whether ``resolved+goal_impossible`` should
+    #     itself be a hard fail is left as an ``eval_spec`` open question.
+    #   - ``goal_achieved`` / ``bot_ended`` are NOT failures and never appear.
+    _TERMINAL_FAILURE_STOP_REASONS = frozenset(
+        {
+            "loop_detected",
+            "error",
+            "contract_violation",
+            "max_turns_exceeded",
+        }
+    )
+
     def _check_trace_minimum(
         self,
         case_spec: CaseSpec,
@@ -776,7 +818,14 @@ class HardChecker:
     ) -> HardCheckResult:
         """Trace-completeness floor (codex round 5 §P1 / §H6).
 
-        Two failure modes that the previous rubric did not catch:
+        OQ-S77 (S-Auto-22, Fix #2) adds Mode-3: a non-blank
+        ``containment_outcome="resolved"`` that is CONTRADICTED by a terminal
+        failure ``stop_reason`` (``_TERMINAL_FAILURE_STOP_REASONS``) FAILS —
+        the earlier resolved stamp is stale because the session then looped /
+        errored / ran out. See that frozenset's comment for the membership
+        and anti-误杀 rationale (notably why ``goal_impossible`` is excluded).
+
+        Three failure modes that the previous rubric did not catch:
 
         1. ``containment_outcome`` is empty / blank at terminal state.
            A finished session must always have a containment value
@@ -805,6 +854,29 @@ class HardChecker:
         consulted ``stop_reason`` and still fires regardless of it.
         """
         outcome = (trace.session_state.containment_outcome or "").strip()
+
+        # OQ-S77 (S-Auto-22, Fix #2) — Mode-3: a terminal-failure stop_reason
+        # CONTRADICTS an earlier ``containment_outcome="resolved"`` stamp.
+        # Option (2b): rather than blanking the stamp (which would lose the
+        # fact that an earlier turn DID stamp resolved), we record both fields
+        # faithfully and FAIL trace_minimum with a detail that names the
+        # contradiction. This fires BEFORE the blank-outcome arm because the
+        # outcome here is non-blank (``resolved``); the blank arm never sees
+        # it. ANTI-误杀: only ``resolved`` is contradicted — an ``escalated``
+        # or ``abandoned`` terminal is left untouched, and ``goal_achieved`` /
+        # ``bot_ended`` are not in the failure set (see
+        # ``_TERMINAL_FAILURE_STOP_REASONS``), so a legitimately-completed
+        # session that stamped resolved still passes.
+        sr_final = (stop_reason or "").strip().lower()
+        if outcome.lower() == "resolved" and sr_final in self._TERMINAL_FAILURE_STOP_REASONS:
+            return HardCheckResult(
+                "trace_minimum",
+                False,
+                f"containment_outcome='resolved' contradicted by terminal "
+                f"stop_reason={sr_final} (an earlier turn stamped resolved but "
+                f"the session ended in a terminal failure)",
+            )
+
         if not outcome:
             sr = (stop_reason or "").strip().lower()
             if sr in self._VALID_TERMINAL_STOP_REASONS:
