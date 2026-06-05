@@ -173,8 +173,14 @@ the following STRUCTURAL criteria hold (zero content matching):
 - the turn produced ZERO tool calls,
 - the turn did NOT commit an active use case (`session.activeUseCase`
   unchanged from before the turn),
-- the turn produced a NON-EMPTY `user_message` (bot replied with
-  free text rather than no-op).
+- the turn produced a NON-EMPTY **bot/assistant free-text reply** —
+  i.e. the model's outgoing response field (e.g. `Turn.botMessage` /
+  `Turn.assistantReply` / `BotResponse.text` — **CONFIRM the exact
+  field name on the live `AgentRunLoopImpl` turn record before
+  wiring**). **CRITICAL: this is the BOT's outgoing reply, NOT
+  `user_message` (which is the CUSTOMER's incoming turn).** Confusing
+  these will misclassify customer messages as bot clarifications and
+  corrupt the counter.
 
 When all four hold, `session.clarificationCount += 1`.
 
@@ -225,6 +231,24 @@ muddying the eval signal and downstream paired-evidence review.
 adding a new enum value. The 23-value enum already contains
 `clarification_budget_exhausted` — reuse it.
 
+**Pre-fix scope audit REQUIRED**: before wiring the re-map, audit
+`BudgetChecker` + every call site that raises
+`max-repeated-same-action` to confirm whether the budget is
+**only** raised on DISCOVER-phase clarification repetition. Two
+outcomes:
+
+- (a) Confirmed DISCOVER-only → re-map is unconditional (simpler path).
+- (b) NOT DISCOVER-only → either add a phase guard so re-map fires
+  only when `session.currentPhase == DISCOVER` at injection time AND
+  the repeated action is a free-text clarification (NOT a tool call),
+  OR STOP and surface to deliver-agent + human for scope clarification.
+  Do NOT silently re-map every `max-repeated-same-action` hit if the
+  budget has multi-phase semantics — that would create a NEW false
+  label artifact in the eval signal.
+
+Document the audit outcome in §1 of the handoff. The multi-phase
+negative test in #8 will gate this regardless.
+
 ### #6 — R4.a step 1: `customer_context_status` enum slot in projection
 
 **Anchor:** `server/src/main/java/.../ContextProjectionBuilder.java` —
@@ -232,17 +256,31 @@ add a new top-level projection field `customer_context_status` to the
 per-turn projection.
 
 **Change:** Compute the enum value from runtime state (no content
-matching):
+matching). **Critical: priority order MATTERS — `missing_*` conditions
+take precedence over `loaded` so that a partially-loaded customer
+context does not mask an absent ad_id premise.** Evaluate top-down;
+FIRST matching condition wins:
 
-| Condition (computed from runtime state) | Emit value |
-|---|---|
-| `get_customer_context` tool result is in session state AND populated | `loaded` |
-| `form_context.email` is null/blank (no email to do lookup with) | `missing_email` |
-| `form_context.ad_id` is null/blank (no ad_id to do listing lookup with) | `missing_ad_id` |
-| `lookup_listing_or_ad` was triggered but failed | `lookup_failed` |
-| `lookup_listing_or_ad` was not triggered (ad_id provided but tool not called) | `lookup_skipped` |
+| Priority | Condition (computed from runtime state) | Emit value |
+|---|---|---|
+| 1 | `form_context.email` is null/blank | `missing_email` |
+| 2 | `form_context.ad_id` is null/blank | `missing_ad_id` |
+| 3 | `lookup_listing_or_ad` was triggered but failed (transport/server error) | `lookup_failed` |
+| 4 | `lookup_listing_or_ad` was NOT triggered despite ad_id being present | `lookup_skipped` |
+| 5 | `get_customer_context` tool result is in session state AND populated, AND ad_id is present AND lookup succeeded | `loaded` |
 
-Field type: enum/string with the five allowed values above.
+Field type: enum/string with five allowed values: one of
+`{missing_email, missing_ad_id, lookup_failed, lookup_skipped, loaded}`.
+
+**Why priority order matters**: the c7 scenario is
+`get_customer_context` returns populated customer data (loaded via the
+form's `email`) BUT `form_context.ad_id` is null. Without the
+ordering, the value would be `loaded` (because customer context IS
+loaded) and the LLM would never see that the AD reference is
+unverified. With this ordering, `missing_ad_id` is surfaced — the
+R4 target signal. If `customer_context_loaded` is needed in another
+flow as an orthogonal signal, add a SEPARATE boolean projection
+field; do NOT relax the priority order.
 
 **Why:** when form_context lacks ad_id and the user references their own
 advert (c7 pattern), the LLM-facing projection currently has no way to
@@ -262,12 +300,26 @@ add a new `ad_reference` projection block (top-level or nested in
 `form_context` per existing schema convention).
 
 **Change:** Emit `ad_reference: {form_ad_id: <value>|null,
-listing_lookup: <ok|missing|failed>}`:
+listing_lookup: <ok|missing|failed|skipped>}`:
 
 - `form_ad_id`: the literal `form_context.ad_id` value (null if absent).
-- `listing_lookup`: `ok` if `lookup_listing_or_ad` returned a result
-  that resolves the ad; `missing` if the tool was not triggered or
-  returned no listing; `failed` if the tool errored.
+- `listing_lookup`: distinguishes FOUR runtime conditions:
+  - `ok` — tool was triggered AND returned a result that resolves
+    the ad.
+  - `missing` — tool was triggered AND ran successfully BUT no
+    listing was found (ad does not exist in our system / removed).
+  - `failed` — tool was triggered but errored (transport / server
+    error / timeout).
+  - `skipped` — tool was NOT triggered (typically because
+    `form_context.ad_id` was null, but also any other path that
+    skipped the auto-trigger).
+
+**Critical**: the distinction between `missing` (ran-but-no-result)
+and `skipped` (never-ran) is load-bearing for R4's downstream use —
+`missing` means the bot knows the ad is absent from our system;
+`skipped` means the bot has no information either way. Collapsing
+them removes the signal that OBS-S1 (autoloop UC-A verify-ad
+procedure step, after M-Auto-6 close) will rely on.
 
 **Why:** complements #6 with the ground-truth state the LLM may need to
 reason about whether to ask for ad clarification. R4.a slot pair (#6
@@ -299,40 +351,62 @@ fires every turn; UC-A is just the case where it materially helps).
   all UCs (per proposal §9 — schema field is universal optional, only
   projected REQUIREMENT is per-UC).
 - **#3 positive**: DISCOVER turn with zero tool calls + uncommitted UC
-  + non-empty user_message increments counter by exactly 1.
-- **#3 negative (4 separate tests)**:
+  + non-empty **bot/assistant free-text reply** (NOT `user_message`)
+  increments counter by exactly 1.
+- **#3 negative (5 tests)**:
   - DISCOVER turn with at least one tool call → counter NOT incremented.
   - DISCOVER turn that commits a UC → counter NOT incremented.
-  - DISCOVER turn with empty user_message → counter NOT incremented.
+  - DISCOVER turn with empty bot reply → counter NOT incremented.
   - Non-DISCOVER phase turn (e.g. RESOLVE / INTAKE / CONFIRM / CLOSE) →
-    counter NOT incremented.
+    counter NOT incremented regardless of bot reply content.
+  - Customer-side `user_message` content (`user_message` non-empty;
+    bot reply empty) → counter NOT incremented. This protects against
+    field-name confusion regression.
 - **#4**: projection emits `budgets.clarification` with correct
   used/max; verify present when phase==DISCOVER and absent otherwise.
-- **#5 positive**: `max-repeated-same-action` budget hit → emits
+- **#5 positive**: DISCOVER-phase `max-repeated-same-action` budget
+  on a free-text repeated reply → emits
   `clarification_budget_exhausted` escalation_reason in the runtime
   inject.
-- **#5 negative**: other budget types still emit their existing
-  escalation_reasons (`max-clarification-rounds` → unchanged;
-  `max-faq-miss` → unchanged; default fall-through →
+- **#5 negative (multi-phase guard)**: NON-DISCOVER phase
+  `max-repeated-same-action` budget (e.g. fires in RESOLVE on a
+  repeated tool call) MUST NOT be relabeled to
+  `clarification_budget_exhausted`. Either the re-map is
+  phase-guarded, OR if the dev-side pre-fix audit (see #5 rationale)
+  confirms `max-repeated-same-action` is DISCOVER-only, this test
+  asserts no other call site raises the budget; if a multi-phase use
+  later appears, this test fails loudly.
+- **#5 negative (other budgets)**: other budget types still emit
+  their existing escalation_reasons (`max-clarification-rounds` →
+  unchanged; `max-faq-miss` → unchanged; default fall-through →
   `turn_budget_exhausted` for non-clarification budgets).
-- **#6 positive (5 tests)**: one per enum value (`loaded` /
-  `missing_email` / `missing_ad_id` / `lookup_failed` /
-  `lookup_skipped`), each verifying the exact runtime condition that
-  triggers it.
-- **#6 negative (3 tests)**: (a) user message contains "my ad" /
-  "my listing" / similar but runtime state unchanged → enum value
-  unchanged; (b) `customer_context_status` does NOT depend on active
-  UC (must be the same for any UC at a given runtime state); (c)
-  changes to OTHER projection fields (intake_state, budgets, etc.)
+- **#6 positive (5 tests)**: one per enum value (`missing_email` /
+  `missing_ad_id` / `lookup_failed` / `lookup_skipped` / `loaded`),
+  each verifying the exact runtime condition that triggers it.
+- **#6 priority-order tests (CRITICAL — 4 tests)**:
+  - (a) `get_customer_context` LOADED AND `form_context.ad_id` null
+    → `missing_ad_id` wins (NOT `loaded`). This is the c7 scenario —
+    failure of this priority gate defeats R4's purpose.
+  - (b) `get_customer_context` LOADED AND `form_context.email` null
+    → `missing_email` wins.
+  - (c) `get_customer_context` LOADED AND `lookup_listing_or_ad`
+    failed → `lookup_failed` wins.
+  - (d) User message contains "my ad" / "my listing" without runtime
+    state change → enum value UNCHANGED (no keyword leakage).
+- **#6 negative (2 tests)**: (a) `customer_context_status` does NOT
+  depend on active UC (same for any UC at a given runtime state);
+  (b) changes to OTHER projection fields (intake_state, budgets, etc.)
   do NOT affect the enum value.
-- **#7 positive**: each `listing_lookup` value (`ok` / `missing` /
-  `failed`) emitted under the matching runtime tool-result state;
-  `form_ad_id` = literal value when present; `form_ad_id` = null
+- **#7 positive (4 tests)**: each `listing_lookup` value (`ok` /
+  `missing` / `failed` / `skipped`) emitted under matching runtime
+  tool-result state; explicit test that `missing` (ran-but-no-result)
+  is DISTINCT from `skipped` (never-ran) — they MUST NOT be collapsed.
+  Plus `form_ad_id` = literal value when present; `form_ad_id` = null
   when absent.
 - **#7 negative (2 tests)**: (a) block emitted regardless of active
-  UC (e.g. UC-A with ad_id, UC-J without ad_id, UC-D — all emit
-  `ad_reference`); (b) block content does NOT contain any reason text
-  or LLM-generated string.
+  UC (UC-A with ad_id, UC-J without ad_id, UC-D — all emit
+  `ad_reference`); (b) block content does NOT contain any reason
+  text or LLM-generated string.
 
 **Anti-误杀 fence**: 
 - Any test exercising a UC-J / UC-H / UC-I intake handover MUST also
@@ -350,7 +424,7 @@ command in `docs/sprints/sprint-078-handoff.md` §6:
 
 - Backend rebuild required (you ran Java changes #3, #5).
 - Proposed output dir:
-  `eval_interactive/results/m-auto-6-baseline-r1r2-YYYYMMDD/`.
+  `eval_interactive/results/m-auto-6-baseline-r1r2r4-YYYYMMDD/`.
 - Multi-suite re-bless template matching the M-Auto-5 close pattern
   (three suites: bad_cases + anchor_outcome + shadow;
   `samples_per_case` per current re-bless protocol; real-LLM;
@@ -362,6 +436,24 @@ command in `docs/sprints/sprint-078-handoff.md` §6:
   uc_j_safety + shadow cs38s* rise above 0.000 stable on the new
   baseline (anti-误杀 violation).
 - Forensic policy: keep prior M-Auto-5 forensic dirs.
+
+**Validation gates** (split into HARD / OBSERVABLE):
+
+- HARD close gates (R1 + R2 measurement effects):
+  - `bad_cases` `reducible-flaky` count: ≤ 2/12 (vs 6/12 pre-fix).
+  - uc_f_billing + uc_fp_removed: → stable ~1.00 (vs 0.89
+    reducible-flaky).
+  - Anti-误杀 floor preserved (anchor + cs38s* at 0.000 stable).
+- OBSERVABLE (R4 wiring — NOT a hard close gate; OBS-S1 yaml is
+  autoloop work after M-Auto-6):
+  - Sample ≥ 3 UC-A/UC-FP no-ad_id traces: projection MUST include
+    `customer_context_status: missing_ad_id` +
+    `ad_reference.form_ad_id: null` + `listing_lookup: skipped`
+    (or `missing` if tool was triggered).
+  - Sample ≥ 3 with-ad_id UC-A negatives: projection MUST NOT
+    include `customer_context_status: missing_ad_id`.
+  - Any bot behaviour shift in response to R4 is bonus observation,
+    NOT a close gate.
 
 **You characterize the PRE-fix corpus** before claiming done (handoff
 §1 evidence baseline; see Handoff Requirements below).
@@ -389,6 +481,22 @@ command in `docs/sprints/sprint-078-handoff.md` §6:
    escalation posture** — only adds projection state. Bot behaviour
    change in response is the LLM's call; the yaml side that uses the
    signal (OBS-S1) is autoloop work after M-Auto-6 close.
+10. **R4.a `customer_context_status` priority ordering is
+    LOAD-BEARING**: `missing_email` / `missing_ad_id` / `lookup_failed`
+    / `lookup_skipped` take precedence over `loaded`. A populated
+    `get_customer_context` MUST NOT mask an absent `form_context.ad_id`
+    (the c7 scenario). If a separate `customer_context_loaded` signal
+    is needed, add a SEPARATE boolean field; do NOT relax the priority
+    order.
+11. **R4.a `ad_reference.listing_lookup` MUST distinguish `missing`
+    (ran-but-no-result) from `skipped` (never-ran)** — collapsing
+    them removes load-bearing signal for OBS-S1 autoloop work.
+12. **R2.a `max-repeated-same-action` re-map MUST be phase-aware OR
+    the budget MUST be confirmed DISCOVER-only by pre-fix audit**.
+    Silently relabeling every `max-repeated-same-action` hit to
+    `clarification_budget_exhausted` regardless of phase would
+    mis-label genuine RESOLVE/INTAKE repeated-action budgets — a new
+    false-label artifact in the eval signal.
 
 ## Hard fences / STOP conditions
 
@@ -475,9 +583,11 @@ state. None requires a new runtime-level safety floor.)
 IntakeFieldsRegistry at projection time — zero per-UC matrix in this
 code; registry is the single source of truth. R2.a counts cardinality
 (clarification turns matching strict structural criteria: phase ==
-DISCOVER && no tool calls && no UC commit && non-empty user_message);
-zero content matching. R2.a's mapping fix re-maps to an existing
-clarification_budget_exhausted enum value, NOT a new enum. R4.a
+DISCOVER && no tool calls && no UC commit && non-empty
+bot/assistant free-text reply — NOT user_message, which is the
+customer's incoming turn); zero content matching. R2.a's mapping fix
+re-maps an existing clarification_budget_exhausted enum value with a
+phase-guard or pre-confirmed-DISCOVER-only budget, NOT a new enum. R4.a
 `customer_context_status` enum value derives ENTIRELY from runtime
 state — form_context.email/ad_id presence + lookup_listing_or_ad tool
 result + get_customer_context tool result — zero keyword matching of
@@ -536,8 +646,18 @@ generalization coverage).
 
 §1 of your handoff must include:
 
-- For each of #1-#5: file:line ranges of the change + the rationale
+- For each of #1-#7: file:line ranges of the change + the rationale
   paragraph + the anti-误杀 test name(s) that gate it.
+- For **#3**: the **exact field name on the live `Turn` / `BotResponse`
+  record** representing the bot's free-text reply (NOT
+  `user_message`), with cited code anchor.
+- For **#5**: the **pre-fix `max-repeated-same-action` scope audit
+  outcome** (DISCOVER-only OR phase-guarded), with cited call sites.
+- For **#6 / #7**: the **R4 wiring evidence** — projection sample for
+  ≥ 3 UC-A/UC-FP no-ad_id traces showing
+  `customer_context_status: missing_ad_id` + `ad_reference.form_ad_id:
+  null` + `listing_lookup: skipped` (or `missing`); ≥ 3 with-ad_id
+  negatives showing NOT `missing_ad_id`.
 - Java test results (full numeric: passed / failed / skipped / errors).
 - Eval pytest results (unchanged from 553, just re-confirmed).
 - Autoloop pytest results (unchanged from 324, just re-confirmed).
@@ -589,9 +709,23 @@ close-archive artifacts separately at sub-sprint close.
 
 ## Self-check checklist (complete BEFORE claiming done)
 
-- [ ] Each of #1-#5 implemented; file:line ranges captured in handoff §1.
-- [ ] Each new anti-误杀 test in #6 GREEN, covering both positive AND
-      negative cases.
+- [ ] Each of #1-#7 implemented; file:line ranges captured in handoff §1.
+- [ ] Each new anti-误杀 test in #8 GREEN (across 5 new test classes),
+      covering both positive AND negative cases.
+- [ ] **#3 field name confirmed**: handoff cites the exact runtime
+      field representing the bot's free-text reply (NOT
+      `user_message`).
+- [ ] **#5 scope audit completed**: handoff documents whether
+      `max-repeated-same-action` is DISCOVER-only OR the re-map is
+      phase-guarded.
+- [ ] **#6 priority order verified**: tests confirm `missing_email` /
+      `missing_ad_id` / `lookup_failed` / `lookup_skipped` take
+      precedence over `loaded` (esp. the c7 `loaded`-vs-`missing_ad_id`
+      case).
+- [ ] **#7 listing_lookup 4-value verified**: tests confirm `missing`
+      (ran-but-no-result) is distinct from `skipped` (never-ran).
+- [ ] **R4 wiring sample** in handoff §1: ≥ 3 no-ad_id traces show
+      `missing_ad_id`; ≥ 3 with-ad_id negatives do NOT.
 - [ ] Java baseline `1244 / 1 / 0 / 2` + new tests; no regressions
       (inherited 1 failure unchanged).
 - [ ] Eval pytest 553 unchanged (no eval-side edits in this sub-sprint).
@@ -600,15 +734,16 @@ close-archive artifacts separately at sub-sprint close.
 - [ ] `IntakeFieldsRegistry` content UNCHANGED (only iterated).
 - [ ] No new `escalation_reason` enum values added (only re-mapping at
       #5).
-- [ ] Anti-误杀 invariants 1-7 in §Anti-误杀 NOT violated by any test or
-      code change.
+- [ ] Anti-误杀 invariants 1-12 in §Anti-误杀 NOT violated by any test
+      or code change.
 - [ ] PRE-fix corpus characterization included in handoff §1
       (intake first-call rejection rate / DISCOVER cap-hit /
       mapping mis-label count).
 - [ ] §7 stanza copied VERBATIM into the handoff.
-- [ ] HUMAN re-bless command drafted in handoff §6 with preconditions +
-      abort criteria + forensic policy (handed to human; NOT launched
-      by you).
+- [ ] HUMAN re-bless command drafted in handoff §9 with preconditions +
+      abort criteria + forensic policy + output dir
+      `m-auto-6-baseline-r1r2r4-YYYYMMDD/` (handed to human; NOT
+      launched by you).
 - [ ] `baseline_dir` NOT moved.
 - [ ] `docs/current_eval_baseline.md` UNCHANGED.
 
