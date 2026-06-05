@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -438,6 +439,23 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 String finalText = (userMsg == null || userMsg.isBlank())
                         ? "I'm looking into this for you."
                         : userMsg;
+                // R2.a #3 — DISCOVER free-text clarification counter, wired on
+                // the LIVE AgentRunLoopImpl path (the legacy PhaseEvaluator:880
+                // +1 site is unreachable here, so session.clarificationCount
+                // otherwise stays 0 forever and the BudgetChecker clarification
+                // cap is never reachable — c3). STRUCTURAL CARDINALITY ONLY: no
+                // content / similarity / Jaccard heuristic. `userMsg` is the
+                // BOT's outgoing reply (action.getUserMessage(), the LLM's
+                // user_message field) — NOT the `userMessage` run() parameter
+                // (the customer's incoming turn). No tool calls in this branch
+                // (so no UC commit possible this step); ucCommittedThisTurn is
+                // computed defensively against the run-start snapshot.
+                boolean ucCommittedThisTurn =
+                        !Objects.equals(activeUc, session.getActiveUseCase());
+                if (isDiscoverFreeTextClarification(
+                        plan.phase(), false, ucCommittedThisTurn, userMsg)) {
+                    session.setClarificationCount(session.getClarificationCount() + 1);
+                }
                 if (isClarificationMessage(finalText)) {
                     return AgentRunResult.clarification(finalText, llmEvents, toolEvents,
                             lastProjection, lastLlmRawResponse, llmCallRecords);
@@ -1165,5 +1183,34 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 || lower.contains("what is")
                 || lower.contains("which")
                 || lower.contains("do you have");
+    }
+
+    /**
+     * R2.a #3 — structural predicate for a DISCOVER free-text clarification
+     * turn that increments {@code session.clarificationCount}. ALL four
+     * STRUCTURAL criteria must hold; zero content / similarity matching:
+     *
+     * <ol>
+     *   <li>phase is DISCOVER;</li>
+     *   <li>the turn produced no tool calls;</li>
+     *   <li>the turn did not commit an active use case;</li>
+     *   <li>the turn produced a non-empty BOT free-text reply.</li>
+     * </ol>
+     *
+     * <p><strong>{@code botReply} is the bot's outgoing reply</strong>
+     * ({@code action.getUserMessage()} — the LLM's {@code user_message}
+     * field), NOT the customer's incoming {@code userMessage} run() argument.
+     * The predicate takes only the bot reply, so a customer message can never
+     * be misclassified as a bot clarification (field-confusion regression
+     * guard).
+     */
+    static boolean isDiscoverFreeTextClarification(String phase,
+                                                   boolean hasToolCalls,
+                                                   boolean ucCommittedThisTurn,
+                                                   String botReply) {
+        return DISCOVER_PHASE.equalsIgnoreCase(phase)
+                && !hasToolCalls
+                && !ucCommittedThisTurn
+                && botReply != null && !botReply.isBlank();
     }
 }
