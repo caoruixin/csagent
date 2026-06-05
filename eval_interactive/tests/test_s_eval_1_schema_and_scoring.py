@@ -27,6 +27,7 @@ from eval_interactive.case_spec.schema import (
 )
 from eval_interactive.scoring.composite import compute_composite
 from eval_interactive.scoring.hard_checks import HardCheckResult
+from eval_interactive.scoring.llm_judge import JudgeResult
 from eval_interactive.scoring.outcome_checks import OutcomeCheckResult
 from eval_interactive.scoring.stall_detector import StallResult
 
@@ -261,11 +262,24 @@ class TestScoringDemotions:
         assert result.outcome_score == pytest.approx(1.0)
 
     def test_empty_scoring_outcome_checks_opts_out_of_l2_gate(self):
-        """D-2.4: empty ``scoring.outcome_checks`` skips the mandatory-L2 gate."""
+        """D-2.4: empty ``scoring.outcome_checks`` skips the mandatory-L2 gate.
+
+        OQ-S77 (S-Auto-22) update: the original form of this test asserted
+        ``case_passed is True`` on a case with empty outcome_checks AND no
+        L2/L3 evidence at all. That is exactly the zero-positive-evidence
+        vacuous pass the OQ-S77 #3 gate now refuses, so the case is given a
+        positive L3 judge signal here to isolate the D-2.4 contract (the
+        mandatory-L2 gate does not fail-close on empty outcome_checks) from
+        the new zero-evidence gate. The dedicated zero-evidence behaviour is
+        covered by ``test_oq_s77_*`` in ``test_oq_s77_false_positive_gates``.
+        """
         spec = self._make_spec(outcome_checks=[])
         l1 = [HardCheckResult("no_pii_leakage", True)]
-        # No L2 results at all -- anchor_outcome cases skip L2 entirely.
-        result = compute_composite("c", l1, [], [], StallResult(detected=False), spec)
+        # No L2 results (anchor_outcome cases skip L2 entirely), but a passing
+        # L3 judge dim gives composite > 0 so the verdict rests on real
+        # evidence rather than a vacuous stamp.
+        l3 = [JudgeResult("premature_finish", 5.0)]
+        result = compute_composite("c", l1, [], l3, StallResult(detected=False), spec)
         assert result.case_passed is True
         assert result.mandatory_l2_passed is True
         assert result.mandatory_l2_failures == []

@@ -169,6 +169,24 @@ public class BotSession {
     @Column(name = "containment_outcome")
     private String containmentOutcome;
 
+    /**
+     * Sprint 077 / S-Auto-22 (OQ-S77 #4 — runtime trace-contract honesty):
+     * provenance for a downgraded {@code containment_outcome}. When a later
+     * turn reaches a runtime-observable unresolved failure terminal (ERROR /
+     * DEADLINE_EXCEEDED / LLM_UNAVAILABLE / MAX_STEPS) AFTER an earlier turn
+     * stamped {@code "resolved"}, {@link
+     * com.gumtree.csagent.service.runtime.ControlKernel#shouldVoidResolvedStamp}
+     * fires and {@code containment_outcome} is overwritten to
+     * {@code "incomplete_after_partial_answer"}; the prior {@code "resolved"}
+     * value is preserved here so the trace records that an earlier turn DID
+     * stamp success before the session failed. {@code @Transient}: the durable
+     * provenance lives on the emitted {@code SESSION_CLOSED} event; this field
+     * is the in-process / same-turn record (no DB migration). Null when no
+     * downgrade fired.
+     */
+    @Transient
+    private String priorContainmentOutcome;
+
     @Column(name = "escalation_reason")
     private String escalationReason;
 
