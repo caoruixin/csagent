@@ -302,7 +302,14 @@ public class ControlKernel {
             // Sprint §A1: route through the resolver so a higher-priority
             // semantic reason already on the session (e.g. ``user_requested``
             // set in step 2.5) is not overwritten by the budget close-out.
-            applyEscalationReason(session, mapBudgetToEscalationReason(exceededBudget.get()));
+            // R2.a #5 — phase-aware re-map so a DISCOVER free-text
+            // clarification repetition (`max-repeated-same-action`) is stamped
+            // with the accurate `clarification_budget_exhausted` reason instead
+            // of the misleading generic `turn_budget_exhausted` (c9). Guarded by
+            // phase + last-action so a RESOLVE/INTAKE repeated TOOL call keeps
+            // `turn_budget_exhausted` (anti-误杀 invariant #12).
+            applyEscalationReason(session, mapBudgetToEscalationReason(
+                    exceededBudget.get(), session.getCurrentPhase(), session.getLastAction()));
             return forceEscalate(session, phaseBefore, userMessage, startTime,
                     "I've reached the limit of what I can assist with on this topic. " +
                     "Let me connect you with a human agent who can help further.");
@@ -739,6 +746,38 @@ public class ControlKernel {
             default:
                 return "turn_budget_exhausted";
         }
+    }
+
+    /**
+     * R2.a #5 — phase-aware overload. The {@code max-repeated-same-action}
+     * budget is NOT DISCOVER-only ({@code trackRepeatedAction} fires on any
+     * repeated action/tool-call in any phase), so the single-arg mapping keeps
+     * it on the generic {@code turn_budget_exhausted}. Here we re-map it to the
+     * EXISTING {@code clarification_budget_exhausted} enum value ONLY when the
+     * repetition was a DISCOVER free-text clarification — i.e. the session is
+     * in DISCOVER at injection time AND the repeated action key is a free-text
+     * reply ({@code "answer"} / {@code "clarify"}, never a tool name). Every
+     * other budget / phase / action-key combination is delegated unchanged to
+     * {@link #mapBudgetToEscalationReason(String)}. NO new enum value is added.
+     */
+    static String mapBudgetToEscalationReason(String bucket, String currentPhase,
+                                              String lastAction) {
+        if ("max-repeated-same-action".equals(bucket)
+                && "DISCOVER".equalsIgnoreCase(currentPhase)
+                && isFreeTextActionKey(lastAction)) {
+            return "clarification_budget_exhausted";
+        }
+        return mapBudgetToEscalationReason(bucket);
+    }
+
+    /**
+     * True iff a repeated-action key denotes a free-text (no-tool-call) reply.
+     * The live {@code deriveRunResultKey} emits {@code "answer"} for a no-tool
+     * turn; the legacy {@code deriveRepetitionKey} emits {@code "clarify"}.
+     * Any tool-name key (e.g. {@code "search_knowledge"}) returns false.
+     */
+    private static boolean isFreeTextActionKey(String key) {
+        return "answer".equals(key) || "clarify".equals(key);
     }
 
     /**
