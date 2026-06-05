@@ -595,6 +595,68 @@ Adjacent updates:
 - **OQ-S72.2 DISSOLVED** 2026-06-05 (S-Auto-21 simfixed re-bless eliminated near-coinflip across all three suites; the corrected measurement no longer puts any case at p≈0.5).
 - **OQ-S76.A6 (bot self-diagnoses sim drift, runtime ignores)**: reassess at M-Auto-5 close after the S-Auto-22 re-re-bless. If no bot self-diagnoses of drift surface on the corrected baseline, close as obsolete. Otherwise route as M-Auto-6 candidate.
 
+### M-Auto-6 sequencing — input from 2026-06-05 R1/R2 research-agent proposal + human direction
+
+Research-agent proposal authored 2026-06-05 (Path-2 bad-case-driven, 6 traces c1–c6):
+`docs/solutions/2026-06-05-runtime-bad-cases-handover-schema-discover-counter.md`. Two
+systematic runtime/infra defects + two already-known by-design behaviors:
+
+- **R1 (high-value, systematic)** — `request_handover` tool schema in intake UCs
+  (UC-G/H/I/J/K) missing the `intake_fields` property declaration. LLM's first call
+  never carries `intake_fields` → validator rejects with `intake_required_fields_
+  missing_for_intake_complete`; LLM second call retries with the hint. Wastes ≥1
+  turn budget per intake handover + tool_event noise + occasional cases that don't
+  recover (c1 = 6 turns, no clean handover). c1/c5/c6 = 3 of 6 traces. Layer
+  `prompt_projection` (schema-vs-hint mismatch; validator is correct).
+- **R2 (high-value, dead code on live path)** —
+  `BudgetChecker.maxClarificationRounds(=2)` clarification budget never fires on
+  the live `AgentRunLoopImpl` path; `session.clarificationCount` only increments
+  in the old `PhaseEvaluator.evaluateDiscover:880` (live path doesn't reach it).
+  Result: DISCOVER phase has no clarification budget cap → loop depth purely
+  LLM-self-regulated, varies across draws (c3 = 2 verbatim-identical
+  clarifications, no dedup, no budget escape). Layer `infra` / `skill_state`
+  (dead-code wiring on live path; NOT semantic).
+- **OBSERVATION-c2** — `progressive_resolve_record_outcome_premature` guard is
+  CORRECT (record_outcome rejected in phase ≠ CONFIRM/CLOSE). No runtime fix
+  needed; possible low-priority soft hint in `accumulated_tool_results`. Layer
+  `semantic_planner` → defer to autoloop.
+- **OBSERVATION-c4** — duplicated c3 paste; described shape = cross-turn rank-1
+  first-refinement, M-Auto-3 §11 three-class taxonomy classifies as
+  OBSERVATION-only (NOT a runtime defect). No R-item.
+
+**Human sequencing direction 2026-06-05** (forward planning, NOT yet executable —
+framework-defect priority §5.8 keeps M-Auto-5 close ahead of anything in
+M-Auto-6):
+
+1. S-Auto-22 落地 (DONE — `0bd63cd`).
+2. Human-launched re-re-bless on corrected framework (IN PROGRESS at filing).
+3. M-Auto-5 close (pointer move + `current_eval_baseline.md` flip).
+4. **M-Auto-6 first sub-sprint: R1 + R2 bundled** (per the proposal; runtime/infra
+   only; semantic layer of c2/c4 deferred to autoloop). Acceptance bar candidate
+   from the proposal: the falsifiable prediction is that uc_f_billing 0.29→0.89
+   and uc_fp_removed 0.43→0.89 (the "almost-top but still flaky" pattern on the
+   simfixed-stalledfix baseline) reflect R1 noise residual; after R1 fix these
+   should rise toward stable 1.00. Re-evaluate `reducible-flaky` count after R1+R2
+   land — if 6/12 → ≤ 2/12, autoloop can open to intake + DISCOVER surfaces.
+5. (Optional) mini re-bless after R1+R2 to refresh baseline if the noise reduction
+   is material.
+6. M-Auto-6 Cluster B + C parallel 2× research-agent dispatch (per the original
+   M-Auto-6 plan).
+7. Real semantic-optimization autoloop sub-sprint(s) after M-Auto-6 closes (the
+   autoloop optimization target surface decision depends on R1/R2 status:
+   RESOLVE/FAQ surface clean from day 1; intake + DISCOVER surfaces only after
+   R1+R2 land).
+
+**Layer-classification preview** (for the future M-Auto-6 #1 sub-sprint per §7):
+R1 = `prompt_projection` (one tool-schema declaration); R2 = `infra` / `skill_state`
+(wiring an existing counter to the live path). Bundle policy = "two systematic
+runtime/infra defects with non-overlapping fix surfaces; both surfaced by the same
+trace corpus; bundling them respects §1.5 (no semantic hardcode added) and lets
+the post-fix re-bless measure both simultaneously".
+
+Status: **all M-Auto-6 R-items remain DEFERRED until M-Auto-5 close**. Filed here as
+planning context; NOT promoted to active R-items yet (§5.8).
+
 ### Sprint 077 / S-Auto-22 OPEN (historical, superseded by close entry above) — OQ-S77.stall-not-gated (M-Auto-5 close blocker, 2026-06-05)
 
 Opened from inline trace review at the S-Auto-21 close-evidence stage when the simfixed re-bless (`eval_interactive/results/m-auto-5-baseline-20260604-simfixed/`, real-LLM, exit 0, n=7 actual a0-a8) surfaced an OPPOSITE-direction measurement artifact: **12 of 216 bad_cases+anchor_outcome draws (5.5 %)** report `case_passed=true` with `composite_score=0` + `l2_results=[]` + `containment_outcome="resolved"`, with 8/12 carrying `STALL:PLACEHOLDER_WITHOUT_FOLLOWUP` and stop_reasons in {loop_detected, goal_impossible, goal_achieved}. 2 of 3 sampled traces are real bot stalls being marked PASS. Filed as framework-defect brief per §2.1 broadened intro: `docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md`. Per human direction 2026-06-05 the issue is **M-Auto-5 close blocker** — not a reporting caveat. **S-Auto-21 simfixed run = forensic evidence, NOT authoritative**; baseline_dir NOT moved.
