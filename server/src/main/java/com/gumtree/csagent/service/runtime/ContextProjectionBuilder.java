@@ -59,6 +59,12 @@ public class ContextProjectionBuilder {
      */
     static final int PRIOR_USE_CASE_CARRY_CITATION_CAP = 3;
 
+    /** Canonical DISCOVER phase label (mirrors AgentRunLoopImpl.DISCOVER_PHASE). */
+    private static final String DISCOVER_PHASE = "DISCOVER";
+
+    /** R4.a — explicit listing-verification tool name (LookupListingTool). */
+    private static final String LOOKUP_LISTING_TOOL = "lookup_listing_or_ad";
+
     private final ObjectMapper objectMapper;
     private final UseCaseRegistryService useCaseRegistry;
     private final ControlPolicyService controlPolicy;
@@ -253,6 +259,22 @@ public class ContextProjectionBuilder {
         enumValues.add("runtime_error_threshold");
         reasonProp.set("enum", enumValues);
         props.set("escalation_reason", reasonProp);
+        // R1.a #1 — declare the intake_fields slot the validator
+        // (SkillGuardrailDispatcher) + AgentRunLoopImpl.persistInlineIntakeFields
+        // already expect. Free-form string->string map; intentionally NOT a
+        // per-UC property matrix (§1.7) — the per-active-UC required key list is
+        // surfaced separately via the required_intake_fields_for_active_uc
+        // projection field. OPTIONAL (absent from the required[] array) so
+        // non-intake UCs are unaffected; only intake UCs (UC-G/H/I/J/K) need it.
+        ObjectNode intakeFieldsProp = objectMapper.createObjectNode();
+        intakeFieldsProp.put("type", "object");
+        intakeFieldsProp.put("description",
+                "Required for intake UCs (UC-G / UC-H / UC-I / UC-J / UC-K) — "
+                        + "see the `required_intake_fields_for_active_uc` "
+                        + "projection field for the active UC's required-fields "
+                        + "list. Free-form string-to-string map of the collected "
+                        + "intake field values for this handover.");
+        props.set("intake_fields", intakeFieldsProp);
         schema.set("properties", props);
         ArrayNode required = objectMapper.createArrayNode();
         required.add("escalation_reason");
@@ -400,6 +422,22 @@ public class ContextProjectionBuilder {
                         IntakeFieldsRegistry.intakeComplete(activeUc, collected));
 
                 projection.set("intake_state", intakeStateNode);
+            }
+
+            // R1.a #2 — per-active-UC required-intake-fields hint. Gives the LLM
+            // a structured per-turn list of EXACTLY which field keys to populate
+            // in the next request_handover.arguments.intake_fields call, sourced
+            // from the SAME IntakeFieldsRegistry the validator uses (single
+            // source of truth — no per-UC matrix replicated here, §1.7). Present
+            // ONLY for intake UCs; for null / non-intake UCs the field is OMITTED
+            // entirely (distinguish "not applicable" from "no fields required" —
+            // never an empty list).
+            if (IntakeFieldsRegistry.isIntakeUseCase(activeUc)) {
+                ArrayNode requiredForUc = objectMapper.createArrayNode();
+                for (String f : IntakeFieldsRegistry.requiredFieldsFor(activeUc)) {
+                    requiredForUc.add(f);
+                }
+                projection.set("required_intake_fields_for_active_uc", requiredForUc);
             }
 
             // Sprint 7 §I0 — C5 candidate_use_cases projection. Surfaces the
@@ -661,6 +699,22 @@ public class ContextProjectionBuilder {
             budgetNode.put("max_faq_miss", controlPolicy.getMaxFaqMiss());
             projection.set("budget_state", budgetNode);
 
+            // R2.a #4 — DISCOVER clarification budget soft signal. Surfaces the
+            // now-live clarification counter (R2.a #3 wires the increment on the
+            // AgentRunLoopImpl path) as observable state so the LLM can sequence
+            // DISCOVER turns BEFORE the hard cap fires. Cardinality only — the
+            // LLM still owns next-action (§1.3); no semantic hardcode. Emitted
+            // only in DISCOVER (the only phase where clarification rounds are
+            // counted); absent in every other phase.
+            if (DISCOVER_PHASE.equalsIgnoreCase(session.getCurrentPhase())) {
+                ObjectNode budgetsNode = objectMapper.createObjectNode();
+                ObjectNode clarificationBudget = objectMapper.createObjectNode();
+                clarificationBudget.put("used", session.getClarificationCount());
+                clarificationBudget.put("max", controlPolicy.getMaxClarificationRounds());
+                budgetsNode.set("clarification", clarificationBudget);
+                projection.set("budgets", budgetsNode);
+            }
+
             // Tool schemas — Skill-registry-driven (M2-correct). When the
             // active (phase, UC) maps to a Skill, the Skill's
             // {@code tools_required} is the projection surface (single source
@@ -855,6 +909,15 @@ public class ContextProjectionBuilder {
             // for projection shape stability. Done first so the slot is
             // present even when there is no PhasePlan / accumulated results.
             projection.set("already_called", buildAlreadyCalledNode(priorToolEvents));
+
+            // R4.a #6 + #7 — ad-context premise projection. Surfaces already-
+            // observed runtime state (form_context.email/ad_id presence + the
+            // lookup_listing_or_ad tool result) as a structured enum + struct,
+            // so the LLM has observable premise state without being told what to
+            // say (§1.3). Emitted on EVERY live-path turn (shape stability;
+            // before the early-return below) — NOT a per-UC matrix. ZERO content
+            // matching of user messages; derived entirely from runtime state.
+            addAdContextPremiseProjection(projection, session, priorToolEvents);
 
             if (plan == null && (accumulatedToolResults == null || accumulatedToolResults.isEmpty())) {
                 return objectMapper.writeValueAsString(projection);
@@ -1277,6 +1340,167 @@ public class ContextProjectionBuilder {
             alreadyCalled.add(entry);
         }
         return alreadyCalled;
+    }
+
+    // ------------------------------------------------------------------
+    // R4.a — ad-context premise projection (#6 customer_context_status +
+    // #7 ad_reference). STRUCTURAL ONLY: derived from runtime form_context
+    // fields + the lookup_listing_or_ad tool result. NEVER from user-message
+    // content / NLP / keyword matching. NO reason text emitted.
+    // ------------------------------------------------------------------
+
+    /**
+     * Resolved state of the explicit {@code lookup_listing_or_ad} listing
+     * verification step. {@code MISSING} (ran but no listing found) is kept
+     * DISTINCT from {@code SKIPPED} (never ran) — collapsing them removes the
+     * load-bearing premise signal R4 surfaces (anti-误杀 invariant #11).
+     */
+    enum ListingLookupState { OK, MISSING, FAILED, SKIPPED }
+
+    /**
+     * Pure mapping from the three runtime facts about the listing lookup to a
+     * {@link ListingLookupState}. Structural only.
+     */
+    static ListingLookupState deriveListingLookupState(boolean triggered,
+                                                       boolean succeeded,
+                                                       boolean listingResolved) {
+        if (!triggered) {
+            return ListingLookupState.SKIPPED;
+        }
+        if (!succeeded) {
+            return ListingLookupState.FAILED;
+        }
+        return listingResolved ? ListingLookupState.OK : ListingLookupState.MISSING;
+    }
+
+    /**
+     * Compute the {@code customer_context_status} enum value. Priority order is
+     * LOAD-BEARING (anti-误杀 invariant #10): {@code missing_email} /
+     * {@code missing_ad_id} / {@code lookup_failed} / {@code lookup_skipped}
+     * take precedence over {@code loaded} so a populated customer context never
+     * masks an absent ad_id premise (the c7 scenario). FIRST match wins.
+     */
+    static String computeCustomerContextStatus(String email, String adId,
+                                               ListingLookupState lookup) {
+        if (email == null || email.isBlank()) {
+            return "missing_email";
+        }
+        if (adId == null || adId.isBlank()) {
+            return "missing_ad_id";
+        }
+        if (lookup == ListingLookupState.FAILED) {
+            return "lookup_failed";
+        }
+        if (lookup == ListingLookupState.SKIPPED) {
+            return "lookup_skipped";
+        }
+        // email + ad_id present, lookup ran (OK or ran-but-no-result MISSING):
+        // the premise is verifiable. The ad-specific nuance (OK vs MISSING)
+        // is carried by ad_reference.listing_lookup (#7).
+        return "loaded";
+    }
+
+    /** Lower-case token for the {@code ad_reference.listing_lookup} field. */
+    static String listingLookupToken(ListingLookupState state) {
+        switch (state) {
+            case OK:
+                return "ok";
+            case MISSING:
+                return "missing";
+            case FAILED:
+                return "failed";
+            case SKIPPED:
+            default:
+                return "skipped";
+        }
+    }
+
+    /**
+     * Emit the R4 {@code customer_context_status} enum (#6) and the
+     * {@code ad_reference} struct (#7) onto the live-path projection. Reads
+     * {@code form_context.email} / {@code form_context.ad_id} and the most
+     * recent {@code lookup_listing_or_ad} tool event from the current run's
+     * {@code priorToolEvents}. Block content is ground-truth runtime state
+     * only — no LLM-generated string, no reason text.
+     */
+    private void addAdContextPremiseProjection(ObjectNode projection,
+                                               BotSession session,
+                                               List<ToolEvent> priorToolEvents) {
+        String email = formField(session, "email");
+        String adId = formField(session, "ad_id");
+
+        ToolEvent lookupEvent = lastToolEvent(priorToolEvents, LOOKUP_LISTING_TOOL);
+        boolean triggered = lookupEvent != null;
+        boolean succeeded = triggered && lookupEvent.success();
+        boolean listingResolved = succeeded && toolResultResolvedListing(lookupEvent);
+        ListingLookupState lookupState =
+                deriveListingLookupState(triggered, succeeded, listingResolved);
+
+        projection.put("customer_context_status",
+                computeCustomerContextStatus(email, adId, lookupState));
+
+        ObjectNode adReference = objectMapper.createObjectNode();
+        if (adId == null || adId.isBlank()) {
+            adReference.putNull("form_ad_id");
+        } else {
+            adReference.put("form_ad_id", adId);
+        }
+        adReference.put("listing_lookup", listingLookupToken(lookupState));
+        projection.set("ad_reference", adReference);
+    }
+
+    /**
+     * Read a single string field from {@code session.formContext} (the parsed
+     * pre-chat form JSON). Returns null on absent / blank / parse failure —
+     * the projection never fails closed on a malformed form blob.
+     */
+    private String formField(BotSession session, String field) {
+        if (session == null || session.getFormContext() == null
+                || session.getFormContext().isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode form = objectMapper.readTree(session.getFormContext());
+            JsonNode value = form == null ? null : form.get(field);
+            if (value == null || value.isNull()) {
+                return null;
+            }
+            String text = value.isValueNode() ? value.asText("") : value.toString();
+            return (text == null || text.isBlank()) ? null : text;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /** Most recent successful-or-failed event for {@code toolName}, or null. */
+    private static ToolEvent lastToolEvent(List<ToolEvent> events, String toolName) {
+        if (events == null || events.isEmpty()) {
+            return null;
+        }
+        ToolEvent found = null;
+        for (ToolEvent evt : events) {
+            if (evt != null && toolName.equals(evt.toolName())) {
+                found = evt;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * True iff the {@code lookup_listing_or_ad} result resolved a listing.
+     * {@link com.gumtree.csagent.service.tools.LookupListingTool} returns
+     * {@code {found:true, listing:{...}}} on a hit and {@code {found:false}}
+     * when no listing exists.
+     */
+    private static boolean toolResultResolvedListing(ToolEvent event) {
+        if (event == null || !event.success() || event.resultData() == null) {
+            return false;
+        }
+        Object data = event.resultData();
+        if (data instanceof Map<?, ?> map) {
+            return Boolean.TRUE.equals(map.get("found"));
+        }
+        return false;
     }
 
     /**
