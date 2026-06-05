@@ -585,7 +585,7 @@ S-Auto-21 (M-Auto-5 corrective #2; simulator role-inversion fix; handoff `docs/s
 
 S-Auto-22 ACCEPTED-WITH-DEVIATIONS-DOCUMENTED 2026-06-05 (dev commit `2ea65de`). Shipped: #1 STALL signal promotion (option 1a typed `stall_result.detected` boolean read, scoped to `composite==0`); #2 terminal-failure `_TERMINAL_FAILURE_STOP_REASONS` frozenset override (option 2b separate failure arm, `goal_impossible` excluded — see deviation); #3 zero-evidence refusal structural rule (no allowlist); #4 runtime `ControlKernel.shouldVoidResolvedStamp/voidResolvedStamp` + `BotSession.priorContainmentOutcome` provenance (option 4a overwrite to `incomplete_after_partial_answer`). Tests: 15 new in `test_oq_s77_false_positive_gates.py` + 12 new in `ControlKernelVoidResolvedStampTest`; eval pytest 553; Java 1244/1/0/2; autoloop 324. Deterministic re-score: 12 vacuous → FAIL + 1 correct extra (csmp_s01 a6); all 9 legitimate F→P preserved majority-PASS; 0 silent losses. Archives `docs/sprints/sprint-077-{objective,handoff}.md`. Two evidence-driven deviations + bookkeeping correction documented in handoff §1 + §2 + §0; both deviations carry to milestone-shared Codex verdict at M-Auto-5 close.
 
-- **OQ-S77.stall-not-gated — RESOLVED PENDING SWEEP VALIDATION 2026-06-05.** The eval-gate fixes (#1 + #2 + #3) + runtime companion (#4) close the gap structurally. Final closure conditional on the §5.9 pre-flight sweep on the re-re-blessed corpus returning ZERO matches (validation gate). Framework-defect priority (§5.8) STAYS ACTIVE through the sweep. **Status: resolved-pending-sweep; closes at M-Auto-5 milestone close.**
+- **OQ-S77.stall-not-gated — CLOSED 2026-06-05 at M-Auto-5 milestone close.** The eval-gate fixes (#1 + #2 + #3) + runtime companion (#4) close the gap structurally. Final closure validated: §5.9 pre-flight sweep on the re-re-blessed corpus `m-auto-5-baseline-20260604-simfixed-stalledfix/` returned **0/414** vacuous-pass + terminal-failure matches. Framework-defect priority (§5.8) **LIFTED** 2026-06-05. **Status: CLOSED.**
 
 - **OQ-S77.stall-detector-window — NEW (S-Auto-22 dev surfaced 2026-06-05).** The `eval_interactive/eval_interactive/scoring/stall_detector.py` window logic false-positives on out-of-window escalation recovery. Canonical evidence: cs095 a4 (`stall_detected=True + composite=0.5 + containment=escalated`) — the stall detector flagged the turn-1 "let me look into this" because the escalation recovery fell outside the detector's follow-up window. NOT a re-re-bless blocker (Fix #1's `composite==0` scoping spares these false positives). **Status: open; deferred. Candidate for M-Auto-6 observability sweep or a later eval-spec sub-sprint.** Layer (§3): `infra` (eval-framework scoring detector tuning) or possibly `eval_spec` (depending on whether the detector window is config or rubric).
 
@@ -593,7 +593,45 @@ S-Auto-22 ACCEPTED-WITH-DEVIATIONS-DOCUMENTED 2026-06-05 (dev commit `2ea65de`).
 
 Adjacent updates:
 - **OQ-S72.2 DISSOLVED** 2026-06-05 (S-Auto-21 simfixed re-bless eliminated near-coinflip across all three suites; the corrected measurement no longer puts any case at p≈0.5).
-- **OQ-S76.A6 (bot self-diagnoses sim drift, runtime ignores)**: reassess at M-Auto-5 close after the S-Auto-22 re-re-bless. If no bot self-diagnoses of drift surface on the corrected baseline, close as obsolete. Otherwise route as M-Auto-6 candidate.
+- **OQ-S76.A6 (bot self-diagnoses sim drift, runtime ignores)**: at M-Auto-5 close 2026-06-05 — CARRY. Trigger surface dissolved at the simulator layer (0 contamination on simfixed runs); reassess against the re-re-blessed baseline when next operating against it. If no bot self-diagnoses of drift surface, close as obsolete; otherwise route as M-Auto-6 candidate.
+
+### M-Auto-5 CLOSE (2026-06-05) — brief dispositions + OQ ledger + new R-item + M-Auto-6 handoff
+
+**Milestone M-Auto-5 — Eval Verdict Correctness + Trace-Contract Honesty CLOSED 2026-06-05 (Class A — APPROVE_WITH_NON_BLOCKING_OBSERVATIONS)**; milestone-shared Codex `decision: pass`, `blocking_count: 0`, `final_verdict: APPROVE_WITH_NON_BLOCKING_OBSERVATIONS` (`docs/milestones/M-Auto-5_codex-review.md`; range S-Auto-19 + S-Auto-20 + S-Auto-21 + S-Auto-22). §5.9 pre-flight sweep on the re-re-blessed corpus: **0/414 vacuous-pass + terminal-failure matches** (framework-defect priority §5.8 LIFTS). Paired-evidence review: **10 F→P / 0 P→F** across bad_cases (alice / cs012 / cs015 / cs066 / cs095) + anchor_outcome (uc_a_visibility / uc_f_billing / uc_fp_removed) + shadow (cs01s01 / cs11s01). Persistent high-risk preserved (anchor uc_g_gdpr / uc_h_appeal / uc_i_payment / uc_j_safety + shadow cs38s* at 0.000 stable); anti-误杀 held both directions. `baseline_dir` moved `m-auto-4-baseline-20260604` → `m-auto-5-baseline-20260604-simfixed-stalledfix` (`autoloop/config.yaml:134`); `docs/current_eval_baseline.md` updated. This subsection is the AUTHORITATIVE close record for M-Auto-5; the per-sprint "surfaced OQs" entries above (Sprint 076-077) are pending a §7.1 inline-history strip (deferred housekeeping).
+
+**Brief / R-item families CLOSED at this close** (work driven by failure-briefs and an eval-framework audit, not classic-named R-items):
+
+- **Eval-read column** (S-Auto-19 / Sprint 074): 5 measurement-artifact fixes — `trace_minimum` unions all turns; source citations accumulate across session; `search-knowledge-before-faq` ATR union fallback; intake reads dict keys; PII allowlist for first-party + RFC 2606. Plus runtime `ControlKernel` stamps trace-contract fields + answer-turn `sourceIds`.
+- **Runtime-stamp column** (S-Auto-20 / Sprint 075): `ControlKernel.isResolvedSuccessTerminal` broadened to `FINAL_ANSWER + READY_TO_CONFIRM|ANSWERED_SUBTASK` with grounding; `loop_detected` removed from valid blank-containment terminals (eval framework correction — a looped session can no longer pass on absent evidence).
+- **Input column / simulator** (S-Auto-21 / Sprint 076): customer simulator role-inversion fix at `user_simulator.py:187` + per-turn persona re-anchor + negative-form `Forbidden` block + customer-voice drift guard D1/D2/D3 with 3-attempt retry + `SimulatorDriftError` escape. Pre-fix corpus sweep 852 → 0 contaminated turns; focused bad-case re-render 0/40. Source brief: `docs/diagnostics/2026-06-04-eval-framework-and-simulator-audit.md`.
+- **Eval-gate vacuous-pass + runtime stamp downgrade** (S-Auto-22 / Sprint 077): STALL signal promotion scoped to `composite==0` + terminal-failure `_TERMINAL_FAILURE_STOP_REASONS` override (`goal_impossible` excluded) + zero-evidence refusal `composite==0 AND l2_results==[]` structural rule + runtime `ControlKernel.shouldVoidResolvedStamp` voids stale resolved stamp on `{MAX_STEPS, ERROR, DEADLINE_EXCEEDED, LLM_UNAVAILABLE}` → `CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER`. Two evidence-driven deviations independently verified by Codex. Source brief: `docs/diagnostics/failure-briefs/oq-s77-stall-not-gated.md`.
+
+**OQ ledger at close:**
+
+- **OQ-S77.stall-not-gated — CLOSED 2026-06-05** (§5.9 sweep returned 0/414; framework-defect priority §5.8 LIFTED).
+- **OQ-S76.judge-zero — RESOLVED 2026-06-05** (route c; collapsed into chronic `R-eval-interactive-judge-score-never-populated`).
+- **OQ-S72.2 — DISSOLVED 2026-06-05** (near-coinflip eliminated across all three suites on simfixed-stalledfix).
+- **OQ-S76.A6 — CARRY** (trigger surface dissolved at simulator layer; reassess against re-re-blessed baseline when next operating against it; if no bot self-diagnoses surface, close as obsolete; otherwise M-Auto-6 candidate).
+- **OQ-S77.stall-detector-window — CARRY** to M-Auto-6 planning (detector window-tuning; non-blocker per Codex Deviation #1 confirmation; layer `infra` / possibly `eval_spec`).
+- **OQ-S77.goal-impossible-resolved-evidence — CARRY** (eval_spec policy Q whether `resolved+goal_impossible+positive-evidence` should hard-fail; deferred consistent with S-Auto-20; likely M-Auto-7+).
+- **OQ-S76.drift-stop — CARRY** (label fidelity only; one-line fix when `session_runner.py` fence next opens).
+- Earlier carries unchanged: **OQ-S72.1**, **OQ-S71.2** (overlaps M-Auto-6 Cluster B.2), **OQ-S66.2 / OQ-S66.4 / OQ-S64.3 / OQ-cv-ceiling-calibration**.
+
+**Newly opened R-item from Codex non-blocking observation #3 (2026-06-05):**
+
+- **`R-aggregate-retains-per-attempt-composite-l2`** — per-attempt `composite_score` + `l2_results` fields are absent from compact aggregate attempt rows; Codex was unable to independently reproduce the §5.9 414-draw predicate from the compact aggregate alone (Codex relied on stated evidence + run-local data + visible missed-gate symptom verification). For future close reviews, preserve per-attempt composite + L2 fields in the authoritative aggregate or include the sweep output artifact. Layer (§3): `infra` (eval framework aggregate emission). Routing: **M-Auto-6 Cluster B observability bundle candidate**; queued, not yet promoted to an active sub-sprint. Surfaced by `docs/milestones/M-Auto-5_codex-review.md` §5 observation #3.
+
+**STILL OPEN / DEFERRED (unchanged at this close):**
+
+- M3-B Single Handover Orchestrator P0 (`docs/proposals/handover_orchestrator_design.md`).
+- M-Auto-1A carry-overs (7).
+- `R-runtime-escalation-reason-turn-budget-conflated-with-intent` (B3/R5) — deferred behind M-Auto-6.
+- `R-classifier-non-deterministic-uc-selection-at-temp-zero` (C/R7) — deferred behind M-Auto-6 (same root the M-Auto-4 measurement proposal addresses at the harness layer).
+- `R-autoloop-run-sweeps-dirty-index` — standing hazard, honored operationally.
+- `R-eval-interactive-judge-score-never-populated` — LOW; judge layer chronic by-config; canonical signals (composite + outcome + L1 + L2 failure_tags) populated.
+- M-Auto-4 PAUSED (S-Auto-18 deferred behind M-Auto-6, to M-Auto-7+).
+
+**M-Auto-6 NOT YET ACTIVE (2026-06-05)** — candidate scope (R1 + R2 bundle, then Cluster B + C 2× research dispatch) recorded in the M-Auto-6 sequencing subsection below + in `docs/milestone_objective.md` YAML notes. Filing here as the M-Auto-5-close handoff; not promoted to an active milestone until human authorizes deliver-agent to draft `docs/milestone_objective.md` (M-Auto-6 contract) + `docs/sprint_objective.md` (M-Auto-6 first sub-sprint = R1+R2 bundle).
 
 ### M-Auto-6 sequencing — input from 2026-06-05 R1/R2 research-agent proposal + human direction
 

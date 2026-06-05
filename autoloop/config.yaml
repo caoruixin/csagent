@@ -130,8 +130,20 @@ fitness:
   # overwritten — only this POINTER moves (reversible). git_commit recorded in
   # each aggregated.json. Expect `gaming.suspect_baseline_manipulation` to
   # observe this change (intended; recorded in the handoff).
-  # Prior pointer: eval_interactive/results/m-auto-1b-baseline-20260529.
-  baseline_dir: eval_interactive/results/m-auto-4-baseline-20260604
+  # Prior pointers: eval_interactive/results/m-auto-1b-baseline-20260529,
+  #                 eval_interactive/results/m-auto-4-baseline-20260604.
+  # M-Auto-5 close 2026-06-05: pointer moved to the simulator-fixed +
+  # stall-not-gated authoritative re-re-bless. Corrected measurement across
+  # all four columns (eval read / runtime stamp / input simulator / gate
+  # vacuous-pass + runtime stamp downgrade). Codex §4.1 milestone-shared
+  # review APPROVE_WITH_NON_BLOCKING_OBSERVATIONS (blocking_count=0); §5.9
+  # pre-flight sweep PASS (0/414 vacuous-pass + terminal-failure matches);
+  # paired-evidence review 10 F→P / 0 P→F across bad_cases + anchor_outcome
+  # + shadow (anti-误杀 held in both directions). Older baseline dirs
+  # (m-auto-1b-baseline-20260529, m-auto-4-baseline-20260604,
+  # m-auto-5-baseline-20260604, m-auto-5-baseline-20260605,
+  # m-auto-5-baseline-20260604-simfixed) retained on disk as forensic-only.
+  baseline_dir: eval_interactive/results/m-auto-5-baseline-20260604-simfixed-stalledfix
 
   # Hard cap per suite (30 min). A timeout aborts the loop iteration
   # — partial fitness evidence is worse than no fitness evidence.
