@@ -29,6 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ResolveFaqGuardrailsTest {
 
+    // R5 — a real Salesforce-style article_id from the KB corpus
+    // (data/knowledge/knowledge_base_articles.json). 18 chars, ka-prefixed.
+    private static final String REAL_ARTICLE_ID = "ka41r000000LIEEAA4";
+
     private SkillGuardrailDispatcher dispatcher;
 
     @BeforeEach
@@ -124,11 +128,11 @@ class ResolveFaqGuardrailsTest {
     void prematureResolve_neighbor_allows_resolveInClosePhase() {
         // CLOSE phase passes ResolveDispositionEvaluator's guard. But the
         // 3rd guardrail must_cite_source still fires on this Skill if the
-        // user_message has no source_id.
+        // user_message has no acceptable citation token (R5 structural shape).
         Optional<RejectVerdict> verdict = dispatcher.checkBeforeOutcomePersist(
                 faqPlan("UC-A"), "resolve",
                 ctx(faqPlan("UC-A"), sess("UC-A", "CLOSE"), Map.of(),
-                        "Your ad is active [source_id: kb-001]."));
+                        "Your ad is active [source_id: " + REAL_ARTICLE_ID + "]."));
         assertFalse(verdict.isPresent(),
                 "CLOSE phase with citation present must pass all 3 guardrails");
     }
@@ -159,10 +163,11 @@ class ResolveFaqGuardrailsTest {
 
     @Test
     void mustCiteSource_neighbor_passes_withSourceIdInUserMessage() {
+        // R5 — a structural article_id token (display_citation fallback) passes.
         Optional<RejectVerdict> verdict = dispatcher.checkBeforeOutcomePersist(
                 faqPlan("UC-A"), "resolve",
                 ctx(faqPlan("UC-A"), sess("UC-A", "CONFIRM"), Map.of(),
-                        "Your ad is active for 30 days [source_id: kb-001]."));
+                        "Your ad is active for 30 days [source_id: " + REAL_ARTICLE_ID + "]."));
         assertFalse(verdict.isPresent());
     }
 

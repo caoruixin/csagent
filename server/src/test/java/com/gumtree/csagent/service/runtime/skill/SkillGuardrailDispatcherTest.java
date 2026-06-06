@@ -290,15 +290,109 @@ class SkillGuardrailDispatcherTest {
                 verdict.get().predicateName());
     }
 
+    // R5 — a real Salesforce-style article_id from the KB corpus
+    // (data/knowledge/knowledge_base_articles.json). 18 chars, ka-prefixed.
+    private static final String REAL_ARTICLE_ID = "ka41r000000LIEEAA4";
+
     @Test
-    void mustCiteSource_doesNotFire_when_sourceIdPresent() {
+    void mustCiteSource_doesNotFire_when_articleIdShapePresent() {
+        // R5 — replaces the legacy literal "source_id" substring check. A
+        // structural article_id token (the display_citation fallback) passes.
         BotSession s = faqSession("UC-A", "CONFIRM");
+        String msg = "Your ad is active for 30 days [source_id: " + REAL_ARTICLE_ID + "].";
         DispatchContext ctx = new DispatchContext(
-                faqPlan("UC-A"), s, Map.of(),
-                "Your ad is active for 30 days [source_id: kb-001].",
-                Optional.of("Your ad is active for 30 days [source_id: kb-001]."));
+                faqPlan("UC-A"), s, Map.of(), msg, Optional.of(msg));
         assertFalse(dispatcher.checkBeforeOutcomePersist(
                 faqPlan("UC-A"), "resolve", ctx).isPresent());
+    }
+
+    @Test
+    void mustCiteSource_doesNotFire_when_httpsUrlPresent() {
+        // R5 Positive A — the source_url citation shape (display_citation when
+        // the article has a non-blank source_url).
+        BotSession s = faqSession("UC-A", "CONFIRM");
+        String msg = "You can manage this here: https://help.gumtree.com/article/123";
+        DispatchContext ctx = new DispatchContext(
+                faqPlan("UC-A"), s, Map.of(), msg, Optional.of(msg));
+        assertFalse(dispatcher.checkBeforeOutcomePersist(
+                faqPlan("UC-A"), "resolve", ctx).isPresent());
+    }
+
+    @Test
+    void mustCiteSource_doesNotFire_when_httpUrlPresent() {
+        // R5 Positive B — http:// (not just https://) also counts.
+        BotSession s = faqSession("UC-A", "CONFIRM");
+        String msg = "See http://help.gumtree.com/x for details.";
+        DispatchContext ctx = new DispatchContext(
+                faqPlan("UC-A"), s, Map.of(), msg, Optional.of(msg));
+        assertFalse(dispatcher.checkBeforeOutcomePersist(
+                faqPlan("UC-A"), "resolve", ctx).isPresent());
+    }
+
+    @Test
+    void mustCiteSource_fires_when_emptyUserMessage() {
+        // R5 Negative A — empty reply still rejects (grounding floor preserved).
+        BotSession s = faqSession("UC-A", "CONFIRM");
+        DispatchContext ctx = new DispatchContext(
+                faqPlan("UC-A"), s, Map.of(), "", Optional.of(""));
+        Optional<RejectVerdict> verdict = dispatcher.checkBeforeOutcomePersist(
+                faqPlan("UC-A"), "resolve", ctx);
+        assertTrue(verdict.isPresent());
+        assertEquals(SkillGuardrailDispatcher.S1_CITATION_PRESENCE_REQUIRED,
+                verdict.get().predicateName());
+    }
+
+    @Test
+    void mustCiteSource_fires_when_nullUserMessage() {
+        // R5 Negative B — null reply (both parsed + raw) still rejects.
+        BotSession s = faqSession("UC-A", "CONFIRM");
+        DispatchContext ctx = new DispatchContext(
+                faqPlan("UC-A"), s, Map.of(), null, Optional.empty());
+        Optional<RejectVerdict> verdict = dispatcher.checkBeforeOutcomePersist(
+                faqPlan("UC-A"), "resolve", ctx);
+        assertTrue(verdict.isPresent());
+        assertEquals(SkillGuardrailDispatcher.S1_CITATION_PRESENCE_REQUIRED,
+                verdict.get().predicateName());
+    }
+
+    @Test
+    void mustCiteSource_fires_when_literalSourceIdWordButNoStructuralToken() {
+        // R5 Negative D — the OLD literal-substring code PASSED this (the
+        // string "source_id" appears); the structural-shape code REJECTS it
+        // because there is no URL and no article_id-shape token. This pins the
+        // literal -> shape semantics shift.
+        BotSession s = faqSession("UC-A", "CONFIRM");
+        String msg = "I'll cite the source_id for you.";
+        DispatchContext ctx = new DispatchContext(
+                faqPlan("UC-A"), s, Map.of(), msg, Optional.of(msg));
+        Optional<RejectVerdict> verdict = dispatcher.checkBeforeOutcomePersist(
+                faqPlan("UC-A"), "resolve", ctx);
+        assertTrue(verdict.isPresent());
+        assertEquals(SkillGuardrailDispatcher.S1_CITATION_PRESENCE_REQUIRED,
+                verdict.get().predicateName());
+    }
+
+    @Test
+    void mustCiteSource_bowsOut_when_yamlOutcomeClassDisagrees() {
+        // R5 Negative F — a must_cite_source guardrail whose configured
+        // parameters.outcome_class != resolve bows out even on a resolve
+        // record_outcome (Sprint 39 §2.5 D-n contract preserved).
+        Skill skill = new Skill(
+                "x", "x",
+                List.of("RESOLVE"),
+                List.of("UC-A"),
+                List.of("record_outcome"),
+                List.of("form_context"),
+                3, false,
+                List.of("FINAL_ANSWER"),
+                "obj", "proc", "g", "e",
+                List.of(new Guardrail("must_cite_source", "reject_with_hint",
+                        Map.of("outcome_class", "escalate"))),
+                StateInheritance.EMPTY);
+        DispatchContext ctx = new DispatchContext(
+                faqPlan("UC-A"), null, Map.of(),
+                "No citation here.", Optional.of("No citation here."));
+        assertFalse(dispatcher.checkBeforeOutcomePersist(skill, "resolve", ctx).isPresent());
     }
 
     @Test
