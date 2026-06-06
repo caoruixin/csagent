@@ -104,6 +104,11 @@ public class ResolveArticleTool implements Tool {
         data.put("source_url", canonicalUrl);
         data.put("canonical_url", canonicalUrl);
         data.put("canonical_url_missing", canonicalUrlMissing);
+        // R5 — single preferred citation token: the source_url when present
+        // and non-blank, else the structural article_id fallback. The
+        // must_cite_source guardrail accepts either shape.
+        data.put("display_citation",
+                !canonicalUrlMissing ? canonicalUrl : article.getArticleId());
         data.put("url_category", article.getUrlCategory());
         data.put("uc_tags", article.getUcTags());
         data.put("is_published", article.getIsPublished());
