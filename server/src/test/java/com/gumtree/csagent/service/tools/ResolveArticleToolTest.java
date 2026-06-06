@@ -156,6 +156,74 @@ class ResolveArticleToolTest {
                 "search_knowledge.hits[*].source_id must be directly callable as resolve_article(source_id=...)");
     }
 
+    // ---------- R5 #1: display_citation ----------
+
+    @Test
+    void execute_displayCitation_isSourceUrl_whenSourceUrlPresent() {
+        when(kbArticleRepository.findById(FAQ_ID)).thenReturn(Optional.of(buildArticle()));
+
+        ToolResult result = tool.execute(buildSession(), Map.of("source_id", FAQ_ID));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals("https://help.example/faq/where-is-my-ad", data.get("display_citation"),
+                "display_citation must be the source_url when it is present and non-blank");
+    }
+
+    @Test
+    void execute_displayCitation_fallsBackToArticleId_whenSourceUrlNull() {
+        KbArticle article = KbArticle.builder()
+                .articleId(FAQ_ID)
+                .title("Where is my advert?")
+                .description("Ads can be hidden during moderation review.")
+                .sourceUrl(null)
+                .isPublished(true)
+                .build();
+        when(kbArticleRepository.findById(FAQ_ID)).thenReturn(Optional.of(article));
+
+        ToolResult result = tool.execute(buildSession(), Map.of("source_id", FAQ_ID));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals(FAQ_ID, data.get("display_citation"),
+                "display_citation must fall back to article_id when source_url is null");
+    }
+
+    @Test
+    void execute_displayCitation_fallsBackToArticleId_whenSourceUrlBlank() {
+        KbArticle article = KbArticle.builder()
+                .articleId(FAQ_ID)
+                .title("Where is my advert?")
+                .description("Ads can be hidden during moderation review.")
+                .sourceUrl("   ")
+                .isPublished(true)
+                .build();
+        when(kbArticleRepository.findById(FAQ_ID)).thenReturn(Optional.of(article));
+
+        ToolResult result = tool.execute(buildSession(), Map.of("source_id", FAQ_ID));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals(FAQ_ID, data.get("display_citation"),
+                "display_citation must fall back to article_id when source_url is blank");
+    }
+
+    @Test
+    void execute_displayCitation_isAdditive_existingFieldsPreserved() {
+        when(kbArticleRepository.findById(FAQ_ID)).thenReturn(Optional.of(buildArticle()));
+
+        ToolResult result = tool.execute(buildSession(), Map.of("source_id", FAQ_ID));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        // Negative A — existing article_id field still populated as-was.
+        assertEquals(FAQ_ID, data.get("article_id"),
+                "display_citation is additive: article_id must remain unchanged");
+        // Negative B — existing source_url field still populated as-was.
+        assertEquals("https://help.example/faq/where-is-my-ad", data.get("source_url"),
+                "display_citation is additive: source_url must remain unchanged");
+    }
+
     @Test
     void execute_unknownSourceId_returnsArticleNotFoundError() {
         when(kbArticleRepository.findById("missing")).thenReturn(Optional.empty());
