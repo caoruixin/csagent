@@ -43,6 +43,11 @@ Read in order on cold start: §0 → §1 charter brief → §3 role chain → §
 - Adopter-vs-framework **gap-tracking ledger** (`adoption-state.md`) is part of the framework's adopter-side artifact set.
 - **Bidirectional fold-back protocol** (adopter → framework lessons / framework → adopter release) is §8.
 
+**Checkpoint 2 refinements applied (2026-06-07 second turn)** — three structural fixes:
+1. **§4.3 NEW** — Directory taxonomy + authoring authority. Clarifies who writes where: `research-briefs/` vs `proposals/` vs `diagnostics/` vs `failure-briefs/` vs `bad_cases/` vs `acceptance-reports/` are NOT overlapping; each has a single primary author, trigger, content type, and promotion path.
+2. **§5.3 REWRITTEN** — Phase 1-5 funnel sequencing corrected. Phase 1 = **Business need & goal** (market need, KPI, scope); Phase 2 = **Product/Service design** (how do we satisfy: UC/SOP/skills); Phase 3 = **Technical plan** — technical constraints (engineering baseline, platform APIs like Salesforce, integration approach) arrive at Phase 3, NOT lumped into Phase 1. Reverse-flow signals across phases when later finds earlier infeasibility.
+3. **§7.0 NEW + §7.2 SOFTENED** — Framework defaults (numerical thresholds, cadences, target sizes) are **suggested starting points**, not hard gates. Only Constitution §1.7 forbidden list, §3.3 role boundary invariants, §4.2.3 MANDATORY_CHECKPOINTS, and §3.5 acceptance calibration are hard requirements. Everything else: adopters override with documented rationale in `adoption-state.md`.
+
 ---
 
 ## §1 — Constitution (Layer A; brief)
@@ -241,7 +246,7 @@ Each row: v3.2's claim, the codebase evidence, the v4 verdict, and where the con
 **Δ-12 14-artifact extended set** (was 11 in v3.2):
 1. action_bank.md (live ledger) — unchanged
 2. action_bank_archive.md — unchanged
-3. proposals/*.md — **renamed scope clarification**: now "research-proposals/" not just "proposals/"; legacy proposals migrate
+3. proposals/*.md — **kept as is** (Checkpoint 2 correction): proposals/ is the **ad-hoc exploration** dir (human casually chats with a coding-agent and the output lands here); NOT renamed; lower formality than research-briefs/; see §4.3.1 for authoring authority distinction
 4. diagnostics/*.md + failure-briefs/ — unchanged
 5. sprint_objective.md — unchanged
 6. milestone_objective.md — unchanged
@@ -249,7 +254,7 @@ Each row: v3.2's claim, the codebase evidence, the v4 verdict, and where the con
 8. handoff.md §1 narrative — unchanged
 9. handoff.md §2 archive index — unchanged
 10. codex-findings.md — unchanged
-11. **research-briefs/<id>.md** — NEW v4 (Acceptance closure_contract carrier); replaces csagent's `docs/solutions/` semantics
+11. **research-briefs/<id>.md** — NEW v4 (Acceptance closure_contract carrier); supersedes csagent's `docs/solutions/` semantics for **formal** Research Agent output. Distinct from `proposals/` (informal exploration); REQUIRED closure_contract; Customer-signed. See §4.3 for full authoring rules
 12. **acceptance-reports/<scope>-acceptance-report.md** — NEW v4 (Acceptance verdict + gap brief)
 13. **deliver_close_taxonomy.md** — NEW v4 (was in csagent docs/current/ since 2026-Q2, v3.2 missed it)
 14. **adoption-state.md** — NEW v4 (adopter ↔ framework gap-tracking ledger; §8 fold-back protocol uses this)
@@ -495,6 +500,75 @@ Each spawn function has a published JSON-schema verdict shape so orchestrator ca
 - Spawning Acceptance Agent from a Deliver or Dev session (§1.7-C).
 - Acceptance routing `fix_required → Deliver` without a written human-confirm checkpoint decision (Checkpoint 1 #2).
 
+### §4.3 Directory taxonomy + authoring authority (NEW per Checkpoint 2)
+
+Critical for adopter clarity: every doc directory has a **single primary author** + **specific trigger** + **specific content type** + **specific promotion path**. csagent's practice has some implicit overlap (a human's casual chat may land in `proposals/` vs a formal Research session lands in `solutions/` vs an agent's mid-sprint discovery lands in `diagnostics/`) — v4 makes the split explicit.
+
+#### §4.3.1 Per-directory authoring rules
+
+| Directory | Primary author | Trigger | Content type | Lifecycle | Promotes to | Customer interaction |
+|---|---|---|---|---|---|---|
+| `docs/research-briefs/<id>.md` | **Research Agent** (formal mode) | Customer formally asks "what should we build" OR Path-2 failure-brief matures | **Formal need spec**: closure_contract (mandatory) + scope IN/OUT + anti-goal + KPI + related R-items | live until milestone close; archive to `docs/sprints/` after | terminal for Path 1; consumed by Deliver + Acceptance | **Customer signs gate 1** |
+| `docs/proposals/<id>.md` | Research Agent (exploratory) OR ad-hoc coding-agent session | Human casually opens a session: "how would we approach X?" | **Design exploration**: lower formality; NO closure_contract required; may sketch tradeoffs / candidate approaches | intermediate (Δ-4); frozen at creation | may promote to research-brief if human selects + Research Agent re-runs formally | Customer reads as informational; does NOT sign |
+| `docs/diagnostics/<id>.md` | Dev / Code Reviewer / Deliver Agent (during sprint work) | Agent discovers something mid-sprint (mid-PR, mid-review, mid-investigation) | **Root-cause analysis**: "why does X behave this way?"; cites code paths + traces | intermediate (Δ-4); referenced from sprint-handoff §9 | may promote to failure-brief (if pattern n≥2) or R-item in action_bank | Customer typically does NOT read; tech-internal observation |
+| `docs/diagnostics/failure-briefs/<id>.md` | **Joint human + Deliver Agent** | Bad-case observed + triage decides it's load-bearing (n≥2 OR severe) | **Failure shape report** — 6-field template per Δ-2: (1) what happened, (2) what should good agent have done, (3) why does this matter, (4) one-off-or-pattern, (5) which §3 layer, (6) what NOT to do | intermediate per sprint | Path 2 Research Agent input → produces research-brief → back into normal flow | Customer may co-author "what should good agent have done" field |
+| `eval/bad_cases/<id>.yaml` (or equivalent suite dir) | **Joint** (Deliver Agent curates structure; human authors closure_criterion) | Failure-brief promoted to **reproducible runtime test** | **CaseSpec yaml** with closure_criterion per §1.7-B (positive shape + anti-pattern + anchor phrases; NOT keyword match) | live regression suite until tier-downgraded to closed-as-regression-guard or archived | terminal for regression suite | n/a (runtime artifact for Acceptance Agent + Code Reviewer) |
+| `docs/acceptance-reports/<scope>-acceptance-report.md` | **Acceptance Agent** | Acceptance run at milestone close / release cut / sub-sprint close (per charter) | **Verdict + per-criterion evidence + gap brief if fail + suggested route** {deliver_fix_iteration \| re_acceptance_after_evidence \| research_contract_revision} | intermediate per scope; archived to milestone close package | gap brief consumed by Deliver (Path 3 fix-iteration) **after human-confirm checkpoint** | **Customer reads gate 2; signs ship/no-ship** |
+| `docs/codex-findings.md` | **Code Reviewer Agent** | Review run (sub-sprint close, §4.3 trigger, milestone close) | **Anti-hardcode kernel results + correctness findings**; §4.2 4-line header verdict | intermediate per sprint/milestone; archived at close | consumed by Deliver at close conversation per `deliver_close_taxonomy.md` | Customer typically does NOT read; tech-side artifact |
+| `docs/action_bank.md` (live) | **Deliver Agent** maintains; Dev/Reviewer surface items | Sprint/milestone observation; ongoing backlog | **R-items + OBS-items + open Qs** ledger | live; soft size cap (suggested per §7) | sweep to `action_bank_archive.md` at milestone close | n/a |
+| `docs/current/adoption-state.md` (NEW) | **Human owner** (adopter side) | Adopter overrides a framework default OR observes a divergence | **Per-Δ status table** + drift rationale + lessons-to-propose | live; review per milestone close | feeds `aidazi/lessons/<date>-<topic>.md` for fold-back | n/a (adopter-internal) |
+
+#### §4.3.2 Authoring authority by input modality
+
+The user's confusion centered on: where does a particular input land? The table below maps observable input shapes to their target dir:
+
+| Observable input shape | Who provides | Lands in | Reason |
+|---|---|---|---|
+| Customer formally requests something | Customer prompts Research Agent (paste activation) | `docs/research-briefs/<id>.md` | Gate 1 — Customer signs; closure_contract required |
+| Customer casually asks "how would you approach X?" | Customer chats with any coding-agent ad-hoc | `docs/proposals/<id>.md` | Lower formality; may later promote |
+| Customer/colleague reports a single failure | Verbal/written observation | first → human + Deliver triage → if load-bearing → `docs/diagnostics/failure-briefs/<id>.md`; if reproducible → `eval/bad_cases/<id>.yaml` | Triage step is **mandatory** — not every observation becomes a brief; n≥2 threshold for pattern |
+| Pattern of N≥2 similar failures | Multiple instances collected over time | `docs/diagnostics/failure-briefs/<id>.md` (formal); then Path 2 Research Agent → `docs/research-briefs/<id>.md` | Pattern threshold prevents one-off premature R-item creation |
+| Agent finds something during sprint work | Dev / Reviewer / Deliver during investigation | `docs/diagnostics/<id>.md` | NOT a Customer need; tech-internal observation |
+| Agent finds delivery-vs-promise gap at milestone close | Acceptance Agent verdict = `fix_required` | `docs/acceptance-reports/<scope>-acceptance-report.md` (with gap brief section) | The formal "delivered ≠ promised" detector |
+| Reviewer finds anti-hardcode violation | Code Reviewer Agent verdict | `docs/codex-findings.md` | Code-side observation, not need-side |
+| Adopter intentionally diverges from framework default | Human owner | `docs/current/adoption-state.md` row marked `status: divergent` + rationale | Per §7.0 — framework default override path |
+
+#### §4.3.3 Who writes where — quick reference
+
+**Human writes directly** (no agent intermediary):
+- Customer prompts feeding Research / Acceptance (raw input; not a stored doc by themselves)
+- `docs/checkpoints/*.md` `decision:` field (human resolves orchestrator checkpoints)
+- `docs/diagnostics/failure-briefs/<id>.md` (joint with Deliver; human labels expected behavior + Deliver hypothesizes layer)
+- `eval/bad_cases/<id>.yaml` `closure_criterion` (joint with Deliver; human writes customer-perspective end-state)
+- `docs/research-briefs/<id>.md` `customer_signed:` front-matter (Customer sign-off, gate 1)
+- `docs/current/adoption-state.md` (when overriding framework defaults, human authors rationale)
+
+**Agent writes** (per §4.3.1 table above):
+- All other docs in the taxonomy
+
+**Joint authoring** (cannot be auto-merged):
+- failure-briefs (6-field template; human + Deliver each own specific fields)
+- bad_cases CaseSpec (Deliver curates structure; human authors closure_criterion)
+- close decisions per deliver_close_taxonomy.md (Deliver proposes verdict A/B/C/D; human signs)
+
+#### §4.3.4 What about "agent discovered delivery-vs-promise gap"? (the user's specific question)
+
+Scenario: an agent (typically Dev mid-sprint or Code Reviewer mid-review or Acceptance at milestone close) finds the implementation has drifted from the original research-brief's closure_contract.
+
+**Two distinct lifecycle moments** map to two distinct dirs:
+
+1. **Mid-sprint discovery** (Dev or Reviewer notices during work):
+   - Authors: `docs/diagnostics/<id>.md` describing the gap, cross-linking to the affected `research-briefs/<id>.md` and the specific code paths
+   - Then escalates to one of:
+     - Deliver Agent for in-flight scope adjustment — BUT §8.5 milestone-framework forbids mid-milestone scope expansion; usually defer
+     - new R-item in `action_bank.md` for next sprint/milestone (most common path)
+
+2. **End-of-milestone discovery** (Acceptance Agent at milestone close):
+   - Lands in: `docs/acceptance-reports/<scope>-acceptance-report.md` with structured gap brief
+   - Then routes through **human-confirm checkpoint** (§3.4) → if confirmed → Deliver Agent picks up gap → fix-iteration sub-sprint authored
+
+**Distinction**: `diagnostics/` is mid-flight observation in code-perspective. `acceptance-reports/` is end-of-milestone verdict in contract-perspective. Same kind of failure can be observed in both; they don't overlap because they live at different lifecycle moments + use different lenses + route differently.
+
 ---
 
 ## §5 — Application Guide (REFRAMED per Checkpoint 1 #5)
@@ -542,24 +616,39 @@ STEP 4. Configure framework instantiation
      from templates with project-specific values
    • Create first research brief at docs/research-briefs/<id>.md with closure_contract
 
-STEP 5. Walk Phase 1-5 funnel (framework-aware versions)
-   • Phase 1: docs/foundational/solution_input_pack.md
-       — assemble Business/Domain/Operating/Engineering/Eval inputs
-       — most fields populated from Δ-15 + Δ-16 outputs
-   • Phase 2: domain realization
-       — Type A: UC registry + tool spec from transcript samples
-       — Type B: SOP step registry from existing SOP source
+STEP 5. Walk Phase 1-5 funnel (framework-aware versions; progressive disclosure)
+   • Phase 1 — Business need & goal: docs/foundational/business-need.md
+       — Δ-15 Q1-Q3 (Domain / Goal / Problems) → market understanding + business KPI + scope IN/OUT + anti-goal
+       — REQUIRED before Phase 2 starts; this is the source of truth
+       — Customer signs (gate 1)
+       — Pull in Δ-16 #1 BRD prerequisite ONLY (other Δ-16 categories come at later phases when relevant)
+   • Phase 2 — Product/Service design: docs/foundational/product-service-design.md
+       — Translate business need into product/service form
+       — Type A: UC registry + tool spec from transcript samples + domain handling rules
+       — Type B: SOP step registry + per-step verification gates
        — Type C: off-the-shelf skill inventory
-   • Phase 3: detailed tech design
-       — Δ-6 portable skeleton instantiated with project-specific phase pipeline
-       — Δ-3 8 decisions + abstraction-layer sub-choice (§1.7-A default single tool-use)
-   • Phase 4: coding agent packet (module breakdown DM1..N + delivery order + mocks + .env)
-   • Phase 5: eval/release/feedback
+       — Pull in Δ-15 Part B+C inventories + Δ-16 #2 PRD prerequisite at this phase
+       — Δ-3 decision #1 (abstraction-layer; default single tool-use per §1.7-A) lands here
+       — **Reverse-flow**: if Phase 2 cannot deliver Phase 1 → push back to Phase 1 (revisit scope or KPI)
+   • Phase 3 — Technical plan: docs/foundational/technical-plan.md
+       — **NOW** pull in technical constraints (Δ-16 #3) + external systems/APIs (Δ-16 #6) + UI (Δ-16 #7)
+       — Engineering baseline + platform/system API specs (e.g., Salesforce, internal services) + integration approach + infrastructure + security/PII floor
+       — Δ-6 portable runtime skeleton instantiated with project-specific phase pipeline
+       — Δ-3 decisions #2-#7 (context projection / state / memory / tools / policy)
+       — Tier-0 invariant list authored
+       — **Reverse-flow**: if Phase 3 finds Phase 2 design technically infeasible → push back to Phase 2 (re-design service/product)
+   • Phase 4 — Coding/Implementation packet: docs/foundational/coding-packet.md
+       — Module breakdown DM1..N + delivery order + mocks list + .env values
+       — Pull in Δ-16 #4 knowledge corpus + #5 canned reply (Type A primarily)
+       — **Reverse-flow**: if Phase 4 budget/scope mismatch → push back to Phase 3 (or Phase 2)
+   • Phase 5 — Eval/Release/Feedback: docs/foundational/eval-design.md
        — Instantiate CaseSpec schema from M-Evaluation template
-       — Seed bad-case suite from known fail samples (transcripts)
+       — Seed bad-case suite from Phase 2 known fail samples + Phase 3 risk areas
        — Configure judge with rubric per project domain
        — Author Δ-18 charter (if autonomy.level ≠ human_in_the_loop)
        — Configure calibration set for §3.5 acceptance gate
+       — **closure_contract from Phase 1 research-brief is the Acceptance verdict source**
+       — **Reverse-flow**: if Phase 5 reveals reproducible failure → root-cause may push back to any earlier phase
 
 STEP 6. Bootstrap iteration loop
    • Author first milestone_objective.md (deliver agent)
@@ -620,19 +709,23 @@ VALIDATE
 
 The brownfield guide is intentionally less prescriptive than greenfield. Human owners decide; framework provides the menu.
 
-### §5.3 Phase 1-5 funnel (framework-aware versions)
+### §5.3 Phase 1-5 funnel (REWRITTEN per Checkpoint 2: progressive disclosure + reverse-flow)
 
-The phase pipeline lives at `aidazi/application-guide/{03..07}-phase-N.md`. Each phase's framework-aware version inherits the original csagent Phase pattern but uses framework artifacts where csagent invented from scratch.
+The phase pipeline lives at `aidazi/application-guide/{03..07}-phase-N.md`. **Progressive disclosure principle**: each phase pulls in ONLY the inputs that are relevant at that phase. Technical constraints don't come in at Phase 1; they arrive at Phase 3 where they're needed for design. **Reverse-flow signals**: when a later phase reveals an earlier phase is infeasible, the adopter explicitly backtracks (not silently re-decides).
 
-| Phase | What csagent did (vacuum) | What framework provides (Phase 0 covered) | What still needs project-specific instantiation |
-|---|---|---|---|
-| **Phase 1 Solution Input Pack** | Invented input categories from scratch | Δ-16 7-category prereq schema is the input catalog; framework supplies the schema | Project fills: BRD/PRD content, transcript sample, knowledge corpus path, platform API ref |
-| **Phase 2 Domain Realization** | Authored UC registry + tool spec from inferred candidates | Δ-3 decision #1 + #6 + Δ-15 Part B + C provide scaffolding | Project fills: UC names + IDs, tool ALLOW matrix, escalation enum (Type A); SOP step registry (Type B); off-the-shelf skill list (Type C) |
-| **Phase 3 Tech Design** | Designed runtime arch + state model + tool dispatch | Δ-6 Type A skeleton is portable; Δ-3 8 decisions catalog all decision points | Project fills: phase pipeline names (e.g., csagent INIT→DISCOVER→RESOLVE→CONFIRM→CLOSE), Tier-0 invariants list, projection model details, persistence layer |
-| **Phase 4 Coding Packet** | Module breakdown DM1-DM9 invented per project | Δ-4 lifecycle rules + Δ-10 responsibility matrix scaffold module governance | Project fills: actual module names + dependencies, delivery order, mocks list, .env values |
-| **Phase 5 Eval/Release/Feedback** | Built eval harness + judge + scoring + baseline from scratch | M-Evaluation 4-component model + 6-primitive trace_check DSL + 4-tier pyramid are portable templates | Project fills: per-tier check selection per case, judge rubric specialization, baseline ledger initialization, calibration set authoring |
+| Phase | Purpose | Inputs at this phase (progressive) | What framework provides | What project must fill | Reverse-flow trigger |
+|---|---|---|---|---|---|
+| **Phase 1 Business need & goal** | Define what the customer/market wants and the project must satisfy. The "what should we build" statement. | Market understanding, customer/user need description, business KPI, scope IN/OUT, anti-goal | Δ-15 Q1-Q3 (Domain / Goal / Problems) elicitation + Δ-16 #1 BRD prerequisite schema | Project-specific market analysis, KPI thresholds, scope boundaries, anti-goal phrasing; Customer sign-off (gate 1) | source phase — no reverse-flow from above |
+| **Phase 2 Product/Service design** | Design the product/service that satisfies Phase 1. The "how do we satisfy" — what UCs/SOPs/skills compose the service. | Phase 1 output + domain processing rules + (Type A) transcript samples for UC inference + (Type B) SOP draft + (Type C) off-the-shelf skill catalogs + Δ-16 #2 PRD | Δ-15 Part B+C inventories + Δ-3 decision #1 (abstraction-layer; default single tool-use §1.7-A) + Δ-3 decision #6 (tools definition) | Project-specific UC names + IDs (Type A), tool ALLOW matrix, escalation enum (Type A); SOP step registry + per-step verification gates (Type B); off-the-shelf skill list (Type C); domain handling rules | If Phase 2 cannot deliver Phase 1 → push back to Phase 1 to revisit scope or KPI |
+| **Phase 3 Technical plan** | Plan how to implement Phase 2 technically. Technical constraints + integration with existing systems arrive HERE — not earlier. | Phase 2 output + Δ-16 #3 engineering baseline + Δ-16 #6 external systems/APIs (e.g., Salesforce, internal services) + Δ-16 #7 UI definition (partial) + infrastructure + security/PII floor + cloud constraints | Δ-6 portable runtime skeleton + Δ-3 decisions #2-#7 (context projection / state / memory / tools / policy) + 6-primitive trace_check DSL surface | Project-specific phase pipeline names (e.g., csagent INIT→DISCOVER→RESOLVE→CONFIRM→CLOSE→ESCALATE), Tier-0 invariant list, projection model details, persistence layer, integration adaptors | If Phase 3 finds Phase 2 design technically infeasible → push back to Phase 2 to re-design product/service form |
+| **Phase 4 Coding/Implementation packet** | Break the technical plan into shipping units. | Phase 3 output + Δ-16 #4 knowledge corpus + Δ-16 #5 canned reply templates | Δ-4 lifecycle rules + Δ-10 responsibility matrix scaffold module governance | Project-specific module names + dependencies (DM1..N), delivery order, mocks list, .env values | If Phase 4 reveals scope/budget mismatch → push back to Phase 3 or Phase 2 |
+| **Phase 5 Eval/Release/Feedback** | Verify the delivered system satisfies Phase 1 closure_contract; close the loop. | Phase 3+4 outputs + Phase 1 closure_contract (the Acceptance verdict source) + bad-case seed | M-Evaluation 4-component model + 6-primitive trace_check DSL + 4-tier pyramid + Δ-18 charter template | Per-tier check selection per case, judge rubric specialization, baseline ledger initialization, calibration set authoring, charter values (if Δ-18 used) | If Phase 5 fails reproducibly → root-cause may push back to any earlier phase |
 
-This is the framework's structural payoff: csagent spent ~54 days on Phase 0-5; a greenfield adopter inheriting the framework should cut Phase 0 + most of Phase 1-2 to under a week.
+**Why progressive disclosure matters** (Checkpoint 2 clarification): a Phase 2 product/service designer doesn't need to know the platform's API schema yet — that's a Phase 3 input. Asking for it at Phase 2 either causes premature decisions (committing to Salesforce integration before service is defined) OR causes paralysis (need-finder gets blocked on tech specs). Each phase asks for ONLY what it can use; later phases pull in later inputs.
+
+**Reverse-flow vs forward-only**: the funnel is NOT strictly forward. Real projects discover infeasibilities and contradictions at later phases that force earlier-phase adjustment. The framework names this **explicitly** so adopters don't silently "redo Phase 2" without owning that it's a backtrack. Each Phase doc carries a "reverse-flow triggered from" log section.
+
+**Framework's structural payoff**: csagent spent ~54 days walking Phase 0-5 from scratch (no framework). A greenfield adopter inheriting v4 should compress Phase 1-2 to under a week — the schemas + decision catalogs are pre-loaded; only the domain-specific values need filling.
 
 ### §5.4 Worked examples (read-only references)
 
@@ -793,7 +886,35 @@ aidazi/                                    # framework repo (separate; submodule
 
 ## §7 — Self-governance properties (NEW — Checkpoint 1 #6 first half)
 
-The framework MUST prevent the doc-bloat / context-bloat / governance-drift that v3.2 worried about. Self-governance is **structural enforcement**, not aspirational. Six concrete mechanisms:
+The framework MUST prevent the doc-bloat / context-bloat / governance-drift that v3.2 worried about. v4 splits self-governance into **hard requirements** (framework integrity depends on them) and **suggested defaults** (good starting points; adopters override with rationale).
+
+### §7.0 Hard requirements vs suggested defaults (NEW per Checkpoint 2)
+
+**Hard requirements** (cannot be overridden — framework breaks if violated):
+- Constitution §1.7 forbidden list (incl. v4 additions §1.7-A through §1.7-D)
+- §3.3 5-role boundary invariants (no self-grading; Acceptance spawn isolation; Code-Reviewer ≠ Acceptance lens; Research-Acceptance contract symmetry)
+- §4.2.3 MANDATORY_CHECKPOINTS — 8 checkpoints if Δ-18 orchestrator adopted (charter can ADD, never REMOVE)
+- §3.5 Acceptance judge calibration — if Acceptance enabled in `fully_autonomous_within_budget` mode (uncalibrated → automatic degradation, not optional)
+
+**Suggested defaults** (framework provides good starting points; adopter may override with documented rationale in `docs/current/adoption-state.md`):
+- All `size_target` / `cell_size_target` / `split_trigger` numerical thresholds (§7.1-§7.5)
+- Fold-back cadence triggers (5 adoptions / 6 months / critical-pattern thresholds — §8.2)
+- Calibration thresholds (agreement ≥ 0.9, flip ≤ 0.1) — defaults; adopter may tighten or loosen for their context with rationale
+- Suite manifest format choice (markdown vs yaml)
+- Compact prompt `context_budget.target_tokens` numerical values
+- Per-Δ scope of work tier placement (T0 vs T1 vs T2 vs T3) where the Δ is recommendation-tier
+- Autonomy level naming and granularity (framework offers 3 levels; adopter may add intermediate levels)
+
+**How to override a default**:
+1. Adopter documents the divergence in `docs/current/adoption-state.md` (§8.4 schema) — the relevant Δ row gets `status: divergent` + a `rationale` field explaining why
+2. Continue using the divergent value; no framework rejection
+3. At fold-back cadence, framework maintainer reviews divergences:
+   - Many same-direction divergences = default itself is wrong; revise in next framework release
+   - Idiosyncratic divergences = stay adopter-specific; no framework change
+
+**Why this split exists** (Checkpoint 2 rationale): framework that over-constrains via hard gates blocks adopters from customizing per application. Different adopters have different scales, team sizes, project domains. Framework's job is to provide a **good starting point** + leave room for **per-application customization**. The framework is opinionated where opinions are load-bearing (§1.7 forbidden, role boundaries, mandatory checkpoints, calibration for autonomous judges) and accommodating where defaults are just initial guesses.
+
+The mechanisms below are STRUCTURAL — they provide the **front-matter fields**, **template scaffolding**, and **review prompts** that hold the discipline. They do NOT enforce specific numerical values; those are suggested.
 
 ### §7.1 Doc-responsibility matrix size_target + split_trigger (Δ-10 extended)
 
@@ -808,15 +929,25 @@ cell_size_target: <chars; for table-cell docs like handoff §0>  # NEW v4
 
 When a doc exceeds `size_target`, split_trigger fires. Reviewer (Codex) is briefed to flag bloat as a PR finding. This is mechanical at-the-PR-boundary, not periodic cleanup.
 
-### §7.2 Handoff §0 cell-size cap (csagent drift evidence)
+### §7.2 Handoff §0 cell-size guidance (csagent drift evidence; SUGGESTED per §7.0, not hard gate)
 
-The csagent scan revealed `docs/10-handoff.md` §0 grew to multi-thousand-char paragraphs INSIDE table cells. v4 enforces:
+The csagent scan revealed `docs/10-handoff.md` §0 grew to multi-thousand-char paragraphs INSIDE table cells, eroding cold-start readability. v4 **suggests** as a starting point (per §7.0 — adopters may override with rationale in adoption-state.md):
 
-- `cell_size_target: 500` chars per §0 cell (soft cap)
-- If §0 cell exceeds, the structured table must point to §1 narrative for detail
-- Bloated cells = R-item against `docs/10-handoff.md` for next sprint
+- `cell_size_target: 500` chars per §0 cell (**suggested** soft target; adopters with denser projects may raise to 800-1000 with documented rationale)
+- If §0 cell exceeds adopter's chosen target, point to §1 narrative for detail
+- Bloated cells beyond chosen target = R-item **candidate** for next sprint (NOT auto-rejected; adopter judges)
 
-This is a 50-line patch to aidazi/templates/handoff-template.md but it prevents a recurring drift.
+**Why this is suggested, not hard**: cell-size needs vary by adopter:
+- Single-person hobby project: cells can stay terse (500 may even be high)
+- Multi-team production project: cells naturally carry more context per row (1000+ may be necessary)
+- Very mature project with rich state: per-cell soft cap might not be the right discipline at all; per-row might work better
+
+**What the framework provides structurally**:
+- Front-matter `cell_size_target` field exists in `aidazi/templates/handoff-template.md` (the structural prompt)
+- Default value is 500 chars (the suggested starting point)
+- Adopter overrides the default by setting their own value + documenting rationale in adoption-state.md
+
+The csagent drift evidence supports HAVING the discipline of a soft cap; the specific number is per-project judgement. Framework does NOT enforce 500 as a hard limit.
 
 ### §7.3 Action_bank live + archive split (Δ-12 carried)
 
