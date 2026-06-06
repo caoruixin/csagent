@@ -66,7 +66,9 @@ milestone-shared re-bless.**
 - **R6 #7 INFO log** (`infra`) — **path α**: emitted by `KnowledgeSearchService`
   per filtered article; `SearchKnowledgeTool` byte-untouched.
 - **R6 #8 direct resolve** — `ResolveArticleTool.byArticleId` still returns both
-  template articles (test-pinned). Filter is at the search surface only.
+  template articles (test-pinned — both IDs; see §3.1 fix-iteration addendum:
+  the second ID `ka41r000000LIEEAA4` was added post-Codex). Filter is at the
+  search surface only.
 
 **Baselines.** Java `1347 / 1 / 0 / 2` (= pre-change `1337` + 10 R6 tests; sole
 failure is the inherited `SystemPromptUserRequestedTiebreakerTest`, OQ-S41.5,
@@ -225,7 +227,8 @@ was launched at this sub-sprint close.**
   `UpdateIntakeFieldsTool` touch (A / C-1 surfaces).
 - No UI / `eval_interactive/` / autoloop config touch.
 - `ResolveArticleTool` direct resolve still works on both flagged articles
-  (test-pinned).
+  (test-pinned — both IDs; second ID `ka41r000000LIEEAA4` added post-Codex,
+  see §3.1 fix-iteration addendum).
 - No new `escalation_reason` enum value. No new Tier-0 invariant.
 - `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md` UNCHANGED.
 - No real-LLM outcome re-bless launched (deferred to milestone close).
@@ -268,3 +271,58 @@ filters. Default visible.
 - shadow: not applicable (mocked-LLM + ingestion + service tests are wiring
   evidence; real evidence is the M-Auto-6 milestone-shared re-bless after this
   sub-sprint closes).
+
+---
+
+## §3.1 Fix-iteration addendum (post-Codex `APPROVE_S_AUTO_27_WITH_FIXES`)
+
+Codex returned `APPROVE_S_AUTO_27_WITH_FIXES` with two narrow acceptance
+gaps (`docs/codex-findings.md` §4). Both are `infra`-class (one
+characterization-test gap, one forbidden-grep hygiene gap); no
+operational semantic hardcode. This fix-iteration closes both and
+touches only the two cited files plus this addendum.
+
+**Fix #1 — V17 SQL comment content-neutral rewrite (closes Codex §4
+finding #2).** `V17__add_kb_search_knowledge_eligible.sql:4` contained a
+`(temp)` literal that tripped the F3 zero-new-match `server/src/main`
+forbidden grep.
+- Before: `... the JSON re-ingestion flips the two / (temp) CS-only
+  template articles to FALSE. ...`
+- After: `... the JSON re-ingestion flips the two / CS-only placeholder
+  template articles to FALSE. ...`
+- The `ALTER TABLE kb_articles ADD COLUMN search_knowledge_eligible
+  BOOLEAN NOT NULL DEFAULT TRUE` operation and all described semantics
+  are byte-unchanged; comment text only.
+
+**Fix #2 — second direct-resolve invariant test (closes Codex §4
+finding #1).** The R6 #8 direct-resolve characterization was pinned for
+`ka41r000000LIEJAA4` only; the second flagged ID `ka41r000000LIEEAA4`
+was absent, contradicting the prior "both ... test-pinned" claims
+(§3 R6 #8 line + §6 fence line). Added a second mirror `@Test`
+`execute_searchIneligibleArticle_stillResolvesByDirectId_secondTemplate`
+in `ResolveArticleToolTest.java`, covering `ka41r000000LIEEAA4` end-to-end
+(KbArticle stub with corpus title "(temp) NTD Ad Removed Information" +
+`searchKnowledgeEligible(false)` + `isPublished(true)`; repository mock;
+`tool.execute`; assert success + title + `safe_to_show=true`). The
+existing first test is byte-untouched; no production code changed.
+
+**Corrected over-claim.** The §3 R6 #8 line and the §6 fence line
+previously read "both ... test-pinned" while only one ID was pinned at
+Codex review time. With fix #2 the claim is now accurate; the lines are
+annotated with a pointer to this addendum.
+
+**Post-fix baselines.**
+- Java full suite: `1348 / 1 / 0 / 2` (= prior `1347/1/0/2` + 1 new
+  direct-resolve test; sole failure remains the inherited
+  `SystemPromptUserRequestedTiebreakerTest`, OQ-S41.5 — a system-prompt
+  content assertion, provably uncoupled; this fix-iteration touched zero
+  prompt files).
+- Focused run `ResolveArticleToolTest,KnowledgeSearchServiceTest,
+  KnowledgeIngestionRunnerTest,KbArticleEligibilityCorpusTest`: 23 / 0 /
+  0 / 0 green (`ResolveArticleToolTest` now 14 methods, +1).
+- Re-verified grep gates (zero hits, both):
+  - `grep -rn "(temp)" server/src/main` → 0.
+  - `grep -rn "ka41r000000LIEJAA4\|ka41r000000LIEEAA4" server/src/main`
+    → 0 (the article-id literals live only in test + corpus JSON).
+- No eval-side / autoloop / baseline file touched; `baseline_dir` and
+  `docs/current_eval_baseline.md` UNCHANGED.
