@@ -1,0 +1,653 @@
+---
+title: Sub-sprint S-Auto-28 / Sprint 083 — R8 KnowledgeIngestionRunner reconcile path — ARCHIVED (dev-side closed; Codex-approved under §4.1 pure-infra scope exemption; M-Auto-6 milestone-close blocker fixed; real-DB §0.3 evidence sequenced post-close)
+doc_tier: sprint-archive
+status: archived
+implementation_status: implemented
+source_of_truth: this file (archived contract) + docs/sprints/sprint-083-handoff.md (dev handoff) + docs/codex-findings.md commit-at-close (Codex APPROVE_S_AUTO_28) + docs/diagnostics/failure-briefs/preflight-2026-06-07-kb-ingest-skip-existing-blocks-r6-flag.md (closed blocker brief) + docs/diagnostics/2026-06-07-m-auto-6-preflight-verdict.md (original NO-GO verdict; unblock evidence pending post-close)
+last_reviewed: 2026-06-07
+review_cadence: archived
+supersedes: docs/sprints/sprint-082-objective.md
+superseded_by: null
+notes: >
+  Archived at S-Auto-28 dev-side close 2026-06-07 after Codex per-sub-sprint
+  review returned `APPROVE_S_AUTO_28 / blocking_count=0` under the §4.1
+  pure-infra scope exemption. The cumulative range `ba3defa^..78ae614`
+  (4 commits) adds no semantic hardcode, Tier-0 invariant, LLM-vs-Java
+  ownership shift, prompt branch, tool-schema change, or forbidden
+  R6-surface edit. R8 #1-#6 and focal points F1-F6 all PASS.
+
+  Status semantics (per the post-Codex close cascade 2026-06-07):
+  - Dev work complete: 4 commits `ba3defa..78ae614` (R8 #1+#2+#3
+    KnowledgeIngestionRunner `--reconcile` metadata-only data-application
+    + reconcile observability + `KnowledgeIngestionReconcileTest` 9 tests
+    covering #4(a) + #4(b); R8 #4(c) `KnowledgeReconcileEndToEndTest`
+    R6 end-to-end wiring; R8 #5 `preflight-eval-checks.md` 5 drift fixes
+    + §0.3 / A3 root-cause annotation; R8 #6 dev handoff).
+  - Java `mvn -o clean test` = `1358 / 1 / 0 / 2` (+10 net tests vs the
+    1348/1/0/2 launch baseline; sole failure = inherited
+    `SystemPromptUserRequestedTiebreakerTest.systemPrompt_marksActiveUcTiebreakerExplicitly`,
+    OQ-S41.5 — provably uncoupled, system-prompt content surface; this
+    sub-sprint touched zero prompt files).
+  - Focused 5-suite tests `31 / 0 / 0 / 0` (9 new reconcile + 1 new
+    end-to-end + 3 pre-existing KnowledgeIngestionRunner + 4 pre-existing
+    KnowledgeSearchService + 14 pre-existing ResolveArticleTool).
+  - Codex per-sub-sprint review `APPROVE_S_AUTO_28 / blocking_count=0`.
+    §1 per-change verdicts PASS for R8 #1-#6; §2 §4.1 kernel walk-through
+    Q1-Q9 PASS with scope-exemption invoked + aggregate `approve`; §3
+    F1-F6 focal-point verdicts PASS — F1 metadata-only (Codex independently
+    verified `embedBatch` / `embed` / `saveAll` / `save` mock-interaction
+    counts via `verify(..., never())` in
+    `reconcile_doesNotReEmbedOrWriteChunks_onExistingRow`,
+    target-flip-tests, and `reconcile_newId_takesInsertPath_andEmbeds`
+    showing `embedBatch=1` on new-id insert proving branch split correct);
+    F2 plain `--ingest` unchanged (entry widening preserves ingest mode
+    when reconcile absent; `plainIngest_existingRow_skippedAndUntouched_noWriteNoEmbed`
+    verifies no save / embed / saveAll / curation flip); F3 no manual SQL
+    evidence (handoff §2 unambiguously sequences post-Codex
+    `mvn spring-boot:run -Dspring-boot.run.arguments=--reconcile`
+    before §0.3 psql; explicit forbid manual UPDATE); F4 direct resolve
+    invariant (`KnowledgeReconcileEndToEndTest` asserts both flagged IDs
+    resolve-by-id post-reconcile; `ResolveArticleTool.java` absent from
+    diff); F5 forbidden-grep + R6 byte-unchanged (Codex's own `git grep`
+    at `78ae614` returned 0 ka41r…/(temp) under `server/src/main`;
+    before/after blob hashes IDENTICAL for `KnowledgeSearchService.java`,
+    `KbArticle.java`, V17, `knowledge_base_articles.json`,
+    `docs/current_eval_baseline.md`, `autoloop/config.yaml`); F6 no
+    prune (`processArticles(...)` only iterates JSON + reconciles/skips/
+    inserts; no `kbArticleRepository.delete*` in runner or added diff).
+  - 3 non-blocking observations recorded in §5: (NBO #1) standalone
+    entry-gate test gap — tests call `processArticles(..., true)` and
+    prove reconcile branch behavior, but no test directly supplies
+    standalone `--reconcile` through `ApplicationArguments` to `run()`.
+    Gate implementation correct by inspection; mandatory post-APPROVE
+    live command will verify it before milestone close. Queued as
+    `R-standalone-reconcile-entry-gate-test` for S-Auto-29+ infra-test
+    pickup. (NBO #2) Post-APPROVE evidence assertions — preserve the
+    handoff's required sequence and capture the reconcile INFO summary
+    plus read-only §0.3 results showing `articlesReconciled=2 /
+    articlesInsertedNew=0 / articlesUnchanged=216`, both flagged rows
+    false, and the remaining 216 true. Do not use manual SQL UPDATE.
+    (NBO #3) Independent review verification —
+    `mvn -o -pl server -Dtest=KnowledgeIngestionReconcileTest,KnowledgeReconcileEndToEndTest,KnowledgeIngestionRunnerTest,KnowledgeSearchServiceTest,ResolveArticleToolTest test`
+    passed `31 / 0 / 0 / 0`; `git diff --check ba3defa^..78ae614` clean;
+    review HEAD `feb3419`; descendants outside audited range.
+  - Forbidden-grep evidence (dev + Codex independent re-verify):
+    `server/src/main` contains zero `(temp)` matches and zero literal
+    article-ID strings.
+  - R6 surface byte-unchanged: `KnowledgeSearchService.java`,
+    `KbArticle.java`, `V17__add_kb_search_knowledge_eligible.sql`,
+    `data/knowledge/knowledge_base_articles.json` absent from
+    `git diff --name-only ba3defa^..78ae614`.
+  - `baseline_dir` NOT moved; `docs/current_eval_baseline.md` UNCHANGED.
+
+  **Real-DB §0.3 evidence DEFERRED to post-close per §5.7 wiring-vs-outcome
+  separator + the contract's Definition-of-done sequence.** The live
+  `--reconcile` run + §0.3 re-check are produced AFTER Codex APPROVE
+  because they require a backend rebuild and mutate the shared dev DB.
+  The dev-close gate was the mock-level wiring evidence above (10 new
+  Java tests with mock-interaction counts pinning anti-误杀 #2 + #3 + #4).
+  The post-close unblock sequence (deliver-agent + human action):
+  ```bash
+  # 1. Rebuild + restart backend (detect prior by PORT per the §0.1 drift fix):
+  lsof -ti:8080 | xargs -r kill -9
+  mvn -o -pl server spring-boot:run -Dspring-boot.run.arguments=--reconcile \
+      > /tmp/csagent-reconcile.log 2>&1 &
+  # Expect: "articlesReconciled=2 articlesInsertedNew=0 articlesUnchanged=216"
+  # 2. Re-run §0.3:
+  psql -d csagent -c "SELECT article_id, search_knowledge_eligible FROM kb_articles WHERE article_id IN ('ka41r000000LIEJAA4','ka41r000000LIEEAA4');"
+  psql -d csagent -c "SELECT search_knowledge_eligible, count(*) FROM kb_articles GROUP BY 1;"
+  # Expect: both flagged IDs false; count → 2 false / 216 true.
+  ```
+  On §0.3 PASS, M-Auto-6 pre-flight resumes from Step 1 (bad_cases smoke
+  per `docs/current/process/preflight-eval-checks.md` §2 Step 1) →
+  Step 2 (anchor_outcome anti-误杀 sentinel) → §4 verdict; on GO, the
+  milestone-shared §9 real-LLM re-bless launches (deliver-agent + human).
+  Anti-误杀 #7 forbids using a manual SQL UPDATE as the §0.3 evidence —
+  the DB state MUST be produced by the `--reconcile` run.
+
+  Closes blocker brief
+  `docs/diagnostics/failure-briefs/preflight-2026-06-07-kb-ingest-skip-existing-blocks-r6-flag.md`
+  (root cause: insert-only `KnowledgeIngestionRunner.run()` skipped every
+  already-present `article_id` and never UPDATEd; R6's committed JSON flip
+  could not land on the populated dev corpus). Closes the M-Auto-6
+  milestone-close blocker recorded at
+  `docs/diagnostics/2026-06-07-m-auto-6-preflight-verdict.md`.
+
+  Forbidden (preserved for archival reference): re-editing
+  `data/knowledge/knowledge_base_articles.json` (R6 already committed
+  the flips; correct source-of-truth); re-embedding or re-chunking any
+  existing article (reconcile is metadata-only); overwriting content
+  columns on any existing row; deleting any DB row whose `article_id` is
+  absent from the JSON (no prune); changing the R6 search-time filter,
+  the `KbArticle` entity, the V17 migration, or `ResolveArticleTool`
+  (all shipped + correct); any prompt / skill yaml / routing /
+  escalation / eval-spec / judge change; moving `baseline_dir` or
+  `docs/current_eval_baseline.md`; using a manual SQL UPDATE as the
+  close evidence (the §0.3 DB state MUST be produced by the `--reconcile`
+  run).
+
+  ORIGINAL CONTRACT NOTES BLOCK FOLLOWS — preserved verbatim
+  for archive reference:
+
+  PROMOTED 2026-06-07 ahead of the M-Auto-6 milestone-shared §9 real-LLM
+  re-bless because that re-bless is currently **NO-GO**. The prior
+  sprint_objective placeholder said "do NOT promote a next sub-sprint until
+  the milestone-shared re-bless launches"; that guard is overridden here for
+  exactly one reason: the re-bless **cannot launch** — the M-Auto-6
+  pre-flight (§5.9) returned NO-GO at §0.3. S-Auto-28 is the prerequisite
+  that unblocks it, so it is promoted ahead as a milestone-close BLOCKER.
+
+  Blocker root cause (full brief:
+  docs/diagnostics/failure-briefs/preflight-2026-06-07-kb-ingest-skip-existing-blocks-r6-flag.md):
+  R6 (S-Auto-27) shipped a corpus-curation flag
+  (`search_knowledge_eligible: true → false` on 2 `(temp)` template
+  articles) but `KnowledgeIngestionRunner` is **insert-only** — it skips
+  every `article_id` already present in `kb_articles`
+  (`KnowledgeIngestionRunner.java:84-105`) and never UPDATEs. On the
+  populated dev DB the 2 templates remain `true` (all 218 rows `true`), so
+  R6's filter is a no-op and R6 outcome evidence cannot be produced. The R6
+  dev-side close never caught this: its "real-DB proof" was a
+  `BEGIN … ROLLBACK` migration-mechanics test only and its unit tests use
+  synthetic articles (`sprint-082-handoff.md:183-196`).
+
+  S-Auto-28 / R8 adds a `--reconcile` data-application mode that UPDATEs the
+  mutable curation columns of already-present articles from the JSON
+  source-of-truth WITHOUT re-embedding or rewriting content. Human direction
+  2026-06-07: the fix MUST be structural (the runner reconciles existing
+  rows) — a manual `UPDATE` of the 2 rows is explicitly forbidden as the
+  remediation, and manual SQL may NOT be used as close evidence.
+
+  Layer: `infra` (server-side data-application path). The change introduces
+  no prompt, routing, escalation, eval-spec, or judge change. Its downstream
+  effect IS the same LLM-facing search surface R6 governs, so the §7 stanza
+  is included (mirroring the S-Auto-27 conservative call), but no semantic
+  decision logic is added. Does NOT trigger the §5.8 eval-framework freeze
+  (this is a server-side infra defect, not an eval-framework defect).
+
+  `baseline_dir` (`m-auto-5-baseline-20260604-simfixed-stalledfix`) and
+  `docs/current_eval_baseline.md` UNCHANGED throughout — they do not move at
+  this sub-sprint close. They flip only at M-Auto-6 milestone close after the
+  (now-unblocked) milestone-shared re-bless lands.
+
+  Sequencing after S-Auto-28 ships: rebuild backend → run `--reconcile` →
+  re-run §0.3 (expect exactly 2 `(temp)` rows `false`, 216 `true`) → §0.3
+  PASS → resume the M-Auto-6 pre-flight from Step 1 (bad_cases smoke) → the
+  milestone-shared §9 real-LLM re-bless launches.
+---
+
+# Sub-sprint S-Auto-28 / Sprint 083 — R8 KnowledgeIngestionRunner reconcile path (ARCHIVED 2026-06-07)
+
+> **Dev-side close status (2026-06-07):** S-Auto-28 is dev-side closed /
+> Codex-approved under the §4.1 pure-infra scope exemption / M-Auto-6
+> milestone-close blocker FIXED at code level; real-DB §0.3 evidence is
+> sequenced post-close per §5.7.
+>
+> | Gate | Status | Evidence |
+> |---|---|---|
+> | Dev code shipped (4 commits) | ✅ | `ba3defa` (R8 #1+#2+#3 `KnowledgeIngestionRunner` `--reconcile` metadata-only data-application + reconcile observability + `KnowledgeIngestionReconcileTest` 9 tests covering #4(a) + #4(b)) / `7ae61d2` (R8 #4(c) `KnowledgeReconcileEndToEndTest` R6 end-to-end wiring) / `97d7801` (R8 #5 `preflight-eval-checks.md` 5 drift fixes + §0.3 / A3 root-cause annotation; docs-only) / `78ae614` (R8 #6 dev handoff). |
+> | Pre-fix audit (3 STOPs cleared BEFORE any code) | ✅ | `save()` is full-row UPDATE on existing-id entity (no `@DynamicUpdate` → load-then-modify mandatory); mutable curation columns = `searchKnowledgeEligible` / `isPublished` / `ucTags`; no JPA cascade to `kb_chunks` (chunks referenced only via plain `String articleId`, no `@ManyToOne` / `@OneToMany`). All confirmed; no STOP fired. |
+> | Canonical invocation pinned | ✅ | Standalone `--reconcile` (deliver-agent decision 2026-06-07). Runner-entry gate widened to `if (!ingest && !reconcile) return;` at `:80-85`; mode comment at `:87-91`; per-article branch on `reconcile` at `:161-174`. `--ingest --reconcile` non-canonical (parser-accepted but NOT pinned, NOT tested). Pinned in `KnowledgeIngestionReconcileTest` (`processArticles(..., true)` / `(..., false)` cases) + handoff §1. |
+> | Java unit + characterization tests | ✅ `1358 / 1 / 0 / 2` | +10 net tests vs the 1348/1/0/2 launch baseline (9 in `KnowledgeIngestionReconcileTest` + 1 in `KnowledgeReconcileEndToEndTest`); sole failure = inherited `SystemPromptUserRequestedTiebreakerTest` OQ-S41.5, provably uncoupled (system-prompt content surface; this sub-sprint touched zero prompt files). |
+> | Focused 5-suite test re-run | ✅ `31 / 0 / 0 / 0` | `mvn -o -Dtest=KnowledgeIngestionReconcileTest,KnowledgeReconcileEndToEndTest,KnowledgeIngestionRunnerTest,KnowledgeSearchServiceTest,ResolveArticleToolTest test` (9 + 1 new + 3 + 4 + 14). Independently re-verified by Codex at review HEAD `feb3419`. |
+> | Mock-interaction evidence (F1 / anti-误杀 #2) | ✅ | On existing-row reconcile: `embeddingClient.embedBatch` invocation count = **0**; `kbChunkRepository.saveAll` write count = **0** (verified via `verify(..., never())` in `reconcile_doesNotReEmbedOrWriteChunks_onExistingRow` + per-row reconcile tests). On new-id insert under `--reconcile`: `embedBatch` count = **1** (proves branch split correct, NOT blanket no-embed). |
+> | Content-column preservation (anti-误杀 #3) | ✅ | `reconcile_preservesContentColumns_evenWhenJsonDiffers` seeds DIFFERING JSON `title` / `summary` / `description` / `source_url` / `url_category` / `token_estimate`; post-reconcile row content columns byte-identical to pre-reconcile DB values (only the curation flag moved). |
+> | Plain `--ingest` byte-unchanged (anti-误杀 #4) | ✅ | `plainIngest_existingRow_skippedAndUntouched_noWriteNoEmbed`: without `--reconcile`, existing row whose JSON declares DIFFERENT flag is skipped + untouched; `save` / `embedBatch` / `saveAll` never; entity's `searchKnowledgeEligible` stays `true`. |
+> | Direct resolve invariant (F4 / anti-误杀 #1) | ✅ | `KnowledgeReconcileEndToEndTest.reconcileThenSearch_excludesBothTemplates_butDirectResolveStillReturnsThem`: reconcile flips BOTH `(temp)` ids to `false`; `KnowledgeSearchService.search` excludes both from hits while eligible article surfaces; `ResolveArticleTool` direct-by-id STILL returns both templates. |
+> | Forbidden-grep gates | ✅ clean (dev + Codex independent re-verify) | `grep -rn "ka41r000000LIEJAA4\|ka41r000000LIEEAA4" server/src/main` → 0; `grep -rn "(temp)" server/src/main` → 0; `grep -n "startsWith" KnowledgeIngestionRunner.java` → 0. Codex re-ran `git grep` at `78ae614` and confirmed zero hits. |
+> | R6 surface byte-unchanged | ✅ | `KnowledgeSearchService.java`, `KbArticle.java`, `V17__add_kb_search_knowledge_eligible.sql`, `data/knowledge/knowledge_base_articles.json` ABSENT from `git diff --name-only ba3defa^..78ae614`. Codex independently confirmed before/after blob hashes IDENTICAL. |
+> | Codex §4.1 nine-question per-sub-sprint review | ✅ `APPROVE_S_AUTO_28 / blocking_count=0` (under §4.1 pure-infra scope exemption) | §1 per-change verdicts PASS for R8 #1-#6; §2 Q1-Q9 PASS with scope-exemption invoked + aggregate `approve`; §3 F1-F6 PASS; §4 blocking: none; §5 3 non-blocking observations (#1 standalone entry-gate test gap queued as `R-standalone-reconcile-entry-gate-test`; #2 post-APPROVE evidence assertions; #3 independent review verification). |
+> | Reconcile INFO log fired in test output | ✅ | Verbatim samples: `Knowledge reconcile: article_id=kaX curation updated: search_knowledge_eligible true -> false` + `articlesReconciled=… articlesInsertedNew=… articlesUnchanged=…` summary. |
+> | `git diff --check ba3defa^..78ae614` | ✅ clean | No whitespace defects. Codex re-verified. |
+> | Eval / autoloop pytest UNCHANGED by construction | ✅ | `git status` shows zero files touched under `eval_interactive/` or `autoloop/`; eval pytest `553` and autoloop pytest `324` unchanged by construction (not re-run). |
+> | Flyway unchanged | ✅ | No new migration; V17 already on disk + applied. |
+> | **Real-DB §0.3 evidence (deferred post-Codex per §5.7)** | ⏳ POST-CLOSE | Produced by the deliver-agent + human Definition-of-done unblock sequence (rebuild backend → standalone `--reconcile` → §0.3 re-check). Expected: `articlesReconciled=2 / articlesInsertedNew=0 / articlesUnchanged=216`; 2 flagged rows `false` / 216 `true`. Anti-误杀 #7 forbids manual SQL UPDATE as evidence. |
+> | **Milestone-shared §9 real-LLM re-bless (paired-evidence)** | ⏳ DEFERRED to M-Auto-6 close | Launches AFTER §0.3 PASS + the M-Auto-6 pre-flight Steps 1+2 GO. `baseline_dir` and `docs/current_eval_baseline.md` NOT moved until milestone close. |
+>
+> The body below is preserved verbatim as the archived contract that
+> dev executed against. Do not edit — record-only.
+
+# Sub-sprint S-Auto-28 / Sprint 083 — M-Auto-6 pre-flight-blocker fix — R8 KnowledgeIngestionRunner reconcile path for mutable curation fields
+
+> **Status:** active contract (promoted 2026-06-07). Closes the M-Auto-6
+> pre-flight blocker filed at
+> `docs/diagnostics/failure-briefs/preflight-2026-06-07-kb-ingest-skip-existing-blocks-r6-flag.md`.
+> Gates the M-Auto-6 milestone-shared re-bless (currently NO-GO at §0.3).
+
+## Class
+
+**Layer (per `iteration_governance.md` §3.2):**
+
+- **R8** → `infra` — server-side knowledge data-application path. The
+  defect is persistence/data-wiring (an insert-only loader cannot apply a
+  curation-flag change to an existing row); the fix is a reconcile/UPDATE
+  path. No semantic decision, no prompt, no routing, no eval-spec change.
+
+**§7 stanza requirement:** **INCLUDED (conservative).** R8 itself is pure
+infra and is arguably §7-exempt, but its downstream effect is the same
+LLM-facing `search_knowledge` surface that R6 (S-Auto-27) governs — R8 is
+what makes R6's already-shipped filter actually take effect on the live
+corpus. Mirroring the S-Auto-27 call, the full §7 stanza is included below
+so Codex can verify scope discipline. Codex may record the infra-exemption
+explicitly and `approve`.
+
+**Tier-0 invariant:** This sub-sprint adds no Tier-0 invariant. It changes
+how DB rows are synced from a committed JSON source-of-truth; it adds no
+kernel-level guarantee.
+
+**Semantic hardcode:** No semantic hardcode introduced. The reconcile path
+is generic over every JSON article (it iterates the same article list the
+insert path does); it contains ZERO hardcoded `article_id`, ZERO
+title-keyword match, ZERO content scan. The 2 `(temp)` IDs are touched only
+as data already committed in the JSON by R6 — R8 does not re-edit the JSON.
+
+## Goal
+
+After this sub-sprint ships:
+
+- **R8 #1 reconcile method** — `KnowledgeIngestionRunner` gains a reconcile
+  path that, for an `article_id` **already present** in `kb_articles`,
+  UPDATEs only the **mutable curation columns** from the JSON
+  source-of-truth:
+  - `search_knowledge_eligible`
+  - `is_published`
+  - `uc_tags`
+  It does NOT update content columns (`title`, `summary`,
+  `description`/`content_plain`, `source_url`/canonical Help-Site URL,
+  `url_category`, `token_count`) and does NOT touch `kb_chunks` or call the
+  embedding client. Design: **load the existing entity → set only the 3
+  curation fields from JSON → `save()`** (content columns retain their DB
+  values; chunks/embeddings are never recomputed). The runner does NOT
+  rebuild a fresh `KbArticle` from JSON for existing rows.
+- **R8 #2 `--reconcile` gate** — the reconcile behaviour runs only under an
+  explicit `--reconcile` application argument. Under `--reconcile`, an
+  article **not** present in the DB still falls through to the existing
+  insert path (chunk + embed + save). Under plain `--ingest` (no
+  `--reconcile`), behaviour is **byte-for-byte unchanged**: insert-only;
+  existing rows skipped and untouched.
+- **R8 #3 reconcile observability** — a structured INFO summary at the end
+  of a reconcile run reports counts (`articlesReconciled`,
+  `articlesInsertedNew`, `articlesUnchanged`) and a per-reconciled-row INFO
+  line naming the `article_id` + which curation fields changed
+  (`old → new`). Mirrors the existing ingestion logging idiom; NOT a
+  user-facing trace event.
+- **R8 #4 R6 end-to-end validated on the live dev DB** — after `--reconcile`
+  on the populated `csagent` DB, exactly the 2 `(temp)` rows
+  (`ka41r000000LIEJAA4`, `ka41r000000LIEEAA4`) read
+  `search_knowledge_eligible = false` and the other 216 read `true`;
+  `SearchKnowledgeTool` no longer returns the 2 templates; `ResolveArticleTool`
+  direct-by-id still returns them (anti-误杀 #1); the §5.9 §0.3 pre-flight
+  check PASSES.
+- **R8 #5 runbook accuracy** — the 5 drifts caught at the 2026-06-07
+  pre-flight are corrected in `docs/current/process/preflight-eval-checks.md`
+  (separate docs commit), and the §3 A3 root-cause annotation from the
+  blocker brief is added per that file's own §6 maintenance rule.
+
+NOT a goal:
+
+- Re-editing `data/knowledge/knowledge_base_articles.json` (R6 already
+  committed the 2 flips; the JSON is the correct source-of-truth — R8 only
+  fixes the application path).
+- Re-embedding or re-chunking any existing article (reconcile is
+  metadata-only).
+- Overwriting content columns (`title` / `summary` / `description` /
+  `source_url` / `url_category`) on any existing row.
+- Deleting any DB row whose `article_id` is absent from the JSON (no
+  "prune" semantics; out of scope).
+- Changing the R6 search-time filter, the `KbArticle` entity, the V17
+  migration, or `ResolveArticleTool` (all shipped + correct).
+- Any prompt / skill yaml / routing / escalation / eval-spec / judge change.
+- Moving `baseline_dir` or `docs/current_eval_baseline.md`.
+- Using a manual SQL `UPDATE` as the close evidence (forbidden — the
+  reconcile path itself must produce the DB state).
+
+## Scope (executable, #1–#6)
+
+The self-contained executable dev prompt is authored separately at
+`compact/sprint-083-dev-prompt.md` (deliver-agent, per
+`prompt-artifact-rules.md` §9.3 sync invariant). The steps below are
+canonical.
+
+### #1 — R8 #1: reconcile method (existing-row, metadata-only)
+
+**Anchor:** `server/src/main/java/com/gumtree/csagent/service/knowledge/KnowledgeIngestionRunner.java`
+(`run()` loop at 66-126; existing skip-existing branch at 84-105;
+`buildKbArticleFromJson` at 196-239).
+
+PRE-FIX AUDIT before #1:
+- Confirm `KbArticleRepository.save()` on a managed/existing-id entity
+  performs a full-row UPDATE (so the load-then-modify approach is required
+  to avoid clobbering content columns — building fresh from JSON would
+  overwrite content).
+- Confirm the mutable curation columns are exactly
+  `search_knowledge_eligible` (primitive `boolean`), `is_published`
+  (`Boolean`), `uc_tags` (`String[]`); confirm content columns to protect.
+- Confirm no JPA cascade re-touches `kb_chunks` on an article save (chunks
+  are a separate repository write; a bare `kbArticleRepository.save` must
+  not cascade to chunks).
+
+Change: add a private `reconcileExisting(JsonNode articleNode, KbArticle
+existing)` that loads the existing entity (already in hand from the
+existing-ids lookup, or `findById`), sets ONLY the 3 curation fields parsed
+from JSON (reuse the existing `path(...).asBoolean(true)` /
+`extractUcTagsStatic` idioms), updates `updatedAt`, and `save()`s. It MUST
+NOT call `chunkingService` or `embeddingClient`, MUST NOT write `kb_chunks`,
+and MUST NOT modify content columns.
+
+### #2 — R8 #2: `--reconcile` application-arg gate
+
+**Anchor:** `KnowledgeIngestionRunner.run()` (the `--ingest` gate at 68).
+
+Change: read a `reconcile` flag from `ApplicationArguments` alongside the
+existing `ingest` flag. In the per-article loop:
+- if `existingIds.contains(articleId)`:
+  - if `reconcile` → call `reconcileExisting(...)`;
+  - else → `articlesSkipped++` (unchanged insert-only behaviour).
+- else → existing insert path (`processArticle`), under both modes.
+
+**Canonical invocation form (deliver-agent decision 2026-06-07):**
+standalone `--reconcile`. Rationale: plain `--ingest` keeps insert-only
+semantics; `--reconcile` signals metadata-only update semantics; the two
+flags name different modes, not the same mode with a flag stack.
+`--ingest --reconcile` as a combo form is non-canonical (do NOT pin it,
+do NOT recommend it, do NOT write any test asserting it). At the parser
+level the combo is technically accepted because either flag opens the
+runner gate, but documentation and tests pin standalone `--reconcile`
+only.
+
+Plain `--ingest` (without `--reconcile`) keeps the existing
+skip-existing behaviour exactly. The runner-entry gate widens to
+`if (!ingest && !reconcile) return;` so `--reconcile` alone opens the
+runner; branching inside the per-article loop on `reconcile` (true ⇒
+metadata-only update on existing; insert+embed on new). Pin the
+canonical form in one unit test, in the dev handoff §1, and in the
+Definition-of-done step 2.
+
+### #3 — R8 #3: reconcile observability
+
+Emit per-reconciled-row structured INFO
+(`article_id`, changed fields with `old → new`) and an end-of-run summary
+(`articlesReconciled` / `articlesInsertedNew` / `articlesUnchanged`).
+Mirror the existing ingestion `log.info` idiom (lines 73-125). INFO level;
+NOT a `ToolEvent`; NOT user-facing.
+
+### #4 — R8 #4: tests
+
+**(a) populated-DB reconcile regression** (the gap the R6 unit tests
+missed — they only exercise the empty-table insert path):
+- Seed an existing `kb_articles` row with `search_knowledge_eligible=true`;
+  JSON/source declares `false`; run reconcile; assert the row is now
+  `false`. Likewise assert `is_published` and `uc_tags` reconcile.
+
+**(b) negative / anti-误杀 tests:**
+- **No re-embed on existing reconcile**: `embeddingClient` is NEVER invoked
+  and `kbChunkRepository` is NEVER written when reconciling an existing
+  article (verify via mock interaction counts).
+- **Content columns preserved**: after reconcile, `title` / `summary` /
+  `description` / `source_url` / `url_category` on the existing row are
+  byte-identical to their pre-reconcile DB values (NOT overwritten from
+  JSON even if JSON differs).
+- **New id still inserts**: an `article_id` absent from the DB, under
+  `--reconcile`, takes the insert path (chunk + embed + save).
+- **Plain `--ingest` unchanged**: without `--reconcile`, an existing row is
+  skipped and unchanged; `embeddingClient`/`kbChunkRepository` not invoked
+  for it.
+
+**(c) R6 end-to-end smoke** (integration / wiring-level where mock-feasible;
+real-DB step belongs to the §"Definition of done" sequence): after
+reconcile, the 2 `(temp)` ids are `false`; `KnowledgeSearchService` /
+`SearchKnowledgeTool` exclude them from search hits; `ResolveArticleTool`
+direct-by-id still returns both (anti-误杀 #1).
+
+### #5 — R8 #5: runbook drift fixes (separate docs commit)
+
+**Anchor:** `docs/current/process/preflight-eval-checks.md`. Fix the 5
+drifts recorded in the 2026-06-07 verdict
+(`docs/diagnostics/2026-06-07-m-auto-6-preflight-verdict.md` §"Drift caught"):
+1. DB name `csagent_dev` → `csagent` in §0.2 / §0.3 SQL snippets.
+2. Smoke command form `python -m eval_interactive.cli run` → `python -m
+   eval_interactive run` (Steps 1/2 + Appendix).
+3. Full re-bless command → `cd autoloop && uv run python
+   scripts/rebless_baseline.py --n 9 --out-dir
+   ../eval_interactive/results/m-auto-N-baseline-shared-$(date +%Y%m%d)/`
+   (the script requires cwd=autoloop + `uv run`; its own usage uses `--n 5`).
+4. §0.1 detection note: `ps aux | grep '[s]pring-boot'` does NOT match the
+   forked `java -cp …` server JVM; detect by port (`lsof -ti:8080`).
+5. Add the §3 / A3 root-cause annotation from the blocker brief
+   (insert-only runner ⇒ re-ingestion alone never flips an existing-row
+   curation flag; remediation = `--reconcile`, not re-run `--ingest`), per
+   `preflight-eval-checks.md` §6.
+
+### #6 — R8 #6: dev handoff
+
+`docs/sprints/sprint-083-handoff.md` per the handoff requirements section.
+
+## Anti-误杀 invariants (HARD, non-negotiable)
+
+1. **Direct resolve unaffected.** `ResolveArticleTool.byArticleId` returns
+   both `(temp)` articles before and after reconcile.
+2. **Reconcile is metadata-only.** It NEVER re-chunks, NEVER re-embeds,
+   NEVER writes `kb_chunks` for an existing article.
+3. **Content columns immutable under reconcile.** `title` / `summary` /
+   `description` / `source_url` / `url_category` on existing rows are never
+   overwritten.
+4. **Plain `--ingest` is byte-for-byte unchanged.** Insert-only; existing
+   rows skipped and untouched.
+5. **No prune.** A DB row whose `article_id` is absent from the JSON is
+   never deleted.
+6. **No hardcoded article-id in Java.** Reconcile is generic over the JSON
+   article list; zero `(temp)` / `ka41r…` literals introduced.
+7. **No manual SQL as evidence.** The DB state at §0.3 must be produced by
+   the `--reconcile` run, not a hand `UPDATE`.
+8. **No R6-surface touch.** `KnowledgeSearchService` filter, `KbArticle`
+   entity, V17 migration, and the JSON corpus stay byte-unchanged.
+9. **No new `escalation_reason` enum value. No new Tier-0 invariant.**
+10. **`baseline_dir` UNCHANGED. `docs/current_eval_baseline.md` UNCHANGED.**
+
+## Hard fences / STOP conditions
+
+**Files allowed to edit:**
+
+- `server/src/main/java/com/gumtree/csagent/service/knowledge/KnowledgeIngestionRunner.java`
+  (reconcile method + `--reconcile` gate + reconcile logging only).
+- `server/src/test/java/.../KnowledgeIngestionRunnerTest.java` (extend /
+  new reconcile tests).
+- A new test class if cleaner (e.g.
+  `KnowledgeIngestionReconcileTest.java`) under the same test package.
+- `docs/current/process/preflight-eval-checks.md` (R8 #5 drift fixes +
+  A3 annotation only — separate commit).
+- `docs/sprints/sprint-083-handoff.md` (dev handoff).
+- `compact/sprint-083-dev-prompt.md` (deliver-agent-authored prompt
+  artifact; not dev-edited).
+
+**Files FORBIDDEN to edit:**
+
+- `data/knowledge/knowledge_base_articles.json` (R6 already committed the
+  flips; correct source-of-truth — do not re-touch).
+- `server/.../model/KbArticle.java` (field already exists from R6).
+- `server/.../resources/db/migration/V17__*.sql` (shipped; immutable).
+- `server/.../service/knowledge/KnowledgeSearchService.java` (R6 filter —
+  byte-unchanged).
+- `server/.../service/tools/ResolveArticleTool.java` (direct resolve must
+  stay unfiltered; touch only `ResolveArticleToolTest` if a regression
+  assertion is needed — no production change).
+- `server/.../model/KnowledgeHit.java`.
+- Any skill yaml / `SkillGuardrailDispatcher` / `resolve_faq_grounded_answer.yaml`.
+- `IntakeFieldsRegistry` / `IntakeFieldsMerger` / `BudgetChecker` /
+  `ControlKernel` / `AgentRunLoopImpl` / `ContextProjectionBuilder` /
+  `UpdateIntakeFieldsTool`.
+- Any UI file. Any `eval_interactive/` file. Autoloop 5-file SHA-locked
+  scoring set. `autoloop/config.yaml` `baseline_dir`.
+  `docs/current_eval_baseline.md`.
+
+**STOP conditions:**
+
+- Pre-fix audit finds `kbArticleRepository.save` cascades to `kb_chunks` →
+  STOP, surface (reconcile must not touch chunks).
+- Reconcile would require re-embedding to update a curation field → STOP,
+  surface (design contradiction).
+- Any embedding-client or chunk-repository invocation observed in a
+  reconcile-existing test → STOP, anti-误杀 #2 violation.
+- A content column changes on an existing row after reconcile → STOP,
+  anti-误杀 #3 violation.
+- Plain `--ingest` behaviour changes for existing rows → STOP, anti-误杀 #4
+  violation.
+- Grep shows a hardcoded `ka41r…` / `(temp)` literal in `server/src/main`
+  → STOP, anti-误杀 #6 violation; revert.
+- Any file outside the fence is touched → STOP, revert, re-launch.
+
+## Test / eval requirements
+
+- All new reconcile tests (R8 #4 a/b/c) GREEN.
+- Java baseline preserved: re-measure at launch per
+  `[[feedback_remeasure_baselines_prompts_stale]]` (S-Auto-27 close
+  recorded `1348 / 1 / 0 / 2` with the sole inherited failure
+  `SystemPromptUserRequestedTiebreakerTest` / OQ-S41.5). Net delta should
+  be exactly the new reconcile tests; no new failure / error.
+- Eval pytest `553` UNCHANGED; autoloop pytest `324` UNCHANGED (no
+  eval-side / autoloop change). Note env caveat
+  `[[reference_eval_pytest_corpus_lint_conda_python]]` if the reader sees
+  491/12 — that is conda-python drift, not a regression.
+- Flyway unchanged (no new migration; V17 already applied).
+- Backend rebuild + test summary in handoff §2.
+- **No real-LLM re-bless at this sub-sprint close.** Outcome evidence is the
+  M-Auto-6 milestone-shared re-bless, which resumes AFTER §0.3 passes.
+- Wiring-evidence vs outcome-evidence separator per §5.7 documented in the
+  handoff.
+
+## §7 Layer-classification + anti-hardcode stanza
+
+```markdown
+## Layer-classification + anti-hardcode stanza
+
+**Target failure layer:** `infra` — server-side knowledge data-application
+path (`KnowledgeIngestionRunner`). The defect is an insert-only loader that
+cannot apply a curation-flag change to an existing DB row; the fix is a
+metadata-only `--reconcile` UPDATE path. No prompt / routing / escalation /
+eval-spec / judge change.
+
+**Tier-0 invariant:** This sub-sprint adds no Tier-0 invariant. It syncs DB
+rows to a committed JSON source-of-truth; it adds no kernel-level guarantee.
+`ResolveArticleTool` direct resolve stays unfiltered (anti-误杀 #1); plain
+`--ingest` is unchanged.
+
+**Semantic hardcode:** No semantic hardcode introduced. The reconcile path
+iterates the same JSON article list the insert path does; ZERO hardcoded
+`article_id`, ZERO title-keyword match, ZERO content scan. Reconcile updates
+ONLY the mutable curation columns (`search_knowledge_eligible`,
+`is_published`, `uc_tags`); content columns and embeddings are untouched.
+
+**Generalization coverage:** target / neighbor / negative / shadow case
+counts: 1 / ~2 / ~5 / 0
+- target: the 2 `(temp)` articles' DB rows reconcile `true → false` (the R6
+  data-application that previously could not land).
+- neighbor: `is_published` / `uc_tags` reconcile on an existing row (same
+  mechanism, other mutable curation columns).
+- negative: existing reconcile does NOT re-embed / NOT write kb_chunks / NOT
+  overwrite content columns; new id still inserts+embeds; plain `--ingest`
+  leaves existing rows untouched. No hardcoded-id grep hit; no R6-surface
+  touch.
+- shadow: not applicable (reconcile tests + the §0.3 real-DB check are
+  wiring/data evidence; the R6 outcome evidence is the M-Auto-6
+  milestone-shared re-bless that resumes after §0.3 PASS).
+```
+
+## Codex review plan (per `process/milestone-framework.md` §4.3)
+
+**Per-sub-sprint Codex review REQUIRED** (conservative — the data-application
+path gates R6's LLM-facing search surface, and S-Auto-28 is a milestone-close
+blocker). Codex prompt artifact: `compact/sprint-083-codex-review-prompt.md`
+(deliver-agent authors at sub-sprint close; embeds §4.1 nine-question kernel
++ the §7 stanza + the file-path fence + anti-误杀 invariants + the focal
+points below). Codex may record the infra-exemption and `approve`.
+
+**Focus points for Codex:**
+
+- F1 (metadata-only): reconcile NEVER calls `embeddingClient` / writes
+  `kb_chunks` / overwrites content columns — verified by mock-interaction
+  tests, not just by assertion.
+- F2 (plain `--ingest` unchanged): existing rows skipped + untouched without
+  `--reconcile`.
+- F3 (no manual SQL evidence): the §0.3 DB state is produced by `--reconcile`,
+  evidenced by the reconcile INFO summary, not a hand `UPDATE`.
+- F4 (direct resolve invariant): `ResolveArticleTool.byArticleId` returns
+  both flagged articles post-reconcile.
+- F5 (forbidden-grep): zero `ka41r…` / `(temp)` literals introduced in
+  `server/src/main`; R6 surface (search service / entity / V17 / JSON)
+  byte-unchanged.
+- F6 (no prune): a JSON-absent DB row is not deleted.
+
+## Handoff requirements (dev authors `docs/sprints/sprint-083-handoff.md`)
+
+§1 must include, for each of #1–#6: file:line ranges + rationale + the gating
+test name(s); the pre-fix audit outcomes (save-cascade behaviour; mutable vs
+content columns; chunk-cascade absence). §2 must include: full Java numeric
+results + the reconcile mock-interaction evidence (embeddingClient invocation
+count = 0 on existing reconcile); eval/autoloop pytest (UNCHANGED); the
+real-DB §0.3 evidence (psql rows: 2 `false` / 216 `true`) produced by the
+`--reconcile` run with the reconcile INFO summary quoted; and the explicit
+wiring-vs-outcome separator (§5.7). STOP confirmations: fence respected; no
+re-embed; content columns preserved; plain `--ingest` unchanged; no manual
+SQL as evidence; no hardcoded id; direct resolve preserved; `baseline_dir`
+and `current_eval_baseline.md` UNCHANGED; no outcome re-bless launched.
+
+## Commit discipline (per `prompt-artifact-rules.md` §9)
+
+1. **Commit 1 — R8 #1 + #2 + #3** (reconcile method + `--reconcile` gate +
+   logging) with the reconcile unit/negative tests (#4 a/b).
+2. **Commit 2 — R8 #4(c)** R6 end-to-end wiring test (search exclusion +
+   direct-resolve invariant).
+3. **Commit 3 — R8 #5** runbook drift fixes + A3 annotation
+   (`docs/current/process/preflight-eval-checks.md`) — docs-only.
+4. **Commit 4 — R8 #6** dev handoff (`docs/sprints/sprint-083-handoff.md`).
+
+## Self-check checklist (dev completes before claiming done)
+
+- [ ] #1 reconcile method: load-existing → set 3 curation fields → save;
+      no `chunkingService` / `embeddingClient` / `kbChunkRepository` call.
+- [ ] #2 `--reconcile` gate: existing-row UPDATE only under `--reconcile`;
+      plain `--ingest` skip-existing byte-unchanged; insert path for new ids
+      under both modes. **Canonical invocation `--reconcile` (standalone)**
+      pinned in test + handoff §1 with rationale (plain `--ingest` =
+      insert-only; `--reconcile` = metadata-only update path; combo form
+      non-canonical).
+- [ ] #3 reconcile INFO logging (per-row changed-fields + run summary).
+- [ ] #4(a) populated-DB reconcile regression GREEN (true→false; is_published;
+      uc_tags).
+- [ ] #4(b) negatives GREEN: no re-embed; content columns preserved; new id
+      inserts; plain `--ingest` untouched.
+- [ ] #4(c) R6 end-to-end GREEN: search excludes the 2 templates; direct
+      resolve returns both.
+- [ ] No hardcoded article-id / `(temp)` literal in `server/src/main` (grep).
+- [ ] R6 surface (search service / KbArticle / V17 / JSON) byte-unchanged.
+- [ ] #5 runbook 5 drifts fixed + A3 annotation added (docs-only commit).
+- [ ] Java baseline re-measured + delta = new tests only; eval pytest 553 /
+      autoloop 324 unchanged.
+- [ ] §7 stanza copied verbatim into handoff.
+- [ ] `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md` UNCHANGED.
+- [ ] No outcome-evidence re-bless launched.
+
+## Definition of done (close + unblock sequence)
+
+After dev-side close + Codex `APPROVE_S_AUTO_28`:
+
+1. **Rebuild backend** (no hot-reload — `[[feedback_restart_backend_before_eyeball]]`):
+   restart so the new reconcile code is on the classpath.
+2. **Run reconcile** against the live dev DB using the canonical
+   standalone `--reconcile` invocation pinned in §Scope #2:
+   `cd <repo> && mvn -o -pl server spring-boot:run -Dspring-boot.run.arguments=--reconcile`.
+   Confirm the reconcile INFO summary (`articlesReconciled=2`).
+3. **Re-run §0.3** (`docs/current/process/preflight-eval-checks.md`):
+   `psql -d csagent -c "SELECT article_id, search_knowledge_eligible FROM
+   kb_articles WHERE article_id IN ('ka41r000000LIEJAA4','ka41r000000LIEEAA4');"`
+   → expect both `false`; `SELECT search_knowledge_eligible, count(*) …` →
+   2 `false` / 216 `true`.
+4. **§0.3 PASS → resume** the M-Auto-6 pre-flight from Step 1 (bad_cases
+   smoke) → Step 2 (anchor_outcome anti-误杀 sentinel) → Step 3 anomaly scan
+   → §4 verdict. On GO, the milestone-shared §9 real-LLM re-bless launches
+   (deliver-agent + human).
+5. **`baseline_dir` and `docs/current_eval_baseline.md` remain UNCHANGED**
+   through this entire sequence; they move only at M-Auto-6 milestone close
+   after the milestone-shared re-bless lands.
+
+Active milestone contract: `docs/milestone_objective.md`.
+Cold-start state: `docs/10-handoff.md` §0.
