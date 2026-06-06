@@ -206,6 +206,12 @@ public class KnowledgeIngestionRunner implements ApplicationRunner {
         // a published flag still ingest as published; if the JSON sets it
         // explicitly to false we must respect that and NOT silently coerce.
         boolean published = articleNode.path("published_status").asBoolean(true);
+        // R6 (Sub-sprint C-2b) — corpus-curation flag. Mirrors the
+        // `published_status` idiom: absent / null defaults to TRUE so
+        // articles that never carried the field stay visible on the
+        // search surface; an explicit false hides them from search only.
+        boolean searchKnowledgeEligible =
+                articleNode.path("search_knowledge_eligible").asBoolean(true);
         int tokenEstimate = articleNode.path("token_estimate").asInt(0);
 
         // UC tags: prefer JSON field, fall back to CSV mapping
@@ -224,6 +230,7 @@ public class KnowledgeIngestionRunner implements ApplicationRunner {
                 .urlCategory(urlCategory)
                 .ucTags(ucTags)
                 .isPublished(published)
+                .searchKnowledgeEligible(searchKnowledgeEligible)
                 .tokenCount(tokenEstimate)
                 .version(1)
                 .createdAt(now)
