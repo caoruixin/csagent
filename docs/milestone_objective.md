@@ -58,17 +58,43 @@ notes: >
     label-mislabel surface; anti-误杀 #12 spirit preserved — RESOLVE
     non-intake + any-phase tool-call repeats stay
     `turn_budget_exhausted`).
-  - **Sub-sprint C-2 = R5 + R6** (S-Auto-26 / Sprint 081) — PRIMARY,
-    drafted as planning context in `compact/sprint-081-dev-prompt.md`.
-    **Can run parallel to C-1** (independent surfaces). UX + corpus
-    governance: **R5** `ResolveArticleTool` returns `display_citation`
-    (URL preferred) + skill yaml `cite_token_field: display_citation` +
-    `must_cite_source` guardrail fallback to `source_id` (c13 surface);
-    **R6** corpus `bot_visible: false` data field for `(temp)` template
-    articles + `SearchKnowledgeTool` filter (c7/c12/c17 surface; article
-    `ka41r000000LIEJAA4` + `ka41r000000LIEEAA4`).
+  - **Sub-sprint C-2a = R5 citation contract fix** (S-Auto-26 /
+    Sprint 081) — PRIMARY, planned at `compact/sprint-081-dev-prompt.md`.
+    **Re-scoped 2026-06-06** after a dev pre-fix audit on the original
+    C-2 (R5 + R6 bundle) STOPPED with zero file edits and found that
+    the original anchors were wrong on both sides. Re-scoped scope:
+    (a) `ResolveArticleTool` returns an additive `display_citation`
+    field (`source_url` if non-null/non-blank, else `article_id`
+    fallback); (b) `SkillGuardrailDispatcher.handleMustCiteSource`
+    (`:340-384`) rewritten from the live literal
+    `userMessage.contains(citeToken)` substring check to a structural
+    shape predicate (URL-shape OR Salesforce-style article_id-shape
+    derived from real corpus data); (c) `resolve_faq_grounded_answer.yaml`
+    citation-token wording at `:30 / :31 / ~:80 / :44 cite_token_field`
+    points at the new `display_citation` token. Per-sub-sprint Codex
+    REQUIRED with explicit focus on the literal→shape semantics shift
+    + grounding-floor preservation.
+  - **Sub-sprint C-2b = R6 corpus eligibility filter** (S-Auto-27 /
+    Sprint 082) — PRIMARY, planned at `compact/sprint-082-dev-prompt.md`.
+    Re-scoped 2026-06-06: reuse the **existing** `search_knowledge_eligible`
+    data field (already on 218/218 corpus articles; ingested-but-unused
+    per dev audit) instead of introducing a parallel `bot_visible`
+    mechanism. Flip the field from `true → false` on
+    `ka41r000000LIEJAA4` (row ~272) + `ka41r000000LIEEAA4` (row ~291);
+    plumb through `KnowledgeIngestionRunner.buildKbArticleFromJson` →
+    new `KbArticle.searchKnowledgeEligible` column → V17 Flyway
+    migration (V16 is highest existing) → `KnowledgeSearchService`
+    eligibility filter → `KnowledgeHit` field propagation →
+    `SearchKnowledgeTool` structured INFO log on filter decision.
+    Direct resolve via `ResolveArticleTool.byArticleId` stays
+    unfiltered (human-CS access preserved). Per-sub-sprint Codex
+    REQUIRED.
+  - **Sequential cadence (post-rewrite)**: C-2b launches after C-2a
+    dev-side close. Independent surfaces, but sequencing keeps
+    causal attribution clean for the milestone-shared Codex review.
   - **Milestone-shared §9 real-LLM re-bless** runs AFTER A + B + C-1 +
-    C-2 all land — single milestone-level evidence run, not per-sub-sprint.
+    C-2a + C-2b all land — single milestone-level evidence run, not
+    per-sub-sprint.
 
   **Single bundled C explicitly rejected (2026-06-06)** by human, on
   the basis that (1) R7 + R2.a#5-ext form one coherent
@@ -76,6 +102,19 @@ notes: >
   isolation; (2) R7 is the OBS-S6 enabler — high priority, should not be
   blocked by R5/R6 UX work; (3) small sub-sprints aid causal attribution
   + anti-误杀 review.
+
+  **C-2 split into C-2a + C-2b (2026-06-06 re-scope, post dev STOP)**:
+  the original C-2 prompt rested on wrong file anchors caught by the
+  dev pre-fix audit. R5's `must_cite_source` lives in the FORBIDDEN
+  `SkillGuardrailDispatcher.handleMustCiteSource` and does literal
+  substring matching (not shape validation); R6's `bot_visible`
+  cannot reach the filter point because ingestion silently drops
+  unknown JSON keys, and the corpus already carries
+  `search_knowledge_eligible` for exactly this purpose. C-2a re-scopes
+  R5 as a citation-guardrail contract change with widened fence; C-2b
+  re-scopes R6 to reuse `search_knowledge_eligible` with full
+  ingestion+entity+migration+service plumbing. Both retain `§7
+  REQUIRED + per-sub-sprint Codex REQUIRED`.
 
   Audit Cluster B.2 (`primary_uc` vs `active_use_case` authority) +
   Cluster C.1 (cs59s 400) + `R-aggregate-retains-per-attempt-composite-l2`
@@ -96,8 +135,14 @@ notes: >
     closure waits on OBS-S1 (autoloop after milestone close).
   - **Residual c14 RESOLVE-intake clarification mislabel** + **c14
     intake partial-stash gap** → R2.a#5-ext + R7 in Sub-sprint C-1.
-  - **c13 citation source_id-vs-URL** → R5 in Sub-sprint C-2.
-  - **c7/c12/c17 `(temp)` corpus surface** → R6 in Sub-sprint C-2.
+  - **c13 citation source_id-vs-URL** → R5 citation contract fix in
+    Sub-sprint C-2a (additive `display_citation` +
+    `handleMustCiteSource` literal→shape rewrite + skill yaml
+    wording).
+  - **c7/c12/c17 `(temp)` corpus surface** → R6 corpus eligibility
+    filter in Sub-sprint C-2b (reuse existing
+    `search_knowledge_eligible` field; plumb through ingestion +
+    entity + V17 migration + service + tool).
   - **c2/c10/c17 admin guard-vs-error confusion** → R3.c in Sub-sprint B.
   - **c7 admin missing-case + c8 dedup UI** → R3.a + R3.b in
     Sub-sprint B.
@@ -119,12 +164,17 @@ notes: >
 **Class:** runtime substrate-hygiene + UI/observability + intake contract
 + UX/corpus governance milestone (Tier-1 mechanical wiring +
 prompt_projection contract completion + UI-only display additions + new
-no-side-effect tool + data field driven retrieval filter). NOT a
-semantic milestone — no bot prompt procedure rewrite, no UC routing, no
-escalation posture decision, no judge calibration, no CaseSpec rubric
-edit. R5 includes a one-line `cite_token_field` skill-yaml config
-swap; that is the only yaml surface touched, and it remains a
-contract-shaped change (not a procedure / wording change).
+no-side-effect tool + data field driven retrieval filter + citation
+contract literal→shape semantics fix). NOT a semantic milestone — no
+bot prompt procedure rewrite, no UC routing, no escalation posture
+decision, no judge calibration, no CaseSpec rubric edit. R5 (C-2a)
+rewrites `SkillGuardrailDispatcher.handleMustCiteSource` from a literal
+substring check to a structural URL-or-article_id shape predicate and
+updates the citation-token wording in `resolve_faq_grounded_answer.yaml`
+to point at the new `display_citation` field; the rewrite **preserves
+the grounding floor** (empty / null / plain-English STILL reject) and
+the wording change is minimum-edit (citation-token references only,
+procedure / role / objective untouched).
 
 **§7 stanza requirement:** REQUIRED at the milestone level + at each
 semantic-touching sub-sprint. Layer matrix:
@@ -133,8 +183,9 @@ semantic-touching sub-sprint. Layer matrix:
 |---|---|---|---|
 | A (R1.a + R2.a + R4.a) | `prompt_projection` + `infra` + `skill_state` | ✅ REQUIRED | LLM-facing projection surface touched (R1 schema + R4 enum) — semantic-touching per §7. Shipped at S-Auto-23 close. |
 | B (R3.a + R3.b + R3.c) | `infra` (observability) | ❌ EXEMPT | UI-only display; zero semantic surface; ≤ ~10 LOC diagnostic logging is non-behavioural. |
-| C-1 (R7 + R2.a#5-ext) | `skill_state` + `infra` + `prompt_projection` (R7 tool schema) | ✅ REQUIRED | R7 adds a new tool name (LLM-facing projection surface); R2.a#5-ext extends the existing phase-aware re-map (control-plane labeling). Semantic-touching per §7. |
-| C-2 (R5 + R6) | `infra` + `prompt_projection` (R5 skill yaml 1 line) | ✅ REQUIRED | R5 touches the LLM-facing citation contract via `cite_token_field`; R6 changes corpus retrieval surface visible to the LLM. Semantic-touching per §7 (even though both are contract-shaped, not procedure-shaped). |
+| C-1 (R7 + R2.a#5-ext) | `skill_state` + `infra` + `prompt_projection` (R7 tool schema) | ✅ REQUIRED | R7 adds a new tool name (LLM-facing projection surface); R2.a#5-ext extends the existing phase-aware re-map (control-plane labeling). Semantic-touching per §7. Shipped at S-Auto-25 close (`APPROVE_S_AUTO_25 / blocking_count=0`). |
+| C-2a (R5 citation contract fix) | `infra` (ResolveArticleTool result + handleMustCiteSource semantics rewrite) + `prompt_projection` (skill yaml citation wording at `:30/:31/~:80/:44`) | ✅ REQUIRED | R5 #2 rewrites the LLM-facing citation guardrail from literal substring to structural URL/article_id shape predicate; R5 #3 changes the LLM-facing skill wording to point at the new `display_citation` field. Semantic-touching per §7. Re-scoped 2026-06-06 from the original "1-line `cite_token_field` config swap" after the dev pre-fix audit caught the wrong-anchor STOP. |
+| C-2b (R6 corpus eligibility filter) | `infra` (data + entity + V17 migration + ingestion + service filter + tool log) | ✅ REQUIRED | R6 changes the LLM-facing search retrieval surface via a data-field eligibility filter. Reuses existing `search_knowledge_eligible` (ingested-but-unused on 218/218 articles per dev audit) — NOT a new parallel `bot_visible` mechanism. Direct resolve unfiltered (human-CS access preserved). Semantic-touching per §7. Re-scoped 2026-06-06. |
 
 **Layer breakdown** (per `iteration_governance.md` §3 + the proposal §2):
 
@@ -148,8 +199,8 @@ semantic-touching sub-sprint. Layer matrix:
 | R3.c — informational guard rejection badge distinct from blocking error | `infra` (observability) | B | ⏳ PENDING (NEW post-ship) | UI display distinction over guard rejection events; addresses c2/c10/c17 record_outcome confusion. SAFER default for unrecognised codes = blocking. |
 | R7 — `update_intake_fields` no-side-effect tool (intake partial-stash mechanism) | `skill_state` + `infra` + `prompt_projection` (new tool schema) | C-1 | ⏳ PENDING (NEW post-ship from c14) | Lets LLM accumulate intake fields across turns without triggering the handover validator; runtime enabler for OBS-S6. |
 | R2.a#5-ext — phase-aware re-map narrow extension to RESOLVE + intake-UC + free-text | `infra` | C-1 | ⏳ PENDING (NEW post-ship from c14) | Surface c14 RESOLVE-phase intake clarification mislabel; preserves anti-误杀 #12 spirit (RESOLVE non-intake + any tool-call repeat stay `turn_budget_exhausted`). |
-| R5 — `ResolveArticleTool` returns `display_citation` (URL preferred) + skill yaml 1-line config | `infra` + `prompt_projection` (skill yaml 1 line) | C-2 | ⏳ PENDING | c13 surface: bot cites `source_id` even when article has `canonical_url`. `must_cite_source` guardrail fallback to `source_id` preserves old traces + 38 URL-less articles. |
-| R6 — corpus `bot_visible: false` data field + `SearchKnowledgeTool` filter | `infra` (data + tool) | C-2 | ⏳ PENDING | c7/c12/c17 surface: `(temp)` template articles (`ka41r000000LIEJAA4` + `ka41r000000LIEEAA4`) reach LLM unwrapped. Data field driven, NOT title-keyword matched. Article retained for human CS use. |
+| R5 — citation contract fix: additive `display_citation` on ResolveArticleTool + `SkillGuardrailDispatcher.handleMustCiteSource` literal→shape rewrite + skill yaml citation wording at `:30/:31/~:80/:44` | `infra` + `prompt_projection` | C-2a | ⏳ PENDING (re-scoped 2026-06-06) | c13 surface: bot cites `article_id` even when article has `source_url`. Re-scoped from "1-line `cite_token_field` swap" after dev anchor audit caught the literal-substring guardrail at the forbidden `SkillGuardrailDispatcher.java:340-384` + the actual LLM-steering wording at `resolve_faq_grounded_answer.yaml:30-31`. Grounding floor preserved (empty / null / plain-English STILL reject); accept criteria widens from "literal field-name substring" to "URL-shape OR Salesforce article_id-shape". |
+| R6 — corpus eligibility filter: reuse existing `search_knowledge_eligible` data field + full plumbing (V17 migration + ingestion + entity + search service + hit + tool) | `infra` (data + entity + migration + service + tool) | C-2b | ⏳ PENDING (re-scoped 2026-06-06) | c7/c12/c17 surface: `(temp)` template articles (`ka41r000000LIEJAA4` + `ka41r000000LIEEAA4`) reach LLM unwrapped. Re-scoped from "new `bot_visible` data field" after dev audit found the existing `search_knowledge_eligible` field on 218/218 articles (ingested-but-unused). Data field driven, NOT title-keyword matched. Article retained for human CS use; direct resolve via `ResolveArticleTool.byArticleId` unfiltered. |
 
 ## 2. Goal
 
@@ -198,9 +249,13 @@ optimization is explicitly deferred to autoloop AFTER M-Auto-6:
 
 ## 3. Sub-sprint sequence
 
-Sequence updated 2026-06-06 after S-Auto-23 dev-side close. Sub-sprint
-C-1 and C-2 may run in parallel (independent surfaces). No re-bless
-between sub-sprints — outcome evidence runs once at milestone close.
+Sequence updated 2026-06-06 after S-Auto-25 dev-side close + the
+post-C-1 C-2 re-scope (R5 + R6 originally bundled as Sub-sprint C-2;
+split into C-2a R5-only + C-2b R6-only after the dev pre-fix audit on
+C-2 STOPPED with wrong anchors caught — see §0 notes block). Sequential
+cadence: A (done) → B (done) → C-1 (done) → C-2a (current planned
+active) → C-2b (next). No re-bless between sub-sprints — outcome
+evidence runs once at milestone close.
 
 ### Sub-sprint A — S-Auto-23 / Sprint 078 — R1.a + R2.a + R4.a — **DEV-SIDE CLOSED 2026-06-06**
 
@@ -226,7 +281,7 @@ Status:
 
 Archived contract: `docs/sprints/sprint-078-objective.md`.
 
-### Sub-sprint B — S-Auto-24 / Sprint 079 — R3.a + R3.b + R3.c admin trace observability — **CURRENT ACTIVE**
+### Sub-sprint B — S-Auto-24 / Sprint 079 — R3.a + R3.b + R3.c admin trace observability — **DEV-SIDE CLOSED 2026-06-06**
 
 R3.a + R3.b + R3.c (per proposal §6.3, post-ship expanded). UI-only
 admin trace observability:
@@ -241,15 +296,24 @@ admin trace observability:
 - Plus terminal handling_state header + diagnostic logging for
   handling_state transitions.
 
-Subsumes audit Cluster B.1 (per_turn_trace truncation) + C.2 (46f5b2e9
-500 + double-send live UI) upon scoping. Zero runtime semantic surface
-touched (≤ ~10 LOC non-behavioural diagnostic logging on backend is the
-only backend touch).
+> **S-Auto-24 is dev-side closed / visual-verified / §7-EXEMPT (no
+> per-sub-sprint Codex required); milestone-level outcome evidence is
+> deferred to the M-Auto-6 final re-bless.**
 
-Dev prompt: `compact/sprint-079-dev-prompt.md`. Active sprint contract:
-`docs/sprint_objective.md`.
+Status:
+- Code shipped: commits `a26ec88..505aca3`.
+- UI vitest: `10 passed / 0 failed / 0 skipped`; UI `tsc -b` exit 0;
+  `vite build` SUCCESS.
+- Java baseline preserved: `1297 / 1 / 0 / 2` (post-S-Auto-23 baseline;
+  sole failure = inherited OQ-S41.5; no new Java tests added — #5
+  diagnostic logging non-behavioural).
+- Visual verification by deliver-agent on session `e82c8da3`
+  confirmed R3.a / R3.b / R3.c / terminal-state header / #5 logging.
+- `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md` UNCHANGED.
 
-### Sub-sprint C-1 — S-Auto-25 / Sprint 080 — R7 + R2.a#5-ext — intake/clarification runtime contract (PLANNING CONTEXT)
+Archived contract: `docs/sprints/sprint-079-objective.md`.
+
+### Sub-sprint C-1 — S-Auto-25 / Sprint 080 — R7 + R2.a#5-ext — intake/clarification runtime contract — **DEV-SIDE CLOSED 2026-06-06**
 
 R7 + R2.a#5-ext (per proposal §4.7 + §4.8 + §6.7). Intake/clarification
 runtime contract bundle:
@@ -265,34 +329,117 @@ runtime contract bundle:
   action. Anti-误杀 #12 spirit preserved: RESOLVE non-intake UC + any
   phase + any tool-call repeat remain `turn_budget_exhausted`.
 
-Dev prompt: `compact/sprint-080-dev-prompt.md` (planning context;
-becomes active sprint contract when B closes). Per-sub-sprint Codex
-review REQUIRED (R7 adds an LLM-facing tool name; R2.a#5-ext extends
-control-plane labeling — both §7 stanza REQUIRED).
+> **S-Auto-25 is dev-side closed / Codex-approved / capability-wiring
+> fence-waiver accepted; milestone-level outcome evidence is deferred
+> to the M-Auto-6 final re-bless.**
 
-### Sub-sprint C-2 — S-Auto-26 / Sprint 081 — R5 + R6 — citation UX + corpus governance (PLANNING CONTEXT; can run parallel to C-1)
+Status:
+- Code shipped: commits `be1e733..c031786` (intended cumulative range
+  `be1e733^..c031786` — 4 commits).
+- Java baseline `1327 / 1 / 0 / 2` (+30 net tests vs the 1297/1/0/2
+  launch baseline; sole failure = inherited OQ-S41.5, verified
+  pre-existing by `git stash`).
+- Codex per-sub-sprint review: `APPROVE_S_AUTO_25 / blocking_count=0`.
+  §1 / §2 / §3 all PASS. 5 non-blocking observations recorded.
+- Capability-wiring Option-A fence-waiver ACCEPTED (deliver-agent
+  2026-06-06): `tool-policy.yaml` +6 lines (AGENT_VISIBLE intake-UC
+  entry); `resolve_intake_collect_and_handover.yaml` +4 lines
+  (`tools_required` add); `SkillLoader.VALID_TOOL_NAMES` +1 string +
+  1 comment. ZERO procedure / objective / grounding / escalation /
+  wording / enum / CaseSpec edit.
+- `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md`
+  UNCHANGED.
 
-R5 + R6 (per proposal §4.5 + §4.6 + §6.7). UX + corpus governance:
-- R5: `ResolveArticleTool` returns a `display_citation` field that
-  prefers `canonical_url` over `source_id`; skill yaml
-  `resolve_faq_grounded_answer.yaml:44` `cite_token_field` flips to
-  `display_citation`; `must_cite_source` guardrail fallback to
-  `source_id` keeps old traces + 38 URL-less articles working.
-- R6: `data/knowledge/knowledge_base_articles.json` adds
-  `"bot_visible": false` to the two known `(temp)` template articles
-  (`ka41r000000LIEJAA4` and `ka41r000000LIEEAA4`);
-  `SearchKnowledgeTool` filters retrieval to `bot_visible != false`
-  (default true). Articles retained in corpus for human CS use; the
-  trace records the filter decision (observability).
+Archived contract: `docs/sprints/sprint-080-objective.md`.
 
-Independent of C-1 surface (no shared edit context, no shared semantic
-gate). Dev prompt: `compact/sprint-081-dev-prompt.md` (planning
-context). Per-sub-sprint Codex review REQUIRED (R5 touches LLM-facing
-cite contract; R6 touches LLM-facing retrieval surface).
+### Sub-sprint C-2a — S-Auto-26 / Sprint 081 — R5 citation contract fix — **CURRENT ACTIVE (re-scoped 2026-06-06)**
+
+R5 citation contract fix (per proposal §4.5; re-scoped after the dev
+pre-fix audit on the original C-2 STOPPED with wrong anchors caught).
+
+**Why re-scoped**: the original C-2 prompt assumed the
+`must_cite_source` guardrail lived at
+`guardrails/MustCiteSource.java` (no such file) + did URL/source_id
+structural shape validation (it does not — it does literal
+`userMessage.contains(citeToken)` substring matching). The dev STOP
+caught this BEFORE any code was written. The human re-scope
+direction (2026-06-06): re-scope, stay in M-Auto-6, split C-2 into
+C-2a (R5) + C-2b (R6), use widened fences with reclassified §7,
+DO NOT do safe-partial.
+
+Scope:
+- R5 #1: `ResolveArticleTool` returns an additive `display_citation`
+  field on the result body (`source_url` if non-null/non-blank, else
+  `article_id` fallback).
+- R5 #2: rewrite `SkillGuardrailDispatcher.handleMustCiteSource`
+  (`:340-384`) from the literal `userMessage.contains(citeToken)`
+  substring check to a structural shape predicate: PASS iff the user
+  message contains a URL-shape token (`http://`/`https://` prefix) OR
+  an article_id-shape token (Salesforce-style regex derived from real
+  corpus data). Empty / null / plain-English STILL reject —
+  grounding floor preserved.
+- R5 #3: update `resolve_faq_grounded_answer.yaml` citation-token
+  wording at `:30 procedure / :31 grounding_instruction / ~:80 cite
+  phrasing / :44 cite_token_field` to point at the new
+  `display_citation` field. Minimum-edit diff; goal / role /
+  objective / search-must-precede / faq_miss escalation rule
+  byte-untouched.
+
+Dev prompt: `compact/sprint-081-dev-prompt.md` (rewritten 2026-06-06
+to encode the corrected anchors + reclassified §7). Active sprint
+contract: `docs/sprint_objective.md` (after C-1 close + this
+re-scope commit). Per-sub-sprint Codex review REQUIRED with explicit
+focus on the literal→shape semantics shift + grounding-floor
+preservation evidence.
+
+### Sub-sprint C-2b — S-Auto-27 / Sprint 082 — R6 corpus eligibility filter (PLANNING CONTEXT; launches after C-2a dev-side close)
+
+R6 corpus eligibility filter (per proposal §4.6; re-scoped after the
+dev pre-fix audit on the original C-2 STOPPED with wrong anchors
+caught). Re-scoped to reuse the existing `search_knowledge_eligible`
+field that already lives on 218/218 corpus articles (ingested-but-unused
+per the dev anchor audit), instead of introducing a parallel new
+`bot_visible` mechanism per the human re-scope decision (2026-06-06).
+
+Scope:
+- R6 #1: flip `search_knowledge_eligible: true → false` on
+  `ka41r000000LIEJAA4` (row ~272) + `ka41r000000LIEEAA4` (row ~291)
+  in `data/knowledge/knowledge_base_articles.json`. ONLY these 2
+  articles; ONLY this field.
+- R6 #2-#7: plumb the field through:
+  - `KbArticle.java` — new `searchKnowledgeEligible` column
+    (boolean, default `true`).
+  - `V17__add_kb_search_knowledge_eligible.sql` — new Flyway
+    migration (V16 is highest existing) with `NOT NULL DEFAULT TRUE`.
+  - `KnowledgeIngestionRunner.buildKbArticleFromJson` — parse the
+    field; default `true` if absent.
+  - `KnowledgeSearchService` — filter candidates by
+    `searchKnowledgeEligible != false` at the candidates → hits
+    assembly step.
+  - `KnowledgeHit` — propagate the field (or skip per pre-fix audit
+    design choice).
+  - `SearchKnowledgeTool` — structured backend INFO log on filter
+    decision (article_id + filter_reason).
+- R6 #8: direct resolve invariant — `ResolveArticleTool.byArticleId`
+  STILL returns the 2 flagged articles (filter is at search surface
+  ONLY; human-CS access preserved).
+
+Forbidden: any new parallel governance field (no `bot_visible`); any
+hardcoded article_id in Java; any title-keyword filter; any corpus
+article deletion.
+
+Dev prompt: `compact/sprint-082-dev-prompt.md` (planning context;
+becomes active sprint contract when C-2a closes). Per-sub-sprint
+Codex review REQUIRED (R6 changes corpus retrieval surface visible to
+the LLM via data field + service filter).
+
+**Sequential cadence**: C-2b launches AFTER C-2a dev-side close +
+Codex approval. Independent code surfaces but sequenced for clean
+causal attribution.
 
 ### Milestone close — milestone-shared §9 real-LLM re-bless
 
-After A + B + C-1 + C-2 all land, deliver-agent + human launch ONE
+After A + B + C-1 + C-2a + C-2b all land, deliver-agent + human launch ONE
 milestone-shared real-LLM re-bless (`autoloop/scripts/rebless_baseline.py
 --n 9 --out-dir eval_interactive/results/m-auto-6-baseline-shared-YYYYMMDD/`).
 Paired evidence against `m-auto-5-baseline-20260604-simfixed-stalledfix`.
@@ -300,7 +447,7 @@ Paired evidence against `m-auto-5-baseline-20260604-simfixed-stalledfix`.
 Routes:
 
 - **(a) Prediction holds (§5)**: M-Auto-6 closes (Class A or A-with-NBO);
-  `baseline_dir` + `docs/current_eval_baseline.md` flip; S-Auto-27
+  `baseline_dir` + `docs/current_eval_baseline.md` flip; S-Auto-28+
   Cluster B.2 / C.1 / `R-aggregate-retains-per-attempt-composite-l2`
   opens in M-Auto-7 planning OR autoloop semantic sub-sprint (OBS-S1 /
   OBS-S2 / OBS-S6 / OBS-S7) opens.
@@ -313,7 +460,7 @@ Routes:
 
 Decision is human-gated.
 
-### S-Auto-27+ — TBD (post-M-Auto-6)
+### S-Auto-28+ — TBD (post-M-Auto-6)
 
 Per the M-Auto-6 audit-cluster routing + the M-Auto-5 Codex
 non-blocking observation #3 R-item. Candidates:
@@ -330,18 +477,25 @@ May be deferred to M-Auto-7.
 ## 4. Non-goals (explicit)
 
 - **No semantic procedure edits**. No bot prompt rewrite, no skill yaml
-  procedure / wording change, no UC routing cue, no escalation posture
-  decision, no judge calibration, no CaseSpec rubric. OBS-S1 (UC-A /
-  UC-H / UC-J verify-entity procedure step), OBS-S2 (DISCOVER
+  procedure-step / wording rewrite, no UC routing cue, no escalation
+  posture decision, no judge calibration, no CaseSpec rubric. OBS-S1
+  (UC-A / UC-H / UC-J verify-entity procedure step), OBS-S2 (DISCOVER
   disambiguation), OBS-S3 (FAQ fidelity / c8 turn 6 fabrication),
   OBS-S6 (intake too literal — additionally gated on R7), OBS-S7
   (escalate-without-summary) are ALL deferred to autoloop AFTER M-Auto-6
   close.
-  - **Exception**: R5 (Sub-sprint C-2) is a one-line
-    `cite_token_field` config swap in
-    `resolve_faq_grounded_answer.yaml:44`. This is a contract-shaped
-    edit (data-field token reference), NOT a procedure / wording change.
-    Permitted per the milestone class §1.
+  - **Exception**: R5 (Sub-sprint C-2a) updates the citation-token
+    wording in `resolve_faq_grounded_answer.yaml` at `:30 procedure
+    + :31 grounding_instruction + ~:80 cite phrasing + :44
+    cite_token_field` to point at the new `display_citation` field
+    returned by `ResolveArticleTool`. This is a **citation-token
+    reference change**, minimum-edit diff (goal / role / objective /
+    search-must-precede / faq_miss escalation rule byte-untouched).
+    The contemporaneous `SkillGuardrailDispatcher.handleMustCiteSource`
+    rewrite at `:340-384` is a guardrail semantics fix (literal
+    substring → structural URL/article_id shape predicate) — a
+    grounding-floor false-negative correction, not a procedure edit.
+    Both permitted per the milestone class §1.
 - **No `IntakeFieldsRegistry.java:53-67` field-definition edits.** R1.a
   projects the existing required-fields list as-is; if any UC's
   required-fields set is itself wrong, that's a separate `eval_spec`
@@ -353,21 +507,34 @@ May be deferred to M-Auto-7.
 - **No identical-clarification cross-turn semantic dedup**. Cardinality
   budget only. M-Auto-3 §11 anti-误杀 rank-1 floor preserved (per
   `R-runtime-paraphrase-storm-search-knowledge` close + proposal §5.2).
-- **No `SkillGuardrailDispatcher` reject-logic edits.** Validator remains
-  the last line of defence; R1.a only adds the LLM-facing contract; R7
-  adds a NEW no-side-effect tool that does NOT bypass the validator on
-  the handover path.
+- **No `SkillGuardrailDispatcher` reject-logic edits** EXCEPT the
+  scoped `handleMustCiteSource` rewrite at `:340-384` in C-2a.
+  Validator remains the last line of defence on every other handler;
+  R1.a only adds the LLM-facing contract; R7 adds a NEW no-side-effect
+  tool that does NOT bypass the validator on the handover path. The
+  C-2a `handleMustCiteSource` rewrite **preserves** the grounding-floor
+  contract (empty / null / plain-English STILL reject) and widens the
+  accept criteria from "literal field-name substring" to "URL-shape OR
+  Salesforce-style article_id-shape" — a fix to a false-negative in the
+  current literal check, not a weakening.
 - **No `record_outcome` premature guard edits** (OBS-S4 by-design).
   R3.c distinguishes informational guard rejections from blocking
   errors at the UI display surface ONLY; the guard at
   `ResolveDispositionEvaluator.java:160-186` is unchanged.
-- **No corpus article deletion.** R6 adds `bot_visible: false` data
-  field to 2 `(temp)` template articles; the articles remain in corpus
-  for human CS use; only retrieval to the LLM is filtered.
-- **No `must_cite_source` guardrail logic change beyond a fallback to
-  `source_id` when `display_citation` is absent.** R5 is additive —
-  old traces (38 URL-less articles + everything that cited `source_id`
-  pre-R5) continue working.
+- **No corpus article deletion.** R6 (C-2b) flips the existing
+  `search_knowledge_eligible` data field from `true → false` on the
+  2 `(temp)` template articles; the articles remain in corpus + DB +
+  retrievable via `ResolveArticleTool.byArticleId` for human CS use;
+  only the LLM-facing search-knowledge surface is filtered.
+- **`must_cite_source` guardrail logic IS rewritten in C-2a** —
+  literal `userMessage.contains(citeToken)` substring check →
+  structural URL-shape OR article_id-shape predicate. The grounding
+  floor (require a cite token) is **preserved**; the rewrite fixes a
+  false-negative (the OLD code rejected URL-only replies that didn't
+  also literally contain the string `"source_id"`). Empty / null /
+  plain-English STILL reject. Article_id-shape regex derived from
+  real corpus data (`data/knowledge/knowledge_base_articles.json`),
+  NOT invented. No new parallel guardrail or grounding rule.
 - **No simulator / eval-framework / scoring SHA / autoloop 5-file set
   edits.** Fence-#13 SHA respected.
 - **No M-Auto-4 S-Auto-18 (escalation-family tier reshape) work.**
@@ -437,28 +604,38 @@ runtime, the following should observably move:
 ## 6. Hard fences (milestone-level)
 
 1. NO bot semantic / prompt rewrite / UC-hypothesis / escalation
-   posture / skill yaml procedure-wording / CaseSpec edit anywhere in
-   M-Auto-6. **Exception**: R5 (C-2) is a one-line `cite_token_field`
-   data-token reference swap in
-   `resolve_faq_grounded_answer.yaml:44` — contract-shaped, not
-   procedure-shaped.
+   posture / skill yaml procedure-step / CaseSpec edit anywhere in
+   M-Auto-6. **Exception**: R5 (C-2a) updates the citation-token
+   wording at `resolve_faq_grounded_answer.yaml:30 procedure + :31
+   grounding_instruction + ~:80 cite phrasing + :44 cite_token_field`
+   to point at the new `display_citation` field — minimum-edit diff;
+   goal / role / objective / search-must-precede / faq_miss escalation
+   rule byte-untouched. Permitted per §1 milestone class.
 2. NO `IntakeFieldsRegistry` content changes; R1.a projects existing
    contract as-is.
 3. NO new `escalation_reason` enum values; R2.a + R2.a#5-ext re-map
    to existing `clarification_budget_exhausted`.
 4. NO identical-clarification cross-turn content/semantic dedup; R2.a
    is cardinality-only.
-5. NO `SkillGuardrailDispatcher` reject-logic edits. R1.a only adds
-   LLM-facing schema slot; R7 adds a NEW tool that does NOT bypass the
-   validator on the handover path (validator semantics preserved).
+5. NO `SkillGuardrailDispatcher` reject-logic edits EXCEPT C-2a's
+   `handleMustCiteSource` rewrite at `:340-384` (literal substring
+   → structural URL/article_id shape; grounding floor preserved).
+   R1.a only adds LLM-facing schema slot; R7 adds a NEW tool that
+   does NOT bypass the validator on the handover path (handover
+   validator semantics preserved).
 6. NO `ResolveDispositionEvaluator` reject-logic edits. R3.c is a UI
    display distinction over CORRECT §1.4 guard rejections, not a guard
    behaviour change.
-7. NO corpus article deletion. R6 adds `bot_visible: false` data field;
-   article retained for human CS use.
-8. NO `must_cite_source` guardrail logic change beyond a fallback to
-   `source_id` when `display_citation` is absent (R5). Old traces +
-   URL-less articles preserved.
+7. NO corpus article deletion. R6 (C-2b) flips the existing
+   `search_knowledge_eligible` data field on 2 `(temp)` articles;
+   articles retained in corpus + DB for human CS use; direct resolve
+   via `ResolveArticleTool.byArticleId` unfiltered.
+8. NO `must_cite_source` guardrail logic change OTHER than the C-2a
+   `handleMustCiteSource` rewrite (literal substring → structural
+   URL/article_id shape; grounding floor preserved). Old traces +
+   URL-less articles preserved via the article_id-shape predicate.
+   The article_id-shape regex MUST be derived from real corpus data
+   (NOT invented).
 9. NO simulator / eval-framework / scoring SHA / autoloop 5-file set
    edits. Fence-#13 SHA respected.
 10. NO M-Auto-4 S-Auto-18 work (deferred to M-Auto-7+).
@@ -487,15 +664,17 @@ close + the 2026-06-05 / 2026-06-06 proposal):
   - `R-admin-trace-observability-dedup-toolevent-folding` (R3.b; proposal §4.3b; layer `infra` observability; merges with Cluster C.2 46f5b2e9 500 + double-send live UI).
   - `R-admin-trace-observability-informational-guard-badge` (R3.c; proposal §4.3c; layer `infra` observability; NEW post-ship from c2/c10/c17).
 
-- **Sub-sprint C-1 (S-Auto-25 / Sprint 080) — PLANNING CONTEXT:**
-  - `R-intake-partial-stash-update-tool` (R7; proposal §4.8; layer `skill_state` + `infra` + `prompt_projection` for new tool schema; NEW post-ship from c14; runtime enabler for OBS-S6).
-  - `R-resolve-intake-clarification-budget-mapping-extension` (R2.a#5-ext; proposal §4.7; layer `infra`; NEW post-ship from c14; preserves anti-误杀 #12 spirit).
+- **Sub-sprint C-1 (S-Auto-25 / Sprint 080) — DEV-SIDE CLOSED 2026-06-06:**
+  - `R-intake-partial-stash-update-tool` (R7; proposal §4.8; layer `skill_state` + `infra` + `prompt_projection` for new tool schema; NEW post-ship from c14; runtime enabler for OBS-S6) — **dev-side closed; Codex `APPROVE_S_AUTO_25 / blocking_count=0`; capability-wiring Option-A fence-waiver accepted; milestone evidence deferred**.
+  - `R-resolve-intake-clarification-budget-mapping-extension` (R2.a#5-ext; proposal §4.7; layer `infra`; NEW post-ship from c14; preserves anti-误杀 #12 spirit) — **dev-side closed; milestone evidence deferred**.
 
-- **Sub-sprint C-2 (S-Auto-26 / Sprint 081) — PLANNING CONTEXT; parallel-safe with C-1:**
-  - `R-citation-display-token-url-preferred` (R5; proposal §4.5; layer `infra` + `prompt_projection` for 1-line skill yaml `cite_token_field`; partial overlap with `R-canonical-url-corpus-curation` per action_bank §5).
-  - `R-corpus-bot-visible-retrieval-filter` (R6; proposal §4.6; layer `infra`; data field + tool filter).
+- **Sub-sprint C-2a (S-Auto-26 / Sprint 081) — CURRENT ACTIVE (re-scoped 2026-06-06):**
+  - `R-citation-display-token-url-preferred` (R5; proposal §4.5; re-scoped 2026-06-06 from "1-line `cite_token_field` swap" to citation contract change after the dev pre-fix audit caught wrong anchors). New layer mix: `infra` (ResolveArticleTool result body + `SkillGuardrailDispatcher.handleMustCiteSource` literal→shape rewrite) + `prompt_projection` (skill yaml citation-token wording at `:30/:31/~:80/:44`). Partial overlap with `R-canonical-url-corpus-curation` per action_bank §5 (R5 treats "article has URL but unused"; that R-item treats "article has no URL at all" — complementary).
 
-**Queued for S-Auto-27+ (post-M-Auto-6):**
+- **Sub-sprint C-2b (S-Auto-27 / Sprint 082) — PLANNING CONTEXT (launches after C-2a dev-side close; re-scoped 2026-06-06):**
+  - `R-corpus-search-knowledge-eligible-retrieval-filter` (R6; proposal §4.6; re-scoped 2026-06-06 from "new `bot_visible` data field" to "reuse existing `search_knowledge_eligible` field" after the dev anchor audit found the field already on 218/218 corpus articles, ingested-but-unused). Layer: `infra` (data + entity + V17 Flyway migration + ingestion + search service filter + hit + tool log). NOTE: the R-item was previously named `R-corpus-bot-visible-retrieval-filter`; renamed at the re-scope to reflect the field-name choice.
+
+**Queued for S-Auto-28+ (post-M-Auto-6):**
 
 - `R-aggregate-retains-per-attempt-composite-l2` (from M-Auto-5 Codex non-blocking observation #3).
 - M-Auto-6 Cluster B.2 (`primary_uc` vs `active_use_case` mismatch; authority undecided; needs research-agent decision sub-sprint).
@@ -522,15 +701,26 @@ PAUSED.
   proposal §6.5 + §7.2). Visual verification by deliver + human is the
   primary acceptance evidence; the milestone-shared Codex at M-Auto-6
   close covers B cumulatively.
-- **Sub-sprint C-1 (S-Auto-25)**: REQUIRED — R7 adds a new LLM-facing
-  tool name (projection surface); R2.a#5-ext extends the existing
-  phase-aware re-map (control-plane labeling). Semantic-touching per
-  `iteration_governance.md` §7 + `process/milestone-framework.md` §4.3.
-- **Sub-sprint C-2 (S-Auto-26)**: REQUIRED — R5 touches the LLM-facing
-  citation contract via `cite_token_field` (1-line skill yaml swap);
-  R6 changes the corpus retrieval surface visible to the LLM via a
-  `bot_visible` data field + tool filter. Both contract-shaped, both
-  semantic-touching per `iteration_governance.md` §7.
+- **Sub-sprint C-1 (S-Auto-25)**: REQUIRED — done. Verdict at the
+  S-Auto-25 close commit: `APPROVE_S_AUTO_25 / blocking_count=0`. R7
+  adds a new LLM-facing tool name (projection surface); R2.a#5-ext
+  extends the existing phase-aware re-map (control-plane labeling).
+  Five non-blocking observations recorded; capability-wiring Option-A
+  fence-waiver accepted (F2 verdict).
+- **Sub-sprint C-2a (S-Auto-26)**: REQUIRED — R5 #2 rewrites the
+  citation guardrail semantics (literal substring → structural shape);
+  R5 #3 updates the LLM-facing skill yaml citation-token wording.
+  Both semantic-touching per `iteration_governance.md` §7 +
+  `process/milestone-framework.md` §4.3. Codex focus must include the
+  literal→shape semantics shift + grounding-floor preservation
+  evidence + article_id-shape regex derived-from-data evidence.
+- **Sub-sprint C-2b (S-Auto-27)**: REQUIRED — R6 changes the corpus
+  retrieval surface visible to the LLM via the existing
+  `search_knowledge_eligible` data field + service-layer filter.
+  Data-field driven (NOT title-keyword; NOT hardcoded ID). Codex
+  focus must include the data-field-only filter evidence, direct
+  resolve invariant evidence, and forbidden-grep evidence (no
+  hardcoded article-id strings in Java; no `(temp)` keyword filter).
 
 All per-sub-sprint dev prompts and Codex prompts must be self-contained
 per `prompt-artifact-rules.md` §9.1-§9.6 and embed:
@@ -545,8 +735,9 @@ per `prompt-artifact-rules.md` §9.1-§9.6 and embed:
 - File-path fence enumerating allowed edit surface for the sub-sprint.
 
 **Milestone-shared Codex review** at M-Auto-6 close covers the cumulative
-commit range over A + B + C-1 + C-2 per `iteration_governance.md` §4.3.
-The milestone-shared review is the formal close gate.
+commit range over A + B + C-1 + C-2a + C-2b per
+`iteration_governance.md` §4.3. The milestone-shared review is the
+formal close gate.
 
 ## 9. Estimated duration
 
@@ -562,29 +753,47 @@ UI + ~80 test LOC; 2 main UI files: `SessionList.tsx`, `TraceViewer.tsx`,
 plus UI test files + ≤ ~10 LOC `SessionManager.java` diagnostic
 logging). Visual verification — no re-bless.
 
-**Sub-sprint C-1 (S-Auto-25 / Sprint 080; R7 + R2.a#5-ext)**: ~1-2 dev
-sessions per the proposal §6.7 C-1 estimate (~280 LOC, ~3-4 files:
-new `UpdateIntakeFieldsTool.java` + `ContextProjectionBuilder.java`
-projection + tool registration + `ControlKernel.java` mapping signature
-extension + 2 new/extended test classes). Per-sub-sprint Codex review
-~half a session.
+**Sub-sprint C-1 (S-Auto-25 / Sprint 080; R7 + R2.a#5-ext)** —
+SHIPPED: delivered in 1 dev session + Codex + capability-wiring
+fence-waiver decision. +30 net Java tests (path-β `IntakeFieldsMerger`
+extraction + `UpdateIntakeFieldsTool` + dispatch smoke +
+`MapBudgetToClarificationLabelTest` extension). Per-sub-sprint Codex
+review delivered `APPROVE_S_AUTO_25 / blocking_count=0`.
 
-**Sub-sprint C-2 (S-Auto-26 / Sprint 081; R5 + R6)**: ~1 dev session
-per the proposal §6.7 C-2 estimate (~130 LOC, ~4 files:
-`ResolveArticleTool.java` + `resolve_faq_grounded_answer.yaml` 1-line +
-`must_cite_source` guardrail fallback + `data/knowledge/knowledge_base_articles.json`
-2-article flag + `SearchKnowledgeTool.java` filter + ~6 unit tests).
-Can run parallel to C-1.
+**Sub-sprint C-2a (S-Auto-26 / Sprint 081; R5 citation contract fix)**:
+~1-1.5 dev sessions per the post-rewrite scope (~140 LOC, ~3 files:
+`ResolveArticleTool.java` additive `display_citation` +
+`SkillGuardrailDispatcher.handleMustCiteSource` rewrite + two `Pattern`
+constants + new `containsAcceptableCiteToken` helper +
+`resolve_faq_grounded_answer.yaml` citation-token wording at `:30/:31/~:80/:44`
++ extensions to `ResolveArticleToolTest` and `SkillGuardrailDispatcherTest`).
+Per-sub-sprint Codex review ~half a session with explicit focus on
+the literal→shape semantics shift + grounding-floor preservation +
+article_id-shape regex derived-from-data evidence.
+
+**Sub-sprint C-2b (S-Auto-27 / Sprint 082; R6 corpus eligibility
+filter)**: ~1-1.5 dev sessions per the post-rewrite scope (~180 LOC,
+~6 files: `data/knowledge/knowledge_base_articles.json` 2-article flip
++ `KbArticle.java` new column + `V17` Flyway migration + new column +
+`KnowledgeIngestionRunner` parser + `KnowledgeSearchService` filter +
+INFO log + optional `KnowledgeHit` field + optional `SearchKnowledgeTool`
+log + extensions to `KnowledgeIngestionRunnerTest` /
+`KnowledgeSearchServiceTest` / `SearchKnowledgeToolTest` /
+`ResolveArticleToolTest` direct-resolve invariant). Per-sub-sprint
+Codex review ~half a session. Launches sequentially after C-2a
+dev-side close.
 
 **Milestone close run**: ONE milestone-shared real-LLM re-bless
 (`autoloop/scripts/rebless_baseline.py --n 9`, multi-suite — bad_cases
 + anchor_outcome + shadow), ~30-60 minutes wall-time depending on
 provider latency. Plus paired-evidence review.
 
-**M-Auto-6 total**: best case (route (a)) = ~5-7 dev sessions across
-A (done) + B + C-1 + C-2 + milestone re-bless + close. Worst case
-(route (b) re-diagnosis at milestone close) = +1 sub-sprint. C-1 and
-C-2 in parallel cut the calendar time but not the dev-session count.
+**M-Auto-6 total**: best case (route (a)) = ~6-8 dev sessions across
+A (done) + B (done) + C-1 (done) + C-2a + C-2b + milestone re-bless +
+close. Worst case (route (b) re-diagnosis at milestone close) = +1
+sub-sprint. C-2a and C-2b are sequenced (not parallel) per the
+2026-06-06 re-scope to keep causal attribution clean for the
+milestone-shared Codex review.
 
 ## 10. Stop conditions (milestone-level)
 
@@ -618,8 +827,10 @@ C-2 in parallel cut the calendar time but not the dev-session count.
   flipped to `m-auto-5-baseline-20260604-simfixed-stalledfix`.
 - **M-Auto-6 (this milestone, ACTIVE)** — runtime substrate hygiene +
   admin observability + intake/clarification contract + UX/corpus
-  governance. Sub-sprint A dev-side closed 2026-06-06; B current; C-1
-  + C-2 drafted as planning context; milestone-shared re-bless at close.
+  governance. Sub-sprints A + B + C-1 dev-side closed 2026-06-06;
+  C-2a current (re-scoped from original C-2 R5+R6 bundle after the
+  dev pre-fix audit STOP); C-2b drafted as planning context (launches
+  after C-2a dev-side close); milestone-shared re-bless at close.
 - M-Auto-7+ — candidate: autoloop semantic optimization on cleaned
   surfaces (OBS-S1 UC-A/H/J verify-entity-context / OBS-S2 DISCOVER
   disambiguation cue / **OBS-S6** intake too literal — gated on R7 ship
