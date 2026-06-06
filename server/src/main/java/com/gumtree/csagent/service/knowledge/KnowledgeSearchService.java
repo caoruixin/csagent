@@ -227,6 +227,23 @@ public class KnowledgeSearchService {
                     if (article != null && Boolean.FALSE.equals(article.getIsPublished())) {
                         return null;
                     }
+                    // R6 (Sub-sprint C-2b) — search-surface eligibility filter.
+                    // Data-field driven only (KbArticle.searchKnowledgeEligible);
+                    // no title-keyword / body / content scan, no per-UC matrix,
+                    // no hardcoded article-id. CS-only template articles flagged
+                    // search_knowledge_eligible=false are dropped from the
+                    // LLM-facing search surface; resolve_article by id still
+                    // surfaces them (filter is at the search surface only).
+                    // Emit a structured INFO per drop for corpus-curation
+                    // observability — backend log only, not a user-facing
+                    // ToolEvent.
+                    if (article != null && !article.isSearchKnowledgeEligible()) {
+                        log.info("search_knowledge filter: article_id={} "
+                                        + "filter_reason=search_knowledge_eligible=false "
+                                        + "session_id={} turn_index={}",
+                                sc.articleId(), sessionId, turnIndex);
+                        return null;
+                    }
                     String canonicalUrl = article != null ? article.getSourceUrl() : null;
                     boolean canonicalUrlMissing = canonicalUrl == null || canonicalUrl.isBlank();
                     return KnowledgeHit.builder()
