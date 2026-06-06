@@ -302,14 +302,17 @@ public class ControlKernel {
             // Sprint §A1: route through the resolver so a higher-priority
             // semantic reason already on the session (e.g. ``user_requested``
             // set in step 2.5) is not overwritten by the budget close-out.
-            // R2.a #5 — phase-aware re-map so a DISCOVER free-text
-            // clarification repetition (`max-repeated-same-action`) is stamped
-            // with the accurate `clarification_budget_exhausted` reason instead
-            // of the misleading generic `turn_budget_exhausted` (c9). Guarded by
-            // phase + last-action so a RESOLVE/INTAKE repeated TOOL call keeps
+            // R2.a #5 (+ R2.a#5-ext, Sprint 080) — phase-aware re-map so a
+            // free-text clarification repetition (`max-repeated-same-action`)
+            // is stamped with the accurate `clarification_budget_exhausted`
+            // reason instead of the misleading generic `turn_budget_exhausted`:
+            // DISCOVER free-text (c9) OR RESOLVE-INTAKE free-text on an intake
+            // UC (c14). Guarded by phase + last-action + active UC so a
+            // RESOLVE repeated TOOL call, and a RESOLVE non-intake UC, both keep
             // `turn_budget_exhausted` (anti-误杀 invariant #12).
             applyEscalationReason(session, mapBudgetToEscalationReason(
-                    exceededBudget.get(), session.getCurrentPhase(), session.getLastAction()));
+                    exceededBudget.get(), session.getCurrentPhase(),
+                    session.getLastAction(), session.getActiveUseCase()));
             return forceEscalate(session, phaseBefore, userMessage, startTime,
                     "I've reached the limit of what I can assist with on this topic. " +
                     "Let me connect you with a human agent who can help further.");
@@ -749,22 +752,42 @@ public class ControlKernel {
     }
 
     /**
-     * R2.a #5 — phase-aware overload. The {@code max-repeated-same-action}
-     * budget is NOT DISCOVER-only ({@code trackRepeatedAction} fires on any
-     * repeated action/tool-call in any phase), so the single-arg mapping keeps
-     * it on the generic {@code turn_budget_exhausted}. Here we re-map it to the
-     * EXISTING {@code clarification_budget_exhausted} enum value ONLY when the
-     * repetition was a DISCOVER free-text clarification — i.e. the session is
-     * in DISCOVER at injection time AND the repeated action key is a free-text
-     * reply ({@code "answer"} / {@code "clarify"}, never a tool name). Every
-     * other budget / phase / action-key combination is delegated unchanged to
-     * {@link #mapBudgetToEscalationReason(String)}. NO new enum value is added.
+     * R2.a #5 (+ R2.a#5-ext, Sprint 080) — phase-aware overload. The
+     * {@code max-repeated-same-action} budget is NOT DISCOVER-only
+     * ({@code trackRepeatedAction} fires on any repeated action/tool-call in
+     * any phase), so the single-arg mapping keeps it on the generic
+     * {@code turn_budget_exhausted}. Here we re-map it to the EXISTING
+     * {@code clarification_budget_exhausted} enum value ONLY when the
+     * repetition was a free-text clarification round — i.e. the repeated action
+     * key is a free-text reply ({@code "answer"} / {@code "clarify"}, never a
+     * tool name) AND the session is in a phase that does free-text
+     * clarification:
+     * <ul>
+     *   <li>{@code DISCOVER} — the original R2.a #5 path (c9); or</li>
+     *   <li>{@code RESOLVE} on an intake UC
+     *       ({@link IntakeFieldsRegistry#isIntakeUseCase(String)}) — the
+     *       R2.a#5-ext path (c14): the RESOLVE-INTAKE Skill collects required
+     *       fields by asking the user free-text questions, so a repeated
+     *       clarification there is a clarification-budget hit, not a generic
+     *       turn-budget hit.</li>
+     * </ul>
+     *
+     * <p>Anti-误杀 invariant #12 is preserved: a RESOLVE repeated TOOL call
+     * (action key is a tool name, not free-text), a RESOLVE non-intake UC, and
+     * every non-{@code max-repeated-same-action} budget are all delegated
+     * unchanged to {@link #mapBudgetToEscalationReason(String)}. NO new enum
+     * value is added; {@code isIntakeUseCase} reuses the existing R1.a #2
+     * classification (zero new per-UC matrix).
      */
     static String mapBudgetToEscalationReason(String bucket, String currentPhase,
-                                              String lastAction) {
+                                              String lastAction, String activeUseCase) {
         if ("max-repeated-same-action".equals(bucket)
-                && "DISCOVER".equalsIgnoreCase(currentPhase)
-                && isFreeTextActionKey(lastAction)) {
+                && isFreeTextActionKey(lastAction)
+                && (
+                    "DISCOVER".equalsIgnoreCase(currentPhase)
+                    || ("RESOLVE".equalsIgnoreCase(currentPhase)
+                        && IntakeFieldsRegistry.isIntakeUseCase(activeUseCase))
+                )) {
             return "clarification_budget_exhausted";
         }
         return mapBudgetToEscalationReason(bucket);
