@@ -31,6 +31,12 @@ function compareSessions(a: Session, b: Session, key: SortKey, dir: SortDir): nu
       av = new Date(a.created_at).getTime();
       bv = new Date(b.created_at).getTime();
       break;
+    case 'status':
+      // Sort by the raw handling_state actually shown in the badge so the
+      // column order matches what the reviewer sees.
+      av = (a.handling_state || a.status || '').toLowerCase();
+      bv = (b.handling_state || b.status || '').toLowerCase();
+      break;
     default:
       av = (a[key] ?? '').toString().toLowerCase();
       bv = (b[key] ?? '').toString().toLowerCase();
@@ -134,7 +140,7 @@ export default function SessionList({ onSelectSession }: Props) {
               </td>
               <td style={{ padding: '10px 12px' }}>{s.use_case || '-'}</td>
               <td style={{ padding: '10px 12px' }}>
-                <StatusBadge status={s.status} />
+                <StatusBadge value={s.handling_state || s.status} />
               </td>
               <td style={{ padding: '10px 12px' }}>{s.outcome || '-'}</td>
               <td style={{ padding: '10px 12px', textAlign: 'center' }}>{s.turns}</td>
@@ -149,16 +155,36 @@ export default function SessionList({ onSelectSession }: Props) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; text: string }> = {
-    active: { bg: '#DCFCE7', text: '#166534' },
-    ended: { bg: '#E0E7FF', text: '#3730A3' },
-    escalated: { bg: '#FEF3C7', text: '#92400E' },
-  };
-  const c = colors[status?.toLowerCase()] ?? { bg: 'var(--color-bg-secondary)', text: 'var(--color-text-muted)' };
+// R3.a — full BotSession.handling_state coverage. Every raw handling_state
+// value the backend can persist (see SessionManager / ControlKernel /
+// PhaseEvaluator setHandlingState call sites) gets a distinct colour + label
+// so an admin reviewer can tell QUEUE_TO_HUMAN from HUMAN_HANDLING from CLOSED
+// at a glance — the prior three-bucket collapse hid those distinctions. The
+// coarse semantic statuses (active / escalated / ended) are kept for legacy
+// rows. Any unrecognised value still renders (grey + raw text): no session is
+// ever hidden because its state is unmapped.
+const STATUS_BADGES: Record<string, { bg: string; text: string; label: string }> = {
+  // Raw handling_state values
+  bot_handling: { bg: '#DCFCE7', text: '#166534', label: 'Bot Handling' },
+  queue_to_human: { bg: '#FEF3C7', text: '#92400E', label: 'Queued to Human' },
+  human_handling: { bg: '#DBEAFE', text: '#1E40AF', label: 'Human Handling' },
+  closed: { bg: '#E0E7FF', text: '#3730A3', label: 'Closed' },
+  // Legacy coarse semantic statuses (older rows / fallback mapping)
+  active: { bg: '#DCFCE7', text: '#166534', label: 'Active' },
+  escalated: { bg: '#FEF3C7', text: '#92400E', label: 'Escalated' },
+  ended: { bg: '#E0E7FF', text: '#3730A3', label: 'Ended' },
+};
+
+function StatusBadge({ value }: { value: string }) {
+  const key = (value ?? '').toLowerCase();
+  const known = STATUS_BADGES[key];
+  const c = known ?? { bg: 'var(--color-bg-secondary)', text: 'var(--color-text-muted)', label: value || 'unknown' };
 
   return (
     <span
+      data-testid="status-badge"
+      data-handling-state={value || 'unknown'}
+      title={value || 'unknown'}
       style={{
         display: 'inline-block',
         padding: '2px 8px',
@@ -169,7 +195,7 @@ function StatusBadge({ status }: { status: string }) {
         color: c.text,
       }}
     >
-      {status || 'unknown'}
+      {c.label}
     </span>
   );
 }
