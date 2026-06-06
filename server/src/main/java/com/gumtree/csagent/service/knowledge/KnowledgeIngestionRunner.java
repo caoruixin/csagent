@@ -31,11 +31,23 @@ import java.util.stream.Collectors;
  *   - data/knowledge/knowledge_base_articles.json
  *   - data/knowledge/article_uc_mapping.csv
  *
- * For each article:
+ * For each NEW article (insert path, --ingest or --reconcile):
  *   1. Save to kb_articles table
  *   2. Clean HTML, chunk text (ChunkingService)
  *   3. Embed each chunk via EmbeddingClient.embedBatch()
  *   4. Save chunks with embeddings to kb_chunks table
+ *
+ * <p>R8 (Sub-sprint S-Auto-28) — the runner also accepts {@code --reconcile},
+ * a metadata-only data-application mode. Under {@code --reconcile}, an article
+ * already present in {@code kb_articles} has ONLY its mutable curation columns
+ * ({@code search_knowledge_eligible} / {@code is_published} / {@code uc_tags})
+ * UPDATEd in place from the committed JSON source-of-truth — content columns
+ * and the {@code kb_chunks} embedding pipeline are never touched. Plain
+ * {@code --ingest} keeps its byte-for-byte insert-only skip-existing
+ * semantics. The metadata reconcile exists because the insert-only loader can
+ * never apply a curation-flag change (e.g. R6's
+ * {@code search_knowledge_eligible: true -> false}) to a row that already
+ * exists in a populated corpus.
  */
 @Slf4j
 @Component
@@ -65,12 +77,20 @@ public class KnowledgeIngestionRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        if (!args.containsOption("ingest") && !args.getNonOptionArgs().contains("--ingest")) {
-            log.debug("--ingest not specified, skipping knowledge ingestion");
+        boolean ingest = args.containsOption("ingest") || args.getNonOptionArgs().contains("--ingest");
+        boolean reconcile = args.containsOption("reconcile") || args.getNonOptionArgs().contains("--reconcile");
+        if (!ingest && !reconcile) {
+            log.debug("--ingest / --reconcile not specified, skipping knowledge ingestion");
             return;
         }
 
-        log.info("=== Knowledge Ingestion Started ===");
+        // --reconcile is the metadata-only data-application mode; plain
+        // --ingest is insert-only. The two flags name different modes, not the
+        // same mode with a flag stack (--ingest --reconcile is non-canonical
+        // and not pinned anywhere; at the parser level either flag opens the
+        // gate). When --reconcile is present it wins the mode selection.
+        String mode = reconcile ? "Reconcile" : "Ingestion";
+        log.info("=== Knowledge {} Started ===", mode);
         long startTime = System.currentTimeMillis();
 
         // Load UC mapping from CSV
@@ -81,15 +101,55 @@ public class KnowledgeIngestionRunner implements ApplicationRunner {
         List<JsonNode> articles = loadArticlesJson();
         log.info("Loaded {} articles from JSON", articles.size());
 
-        // Get existing article IDs to skip
-        Set<String> existingIds = kbArticleRepository.findAll().stream()
-                .map(KbArticle::getArticleId)
-                .collect(Collectors.toSet());
-        log.info("Found {} existing articles in DB (will be skipped)", existingIds.size());
+        // Index existing articles by id. The entity is kept in hand (not just
+        // the id) so --reconcile can UPDATE the mutable curation columns in
+        // place without a per-article findById round-trip; --ingest still only
+        // needs presence (containsKey) to skip.
+        Map<String, KbArticle> existingById = kbArticleRepository.findAll().stream()
+                .collect(Collectors.toMap(KbArticle::getArticleId, a -> a, (a, b) -> a));
+        log.info("Found {} existing articles in DB", existingById.size());
 
-        int articlesProcessed = 0;
-        int articlesSkipped = 0;
+        IngestionStats stats = processArticles(articles, ucMappings, existingById, reconcile);
+
+        long elapsed = System.currentTimeMillis() - startTime;
+        log.info("=== Knowledge {} Complete ===", mode);
+        if (reconcile) {
+            log.info("  articlesReconciled={} articlesInsertedNew={} articlesUnchanged={}",
+                    stats.articlesReconciled(), stats.articlesInsertedNew(), stats.articlesUnchanged());
+        } else {
+            log.info("  Articles processed: {}", stats.articlesInsertedNew());
+            log.info("  Articles skipped (already in DB): {}", stats.articlesUnchanged());
+        }
+        log.info("  Total chunks created: {}", stats.totalChunks());
+        log.info("  Total time: {}ms ({}s)", elapsed, elapsed / 1000.0);
+    }
+
+    /**
+     * Shared per-article application loop for both {@code --ingest}
+     * (insert-only) and {@code --reconcile} (metadata-only update of existing
+     * rows + insert of new rows). Package-private so the insert / skip /
+     * reconcile branches can be unit-tested with mocked repositories without
+     * reading the on-disk corpus.
+     *
+     * <p>Branch semantics, first match wins per article:
+     * <ul>
+     *   <li>existing row + {@code reconcile} → {@link #reconcileExisting}
+     *       (curation-only UPDATE; counts reconciled vs unchanged);</li>
+     *   <li>existing row + plain ingest → skip (counted unchanged; no write,
+     *       no chunk/embed — byte-for-byte unchanged insert-only behaviour);</li>
+     *   <li>new row (either mode) → {@link #processArticle} insert path
+     *       (chunk + embed + save).</li>
+     * </ul>
+     */
+    IngestionStats processArticles(List<JsonNode> articles,
+                                   Map<String, String[]> ucMappings,
+                                   Map<String, KbArticle> existingById,
+                                   boolean reconcile) {
+        int articlesReconciled = 0;
+        int articlesInsertedNew = 0;
+        int articlesUnchanged = 0;
         int totalChunks = 0;
+        OffsetDateTime now = OffsetDateTime.now();
 
         for (JsonNode articleNode : articles) {
             String articleId = articleNode.path("article_id").asText(null);
@@ -98,31 +158,119 @@ public class KnowledgeIngestionRunner implements ApplicationRunner {
                 continue;
             }
 
-            // Skip already-ingested articles
-            if (existingIds.contains(articleId)) {
-                articlesSkipped++;
+            KbArticle existing = existingById.get(articleId);
+            if (existing != null) {
+                if (reconcile) {
+                    if (reconcileExisting(articleNode, ucMappings, existing, now)) {
+                        articlesReconciled++;
+                    } else {
+                        articlesUnchanged++;
+                    }
+                } else {
+                    // Plain --ingest: skip already-ingested articles, untouched.
+                    articlesUnchanged++;
+                }
                 continue;
             }
 
+            // New article: insert path (chunk + embed + save) under BOTH modes.
             try {
                 int chunksCreated = processArticle(articleNode, ucMappings);
                 totalChunks += chunksCreated;
-                articlesProcessed++;
+                articlesInsertedNew++;
 
-                if (articlesProcessed % 10 == 0) {
-                    log.info("Progress: {} articles processed, {} chunks created", articlesProcessed, totalChunks);
+                if (articlesInsertedNew % 10 == 0) {
+                    log.info("Progress: {} articles inserted, {} chunks created",
+                            articlesInsertedNew, totalChunks);
                 }
             } catch (Exception e) {
                 log.error("Failed to process article {}: {}", articleId, e.getMessage(), e);
             }
         }
 
-        long elapsed = System.currentTimeMillis() - startTime;
-        log.info("=== Knowledge Ingestion Complete ===");
-        log.info("  Articles processed: {}", articlesProcessed);
-        log.info("  Articles skipped (already in DB): {}", articlesSkipped);
-        log.info("  Total chunks created: {}", totalChunks);
-        log.info("  Total time: {}ms ({}s)", elapsed, elapsed / 1000.0);
+        return new IngestionStats(articlesReconciled, articlesInsertedNew, articlesUnchanged, totalChunks);
+    }
+
+    /**
+     * R8 (Sub-sprint S-Auto-28) — reconcile an already-present article's
+     * MUTABLE CURATION columns to the committed JSON source-of-truth, in place.
+     *
+     * <p>Sets ONLY {@code search_knowledge_eligible} / {@code is_published} /
+     * {@code uc_tags} from JSON, reusing the {@link #buildKbArticleFromJson}
+     * parse idioms ({@code path(...).asBoolean(true)} and
+     * {@link #extractUcTagsStatic}). Content columns ({@code title} /
+     * {@code summary} / {@code description} / {@code source_url} /
+     * {@code url_category} / {@code token_count}) and the embedding pipeline
+     * ({@code kb_chunks}) are NEVER touched — the existing managed entity is
+     * loaded, the curation fields are mutated, and {@code save()} issues the
+     * row UPDATE. No re-chunk, no re-embed (anti-误杀 #2 / #3).
+     *
+     * <p>The entity is saved (and {@code updatedAt} bumped) ONLY when at least
+     * one curation column actually changed; an already-in-sync row issues no
+     * write and is counted "unchanged". That is what makes the run summary
+     * report {@code articlesReconciled} as the count of rows whose curation
+     * actually moved (e.g. exactly the 2 templates R6 flipped).
+     *
+     * @return {@code true} iff a curation column changed (row was UPDATEd).
+     */
+    boolean reconcileExisting(JsonNode articleNode,
+                              Map<String, String[]> ucMappings,
+                              KbArticle existing,
+                              OffsetDateTime now) {
+        List<String> changes = new ArrayList<>();
+
+        // search_knowledge_eligible — primitive boolean; absent/null defaults
+        // true (the published_status idiom reused from buildKbArticleFromJson).
+        boolean desiredEligible = articleNode.path("search_knowledge_eligible").asBoolean(true);
+        if (existing.isSearchKnowledgeEligible() != desiredEligible) {
+            changes.add("search_knowledge_eligible " + existing.isSearchKnowledgeEligible()
+                    + " -> " + desiredEligible);
+            existing.setSearchKnowledgeEligible(desiredEligible);
+        }
+
+        // is_published — JSON key is `published_status`; absent/null defaults true.
+        boolean desiredPublished = articleNode.path("published_status").asBoolean(true);
+        if (!Boolean.valueOf(desiredPublished).equals(existing.getIsPublished())) {
+            changes.add("is_published " + existing.getIsPublished() + " -> " + desiredPublished);
+            existing.setIsPublished(desiredPublished);
+        }
+
+        // uc_tags — mirror the insert-path derivation EXACTLY (JSON array
+        // first, CSV mapping fallback) so reconcile never clobbers CSV-derived
+        // tags on an article whose JSON omits the field.
+        String[] desiredUcTags = extractUcTagsStatic(articleNode);
+        if ((desiredUcTags == null || desiredUcTags.length == 0)
+                && ucMappings != null && ucMappings.containsKey(existing.getArticleId())) {
+            desiredUcTags = ucMappings.get(existing.getArticleId());
+        }
+        if (!Arrays.equals(existing.getUcTags(), desiredUcTags)) {
+            changes.add("uc_tags " + Arrays.toString(existing.getUcTags())
+                    + " -> " + Arrays.toString(desiredUcTags));
+            existing.setUcTags(desiredUcTags);
+        }
+
+        if (changes.isEmpty()) {
+            return false;
+        }
+
+        existing.setUpdatedAt(now);
+        kbArticleRepository.save(existing);
+        log.info("Knowledge reconcile: article_id={} curation updated: {}",
+                existing.getArticleId(), String.join("; ", changes));
+        return true;
+    }
+
+    /**
+     * Per-run application counts. {@code articlesReconciled} is the number of
+     * existing rows whose curation columns actually changed (reconcile mode);
+     * {@code articlesInsertedNew} the new-article inserts (either mode);
+     * {@code articlesUnchanged} existing rows skipped (ingest mode) or already
+     * in sync (reconcile mode).
+     */
+    record IngestionStats(int articlesReconciled,
+                          int articlesInsertedNew,
+                          int articlesUnchanged,
+                          int totalChunks) {
     }
 
     /**
