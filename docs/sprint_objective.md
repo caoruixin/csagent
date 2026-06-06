@@ -1,489 +1,533 @@
 ---
-title: Sub-sprint B — S-Auto-24 / Sprint 079 — R3 admin trace observability (R3.a session-list completeness + R3.b dedup ToolEvent folding + R3.c informational guard rejection badge)
+title: Sub-sprint C-1 — S-Auto-25 / Sprint 080 — R7 update_intake_fields tool + R2.a#5-ext phase-aware re-map RESOLVE-intake extension
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
-source_of_truth: this file + docs/solutions/2026-06-05-runtime-bad-cases-handover-schema-discover-counter.md §4.3 + §6.3 (R3.a/b/c three sub-items)
+source_of_truth: this file + docs/solutions/2026-06-05-runtime-bad-cases-handover-schema-discover-counter.md §4.7 (R2.a#5-ext) + §4.8 (R7) + §6.7 (Sub-sprint C-1 packaging) + compact/sprint-080-dev-prompt.md (self-contained executable view)
 last_reviewed: 2026-06-06
 review_cadence: per sub-sprint
-supersedes: docs/sprints/sprint-078-objective.md
+supersedes: docs/sprints/sprint-079-objective.md
 superseded_by: null
 notes: >
-  Sub-sprint B of M-Auto-6 (Runtime substrate hygiene + observability).
-  Activated 2026-06-06 after S-Auto-23 dev-side close (smoke-verified +
-  Codex-approved; milestone-level outcome evidence deferred to the
-  M-Auto-6 milestone-shared re-bless).
+  Sub-sprint C-1 of M-Auto-6 (Runtime substrate hygiene + admin
+  observability + intake/clarification contract + UX/corpus governance).
+  Activated 2026-06-06 after Sub-sprint B dev-side close (visual-verified
+  + §7-EXEMPT — no per-sub-sprint Codex required). Sub-sprint A
+  (R1.a + R2.a + R4.a) is dev-side closed and smoke-verified per
+  `docs/sprints/sprint-078-objective.md`. Sub-sprint B (R3.a + R3.b +
+  R3.c) is dev-side closed and visual-verified per
+  `docs/sprints/sprint-079-objective.md`. The outcome-evidence re-bless
+  waits for C-1 + C-2 to land — single milestone-shared re-bless at
+  M-Auto-6 close.
 
-  Scope (UI/observability only; zero runtime semantic surface):
-  - R3.a — `SessionList.tsx` StatusBadge renders the COMPLETE set of
-    `BotSession.HandlingState` terminal values so c7-style "admin can't
-    find the case" investigations have a paper trail.
-  - R3.b — `TraceViewer.tsx` folds A1-dedup'd ToolEvent records by
-    default with an "↳ N dedup'd repeats" indicator that EXPANDS to
-    preserve full audit (the c8 readability problem: 0ms dedup events
-    look like a bug because the UI doesn't render the `deduplicated=true`
-    flag).
-  - R3.c — `TraceViewer.tsx` distinguishes INFORMATIONAL guard rejection
-    events (e.g. `progressive_resolve_record_outcome_premature` from
-    c2 / c10 / c17 — the guard is CORRECT per §1.4) from BLOCKING runtime
-    errors (transport / 5xx / OOM). Distinct badge + collapsed-by-default
-    display; expand reveals the guard rationale string. Guard behaviour
-    itself is UNTOUCHED — this is purely a UI display distinction.
+  Scope (intake/clarification runtime contract; semantic-touching at the
+  tool-schema surface via R7):
+  - R7 (proposal §4.8) — new `update_intake_fields(fields={...})` tool.
+    Free-form `string → string` map argument; reuses existing
+    `persistInlineIntakeFields` merge path via a shared helper (R7 #3
+    audit decides α direct-call vs β refactor); does NOT trigger the
+    handover validator. LLM gains a runtime mechanism to accumulate
+    intake state across turns without the "send-or-stall" dilemma.
+    Runtime enabler for OBS-S6 (autoloop teaching LLM to infer intake
+    fields from free text — deferred until R7 ships).
+  - R2.a#5-ext (proposal §4.7) — narrow extension of
+    `ControlKernel.mapBudgetToEscalationReason` (3-arg overload shipped
+    at S-Auto-23 commit `247da11`) to also fire on `phase=RESOLVE AND
+    IntakeFieldsRegistry.isIntakeUseCase(activeUseCase) AND
+    isFreeTextActionKey(lastAction)`. Anti-误杀 #12 spirit preserved
+    (RESOLVE non-intake UC + any-phase tool-call repeat stay
+    `turn_budget_exhausted`). Reuses existing
+    `clarification_budget_exhausted` enum value (no new enum).
 
-  Sub-sprint A (R1+R2+R4 bundle) is dev-side closed and smoke-verified
-  per `docs/sprints/sprint-078-objective.md`; the outcome-evidence
-  re-bless waits for Sub-sprint B + Sub-sprint C-1 + Sub-sprint C-2 to
-  all land. Sub-sprint C-1 (S-Auto-25 / Sprint 080; R7 + R2.a#5-ext) and
-  Sub-sprint C-2 (S-Auto-26 / Sprint 081; R5 + R6) are drafted as
-  planning context in `compact/sprint-080-dev-prompt.md` and
-  `compact/sprint-081-dev-prompt.md` respectively; C-2 can run parallel
-  to C-1 per the human 2026-06-06 packaging decision (independent
-  surfaces).
+  Per-sub-sprint Codex review REQUIRED (R7 adds a new LLM-facing tool
+  name; semantic-touching per `iteration_governance.md` §7).
 
-  Forbidden: any runtime Java behaviour change beyond a thin diagnostic
-  logging addition at #4 (NO state-machine, NO ControlKernel,
-  AgentRunLoopImpl, ContextProjectionBuilder, or tool implementation
-  edits); any prompt / yaml / CaseSpec / simulator / scoring / autoloop
-  5-file SHA-locked set touch; `SkillGuardrailDispatcher` reject logic
-  (3.c is UI-only — the guard remains the source of truth);
-  `BotSession.HandlingState` enum changes (UI renders existing values);
-  audit data loss (folding + collapsing must always be expandable).
+  Sub-sprint C-2 (S-Auto-26 / Sprint 081; R5 + R6 — citation display
+  token + corpus `bot_visible` filter) is drafted as planning context
+  in `compact/sprint-081-dev-prompt.md`; launches after C-1 dev-side
+  closes (sequential per human 2026-06-06 decision).
 
-  Acceptance: visual verification by deliver-agent + human on c7/c8 +
-  c2/c10/c17 trace shapes; UI test suite green; Java baseline `1244/1/0/2`
-  preserved with possibly +1-2 logging-related test additions; eval pytest
-  / autoloop pytest UNCHANGED. NO outcome-evidence re-bless at this
-  sub-sprint close — that runs at the M-Auto-6 milestone close.
+  Forbidden: any semantic procedure / wording change; any new
+  `escalation_reason` enum value; any `IntakeFieldsRegistry` content
+  change (registry contract iterated as the source of truth); any
+  `SkillGuardrailDispatcher` reject-logic change (R7 does NOT bypass
+  the validator; the validator remains the last line of defence for
+  intake completion); any `BudgetChecker` budget-definition change;
+  any auto-derivation of `update_intake_fields` calls from runtime
+  state (the tool MUST be LLM-invoked); any UI / yaml / CaseSpec /
+  simulator / scoring / autoloop 5-file SHA-locked set touch;
+  `baseline_dir` or `docs/current_eval_baseline.md` move (both flip
+  at M-Auto-6 milestone close after the milestone-shared re-bless).
 
-  `baseline_dir` UNCHANGED (`m-auto-5-baseline-20260604-simfixed-stalledfix`
-  per M-Auto-5 close); `docs/current_eval_baseline.md` UNCHANGED.
+  `baseline_dir` UNCHANGED (`m-auto-5-baseline-20260604-simfixed-stalledfix`);
+  `docs/current_eval_baseline.md` UNCHANGED. NO outcome-evidence
+  re-bless at this sub-sprint close — that runs at the M-Auto-6
+  milestone close.
 ---
 
-# Sub-sprint B — S-Auto-24 / Sprint 079 — R3 admin trace observability
+# Sub-sprint C-1 — S-Auto-25 / Sprint 080 — R7 + R2.a#5-ext
 
 ## Class
 
 **Layer (per `iteration_governance.md` §3.2):**
 
-- **R3.a** → `infra` (observability). UI-only; renders existing
-  `BotSession.HandlingState` enum values that the backend already exposes.
-- **R3.b** → `infra` (observability). UI-only; renders the existing
-  `ToolEvent.deduplicated` flag persisted by A1 dedup (S-Auto-12).
-- **R3.c** → `infra` (observability). UI-only display distinction over
-  the existing guard-rejection trace event shape (no guard behaviour
-  change).
+- **R7** → `skill_state` + `infra` + `prompt_projection`. `prompt_projection`
+  because R7 adds a new tool name in the LLM-facing tool list (the
+  `tool_schemas` projection); `skill_state` because the tool's effect is
+  cross-turn `session.intakeFields` accumulation; `infra` because dispatch
+  reuses the existing merge path with no semantic decision added.
+- **R2.a#5-ext** → `infra`. Control-plane labeling extension to the
+  already-shipped phase-aware re-map function; no new semantic surface;
+  no new enum value.
 
-**§7 stanza requirement:** **EXEMPT** per proposal §7.2 + §6.5 (pure
-UI/observability sub-sprint; zero semantic surface touched). Stanza
-documented in §7 below as record-only.
+**§7 stanza requirement:** **REQUIRED** (R7 adds a new LLM-facing tool
+name; semantic-touching per `iteration_governance.md` §7). Full stanza in
+§7 below.
 
-**Tier-0 invariant:** This sub-sprint adds no Tier-0 invariant. R3.*
-is read-side rendering only.
+**Tier-0 invariant:** This sub-sprint adds no Tier-0 invariant.
 
-**Semantic hardcode:** None introduced. UI rendering of existing enum
-values + existing structured flags; zero content/keyword matching of
-user messages or article content.
+- R7's no-side-effect tool only WRITES `session.intakeFields` via the
+  existing `persistInlineIntakeFields` merge path. It does NOT bypass
+  the handover validator at `SkillGuardrailDispatcher.java:265-298`
+  (which IS Tier-0 contract — the validator remains the last line of
+  defence for intake completion regardless of which tool persisted the
+  fields).
+- R2.a#5-ext extends an existing mapping function with one additional
+  AND-guarded condition; no new mapping; no new enum value; no removal
+  of existing guards.
+
+**Semantic hardcode:** No semantic hardcode introduced.
+
+- R7's `fields` argument is a free-form `string → string` map (mirroring
+  the `intake_fields` slot shipped at R1.a). NO per-UC enumeration of
+  property names in the tool schema; NO server-side derivation of which
+  fields belong to which UC (the per-UC required-fields contract is
+  already projected via `required_intake_fields_for_active_uc` from
+  R1.a #2). The new tool just persists what the LLM passes.
+- R2.a#5-ext's extension is
+  `RESOLVE phase + isIntakeUseCase(activeUseCase) + isFreeTextActionKey(lastAction)`.
+  `IntakeFieldsRegistry.isIntakeUseCase` is the SAME classification the
+  existing R1.a #2 projection uses — zero new per-UC matrix.
+- R7 does NOT auto-derive calls from runtime state; the tool MUST be
+  LLM-invoked.
 
 ## Goal
 
 After this sub-sprint ships:
 
-- **Admin observability surface is honest for bad-case triage.** Every
-  session reachable in the backend is visible in `SessionList.tsx`
-  regardless of `handling_state`; A1-dedup'd ToolEvent records render
-  as a folded "↳ N dedup'd repeats" indicator (expand to see full audit);
-  informational guard rejections (record_outcome premature, intake
-  validator rejections, similar §1.4 guard rejections) render as a
-  distinct badge separate from real runtime errors.
-- **c7 / c8 / c2 / c10 / c17 admin-side symptoms resolved at the UI
-  surface.** The underlying runtime is already correct (A1 dedup
-  persists `ToolEvent.deduplicated` correctly per S-Auto-12; record_outcome
-  guard at `ResolveDispositionEvaluator.java:160-186` is correct per
-  §1.4). Only the UI display needs to catch up.
-- **Audit capability preserved end-to-end.** Folding / collapsing /
-  badge distinctions are DISPLAY choices; the underlying trace records
-  remain identical and fully expandable (anti-误杀 §11 PARAPHRASE_STORM
-  audit unaffected; guard rationale strings remain readable).
-- **Future "case missing in admin" investigations have a paper trail**
-  via the diagnostic logging at #4.
+- **R7 wiring**: a new `update_intake_fields(fields={...})` tool is
+  declared in the projection's `tool_schemas` (same level as
+  `request_handover`, `search_knowledge`, etc.); the server dispatches
+  it via the standard `ToolDispatcher` path; the dispatch handler calls
+  the existing `persistInlineIntakeFields(session, call)` merge logic
+  (same as the `request_handover` intake-fields persist path) WITHOUT
+  routing through the handover validator. The tool returns
+  `{"status": "ok", "fields_merged": <count>, "fields_persisted": [...]}`
+  and emits a normal `ToolEvent` to the trace.
+- **R2.a#5-ext mapping**: the existing 3-arg
+  `mapBudgetToEscalationReason(bucket, phase, lastAction)` overload at
+  `ControlKernel.java:763-771` is extended (signature recommendation:
+  add `activeUseCase` parameter; alternative: 4-arg overload alongside
+  the 3-arg) to also fire on
+  `phase=RESOLVE AND IntakeFieldsRegistry.isIntakeUseCase(activeUseCase) AND isFreeTextActionKey(lastAction)`.
+  Anti-误杀 #12 spirit preserved: RESOLVE non-intake UC + any phase +
+  any tool-call repeat remain `turn_budget_exhausted`.
 
-NOT a goal: changing any runtime behaviour; changing guard logic;
-changing eval / scoring / simulator; surfacing any semantic decision;
-modifying `BotSession.HandlingState` enum.
+NOT a goal:
 
-## Scope (executable, #1–#6)
+- Modifying `IntakeFieldsRegistry` content or contract.
+- Modifying `SkillGuardrailDispatcher` reject logic (handover validator
+  unchanged — c14's intake completion is still gated by the validator).
+- Modifying `BudgetChecker` budget definitions.
+- Adding new `escalation_reason` enum values.
+- Routing the new tool through the handover validator (the whole point
+  of R7 is that it does NOT trigger the validator — that path remains
+  `request_handover`-only).
+- Changing skill yaml procedures (OBS-S6 — autoloop teaching LLM to
+  call the new tool — is autoloop work after M-Auto-6 close).
+- Any LLM-side semantic decision (the LLM decides WHEN to call
+  `update_intake_fields` and what fields to pass; the runtime does NOT
+  derive the call from message content).
 
-### #1 — `SessionList.tsx` StatusBadge: full terminal handling_state coverage (R3.a)
+## Scope (executable, #1–#7)
 
-**Anchor:** `ui/.../SessionList.tsx` (admin session-list view).
+The dev prompt at `compact/sprint-080-dev-prompt.md` is the
+self-contained executable view of this contract; sync invariant per
+`prompt-artifact-rules.md` §9.3. The scope steps below are the canonical
+version; the prompt mirrors them with one-page cumulative context +
+read-order wrappers added.
 
-**Change:** StatusBadge component renders the COMPLETE set of
-`BotSession.HandlingState` values that the backend exposes (verify the
-exact set against the Java enum: `AVAILABLE` / `RUNNING` / `ESCALATE` /
-`QUEUE_TO_HUMAN` / `CLOSED` or whatever the current enum lists). For
-each value: distinct visual treatment (color + label). NO filtering of
-sessions at the UI level (the c7 root suspicion was that
-ESCALATE-terminated sessions are silently filtered out).
+### #1 — R7 step 1: `UpdateIntakeFieldsTool.java` new tool class
 
-**Why:** c7 surfaced that the admin list does not show all
-handling_states; the `DemoInspectionController.java:86` endpoint uses
-`sessionRepository.findAll()` (no filter), so the UI side is the
-candidate filter point. Verifying + fixing the StatusBadge rendering
-ensures every session is visible.
+Standard `Tool` interface implementation. Tool name `update_intake_fields`;
+arguments schema `{"fields": {"type": "object", "additionalProperties":
+{"type": "string"}}}`; required arguments `fields` (non-empty structural
+validation at dispatch); description references
+`required_intake_fields_for_active_uc` projection field (R1.a #2). Tool
+result body: `{"status": "ok", "fields_merged": <int>,
+"fields_persisted": [...]}`. Trace event: standard `ToolEvent`.
 
-### #2 — `TraceViewer.tsx` dedup ToolEvent folding (R3.b)
+### #2 — R7 step 2: dispatch handler reuses `persistInlineIntakeFields`
 
-**Anchor:** `ui/.../TraceViewer.tsx` lines 399-471 (tool_call rendering).
+Dispatch handler validates `arguments.fields` is a non-empty
+`Map<String, String>` (structural; rejects with standard
+tool-validation error shape if empty or wrong type), then invokes the
+existing `persistInlineIntakeFields(session, call)` merge logic — OR
+the shared helper extracted by the #3 audit. Behaviour-equivalent to
+the `request_handover` persist path on a fixed input.
 
-**Change:** When rendering tool_call events, check the
-`deduplicated=true` flag (already persisted by
-`AgentRunLoopImpl.java:580-619` A1 dedup):
+### #3 — R7 step 3: PRE-FIX `persistInlineIntakeFields` reuse audit
 
-- Group consecutive tool_call events with the same `tool_name` +
-  `arguments` hash where ANY of them carry `deduplicated=true`.
-- Render the FIRST event normally; collapse subsequent
-  `deduplicated=true` events into a single "↳ N dedup'd repeats"
-  indicator below the primary event.
-- Indicator is CLICKABLE: click to expand the full list of dedup'd
-  events (each with its original timestamp + `originalAtStep`
-  reference).
-- Default folded state preserves audit capability (full data still
-  persisted; just not displayed by default).
+Mandatory audit before #2 wiring: read
+`AgentRunLoopImpl.java:487-494` + the method body. Confirm
+(a) whether the method is private and tightly coupled to
+`request_handover`, OR already structured as a reusable helper;
+(b) whether it depends on any `call` field other than
+`call.arguments.intake_fields`; (c) whether it gates on
+`IntakeFieldsRegistry.isIntakeUseCase(activeUseCase)` before persisting.
 
-**Why:** c8 showed multiple 0ms tool_call events that looked like a
-bug to the human reviewer; in fact they were A1 dedup audit records.
-Folding by default makes the trace readable while preserving the audit
-trail (anti-误杀 §11 PARAPHRASE_STORM audit unaffected).
+Two outcomes:
 
-### #3 — `TraceViewer.tsx` informational guard rejection badge (R3.c)
+- **(α) Already reusable** — invoke directly. Document in handoff §1.
+- **(β) Tightly coupled** — refactor to a shared helper (e.g.
+  `IntakeFieldsMerger.merge(session, fieldsMap)`); the
+  `request_handover` path now calls the helper too. The refactor MUST
+  be byte-equivalent on the `request_handover` path (characterization
+  test required).
 
-**Anchor:** `ui/.../TraceViewer.tsx` (tool_call rendering + guard event
-rendering — the exact line range depends on where guard rejections
-currently surface; if they're rendered alongside tool_calls, the
-distinction is a per-event badge; if they have a separate render path,
-3.c lands there).
+**Hard fence:** the audit MUST NOT change the merge semantics. If it
+surfaces that the current path has a subtle behaviour the new tool
+would break, STOP and surface to deliver-agent.
 
-**Change:** Distinguish INFORMATIONAL guard rejection events from
-BLOCKING runtime errors at the trace UI level. The current UI renders
-both as red-tinted errors which causes c2/c10/c17 human-review confusion
-(a CORRECT §1.4 guard rejection looks identical to a transport 500 or a
-crashed tool dispatch).
+### #4 — R7 step 4: tool registration + projection schema declaration
 
-Categorisation criteria (UI-side, derived from the existing trace event
-shape — no new server payload required if the existing payload already
-distinguishes; if not, surface as STOP):
+Register `UpdateIntakeFieldsTool` in the tool registry / `ToolDispatcher`
+constructor; add the tool's arguments-schema projection to
+`ContextProjectionBuilder.java` `tool_schemas` emission (where
+`request_handover` schema is built — R1.a #1 shipped at `:262-281`).
 
-- **Informational guard rejection** — trace event whose error class /
-  rejection code matches a known §1.4 informational guard:
-  - `progressive_resolve_record_outcome_premature` (record_outcome
-    submitted in phase ≠ CONFIRM/CLOSE; guard at
-    `ResolveDispositionEvaluator.java:160-186` is CORRECT — c2 / c10 /
-    c17 surfaced this confusion).
-  - `intake_required_fields_missing_for_intake_complete` (handover
-    submitted without `intake_fields` populated; guard at
-    `SkillGuardrailDispatcher.java:265-298` is CORRECT — c1/c5/c6 pre-fix
-    pattern; preserved at all times even after Sub-sprint A's schema
-    declaration because dispatching tools may still reject partial
-    intake).
-  - Add others as discovered (the categoriser list is a UI-side
-    allow-list driven by the rejection-code string; NO server-side
-    behavioural change). Source the canonical list from the Java guard
-    constants if accessible (e.g. as exported constants from
-    `SkillGuardrailDispatcher` or `ResolveDispositionEvaluator`); if no
-    such export exists, hard-code the UI-side list with a comment
-    citing the guard file:line ranges so the allow-list cannot drift
-    silently.
-- **Blocking runtime error** — anything else (transport, 5xx, OOM,
-  uncaught exception, tool dispatch failure, etc.).
+**Hard fence:** the projection MUST include the tool's description
+referencing `required_intake_fields_for_active_uc` so the LLM knows
+which fields to populate. The tool description MUST NOT enumerate
+per-UC field names (those come from the registry-driven projection).
 
-UI rendering distinction:
+### #5 — R2.a#5-ext: extend phase-aware mapping to RESOLVE-intake free-text
 
-- Informational: yellow / blue badge ("Informational guard rejection")
-  + collapsed-by-default detail; expand reveals the rejection-code
-  string + the guard rationale ("Phase ≠ CONFIRM/CLOSE; outcome not
-  recordable yet" or "intake_fields missing"). Distinct from red error
-  badge.
-- Blocking: existing red error badge (UNCHANGED).
-- Both ALWAYS expandable to the full original trace payload (no audit
-  data loss).
+Anchor: `ControlKernel.java:763-771` (3-arg overload shipped at
+S-Auto-23 commit `247da11`).
 
-**Hard constraint:** the categoriser MUST NOT weaken the guard itself.
-This is a UI display distinction over events the guard ALREADY produces.
-If a guard somewhere is misclassified by the UI allow-list, the
-SAFER default is to render it as a blocking error (preserve human
-attention) rather than informational (which would visually downgrade
-a real issue).
+Design choice **(A) recommended**: extend the 3-arg signature to take
+`activeUseCase`; update all call sites (the only production call site
+per Codex §1 R2.a #5 verdict is at `:305-313`). Alternative **(B)**:
+4-arg overload alongside 3-arg (delegate 3-arg → 4-arg with `null`
+activeUseCase).
 
-**Why:** c2 / c10 / c17 — three independent traces — surfaced human
-reviewers being confused by record_outcome guard rejections that look
-like crashes. The fix is UI-side only because the runtime is already
-correct per §1.4 (`OBS-S4` is the autoloop concern about LLM timing;
-that is deferred). With R3.c, human reviewers can distinguish
-"informational: bot tried to record outcome too early, guard correctly
-held it back" from "blocking: tool actually crashed".
+Mapping condition (post-extension):
 
-### #4 — `TraceViewer.tsx` terminal handling_state indicator
+```java
+if ("max-repeated-same-action".equals(bucket)
+        && isFreeTextActionKey(lastAction)
+        && (
+            "DISCOVER".equalsIgnoreCase(currentPhase)
+            || ("RESOLVE".equalsIgnoreCase(currentPhase)
+                && IntakeFieldsRegistry.isIntakeUseCase(activeUseCase))
+        )) {
+    return "clarification_budget_exhausted";
+}
+return mapBudgetToEscalationReason(bucket);
+```
 
-**Anchor:** `ui/.../TraceViewer.tsx` (header / metadata area).
+**Anti-误杀 #12 spirit preserved:**
+- RESOLVE + non-intake UC + any action → `turn_budget_exhausted`.
+- Any phase + any tool-call repeat → `turn_budget_exhausted`.
+- DISCOVER + free-text → `clarification_budget_exhausted` (existing).
+- RESOLVE + intake UC + free-text → `clarification_budget_exhausted`
+  (NEW).
 
-**Change:** Display the session's terminal `handling_state` value
-prominently at the trace header (separate from the session-list badge).
-For ESCALATE / QUEUE_TO_HUMAN, additionally surface the
-`escalation_reason` enum value if present.
+### #6 — Anti-误杀 test suite (R7 + R2.a#5-ext)
 
-**Why:** c7 trace was "found" in admin but the terminal state was not
-obvious — adding the explicit header makes the disposition clear.
+New test classes:
 
-### #5 — Diagnostic logging for handling_state transitions
+- `server/src/test/java/.../UpdateIntakeFieldsToolTest.java`
+- Extend `MapBudgetToClarificationLabelTest.java` (existing) with
+  RESOLVE intake positive + RESOLVE non-intake negative + tool-call
+  negative + other-budget negative + no-new-enum assertion.
+- If #3 chose path (β): characterization test comparing refactored
+  helper output to pre-refactor inline merge on a fixed input.
 
-**Anchor:** `server/.../SessionManager.java` OR the equivalent client-side
-hook in `ui/.../adminApi.ts` (depending on where transitions surface).
+**R7 tests** (positive + negative):
+- R7 #1 positive: `update_intake_fields(fields={"report_type": "scam"})`
+  on UC-J session → `session.intakeFields` contains
+  `{"report_type": "scam"}` AND no handover validator fires.
+- R7 #2 positive (multi-call accumulation): two consecutive calls with
+  different fields → union persisted.
+- R7 anti-误杀 #1 (validator non-bypass): after `update_intake_fields`
+  partial-population, `request_handover` with no `intake_fields` arg →
+  validator STILL rejects with
+  `intake_required_fields_missing_for_intake_complete`.
+- R7 anti-误杀 #2 (full-stash → handover passes): after
+  `update_intake_fields` populates all required fields,
+  `request_handover` succeeds.
+- R7 anti-误杀 #3 (empty fields rejected at dispatch).
+- R7 anti-误杀 #4 (wrong type rejected).
+- R7 anti-误杀 #5 (no auto-derivation): test asserts no runtime call
+  path derives the tool call from `accumulated_tool_results`,
+  `user_message`, or any other channel.
 
-**Change:** Add structured logging (not user-facing) that records each
-`handling_state` transition with: session_id, old_state, new_state,
-timestamp, triggering source (tool call / runtime budget / explicit
-close). Backend log entry, NOT runtime behaviour change. Log level: INFO.
+**R2.a#5-ext tests** (positive + negative):
+- Positive: `phase=RESOLVE, activeUseCase=UC-J, lastAction="answer",
+  bucket="max-repeated-same-action"` → `clarification_budget_exhausted`.
+- Positive: same with `lastAction="clarify"` → same.
+- Positive (preserve existing): `phase=DISCOVER, activeUseCase=null,
+  lastAction="answer", bucket="max-repeated-same-action"` →
+  `clarification_budget_exhausted`.
+- Negative anti-误杀 #1 (RESOLVE non-intake UC):
+  `phase=RESOLVE, activeUseCase=UC-A` → `turn_budget_exhausted`.
+- Negative anti-误杀 #2 (no active UC):
+  `phase=RESOLVE, activeUseCase=null` → `turn_budget_exhausted`.
+- Negative anti-误杀 #3 (tool-call repeat):
+  `lastAction="search_knowledge"` → `turn_budget_exhausted`.
+- Negative anti-误杀 #4 (other budget): `bucket="max-faq-miss"` → existing
+  `faq_miss_threshold_exceeded` (unchanged).
+- Negative anti-误杀 #5: assert return value is one of existing 23
+  enum values (no new enum).
 
-**Why:** future "case missing in admin" investigations need a paper
-trail. The c7 trail is currently absent — no way to confirm whether
-the session reached `CLOSED` or stayed in an intermediate state.
+### #7 — Backend rebuild + integration smoke (no real-LLM run)
 
-**Hard fence:** this is the ONE backend touch in Sub-sprint B; purely
-logging additions, NO behaviour change, NO `SessionManager` state-machine
-edit. If the diagnostic logging at #5 requires more than ~10 LOC of
-behaviour change, STOP — that is outside Sub-sprint B's fence.
+After #1-#6: rebuild (`cd server && mvn -o -DskipTests package`),
+restart, hit
+`POST /v1/chat/sessions/<id>/messages` with a synthetic tool-result
+turn that invokes `update_intake_fields`. Confirm:
+- Tool dispatches (no 404 / 5xx).
+- `session.intakeFields` updates as expected.
+- Trace captures a `ToolEvent` for the call.
+- Subsequent `request_handover` with intake complete passes the
+  validator.
 
-### #6 — UI tests for #1 + #2 + #3 + #4
+Dispatch-wiring evidence only; the outcome re-bless is the
+milestone-shared run at M-Auto-6 close. Document the integration smoke
+in handoff §1 with request/response shapes.
 
-**Anchors (UI test files):**
+## Anti-误杀 invariants (HARD, non-negotiable)
 
-- `ui/.../SessionList.test.tsx` (existing or new)
-- `ui/.../TraceViewer.test.tsx` (existing or new)
-
-**Change:** Snapshot + behavioural tests for each of #1, #2, #3, #4:
-
-- #1 — StatusBadge renders each handling_state value distinctly; no
-  value is missed.
-- #2 — dedup folding collapses by default; click expands; expanded view
-  shows all dedup'd events with timestamps + originalAtStep.
-- #3 — informational guard rejection badge appears for at least the
-  three canonical codes (`progressive_resolve_record_outcome_premature`,
-  `intake_required_fields_missing_for_intake_complete`, and at least one
-  unknown-code negative that falls through to the blocking-error badge);
-  expand reveals the rejection-code string + rationale; click → expand
-  preserves audit.
-- #4 — terminal handling_state header is visible on ESCALATE / CLOSED /
-  QUEUE_TO_HUMAN sessions.
-
-## Anti-误杀 invariants (HARD)
-
-1. **Audit data NOT lost.** Dedup folding (#2) and informational
-   collapsing (#3) are DISPLAY choices; the underlying `ToolEvent`
-   records and guard rejection events remain in the trace with full
-   payload. PARAPHRASE_STORM audit MUST still be possible by expanding.
-2. **No session filtering at the UI level.** Every session in the
-   backend response is rendered, regardless of `handling_state` (#1).
-3. **No runtime behaviour change.** R3.* does NOT modify
-   `SessionManager` state machine, `ControlKernel`, `AgentRunLoopImpl`,
-   `ContextProjectionBuilder`, any tool implementation, any guard
-   implementation. Diagnostic logging at #5 is a non-behavioural add.
-4. **No scoring or eval surface touched.** Eval pytest, autoloop pytest,
-   Java baseline UNCHANGED (modulo +1-2 logging-related test additions
-   for #5).
-5. **R3.c categoriser SAFER default = blocking.** If the UI allow-list
-   does not recognise a rejection code, render it as a blocking error
-   (preserve human attention). DO NOT render unknown rejections as
-   informational by default — that would visually downgrade unknown
-   issues, the opposite of what observability needs.
-6. **No new `escalation_reason` enum value** (#4 surfaces existing
-   values).
-7. **No `BotSession.HandlingState` enum changes.** UI renders existing
-   values; if a missing value is discovered, surface as a separate
-   R-item — do NOT add enum values in Sub-sprint B.
+1. **R7 does NOT bypass the handover validator.**
+2. **R7 does NOT auto-derive from runtime.** LLM-invoked only.
+3. **R7's `fields` is a free-form string→string map.** No per-UC schema.
+4. **R2.a#5-ext preserves anti-误杀 #12 spirit.**
+5. **No new `escalation_reason` enum value.**
+6. **No `IntakeFieldsRegistry` content change.**
+7. **No `SkillGuardrailDispatcher` change.**
+8. **No yaml / prompt / CaseSpec / simulator / scoring touch.**
+9. **No new Tier-0 invariant.**
+10. **`baseline_dir` UNCHANGED. `docs/current_eval_baseline.md`
+    UNCHANGED.**
 
 ## Hard fences / STOP conditions
 
 **Files allowed to edit** (fence):
 
-- `ui/.../SessionList.tsx` + tests
-- `ui/.../TraceViewer.tsx` + tests
-- `ui/.../adminApi.ts` (only if needed for diagnostic logging hook)
-- `server/.../SessionManager.java` (ONLY for #5 diagnostic logging
-  additions — NO state-machine edits; ≤ ~10 LOC behaviour-affecting
-  change is the STOP cap)
-- `docs/sprints/sprint-079-handoff.md` (your dev handoff)
+- `server/src/main/java/.../tools/UpdateIntakeFieldsTool.java` (new)
+- `server/src/main/java/.../ContextProjectionBuilder.java` (tool schema
+  projection)
+- `server/src/main/java/.../ControlKernel.java` (R2.a#5-ext mapping)
+- Tool registry / dispatch wiring file (per #3 audit; likely
+  `ToolPolicyEnforcer` or `ToolDispatcher`)
+- `server/src/main/java/.../AgentRunLoopImpl.java` IF #3 chose path
+  (β) and helper extraction is needed
+- `server/src/test/java/.../UpdateIntakeFieldsToolTest.java` (new)
+- `server/src/test/java/.../MapBudgetToClarificationLabelTest.java`
+  (extend)
+- (If #3 path β) characterization test class
+- `docs/sprints/sprint-080-handoff.md` (dev handoff)
 
 **Files FORBIDDEN to edit**:
 
-- ANY runtime Java behaviour: `ControlKernel.java`,
-  `AgentRunLoopImpl.java`, `ContextProjectionBuilder.java`,
-  `ResolveDispositionEvaluator.java`, `SkillGuardrailDispatcher.java`,
-  `BudgetChecker.java`, any tool / skill implementation.
-- `BotSession.java` enum changes.
-- Any prompt / yaml / CaseSpec.
-- Any `eval_interactive/` file (CaseSpecs, simulator, scoring, harness).
-- Autoloop 5-file SHA-locked scoring set (`autoloop/.../scoring/*.py` —
-  fence-#13).
-- `autoloop/config.yaml` `baseline_dir` pointer.
+- `IntakeFieldsRegistry.java` (content unchanged).
+- `SkillGuardrailDispatcher.java`.
+- `BudgetChecker.java`.
+- `FormContextIngestionService.java`.
+- Any prompt / yaml / CaseSpec under `server/src/main/resources/`.
+- Any UI file (B's surface; B closed).
+- Any `eval_interactive/` file.
+- Autoloop 5-file SHA-locked scoring set (fence-#13).
+- `autoloop/config.yaml` `baseline_dir`.
 - `docs/current_eval_baseline.md`.
 
 **STOP conditions**:
 
-- If the UI test suite has a pre-existing snapshot regression that
-  predates this sub-sprint, surface as OQ; do NOT mask with snapshot-only
-  updates.
-- If `BotSession.HandlingState` is incomplete (a missing value
-  discovered in trace data during #1 implementation), surface as a
-  separate R-item; do NOT add enum values here.
-- If the R3.c rejection-code allow-list cannot be sourced from existing
-  Java constants AND would require > ~6 hard-coded entries, STOP and
-  surface as scope question (the safe path is a small allow-list with
-  the SAFER blocking default — large allow-lists drift silently).
-- If #5 diagnostic logging requires more than ~10 LOC of behaviour
-  change, STOP — outside Sub-sprint B's fence.
+- #3 audit surfaces phase / UC-dependent behaviour the new tool would
+  break → STOP, surface to deliver-agent.
+- #5 audit surfaces a SECOND production call site to
+  `mapBudgetToEscalationReason` beyond `:305-313` → STOP (signature
+  change needs widened verification).
+- Tool registration requires > ~10 LOC outside the registry constructor
+  → STOP (unfamiliar DI shape).
+- Any test in #6 fails in a way that suggests the validator is being
+  bypassed → STOP, anti-误杀 #1 violation.
 
 ## Test / eval requirements
 
-- All new UI tests in #6 GREEN.
-- Existing UI tests UNCHANGED (no snapshot regressions accepted unless
-  the change is explicitly the intended UI delta of #1-#4).
-- Java baseline `1244 / 1 / 0 / 2` preserved (sole failure = inherited
-  OQ-S41.5); Sub-sprint B may add +1-2 logging-related test cases for
-  #5 — these MUST not flip the failure count.
-- Eval pytest UNCHANGED.
+- All new tests in #6 GREEN.
+- Existing Java baseline `1297 / 1 / 0 / 2` preserved + R7 +
+  R2.a#5-ext additions (~+15-20 tests). Sole pre-existing failure
+  (`OQ-S41.5`) preserved.
+- Eval pytest `553` UNCHANGED (no eval-side change).
 - Autoloop pytest UNCHANGED.
-- NO real-LLM re-bless at this sub-sprint close. The outcome evidence
-  re-bless is the M-Auto-6 milestone-shared re-bless that runs after
-  Sub-sprint B + C-1 + C-2 all land.
+- Backend integration smoke at #7 documented in handoff §1.
+- **No real-LLM re-bless at this sub-sprint close.** Outcome evidence
+  is the M-Auto-6 milestone-shared re-bless after C-1 + C-2 both land.
+- Mocked-LLM tests for the projection surface (R7 tool schema + R7
+  description visibility) are wiring evidence per §5.7; real evidence
+  is the milestone re-bless.
 
-## §7 Layer-classification + anti-hardcode stanza (documentation only — §7-EXEMPT)
+## §7 Layer-classification + anti-hardcode stanza
 
 ```markdown
-## Layer-classification + anti-hardcode stanza (documentation only — Sub-sprint B is §7-EXEMPT per proposal §6.5 / §7.2 UI-only carve-out)
+## Layer-classification + anti-hardcode stanza
 
-**Target failure layer:** infra (observability — admin UI rendering of
-existing runtime trace events + structured flags).
+**Target failure layer:** `skill_state` + `infra` + `prompt_projection`
+(R7 new tool — `skill_state` for cross-turn intake-field accumulation;
+`infra` for dispatch wiring; `prompt_projection` for the new
+`tool_schemas` entry making the tool visible to the LLM) + `infra`
+(R2.a#5-ext mapping function signature extension; control-plane label
+correctness on the c14-style RESOLVE-phase intake clarification budget
+hit).
 
-**Tier-0 invariant:** This sprint adds no Tier-0 invariant.
+**Tier-0 invariant:** This sub-sprint adds no Tier-0 invariant. R7 adds
+a new TOOL (not a Tier-0 surface per §1.4); the tool does not bypass
+the handover validator (which IS Tier-0); R2.a#5-ext extends an
+existing mapping function with one additional AND-guarded condition;
+no new enum value.
 
 **Semantic hardcode:** No semantic hardcode introduced.
-(UI-only; zero runtime/Java behaviour change beyond ≤ ~10 LOC of
-diagnostic logging additions at #5. R3.c's rejection-code allow-list is
-a UI-side categoriser over existing trace event shapes, not a per-UC
-matrix and not a content-keyword match. SAFER default for an
-unrecognised rejection code is "blocking" — preserves human attention
-rather than masking it.)
+- R7's tool arguments schema is a free-form `string → string` map; NO
+  per-UC enumeration in the tool. The per-UC required-fields contract
+  remains in `IntakeFieldsRegistry` and is projected via
+  `required_intake_fields_for_active_uc` (shipped at R1.a #2). NO
+  server-side semantic decision about which fields belong to which UC.
+- R7's persist logic reuses the existing `persistInlineIntakeFields`
+  merge path (either invoked directly or via a shared helper extracted
+  by the #3 audit — behaviour-equivalent to the `request_handover`
+  persist path).
+- R7 does NOT auto-derive calls from runtime state; the tool MUST be
+  LLM-invoked.
+- R2.a#5-ext extends the existing mapping function with one additional
+  AND-guarded condition (`phase=RESOLVE AND
+  IntakeFieldsRegistry.isIntakeUseCase(activeUseCase) AND
+  isFreeTextActionKey(lastAction)`). `isIntakeUseCase` is the same
+  classification R1.a #2 uses — zero new per-UC matrix.
+- No new `escalation_reason` enum value introduced.
 
-**Generalization coverage:** target / neighbor / negative / shadow case counts: 5 / 0 / ~5 / 0
-- target: c7 (admin missing case), c8 (dedup event UI folding), c2 /
-  c10 / c17 (informational guard rejection badge).
-- neighbor: none (independent observability fix; the surface is
-  orthogonal to runtime semantic R-items).
-- negative: ESCALATE / handover-completed sessions remain in admin
-  visible + clickable; A1 dedup folding allows expanding to see full
-  dedup'd event list (audit not lost); unrecognised rejection codes
-  render as blocking (NOT informational); real transport / 5xx / OOM
-  errors render as blocking (UNCHANGED).
-- shadow: not applicable (UI-only; eval traces don't render through
-  this UI).
+**Generalization coverage:** target / neighbor / negative / shadow case
+counts: 1 / ~8 / ~10 / 0
+- target: c14 (UC-J multi-turn intake state loss + RESOLVE-phase
+  clarification budget mislabel).
+- neighbor: all intake-UC (UC-G / UC-H / UC-I / UC-J / UC-K) cases
+  that go through DISCOVER / RESOLVE intake collection; the new tool
+  is universal so adoption can vary by UC but availability is uniform.
+- negative: R7 anti-误杀 negatives #1-#5 (validator non-bypass; no
+  auto-derivation; empty fields rejected; wrong type rejected;
+  full-stash → handover passes); R2.a#5-ext anti-误杀 negatives #1-#5
+  (RESOLVE non-intake UC unchanged; RESOLVE no active UC unchanged;
+  tool-call repeat unchanged; other budget unchanged; no new enum).
+- shadow: not applicable (mocked-LLM tests are wiring evidence; real
+  evidence is milestone-shared re-bless).
 ```
 
 ## Codex review plan (per `process/milestone-framework.md` §4.3)
 
-**Per-sub-sprint Codex review: OPTIONAL** (UI-only per proposal §6.5 /
-§7.2; visual verification by deliver + human is the primary acceptance
-evidence). Milestone-shared Codex at M-Auto-6 close covers Sub-sprint
-A + B + C-1 + C-2 cumulatively.
+**Per-sub-sprint Codex review REQUIRED** because R7 adds an LLM-facing
+tool name (semantic-touching per `iteration_governance.md` §7 +
+`process/milestone-framework.md` §4.3). R2.a#5-ext alone would be
+exempt as pure infra, but bundled with R7 triggers semantic-touching
+review.
 
-If deliver-agent elects to dispatch a per-sub-sprint Codex on B:
+Codex prompt artifact: `compact/sprint-080-codex-review-prompt.md`
+(deliver-agent authors at sub-sprint close, embeds §4.1 nine-question
+kernel + §7 stanza + file-path fence + anti-误杀 invariants +
+generalization coverage).
 
-- Focus on Q1 / Q2 / Q5 / Q7 (zero content matching / no Tier-0
-  invariant / no semantic decision moved / safety floor unchanged).
-- Q3 / Q4 / Q6 / Q8 / Q9 are largely N/A for a UI-only sub-sprint.
-- The R3.c allow-list MUST be reviewed for keyword-matching shape: the
-  rejection-code strings are CONSTANTS sourced from the Java guard
-  layer, not user-message keywords. If they originate from anywhere
-  other than backend trace event shapes, that's a Q1 concern.
+**Focus points for Codex** (per §4.3):
 
-## Handoff requirements (dev authors `docs/sprints/sprint-079-handoff.md`)
+- Q1: confirm R7's `fields` schema is a free-form string→string map
+  with NO per-UC enumeration; confirm R2.a#5-ext's new RESOLVE-intake
+  branch uses `IntakeFieldsRegistry.isIntakeUseCase(activeUseCase)`
+  and NOT a hard-coded UC list.
+- Q3: confirm R7 surfaces the tool description with reference to
+  `required_intake_fields_for_active_uc` (delegates field choice to
+  the registry-driven projection); confirm R2.a#5-ext's mapping
+  condition preserves anti-误杀 #12 spirit.
+- Q4: confirm R7's persist semantics are byte-equivalent to the
+  `request_handover` persist path on a fixed input.
+- Q5: confirm no semantic decision moved from LLM to Java.
+- Q7: confirm safety floor unchanged (validator unmodified; grounding
+  unaffected).
+- Q8: confirm generalization coverage matches the §7 stanza counts.
+- Q9: no temporary hardcode; all changes are durable.
+
+## Handoff requirements (dev authors `docs/sprints/sprint-080-handoff.md`)
 
 §1 of the handoff must include:
 
 - For each of #1-#5: file:line ranges + rationale + the test name(s)
   that gate it.
-- **For R3.c (#3): the explicit rejection-code allow-list** the UI
-  uses to categorise informational vs blocking, plus the source of
-  each entry (Java guard constant / hard-coded with file:line citation).
-- **Visual verification evidence**: screenshots OR a deliver-reviewable
-  step-by-step that exercises each of c7-like (admin missing case),
-  c8-like (dedup event folding + expand), c2/c10/c17-like (informational
-  guard rejection badge + expand revealing rationale), and a negative
-  (unrecognised rejection code → blocking badge).
-- UI test results (full numeric: passed / failed / skipped).
-- Java test results (full numeric — confirm no regression vs A's
-  `1244/1/0/2` post-S-Auto-23 baseline).
+- **#3 audit outcome**: which path (α or β) was chosen; if β, the
+  characterization test name + refactor diff bullets.
+- **#5 design choice**: which overload approach (A or B); cited
+  evidence of all production call sites.
+- **#7 integration smoke**: request shape + response body + trace event
+  shape for one `update_intake_fields` invocation, plus the follow-up
+  `request_handover` call that demonstrates the validator path
+  unchanged.
+- Java test results (full numeric).
 - Eval pytest / autoloop pytest results (UNCHANGED).
 - STOP confirmations:
-  - File fence respected (no runtime behaviour change beyond #5 logging).
-  - No `BotSession.HandlingState` enum value added.
-  - No prompt / yaml / CaseSpec / simulator / scoring touched.
-  - `baseline_dir` UNCHANGED.
-  - `docs/current_eval_baseline.md` UNCHANGED.
-  - **No outcome-evidence re-bless launched at this sub-sprint** (the
-    re-bless is the M-Auto-6 milestone-shared one that runs after C-1 +
-    C-2).
+  - File fence respected.
+  - No `IntakeFieldsRegistry` content changed.
+  - No `SkillGuardrailDispatcher` change.
+  - No new `escalation_reason` enum value added.
+  - No yaml / prompt / CaseSpec / simulator / scoring touched.
+  - `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md` UNCHANGED.
+  - No real-LLM outcome re-bless launched (deferred to milestone close).
+- A clear "wiring evidence" vs "outcome evidence" separator per §5.7.
 
 ## Commit discipline
 
-Recommended commit split (per `prompt-artifact-rules.md` §9 + proposal
-§6.3):
+Recommended commit split:
 
-1. **Commit 1 — R3.a**: `SessionList.tsx` StatusBadge full handling_state
-   coverage + tests.
-2. **Commit 2 — R3.b**: `TraceViewer.tsx` dedup ToolEvent folding + tests.
-3. **Commit 3 — R3.c**: `TraceViewer.tsx` informational guard rejection
-   badge + tests (incl. negative: unknown code → blocking).
-4. **Commit 4 — #4**: `TraceViewer.tsx` terminal handling_state header.
-5. **Commit 5 — #5**: handling_state diagnostic logging
-   (`SessionManager.java` or equivalent).
-6. **Commit 6 — Dev handoff**: `docs/sprints/sprint-079-handoff.md`.
-
-Each commit message follows the established convention (see sprint-077
-+ sprint-078 commits as reference). All six commits are by the dev agent;
-deliver-agent commits its own close-archive artifacts separately at
-sub-sprint close.
+1. **Commit 1 — R7 #3 PRE-FIX audit refactor (path β only)**:
+   `persistInlineIntakeFields` extraction + characterization test.
+2. **Commit 2 — R7 #1 + #2 + #4**: `UpdateIntakeFieldsTool.java` +
+   dispatch + tool registration + projection schema +
+   `UpdateIntakeFieldsToolTest`.
+3. **Commit 3 — R2.a#5-ext (#5)**: `ControlKernel.java` mapping
+   signature extension + `MapBudgetToClarificationLabelTest` extension.
+4. **Commit 4 — Integration smoke evidence (#7)**: handoff only (or
+   +1 LOC logging if needed).
+5. **Commit 5 — Dev handoff**: `docs/sprints/sprint-080-handoff.md`.
 
 ## Self-check checklist (dev completes before claiming done)
 
-- [ ] Each of #1-#5 implemented; file:line ranges captured in handoff §1.
-- [ ] Each new UI test in #6 GREEN.
-- [ ] R3.c allow-list documented in handoff §1 with each entry's source.
-- [ ] R3.c negative test confirms unrecognised rejection code renders
-      as blocking (SAFER default).
-- [ ] R3.b expand-from-folded test confirms full dedup audit data is
-      visible after expansion (no audit loss).
-- [ ] R3.a coverage test confirms every `BotSession.HandlingState`
-      value has a visual treatment in StatusBadge.
-- [ ] No existing UI snapshot test regressions (only intentional ones
-      from #1-#4 deltas).
-- [ ] Java baseline `1244/1/0/2` preserved (besides any 1-2 new
-      logging-related tests for #5).
-- [ ] Eval pytest / autoloop pytest UNCHANGED.
-- [ ] No runtime behaviour change beyond #5 diagnostic logging
-      (≤ ~10 LOC behaviour-affecting).
-- [ ] Audit data preserved end-to-end — clicking expand on a folded
-      dedup indicator (#2) and on an informational guard badge (#3)
-      shows ALL underlying records.
-- [ ] No `BotSession.HandlingState` enum value added.
-- [ ] No prompt / yaml / CaseSpec / simulator / scoring touched.
-- [ ] §7 stanza copied verbatim into the handoff (record-only;
-      §7-EXEMPT).
-- [ ] Visual verification evidence in handoff §1 (screenshots OR
-      step-by-step) covering c7 / c8 / c2 / c10 / c17 + negative.
-- [ ] `baseline_dir` UNCHANGED.
-- [ ] `docs/current_eval_baseline.md` UNCHANGED.
-- [ ] No outcome-evidence re-bless launched at this sub-sprint close
-      (the milestone-shared re-bless runs after C-1 + C-2).
+- [ ] Each of #1-#5 implemented with file:line ranges in handoff §1.
+- [ ] #3 audit outcome documented; if β, characterization test green.
+- [ ] #5 design choice documented; all call sites consistent.
+- [ ] All R7 anti-误杀 #1-#5 + R2.a#5-ext anti-误杀 #1-#5 GREEN.
+- [ ] R7 validator non-bypass verified.
+- [ ] R7 no-auto-derivation verified.
+- [ ] R2.a#5-ext RESOLVE non-intake UC negative: `turn_budget_exhausted`
+      preserved.
+- [ ] R2.a#5-ext tool-call negative: `turn_budget_exhausted` preserved.
+- [ ] No new `escalation_reason` enum value.
+- [ ] No `IntakeFieldsRegistry` content changed.
+- [ ] No `SkillGuardrailDispatcher` reject-logic change.
+- [ ] Java baseline `1297/1/0/2` + new tests, no regressions.
+- [ ] Eval pytest `553` unchanged.
+- [ ] No file outside the file fence touched.
+- [ ] Integration smoke at #7 documented.
+- [ ] §7 stanza copied verbatim into handoff.
+- [ ] `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md`
+      UNCHANGED.
+- [ ] No outcome-evidence re-bless launched.
 
-When all checked: hand back to deliver-agent for close review + visual
-verification + Sub-sprint C-1 / C-2 dev launch.
+When all checked: hand back to deliver-agent for close review +
+per-sub-sprint Codex dispatch + Sub-sprint C-2 launch.

@@ -1,20 +1,18 @@
 # Sprint 080 / S-Auto-25 / M-Auto-6 — Sub-sprint C-1 — Dev Prompt (R7 update_intake_fields tool + R2.a#5-ext phase-aware re-map RESOLVE-intake extension)
 
-> **Planning-context artifact**: this dev prompt is drafted at the
-> Sub-sprint A close + B open transition (2026-06-06) alongside
-> Sub-sprint C-2's `sprint-081-dev-prompt.md` as the planned scope for
-> the third sub-sprint of M-Auto-6. The CANONICAL active contract is
-> `docs/sprint_objective.md`, which currently holds Sub-sprint B. At
-> Sub-sprint B close + visual verification, deliver-agent will replace
-> `sprint_objective.md` with this sub-sprint's contract and dev launches
-> from here.
->
-> C-1 may run in parallel with C-2 per the human 2026-06-06 packaging
-> decision (independent surfaces — C-1 = intake/clarification runtime
-> contract; C-2 = citation UX + corpus retrieval governance). If both
-> are dev-launched in parallel, each lands on its own branch /
-> commit-range to keep causal attribution clean for the milestone-shared
-> Codex review at M-Auto-6 close.
+> **Active prompt (launched 2026-06-06)**. This is the self-contained
+> executable view of the active sprint contract at
+> `docs/sprint_objective.md`. Sub-sprint A (R1.a + R2.a + R4.a) is
+> dev-side closed (smoke-verified + Codex APPROVE_S_AUTO_23) per
+> `docs/sprints/sprint-078-objective.md`. Sub-sprint B (R3.a + R3.b +
+> R3.c) is dev-side closed (visual-verified by deliver-agent on session
+> `e82c8da3`; §7-EXEMPT, no per-sub-sprint Codex required) per
+> `docs/sprints/sprint-079-objective.md`. Sub-sprint C-2 (R5 + R6) is
+> drafted as planning context in `compact/sprint-081-dev-prompt.md` and
+> launches AFTER C-1 dev-side closes (sequential per human 2026-06-06
+> decision). The outcome-evidence re-bless is the M-Auto-6
+> milestone-shared run after C-1 + C-2 land; no per-sub-sprint re-bless
+> in this sub-sprint.
 
 ## Role identity
 
