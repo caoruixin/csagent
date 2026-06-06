@@ -278,7 +278,7 @@
       "uc_tags": [
         "UC-B"
       ],
-      "search_knowledge_eligible": true,
+      "search_knowledge_eligible": false,
       "eligible_uc_scope": [
         "UC-B"
       ],
@@ -297,7 +297,7 @@
       "uc_tags": [
         "UC-B"
       ],
-      "search_knowledge_eligible": true,
+      "search_knowledge_eligible": false,
       "eligible_uc_scope": [
         "UC-B"
       ],
