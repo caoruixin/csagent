@@ -48,53 +48,76 @@ notes: >
     runtime errors (c2/c10/c17 surface). Merges with audit Cluster B.1 +
     C.2.
   - **Sub-sprint C-1 = R7 + R2.a#5-ext** (S-Auto-25 / Sprint 080) —
-    PRIMARY, drafted as planning context in
-    `compact/sprint-080-dev-prompt.md`. Intake/clarification runtime
+    **DEV-SIDE CLOSED 2026-06-06**. Intake/clarification runtime
     contract bundle: **R7** new `update_intake_fields` no-op-side-effect
-    tool so the LLM can accumulate intake fields across turns without
-    triggering the handover validator (c14 surfaced; R7 is the runtime
-    enabler for OBS-S6); **R2.a#5-ext** narrow phase-aware re-map
-    extension to cover RESOLVE + intake-UC + free-text action (c14
-    label-mislabel surface; anti-误杀 #12 spirit preserved — RESOLVE
-    non-intake + any-phase tool-call repeats stay
-    `turn_budget_exhausted`).
+    tool (LLM can accumulate intake fields across turns without
+    triggering the handover validator; runtime enabler for OBS-S6);
+    **R2.a#5-ext** narrow phase-aware re-map extension to cover
+    RESOLVE + intake-UC + free-text action (anti-误杀 #12 spirit
+    preserved — RESOLVE non-intake + any-phase tool-call repeats
+    stay `turn_budget_exhausted`). Codex per-sub-sprint
+    `APPROVE_S_AUTO_25 / blocking_count=0`; capability-wiring
+    Option-A fence-waiver ACCEPTED (byte-narrow tool-policy.yaml +
+    skill yaml `tools_required` + SkillLoader VALID_TOOL_NAMES
+    edits). Archive `docs/sprints/sprint-080-{objective,handoff}.md`.
   - **Sub-sprint C-2a = R5 citation contract fix** (S-Auto-26 /
-    Sprint 081) — PRIMARY, planned at `compact/sprint-081-dev-prompt.md`.
-    **Re-scoped 2026-06-06** after a dev pre-fix audit on the original
-    C-2 (R5 + R6 bundle) STOPPED with zero file edits and found that
-    the original anchors were wrong on both sides. Re-scoped scope:
-    (a) `ResolveArticleTool` returns an additive `display_citation`
-    field (`source_url` if non-null/non-blank, else `article_id`
-    fallback); (b) `SkillGuardrailDispatcher.handleMustCiteSource`
-    (`:340-384`) rewritten from the live literal
-    `userMessage.contains(citeToken)` substring check to a structural
-    shape predicate (URL-shape OR Salesforce-style article_id-shape
-    derived from real corpus data); (c) `resolve_faq_grounded_answer.yaml`
-    citation-token wording at `:30 / :31 / ~:80 / :44 cite_token_field`
-    points at the new `display_citation` token. Per-sub-sprint Codex
-    REQUIRED with explicit focus on the literal→shape semantics shift
-    + grounding-floor preservation.
+    Sprint 081) — **DEV-SIDE CLOSED 2026-06-06**. Code shipped at
+    commits `d4122c0..5a0ab3d` (intended cumulative range
+    `d4122c0^..5a0ab3d` — 4 commits): R5 #1 ResolveArticleTool
+    additive `display_citation` field; R5 #2 SkillGuardrailDispatcher
+    `handleMustCiteSource` literal→structural-shape rewrite via
+    `Pattern` constants at `:97-108` + `containsAcceptableCiteToken`
+    helper + trace key rename `cite_token_field` →
+    `cite_token_validator`; R5 #3 `resolve_faq_grounded_answer.yaml`
+    citation-token wording at `:30/:31/~:80` + clean `cite_token_field`
+    removal. Java baseline `1337 / 1 / 0 / 2` (+10 net tests). Two
+    fence expansions Codex-accepted (#1 ResolveFaqGuardrailsTest
+    fixture update; #2 PhaseEvaluatorResolveSkillIntegrationTest
+    byte-mechanical golden mirror). Codex per-sub-sprint
+    `APPROVE_S_AUTO_26 / blocking_count=0` on targeted re-review
+    (substantive verdict PASS on initial review at HEAD `6e55d79`;
+    procedural REJECT on clean-tree gate resolved by `8a7cb66`;
+    substantive REJECT preserved at `221432d` for audit trail;
+    targeted re-review prompt at `54b8729` flipped verdict header +
+    §4 only with §1–§5 PASS preserved verbatim). Archive
+    `docs/sprints/sprint-081-{objective,handoff}.md`. **Outcome
+    evidence deferred to M-Auto-6 milestone-shared re-bless.**
   - **Sub-sprint C-2b = R6 corpus eligibility filter** (S-Auto-27 /
-    Sprint 082) — PRIMARY, planned at `compact/sprint-082-dev-prompt.md`.
-    Re-scoped 2026-06-06: reuse the **existing** `search_knowledge_eligible`
-    data field (already on 218/218 corpus articles; ingested-but-unused
-    per dev audit) instead of introducing a parallel `bot_visible`
-    mechanism. Flip the field from `true → false` on
-    `ka41r000000LIEJAA4` (row ~272) + `ka41r000000LIEEAA4` (row ~291);
-    plumb through `KnowledgeIngestionRunner.buildKbArticleFromJson` →
-    new `KbArticle.searchKnowledgeEligible` column → V17 Flyway
-    migration (V16 is highest existing) → `KnowledgeSearchService`
-    eligibility filter → `KnowledgeHit` field propagation →
-    `SearchKnowledgeTool` structured INFO log on filter decision.
-    Direct resolve via `ResolveArticleTool.byArticleId` stays
-    unfiltered (human-CS access preserved). Per-sub-sprint Codex
-    REQUIRED.
-  - **Sequential cadence (post-rewrite)**: C-2b launches after C-2a
-    dev-side close. Independent surfaces, but sequencing keeps
-    causal attribution clean for the milestone-shared Codex review.
-  - **Milestone-shared §9 real-LLM re-bless** runs AFTER A + B + C-1 +
-    C-2a + C-2b all land — single milestone-level evidence run, not
-    per-sub-sprint.
+    Sprint 082) — **DEV-SIDE CLOSED 2026-06-06**. Code shipped at
+    delivery commits `bb48aa0..7773c92` (5 commits: R6 #2+#3
+    `KbArticle.searchKnowledgeEligible` entity + V17 Flyway migration
+    `NOT NULL DEFAULT TRUE`; R6 #4 `KnowledgeIngestionRunner`
+    ingestion parser via the existing `path(...).asBoolean(true)`
+    `published_status` idiom; R6 #5+#7 `KnowledgeSearchService`
+    filter step adjacent to Sprint-14 §L0 `isPublished`
+    defense-in-depth pattern + INFO log path α at service layer;
+    R6 #1+#8 JSON flip on `ka41r000000LIEJAA4` + `ka41r000000LIEEAA4`
+    + first direct-resolve invariant test; dev handoff) + 3
+    fix-iteration commits closing both initial Codex P0 blockers:
+    `e6aad78` V17 SQL line-4 comment content-neutral rewrite
+    (closes Codex §4 #2 forbidden-grep gate; SQL operation
+    byte-unchanged); `d27b824` second direct-resolve invariant test
+    for `ka41r000000LIEEAA4` (closes Codex §4 #1 F2/Q8 evidence
+    gap); `4c8931f` handoff §3.1 fix-iteration addendum + over-claim
+    correction. Range `bb48aa0^..4c8931f` contains 11 Git commits
+    total: 8 substantive + 3 acknowledged audit/package
+    (`056fa5a` aidazi framework v3.2 archive; `3300b4a`
+    per-sub-sprint Codex review prompt; `1954cb6` initial Codex
+    `APPROVE_S_AUTO_27_WITH_FIXES` audit trail). Original 5
+    delivery commits unamended and append-only. Java baseline
+    `1348 / 1 / 0 / 2` (+10 net tests; sole failure = inherited
+    `SystemPromptUserRequestedTiebreakerTest` OQ-S41.5, provably
+    uncoupled — system-prompt surface, C-2b touched zero prompt
+    files). Pre-fix audit decisions captured in handoff §1:
+    KnowledgeHit (#6) SKIPPED (post-filter eligible-by-construction);
+    INFO log (#7) path α at service layer (`SearchKnowledgeTool`
+    byte-untouched). Codex per-sub-sprint `APPROVE_S_AUTO_27 /
+    blocking_count=0` on targeted re-review. Archive
+    `docs/sprints/sprint-082-{objective,handoff}.md`. **Outcome
+    evidence deferred to M-Auto-6 milestone-shared re-bless.**
+  - **Milestone-shared §9 real-LLM re-bless** launches NEXT — single
+    milestone-level evidence run after C-2b dev-side close, paired
+    against `m-auto-5-baseline-20260604-simfixed-stalledfix`.
 
   **Single bundled C explicitly rejected (2026-06-06)** by human, on
   the basis that (1) R7 + R2.a#5-ext form one coherent
@@ -184,8 +207,8 @@ semantic-touching sub-sprint. Layer matrix:
 | A (R1.a + R2.a + R4.a) | `prompt_projection` + `infra` + `skill_state` | ✅ REQUIRED | LLM-facing projection surface touched (R1 schema + R4 enum) — semantic-touching per §7. Shipped at S-Auto-23 close. |
 | B (R3.a + R3.b + R3.c) | `infra` (observability) | ❌ EXEMPT | UI-only display; zero semantic surface; ≤ ~10 LOC diagnostic logging is non-behavioural. |
 | C-1 (R7 + R2.a#5-ext) | `skill_state` + `infra` + `prompt_projection` (R7 tool schema) | ✅ REQUIRED | R7 adds a new tool name (LLM-facing projection surface); R2.a#5-ext extends the existing phase-aware re-map (control-plane labeling). Semantic-touching per §7. Shipped at S-Auto-25 close (`APPROVE_S_AUTO_25 / blocking_count=0`). |
-| C-2a (R5 citation contract fix) | `infra` (ResolveArticleTool result + handleMustCiteSource semantics rewrite) + `prompt_projection` (skill yaml citation wording at `:30/:31/~:80/:44`) | ✅ REQUIRED | R5 #2 rewrites the LLM-facing citation guardrail from literal substring to structural URL/article_id shape predicate; R5 #3 changes the LLM-facing skill wording to point at the new `display_citation` field. Semantic-touching per §7. Re-scoped 2026-06-06 from the original "1-line `cite_token_field` config swap" after the dev pre-fix audit caught the wrong-anchor STOP. |
-| C-2b (R6 corpus eligibility filter) | `infra` (data + entity + V17 migration + ingestion + service filter + tool log) | ✅ REQUIRED | R6 changes the LLM-facing search retrieval surface via a data-field eligibility filter. Reuses existing `search_knowledge_eligible` (ingested-but-unused on 218/218 articles per dev audit) — NOT a new parallel `bot_visible` mechanism. Direct resolve unfiltered (human-CS access preserved). Semantic-touching per §7. Re-scoped 2026-06-06. |
+| C-2a (R5 citation contract fix) | `infra` (ResolveArticleTool result + handleMustCiteSource semantics rewrite) + `prompt_projection` (skill yaml citation wording at `:30/:31/~:80/:44`) | ✅ REQUIRED — done; Codex `APPROVE_S_AUTO_26 / blocking_count=0` | R5 #2 rewrote LLM-facing citation guardrail from literal substring to structural URL/article_id shape predicate; R5 #3 changed LLM-facing skill wording to point at new `display_citation` field. Shipped at S-Auto-26 close. |
+| C-2b (R6 corpus eligibility filter) | `infra` (data + entity + V17 migration + ingestion + service filter + tool log) | ✅ REQUIRED — done; Codex `APPROVE_S_AUTO_27 / blocking_count=0` on targeted re-review (both prior P0 blockers resolved by fix-iteration) | R6 changed LLM-facing search retrieval surface via existing `search_knowledge_eligible` data field. Direct resolve unfiltered (human-CS access preserved). Shipped at S-Auto-27 close. |
 
 **Layer breakdown** (per `iteration_governance.md` §3 + the proposal §2):
 
@@ -199,8 +222,8 @@ semantic-touching sub-sprint. Layer matrix:
 | R3.c — informational guard rejection badge distinct from blocking error | `infra` (observability) | B | ⏳ PENDING (NEW post-ship) | UI display distinction over guard rejection events; addresses c2/c10/c17 record_outcome confusion. SAFER default for unrecognised codes = blocking. |
 | R7 — `update_intake_fields` no-side-effect tool (intake partial-stash mechanism) | `skill_state` + `infra` + `prompt_projection` (new tool schema) | C-1 | ⏳ PENDING (NEW post-ship from c14) | Lets LLM accumulate intake fields across turns without triggering the handover validator; runtime enabler for OBS-S6. |
 | R2.a#5-ext — phase-aware re-map narrow extension to RESOLVE + intake-UC + free-text | `infra` | C-1 | ⏳ PENDING (NEW post-ship from c14) | Surface c14 RESOLVE-phase intake clarification mislabel; preserves anti-误杀 #12 spirit (RESOLVE non-intake + any tool-call repeat stay `turn_budget_exhausted`). |
-| R5 — citation contract fix: additive `display_citation` on ResolveArticleTool + `SkillGuardrailDispatcher.handleMustCiteSource` literal→shape rewrite + skill yaml citation wording at `:30/:31/~:80/:44` | `infra` + `prompt_projection` | C-2a | ⏳ PENDING (re-scoped 2026-06-06) | c13 surface: bot cites `article_id` even when article has `source_url`. Re-scoped from "1-line `cite_token_field` swap" after dev anchor audit caught the literal-substring guardrail at the forbidden `SkillGuardrailDispatcher.java:340-384` + the actual LLM-steering wording at `resolve_faq_grounded_answer.yaml:30-31`. Grounding floor preserved (empty / null / plain-English STILL reject); accept criteria widens from "literal field-name substring" to "URL-shape OR Salesforce article_id-shape". |
-| R6 — corpus eligibility filter: reuse existing `search_knowledge_eligible` data field + full plumbing (V17 migration + ingestion + entity + search service + hit + tool) | `infra` (data + entity + migration + service + tool) | C-2b | ⏳ PENDING (re-scoped 2026-06-06) | c7/c12/c17 surface: `(temp)` template articles (`ka41r000000LIEJAA4` + `ka41r000000LIEEAA4`) reach LLM unwrapped. Re-scoped from "new `bot_visible` data field" after dev audit found the existing `search_knowledge_eligible` field on 218/218 articles (ingested-but-unused). Data field driven, NOT title-keyword matched. Article retained for human CS use; direct resolve via `ResolveArticleTool.byArticleId` unfiltered. |
+| R5 — citation contract fix: additive `display_citation` on ResolveArticleTool + `SkillGuardrailDispatcher.handleMustCiteSource` literal→shape rewrite + skill yaml citation wording at `:30/:31/~:80/:44` | `infra` + `prompt_projection` | C-2a | ✅ SHIPPED (dev-side closed; Codex `APPROVE_S_AUTO_26 / blocking_count=0` on targeted re-review) | c13 surface fix: bot now cites URLs when article has `source_url`; article_id fallback preserved for URL-less articles. Grounding floor preserved (empty / null / plain-English STILL reject); accept criteria widened from "literal field-name substring" to "URL-shape OR Salesforce article_id-shape". |
+| R6 — corpus eligibility filter: reuse existing `search_knowledge_eligible` data field + full plumbing (V17 migration + ingestion + entity + search service + hit + tool) | `infra` (data + entity + migration + service + tool) | C-2b | ✅ SHIPPED (dev-side closed; Codex `APPROVE_S_AUTO_27 / blocking_count=0` on targeted re-review; both prior P0 blockers resolved by fix-iteration) | c7/c12/c17 surface fix: `(temp)` template articles filtered from LLM-facing search. `KnowledgeHit` SKIPPED (post-filter eligible-by-construction); INFO log path α at service layer; `SearchKnowledgeTool` byte-untouched. Direct resolve unfiltered (anti-误杀 #1 preserved — both flagged articles test-pinned for direct resolve). |
 
 ## 2. Goal
 
@@ -249,13 +272,13 @@ optimization is explicitly deferred to autoloop AFTER M-Auto-6:
 
 ## 3. Sub-sprint sequence
 
-Sequence updated 2026-06-06 after S-Auto-25 dev-side close + the
-post-C-1 C-2 re-scope (R5 + R6 originally bundled as Sub-sprint C-2;
-split into C-2a R5-only + C-2b R6-only after the dev pre-fix audit on
-C-2 STOPPED with wrong anchors caught — see §0 notes block). Sequential
-cadence: A (done) → B (done) → C-1 (done) → C-2a (current planned
-active) → C-2b (next). No re-bless between sub-sprints — outcome
-evidence runs once at milestone close.
+Sequence at C-2b dev-side close 2026-06-06: A + B + C-1 + C-2a + C-2b
+ALL DEV-SIDE CLOSED. Sequential cadence: A (done) → B (done) → C-1
+(done) → C-2a (done) → C-2b (done) → **milestone-shared §9 real-LLM
+re-bless launches NEXT**. No re-bless ran between sub-sprints —
+outcome evidence runs once at milestone close, paired against
+`m-auto-5-baseline-20260604-simfixed-stalledfix`. `baseline_dir` +
+`docs/current_eval_baseline.md` flip at the milestone close decision.
 
 ### Sub-sprint A — S-Auto-23 / Sprint 078 — R1.a + R2.a + R4.a — **DEV-SIDE CLOSED 2026-06-06**
 
@@ -352,90 +375,123 @@ Status:
 
 Archived contract: `docs/sprints/sprint-080-objective.md`.
 
-### Sub-sprint C-2a — S-Auto-26 / Sprint 081 — R5 citation contract fix — **CURRENT ACTIVE (re-scoped 2026-06-06)**
+### Sub-sprint C-2a — S-Auto-26 / Sprint 081 — R5 citation contract fix — **DEV-SIDE CLOSED 2026-06-06**
 
-R5 citation contract fix (per proposal §4.5; re-scoped after the dev
-pre-fix audit on the original C-2 STOPPED with wrong anchors caught).
+R5 citation contract fix (per proposal §4.5; re-scoped 2026-06-06
+after the dev pre-fix audit on the original C-2 STOPPED with wrong
+anchors caught; the dev STOP caught it BEFORE any code was written —
+the original prompt's anchors `guardrails/MustCiteSource.java` and
+its "shape validation" premise were both wrong; the live guardrail
+lives at `SkillGuardrailDispatcher.java:340-384` doing literal
+substring matching).
 
-**Why re-scoped**: the original C-2 prompt assumed the
-`must_cite_source` guardrail lived at
-`guardrails/MustCiteSource.java` (no such file) + did URL/source_id
-structural shape validation (it does not — it does literal
-`userMessage.contains(citeToken)` substring matching). The dev STOP
-caught this BEFORE any code was written. The human re-scope
-direction (2026-06-06): re-scope, stay in M-Auto-6, split C-2 into
-C-2a (R5) + C-2b (R6), use widened fences with reclassified §7,
-DO NOT do safe-partial.
+> **S-Auto-26 is dev-side closed / Codex-approved on targeted
+> re-review / fence-expansion #2 byte-mechanical accepted;
+> milestone-level outcome evidence is deferred to the M-Auto-6
+> final re-bless.**
 
-Scope:
-- R5 #1: `ResolveArticleTool` returns an additive `display_citation`
-  field on the result body (`source_url` if non-null/non-blank, else
-  `article_id` fallback).
-- R5 #2: rewrite `SkillGuardrailDispatcher.handleMustCiteSource`
-  (`:340-384`) from the literal `userMessage.contains(citeToken)`
-  substring check to a structural shape predicate: PASS iff the user
-  message contains a URL-shape token (`http://`/`https://` prefix) OR
-  an article_id-shape token (Salesforce-style regex derived from real
-  corpus data). Empty / null / plain-English STILL reject —
-  grounding floor preserved.
-- R5 #3: update `resolve_faq_grounded_answer.yaml` citation-token
-  wording at `:30 procedure / :31 grounding_instruction / ~:80 cite
-  phrasing / :44 cite_token_field` to point at the new
-  `display_citation` field. Minimum-edit diff; goal / role /
-  objective / search-must-precede / faq_miss escalation rule
-  byte-untouched.
+Status:
+- Code shipped: commits `d4122c0..5a0ab3d` (intended cumulative range
+  `d4122c0^..5a0ab3d` — 4 commits: R5 #1 ResolveArticleTool
+  additive `display_citation`; R5 #2 SkillGuardrailDispatcher
+  literal→structural-shape rewrite + ResolveFaqGuardrailsTest
+  fixture update; R5 #3 skill yaml citation-token wording +
+  `cite_token_field` clean removal +
+  PhaseEvaluatorResolveSkillIntegrationTest golden mirror update;
+  dev handoff).
+- Java baseline preserved: `1337 / 1 / 0 / 2` (+10 net tests; sole
+  failure = inherited OQ-S41.5).
+- Focused tests at Codex review-time: `67 / 0 / 0 / 0`
+  (`ResolveArticleToolTest` + `SkillGuardrailDispatcherTest` +
+  `ResolveFaqGuardrailsTest` +
+  `PhaseEvaluatorResolveSkillIntegrationTest`).
+- Two fence expansions Codex-accepted: #1 ResolveFaqGuardrailsTest
+  `kb-001` fixtures → real corpus `ka41r000000LIEEAA4`
+  (pre-approved per pre-fix audit (c) STOP-condition preferred
+  path); #2 PhaseEvaluatorResolveSkillIntegrationTest golden
+  constants byte-mirror updated (NOT in original fence; discovered
+  at build time; mechanically forced byte-mirror; Codex F5
+  confirmed byte-mechanical).
+- Codex per-sub-sprint review: `APPROVE_S_AUTO_26 /
+  blocking_count=0` on targeted re-review. §1 per-change verdicts
+  approve all of R5 #1 + #2 + #3 + both fence expansions. §2 §4.1
+  Q1–Q9 PASS aggregate `approve`. §3 F1–F5 PASS (literal→structural-shape
+  semantics shift; grounding-floor preservation; article_id regex
+  derived-from-218/218 IDs; yaml minimum-edit; fence-expansion #2
+  byte-mechanical). 3 non-blocking observations recorded. Procedural
+  REJECT on clean-tree gate resolved by `8a7cb66`; substantive
+  REJECT preserved at `221432d` for audit trail; targeted re-review
+  prompt at `54b8729` flipped verdict header + §4 only with §1–§5
+  PASS preserved verbatim.
+- `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md`
+  UNCHANGED.
 
-Dev prompt: `compact/sprint-081-dev-prompt.md` (rewritten 2026-06-06
-to encode the corrected anchors + reclassified §7). Active sprint
-contract: `docs/sprint_objective.md` (after C-1 close + this
-re-scope commit). Per-sub-sprint Codex review REQUIRED with explicit
-focus on the literal→shape semantics shift + grounding-floor
-preservation evidence.
+Archived contract: `docs/sprints/sprint-081-objective.md`.
 
-### Sub-sprint C-2b — S-Auto-27 / Sprint 082 — R6 corpus eligibility filter (PLANNING CONTEXT; launches after C-2a dev-side close)
+### Sub-sprint C-2b — S-Auto-27 / Sprint 082 — R6 corpus eligibility filter — **DEV-SIDE CLOSED 2026-06-06**
 
-R6 corpus eligibility filter (per proposal §4.6; re-scoped after the
-dev pre-fix audit on the original C-2 STOPPED with wrong anchors
-caught). Re-scoped to reuse the existing `search_knowledge_eligible`
-field that already lives on 218/218 corpus articles (ingested-but-unused
-per the dev anchor audit), instead of introducing a parallel new
-`bot_visible` mechanism per the human re-scope decision (2026-06-06).
+R6 corpus eligibility filter (per proposal §4.6; re-scoped 2026-06-06
+to reuse the existing `search_knowledge_eligible` field that already
+lives on 218/218 corpus articles, ingested-but-unused per the dev
+anchor audit — instead of introducing a parallel new `bot_visible`
+mechanism per the human re-scope decision).
 
-Scope:
-- R6 #1: flip `search_knowledge_eligible: true → false` on
-  `ka41r000000LIEJAA4` (row ~272) + `ka41r000000LIEEAA4` (row ~291)
-  in `data/knowledge/knowledge_base_articles.json`. ONLY these 2
-  articles; ONLY this field.
-- R6 #2-#7: plumb the field through:
-  - `KbArticle.java` — new `searchKnowledgeEligible` column
-    (boolean, default `true`).
-  - `V17__add_kb_search_knowledge_eligible.sql` — new Flyway
-    migration (V16 is highest existing) with `NOT NULL DEFAULT TRUE`.
-  - `KnowledgeIngestionRunner.buildKbArticleFromJson` — parse the
-    field; default `true` if absent.
-  - `KnowledgeSearchService` — filter candidates by
-    `searchKnowledgeEligible != false` at the candidates → hits
-    assembly step.
-  - `KnowledgeHit` — propagate the field (or skip per pre-fix audit
-    design choice).
-  - `SearchKnowledgeTool` — structured backend INFO log on filter
-    decision (article_id + filter_reason).
-- R6 #8: direct resolve invariant — `ResolveArticleTool.byArticleId`
-  STILL returns the 2 flagged articles (filter is at search surface
-  ONLY; human-CS access preserved).
+> **S-Auto-27 is dev-side closed / Codex-approved on targeted
+> re-review / both prior P0 blockers resolved by fix-iteration;
+> milestone-level outcome evidence is deferred to the M-Auto-6
+> final re-bless.**
 
-Forbidden: any new parallel governance field (no `bot_visible`); any
-hardcoded article_id in Java; any title-keyword filter; any corpus
-article deletion.
+Status:
+- Code shipped: 5 delivery commits `bb48aa0..7773c92` (R6 #2+#3
+  KbArticle entity + V17 Flyway migration; R6 #4 ingestion parser
+  via existing `published_status` idiom; R6 #5+#7
+  KnowledgeSearchService filter step + INFO log path α at service
+  layer; R6 #1+#8 JSON flip + first direct-resolve invariant test;
+  dev handoff) + 3 fix-iteration commits closing both initial
+  Codex P0 blockers: `e6aad78` V17 SQL line-4 comment content-neutral
+  rewrite (closes Codex §4 #2 F3 forbidden-grep gate; SQL operation
+  byte-unchanged); `d27b824` second direct-resolve invariant test
+  `execute_searchIneligibleArticle_stillResolvesByDirectId_secondTemplate`
+  for `ka41r000000LIEEAA4` at `ResolveArticleToolTest:275-303`
+  mirroring first-template at `:239-272` (closes Codex §4 #1 F2/Q8
+  evidence gap); `4c8931f` handoff §3.1 fix-iteration addendum +
+  over-claim correction at R6 #8.
+- Cumulative range `bb48aa0^..4c8931f` contains 11 Git commits:
+  8 substantive (5 delivery + 3 fix-iteration) + 3 acknowledged
+  audit/package (`056fa5a` aidazi framework v3.2 archive;
+  `3300b4a` per-sub-sprint Codex review prompt; `1954cb6` initial
+  Codex `APPROVE_S_AUTO_27_WITH_FIXES` audit trail). Original 5
+  delivery commits unamended and append-only.
+- Java baseline preserved: `1348 / 1 / 0 / 2` (+10 net tests vs the
+  1337/1/0/2 launch baseline; +1 from `d27b824` second direct-resolve;
+  sole failure = inherited OQ-S41.5).
+- Focused tests at Codex targeted re-review time: `23 / 0 / 0 / 0`
+  (`KnowledgeIngestionRunnerTest` + `KnowledgeSearchServiceTest` +
+  `KbArticleEligibilityCorpusTest` + `ResolveArticleToolTest`).
+  Initial review's broader 7-suite run was `34 / 0 / 0 / 0`.
+- Pre-fix audit design choices: #1 no conflicting governance field;
+  #2 primitive `boolean` + `@Builder.Default=true` so Lombok @Data
+  generates `isSearchKnowledgeEligible()`; #3 V16 confirmed highest,
+  V17 chosen with `NOT NULL DEFAULT TRUE` mirroring V4 `is_published`
+  pattern; #4 existing `published_status` parsing idiom mirrored via
+  `path(...).asBoolean(true)`; #5 single Step-8 caller path confirmed;
+  #6 KnowledgeHit SKIPPED — hits are post-filter
+  eligible-by-construction; #7 path α chosen — INFO log at service
+  layer, `SearchKnowledgeTool` byte-untouched.
+- Codex per-sub-sprint review: `APPROVE_S_AUTO_27 / blocking_count=0`
+  on targeted re-review. §1 per-change verdicts PASS with explicit
+  pass-on-re-review notes for #3 (V17 SQL comment) and #8 (second
+  direct-resolve test). §2 §4.1 Q1–Q9 PASS aggregate `approve`. §3
+  F1–F6 PASS (data-field-only filter; direct resolve invariant on
+  BOTH flagged IDs; forbidden-grep clean post-fix; back-compat
+  default-true; no parallel governance field; pre-fix audit
+  decisions). 4 non-blocking observations recorded.
+- Forbidden-grep evidence: `server/src/main` contains zero `(temp)`
+  matches and zero literal article-ID strings post-`e6aad78`.
+- `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md`
+  UNCHANGED.
 
-Dev prompt: `compact/sprint-082-dev-prompt.md` (planning context;
-becomes active sprint contract when C-2a closes). Per-sub-sprint
-Codex review REQUIRED (R6 changes corpus retrieval surface visible to
-the LLM via data field + service filter).
-
-**Sequential cadence**: C-2b launches AFTER C-2a dev-side close +
-Codex approval. Independent code surfaces but sequenced for clean
-causal attribution.
+Archived contract: `docs/sprints/sprint-082-objective.md`.
 
 ### Milestone close — milestone-shared §9 real-LLM re-bless
 
@@ -659,20 +715,20 @@ close + the 2026-06-05 / 2026-06-06 proposal):
   - `R-discover-clarification-counter-live-wireup` (R2.a; proposal §4.2; layer `infra` + `skill_state`; merged M-Auto-6 Cluster C.3 "generic clarifier branch wasting opening turn") — **dev-side closed; milestone evidence deferred**.
   - `R-entity-premise-projection-slot` (R4.a; proposal §4.4; layer `prompt_projection`; pairs with OBS-S1 deferred to autoloop) — **dev-side closed; milestone evidence deferred**.
 
-- **Sub-sprint B (S-Auto-24 / Sprint 079) — CURRENT ACTIVE:**
-  - `R-admin-trace-observability-session-list` (R3.a; proposal §4.3a; layer `infra` observability; merges with Cluster B.1 per_turn_trace truncation).
-  - `R-admin-trace-observability-dedup-toolevent-folding` (R3.b; proposal §4.3b; layer `infra` observability; merges with Cluster C.2 46f5b2e9 500 + double-send live UI).
-  - `R-admin-trace-observability-informational-guard-badge` (R3.c; proposal §4.3c; layer `infra` observability; NEW post-ship from c2/c10/c17).
+- **Sub-sprint B (S-Auto-24 / Sprint 079) — DEV-SIDE CLOSED 2026-06-06 (visual-verified; §7-EXEMPT):**
+  - `R-admin-trace-observability-session-list` (R3.a; proposal §4.3a; layer `infra` observability) — **dev-side closed; visual-verified; milestone evidence deferred**.
+  - `R-admin-trace-observability-dedup-toolevent-folding` (R3.b; proposal §4.3b; layer `infra` observability) — **dev-side closed; visual-verified; milestone evidence deferred**.
+  - `R-admin-trace-observability-informational-guard-badge` (R3.c; proposal §4.3c; layer `infra` observability) — **dev-side closed; visual-verified; milestone evidence deferred**.
 
 - **Sub-sprint C-1 (S-Auto-25 / Sprint 080) — DEV-SIDE CLOSED 2026-06-06:**
   - `R-intake-partial-stash-update-tool` (R7; proposal §4.8; layer `skill_state` + `infra` + `prompt_projection` for new tool schema; NEW post-ship from c14; runtime enabler for OBS-S6) — **dev-side closed; Codex `APPROVE_S_AUTO_25 / blocking_count=0`; capability-wiring Option-A fence-waiver accepted; milestone evidence deferred**.
   - `R-resolve-intake-clarification-budget-mapping-extension` (R2.a#5-ext; proposal §4.7; layer `infra`; NEW post-ship from c14; preserves anti-误杀 #12 spirit) — **dev-side closed; milestone evidence deferred**.
 
-- **Sub-sprint C-2a (S-Auto-26 / Sprint 081) — CURRENT ACTIVE (re-scoped 2026-06-06):**
-  - `R-citation-display-token-url-preferred` (R5; proposal §4.5; re-scoped 2026-06-06 from "1-line `cite_token_field` swap" to citation contract change after the dev pre-fix audit caught wrong anchors). New layer mix: `infra` (ResolveArticleTool result body + `SkillGuardrailDispatcher.handleMustCiteSource` literal→shape rewrite) + `prompt_projection` (skill yaml citation-token wording at `:30/:31/~:80/:44`). Partial overlap with `R-canonical-url-corpus-curation` per action_bank §5 (R5 treats "article has URL but unused"; that R-item treats "article has no URL at all" — complementary).
+- **Sub-sprint C-2a (S-Auto-26 / Sprint 081) — DEV-SIDE CLOSED 2026-06-06:**
+  - `R-citation-display-token-url-preferred` (R5; proposal §4.5; re-scoped 2026-06-06 from "1-line `cite_token_field` swap" to citation contract change after the dev pre-fix audit caught wrong anchors). New layer mix: `infra` (ResolveArticleTool result body + `SkillGuardrailDispatcher.handleMustCiteSource` literal→shape rewrite) + `prompt_projection` (skill yaml citation-token wording at `:30/:31/~:80/:44`). Partial overlap with `R-canonical-url-corpus-curation` per action_bank §5 (R5 treats "article has URL but unused"; that R-item treats "article has no URL at all" — complementary). **Dev-side closed; Codex `APPROVE_S_AUTO_26 / blocking_count=0` on targeted re-review; both fence expansions accepted; milestone evidence deferred**.
 
-- **Sub-sprint C-2b (S-Auto-27 / Sprint 082) — PLANNING CONTEXT (launches after C-2a dev-side close; re-scoped 2026-06-06):**
-  - `R-corpus-search-knowledge-eligible-retrieval-filter` (R6; proposal §4.6; re-scoped 2026-06-06 from "new `bot_visible` data field" to "reuse existing `search_knowledge_eligible` field" after the dev anchor audit found the field already on 218/218 corpus articles, ingested-but-unused). Layer: `infra` (data + entity + V17 Flyway migration + ingestion + search service filter + hit + tool log). NOTE: the R-item was previously named `R-corpus-bot-visible-retrieval-filter`; renamed at the re-scope to reflect the field-name choice.
+- **Sub-sprint C-2b (S-Auto-27 / Sprint 082) — DEV-SIDE CLOSED 2026-06-06:**
+  - `R-corpus-search-knowledge-eligible-retrieval-filter` (R6; proposal §4.6; re-scoped 2026-06-06 from "new `bot_visible` data field" to "reuse existing `search_knowledge_eligible` field" after the dev anchor audit found the field already on 218/218 corpus articles, ingested-but-unused). Layer: `infra` (data + entity + V17 Flyway migration + ingestion + search service filter + hit + tool log). NOTE: the R-item was previously named `R-corpus-bot-visible-retrieval-filter`; renamed at the re-scope to reflect the field-name choice. **Dev-side closed; Codex `APPROVE_S_AUTO_27 / blocking_count=0` on targeted re-review; both prior P0 blockers resolved by fix-iteration (`e6aad78` V17 SQL comment content-neutral + `d27b824` second direct-resolve test for `ka41r000000LIEEAA4` + `4c8931f` handoff addendum); KnowledgeHit (#6) SKIPPED + INFO log (#7) path α decisions accepted; milestone evidence deferred**.
 
 **Queued for S-Auto-28+ (post-M-Auto-6):**
 
@@ -707,20 +763,35 @@ PAUSED.
   extends the existing phase-aware re-map (control-plane labeling).
   Five non-blocking observations recorded; capability-wiring Option-A
   fence-waiver accepted (F2 verdict).
-- **Sub-sprint C-2a (S-Auto-26)**: REQUIRED — R5 #2 rewrites the
-  citation guardrail semantics (literal substring → structural shape);
-  R5 #3 updates the LLM-facing skill yaml citation-token wording.
-  Both semantic-touching per `iteration_governance.md` §7 +
-  `process/milestone-framework.md` §4.3. Codex focus must include the
-  literal→shape semantics shift + grounding-floor preservation
-  evidence + article_id-shape regex derived-from-data evidence.
-- **Sub-sprint C-2b (S-Auto-27)**: REQUIRED — R6 changes the corpus
-  retrieval surface visible to the LLM via the existing
-  `search_knowledge_eligible` data field + service-layer filter.
-  Data-field driven (NOT title-keyword; NOT hardcoded ID). Codex
-  focus must include the data-field-only filter evidence, direct
-  resolve invariant evidence, and forbidden-grep evidence (no
-  hardcoded article-id strings in Java; no `(temp)` keyword filter).
+- **Sub-sprint C-2a (S-Auto-26)**: REQUIRED — done. Verdict at the
+  S-Auto-26 close commit: `APPROVE_S_AUTO_26 / blocking_count=0` on
+  targeted re-review. §1 per-change verdicts PASS; §2 Q1–Q9 PASS;
+  §3 F1–F5 PASS (literal→structural-shape semantics shift verified;
+  grounding-floor preservation; article_id regex derived from
+  218/218 corpus IDs; yaml minimum-edit; fence-expansion #2
+  byte-mechanical). 3 non-blocking observations recorded. Procedural
+  REJECT on clean-tree gate resolved by `8a7cb66`; substantive REJECT
+  preserved at `221432d` for audit trail; targeted re-review prompt
+  at `54b8729` flipped verdict header + §4 only with §1–§5 PASS
+  preserved verbatim.
+- **Sub-sprint C-2b (S-Auto-27)**: REQUIRED — done. Verdict at the
+  S-Auto-27 close commit: `APPROVE_S_AUTO_27 / blocking_count=0` on
+  targeted re-review. Initial review returned `APPROVE_S_AUTO_27_WITH_FIXES
+  / blocking_count=2` (commit `1954cb6` audit trail) on two
+  infra-hygiene gaps: F2/Q8 second direct-resolve test for
+  `ka41r000000LIEEAA4` missing + F3 V17 SQL line-4 `(temp)` literal
+  in the comment tripping the forbidden-grep gate. Both resolved by
+  fix-iteration commits `e6aad78` (V17 SQL content-neutral rewrite;
+  SQL operation byte-unchanged) + `d27b824` (second direct-resolve
+  test at `ResolveArticleToolTest:275-303`) + `4c8931f` (handoff
+  §3.1 addendum + over-claim correction). Targeted re-review prompt
+  at `a7c5b6f` verified clean tree + cumulative range; Codex's
+  flipped verdict: §1 per-change verdicts PASS with explicit
+  pass-on-re-review notes for #3 and #8; §2 Q1–Q9 PASS aggregate
+  `approve`; §3 F1–F6 PASS (data-field-only filter; both flagged
+  IDs direct-resolve test-pinned; forbidden-grep clean post-fix;
+  back-compat default-true; no parallel governance field; pre-fix
+  audit decisions PASS). 4 non-blocking observations recorded.
 
 All per-sub-sprint dev prompts and Codex prompts must be self-contained
 per `prompt-artifact-rules.md` §9.1-§9.6 and embed:
@@ -760,40 +831,40 @@ extraction + `UpdateIntakeFieldsTool` + dispatch smoke +
 `MapBudgetToClarificationLabelTest` extension). Per-sub-sprint Codex
 review delivered `APPROVE_S_AUTO_25 / blocking_count=0`.
 
-**Sub-sprint C-2a (S-Auto-26 / Sprint 081; R5 citation contract fix)**:
-~1-1.5 dev sessions per the post-rewrite scope (~140 LOC, ~3 files:
-`ResolveArticleTool.java` additive `display_citation` +
-`SkillGuardrailDispatcher.handleMustCiteSource` rewrite + two `Pattern`
-constants + new `containsAcceptableCiteToken` helper +
-`resolve_faq_grounded_answer.yaml` citation-token wording at `:30/:31/~:80/:44`
-+ extensions to `ResolveArticleToolTest` and `SkillGuardrailDispatcherTest`).
-Per-sub-sprint Codex review ~half a session with explicit focus on
-the literal→shape semantics shift + grounding-floor preservation +
-article_id-shape regex derived-from-data evidence.
+**Sub-sprint C-2a (S-Auto-26 / Sprint 081; R5 citation contract fix)** —
+SHIPPED: delivered in 1 dev session + Codex per-sub-sprint targeted
+re-review. 4 commits (`d4122c0..5a0ab3d`). +10 net Java tests across
+`ResolveArticleToolTest` + `SkillGuardrailDispatcherTest` +
+`ResolveFaqGuardrailsTest` (fixture update; fence expansion #1) +
+`PhaseEvaluatorResolveSkillIntegrationTest` (byte-mechanical golden
+mirror; fence expansion #2). Per-sub-sprint Codex review delivered
+`APPROVE_S_AUTO_26 / blocking_count=0`.
 
 **Sub-sprint C-2b (S-Auto-27 / Sprint 082; R6 corpus eligibility
-filter)**: ~1-1.5 dev sessions per the post-rewrite scope (~180 LOC,
-~6 files: `data/knowledge/knowledge_base_articles.json` 2-article flip
-+ `KbArticle.java` new column + `V17` Flyway migration + new column +
-`KnowledgeIngestionRunner` parser + `KnowledgeSearchService` filter +
-INFO log + optional `KnowledgeHit` field + optional `SearchKnowledgeTool`
-log + extensions to `KnowledgeIngestionRunnerTest` /
-`KnowledgeSearchServiceTest` / `SearchKnowledgeToolTest` /
-`ResolveArticleToolTest` direct-resolve invariant). Per-sub-sprint
-Codex review ~half a session. Launches sequentially after C-2a
-dev-side close.
+filter)** — SHIPPED: delivered in 1 dev session + initial Codex
+review + fix-iteration + targeted re-review. 5 delivery commits
+(`bb48aa0..7773c92`) + 3 fix-iteration commits (`e6aad78` + `d27b824`
++ `4c8931f`) + 3 audit/package commits (`056fa5a` + `3300b4a` +
+`1954cb6`) = 11 Git commits in cumulative range `bb48aa0^..4c8931f`.
++10 net Java tests across `KbArticleEligibilityCorpusTest` (new) +
+`KnowledgeIngestionRunnerTest` extensions + `KnowledgeSearchServiceTest`
+extensions + `ResolveArticleToolTest` extensions (both flagged IDs
+direct-resolve test-pinned post-fix-iteration). Per-sub-sprint Codex
+targeted re-review delivered `APPROVE_S_AUTO_27 / blocking_count=0`
+after the two initial infra-hygiene gaps were resolved.
 
 **Milestone close run**: ONE milestone-shared real-LLM re-bless
 (`autoloop/scripts/rebless_baseline.py --n 9`, multi-suite — bad_cases
 + anchor_outcome + shadow), ~30-60 minutes wall-time depending on
 provider latency. Plus paired-evidence review.
 
-**M-Auto-6 total**: best case (route (a)) = ~6-8 dev sessions across
-A (done) + B (done) + C-1 (done) + C-2a + C-2b + milestone re-bless +
-close. Worst case (route (b) re-diagnosis at milestone close) = +1
-sub-sprint. C-2a and C-2b are sequenced (not parallel) per the
-2026-06-06 re-scope to keep causal attribution clean for the
-milestone-shared Codex review.
+**M-Auto-6 total**: A (done) + B (done) + C-1 (done) + C-2a (done) +
+C-2b (done) — all 5 sub-sprints dev-side closed 2026-06-06. Remaining
+work: milestone-shared §9 real-LLM re-bless (NEXT human-launched
+action) + paired-evidence review + milestone-shared Codex review at
+`compact/M-Auto-6-review-prompt.md` + close decision per §5 routes.
+Worst case (route (b) re-diagnosis at milestone close) = +1
+fix-iteration sub-sprint.
 
 ## 10. Stop conditions (milestone-level)
 
@@ -825,12 +896,14 @@ milestone-shared Codex review.
 
 - M-Auto-5 (closed 2026-06-05) — eval-honesty floor LIVE; baseline_dir
   flipped to `m-auto-5-baseline-20260604-simfixed-stalledfix`.
-- **M-Auto-6 (this milestone, ACTIVE)** — runtime substrate hygiene +
-  admin observability + intake/clarification contract + UX/corpus
-  governance. Sub-sprints A + B + C-1 dev-side closed 2026-06-06;
-  C-2a current (re-scoped from original C-2 R5+R6 bundle after the
-  dev pre-fix audit STOP); C-2b drafted as planning context (launches
-  after C-2a dev-side close); milestone-shared re-bless at close.
+- **M-Auto-6 (this milestone, ACTIVE; dev-side complete, milestone
+  close pending)** — runtime substrate hygiene + admin observability
+  + intake/clarification contract + UX/corpus governance. Sub-sprints
+  A + B + C-1 + C-2a + C-2b ALL dev-side closed 2026-06-06.
+  Milestone-shared §9 real-LLM re-bless is the NEXT action;
+  milestone-shared Codex review at `compact/M-Auto-6-review-prompt.md`
+  follows; close decision per §5 routes (a) / (b) / (c) gated on the
+  re-bless evidence + Codex verdict.
 - M-Auto-7+ — candidate: autoloop semantic optimization on cleaned
   surfaces (OBS-S1 UC-A/H/J verify-entity-context / OBS-S2 DISCOVER
   disambiguation cue / **OBS-S6** intake too literal — gated on R7 ship
