@@ -1,8 +1,13 @@
 # M-Auto-6 milestone-shared Codex review prompt
 
-**Authored by deliver-agent at C-2b dev-side close, 2026-06-06.**
-**Dispatched after the M-Auto-6 milestone-shared §9 real-LLM re-bless
-evidence is in.**
+**Authored by deliver-agent at C-2b dev-side close, 2026-06-06; updated
+at S-Auto-28 dev-side close, 2026-06-07 to add the 6th sub-sprint
+(R8 KnowledgeIngestionRunner `--reconcile` data-application path;
+M-Auto-6 milestone-close BLOCKER fix surfaced by the §5.9 pre-flight
+NO-GO at §0.3).**
+**Dispatched after the S-Auto-28 Definition-of-done unblock sequence
+completes + the M-Auto-6 milestone-shared §9 real-LLM re-bless evidence
+is in.**
 
 This prompt is the **self-contained executable view** of the
 milestone-shared Codex review per `process/milestone-framework.md`
@@ -19,10 +24,12 @@ before this review and are referenced by path under "Loader".
 
 You are the **Anti-Hardcode + Milestone-Close Review Agent for
 Milestone M-Auto-6**. Your review covers the cumulative commit range
-`6236941..HEAD` (46+ commits at dispatch time — exact commit count
-includes the C-2b close-cascade commit + the subsequent re-bless
-launch commit) across the five sub-sprints A + B + C-1 + C-2a + C-2b
-that comprise M-Auto-6. The milestone is "Runtime substrate hygiene
+`6236941..HEAD` (52+ commits at dispatch time — exact commit count
+includes the C-2b close-cascade commit, the S-Auto-28 launch + 4 dev
+commits + per-sub-sprint Codex review prompt + S-Auto-28 close-cascade
+commit, and the subsequent re-bless launch commit) across the **six**
+sub-sprints A + B + C-1 + C-2a + C-2b + **S-Auto-28** that comprise
+M-Auto-6. The milestone is "Runtime substrate hygiene
 at intake + DISCOVER surfaces + admin observability + intake/clarification
 contract + UX/corpus governance" — a Tier-1 mechanical wiring +
 prompt_projection contract completion + UI-only display additions +
@@ -34,9 +41,11 @@ citation contract literal→shape semantics fix milestone.
 already been delivered for A (`APPROVE_S_AUTO_23 / blocking_count=0`
 at `62b4d7b`), C-1 (`APPROVE_S_AUTO_25 / blocking_count=0`), C-2a
 (`APPROVE_S_AUTO_26 / blocking_count=0` on targeted re-review at the
-S-Auto-26 close commit), and C-2b (`APPROVE_S_AUTO_27 /
-blocking_count=0` on targeted re-review at the S-Auto-27 close
-commit). B was §7-EXEMPT and visual-verified — no per-sub-sprint
+S-Auto-26 close commit), C-2b (`APPROVE_S_AUTO_27 / blocking_count=0`
+on targeted re-review at the S-Auto-27 close commit), and **S-Auto-28**
+(`APPROVE_S_AUTO_28 / blocking_count=0` under §4.1 pure-infra scope
+exemption at the S-Auto-28 close commit). B was §7-EXEMPT and
+visual-verified — no per-sub-sprint
 Codex required per `process/milestone-framework.md` §4.3. Your
 milestone-shared review covers the cumulative commit range and is
 expected to either (i) cumulatively confirm the per-sub-sprint
@@ -62,6 +71,9 @@ Read in this order:
    - `docs/sprints/sprint-081-handoff.md` (S-Auto-26 / C-2a)
    - `docs/sprints/sprint-082-handoff.md` (S-Auto-27 / C-2b; includes
      §3.1 fix-iteration addendum)
+   - `docs/sprints/sprint-083-handoff.md` (S-Auto-28; R8
+     KnowledgeIngestionRunner `--reconcile` data-application path
+     fixing the M-Auto-6 milestone-close blocker)
 
 The archived per-sub-sprint **objectives** (dev-side-closed banners
 with the gate evidence tables) live alongside the handoffs at
@@ -103,7 +115,8 @@ change is minimum-edit (citation-token references only, procedure /
 role / objective untouched).
 
 **§7 stanza requirement:** REQUIRED at the milestone level + at each
-semantic-touching sub-sprint. Layer matrix (post-C-2b dev-side close):
+semantic-touching sub-sprint. Layer matrix (post-S-Auto-28 dev-side
+close):
 
 | Sub-sprint | Layer mix | §7 stanza required? | Status |
 |---|---|---|---|
@@ -112,6 +125,7 @@ semantic-touching sub-sprint. Layer matrix (post-C-2b dev-side close):
 | C-1 (R7 + R2.a#5-ext) | `skill_state` + `infra` + `prompt_projection` (R7 tool schema) | ✅ REQUIRED — done; Codex `APPROVE_S_AUTO_25 / blocking_count=0` (capability-wiring Option-A fence-waiver ACCEPTED) | DEV-SIDE CLOSED 2026-06-06 |
 | C-2a (R5 citation contract fix) | `infra` (ResolveArticleTool result + handleMustCiteSource semantics rewrite) + `prompt_projection` (skill yaml citation wording at `:30/:31/~:80/:44`) | ✅ REQUIRED — done; Codex `APPROVE_S_AUTO_26 / blocking_count=0` on targeted re-review | DEV-SIDE CLOSED 2026-06-06 |
 | C-2b (R6 corpus eligibility filter) | `infra` (data + entity + V17 migration + ingestion + service filter + tool log) | ✅ REQUIRED — done; Codex `APPROVE_S_AUTO_27 / blocking_count=0` on targeted re-review (both prior P0 blockers resolved by fix-iteration) | DEV-SIDE CLOSED 2026-06-06 |
+| **S-Auto-28 (R8 KnowledgeIngestionRunner `--reconcile` data-application path)** | `infra` (server-side knowledge data-application path; standalone `--reconcile` metadata-only mode UPDATEs 3 mutable curation columns on existing rows from JSON; plain `--ingest` byte-unchanged) | ✅ INCLUDED CONSERVATIVELY — done; Codex `APPROVE_S_AUTO_28 / blocking_count=0` **under §4.1 pure-infra scope exemption** (R8 itself is pure infra; downstream surface gates R6's LLM-facing search; Codex invoked the kernel scope exemption and approved) | DEV-SIDE CLOSED 2026-06-07 (M-Auto-6 milestone-close BLOCKER fix) |
 
 ### 3.2 Goal
 
@@ -240,6 +254,73 @@ blocking_count=0` on targeted re-review (initial Codex verdict at
 infra-hygiene gaps — both closed by fix-iteration; targeted re-review
 prompt at `a7c5b6f` flipped verdict header + §4 only with §1–§3 + §5
 substantive content reflecting post-fix state).
+
+**Sub-sprint S-Auto-28 — Sprint 083 — R8 KnowledgeIngestionRunner `--reconcile` data-application path — DEV-SIDE CLOSED 2026-06-07 (M-Auto-6 milestone-close BLOCKER fix).**
+Promoted 2026-06-07 ahead of the milestone-shared re-bless because the
+§5.9 pre-flight runbook returned **NO-GO at §0.3** on 2026-06-07
+(recorded at `docs/diagnostics/2026-06-07-m-auto-6-preflight-verdict.md`):
+the populated dev DB's 2 `(temp)` template rows still read
+`search_knowledge_eligible=true` after R6's JSON flip was committed,
+because the insert-only `KnowledgeIngestionRunner` skips every
+already-present `article_id` and never UPDATEs. R6's close gates
+(`BEGIN…ROLLBACK` migration-mechanics test + synthetic-article unit
+tests) did not catch this populated-DB regression; the pre-flight
+runbook did, exactly as the §5.9 gate was designed to. R8 is the
+structural fix per the blocker brief at
+`docs/diagnostics/failure-briefs/preflight-2026-06-07-kb-ingest-skip-existing-blocks-r6-flag.md`.
+Code: 4 commits `ba3defa..78ae614` (R8 #1+#2+#3 metadata-only
+reconcile + observability + `KnowledgeIngestionReconcileTest` 9 tests
+covering #4(a)+#4(b); R8 #4(c) `KnowledgeReconcileEndToEndTest` R6
+end-to-end wiring at mock level; R8 #5 5 runbook drift fixes + §0.3/A3
+root-cause annotation — docs-only separate commit `97d7801`; R8 #6
+dev handoff). Canonical invocation pinned to **standalone
+`--reconcile`** (deliver-agent decision 2026-06-07; rationale: plain
+`--ingest` keeps insert-only semantics, `--reconcile` signals
+metadata-only update semantics, the two flags name different modes
+not the same mode with a flag stack; `--ingest --reconcile` combo
+non-canonical). Runner-entry gate widened to
+`if (!ingest && !reconcile) return;` at
+`KnowledgeIngestionRunner.java:78-85`; per-article branch on
+`reconcile` at `:161-174`; `reconcileExisting(...)` at `:216-261`
+loads the existing managed `KbArticle`, sets ONLY the 3 mutable
+curation columns (`searchKnowledgeEligible` / `isPublished` /
+`ucTags`) from JSON via the existing `path(...).asBoolean(true)` /
+`extractUcTagsStatic` idioms, bumps `updatedAt`, calls `save()`;
+saves+counts ONLY when ≥1 curation column actually changed (so
+`articlesReconciled` reports rows whose curation MOVED — expected 2
+on the live corpus). Content columns (`title` / `summary` /
+`description` / `source_url` / `url_category` / `token_count`) and
+the embedding pipeline (`chunkingService` / `embeddingClient` /
+`kbChunkRepository`) NEVER touched on reconcile. Plain `--ingest`
+byte-for-byte unchanged (insert-only skip-existing). New IDs under
+`--reconcile` still fall through to insert+embed. Per-row INFO at
+`:258-259` + end-of-run summary INFO at `:115-123`. Pre-fix audit (3
+STOPs cleared BEFORE any code): `save()` is full-row UPDATE on
+existing-id entity (no `@DynamicUpdate` → load-then-modify mandatory);
+mutable curation columns confirmed; no JPA cascade to `kb_chunks`
+(chunks referenced via plain `String articleId`, no
+`@ManyToOne`/`@OneToMany`). Java baseline `1358/1/0/2` (+10 net tests
+across `KnowledgeIngestionReconcileTest` 9 tests + `KnowledgeReconcileEndToEndTest`
+1 test; sole failure = inherited OQ-S41.5, provably uncoupled).
+Focused 5-suite re-review tests `31/0/0/0`. Per-sub-sprint Codex
+`APPROVE_S_AUTO_28 / blocking_count=0` **under §4.1 pure-infra scope
+exemption**: §1 R8 #1-#6 PASS; §2 Q1-Q9 PASS aggregate `approve`; §3
+F1-F6 PASS (Codex independently verified mock-interaction counts via
+`verify(..., never())`; re-ran `git grep` returning 0
+`ka41r…`/`(temp)` under `server/src/main`; confirmed before/after
+blob hashes IDENTICAL for `KnowledgeSearchService.java`,
+`KbArticle.java`, V17, `knowledge_base_articles.json`,
+`docs/current_eval_baseline.md`, `autoloop/config.yaml`). 3
+non-blocking observations: NBO #1 standalone entry-gate test gap —
+queued as `R-standalone-reconcile-entry-gate-test` for S-Auto-29+
+infra-test pickup; NBO #2 post-APPROVE evidence assertions reminder
+for the deliver-agent + human Definition-of-done unblock sequence;
+NBO #3 independent review verification passed.
+**Real-DB §0.3 evidence DEFERRED post-Codex per §5.7** (live
+`--reconcile` run + §0.3 re-check require backend rebuild + mutate
+shared dev DB; sequenced as the Definition-of-done unblock action).
+Anti-误杀 #7 forbids manual SQL UPDATE as the §0.3 evidence — the DB
+state MUST be produced by the `--reconcile` run.
 
 ### 3.4 Non-goals (explicit)
 
@@ -455,6 +536,7 @@ the close-cascade commit being committed alongside this prompt, plus
 | C-1 — Sprint 080 / S-Auto-25 | `be1e733..c031786` (intended `be1e733^..c031786`) | 4 dev + dev handoff + Codex finding | R7 + R2.a#5-ext + dev handoff. |
 | C-2a — Sprint 081 / S-Auto-26 | `d4122c0..5a0ab3d` (intended `d4122c0^..5a0ab3d`) + `8a7cb66` (out-of-scope context-pack archive) + `221432d` (substantive REJECT audit) + `54b8729` (targeted re-review prompt) + close commit `6570ec2` | 4 dev + 1 handoff + 4 procedural | R5 #1 + R5 #2 + R5 #3 + dev handoff. |
 | C-2b — Sprint 082 / S-Auto-27 | `bb48aa0..7773c92` (5 delivery) + `e6aad78` + `d27b824` + `4c8931f` (3 fix-iteration) + `056fa5a` + `3300b4a` + `1954cb6` + `a7c5b6f` + close commit | 5 delivery + 3 fix-iteration + 4 audit/package | R6 #1–#8 + dev handoff + fix-iteration addendum. |
+| **S-Auto-28 — Sprint 083** | `ba3defa..78ae614` (4 commits: R8 #1+#2+#3 + #4(a/b) at `ba3defa`; R8 #4(c) at `7ae61d2`; R8 #5 docs-only at `97d7801`; R8 #6 handoff at `78ae614`) + `0d15c69` launch + `29425f4` framework precursor + `feb3419` per-sub-sprint review prompt + close commit | 4 substantive + 4 audit/package | R8 KnowledgeIngestionRunner `--reconcile` metadata-only data-application path (M-Auto-6 milestone-close BLOCKER fix). |
 
 Per-sub-sprint Codex verdicts:
 - A: `APPROVE_S_AUTO_23 / blocking_count=0` at `62b4d7b`.
@@ -471,6 +553,18 @@ Per-sub-sprint Codex verdicts:
   §4 #2 V17 SQL line-4 `(temp)` literal in comment tripping F3
   forbidden-grep gate; SQL operation byte-unchanged); both closed by
   fix-iteration `e6aad78` + `d27b824` + `4c8931f`.
+- **S-Auto-28**: `APPROVE_S_AUTO_28 / blocking_count=0` under §4.1
+  pure-infra scope exemption. §1 R8 #1-#6 PASS; §2 Q1-Q9 PASS aggregate
+  `approve` (scope-exemption invoked); §3 F1-F6 PASS (Codex independently
+  verified mock-interaction counts + re-ran `git grep` returning 0
+  `ka41r…`/`(temp)` under `server/src/main` + confirmed before/after
+  blob hashes IDENTICAL for `KnowledgeSearchService.java`,
+  `KbArticle.java`, V17, `knowledge_base_articles.json`,
+  `docs/current_eval_baseline.md`, `autoloop/config.yaml`). 3 NBOs (#1
+  standalone entry-gate test gap queued as
+  `R-standalone-reconcile-entry-gate-test`; #2 post-APPROVE evidence
+  assertions reminder; #3 independent review verification 31/0/0/0 +
+  diff-check clean).
 
 ### 5.2 Java baseline progression
 
@@ -487,7 +581,10 @@ Per-sub-sprint Codex verdicts:
 - C-1 close: `1327/1/0/2` (+30 net Java tests).
 - C-2a close: `1337/1/0/2` (+10 net Java tests).
 - C-2b close: `1348/1/0/2` (+10 net Java tests).
-- **Java baseline at this milestone-shared review: `1348/1/0/2`**;
+- **S-Auto-28 close: `1358/1/0/2`** (+10 net Java tests across
+  `KnowledgeIngestionReconcileTest` 9 + `KnowledgeReconcileEndToEndTest`
+  1).
+- **Java baseline at this milestone-shared review: `1358/1/0/2`**;
   sole failure = inherited OQ-S41.5.
 - UI vitest baseline at this milestone-shared review:
   `10 passed / 0 failed / 0 skipped` (vitest + @testing-library/react +
