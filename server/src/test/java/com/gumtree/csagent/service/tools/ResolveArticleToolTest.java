@@ -272,6 +272,37 @@ class ResolveArticleToolTest {
                 "published + non-blank body → safe_to_show true; eligibility does not gate direct resolve");
     }
 
+    @Test
+    void execute_searchIneligibleArticle_stillResolvesByDirectId_secondTemplate() {
+        // Same anti-误杀 #1 invariant as above, pinned for the second flagged
+        // article so both eligibility=false rows in the corpus are covered by
+        // the direct-resolve characterization.
+        KbArticle csTemplate = KbArticle.builder()
+                .articleId("ka41r000000LIEEAA4")
+                .title("(temp) NTD Ad Removed Information")
+                .description("The 'Rights' owner of the item you're advertising ...")
+                .sourceUrl(null)
+                .ucTags(new String[]{"UC-B"})
+                .isPublished(true)
+                .searchKnowledgeEligible(false)
+                .build();
+        when(kbArticleRepository.findById("ka41r000000LIEEAA4"))
+                .thenReturn(Optional.of(csTemplate));
+
+        ToolResult result = tool.execute(buildSession(),
+                Map.of("source_id", "ka41r000000LIEEAA4"));
+
+        assertTrue(result.isSuccess(),
+                "a search_knowledge_eligible=false (but published) article must still "
+                        + "resolve via resolve_article — the R6 filter is at the search surface only");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals("ka41r000000LIEEAA4", data.get("source_id"));
+        assertEquals("(temp) NTD Ad Removed Information", data.get("title"));
+        assertEquals(Boolean.TRUE, data.get("safe_to_show"),
+                "published + non-blank body → safe_to_show true; eligibility does not gate direct resolve");
+    }
+
     private static BotSession buildSession() {
         BotSession session = new BotSession();
         session.setSessionId("sess-resolve-article-test");
