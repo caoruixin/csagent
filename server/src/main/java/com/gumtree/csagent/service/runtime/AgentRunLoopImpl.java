@@ -1004,19 +1004,14 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         if (!(raw instanceof Map<?, ?> rawMap) || rawMap.isEmpty()) {
             return;
         }
-        Map<String, String> existing = IntakeFieldsRegistry.parseCollectedFields(
-                objectMapper, session.getIntakeFields());
+        // Sprint 080 / R7 (path β): the merge + persist body was extracted to
+        // {@link IntakeFieldsMerger} so the new update_intake_fields tool
+        // persists through the same byte-equivalent code path. This method
+        // keeps the request_handover-specific `intake_fields` key extraction
+        // and null/empty guard; the shared helper owns parse → merge → persist.
         @SuppressWarnings("unchecked")
         Map<String, ?> incoming = (Map<String, ?>) rawMap;
-        Map<String, String> merged = IntakeFieldsRegistry.mergeFields(existing, incoming);
-        if (merged.equals(existing)) {
-            return;
-        }
-        try {
-            session.setIntakeFields(objectMapper.writeValueAsString(merged));
-        } catch (Exception ex) {
-            log.warn("AgentRunLoop failed to persist inline intake_fields: {}", ex.getMessage());
-        }
+        IntakeFieldsMerger.merge(session, incoming, objectMapper);
     }
 
     /**
