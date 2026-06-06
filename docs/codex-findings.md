@@ -1,8 +1,8 @@
 ## Sprint Review Decision
-decision: fix_required
-blocking_count: 2
-final_verdict: APPROVE_S_AUTO_27_WITH_FIXES
-summary: The cumulative five-commit range `bb48aa0^..7773c92` is structurally sound and introduces no operational semantic hardcode: the search filter uses only `KbArticle.isSearchKnowledgeEligible()`, default-visible behavior is preserved across entity/migration/ingestion, the two corpus flips are exact, and production direct resolve remains unfiltered. Two narrow acceptance gaps block close: the required direct-resolve invariant is test-pinned for only one of the two flagged article IDs, while the handoff claims both; and the required `server/src/main` forbidden grep finds a newly introduced `(temp)` literal in the V17 migration comment. Remove that literal and pin direct resolve for `ka41r000000LIEEAA4`, then targeted re-review can approve.
+decision: pass
+blocking_count: 0
+final_verdict: APPROVE_S_AUTO_27
+summary: Sprint 082 / S-Auto-27 / M-Auto-6 Sub-sprint C-2b is approved on targeted re-review. The prior two §4 blocking findings, both infra hygiene gaps rather than executable semantic hardcode, were resolved by `e6aad78` (V17 SQL comment content-neutral rewrite) and `d27b824` (second direct-resolve invariant test for `ka41r000000LIEEAA4`); `4c8931f` added the handoff §3.1 fix-iteration addendum and corrected the prior over-claims. The original five delivery commits remain unamended and append-only. The range `bb48aa0^..4c8931f` contains 11 Git commits total: 8 delivery/fix/handoff commits plus the 3 acknowledged audit/package commits `056fa5a`, `3300b4a`, and `1954cb6`. Focused tests passed `23 / 0 / 0 / 0`; full Java suite matched `1348 / 1 / 0 / 2`; grep gates are clean. Verdict flipped to `APPROVE_S_AUTO_27 / blocking_count=0`.
 
 ## §1 Per-Change Verdicts
 
@@ -10,7 +10,7 @@ summary: The cumulative five-commit range `bb48aa0^..7773c92` is structurally so
 
 **#2 — `KbArticle` entity field: pass.** Commit `bb48aa0` adds primitive `boolean searchKnowledgeEligible`, `@Builder.Default=true`, and the non-null `search_knowledge_eligible` column only (`KbArticle.java:51-60`). Lombok `@Data` supplies `isSearchKnowledgeEligible()`.
 
-**#3 — V17 migration: fix required for forbidden-grep hygiene; schema operation passes.** V17 is the next migration after V16 and its sole operation is `ADD COLUMN search_knowledge_eligible BOOLEAN NOT NULL DEFAULT TRUE` (`V17__add_kb_search_knowledge_eligible.sql:6-7`), matching the existing non-null/default-true published-column shape (`V4__create_kb_articles.sql:9`). However, V17 introduces `(temp)` in a `server/src/main` comment (`V17__add_kb_search_knowledge_eligible.sql:4`), failing the prompt's explicit F3 zero-new-match gate. Fix: replace that comment wording with content-neutral language; do not change the SQL operation.
+**#3 — V17 migration: pass on targeted re-review.** V17 remains the next migration after V16 and its sole operation is `ADD COLUMN search_knowledge_eligible BOOLEAN NOT NULL DEFAULT TRUE` (`V17__add_kb_search_knowledge_eligible.sql:6-7`), matching the existing non-null/default-true published-column shape (`V4__create_kb_articles.sql:9`). Commit `e6aad78` changes only line 4's comment to the content-neutral “CS-only placeholder template articles”; the SQL operation is byte-unchanged and the `server/src/main` `(temp)` grep is now clean.
 
 **#4 — ingestion parser: pass.** Commit `0594a25` mirrors the existing `published_status` idiom with `path("search_knowledge_eligible").asBoolean(true)` and passes the value into the builder (`KnowledgeIngestionRunner.java:205-214`, `:224-238`). Explicit false, explicit true, and absent/default-true are pinned (`KnowledgeIngestionRunnerTest.java:30-100`). No other mapped field changed in the commit.
 
@@ -20,9 +20,9 @@ summary: The cumulative five-commit range `bb48aa0^..7773c92` is structurally so
 
 **#7 — INFO log path α: pass.** The service emits an INFO log per filtered article with `article_id`, fixed structural `filter_reason`, `session_id`, and `turn_index` (`KnowledgeSearchService.java:240-245`). `SearchKnowledgeTool.java` is byte-untouched; the path-α rationale is documented (`sprint-082-handoff.md:120-126`).
 
-**#8 — direct-resolve invariant: fix required.** Production direct resolve remains unfiltered and reads directly by ID, gating only unpublished articles (`ResolveArticleTool.java:66-81`). Commit `977f9b8` pins successful direct resolve for `ka41r000000LIEJAA4` only (`ResolveArticleToolTest.java:239-272`); there is no `ka41r000000LIEEAA4` occurrence in that test file. This contradicts the handoff's “both ... test-pinned” claims (`sprint-082-handoff.md:68-69`, `:227-228`) and fails the explicit F2 requirement. Fix: parameterize or add a second direct-resolve test covering `ka41r000000LIEEAA4`.
+**#8 — direct-resolve invariant: pass on targeted re-review.** Production direct resolve remains unfiltered and reads directly by ID, gating only unpublished articles (`ResolveArticleTool.java:66-81`). The original test pins `ka41r000000LIEJAA4` (`ResolveArticleToolTest.java:239-272`), and commit `d27b824` adds the mirror `execute_searchIneligibleArticle_stillResolvesByDirectId_secondTemplate` test for `ka41r000000LIEEAA4`, asserting success, returned source ID, actual corpus title, and `safe_to_show=true` (`ResolveArticleToolTest.java:275-303`). Commit `4c8931f` records the fix and corrects the prior over-claim (`sprint-082-handoff.md:68-71`, `:229-231`, `:277-327`).
 
-**Fence / cumulative range: pass.** `git rev-list --count bb48aa0^..7773c92` returns `5`, exactly commits `bb48aa0`, `0594a25`, `d21594f`, `977f9b8`, and `7773c92`. The ten cumulative touched files are the nine authorized implementation/test files plus the authorized handoff; forbidden production, skill, UI, eval, autoloop, and baseline paths have zero diff. `git diff --check` is clean.
+**Fence / cumulative range: pass, with range-accounting clarification.** The original audited five commits `bb48aa0` through `7773c92` remain unamended and append-only. The targeted fix commits are exactly `e6aad78`, `d27b824`, and `4c8931f`, touching only V17's comment, `ResolveArticleToolTest`, and the authorized handoff. The literal range `bb48aa0^..4c8931f` contains 11 Git commits, not 8, because it also includes the acknowledged audit/package commits `056fa5a`, `3300b4a`, and `1954cb6`; none changes C-2b production/test behavior. Forbidden production, skill, UI, eval, autoloop, and baseline paths remain untouched, and `git diff --check bb48aa0^..4c8931f` is clean.
 
 ## §2 Nine-Question Kernel Walkthrough
 
@@ -32,7 +32,7 @@ summary: The cumulative five-commit range `bb48aa0^..7773c92` is structurally so
 
 **Q3 — Could soft-signal projection suffice? Pass.** Corpus eligibility is a Runtime-owned retrieval boundary. Asking the LLM to infer template status from title/body text would encode the forbidden content heuristic; the shipped implementation instead consumes a structured data field (`KbArticle.java:58-60`; `KnowledgeSearchService.java:240-246`).
 
-**Q4 — Eval/case text encoded? Pass for operational behavior.** The predicate does not inspect query, title, body, CaseSpec text, or article ID (`KnowledgeSearchService.java:240-246`). The V17 comment literal is an F3 hygiene failure, not executable semantic matching.
+**Q4 — Eval/case text encoded? Pass for operational behavior.** The predicate does not inspect query, title, body, CaseSpec text, or article ID (`KnowledgeSearchService.java:240-246`). The prior V17 comment-literal hygiene failure was not executable semantic matching and is resolved by `e6aad78`.
 
 **Q5 — Semantic ownership moved LLM → Java? Pass.** Java narrows the available corpus by one structural eligibility flag; it does not choose the query, relevance, citation, response strategy, or wording (`KnowledgeSearchService.java:193-259`).
 
@@ -40,19 +40,19 @@ summary: The cumulative five-commit range `bb48aa0^..7773c92` is structurally so
 
 **Q7 — Tool schema / safety / grounding floors preserved? Pass.** `SearchKnowledgeTool.java`, `ResolveArticleTool.java`, `SkillGuardrailDispatcher.java`, and skill YAML have zero diff. Path α changes no tool result shape (`SearchKnowledgeTool.java:52-74`), and production direct resolve's published-safety floor remains unchanged (`ResolveArticleTool.java:74-81`).
 
-**Q8 — Generalization eval coverage? Fail pending targeted negative-control completion.** Search target/neighbor/default-visible behavior is covered (`KnowledgeSearchServiceTest.java:57-138`), ingestion default-visible behavior is covered (`KnowledgeIngestionRunnerTest.java:30-100`), and the corpus test covers both flags/remain-published (`KbArticleEligibilityCorpusTest.java:29-74`). However, the required direct-resolve negative control is pinned for only one flagged ID (`ResolveArticleToolTest.java:239-272`), not both.
+**Q8 — Generalization eval coverage? Pass on targeted re-review.** Search target/neighbor/default-visible behavior is covered (`KnowledgeSearchServiceTest.java:57-138`), ingestion default-visible behavior is covered (`KnowledgeIngestionRunnerTest.java:30-100`), and the corpus test covers both flags/remain-published (`KbArticleEligibilityCorpusTest.java:29-74`). Direct-resolve negative controls now pin both flagged IDs: `ka41r000000LIEJAA4` (`ResolveArticleToolTest.java:239-272`) and, via `d27b824`, `ka41r000000LIEEAA4` (`:275-303`).
 
 **Q9 — Temporary hardcode / sunset plan? Pass.** The eligibility column, parser, and predicate are durable structural mechanisms (`V17__add_kb_search_knowledge_eligible.sql:6-7`; `KnowledgeIngestionRunner.java:213-214`; `KnowledgeSearchService.java:240-246`); no temporary branch shipped.
 
-**§4.1 aggregate verdict:** `approve with targeted fixes`. No executable semantic hardcode exists, but Q8 and the explicit F3 acceptance gate must be corrected before close.
+**§4.1 aggregate verdict:** `approve`. No executable semantic hardcode exists; Q8 and the explicit F3 acceptance gate are green after `d27b824` and `e6aad78`.
 
 ## §3 Five Focal-Point Verdicts
 
 **F1 — Data-field-only filter: pass.** Commit `d21594f` adds only the eligibility check and INFO log immediately after the existing `isPublished` check (`KnowledgeSearchService.java:223-246`). No content, title, ID, UC, reranker, score, or LLM branch was added.
 
-**F2 — Direct resolve invariant: fail.** Production behavior is preserved (`ResolveArticleTool.java:66-81`), but the required per-flagged-ID test evidence is incomplete: only `ka41r000000LIEJAA4` is pinned (`ResolveArticleToolTest.java:239-272`); `ka41r000000LIEEAA4` is absent.
+**F2 — Direct resolve invariant: pass on targeted re-review.** Production behavior remains preserved (`ResolveArticleTool.java:66-81`). Commit `d27b824` adds the required second-ID mirror test; both `ka41r000000LIEJAA4` and `ka41r000000LIEEAA4` now assert successful direct resolve and `safe_to_show=true` (`ResolveArticleToolTest.java:239-303`).
 
-**F3 — Forbidden-grep evidence: fail.** Both flagged ID literals return zero hits in `server/src/main`, and no executable title/content filter exists. Nevertheless, cumulative added-line grep finds one new `(temp)` hit at `V17__add_kb_search_knowledge_eligible.sql:4`, contrary to the explicit zero-new-match requirement.
+**F3 — Forbidden-grep evidence: pass on targeted re-review.** Commit `e6aad78` replaces the V17 line-4 `(temp)` literal with content-neutral wording while leaving the SQL operation byte-unchanged (`V17__add_kb_search_knowledge_eligible.sql:4-7`). Review-time `rg` found zero `(temp)` and zero flagged-ID matches under `server/src/main`; no executable title/content filter exists.
 
 **F4 — Back-compat default-true: pass.** Entity builder default is true (`KbArticle.java:58-60`), V17 backfills/defaults true (`V17__add_kb_search_knowledge_eligible.sql:6-7`), ingestion absent/null semantics use `asBoolean(true)` (`KnowledgeIngestionRunner.java:213-214`), and the primitive/non-null field means search rejects only explicit false (`KnowledgeSearchService.java:240-246`). Focused tests pin absent/default-visible and all-eligible/default-eligible behavior (`KnowledgeIngestionRunnerTest.java:78-100`; `KnowledgeSearchServiceTest.java:83-97`, `:115-138`).
 
@@ -62,9 +62,7 @@ summary: The cumulative five-commit range `bb48aa0^..7773c92` is structurally so
 
 ## §4 Blocking Findings
 
-1. **Incomplete direct-resolve invariant coverage (`infra` characterization-test gap).** `ResolveArticleToolTest.java:239-272` pins only `ka41r000000LIEJAA4`; the second required flagged ID is absent, despite the handoff claiming both are test-pinned (`sprint-082-handoff.md:68-69`, `:227-228`). Corrective direction: parameterize the test over both IDs or add a second equivalent case for `ka41r000000LIEEAA4`, then correct the handoff evidence if needed.
-
-2. **Forbidden-grep gate failure (`infra` hygiene gap, not executable semantic hardcode).** The cumulative range adds `(temp)` at `V17__add_kb_search_knowledge_eligible.sql:4`, while F3 requires zero newly introduced `server/src/main` matches. Corrective direction: replace the comment phrase with content-neutral wording and leave the migration SQL unchanged.
+None on re-review. The prior two blocking findings were resolved by the fix-iteration commits `e6aad78` (V17 SQL comment content-neutral rewrite; closes §4 #2) and `d27b824` (second direct-resolve invariant test for `ka41r000000LIEEAA4`; closes §4 #1). The handoff at `4c8931f` added the §3.1 fix-iteration addendum and corrected the prior “both test-pinned” over-claims at R6 #8 and the fence confirmation. The original audited five commits remain unamended; outside the two fix files, the fix iteration changes only the authorized handoff.
 
 ## §5 Non-Blocking Observations
 
@@ -73,3 +71,5 @@ summary: The cumulative five-commit range `bb48aa0^..7773c92` is structurally so
 2. **Clean tree passed, but review HEAD differs from the prompt expectation.** The pre-review working tree was clean. HEAD was `3300b4a`, not `7773c92`; the two descendant commits add only the separately named framework-plan archive (`056fa5a`) and this review prompt (`3300b4a`). They are outside the explicitly audited range, and `7773c92` is an ancestor, so this is not cumulative-range scope drift.
 
 3. **Focused verification passed.** Review-time command `mvn -o -Dtest=KnowledgeIngestionRunnerTest,KnowledgeSearchServiceTest,KbArticleEligibilityCorpusTest,ResolveArticleToolTest,Sprint14KnowledgeSearchPublishedFilterTest,Sprint14KnowledgeIngestionCanonicalUrlTest,Sprint14ResolveArticleSafetyTest test` completed with `34 / 0 / 0 / 0`. `git diff --check bb48aa0^..7773c92` was clean.
+
+4. **Targeted re-review verification passed; range count corrected.** At review HEAD `a7c5b6f`, the working tree was clean before this findings edit. The requested focused four-suite run completed `23 / 0 / 0 / 0`; `mvn -o clean test` completed `1348 / 1 / 0 / 2` with only inherited `SystemPromptUserRequestedTiebreakerTest`; both `server/src/main` grep gates returned zero matches. The command `git log bb48aa0^..4c8931f` contains 11 commits total, not the prompt-stated 8: 8 delivery/fix/handoff commits plus acknowledged audit/package commits `056fa5a`, `3300b4a`, and `1954cb6`. This accounting mismatch is non-blocking because those three commits are known review-process artifacts and introduce no C-2b production/test drift.
