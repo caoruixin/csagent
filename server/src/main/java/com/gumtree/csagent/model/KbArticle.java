@@ -48,6 +48,17 @@ public class KbArticle {
     @Builder.Default
     private Boolean isPublished = true;
 
+    /**
+     * R6 (Sub-sprint C-2b) — corpus-curation flag controlling whether this
+     * article may surface on the LLM-facing {@code search_knowledge} retrieval
+     * surface. Default {@code true} (entity + DB) so unflagged articles stay
+     * visible. {@code false} hides the article from search only; direct
+     * {@code resolve_article} by id is unaffected (human-CS access preserved).
+     */
+    @Column(name = "search_knowledge_eligible", nullable = false)
+    @Builder.Default
+    private boolean searchKnowledgeEligible = true;
+
     @Column(name = "token_count")
     private Integer tokenCount;
 
