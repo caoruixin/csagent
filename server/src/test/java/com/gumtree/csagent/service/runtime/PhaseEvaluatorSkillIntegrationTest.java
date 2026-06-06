@@ -397,7 +397,8 @@ class PhaseEvaluatorSkillIntegrationTest {
         assertNotNull(plan);
         assertEquals("RESOLVE", plan.phase());
         assertEquals("UC-G", plan.useCase());
-        assertEquals(List.of("request_handover"), plan.allowedTools());
-        // Sprint 39 will migrate this; for now the legacy branch handles it.
+        // Sprint 080 / R7 — the RESOLVE-INTAKE Skill's tools_required gained
+        // update_intake_fields alongside request_handover.
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools());
     }
 }

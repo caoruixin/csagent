@@ -142,6 +142,20 @@ public class ContextProjectionBuilder {
                         + "0.5, ask another clarifying question instead of calling this tool.",
                 buildClassifyUseCaseArgsSchema()));
 
+        // Sprint 080 / R7 — no-side-effect intake-field accumulation tool. The
+        // schema is registered here; whether it is projected to the LLM on a
+        // given turn is gated by `plan.allowedTools()` (the intake Skill's
+        // `tools_required`), exactly like every other tool schema.
+        toolSchemas.put("update_intake_fields", buildToolSchema(
+                "update_intake_fields",
+                "Persist partial intake fields collected from the user so they "
+                        + "survive across turns. Use this when you have identified one "
+                        + "or more intake fields the user has provided but you do not "
+                        + "yet have a complete set to call request_handover. Does NOT "
+                        + "trigger handover. See `required_intake_fields_for_active_uc` "
+                        + "in the projection for the active UC's required-fields list.",
+                buildUpdateIntakeFieldsArgsSchema()));
+
         log.info("Initialized {} tool schemas for context projection", toolSchemas.size());
     }
 
@@ -186,6 +200,30 @@ public class ContextProjectionBuilder {
             required.add(fieldName);
             schema.set("required", required);
         }
+        return schema;
+    }
+
+    /**
+     * Sprint 080 / R7 — {@code update_intake_fields} arguments schema. A single
+     * required {@code fields} property typed as a free-form
+     * {@code string -> string} object (mirrors the R1.a {@code intake_fields}
+     * slot). No per-UC field enumeration: which fields belong to which UC is
+     * surfaced separately via {@code required_intake_fields_for_active_uc}.
+     */
+    private ObjectNode buildUpdateIntakeFieldsArgsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+        ObjectNode fieldsProp = objectMapper.createObjectNode();
+        fieldsProp.put("type", "object");
+        ObjectNode additional = objectMapper.createObjectNode();
+        additional.put("type", "string");
+        fieldsProp.set("additionalProperties", additional);
+        props.set("fields", fieldsProp);
+        schema.set("properties", props);
+        ArrayNode required = objectMapper.createArrayNode();
+        required.add("fields");
+        schema.set("required", required);
         return schema;
     }
 

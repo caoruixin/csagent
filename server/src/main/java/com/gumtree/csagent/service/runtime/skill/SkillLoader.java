@@ -98,6 +98,8 @@ public class SkillLoader {
             "classify_use_case",
             "record_outcome",
             "request_handover",
+            // Sprint 080 / R7 — no-side-effect intake-field accumulation tool.
+            "update_intake_fields",
             "create_case_controlled",
             "get_customer_context",
             "lookup_listing_or_ad",

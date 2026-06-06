@@ -249,7 +249,10 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
         assertEquals("Collect required intake details for " + ucName
                         + " and hand over to the " + teamName + " team",
                 plan.objective());
-        assertEquals(List.of("request_handover"), plan.allowedTools());
+        // Sprint 080 / R7 — update_intake_fields added to the RESOLVE-INTAKE
+        // Skill's tools_required so the LLM can accumulate intake fields
+        // across turns without triggering handover.
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools());
         assertEquals(Set.of("form_context", "customer_context"), plan.requiredContextKeys());
         assertEquals(3, plan.maxToolSteps());
         assertEquals(false, plan.allowInterimMessage());

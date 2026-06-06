@@ -10,6 +10,10 @@ applicable_use_cases:
   - UC-K
 tools_required:
   - request_handover
+  # Sprint 080 / R7 — lets the LLM persist partial intake fields across turns
+  # without triggering handover. Adding it to tools_required both whitelists it
+  # for validateAgainstPlan and projects its schema into tool_schemas.
+  - update_intake_fields
 required_context_keys:
   - form_context
   - customer_context
