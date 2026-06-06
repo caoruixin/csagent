@@ -1,533 +1,532 @@
 ---
-title: Sub-sprint C-1 — S-Auto-25 / Sprint 080 — R7 update_intake_fields tool + R2.a#5-ext phase-aware re-map RESOLVE-intake extension
+title: Sub-sprint C-2 — S-Auto-26 / Sprint 081 — R5 ResolveArticleTool display_citation URL-preferred + R6 corpus bot_visible filter for (temp) template articles
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
-source_of_truth: this file + docs/solutions/2026-06-05-runtime-bad-cases-handover-schema-discover-counter.md §4.7 (R2.a#5-ext) + §4.8 (R7) + §6.7 (Sub-sprint C-1 packaging) + compact/sprint-080-dev-prompt.md (self-contained executable view)
+source_of_truth: this file + docs/solutions/2026-06-05-runtime-bad-cases-handover-schema-discover-counter.md §4.5 (R5) + §4.6 (R6) + §6.7 (Sub-sprint C-2 packaging) + compact/sprint-081-dev-prompt.md (self-contained executable view)
 last_reviewed: 2026-06-06
 review_cadence: per sub-sprint
-supersedes: docs/sprints/sprint-079-objective.md
+supersedes: docs/sprints/sprint-080-objective.md
 superseded_by: null
 notes: >
-  Sub-sprint C-1 of M-Auto-6 (Runtime substrate hygiene + admin
+  Sub-sprint C-2 of M-Auto-6 (Runtime substrate hygiene + admin
   observability + intake/clarification contract + UX/corpus governance).
-  Activated 2026-06-06 after Sub-sprint B dev-side close (visual-verified
-  + §7-EXEMPT — no per-sub-sprint Codex required). Sub-sprint A
-  (R1.a + R2.a + R4.a) is dev-side closed and smoke-verified per
+  Activated 2026-06-06 after Sub-sprint C-1 dev-side close (Codex
+  `APPROVE_S_AUTO_25 / blocking_count=0`; capability-wiring Option-A
+  fence-waiver accepted). Sub-sprint A (R1.a + R2.a + R4.a) is
+  dev-side closed and smoke-verified per
   `docs/sprints/sprint-078-objective.md`. Sub-sprint B (R3.a + R3.b +
   R3.c) is dev-side closed and visual-verified per
-  `docs/sprints/sprint-079-objective.md`. The outcome-evidence re-bless
-  waits for C-1 + C-2 to land — single milestone-shared re-bless at
+  `docs/sprints/sprint-079-objective.md`. Sub-sprint C-1 (R7 +
+  R2.a#5-ext) is dev-side closed and Codex-approved per
+  `docs/sprints/sprint-080-objective.md`. The outcome-evidence re-bless
+  waits for C-2 to land — single milestone-shared re-bless at
   M-Auto-6 close.
 
-  Scope (intake/clarification runtime contract; semantic-touching at the
-  tool-schema surface via R7):
-  - R7 (proposal §4.8) — new `update_intake_fields(fields={...})` tool.
-    Free-form `string → string` map argument; reuses existing
-    `persistInlineIntakeFields` merge path via a shared helper (R7 #3
-    audit decides α direct-call vs β refactor); does NOT trigger the
-    handover validator. LLM gains a runtime mechanism to accumulate
-    intake state across turns without the "send-or-stall" dilemma.
-    Runtime enabler for OBS-S6 (autoloop teaching LLM to infer intake
-    fields from free text — deferred until R7 ships).
-  - R2.a#5-ext (proposal §4.7) — narrow extension of
-    `ControlKernel.mapBudgetToEscalationReason` (3-arg overload shipped
-    at S-Auto-23 commit `247da11`) to also fire on `phase=RESOLVE AND
-    IntakeFieldsRegistry.isIntakeUseCase(activeUseCase) AND
-    isFreeTextActionKey(lastAction)`. Anti-误杀 #12 spirit preserved
-    (RESOLVE non-intake UC + any-phase tool-call repeat stay
-    `turn_budget_exhausted`). Reuses existing
-    `clarification_budget_exhausted` enum value (no new enum).
+  Scope (citation UX + corpus governance; semantic-touching at the
+  citation contract surface via R5 yaml flip):
+  - R5 (proposal §4.5) — `ResolveArticleTool` returns an additive
+    `display_citation` field (canonical_url if present and non-blank,
+    else source_id fallback); one-line
+    `resolve_faq_grounded_answer.yaml:44` `cite_token_field` swap
+    (`source_id` → `display_citation`); `must_cite_source` guardrail
+    fallback to accept EITHER a URL shape OR a source_id shape
+    (back-compat with old traces + 38 URL-less articles).
+  - R6 (proposal §4.6) — `bot_visible: false` data-field flag on the
+    2 known `(temp)` template articles in
+    `data/knowledge/knowledge_base_articles.json`
+    (`ka41r000000LIEJAA4` "(temp) Ad removed - By CS (general)" +
+    `ka41r000000LIEEAA4` "(temp) NTD Ad Removed Information");
+    `SearchKnowledgeTool` retrieval filter excludes
+    `bot_visible=false` hits from the LLM-facing surface while
+    retaining the articles in corpus for human-CS direct-resolve;
+    structured INFO log on filter decision.
 
-  Per-sub-sprint Codex review REQUIRED (R7 adds a new LLM-facing tool
-  name; semantic-touching per `iteration_governance.md` §7).
+  Per-sub-sprint Codex review REQUIRED (R5 touches the LLM-facing
+  citation contract via `cite_token_field`; R6 touches the
+  LLM-facing retrieval surface — both semantic-touching per
+  `iteration_governance.md` §7).
 
-  Sub-sprint C-2 (S-Auto-26 / Sprint 081; R5 + R6 — citation display
-  token + corpus `bot_visible` filter) is drafted as planning context
-  in `compact/sprint-081-dev-prompt.md`; launches after C-1 dev-side
-  closes (sequential per human 2026-06-06 decision).
+  After C-2 dev-side close, the M-Auto-6 milestone-shared §9 real-LLM
+  re-bless launches. Paired-evidence against
+  `m-auto-5-baseline-20260604-simfixed-stalledfix`; `baseline_dir`
+  and `docs/current_eval_baseline.md` flip at milestone close.
 
-  Forbidden: any semantic procedure / wording change; any new
-  `escalation_reason` enum value; any `IntakeFieldsRegistry` content
-  change (registry contract iterated as the source of truth); any
-  `SkillGuardrailDispatcher` reject-logic change (R7 does NOT bypass
-  the validator; the validator remains the last line of defence for
-  intake completion); any `BudgetChecker` budget-definition change;
-  any auto-derivation of `update_intake_fields` calls from runtime
-  state (the tool MUST be LLM-invoked); any UI / yaml / CaseSpec /
-  simulator / scoring / autoloop 5-file SHA-locked set touch;
-  `baseline_dir` or `docs/current_eval_baseline.md` move (both flip
-  at M-Auto-6 milestone close after the milestone-shared re-bless).
+  Forbidden: any semantic procedure / wording change; ANY OTHER yaml
+  edit beyond the single `cite_token_field` line; ANY OTHER article
+  in `knowledge_base_articles.json` beyond the 2 flagged ones; ANY
+  OTHER field on the 2 flagged articles beyond `bot_visible`; any
+  new `escalation_reason` enum value; any title-keyword or content
+  scan in the R6 filter (data-field driven ONLY); any LLM-based
+  citation validation in the R5 guardrail (structural-shape ONLY); any
+  `IntakeFieldsRegistry` / `SkillGuardrailDispatcher` / `BudgetChecker` /
+  `ControlKernel` / `AgentRunLoopImpl` / `ContextProjectionBuilder`
+  touch (those are C-1's / earlier surfaces); any UI file (B's
+  surface); any `eval_interactive/` file; autoloop 5-file SHA-locked
+  scoring set; `baseline_dir` or `docs/current_eval_baseline.md` move
+  (both flip at M-Auto-6 milestone close).
 
   `baseline_dir` UNCHANGED (`m-auto-5-baseline-20260604-simfixed-stalledfix`);
   `docs/current_eval_baseline.md` UNCHANGED. NO outcome-evidence
   re-bless at this sub-sprint close — that runs at the M-Auto-6
-  milestone close.
+  milestone close after C-2 lands.
 ---
 
-# Sub-sprint C-1 — S-Auto-25 / Sprint 080 — R7 + R2.a#5-ext
+# Sub-sprint C-2 — S-Auto-26 / Sprint 081 — R5 + R6
 
 ## Class
 
 **Layer (per `iteration_governance.md` §3.2):**
 
-- **R7** → `skill_state` + `infra` + `prompt_projection`. `prompt_projection`
-  because R7 adds a new tool name in the LLM-facing tool list (the
-  `tool_schemas` projection); `skill_state` because the tool's effect is
-  cross-turn `session.intakeFields` accumulation; `infra` because dispatch
-  reuses the existing merge path with no semantic decision added.
-- **R2.a#5-ext** → `infra`. Control-plane labeling extension to the
-  already-shipped phase-aware re-map function; no new semantic surface;
-  no new enum value.
+- **R5** → `infra` (tool result shape addition; `must_cite_source`
+  guardrail structural fallback) + `prompt_projection` (one-line skill
+  yaml `cite_token_field` config-key swap — contract-shaped, not
+  procedure-shaped).
+- **R6** → `infra` (data field + retrieval-tool filter).
 
-**§7 stanza requirement:** **REQUIRED** (R7 adds a new LLM-facing tool
-name; semantic-touching per `iteration_governance.md` §7). Full stanza in
-§7 below.
+**§7 stanza requirement:** **REQUIRED** (R5 touches the LLM-facing
+citation contract via `cite_token_field`; R6 changes the corpus
+retrieval surface visible to the LLM — both semantic-touching per
+`iteration_governance.md` §7). Full stanza in §7 below.
 
 **Tier-0 invariant:** This sub-sprint adds no Tier-0 invariant.
 
-- R7's no-side-effect tool only WRITES `session.intakeFields` via the
-  existing `persistInlineIntakeFields` merge path. It does NOT bypass
-  the handover validator at `SkillGuardrailDispatcher.java:265-298`
-  (which IS Tier-0 contract — the validator remains the last line of
-  defence for intake completion regardless of which tool persisted the
-  fields).
-- R2.a#5-ext extends an existing mapping function with one additional
-  AND-guarded condition; no new mapping; no new enum value; no removal
-  of existing guards.
+- R5 adds a new tool-result field + a yaml config-key swap; the
+  existing `must_cite_source` grounding guardrail's intent (require an
+  attributable cite token) is preserved — only the preferred token
+  format changes and the accepted token shape widens (URL OR
+  source_id).
+- R6 adds a data field + a retrieval filter; the existing corpus
+  content is unchanged; retrieval surface to humans is unchanged.
 
 **Semantic hardcode:** No semantic hardcode introduced.
 
-- R7's `fields` argument is a free-form `string → string` map (mirroring
-  the `intake_fields` slot shipped at R1.a). NO per-UC enumeration of
-  property names in the tool schema; NO server-side derivation of which
-  fields belong to which UC (the per-UC required-fields contract is
-  already projected via `required_intake_fields_for_active_uc` from
-  R1.a #2). The new tool just persists what the LLM passes.
-- R2.a#5-ext's extension is
-  `RESOLVE phase + isIntakeUseCase(activeUseCase) + isFreeTextActionKey(lastAction)`.
-  `IntakeFieldsRegistry.isIntakeUseCase` is the SAME classification the
-  existing R1.a #2 projection uses — zero new per-UC matrix.
-- R7 does NOT auto-derive calls from runtime state; the tool MUST be
-  LLM-invoked.
+- R5's `display_citation` derives ENTIRELY from structured article
+  fields (`canonical_url` if non-null and non-blank, else `source_id`);
+  zero content matching of article body or user message.
+- R5's yaml flip is a one-line config swap (`cite_token_field:
+  display_citation`), NOT a procedure rewrite, NOT a wording change.
+- R5's `must_cite_source` fallback adds a SECOND accepted structural
+  shape (URL OR source_id); zero keyword matching.
+- R6 uses a `bot_visible: bool` data field driven by manual corpus
+  curation. NOT a runtime title-keyword match on "(temp)" — that
+  would be a forbidden §1.7 keyword shortcut. The 2 known `(temp)`
+  articles are explicitly flagged in data; new articles default to
+  `bot_visible: true` (no behavioural change for unflagged content).
+- R6's `SearchKnowledgeTool` filter is a simple `article.bot_visible !=
+  false` predicate — no semantic decision, no content scan.
 
 ## Goal
 
 After this sub-sprint ships:
 
-- **R7 wiring**: a new `update_intake_fields(fields={...})` tool is
-  declared in the projection's `tool_schemas` (same level as
-  `request_handover`, `search_knowledge`, etc.); the server dispatches
-  it via the standard `ToolDispatcher` path; the dispatch handler calls
-  the existing `persistInlineIntakeFields(session, call)` merge logic
-  (same as the `request_handover` intake-fields persist path) WITHOUT
-  routing through the handover validator. The tool returns
-  `{"status": "ok", "fields_merged": <count>, "fields_persisted": [...]}`
-  and emits a normal `ToolEvent` to the trace.
-- **R2.a#5-ext mapping**: the existing 3-arg
-  `mapBudgetToEscalationReason(bucket, phase, lastAction)` overload at
-  `ControlKernel.java:763-771` is extended (signature recommendation:
-  add `activeUseCase` parameter; alternative: 4-arg overload alongside
-  the 3-arg) to also fire on
-  `phase=RESOLVE AND IntakeFieldsRegistry.isIntakeUseCase(activeUseCase) AND isFreeTextActionKey(lastAction)`.
-  Anti-误杀 #12 spirit preserved: RESOLVE non-intake UC + any phase +
-  any tool-call repeat remain `turn_budget_exhausted`.
+- **R5 wiring**: `ResolveArticleTool` returns a `display_citation`
+  field on every article result: `canonical_url` if present and
+  non-blank, else `source_id` as fallback;
+  `resolve_faq_grounded_answer.yaml:44` `cite_token_field` reads
+  `display_citation`; `must_cite_source` guardrail accepts either a URL
+  shape or a `source_id` shape (back-compat with old traces + 38
+  URL-less articles). LLM-facing replies cite URLs when available,
+  source_ids otherwise — without breaking grounding contract.
+- **R6 wiring**: the 2 known `(temp)` template articles in
+  `data/knowledge/knowledge_base_articles.json`
+  (`ka41r000000LIEJAA4` near row 273 and `ka41r000000LIEEAA4` near
+  row 292) carry `"bot_visible": false`; `SearchKnowledgeTool`
+  filters retrieval to exclude `bot_visible=false` hits; the trace
+  records the filter decision (INFO log only — backend log, not
+  user-facing trace event) so observability is preserved. Human-CS
+  retrieval paths are unchanged.
 
 NOT a goal:
 
-- Modifying `IntakeFieldsRegistry` content or contract.
-- Modifying `SkillGuardrailDispatcher` reject logic (handover validator
-  unchanged — c14's intake completion is still gated by the validator).
-- Modifying `BudgetChecker` budget definitions.
-- Adding new `escalation_reason` enum values.
-- Routing the new tool through the handover validator (the whole point
-  of R7 is that it does NOT trigger the validator — that path remains
-  `request_handover`-only).
-- Changing skill yaml procedures (OBS-S6 — autoloop teaching LLM to
-  call the new tool — is autoloop work after M-Auto-6 close).
-- Any LLM-side semantic decision (the LLM decides WHEN to call
-  `update_intake_fields` and what fields to pass; the runtime does NOT
-  derive the call from message content).
+- Rewriting `resolve_faq_grounded_answer.yaml` procedure / wording
+  (anything beyond the single-line `cite_token_field` swap is out of
+  scope — defer to autoloop).
+- Adding NLP / keyword filters on article titles or bodies (R6 is a
+  data-field flag; no runtime keyword inference).
+- Deleting `(temp)` articles from corpus (humans may still need them).
+- Auto-flagging more articles as `bot_visible: false` (the data-team
+  decision is OUT of scope; this sub-sprint flags only the 2 known
+  trigger cases).
+- Modifying how `must_cite_source` checks grounding beyond accepting
+  the second structural token shape.
+- Any UI surface (R3.* is Sub-sprint B's surface).
+- Any intake / DISCOVER / clarification path (Sub-sprint C-1's
+  surface).
 
 ## Scope (executable, #1–#7)
 
-The dev prompt at `compact/sprint-080-dev-prompt.md` is the
+The dev prompt at `compact/sprint-081-dev-prompt.md` is the
 self-contained executable view of this contract; sync invariant per
-`prompt-artifact-rules.md` §9.3. The scope steps below are the canonical
-version; the prompt mirrors them with one-page cumulative context +
-read-order wrappers added.
+`prompt-artifact-rules.md` §9.3. The scope steps below are the
+canonical version; the prompt mirrors them with one-page cumulative
+context + read-order wrappers added.
 
-### #1 — R7 step 1: `UpdateIntakeFieldsTool.java` new tool class
+### #1 — R5 step 1: `ResolveArticleTool` returns `display_citation`
 
-Standard `Tool` interface implementation. Tool name `update_intake_fields`;
-arguments schema `{"fields": {"type": "object", "additionalProperties":
-{"type": "string"}}}`; required arguments `fields` (non-empty structural
-validation at dispatch); description references
-`required_intake_fields_for_active_uc` projection field (R1.a #2). Tool
-result body: `{"status": "ok", "fields_merged": <int>,
-"fields_persisted": [...]}`. Trace event: standard `ToolEvent`.
+**Anchor:** `server/src/main/java/.../tools/ResolveArticleTool.java`
+(neighborhood per proposal §4.5; verify exact lines via pre-fix grep).
 
-### #2 — R7 step 2: dispatch handler reuses `persistInlineIntakeFields`
+**Change:** add a `display_citation` field to the tool's result body
+derived from `canonical_url` (when non-null and non-blank) or
+`source_id` fallback. Preserve existing `source_id` and `canonical_url`
+fields on the result — `display_citation` is ADDITIVE.
 
-Dispatch handler validates `arguments.fields` is a non-empty
-`Map<String, String>` (structural; rejects with standard
-tool-validation error shape if empty or wrong type), then invokes the
-existing `persistInlineIntakeFields(session, call)` merge logic — OR
-the shared helper extracted by the #3 audit. Behaviour-equivalent to
-the `request_handover` persist path on a fixed input.
+### #2 — R5 step 2: skill yaml `cite_token_field` flip
 
-### #3 — R7 step 3: PRE-FIX `persistInlineIntakeFields` reuse audit
+**Anchor:** `server/src/main/resources/.../resolve_faq_grounded_answer.yaml`
+line 44 (per proposal §4.5; verify the line is the
+`cite_token_field` config row via pre-fix grep).
 
-Mandatory audit before #2 wiring: read
-`AgentRunLoopImpl.java:487-494` + the method body. Confirm
-(a) whether the method is private and tightly coupled to
-`request_handover`, OR already structured as a reusable helper;
-(b) whether it depends on any `call` field other than
-`call.arguments.intake_fields`; (c) whether it gates on
-`IntakeFieldsRegistry.isIntakeUseCase(activeUseCase)` before persisting.
+**Change:** flip the line from `cite_token_field: source_id` to
+`cite_token_field: display_citation`. This is the ONLY yaml line
+touched in C-2 — verify with `git diff` before commit.
 
-Two outcomes:
+### #3 — R5 step 3: `must_cite_source` guardrail fallback
 
-- **(α) Already reusable** — invoke directly. Document in handoff §1.
-- **(β) Tightly coupled** — refactor to a shared helper (e.g.
-  `IntakeFieldsMerger.merge(session, fieldsMap)`); the
-  `request_handover` path now calls the helper too. The refactor MUST
-  be byte-equivalent on the `request_handover` path (characterization
-  test required).
+**Anchor:** the `must_cite_source` guardrail implementation (pre-fix
+audit identifies the file; likely under
+`server/src/main/java/.../guardrails/` or in the
+`SkillGuardrailDispatcher` family).
 
-**Hard fence:** the audit MUST NOT change the merge semantics. If it
-surfaces that the current path has a subtle behaviour the new tool
-would break, STOP and surface to deliver-agent.
+**Change:** the guardrail must accept BOTH:
 
-### #4 — R7 step 4: tool registration + projection schema declaration
+- A URL-shaped cite token (`http://` / `https://` prefix).
+- A `source_id`-shaped cite token (alphanumeric Salesforce-style ID,
+  matching the existing accept shape).
 
-Register `UpdateIntakeFieldsTool` in the tool registry / `ToolDispatcher`
-constructor; add the tool's arguments-schema projection to
-`ContextProjectionBuilder.java` `tool_schemas` emission (where
-`request_handover` schema is built — R1.a #1 shipped at `:262-281`).
+Structural OR condition; STRICT (no content-keyword match, no
+LLM-based validation, no plain-English acceptance). Back-compat add
+only.
 
-**Hard fence:** the projection MUST include the tool's description
-referencing `required_intake_fields_for_active_uc` so the LLM knows
-which fields to populate. The tool description MUST NOT enumerate
-per-UC field names (those come from the registry-driven projection).
+**STOP condition:** if the guardrail is implemented via an LLM-based
+check or some other unexpected shape (a real-traffic check, not the
+expected structural validator), STOP and surface to deliver-agent.
 
-### #5 — R2.a#5-ext: extend phase-aware mapping to RESOLVE-intake free-text
+### #4 — R5 step 4: tests for #1 + #2 + #3
 
-Anchor: `ControlKernel.java:763-771` (3-arg overload shipped at
-S-Auto-23 commit `247da11`).
+Extend or add `ResolveArticleToolTest`,
+`MustCiteSourceFallbackTest` (or extend existing must_cite_source
+test). Cover R5 positives (URL → URL cite; null/blank → source_id
+fallback; result body field-preservation negatives), R5 yaml flip
+config-load smoke, R5 #3 positives (URL accepted; source_id
+accepted) + negatives (plain English rejected; empty/null rejected
+— grounding floor preserved).
 
-Design choice **(A) recommended**: extend the 3-arg signature to take
-`activeUseCase`; update all call sites (the only production call site
-per Codex §1 R2.a #5 verdict is at `:305-313`). Alternative **(B)**:
-4-arg overload alongside 3-arg (delegate 3-arg → 4-arg with `null`
-activeUseCase).
+### #5 — R6 step 1: `bot_visible: false` data field on the 2 `(temp)` articles
 
-Mapping condition (post-extension):
+**Anchor:** `data/knowledge/knowledge_base_articles.json` —
+`ka41r000000LIEJAA4` near row 273 and `ka41r000000LIEEAA4` near row
+292 (per proposal §4.6; verify exact rows via pre-fix grep).
 
-```java
-if ("max-repeated-same-action".equals(bucket)
-        && isFreeTextActionKey(lastAction)
-        && (
-            "DISCOVER".equalsIgnoreCase(currentPhase)
-            || ("RESOLVE".equalsIgnoreCase(currentPhase)
-                && IntakeFieldsRegistry.isIntakeUseCase(activeUseCase))
-        )) {
-    return "clarification_budget_exhausted";
-}
-return mapBudgetToEscalationReason(bucket);
-```
+**Change:** add `"bot_visible": false` as a top-level field to each
+article's JSON object. Do NOT modify any other field on these
+articles. Do NOT add the field to any other article (default `true`).
 
-**Anti-误杀 #12 spirit preserved:**
-- RESOLVE + non-intake UC + any action → `turn_budget_exhausted`.
-- Any phase + any tool-call repeat → `turn_budget_exhausted`.
-- DISCOVER + free-text → `clarification_budget_exhausted` (existing).
-- RESOLVE + intake UC + free-text → `clarification_budget_exhausted`
-  (NEW).
+**STOP condition:** if the verification surfaces that these 2
+articles already carry OTHER governance flags (e.g. an existing
+`internal_only` field) with overlapping semantics, STOP and surface
+to deliver-agent (data-team convention check).
 
-### #6 — Anti-误杀 test suite (R7 + R2.a#5-ext)
+### #6 — R6 step 2: `SearchKnowledgeTool` retrieval filter
 
-New test classes:
+**Anchor:** `server/src/main/java/.../tools/SearchKnowledgeTool.java`
+(verify exact path; proposal §4.6 cites this tool).
 
-- `server/src/test/java/.../UpdateIntakeFieldsToolTest.java`
-- Extend `MapBudgetToClarificationLabelTest.java` (existing) with
-  RESOLVE intake positive + RESOLVE non-intake negative + tool-call
-  negative + other-budget negative + no-new-enum assertion.
-- If #3 chose path (β): characterization test comparing refactored
-  helper output to pre-refactor inline merge on a fixed input.
+**Change:** add a filter step that excludes articles whose
+`bot_visible` field equals `false`. Articles without the field
+(default state) treated as visible. Filter step is structurally a
+simple predicate (`article.bot_visible == null ||
+article.bot_visible`).
 
-**R7 tests** (positive + negative):
-- R7 #1 positive: `update_intake_fields(fields={"report_type": "scam"})`
-  on UC-J session → `session.intakeFields` contains
-  `{"report_type": "scam"}` AND no handover validator fires.
-- R7 #2 positive (multi-call accumulation): two consecutive calls with
-  different fields → union persisted.
-- R7 anti-误杀 #1 (validator non-bypass): after `update_intake_fields`
-  partial-population, `request_handover` with no `intake_fields` arg →
-  validator STILL rejects with
-  `intake_required_fields_missing_for_intake_complete`.
-- R7 anti-误杀 #2 (full-stash → handover passes): after
-  `update_intake_fields` populates all required fields,
-  `request_handover` succeeds.
-- R7 anti-误杀 #3 (empty fields rejected at dispatch).
-- R7 anti-误杀 #4 (wrong type rejected).
-- R7 anti-误杀 #5 (no auto-derivation): test asserts no runtime call
-  path derives the tool call from `accumulated_tool_results`,
-  `user_message`, or any other channel.
+**Observability:** when the filter removes an article, emit a
+structured backend INFO log entry with `tool_event_id,
+article_source_id, filter_reason="bot_visible=false"`. NOT a
+user-facing trace event.
 
-**R2.a#5-ext tests** (positive + negative):
-- Positive: `phase=RESOLVE, activeUseCase=UC-J, lastAction="answer",
-  bucket="max-repeated-same-action"` → `clarification_budget_exhausted`.
-- Positive: same with `lastAction="clarify"` → same.
-- Positive (preserve existing): `phase=DISCOVER, activeUseCase=null,
-  lastAction="answer", bucket="max-repeated-same-action"` →
-  `clarification_budget_exhausted`.
-- Negative anti-误杀 #1 (RESOLVE non-intake UC):
-  `phase=RESOLVE, activeUseCase=UC-A` → `turn_budget_exhausted`.
-- Negative anti-误杀 #2 (no active UC):
-  `phase=RESOLVE, activeUseCase=null` → `turn_budget_exhausted`.
-- Negative anti-误杀 #3 (tool-call repeat):
-  `lastAction="search_knowledge"` → `turn_budget_exhausted`.
-- Negative anti-误杀 #4 (other budget): `bucket="max-faq-miss"` → existing
-  `faq_miss_threshold_exceeded` (unchanged).
-- Negative anti-误杀 #5: assert return value is one of existing 23
-  enum values (no new enum).
+**STOP condition:** if the filter affects MORE than the 2 flagged
+articles when tested (default-`true` semantics broken), STOP and
+surface to deliver-agent.
 
-### #7 — Backend rebuild + integration smoke (no real-LLM run)
+### #7 — R6 step 3: tests for #5 + #6
 
-After #1-#6: rebuild (`cd server && mvn -o -DskipTests package`),
-restart, hit
-`POST /v1/chat/sessions/<id>/messages` with a synthetic tool-result
-turn that invokes `update_intake_fields`. Confirm:
-- Tool dispatches (no 404 / 5xx).
-- `session.intakeFields` updates as expected.
-- Trace captures a `ToolEvent` for the call.
-- Subsequent `request_handover` with intake complete passes the
-  validator.
-
-Dispatch-wiring evidence only; the outcome re-bless is the
-milestone-shared run at M-Auto-6 close. Document the integration smoke
-in handoff §1 with request/response shapes.
+Extend or add `SearchKnowledgeToolTest`. Cover data verification (2
+flagged articles only; default unchanged), filter behaviour
+(positives: bot_visible=false hits removed; bot_visible=true and
+unflagged returned; negatives: default visible articles unaffected;
+human-CS direct-resolve via `ResolveArticleTool` STILL surfaces the
+flagged articles — filter is at search surface, not resolve surface).
 
 ## Anti-误杀 invariants (HARD, non-negotiable)
 
-1. **R7 does NOT bypass the handover validator.**
-2. **R7 does NOT auto-derive from runtime.** LLM-invoked only.
-3. **R7's `fields` is a free-form string→string map.** No per-UC schema.
-4. **R2.a#5-ext preserves anti-误杀 #12 spirit.**
-5. **No new `escalation_reason` enum value.**
-6. **No `IntakeFieldsRegistry` content change.**
-7. **No `SkillGuardrailDispatcher` change.**
-8. **No yaml / prompt / CaseSpec / simulator / scoring touch.**
-9. **No new Tier-0 invariant.**
-10. **`baseline_dir` UNCHANGED. `docs/current_eval_baseline.md`
-    UNCHANGED.**
+1. **R5 `must_cite_source` fallback PRESERVES the grounding floor.**
+   Empty / null cite tokens STILL rejected; plain English phrases
+   STILL rejected. Only structural shape widens to accept URL OR
+   source_id.
+2. **R5 yaml change is ONE LINE.** `cite_token_field` flip ONLY. No
+   procedure / wording / skill structure change.
+3. **R5 `display_citation` derivation is STRUCTURAL.** From
+   `canonical_url` (non-null, non-blank) vs `source_id` fallback;
+   NO content scan; NO inference; NO LLM call.
+4. **R6 filter is DATA-FIELD driven.** Only signal is
+   `article.bot_visible`. NO title-keyword match on "(temp)" or any
+   string; NO body inspection. New articles default visible.
+5. **R6 article retention.** The 2 flagged articles remain in the
+   corpus JSON; only the LLM-facing retrieval surface filters them.
+   Human-CS direct-resolve paths continue working.
+6. **R6 filter observability.** When the filter removes an article,
+   INFO-log structured evidence. NOT behavioural — corpus-curation
+   paper trail only.
+7. **No semantic procedure / wording change.** Only yaml line touched
+   is `cite_token_field`. No bot prompt edit, no UC routing change,
+   no escalation posture change, no judge calibration change.
+8. **No new `escalation_reason` enum value.**
+9. **`baseline_dir` UNCHANGED. `docs/current_eval_baseline.md`
+   UNCHANGED.** Both flip at M-Auto-6 milestone close.
+10. **No new Tier-0 invariant.**
 
 ## Hard fences / STOP conditions
 
 **Files allowed to edit** (fence):
 
-- `server/src/main/java/.../tools/UpdateIntakeFieldsTool.java` (new)
-- `server/src/main/java/.../ContextProjectionBuilder.java` (tool schema
-  projection)
-- `server/src/main/java/.../ControlKernel.java` (R2.a#5-ext mapping)
-- Tool registry / dispatch wiring file (per #3 audit; likely
-  `ToolPolicyEnforcer` or `ToolDispatcher`)
-- `server/src/main/java/.../AgentRunLoopImpl.java` IF #3 chose path
-  (β) and helper extraction is needed
-- `server/src/test/java/.../UpdateIntakeFieldsToolTest.java` (new)
-- `server/src/test/java/.../MapBudgetToClarificationLabelTest.java`
-  (extend)
-- (If #3 path β) characterization test class
-- `docs/sprints/sprint-080-handoff.md` (dev handoff)
+- `server/src/main/java/.../tools/ResolveArticleTool.java`
+- `server/src/main/java/.../tools/SearchKnowledgeTool.java`
+- `server/src/main/java/.../guardrails/<must_cite_source impl>.java`
+  (or wherever the guardrail lives; pre-fix audit identifies the
+  file)
+- `server/src/main/resources/.../resolve_faq_grounded_answer.yaml` —
+  **ONLY** the `cite_token_field` config-key line
+- `data/knowledge/knowledge_base_articles.json` — **ONLY** the 2
+  flagged articles, **ONLY** the `bot_visible` field add
+- `server/src/test/java/.../tools/ResolveArticleToolTest.java`
+  (extend or new)
+- `server/src/test/java/.../tools/SearchKnowledgeToolTest.java`
+  (extend or new)
+- `server/src/test/java/.../guardrails/MustCiteSourceFallbackTest.java`
+  (new or extension)
+- `docs/sprints/sprint-081-handoff.md` (dev handoff)
 
 **Files FORBIDDEN to edit**:
 
-- `IntakeFieldsRegistry.java` (content unchanged).
-- `SkillGuardrailDispatcher.java`.
+- Any OTHER yaml file or any OTHER line of
+  `resolve_faq_grounded_answer.yaml`.
+- Any OTHER article in `knowledge_base_articles.json`.
+- `IntakeFieldsRegistry.java`.
+- `SkillGuardrailDispatcher.java` reject-logic (unless it IS the
+  `must_cite_source` host file; in that case ONLY the fallback
+  branch).
 - `BudgetChecker.java`.
+- `ControlKernel.java` (Sub-sprint C-1's surface).
+- `AgentRunLoopImpl.java`.
+- `ContextProjectionBuilder.java`.
 - `FormContextIngestionService.java`.
-- Any prompt / yaml / CaseSpec under `server/src/main/resources/`.
-- Any UI file (B's surface; B closed).
-- Any `eval_interactive/` file.
+- `UpdateIntakeFieldsTool.java` (C-1's surface).
+- `IntakeFieldsMerger.java` (C-1's surface).
+- Any UI file (B's surface).
+- Any `eval_interactive/` file (CaseSpecs / simulator / scoring /
+  harness).
 - Autoloop 5-file SHA-locked scoring set (fence-#13).
 - `autoloop/config.yaml` `baseline_dir`.
 - `docs/current_eval_baseline.md`.
 
 **STOP conditions**:
 
-- #3 audit surfaces phase / UC-dependent behaviour the new tool would
-  break → STOP, surface to deliver-agent.
-- #5 audit surfaces a SECOND production call site to
-  `mapBudgetToEscalationReason` beyond `:305-313` → STOP (signature
-  change needs widened verification).
-- Tool registration requires > ~10 LOC outside the registry constructor
-  → STOP (unfamiliar DI shape).
-- Any test in #6 fails in a way that suggests the validator is being
-  bypassed → STOP, anti-误杀 #1 violation.
+- R5 #3 pre-fix audit surfaces that `must_cite_source` is implemented
+  via an LLM-based check or some other unexpected shape → STOP and
+  surface.
+- R6 #5 verification surfaces existing OTHER governance flags on the
+  2 `(temp)` articles overlapping with `bot_visible` semantics →
+  STOP and surface.
+- R6 retrieval filter affects MORE than the 2 flagged articles when
+  tested → STOP (default `bot_visible: true` semantics broken).
+- A test surfaces that the `cite_token_field` flip breaks an existing
+  must-cite test because the grounding floor was tighter than
+  expected → STOP (the fallback in #3 needs to be tightened or
+  scope adjusted).
+- Any forbidden file is touched → STOP, revert, re-launch.
 
 ## Test / eval requirements
 
-- All new tests in #6 GREEN.
-- Existing Java baseline `1297 / 1 / 0 / 2` preserved + R7 +
-  R2.a#5-ext additions (~+15-20 tests). Sole pre-existing failure
-  (`OQ-S41.5`) preserved.
-- Eval pytest `553` UNCHANGED (no eval-side change).
+- All new tests in #4 + #7 GREEN.
+- Existing Java baseline `1327 / 1 / 0 / 2` preserved + R5 + R6
+  additions (~+10-12 tests). Sole pre-existing failure (`OQ-S41.5`)
+  preserved.
+- Eval pytest `553` UNCHANGED (no eval-side change in this
+  sub-sprint).
 - Autoloop pytest UNCHANGED.
-- Backend integration smoke at #7 documented in handoff §1.
 - **No real-LLM re-bless at this sub-sprint close.** Outcome evidence
-  is the M-Auto-6 milestone-shared re-bless after C-1 + C-2 both land.
-- Mocked-LLM tests for the projection surface (R7 tool schema + R7
-  description visibility) are wiring evidence per §5.7; real evidence
-  is the milestone re-bless.
+  is the M-Auto-6 milestone-shared re-bless after C-2 lands.
+- Mocked-LLM tests for the citation-token surface (R5 yaml flip) are
+  wiring evidence per §5.7; real evidence is the milestone re-bless.
 
 ## §7 Layer-classification + anti-hardcode stanza
 
 ```markdown
 ## Layer-classification + anti-hardcode stanza
 
-**Target failure layer:** `skill_state` + `infra` + `prompt_projection`
-(R7 new tool — `skill_state` for cross-turn intake-field accumulation;
-`infra` for dispatch wiring; `prompt_projection` for the new
-`tool_schemas` entry making the tool visible to the LLM) + `infra`
-(R2.a#5-ext mapping function signature extension; control-plane label
-correctness on the c14-style RESOLVE-phase intake clarification budget
-hit).
+**Target failure layer:** `infra` (R5 `ResolveArticleTool` returns
+`display_citation` field; `must_cite_source` guardrail accepts URL OR
+source_id fallback; R6 `bot_visible` data field +
+`SearchKnowledgeTool` retrieval filter) + `prompt_projection` (R5
+one-line `cite_token_field` config-key swap in skill yaml —
+contract-shaped, not procedure-shaped).
 
-**Tier-0 invariant:** This sub-sprint adds no Tier-0 invariant. R7 adds
-a new TOOL (not a Tier-0 surface per §1.4); the tool does not bypass
-the handover validator (which IS Tier-0); R2.a#5-ext extends an
-existing mapping function with one additional AND-guarded condition;
-no new enum value.
+**Tier-0 invariant:** This sub-sprint adds no Tier-0 invariant. R5
+preserves the grounding floor (must_cite_source widens shape; does
+NOT weaken the requirement to cite); R6 preserves corpus content
+(only LLM-facing retrieval surface filters; human-CS direct-resolve
+paths unchanged).
 
 **Semantic hardcode:** No semantic hardcode introduced.
-- R7's tool arguments schema is a free-form `string → string` map; NO
-  per-UC enumeration in the tool. The per-UC required-fields contract
-  remains in `IntakeFieldsRegistry` and is projected via
-  `required_intake_fields_for_active_uc` (shipped at R1.a #2). NO
-  server-side semantic decision about which fields belong to which UC.
-- R7's persist logic reuses the existing `persistInlineIntakeFields`
-  merge path (either invoked directly or via a shared helper extracted
-  by the #3 audit — behaviour-equivalent to the `request_handover`
-  persist path).
-- R7 does NOT auto-derive calls from runtime state; the tool MUST be
-  LLM-invoked.
-- R2.a#5-ext extends the existing mapping function with one additional
-  AND-guarded condition (`phase=RESOLVE AND
-  IntakeFieldsRegistry.isIntakeUseCase(activeUseCase) AND
-  isFreeTextActionKey(lastAction)`). `isIntakeUseCase` is the same
-  classification R1.a #2 uses — zero new per-UC matrix.
-- No new `escalation_reason` enum value introduced.
+- R5's `display_citation` derives ENTIRELY from structured article
+  fields (canonical_url presence → URL; absence → source_id
+  fallback). Zero content scan, zero keyword match, zero per-UC
+  matrix.
+- R5's yaml flip is a ONE-LINE config-key swap
+  (`cite_token_field: source_id` → `display_citation`). NOT a
+  procedure rewrite, NOT a wording change.
+- R5's `must_cite_source` fallback widens the accepted cite token
+  shape from one to two (URL OR source_id). Structural validation
+  only — no semantic / content / keyword check.
+- R6's filter uses ONLY the `article.bot_visible` data field. NOT a
+  title-keyword match on "(temp)" or any other string. New articles
+  default visible (no behavioural change for unflagged content).
+- R6's data flag is applied to exactly 2 articles
+  (`ka41r000000LIEJAA4` + `ka41r000000LIEEAA4`) per explicit corpus
+  curation. NOT a runtime classification, NOT a content scan.
 
-**Generalization coverage:** target / neighbor / negative / shadow case
-counts: 1 / ~8 / ~10 / 0
-- target: c14 (UC-J multi-turn intake state loss + RESOLVE-phase
-  clarification budget mislabel).
-- neighbor: all intake-UC (UC-G / UC-H / UC-I / UC-J / UC-K) cases
-  that go through DISCOVER / RESOLVE intake collection; the new tool
-  is universal so adoption can vary by UC but availability is uniform.
-- negative: R7 anti-误杀 negatives #1-#5 (validator non-bypass; no
-  auto-derivation; empty fields rejected; wrong type rejected;
-  full-stash → handover passes); R2.a#5-ext anti-误杀 negatives #1-#5
-  (RESOLVE non-intake UC unchanged; RESOLVE no active UC unchanged;
-  tool-call repeat unchanged; other budget unchanged; no new enum).
+**Generalization coverage:** target / neighbor / negative / shadow
+case counts: 4 / ~6 / ~8 / 0
+- target: c13 (R5 cite token); c7 / c12 / c17 (R6 `(temp)` article
+  surface).
+- neighbor: every FAQ-grounded-resolve case that cites an article
+  (R5 is universal); every search_knowledge call that might surface
+  a `(temp)` article (R6 — 2 known articles).
+- negative: R5 must_cite_source negatives (empty / null / plain
+  English rejected); R5 source_id fallback preserved for URL-less
+  articles (38 known); R6 default-visible articles unaffected; R6
+  human-CS direct-resolve unchanged (article still in corpus).
 - shadow: not applicable (mocked-LLM tests are wiring evidence; real
   evidence is milestone-shared re-bless).
 ```
 
 ## Codex review plan (per `process/milestone-framework.md` §4.3)
 
-**Per-sub-sprint Codex review REQUIRED** because R7 adds an LLM-facing
-tool name (semantic-touching per `iteration_governance.md` §7 +
-`process/milestone-framework.md` §4.3). R2.a#5-ext alone would be
-exempt as pure infra, but bundled with R7 triggers semantic-touching
-review.
+**Per-sub-sprint Codex review REQUIRED** because R5 touches the
+LLM-facing citation contract (`cite_token_field` is a
+prompt_projection surface) and R6 touches the LLM-facing retrieval
+surface (search results visible to the bot). Both are
+semantic-touching per `iteration_governance.md` §7 +
+`process/milestone-framework.md` §4.3.
 
-Codex prompt artifact: `compact/sprint-080-codex-review-prompt.md`
-(deliver-agent authors at sub-sprint close, embeds §4.1 nine-question
-kernel + §7 stanza + file-path fence + anti-误杀 invariants +
-generalization coverage).
+Codex prompt artifact: `compact/sprint-081-codex-review-prompt.md`
+(deliver-agent authors at sub-sprint close, embeds §4.1
+nine-question kernel + §7 stanza + file-path fence + anti-误杀
+invariants + generalization coverage).
 
 **Focus points for Codex** (per §4.3):
 
-- Q1: confirm R7's `fields` schema is a free-form string→string map
-  with NO per-UC enumeration; confirm R2.a#5-ext's new RESOLVE-intake
-  branch uses `IntakeFieldsRegistry.isIntakeUseCase(activeUseCase)`
-  and NOT a hard-coded UC list.
-- Q3: confirm R7 surfaces the tool description with reference to
-  `required_intake_fields_for_active_uc` (delegates field choice to
-  the registry-driven projection); confirm R2.a#5-ext's mapping
-  condition preserves anti-误杀 #12 spirit.
-- Q4: confirm R7's persist semantics are byte-equivalent to the
-  `request_handover` persist path on a fixed input.
-- Q5: confirm no semantic decision moved from LLM to Java.
-- Q7: confirm safety floor unchanged (validator unmodified; grounding
-  unaffected).
+- Q1: confirm R5 `display_citation` derivation is structural
+  (canonical_url-vs-source_id presence check) with NO content scan;
+  confirm R6 filter uses ONLY `article.bot_visible` and NO title
+  keyword.
+- Q3: confirm R5 yaml change is ONE LINE (`cite_token_field` config
+  swap) and NOT a procedure rewrite; confirm R6 filter point
+  surfaces observability (log) when filtering.
+- Q4: not applicable (no multi-turn state).
+- Q5: confirm no semantic decision moved from LLM to Java (LLM still
+  decides whether / how to cite; runtime now provides a better cite
+  token; LLM still searches; runtime filters known-bad corpus
+  entries but does NOT reshape results).
+- Q7: confirm grounding floor preserved (`must_cite_source` still
+  requires a cite token of one of two structural shapes; empty /
+  plain English still rejected); confirm safety floor unchanged.
 - Q8: confirm generalization coverage matches the §7 stanza counts.
 - Q9: no temporary hardcode; all changes are durable.
 
-## Handoff requirements (dev authors `docs/sprints/sprint-080-handoff.md`)
+## Handoff requirements (dev authors `docs/sprints/sprint-081-handoff.md`)
 
 §1 of the handoff must include:
 
-- For each of #1-#5: file:line ranges + rationale + the test name(s)
+- For each of #1-#6: file:line ranges + rationale + the test name(s)
   that gate it.
-- **#3 audit outcome**: which path (α or β) was chosen; if β, the
-  characterization test name + refactor diff bullets.
-- **#5 design choice**: which overload approach (A or B); cited
-  evidence of all production call sites.
-- **#7 integration smoke**: request shape + response body + trace event
-  shape for one `update_intake_fields` invocation, plus the follow-up
-  `request_handover` call that demonstrates the validator path
-  unchanged.
-- Java test results (full numeric).
+- **#3 pre-fix audit outcome**: where `must_cite_source` lives + its
+  current structural validation; confirm the fallback addition does
+  NOT weaken the grounding floor.
+- **#5 data verification**: the 2 article rows post-edit; a
+  JSON-shape snapshot showing only the `bot_visible` field was added.
+- **#6 retrieval evidence**: a search query result before/after the
+  filter (mocked tool test) showing the 2 articles excluded.
+- **R5 sample LLM-facing projection**: at least 2 sample tool result
+  bodies (one with canonical_url present → URL cite; one URL-less →
+  source_id fallback) showing the `display_citation` field correctly
+  populated.
+- Java test results (full numeric: passed / failed / skipped /
+  errors).
 - Eval pytest / autoloop pytest results (UNCHANGED).
 - STOP confirmations:
-  - File fence respected.
-  - No `IntakeFieldsRegistry` content changed.
-  - No `SkillGuardrailDispatcher` change.
-  - No new `escalation_reason` enum value added.
-  - No yaml / prompt / CaseSpec / simulator / scoring touched.
-  - `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md` UNCHANGED.
-  - No real-LLM outcome re-bless launched (deferred to milestone close).
-- A clear "wiring evidence" vs "outcome evidence" separator per §5.7.
+  - File fence respected; no forbidden file touched.
+  - `resolve_faq_grounded_answer.yaml` changed ONE LINE only
+    (`cite_token_field`).
+  - `knowledge_base_articles.json` changed ONLY 2 articles, ONLY
+    `bot_visible` field added.
+  - No semantic procedure / wording change.
+  - No new `escalation_reason` enum value.
+  - `IntakeFieldsRegistry` / `SkillGuardrailDispatcher` /
+    `BudgetChecker` / `ControlKernel` / `AgentRunLoopImpl` /
+    `ContextProjectionBuilder` UNCHANGED.
+  - `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md`
+    UNCHANGED.
+  - No real-LLM outcome re-bless launched (deferred to milestone
+    close).
+- A clear "wiring evidence" vs "outcome evidence" separator per §5.7
+  mocked-LLM gate.
 
 ## Commit discipline
 
-Recommended commit split:
+Recommended commit split (per `prompt-artifact-rules.md` §9):
 
-1. **Commit 1 — R7 #3 PRE-FIX audit refactor (path β only)**:
-   `persistInlineIntakeFields` extraction + characterization test.
-2. **Commit 2 — R7 #1 + #2 + #4**: `UpdateIntakeFieldsTool.java` +
-   dispatch + tool registration + projection schema +
-   `UpdateIntakeFieldsToolTest`.
-3. **Commit 3 — R2.a#5-ext (#5)**: `ControlKernel.java` mapping
-   signature extension + `MapBudgetToClarificationLabelTest` extension.
-4. **Commit 4 — Integration smoke evidence (#7)**: handoff only (or
-   +1 LOC logging if needed).
-5. **Commit 5 — Dev handoff**: `docs/sprints/sprint-080-handoff.md`.
+1. **Commit 1 — R5 #1 + #3 + #4 (server)**: `ResolveArticleTool`
+   `display_citation` field + `must_cite_source` guardrail fallback +
+   tests.
+2. **Commit 2 — R5 #2 (yaml flip)**: `resolve_faq_grounded_answer.yaml`
+   one-line config-key swap.
+3. **Commit 3 — R6 #5 + #6 + #7**: `knowledge_base_articles.json`
+   `bot_visible` flag on 2 articles + `SearchKnowledgeTool` filter +
+   tests.
+4. **Commit 4 — Dev handoff**: `docs/sprints/sprint-081-handoff.md`.
 
 ## Self-check checklist (dev completes before claiming done)
 
-- [ ] Each of #1-#5 implemented with file:line ranges in handoff §1.
-- [ ] #3 audit outcome documented; if β, characterization test green.
-- [ ] #5 design choice documented; all call sites consistent.
-- [ ] All R7 anti-误杀 #1-#5 + R2.a#5-ext anti-误杀 #1-#5 GREEN.
-- [ ] R7 validator non-bypass verified.
-- [ ] R7 no-auto-derivation verified.
-- [ ] R2.a#5-ext RESOLVE non-intake UC negative: `turn_budget_exhausted`
-      preserved.
-- [ ] R2.a#5-ext tool-call negative: `turn_budget_exhausted` preserved.
-- [ ] No new `escalation_reason` enum value.
-- [ ] No `IntakeFieldsRegistry` content changed.
-- [ ] No `SkillGuardrailDispatcher` reject-logic change.
-- [ ] Java baseline `1297/1/0/2` + new tests, no regressions.
+- [ ] Each of #1-#6 implemented with file:line ranges captured in
+      handoff §1.
+- [ ] All new tests in #4 + #7 GREEN.
+- [ ] R5 `display_citation` derivation tests: canonical_url → URL;
+      null/blank → source_id fallback.
+- [ ] R5 yaml flip: `cite_token_field: display_citation` (one line,
+      `git diff` confirms no other yaml change).
+- [ ] R5 `must_cite_source` fallback: URL accepted; source_id
+      accepted; empty / plain English rejected.
+- [ ] R6 data flag: 2 articles (`ka41r000000LIEJAA4` +
+      `ka41r000000LIEEAA4`) have `bot_visible: false`; no other
+      article changed.
+- [ ] R6 filter: bot_visible=false hides from LLM-facing search;
+      bot_visible=true and default-visible articles returned
+      normally; human-CS resolve path STILL surfaces the article.
+- [ ] R6 observability: filter decision logged with article_source_id
+      + filter_reason.
+- [ ] Java baseline `1327 / 1 / 0 / 2` + new tests, no regressions.
 - [ ] Eval pytest `553` unchanged.
 - [ ] No file outside the file fence touched.
-- [ ] Integration smoke at #7 documented.
-- [ ] §7 stanza copied verbatim into handoff.
-- [ ] `baseline_dir` UNCHANGED; `docs/current_eval_baseline.md`
-      UNCHANGED.
-- [ ] No outcome-evidence re-bless launched.
+- [ ] No semantic procedure / wording change anywhere.
+- [ ] `IntakeFieldsRegistry` / `SkillGuardrailDispatcher` /
+      `BudgetChecker` / `ControlKernel` / `AgentRunLoopImpl` /
+      `ContextProjectionBuilder` UNCHANGED.
+- [ ] §7 stanza copied verbatim into the handoff.
+- [ ] `baseline_dir` UNCHANGED.
+- [ ] `docs/current_eval_baseline.md` UNCHANGED.
+- [ ] No outcome-evidence re-bless launched at this sub-sprint close
+      (the milestone-shared re-bless runs after C-2 lands).
 
 When all checked: hand back to deliver-agent for close review +
-per-sub-sprint Codex dispatch + Sub-sprint C-2 launch.
+per-sub-sprint Codex dispatch + M-Auto-6 milestone close trigger.

@@ -1,21 +1,22 @@
 # Sprint 081 / S-Auto-26 / M-Auto-6 — Sub-sprint C-2 — Dev Prompt (R5 ResolveArticleTool display_citation URL-preferred + R6 corpus bot_visible filter for (temp) template articles)
 
-> **Planning-context artifact**: this dev prompt is drafted at the
-> Sub-sprint A close + B open transition (2026-06-06) alongside
-> Sub-sprint C-1's `sprint-080-dev-prompt.md` as the planned scope for
-> the fourth sub-sprint of M-Auto-6. The CANONICAL active contract is
-> `docs/sprint_objective.md`, which currently holds Sub-sprint B. At
-> Sub-sprint B close + visual verification, deliver-agent may replace
-> `sprint_objective.md` with this sub-sprint's contract (OR with C-1's
-> contract; the parallel-launch policy lets either C-1 or C-2 take
-> active contract first depending on dev availability).
+> **Active dev prompt** — Sub-sprint C-2 was promoted to the active
+> contract at the M-Auto-6 Sub-sprint C-1 close (2026-06-06; Codex
+> `APPROVE_S_AUTO_25 / blocking_count=0`). The canonical contract is
+> `docs/sprint_objective.md` (this prompt is its self-contained
+> executable view per `docs/current/process/prompt-artifact-rules.md`
+> §9). Sub-sprints A (R1.a + R2.a + R4.a; archive
+> `docs/sprints/sprint-078-objective.md`), B (R3.a + R3.b + R3.c admin
+> trace observability; archive `docs/sprints/sprint-079-objective.md`),
+> and C-1 (R7 + R2.a#5-ext intake/clarification runtime contract;
+> archive `docs/sprints/sprint-080-objective.md`) are all dev-side
+> closed. C-2 is the last sub-sprint before the M-Auto-6
+> milestone-shared §9 real-LLM re-bless.
 >
-> C-2 may run in parallel with C-1 per the human 2026-06-06 packaging
-> decision. Independent surfaces (C-2 = citation UX + corpus retrieval
-> governance; C-1 = intake/clarification runtime contract). When both
-> are dev-launched in parallel, each lands on its own commit-range to
-> keep causal attribution clean for the milestone-shared Codex review
-> at M-Auto-6 close.
+> Per human 2026-06-06 sequential cadence: C-2 launches AFTER C-1
+> dev-side close (not parallel). C-2's commit range will be reviewed
+> as part of the milestone-shared Codex review at M-Auto-6 close
+> alongside A + B + C-1.
 
 ## Role identity
 
