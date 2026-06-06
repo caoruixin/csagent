@@ -1,8 +1,8 @@
 ## Sprint Review Decision
-decision: out_of_scope_review
-blocking_count: 1
-final_verdict: REJECT_S_AUTO_26
-summary: The intended four-commit range `d4122c0^..5a0ab3d` substantively passes the anti-hardcode kernel and all five C-2a focal checks: the citation field is additive, the guardrail now validates structural URL/article-ID shapes while preserving its bounded resolve-only floor, the YAML edit is citation-only, and both fence expansions are mechanical test maintenance. However, the review contract requires a clean working tree at HEAD, and pre-review `git status --short` reported the unrelated untracked file `compact/context-pack-governance-framework-extraction-2026-06-06.md`; therefore this review must return `out_of_scope_review` and cannot issue `APPROVE_S_AUTO_26` until the cleanliness gate is restored and rechecked.
+decision: pass
+blocking_count: 0
+final_verdict: APPROVE_S_AUTO_26
+summary: Sprint 081 / S-Auto-26 / M-Auto-6 Sub-sprint C-2a is approved on targeted re-review. The audited four-commit range `d4122c0^..5a0ab3d` remains exactly `d4122c0`, `7b0665e`, `1624a7a`, and `5a0ab3d`, and the substantive verdict preserved in §1–§5 still stands. The prior `REJECT_S_AUTO_26 / out_of_scope_review` was issued solely because an unrelated planning artifact was untracked; commit `8a7cb66` placed that artifact into its intended committed state, touching only `compact/context-pack-governance-framework-extraction-2026-06-06.md` with 92 insertions. The clean-tree gate now passes, so the verdict is flipped to `APPROVE_S_AUTO_26 / blocking_count=0`.
 
 ## §1 Per-Change Verdicts
 
@@ -54,7 +54,7 @@ summary: The intended four-commit range `d4122c0^..5a0ab3d` substantively passes
 
 ## §4 Blocking Findings
 
-1. **`out_of_scope_review` — working tree was not clean before review.** At HEAD `6e55d79`, pre-review and pre-write `git status --short` reported `?? compact/context-pack-governance-framework-extraction-2026-06-06.md`. The review contract explicitly requires a clean HEAD and requires an `out_of_scope_review` finding when uncommitted changes exist. Layer classification: `infra` / review-environment hygiene. Corrective direction: place that unrelated file into its intended committed or removed state, then rerun the clean-tree check and reissue the sprint-close decision; do not change the audited C-2a range.
+None on re-review. The prior `out_of_scope_review` finding was resolved by commit `8a7cb66` (preserved the unrelated context-pack at its intended committed location; out of C-2a scope). Clean-tree gate now passes at HEAD; the audited cumulative range `d4122c0^..5a0ab3d` is unchanged from the substantive review.
 
 ## §5 Non-Blocking Observations
 

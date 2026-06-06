@@ -1,23 +1,26 @@
 # Sprint 082 / S-Auto-27 / M-Auto-6 — Sub-sprint C-2b — Dev Prompt (R6 corpus eligibility filter: plumb existing `search_knowledge_eligible` through KnowledgeIngestionRunner + KbArticle + V17 Flyway migration + KnowledgeSearchService + KnowledgeHit + SearchKnowledgeTool; flip 2 `(temp)` articles to false)
 
-> **Planning-context artifact** — this dev prompt is the planned scope
-> for Sub-sprint C-2b of M-Auto-6, drafted 2026-06-06 alongside
-> Sub-sprint C-2a's `sprint-081-dev-prompt.md` after the prior C-2
-> (R5+R6 bundle) STOPPED at the dev pre-fix audit. The CANONICAL
-> active contract is `docs/sprint_objective.md`, which currently
-> holds Sub-sprint C-2a. At C-2a dev-side close + Codex
-> APPROVE_S_AUTO_26, deliver-agent replaces `sprint_objective.md`
-> with this sub-sprint's contract.
+> **Active dev prompt** — Sub-sprint C-2b was promoted to the active
+> contract at the M-Auto-6 Sub-sprint C-2a close (2026-06-06; Codex
+> `APPROVE_S_AUTO_26 / blocking_count=0` on targeted re-review).
+> The canonical contract is `docs/sprint_objective.md` (this prompt
+> is its self-contained executable view per
+> `docs/current/process/prompt-artifact-rules.md` §9).
 >
-> C-2b launches **sequentially after C-2a dev-side close** (not
-> parallel) per the post-rewrite cadence: C-2a touches the
-> `SkillGuardrailDispatcher` + `resolve_faq_grounded_answer.yaml` +
-> `ResolveArticleTool` surface; C-2b touches the
-> `KnowledgeIngestionRunner` + `KbArticle` + `V17` migration +
-> `KnowledgeSearchService` + `KnowledgeHit` + `SearchKnowledgeTool` +
-> `data/knowledge/knowledge_base_articles.json` surface. Independent
-> surfaces — could in principle run parallel — but sequencing keeps
-> the milestone-shared Codex review at M-Auto-6 close attributable.
+> Sub-sprints A (R1.a + R2.a + R4.a; archive
+> `docs/sprints/sprint-078-objective.md`), B (R3.a + R3.b + R3.c
+> admin trace observability; archive
+> `docs/sprints/sprint-079-objective.md`), C-1 (R7 + R2.a#5-ext
+> intake/clarification runtime contract; archive
+> `docs/sprints/sprint-080-objective.md`), and C-2a (R5 citation
+> contract fix; archive `docs/sprints/sprint-081-objective.md`)
+> are all dev-side closed. C-2b is **the last sub-sprint before
+> the M-Auto-6 milestone-shared §9 real-LLM re-bless**. After
+> C-2b dev-side close + Codex APPROVE_S_AUTO_27, deliver-agent
+> drafts the milestone-shared Codex review prompt
+> (`compact/M-Auto-6-review-prompt.md`) covering A + B + C-1 +
+> C-2a + C-2b cumulative range, and the milestone-shared re-bless
+> launches.
 
 ## Role identity
 
