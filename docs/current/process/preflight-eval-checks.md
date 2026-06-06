@@ -28,10 +28,10 @@ notes: >
   per §5.9. See §6 maintenance rule.
 
   Output of this runbook is a go/no-go for the full real-LLM re-bless
-  (`autoloop/scripts/rebless_baseline.py --n 9 --out-dir
-  eval_interactive/results/...`). Smoke pre-flight is **wiring
-  evidence** per §5.7 — it does NOT substitute for outcome evidence at
-  milestone close.
+  (`cd autoloop && uv run python scripts/rebless_baseline.py --n 9
+  --out-dir ../eval_interactive/results/...`). Smoke pre-flight is
+  **wiring evidence** per §5.7 — it does NOT substitute for outcome
+  evidence at milestone close.
 ---
 
 # Pre-flight eval checks
@@ -80,8 +80,11 @@ LLM at smoke time = the JVM's classpath at backend-start time, not the
 current working tree.
 
 ```bash
-# Find and kill any running backend
-ps aux | grep '[s]pring-boot' | awk '{print $2}' | xargs -r kill -9
+# Find and kill any running backend. NOTE: detect by PORT, not by
+# `ps aux | grep '[s]pring-boot'` — the running server is a FORKED
+# `java -cp …` JVM that the spring-boot:run wrapper launches, so the
+# grep misses it (caught at the 2026-06-07 pre-flight, drift #5).
+lsof -ti:8080 | xargs -r kill -9
 # Wait for port release
 until ! lsof -ti:8080 >/dev/null 2>&1; do sleep 1; done
 # Re-launch in background; tail log
@@ -97,7 +100,7 @@ until grep -q "Started.*Application" /tmp/csagent-backend-preflight.log; do slee
 
 ```bash
 # Confirm the latest expected migration applied (update version number per current milestone)
-psql -d "${CSAGENT_DB:-csagent_dev}" -c "SELECT version, description, success, installed_on FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;"
+psql -d "${CSAGENT_DB:-csagent}" -c "SELECT version, description, success, installed_on FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;"
 ```
 
 **STOP condition**: latest `version` column does not match the highest
@@ -116,13 +119,25 @@ template articles), confirm the flag landed in DB after re-ingestion.
 
 ```bash
 # M-Auto-6 R6 example:
-psql -d "${CSAGENT_DB:-csagent_dev}" -c "SELECT article_id, search_knowledge_eligible, published_status FROM kb_articles WHERE article_id IN ('ka41r000000LIEJAA4','ka41r000000LIEEAA4');"
+psql -d "${CSAGENT_DB:-csagent}" -c "SELECT article_id, search_knowledge_eligible, published_status FROM kb_articles WHERE article_id IN ('ka41r000000LIEJAA4','ka41r000000LIEEAA4');"
 # Expect: both rows have search_knowledge_eligible=false, published_status=true
 ```
 
 **STOP condition**: the expected flag state on the targeted rows does
 not match. Either ingestion did not re-run, or the JSON file is at the
 wrong commit, or the new column wasn't persisted by ingestion.
+
+**Root-cause annotation (added 2026-06-07 per the S-Auto-28 blocker
+brief, §6 maintenance rule):** if §0.3 shows the targeted rows still at
+the default value AND the rows pre-existed the migration, the cause is
+**not** a stale JSON commit or cache — it is the insert-only
+`KnowledgeIngestionRunner` skipping every already-present `article_id`.
+Re-running `--ingest` will NEVER flip an existing-row curation flag.
+Remediation = the `--reconcile` data-application mode (S-Auto-28 / R8),
+which UPDATEs the mutable curation columns of existing rows in place;
+re-run §0.3 after `mvn -o -pl server spring-boot:run
+-Dspring-boot.run.arguments=--reconcile`. A manual SQL `UPDATE` is
+explicitly forbidden as the remediation (human direction 2026-06-07).
 
 **Evidence to cite in §4**: the psql output rows.
 
@@ -150,14 +165,14 @@ to catch gross wiring breaks.
 
 ```bash
 # From repo root, with a venv that has eval_interactive installed:
-python -m eval_interactive.cli run \
+python -m eval_interactive run \
     --set bad_cases \
     --parallel 1 \
     --label "m-auto-N-smoke-preflight-bad-cases-$(date +%Y%m%d-%H%M%S)" \
     --verbose
 ```
 
-`--n` is not a flag on `eval_interactive.cli run` (that's
+`--n` is not a flag on `eval_interactive run` (that's
 `autoloop/scripts/rebless_baseline.py`'s aggregator flag). Smoke runs
 at one draw per case by default.
 
@@ -176,7 +191,7 @@ in pass-rate on `uc_g_gdpr` / `uc_h_appeal` / `uc_i_payment` /
 `approve with observations`.
 
 ```bash
-python -m eval_interactive.cli run \
+python -m eval_interactive run \
     --set anchor_outcome \
     --parallel 1 \
     --label "m-auto-N-smoke-preflight-anchors-$(date +%Y%m%d-%H%M%S)" \
@@ -205,7 +220,7 @@ row whenever a new `infra`-layer framework brief lands per §6 below.
 |---|---|---|---|---|
 | A1 | `search_knowledge` tool_event returns `hits=[]` on EVERY call across smoke | R6 corpus filter | grep results for `search_knowledge` tool result body shape; expect `hits` non-empty on the vast majority of search-knowledge calls | NO-GO. R6 over-filtering. Verify F4 back-compat default-true; verify only 2 rows have `search_knowledge_eligible=false` in DB. |
 | A2 | Backend INFO log has zero `search_knowledge_eligible=false` filter decision entries despite smoke including UC-B / FAQ-path queries | R6 INFO log path α wiring | `grep 'search_knowledge_eligible=false' /tmp/csagent-backend-preflight.log` | NO-GO. Either the filter is never invoked (Service-layer call path issue) or the INFO log is at the wrong layer. |
-| A3 | `(temp)` substring appears in any `search_knowledge` tool result body visible to LLM | R6 filter not effective on the live corpus | grep tool result bodies | NO-GO. Data flip didn't land OR ingestion didn't re-read JSON OR cache is stale. Re-check §0.3. |
+| A3 | `(temp)` substring appears in any `search_knowledge` tool result body visible to LLM | R6 filter not effective on the live corpus | grep tool result bodies | NO-GO. Re-check §0.3. Most likely cause on a populated DB: the insert-only runner skipped the existing rows so the flag never landed — remediation is the `--reconcile` mode (S-Auto-28 / R8), NOT a re-run of `--ingest` and NOT a manual SQL `UPDATE`. (Less likely: stale JSON commit or cache.) |
 | A4 | `update_intake_fields` tool NEVER appears in any `ToolEvent` across intake-UC turns in smoke | R7 schema declaration / dispatch wiring | grep `ToolEvent.tool_name == 'update_intake_fields'` in trace | INVESTIGATE (not auto-NO-GO). R7 adoption is an OBS-S6 autoloop concern, NOT a wiring failure on its own. BUT: zero invocations AND zero schema entries in `tool_schemas` projection = wiring break (NO-GO). Verify projection includes the schema. |
 | A5 | `must_cite_source` guardrail rejection rate rises markedly vs pre-M-Auto-6 baseline on the bad_cases set | R5 structural-shape predicate is too strict | compare rejection rate row in `results.json` summary; or grep `must_cite_source` rejection events in traces | NO-GO. Structural-shape predicate may be rejecting URL-less articles. Verify article_id-shape regex matches the URL-less corpus subset (38 articles per the M-Auto-6 contract). |
 | A6 | Any anti-误杀 anchor (`uc_g_gdpr` / `uc_h_appeal` / `uc_i_payment` / `uc_j_safety`) flips from 0.000 stable to PASS | Safety floor violation (route (c) per `milestone_objective.md` §5) | per-anchor `pass_rate` in anchor_outcome smoke summary | NO-GO + IMMEDIATE REVERT. This is the most expensive thing to discover at full re-bless time. Diagnose the change that caused the artifact mis-pass before relaunching. |
@@ -306,6 +321,7 @@ governance docs absorb durable principles, not operational checklists.
 | Date | Change | Source brief / context |
 |---|---|---|
 | 2026-06-07 | First-promotion landing (this file) from `docs/diagnostics/` per §5.9 promotion path. Initial §3 inventory (A1–A11) derived from M-Auto-6 sub-sprint surfaces + standing env hazards. | M-Auto-6 close prep; promoted ahead of the M-Auto-6 milestone-shared re-bless to keep smoke evidence cited from a stable canonical location. |
+| 2026-06-07 | Drift fixes caught at the 2026-06-07 pre-flight NO-GO (5): DB name default `csagent_dev`→`csagent` (§0.2/§0.3); smoke command `python -m eval_interactive.cli run`→`python -m eval_interactive run` (Steps 1/2 + Appendix); full re-bless command → `cd autoloop && uv run python scripts/rebless_baseline.py …` (cwd=autoloop + `uv run`; `../` out-dir); §0.1 backend detection by port (`lsof -ti:8080`) not `ps aux \| grep '[s]pring-boot'`; §0.3 + A3 root-cause annotation (insert-only runner ⇒ `--reconcile`, not re-run `--ingest`). | S-Auto-28 / R8 #5; `docs/diagnostics/2026-06-07-m-auto-6-preflight-verdict.md` §"Drift caught" + `docs/diagnostics/failure-briefs/preflight-2026-06-07-kb-ingest-skip-existing-blocks-r6-flag.md` §"Pre-flight checklist contribution". |
 
 ---
 
@@ -315,14 +331,14 @@ governance docs absorb durable principles, not operational checklists.
 
 ```bash
 # Bad_cases smoke (Step 1)
-python -m eval_interactive.cli run \
+python -m eval_interactive run \
     --set bad_cases \
     --parallel 1 \
     --label "smoke-preflight-bad-cases-$(date +%Y%m%d-%H%M%S)" \
     --verbose
 
 # Anchor_outcome smoke (Step 2)
-python -m eval_interactive.cli run \
+python -m eval_interactive run \
     --set anchor_outcome \
     --parallel 1 \
     --label "smoke-preflight-anchors-$(date +%Y%m%d-%H%M%S)" \
@@ -332,10 +348,12 @@ python -m eval_interactive.cli run \
 ### Full re-bless command (post go-decision)
 
 ```bash
-# Multi-suite n=9 paired-evidence baseline (the actual outcome run; only after smoke GO)
-python autoloop/scripts/rebless_baseline.py \
+# Multi-suite n=9 paired-evidence baseline (the actual outcome run; only after smoke GO).
+# The script requires cwd=autoloop + `uv run` (its own usage example uses --n 5);
+# the --out-dir is therefore relative to autoloop/, hence the ../ prefix.
+cd autoloop && uv run python scripts/rebless_baseline.py \
     --n 9 \
-    --out-dir eval_interactive/results/m-auto-N-baseline-shared-$(date +%Y%m%d)/
+    --out-dir ../eval_interactive/results/m-auto-N-baseline-shared-$(date +%Y%m%d)/
 ```
 
 ### Java baseline + pytest baseline pre-flight (orthogonal but cheap)
