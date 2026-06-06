@@ -50,7 +50,16 @@ export interface Session {
   turns: number;
   created_at: string;
   updated_at: string;
+  // Coarse semantic status (active / escalated / ended) derived from
+  // handling_state; retained for sorting + backward compatibility.
   status: string;
+  // Raw BotSession.handling_state value (BOT_HANDLING / QUEUE_TO_HUMAN /
+  // HUMAN_HANDLING / CLOSED). Surfaced so the admin badge can render every
+  // terminal state distinctly instead of collapsing to three buckets.
+  handling_state: string;
+  // Canonical escalation_reason enum value when present (ESCALATE /
+  // QUEUE_TO_HUMAN sessions); empty otherwise.
+  escalation_reason: string;
 }
 
 export interface TraceStep {
@@ -111,6 +120,15 @@ export interface ToolCall {
   result_data?: unknown;
   result_summary?: string;
   source?: string;
+  // Sprint 067 / S-Auto-12 (A1 idempotency) — persisted on byte-identical
+  // repeats served from the per-run cache (tool not re-dispatched). The
+  // backend only emits these keys on a deduplicated event; a normal dispatch
+  // carries neither. Surfaced so the trace can fold the repeats by default
+  // while preserving the full audit on expand.
+  deduplicated?: boolean;
+  original_at_step?: number;
+  step_index?: number;
+  sequence_index?: number;
 }
 
 export interface TraceResponse {

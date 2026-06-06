@@ -68,6 +68,11 @@ function mapSession(s: any): Session {
     created_at: s.createdAt ?? s.created_at ?? '',
     updated_at: s.updatedAt ?? s.updated_at ?? '',
     status: mapHandlingState(s.handlingState ?? s.currentPhase ?? s.status ?? ''),
+    // Raw handling_state preserved (no collapse) so the admin badge renders
+    // every terminal value distinctly. Falls back to currentPhase only when
+    // handling_state is absent, mirroring the status mapper's precedence.
+    handling_state: s.handlingState ?? s.handling_state ?? s.currentPhase ?? '',
+    escalation_reason: s.escalationReason ?? s.escalation_reason ?? '',
   };
 }
 
