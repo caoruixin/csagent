@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Sprint 39 — unified Skill terminal-predicate dispatcher per Sprint 37 freeze
@@ -64,9 +65,10 @@ import java.util.Optional;
  *
  * <p>The {@code must_cite_source} handler fires ONLY on
  * {@code record_outcome(class=resolve)} within the {@code RESOLVE_FAQ} scope
- * and checks only {@code source_id} citation presence in the bot's
- * user-facing message. It does NOT judge correctness, relevance, or content
- * quality. Expansion beyond this scope is OUT OF SCOPE for Sprint 39.
+ * and checks only citation-token presence in the bot's user-facing message —
+ * a URL-shape {@code source_url} or a structural {@code article_id} shape
+ * (R5). It does NOT judge correctness, relevance, or content quality.
+ * Expansion beyond this scope is OUT OF SCOPE for Sprint 39.
  */
 @Component
 public class SkillGuardrailDispatcher {
@@ -91,6 +93,19 @@ public class SkillGuardrailDispatcher {
     /** Sprint 39 NEW S1 — per design doc §9.4. */
     public static final String S1_CITATION_PRESENCE_REQUIRED =
             "s1_citation_presence_required";
+
+    // --- R5 structural cite-token shapes accepted by must_cite_source ---
+    /** Any http(s) URL anywhere in the reply (the source_url citation shape). */
+    private static final Pattern USER_FACING_URL_PATTERN =
+            Pattern.compile("https?://\\S+");
+    /**
+     * Salesforce-style article_id shape derived from the real KB corpus
+     * ({@code data/knowledge/knowledge_base_articles.json}): all 218 ids are a
+     * lowercase {@code ka} prefix + 16 alphanumerics = 18 chars. The exact
+     * length keeps plain-English words ("kangaroo") from matching.
+     */
+    private static final Pattern ARTICLE_ID_PATTERN =
+            Pattern.compile("\\bka[A-Za-z0-9]{16}\\b");
 
     private static final String HANDOVER_TOOL = "request_handover";
     private static final String SEARCH_TOOL = "search_knowledge";
@@ -327,15 +342,18 @@ public class SkillGuardrailDispatcher {
     }
 
     /**
-     * Sprint 39 NEW S1 (design doc §8.2.4). Refuses
-     * {@code record_outcome(class=resolve)} inside the {@code RESOLVE_FAQ}
-     * scope when the bot's user-facing message text does not include a
-     * {@code source_id} citation. The Skill's
+     * Sprint 39 NEW S1 (design doc §8.2.4); R5 structural-shape rewrite.
+     * Refuses {@code record_outcome(class=resolve)} inside the
+     * {@code RESOLVE_FAQ} scope when the bot's user-facing message does not
+     * include an acceptable citation token — either a URL-shape
+     * {@code source_url} or a structural {@code article_id} shape (see
+     * {@link #containsAcceptableCiteToken}). The Skill's
      * {@code applicable_use_cases: [UC-A..UC-FP]} encodes the RESOLVE_FAQ
      * scope; this handler does NOT re-check the UC set. The handler does
      * NOT fire on {@code class=escalate} or {@code class=abandon}, and it
      * does NOT judge correctness, relevance, or content quality of the
-     * citation per M2 §6 #4 verbatim authorization.
+     * citation per M2 §6 #4 verbatim authorization. The grounding floor is
+     * preserved: empty / null / plain-English replies still reject.
      */
     private Optional<RejectVerdict> handleMustCiteSource(
             Skill skill, Guardrail g, String outcomeClass, DispatchContext ctx) {
@@ -354,16 +372,11 @@ public class SkillGuardrailDispatcher {
                 && !configuredOutcome.toString().equalsIgnoreCase("resolve")) {
             return Optional.empty();
         }
-        String citeToken = "source_id";
-        Object citeField = g.parameters().get("cite_token_field");
-        if (citeField instanceof String s && !s.isBlank()) {
-            citeToken = s.trim();
-        }
         String userMessage = ctx.parsedUserMessage().orElse(null);
         if (userMessage == null || userMessage.isBlank()) {
             userMessage = ctx.lastLlmRawResponse();
         }
-        if (userMessage != null && userMessage.contains(citeToken)) {
+        if (containsAcceptableCiteToken(userMessage)) {
             return Optional.empty();
         }
         Map<String, Object> trace = new LinkedHashMap<>();
@@ -372,15 +385,30 @@ public class SkillGuardrailDispatcher {
         trace.put("skill_name", skill.name());
         trace.put("reject_reason_label", S1_CITATION_PRESENCE_REQUIRED);
         trace.put("outcome_class_requested", outcomeClass);
-        trace.put("cite_token_field", citeToken);
+        trace.put("cite_token_validator", "structural_url_or_article_id");
         trace.put("user_message_present", userMessage != null && !userMessage.isBlank());
         return Optional.of(new RejectVerdict(
                 S1_CITATION_PRESENCE_REQUIRED,
-                "The user-facing message must include a " + citeToken + " citation from a "
+                "The user-facing message must include a citation — either a "
+                        + "source_url (http(s)://...) or a structural article_id — from a "
                         + "successful resolve_article call before record_outcome with "
-                        + "class=resolve can persist. Cite the relevant article in your "
-                        + "user_message.",
+                        + "class=resolve can persist. Cite the display_citation value "
+                        + "returned by resolve_article in your user_message.",
                 trace));
+    }
+
+    /**
+     * R5 — structural cite-token presence check. Accepts a reply iff it
+     * contains a URL-shape token (http(s)://...) OR an article_id-shape token
+     * (the Salesforce-style id derived from corpus data). No LLM call, no
+     * content-keyword match, no per-UC matrix. The grounding floor is
+     * preserved: null / empty / plain-English replies return false.
+     */
+    private static boolean containsAcceptableCiteToken(String userMessage) {
+        if (userMessage == null) return false;
+        if (USER_FACING_URL_PATTERN.matcher(userMessage).find()) return true;
+        if (ARTICLE_ID_PATTERN.matcher(userMessage).find()) return true;
+        return false;
     }
 
     // ------------------------------------------------------------------
