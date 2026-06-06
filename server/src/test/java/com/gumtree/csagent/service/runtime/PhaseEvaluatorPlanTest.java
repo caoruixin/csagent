@@ -132,8 +132,8 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-G"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover"), plan.allowedTools(),
-                "UC-G must only allow request_handover (no case creation)");
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
+                "UC-G allows request_handover + update_intake_fields, but no case creation");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
@@ -148,8 +148,8 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-I"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover"), plan.allowedTools(),
-                "UC-I must only allow request_handover (no case creation)");
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
+                "UC-I allows request_handover + update_intake_fields, but no case creation");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
@@ -165,8 +165,8 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-J"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover"), plan.allowedTools(),
-                "UC-J must only allow request_handover; case creation is runtime-only");
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
+                "UC-J allows request_handover + update_intake_fields; case creation is runtime-only");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
@@ -182,8 +182,8 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-K"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover"), plan.allowedTools(),
-                "UC-K must only allow request_handover; case creation is runtime-only");
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
+                "UC-K allows request_handover + update_intake_fields; case creation is runtime-only");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
