@@ -66,16 +66,22 @@ public class ActionParser {
 
             List<ToolCall> toolCalls = parseToolCalls(root);
 
-            // Default fallback user_message when both tool_calls and user_message are empty
+            // Default fallback user_message when both tool_calls and user_message are empty.
+            // Mark the substituted placeholder as runtime-synthesised so downstream
+            // structural counters (R2.a DISCOVER clarification) can exclude it — a
+            // runtime null-turn placeholder is not an LLM-authored clarification.
+            boolean synthesised = false;
             if (toolCalls.isEmpty() && userMessage.isBlank()) {
                 log.warn("Both tool_calls and user_message empty in LLM response, using fallback message");
                 userMessage = "I'm looking into this for you.";
+                synthesised = true;
             }
 
             return ParsedAction.builder()
                     .toolCalls(toolCalls)
                     .userMessage(userMessage)
                     .reasoning(reasoning)
+                    .userMessageSynthesised(synthesised)
                     .build();
 
         } catch (Exception e) {
