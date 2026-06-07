@@ -142,8 +142,23 @@ fitness:
   # + shadow (anti-误杀 held in both directions). Older baseline dirs
   # (m-auto-1b-baseline-20260529, m-auto-4-baseline-20260604,
   # m-auto-5-baseline-20260604, m-auto-5-baseline-20260605,
-  # m-auto-5-baseline-20260604-simfixed) retained on disk as forensic-only.
-  baseline_dir: eval_interactive/results/m-auto-5-baseline-20260604-simfixed-stalledfix
+  # m-auto-5-baseline-20260604-simfixed,
+  # m-auto-5-baseline-20260604-simfixed-stalledfix) retained on disk as
+  # forensic-only.
+  #
+  # M-Auto-6 close (2026-06-07) — route-(b) accept-with-known-regression
+  # (per docs/milestone_objective.md §5 + docs/action_bank.md §5).
+  # Milestone-shared re-bless ran at git_commit=27b5239, n=9, multi-suite
+  # (bad_cases + anchor_outcome + shadow); anti-误杀 CLEAN (HARD=0 across
+  # 36 anchor attempts + 18 cs38s* attempts; 0/36 self-resolve); five
+  # accepted regressions attributed to pre-existing semantic flakiness
+  # (R5/R6/R2.a exonerated per docs/diagnostics/2026-06-07-m-auto-6-anchor-overpass-diagnostic.md);
+  # A6 anti-误杀 reframed from "0.000 floor" to "safety-of-pass"
+  # (preflight-eval-checks.md §2/§3/§5/§7; scope = uc_g/h/i/j +
+  # cs38s01/cs38s02). Codex milestone-shared §4.3 verdict
+  # APPROVE_M_AUTO_6_WITH_NON_BLOCKING_OBSERVATIONS / blocking_count=0
+  # archived at docs/milestones/M-Auto-6_codex-review.md.
+  baseline_dir: eval_interactive/results/m-auto-6-baseline-shared-20260607
 
   # Hard cap per suite (30 min). A timeout aborts the loop iteration
   # — partial fitness evidence is worse than no fitness evidence.
