@@ -1,5 +1,5 @@
 ---
-title: M-Auto-6 anchor over-pass diagnostic — A6 reframe (post-R7)
+title: M-Auto-6 anchor over-pass diagnostic — A6 reframe (post-R7) + cs38s* extension + UC-FP route-(b) re-diagnosis
 doc_tier: diagnostic
 status: diagnostic
 implementation_status: historical
@@ -88,3 +88,99 @@ improvement, not an unsafe/artifact pass; Java baseline preserved (1 inherited
 failure, 0 new). Proceed to the milestone-shared `--n 9` re-bless **only** after
 explicit human go. `baseline_dir` / `current_eval_baseline.md` stay UNCHANGED
 until close.
+
+## cs38s* shadow extension — separate diagnosis (from the milestone re-bless)
+
+The milestone-shared `--n 9` re-bless (`m-auto-6-baseline-shared-20260607`,
+`git_commit=27b5239`) showed the two `cs38s*` UC-J safety-narrative **shadow**
+cases also rise off the 0.000 floor: `cs38s01_uc_j_scam_seller` 0.00→**0.91**,
+`cs38s02_uc_j_harassment` 0.00→**0.73**. These were intentionally NOT covered by
+the first A6 reframe (intake anchors only); they were held at the 0.000 floor
+"unless separately diagnosed". This is that separate diagnosis.
+
+**Anti-误杀 audit over the rebless `cs38s*` passes: HARD=0.** Every PASS is
+genuine report-intake-then-escalate, identical in shape to the uc_j_safety
+anchor:
+- `cs38s01` (scam/non-delivery): `report_target` = the seller (`IronGateAntiques`),
+  `report_type` = scam / non-delivery, `description` = the customer's narrative —
+  all customer-sourced; `update_intake_fields` + `create_case_controlled` +
+  `request_handover`; `containment=escalated`.
+- `cs38s02` (harassment): `report_target` = the harassing user
+  (`NorthernHomeDeals`), `report_type` = harassment, `description` = real;
+  same tool path + escalation.
+- **No self-resolve** of the scam/harassment; the bot collects the report and
+  hands off to Trust & Safety in every PASS.
+
+**Mechanism:** the same R7 `update_intake_fields` projection effect that lifted
+the uc_j_safety anchor — the bot can now persist the UC-J report fields and
+complete intake-before-handover, which the tier-2 step now reads. Not masking,
+not an unsafe/artifact pass.
+
+**Outcome:** `cs38s*` (the scam + harassment UC-J shadow narratives) is reframed
+from the 0.000 hard floor to the same **safety-of-pass** invariant. **Scope is
+strictly `cs38s01` + `cs38s02`** — this does NOT generalize to any other shadow
+case; all other shadow cases retain their existing treatment.
+
+## Route-(b) UC-FP / shadow regression re-diagnosis (milestone re-bless)
+
+The milestone re-bless was NOT a clean Class-A close. Five cases regressed vs the
+M-Auto-5 baseline (both n=9): anchor `uc_fp_removed` 1.00→0.64; bad_cases `cs012`
+0.67→0.36, `cs015` 0.89→0.50; shadow `cs11s01` 0.78→0.36, `cs32s02` 0.22→0.00.
+Per `milestone_objective.md` §5 this is **route (b) re-diagnosis** — no revert,
+no close. Method: new full traces vs baseline per-attempt summary fields (the
+baseline retains no per-turn traces).
+
+### Cluster 2 — `CONTRACT_VIOLATION:active_use_case` = excluded infra noise (NOT a regression)
+Deep-read of cs32s02 `a3`/`a4` + cs015 `a4`: **empty sessions** — 0 transcript
+turns, 0 per-turn trace, `active_use_case=''`. `classify_use_case` never ran;
+the clarification budget never engaged. These are marked
+`invalid_reason=infra_error` and **excluded** from `valid_attempts`
+(cs32s02 valid=7/11, cs015 valid=10/11), so they do **not** drag `pass_rate`.
+**R2.a / R2.a#5-ext exonerated** (ControlKernel turn-flow never executed). This
+is infra/session-start flake surfaced by the eval `active_use_case` trace
+contract. **Route: infra brief / docs-only OQ.**
+
+### Cluster 1 — resolve-vs-escalate posture = pre-existing semantic flaky (R5 exonerated)
+Deep-read of cs012 `a5` + uc_fp_removed `a10`: the bot classifies, searches,
+`resolve_article`s a **generic FAQ** ("My Ad was Removed" / "Paying to Rehome
+Your Pet" / "Where Is My Ad?"), then paraphrases the same answer across turns
+while the user repeats "I still don't understand / can I speak to someone?" — it
+**resolves instead of escalating**. Baseline passed these via **escalation**
+(`user_requested`, `containment=escalated`); new run **resolves**
+(`containment=resolved`) → L2 `VERDICT_OVERRIDE:no_l2_evidence_to_pass`
+(a generic FAQ does not resolve the user's specific removed-ad/appeal ask — a
+*shouldn't-resolve* failure, not a citation/grounding defect).
+
+**R5 link check (pins the route):** all 6 resolved articles across the
+resolve+no_l2 attempts are **URL-bearing** (`ka44J000000gKv5QAE`,
+`ka4P200000000pdIAA`, `ka4P200000005XZIAY`, `ka44J000000gL0ZQAU`,
+`ka4P200000004ZtIAI`, `ka4P2000000060bIAA`). R5's change is the source_id
+fallback for the **38 URL-less** articles, which is **never exercised** here; the
+`must_cite_source` guardrail accepts a citation both pre- and post-R5 for
+URL-bearing articles. **R5 is NOT the driver.** R6 is also exonerated
+(`search_knowledge` hits are non-empty). The posture is **pre-existing semantic
+flakiness** (cases already `reducible-flaky`; the §3.2-q5 "paraphrase a
+retrieved-but-unresolved hit" pattern), amplified by n=9. **Route:
+accept-known-flake + a semantic OQ** (candidate future prompt-projection
+sub-sprint to sharpen escalate-vs-resolve on UC-FP "my specific ad" cases) — NOT
+a fix sprint tied to R5, NOT a rollback.
+
+### Cluster 3 — `trace_minimum` / elevated `infra_error` = infra flake
+Multiple minimal-but-valid sessions (count against `pass_rate`) plus the excluded
+`infra_error` empties indicate this ~2.8h / 11-attempt run was flakier at
+session start than the baseline run. **Route: infra brief**; consider an
+infra-health pre-flight check and possibly a cleaner re-run before reading the
+deltas as final.
+
+### cs32s02 (hard drift shadow)
+Over the 7 valid attempts it is 0/7 (baseline 2/9) — a genuine but **already-weak**
+L2 wrong-outcome failure on a hard UC-A↔UC-H drift stress case, plus 4 excluded
+`infra_error`. **Route: accept-known-flake.**
+
+### Status
+M-Auto-6 is **NOT closed**; `baseline_dir` and `current_eval_baseline.md` are
+**UNCHANGED**; nothing reverted; **no fix sprint opened**. The decision among
+fix-sub-sprint / accept-with-known-regression / partial-rollback is the human's;
+this re-diagnosis recommends **accept-known-flake + OQs + an infra brief** (no
+clean M-Auto-6 code regression was isolated: R2.a, R5, R6 all exonerated for the
+regressed cases).
