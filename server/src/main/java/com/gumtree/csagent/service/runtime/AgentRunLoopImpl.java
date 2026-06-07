@@ -452,8 +452,22 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 // computed defensively against the run-start snapshot.
                 boolean ucCommittedThisTurn =
                         !Objects.equals(activeUc, session.getActiveUseCase());
+                // S-Auto-30 — exclude the runtime-synthesised null-turn placeholder
+                // from the clarification counter. ActionParser substitutes a non-blank
+                // placeholder when the LLM emits an empty user_message + no tool_calls,
+                // so `userMsg` is never blank here; the only structural discriminator
+                // is the provenance flag. A runtime placeholder is not an LLM-authored
+                // clarification attempt and must not burn the clarification budget.
+                // Structural provenance only — no content / keyword gate is added (the
+                // R2.a "structural cardinality only" design is preserved).
+                if (action.isUserMessageSynthesised()) {
+                    log.info("AgentRunLoop DISCOVER null-turn: user_message_synthesised=true "
+                                    + "(runtime placeholder) at step {}; excluded from clarification counter",
+                            step);
+                }
                 if (isDiscoverFreeTextClarification(
-                        plan.phase(), false, ucCommittedThisTurn, userMsg)) {
+                        plan.phase(), false, ucCommittedThisTurn, userMsg)
+                        && !action.isUserMessageSynthesised()) {
                     session.setClarificationCount(session.getClarificationCount() + 1);
                 }
                 if (isClarificationMessage(finalText)) {

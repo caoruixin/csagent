@@ -216,6 +216,76 @@ class ActionParserTest {
                 "Should use fallback message when both tool_calls and user_message are empty");
     }
 
+    // ---------- S-Auto-30: synthesised-null-turn provenance flag ----------
+
+    @Test
+    void parse_emptyUserMessageAndEmptyToolCalls_marksUserMessageSynthesised() {
+        // Test #1: a true null turn (blank user_message + no tool_calls) →
+        // ActionParser substitutes the placeholder AND flags it as
+        // runtime-synthesised, so the loop can exclude it from the R2.a
+        // clarification counter.
+        String json = """
+                {"user_message":"","reasoning":"silent","tool_calls":[]}""";
+
+        ParsedAction result = parser.parse(json);
+
+        assertEquals("I'm looking into this for you.", result.getUserMessage(),
+                "null turn must substitute the runtime placeholder");
+        assertTrue(result.isUserMessageSynthesised(),
+                "null-turn placeholder must be flagged userMessageSynthesised=true");
+    }
+
+    @Test
+    void parse_blankUserMessageWhitespace_alsoMarksSynthesised() {
+        // user_message that is whitespace-only is also blank → synthesised.
+        String json = """
+                {"user_message":"   ","reasoning":"x","tool_calls":[]}""";
+
+        ParsedAction result = parser.parse(json);
+
+        assertEquals("I'm looking into this for you.", result.getUserMessage());
+        assertTrue(result.isUserMessageSynthesised());
+    }
+
+    @Test
+    void parse_genuineClarification_isNotSynthesised() {
+        // Negative control: an LLM-authored clarification keeps the flag false,
+        // so it still counts toward the clarification budget.
+        String json = """
+                {"user_message":"Which ad are you referring to?",
+                 "reasoning":"clarify scope","tool_calls":[]}""";
+
+        ParsedAction result = parser.parse(json);
+
+        assertFalse(result.isUserMessageSynthesised(),
+                "an LLM-authored reply must NOT be flagged synthesised");
+    }
+
+    @Test
+    void parse_toolCallResponse_isNotSynthesised() {
+        // Negative control: a normal tool-call response is never synthesised.
+        String json = """
+                {"user_message":"",
+                 "reasoning":"need KB lookup",
+                 "tool_calls":[{"name":"search_knowledge","arguments":{"query":"x"}}]}""";
+
+        ParsedAction result = parser.parse(json);
+
+        assertFalse(result.isUserMessageSynthesised());
+    }
+
+    @Test
+    void parse_parseFailureHandoverFallback_isNotSynthesised() {
+        // Negative control: the parse-failure handover apology (buildFallback)
+        // is a DIFFERENT case and must leave the flag false — only the
+        // null-turn placeholder is synthesised.
+        ParsedAction result = parser.parse("this is not json");
+
+        assertEquals("request_handover", result.getToolCalls().get(0).getName());
+        assertFalse(result.isUserMessageSynthesised(),
+                "parse-failure handover apology must NOT be flagged synthesised");
+    }
+
     @Test
     void parse_toolCallWithoutArguments_shouldDefaultToEmptyMap() {
         String json = """
