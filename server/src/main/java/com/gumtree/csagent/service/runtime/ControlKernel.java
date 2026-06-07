@@ -571,10 +571,23 @@ public class ControlKernel {
 
                 // D16.D: mirror the legacy evaluateClose state-setting when the
                 // agent loop terminates in CLOSE. SessionManager reads
-                // containmentOutcome via recordOutcome.
+                // containmentOutcome via recordOutcome. Sprint 084 / S-Auto-29:
+                // the legacy mirror's unconditional "resolved" default is now
+                // GROUNDING-GATED through isResolvedSuccessTerminal — the same
+                // gate Path C (below) and shouldVoidResolvedStamp (Path D)
+                // already apply. The CLOSE transition is LLM-owned (the LLM
+                // emits next_phase=CLOSE), so a DISCOVER-stalled clarifier close,
+                // a hallucinated "user confirmed" close, or a simulator drop-out
+                // close must NOT be credited as a resolved success when the loop
+                // delivered no grounded answer. handlingState=CLOSED and
+                // emitSessionClosed stay UNCONDITIONAL (the session did close);
+                // only the "resolved" credit is gated. No new enum value: with
+                // no grounding evidence containment is left null and the eval
+                // routes case_passed by L2 evidence, not by a false default.
                 if ("CLOSE".equals(phaseAfter)) {
                     session.setHandlingState("CLOSED");
-                    if (session.getContainmentOutcome() == null) {
+                    if (session.getContainmentOutcome() == null
+                            && isResolvedSuccessTerminal(session, runResult)) {
                         session.setContainmentOutcome("resolved");
                     }
                     eventEmitter.emitSessionClosed(session.getSessionId(),
