@@ -76,10 +76,10 @@ end-to-end** — not finishing every bad-case semantic fix.
 | # | Phase | Sub-sprint | R-item | Scope (3-sentence) | Depends on |
 |---|---|---|---|---|---|
 | 1 | Blocker | **S-A (CS1)** Sprint 084 / S-Auto-29 | `R-controlkernel-default-resolved-on-close-anti误杀` | Gate `ControlKernel.java:575-579` Path B CLOSE-arm resolved-stamp through `isResolvedSuccessTerminal`; leave containment null when no grounding; preserve handlingState/escalation/Path-D. 5 characterization tests; no enum value. | M-Auto-6 close (MET) |
-| 2 | Blocker | **S-X (CS3)** Sprint 085 / S-Auto-30 | `R-discover-null-turn-counter-anti误杀` | Exclude the runtime-synthesised placeholder from the R2.a counter at `AgentRunLoopImpl.java:438-458`; add one §1.3-soft DISCOVER cue against null/filler turns; emit a `discover_null_turn_synthesised` trace event. | S-A close + mini re-bless |
-| 3 | Blocker | **S-Y1 (CS4 readiness)** Sprint 086 / S-Auto-31 | `R-uc-a-entity-context-verify-procedure-via-autoloop` (readiness scope) | Part A: human projection infra (`moderation_reason_available` boolean + candidate-UC names + soft_signal_via_projection wiring). Part B: author appendix §2-§8 CaseSpecs (5 NEW + 2 EXTEND), reconcile placeholders to real fixtures, §5.6 tiering. NO procedure-text change (that is the pilot). | S-X close + mini re-bless |
+| 2 | Blocker | **S-X (CS3)** Sprint 085 / S-Auto-30 | `R-discover-null-turn-counter-anti误杀` | Structural provenance flag (`ParsedAction.userMessageSynthesised`) set by `ActionParser.java:70-72`; the R2.a counter at `AgentRunLoopImpl.java:455` excludes synthesised placeholders; add one §1.3-soft DISCOVER cue + a `user_message_synthesised` trace diagnostic. (Proposal Option C3.A is trace-confirmed inert.) | S-A dev close (Java-test verified) |
+| 3 | Blocker | **S-Y1 (CS4 readiness)** Sprint 086 / S-Auto-31 | `R-uc-a-entity-context-verify-procedure-via-autoloop` (readiness scope) | Part A: human projection infra (`moderation_reason_available` boolean + candidate-UC names + soft_signal_via_projection wiring). Part B: author appendix §2-§8 CaseSpecs (5 NEW + 2 EXTEND), reconcile placeholders to real fixtures, §5.6 tiering. NO procedure-text change (that is the pilot). | S-X dev close (Java-test verified) |
 | 4 | **CORE GATE** | **S-Y2 (CS4 pilot)** Sprint 087 / S-Auto-32 | `R-uc-a-entity-context-verify-procedure-via-autoloop` (pilot scope) | Part C: baseline run (targets fail / negative-control passes) → autoloop authors skill-yaml procedure candidate(s) → human §4.1 review → merge accepted candidate → re-run. Part D: mini re-bless + per-sub-sprint Codex + close. Fallback (§3.4) only if no candidate is acceptable. | S-Y1 close |
-| 5 | Back-half (optional, non-blocking) | **S-B (CS2-original)** Sprint 088 / S-Auto-33 | `R-user-role-projection-slot-from-listing-ownership` | Data-derived `user_role` slot (`ad_owner \| unknown`) from form-email↔listing-`posted_by` match; one-sentence soft cue into discover_triage + resolve_faq. Reuses S-Y1 candidate-UC-name infra. | S-Y2 close + mini re-bless (additive) |
+| 5 | Back-half (optional, non-blocking) | **S-B (CS2-original)** Sprint 088 / S-Auto-33 | `R-user-role-projection-slot-from-listing-ownership` | Data-derived `user_role` slot (`ad_owner \| unknown`) from form-email↔listing-`posted_by` match; one-sentence soft cue into discover_triage + resolve_faq. Reuses S-Y1 candidate-UC-name infra. | S-Y2 close (additive) |
 
 ## 4. Non-goals (explicit)
 
@@ -208,7 +208,13 @@ autoloop-authored procedure candidate is the §1.7 anti-hardcode binding
 gate (§4.3 trigger #2); must complete before S-B begins (or before
 milestone close if S-B carries out). S-A is §7-EXEMPT + §4.1-exempt
 (pure infra). S-X / S-Y1 / S-B fold into the milestone-shared close.
-Mini re-bless between sub-sprints is the proceed gate.
+
+**Re-bless cadence (batched, 2026-06-08 decision):** exactly two
+real-LLM gates, both Claude-launched / human-reviewed — (1) the
+pre-pilot baseline re-bless = the pilot's Part C.1 (after all blockers
+S-A / S-X / S-Y1 are in), and (2) the milestone-close re-bless.
+Blockers proceed on Java-test + diff verification only; there is no
+inter-blocker mini re-bless.
 
 ## 9. Estimated milestone duration
 

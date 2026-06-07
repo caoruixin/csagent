@@ -1,155 +1,143 @@
 ---
-title: Sprint 084 / S-Auto-29 (M-Auto-7 S-A) — CS1 default-resolved-on-CLOSE anti-误杀 gate
+title: Sprint 085 / S-Auto-30 (M-Auto-7 S-X) — CS3 DISCOVER synthesised-null-turn provenance gate
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
 last_reviewed: 2026-06-08
 review_cadence: per sprint
-supersedes: docs/sprints/sprint-083-objective.md
+supersedes: docs/sprints/sprint-084-objective.md
 superseded_by: null
 notes: >
-  First autoloop launch blocker of milestone M-Auto-7 (Autoloop
-  readiness and CS4 entity-context pilot). Pure-infra runtime
-  trace-contract fix. Source:
-  docs/solutions/2026-06-07-cs1-default-resolved-cs2-user-role-projection-gap.md
-  §3.1 + §4.1 (Option C1.A) + §6.1 + §7.1. Lands FIRST so the autoloop
-  pilot's baseline (S-Y2 Part C.1) is measured on an honest floor —
-  before CS3, the CS4 readiness blocker, the pilot, and CS2-original.
+  Second autoloop launch blocker of M-Auto-7. Root cause TRACE-CONFIRMED
+  against CS3 session 33edc1eb (eval_interactive/results/20260607-095759):
+  turn-2 LLM emitted user_message="" + no tool_calls; ActionParser.java:70-72
+  substitutes the placeholder "I'm looking into this for you." AT PARSE TIME,
+  so AgentRunLoopImpl sees a NON-BLANK userMsg and the R2.a clarification
+  counter increments on the runtime-synthesised placeholder (count 1->2 →
+  turn-3 force-escalate clarification_budget_exhausted before the LLM sees
+  the user's "Thank you"). The proposal's Option C3.A (userMsg.isBlank()
+  guard) is CONFIRMED INERT — userMsg is never blank at the loop. Fix =
+  structural provenance flag (NOT a content heuristic; keeps the R2.a
+  "structural cardinality only" design). Source: CS3/CS4 proposal §2 +
+  §8.2 (mechanism corrected per trace).
 ---
 
-# Sprint 084 / S-Auto-29 — CS1 default-resolved-on-CLOSE gate
+# Sprint 085 / S-Auto-30 — CS3 synthesised-null-turn provenance gate
 
 ## Class
 
-- **Layer (§3.2):** infra (Runtime trace-contract / persistence).
-- **§7 stanza:** EXEMPT (pure infra + characterization-test; no prompt,
-  no semantic decision, no eval-spec, no judge change). The §7.1 stanza
-  is recorded below for the audit trail per proposal §7.1 but is not a
-  §7 requirement.
-- **Milestone role:** Phase 1 autoloop launch blocker #1.
+- **Layer (§3.2):** infra (R2.a counter provenance) + prompt_projection
+  (complementary soft DISCOVER cue).
+- **§7 stanza:** REQUIRED (the soft DISCOVER cue touches a skill-yaml
+  semantic surface). Stanza below.
+- **Milestone role:** Phase 1 autoloop launch blocker #2.
 
 ## Goal
 
-The runtime must not credit `containment_outcome="resolved"` on a
-phase=CLOSE transition that delivered no grounded answer. Gate the
-`ControlKernel.java:575-579` Path B CLOSE-arm stamp through the same
-`isResolvedSuccessTerminal` gate Path C already uses; when no grounding
-evidence exists, leave containment null so the eval routes
-`case_passed` by L2 evidence instead of a false default.
+A runtime-synthesised DISCOVER placeholder (injected by ActionParser
+when the LLM null-turns) must NOT be counted as a clarification round
+and must not burn the clarification budget. Mark the synthesised
+placeholder with a structural provenance flag and exclude it from the
+R2.a counter; genuine LLM-authored clarifications keep their existing
+structural counting (anti-误杀).
 
 ## Scope
 
-1. **Rewrite the CLOSE arm at `ControlKernel.java:575-581`** (inside
-   the `if ("CLOSE".equals(phaseAfter))` block) — CANONICAL SHAPE:
-   inline the gate into the CLOSE arm.
-   - Keep `session.setHandlingState("CLOSED")` UNCONDITIONAL (the
-     handlingState side-effect must fire on every CLOSE transition).
-   - Stamp `"resolved"` ONLY when `getContainmentOutcome() == null &&
-     isResolvedSuccessTerminal(session, runResult)`; otherwise leave
-     containment null (no grounding evidence on CLOSE).
-   - Keep `eventEmitter.emitSessionClosed(...)` emitting the (possibly
-     null) containment.
-   - Preserve the existing non-null containment guard (a prior turn's
-     stamp is never overwritten).
-2. **Update the `:572-574` D16.D comment** to reflect that the
-   legacy evaluateClose mirror is now grounding-gated.
-3. **Do NOT modify** `isResolvedSuccessTerminal` (`:1418`),
-   `shouldVoidResolvedStamp` (`:1508`), `voidResolvedStamp` (`:1532`),
-   the Path C body (`:582-611`), or the Path D body (`:612-641`).
-4. **Characterization tests** (pin all 5 — mandatory):
-   1. DISCOVER→DISCOVER→DISCOVER→CLOSE, 0 tool calls, no UC committed
-      → containment is NOT `"resolved"` (null).
-   2. RESOLVE → FINAL_ANSWER + ANSWERED_SUBTASK + non-empty
-      articlesShown + LLM emits CLOSE → containment IS `"resolved"`
-      (goal_achieved one-shot anti-误杀 preserved).
-   3. RESOLVE → FINAL_ANSWER WITHOUT articlesShown → CLOSE →
-      containment is NOT `"resolved"`.
-   4. Escalation arm + CLOSE → containment stays `"escalated"`.
-   5. Prior turn stamped `"resolved"` + this turn's CLOSE transition →
-      value is NOT overwritten/regressed (non-null guard).
-   Also assert `handlingState == "CLOSED"` in scenarios 1-3,5 (the
-   side-effect fires regardless of the containment outcome).
-5. **(Bonus, may defer if scope tightening needed)** emit an
-   observability field `containment_reason="no_grounding_evidence_on_
-   close"` on the null-containment CLOSE path. Defer if it widens the
-   diff materially.
-
-## Binding contract (Decision 3, human-approved 2026-06-08)
-
-- `handlingState=CLOSED` remains UNCONDITIONAL on CLOSE.
-- `emitSessionClosed` still fires.
-- `"resolved"` is stamped ONLY when containment is null AND
-  `isResolvedSuccessTerminal(session, runResult)` is true.
-- No grounding evidence → containment remains null.
-- Escalation behaviour preserved.
-- Prior non-null containment preserved.
-- goal_achieved one-shot resolved behaviour preserved.
-- The five characterization tests are mandatory.
+1. **`ParsedAction.java`** — add `private boolean userMessageSynthesised;`
+   (Lombok `@Data @Builder` → `isUserMessageSynthesised()` getter, builder
+   `.userMessageSynthesised(...)`; primitive default false).
+2. **`ActionParser.java:70-73`** — when the null-turn fallback fires
+   (`toolCalls.isEmpty() && userMessage.isBlank()`), continue substituting
+   `"I'm looking into this for you."` AND set the builder flag
+   `userMessageSynthesised=true`. The normal path and the parse-failure
+   `buildFallback()` (:120-130) leave it false — the flag marks ONLY the
+   null-turn placeholder, not the handover apology.
+3. **`AgentRunLoopImpl.java:455-457`** — exclude the synthesised placeholder
+   from the counter: add `&& !action.isUserMessageSynthesised()` to the
+   increment condition. Keep the existing structural guards intact
+   (`isDiscoverFreeTextClarification(plan.phase(), false, ucCommittedThisTurn,
+   userMsg)` — DISCOVER + no tools + no UC commit). Do NOT add any content
+   check (no `isClarificationMessage` gate — that would convert the
+   structural counter into a content heuristic; explicitly out of scope per
+   the human decision 2026-06-08).
+4. **Trace event** — surface `user_message_synthesised=true` (or a
+   `discover_null_turn_synthesised` per-turn diagnostic) when the flag is
+   set, via the least-invasive existing per-turn trace/diagnostic surface,
+   so eval/admin can see the null-turn without it forcing escalation.
+5. **`discover_triage.yaml`** — add ONE §1.3-soft cue (near the existing
+   Sprint-33 cue) discouraging null/filler turns: every DISCOVER turn should
+   either call `classify_use_case` or ask one focused clarifying question;
+   do not emit an empty `user_message` / empty `tool_calls` / placeholder
+   filler. Complementary only — the provenance flag is the hard backstop;
+   do NOT rely on the cue as the sole fix.
 
 ## Hard fences / STOP conditions
 
-- No new `containment_outcome` enum value (Option C1.B deferred).
-- No `semantic_planner` edit — the LLM's CLOSE-transition decision is
-  unchanged; the runtime just stops false-crediting it.
-- No keyword / regex / if-else dispatch on `user_message` content.
-- No eval-side composite-gate edit (`composite.py:285-303` is the §5.4
-  backstop, not this sub-sprint's lever).
-- No touch to `isResolvedSuccessTerminal` / `shouldVoidResolvedStamp`
-  internals.
-- STOP and surface as an OQ if the goal_achieved one-shot path
-  (test #2) cannot be preserved by the gated stamp — do NOT weaken the
-  gate to force it green.
+- Do NOT raise `max-clarification-rounds` (`control-policy.yaml:1-2`); the
+  cap of 2 is correct — the bug is the false count, not the cap.
+- Do NOT touch the shared placeholder string in `templates.yaml` /
+  `PhaseEvaluator` / `ControlKernel` (used on legitimate slow-LLM paths).
+- Do NOT touch the pre-LLM budget gate at `ControlKernel.java:288-318`.
+- Do NOT add an `isClarificationMessage` / any content/keyword check to the
+  counter (structural provenance only — human decision 2026-06-08).
+- Do NOT change the RESOLVE-intake counter bucket (S-Auto-25 R2.a#5-ext).
+- No Java guard on empty `user_message` (the soft cue is the LLM-side lever).
+- STOP + surface an OQ if excluding synthesised turns regresses a genuine
+  over-clarification session (test #6) — do not weaken the structural guard.
 
-## Test / eval requirements
+## Test / eval requirements (all 6 mandatory)
 
-- New/updated Java characterization tests pin all 5 scenarios above
-  (co-locate with existing ControlKernel containment tests).
-- Focused Java suite: no new regression vs the inherited baseline
-  (`1358 / 1 / 0 / 2`; sole known failure = OQ-S41.5 prompt tiebreaker,
-  provably uncoupled — this sub-sprint touches no prompt file). Report
-  exact counts.
-- Mini re-bless (deliver-agent + human, post-dev) on the curated
-  bad-case suite + CS1 anchor trace `3e4f0aad-af7…`: confirm the
-  resolved-stamp count drops on stalled-CLOSE sessions and the
-  goal_achieved one-shot resolved stamps are unchanged. Document the
-  expected resolved-count delta in handoff §12 so milestone-close
-  review reads the drop as honesty, not regression.
+1. blank `user_message` + no tool_calls → ActionParser synthesises the
+   placeholder AND `userMessageSynthesised=true` (ActionParser unit test).
+2. that synthesised placeholder turn → `clarificationCount` does NOT
+   increment (AgentRunLoop test).
+3. genuine clarification question (non-blank, `?`-shaped) → `clarificationCount`
+   increments (anti-误杀).
+4. non-synthesised non-blank reply → existing structural counting behavior
+   unchanged (`userMessageSynthesised=false` → counts as before).
+5. CS3 anchor `33edc1eb` shape (3-turn DISCOVER stall) → placeholder no
+   longer pushes count to 2; no premature `clarification_budget_exhausted`
+   force-escalate; turn-3 user message reaches the LLM.
+6. anti-误杀: a genuinely over-clarifying session still hits the cap of 2
+   and escalates as before.
+- Focused Java suite: no new regression vs the post-S-A baseline. Report
+  counts. **No real-LLM re-bless in S-X** — Java/unit + diff verification
+  only; the pre-pilot baseline re-bless runs after S-Y1 (batched cadence).
 
-## §7.1 stanza (audit-trail; sub-sprint is §7-EXEMPT)
+## §7 stanza
 
-**Target failure layer:** infra
-**Tier-0 invariant:** none added. Extends the existing §1.4 Runtime
-trace-contract (containment_outcome must reflect actually-delivered
-grounding evidence) into the previously-unguarded CLOSE-transition arm.
-**Semantic hardcode:** none. Reuses the `isResolvedSuccessTerminal`
-gate validated by Sprint 075 / S-Auto-20. No keyword/regex/if-else on
-user_message, no enum expansion.
-**Generalization coverage:** T/N/G/S = 1 / 1 / 1 / ≥1 — target = CS1
-trace `3e4f0aad-af7…` + curated DISCOVER-stalled traces; neighbor =
-goal_achieved one-shot (still resolved); negative = escalation stays
-escalated + Path D unchanged; shadow = held-out DISCOVER-stalled traces.
+**Target failure layer:** infra (R2.a counter provenance) + prompt_projection
+(soft DISCOVER cue).
+**Tier-0 invariant:** none added. Restores the §1.4 Runtime clarification-
+counter contract (a clarification round = an LLM-authored clarification
+attempt) by excluding runtime-synthesised placeholders via a structural
+provenance flag.
+**Semantic hardcode:** none. The flag is structural provenance (was the
+reply LLM-authored or runtime-synthesised), NOT a content/keyword/similarity
+heuristic — the R2.a "structural cardinality only" design is preserved. The
+discover_triage.yaml cue is a §1.3-soft sentence, no Java enforcement.
+**Generalization coverage:** T/N/G/S = 1 / 1 / 2 / ≥1 — target = CS3 trace
+33edc1eb; neighbor = legitimate `?`-clarification still counts; negative =
+non-synthesised non-blank reply unchanged + RESOLVE-intake bucket unchanged;
+shadow = held-out DISCOVER null-turn traces.
 
 ## Codex review plan (§4.3)
 
-Per-sub-sprint Codex EXEMPT (pure infra + characterization-test; §4.1
-exemption clause + §4.3 final paragraph). Folds into the M-Auto-7
-milestone-shared close review over the cumulative commit range. No
-§4.3 per-sub-sprint trigger fires (not Tier-0; not §1.7-adjacent — the
-change REMOVES a default stamp, adds no hardcode; not hard-fence; not
-fix-iteration). Dev does NOT dispatch Codex.
+Per-sub-sprint Codex deferred to the M-Auto-7 milestone-shared close review.
+No §4.3 trigger fires: not Tier-0; not §1.7-adjacent (structural provenance
+flag + §1.3-soft cue, no keyword/regex/enum); not hard-fence; not
+fix-iteration. Dev does NOT dispatch Codex.
 
 ## Handoff requirements
 
-Dev authors `docs/sprints/sprint-084-handoff.md` at close:
-- §0 evidence: 5 characterization tests green; focused Java suite delta.
-- §11: per-sub-sprint Codex deferral recorded (EXEMPT) + any OQs.
-- §12: the resolved-stamp count delta (before/after on the bad-case
-  suite + anchor trace), framed as expected measurement honesty.
+Dev authors `docs/sprints/sprint-085-handoff.md`: §0 evidence (6 tests
+green; Java suite counts); §11 Codex deferral + any OQs; §12 note that the
+counter-honesty effect is verified at the pre-pilot re-bless (post-S-Y1),
+not in S-X.
 
 ## Commit discipline
 
-Stage only authorized-scope files (`ControlKernel.java` + the
-characterization test file). Do NOT `git add -A`; deliver-agent files
-bundle at close per §8.7. New commit per fix; no `--amend` across a
-failed hook.
+Stage only authorized files: `ParsedAction.java`, `ActionParser.java`,
+`AgentRunLoopImpl.java`, `discover_triage.yaml`, + the test file(s). No
+`git add -A`. New commit per fix; no `--amend` across a failed hook.
