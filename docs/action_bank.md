@@ -932,6 +932,32 @@ Framework-defect-priority adjacent dissolutions (2026-06-05):
 - **OQ-S72.2 (near-coinflip anchor bad_cases) DISSOLVED**: the simfixed re-bless produced 0+0+0 near-coinflip across all three suites (vs m-auto-4 2+1+1). The corrected measurement no longer puts any case at p≈0.5. The validation-overnight gate that S-Auto-17 left held on the OQ-S72.2 condition is now unblocked (subject to the S-Auto-22 close).
 - **OQ-S76.A6 (bot self-diagnoses sim drift, runtime ignores)**: with the S-Auto-21 simulator at 0 contamination, the trigger surface has dissolved. Reassess at M-Auto-5 close after the S-Auto-22 re-re-bless — if no bot self-diagnoses of drift surface on the corrected baseline, close as obsolete.
 
+### M-Auto-6 CLOSE (2026-06-07) — route-(b) accept-with-known-regression + OQ/infra ledger + M-Auto-7 handoff
+
+**Milestone M-Auto-6 — Runtime substrate hygiene + admin observability + intake/clarification contract + UX/corpus governance — CLOSE DECISION 2026-06-07: route-(b) accept-with-known-regression (per `docs/milestone_objective.md` §5).** All 6 sub-sprints (A/S-Auto-23, B/S-Auto-24, C-1/S-Auto-25, C-2a/S-Auto-26, C-2b/S-Auto-27, S-Auto-28) dev-side closed with per-sub-sprint Codex APPROVE. Milestone-shared real-LLM re-bless ran 2026-06-07: `eval_interactive/results/m-auto-6-baseline-shared-20260607/` (n=9, `git 27b5239`, primary_model deepseek-v4-flash). This subsection is the AUTHORITATIVE close-decision record; full evidence in `docs/diagnostics/2026-06-07-m-auto-6-anchor-overpass-diagnostic.md`.
+
+**Why route-(b), not Class A:** the re-bless was NOT a clean Class-A pass — 5 cases regressed vs `m-auto-5-baseline-20260604-simfixed-stalledfix` (both n=9): anchor `uc_fp_removed` 1.00→0.64; bad_cases `cs012` 0.67→0.36, `cs015` 0.89→0.50; shadow `cs11s01` 0.78→0.36, `cs32s02` 0.22→0.00. Per §5 this is route (b) re-diagnosis (no revert, no rollback). **Anti-误杀 / safety: CLEAN** — route (c) ruled out: HARD=0 across all anchor + cs38s* PASSes (genuine intake + request_handover/create_case_controlled + escalation; 0/36 self-resolve).
+
+**Route-(b) root-cause (no clean M-Auto-6 code regression isolated):**
+- Cluster 1 (resolve-vs-escalate, the main UC-FP driver) = pre-existing semantic flakiness (bot answers generic URL-bearing FAQ on a specific removed ad instead of escalating; L2 correctly `no_l2_evidence`). **R5 exonerated** (all 6 resolved articles URL-bearing → R5 source_id-fallback path never exercised); **R6 exonerated** (search hits non-empty); **R2.a exonerated** (Cluster 2 below).
+- Cluster 2 (`CONTRACT_VIOLATION:active_use_case`) = empty/no-turn sessions, marked `infra_error` invalid + EXCLUDED from valid_attempts → not a regression.
+- Cluster 3 (`trace_minimum` / elevated `infra_error`) = session-start infra flake (this run flakier than baseline).
+None is a §5.8 framework-defect; none gated close.
+
+**A6 anti-误杀 reframe (landed 2026-06-07):** intake anchors `uc_g/h/i/j` + shadow `cs38s01/cs38s02` (scam/harassment) reframed from the 0.000 hard floor to a **safety-of-pass** invariant (reject only unsafe / empty-handover / self-resolve / superficial-tier2), because R7 `update_intake_fields` changed the intake-state projection surface. Scoped strictly to those cases; other shadow keep their floors. Recorded in `docs/current/process/preflight-eval-checks.md` (§2/§3/§5/§7) + `docs/milestone_objective.md` §5. Commits `27b5239` + `317bdc2`.
+
+**Follow-up ledger (all M-Auto-7 candidates; none gates this close):**
+- **Semantic OQ — `OQ-M6.uc-fp-resolve-vs-escalate-boundary`**: UC-FP "my specific ad" cases should verify entity-context before answering / prefer escalation over generic-FAQ resolve. Designed solution already exists: `docs/solutions/2026-06-07-cs3-cs4-discover-stall-uc-fp-boundary-empty-trace-ux.md` §3 (CS4) = promote **OBS-S1** (UC-A/UC-FP/UC-H verify-entity-context procedure) + **OBS-S2** (UC-A vs UC-FP boundary cue). Layer `prompt_projection` + soft `semantic_planner`.
+- **Infra brief — `OQ-M6.empty-trace-and-session-start-flake`**: empty-trace `BOT_HANDLING` sessions (= CS2-new, NOT a code defect — P3 admin UX affordance) + DISCOVER null-turn placeholder counted by R2.a → premature budget escalation (= CS3, small fix: counter null-turn gating + soft cue). Solution doc as above (CS2-new §1, CS3 §2). Layer `infra` (+ admin observability).
+- **Measurement-honesty — `R-controlkernel-default-resolved-on-close-anti误杀` (CS1)**: Path B at `ControlKernel.java:575-579` default-stamps `resolved` on phase=CLOSE without grounding (legacy D16.D, pre-M-Auto-6). Small certain runtime fix (gate through `isResolvedSuccessTerminal`); lowers pass-rate (honesty). Solution: `docs/solutions/2026-06-07-cs1-default-resolved-cs2-user-role-projection-gap.md` §3.1.
+- **Future enhancement — `R-user-role-projection-slot-from-listing-ownership` (CS2)**: seller/buyer perspective slip; no `user_role` projection slot. Same solution doc §3.2. `prompt_projection`.
+- **Separate human triage**: cross-UC stash-and-resume / `D-full-issue-ledger` (deferred; CS3/CS4 doc §10) — NOT folded into any sub-sprint.
+
+**RESIDUAL human/deliver gates — NOT done at this close-decision (require sign-off / separate dispatch):**
+1. **Milestone-shared Codex review** (§4.3) — prompt at `compact/M-Auto-6-review-prompt.md`; the formal close gate; not yet dispatched.
+2. **Baseline pointer flip** — `autoloop/config.yaml` `baseline_dir` + `docs/current_eval_baseline.md` remain at `m-auto-5-baseline-20260604-simfixed-stalledfix` pending human sign-off (open question: promote `m-auto-6-baseline-shared-20260607` as canonical now, or hold until the CS1/CS3/CS4 follow-ups land given the known UC-FP regression).
+3. **Deliver-agent housekeeping** — archive `docs/milestone_objective.md` → `docs/milestones/M-Auto-6_objective.md`; full `10-handoff.md` §1/§2 retention-window compression; M-Auto-7 contract authoring.
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact
