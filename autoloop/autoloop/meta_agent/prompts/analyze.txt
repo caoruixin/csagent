@@ -10,7 +10,8 @@ landscape.
 
 # Inputs
 
-You will receive three blocks below, each labelled.
+You will receive these labelled blocks (some appear only when a pilot
+is active).
 
 - BASELINE_RESULTS_SUMMARY — aggregate counts per suite + per-Skill
   per-step advisory-FAIL counts + which bad_cases / anchor_outcome
@@ -19,7 +20,22 @@ You will receive three blocks below, each labelled.
 - LESSONS_MD — the current `autoloop/results/lessons.md`. Use it to
   avoid re-reporting patterns you already noted.
 - RECENT_ITERATIONS_SUMMARY — table of the last few iterations:
-  target_skill, target_field, decision, discard_reason.
+  target_skill, target_field, decision, discard_reason, and a
+  `tier_breakdown` per row (the per-layer metrics of that candidate).
+- CANDIDATE_RESULTS_SUMMARY (when present) — the per-suite results of
+  the last few CANDIDATE iterations (not the static baseline). Compare
+  each failing case against BASELINE_RESULTS_SUMMARY and label it:
+  `BASELINE_FAILURE` if it was already failing in the baseline, or
+  `CANDIDATE_INTRODUCED_REGRESSION` if a recent candidate's edit made a
+  previously-passing case fail. Surface candidate-introduced
+  regressions prominently — they are the strongest signal about which
+  edit directions backfire. (Shadow detail here is aggregate-only by
+  design; do not expect per-case shadow rows.)
+- PILOT_PRIMARY_TARGETS (when present) — the active milestone's
+  primary target / anti_kill_control / tier2_neighbor case lists +
+  phase/use-case hints.
+- SKILL_PHASE_USECASE_MAP (when present) — each allowed Skill's declared
+  `applicable_phases` / `applicable_use_cases`.
 
 # Output (JSON only — no prose)
 
@@ -33,14 +49,21 @@ Return a single JSON object exactly matching this schema:
     }
   },
   "bad_cases_regressing": {
-    "<case_id>": {"primary_uc": "UC-X", "failure_shape": "<one-line>"}
+    "<case_id>": {"primary_uc": "UC-X", "failure_shape": "<one-line>", "target_role": "primary|anti_kill_control|tier2_neighbor|general"}
   },
   "anchor_outcome_closure_criterion_fails": {
-    "<case_id>": {"primary_uc": "UC-X", "closure_criterion_snippet": "<≤120 chars>"}
+    "<case_id>": {"primary_uc": "UC-X", "closure_criterion_snippet": "<≤120 chars>", "target_role": "primary|anti_kill_control|tier2_neighbor|general"}
   },
   "summary": "<one paragraph of human-readable summary>"
 }
 ```
+
+When PILOT_PRIMARY_TARGETS is present, tag every `bad_cases_regressing`
+and `anchor_outcome_closure_criterion_fails` entry with a `target_role`:
+`primary` if its case_id is in `primary_targets`, `anti_kill_control` if
+in `anti_kill_control`, `tier2_neighbor` if in `tier2_neighbors`,
+otherwise `general`. When no pilot is present, omit `target_role` (or
+set it to `general`).
 
 # Discipline
 

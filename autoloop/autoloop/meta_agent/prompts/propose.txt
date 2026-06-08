@@ -56,6 +56,35 @@ You MUST NOT propose:
    `trace_check`, `mandatory_for`, `severity`, or `id` fields.
    These are structurally locked and your proposal will be
    sandbox-rejected.
+6. The primary target case IDs in PILOT_PRIMARY_TARGETS are evaluation
+   bookkeeping labels. Use them ONLY to prioritize which failure cluster
+   to analyze. Do NOT mention, encode, paraphrase, or create rules around
+   these IDs or their literal fixture wording in any proposed
+   after_value.
+
+# Pilot target steering (when PILOT_PRIMARY_TARGETS is present)
+
+When a PILOT_PRIMARY_TARGETS block is present, the active milestone has
+a SPECIFIC set of primary target cases it wants improved, an
+anti_kill_control set that must NOT regress, and a set of tier2_neighbors.
+Use this to direct your search:
+
+- Prefer targeting a Skill whose `applicable_phases` / `applicable_use_cases`
+  (see SKILL_PHASE_USECASE_MAP) intersect the pilot's `phase_hint` /
+  `use_case_hint`. A Skill that does not run on the primary targets'
+  success path structurally cannot help them. Targeting a
+  non-intersecting Skill is allowed ONLY with an explicit rationale for
+  why it helps the primary targets.
+- NEVER edit a Skill you expect to regress an `anti_kill_control` entry.
+  The anti_kill_control cases are passing today; pushing them to fail to
+  chase a primary target is a net loss (anti-误杀 takes priority over a
+  raw pass-count gain).
+- The FAILURE_TAXONOMY may tag cases with a `target_role`
+  (primary / anti_kill_control / tier2_neighbor / general). Treat
+  `primary` as the cluster to move; protect `anti_kill_control`.
+
+This is selection guidance about WHERE to look, not a rule about any
+customer utterance — keep your `after_value` durable, generic CS prose.
 
 # Anti-repeat heuristic
 
@@ -69,11 +98,18 @@ mean the search has plateaued and a fresh angle is needed.
 
 # Inputs
 
-You will receive four labelled blocks:
+You will receive these labelled blocks:
 
 - FAILURE_TAXONOMY (from analyzer)
 - LESSONS_MD
-- RECENT_ITERATIONS (compact table)
+- RECENT_ITERATIONS (compact table; each row now carries a
+  `tier_breakdown` so you can see WHICH cases a prior candidate
+  regressed, not just the one-line discard_reason)
+- PILOT_PRIMARY_TARGETS (only when a pilot is active — the active
+  milestone's primary target / anti_kill_control / tier2_neighbor case
+  lists + phase/use-case hints)
+- SKILL_PHASE_USECASE_MAP (only when a pilot is active — each allowed
+  Skill's declared `applicable_phases` / `applicable_use_cases`)
 - TARGET_SKILL_FILES_CONTENT — full current YAML of the six allowed
   files, so you can write a `before_value` that exactly matches.
 

@@ -6,6 +6,7 @@ All LLM calls are mocked via a fake LLMClient. No network calls.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -300,6 +301,173 @@ def test_proposer_fingerprint_deterministic():
         rationale="r",
     )
     assert fingerprint_hypothesis(hyp3) != fp1
+
+
+# --- S-Y1.5: P0-A / P0-B / P0-C / P1 meta-agent input shaping --------
+
+
+def _recent_iter_with_tier_breakdown() -> dict:
+    return {
+        "iteration_id": "exp-9",
+        "hypothesis": {
+            "target_skill_file": "server/src/main/resources/skills/confirm.yaml",
+            "target_field_path": "$.escalation_policy",
+        },
+        "decision": "discard",
+        "discard_reason": "tier0_escalation_compliance_failed_on_a_case",
+        "verdict": {
+            "tier_breakdown": {
+                "tier0_safety": {"new_violation_case_marker": "MARKER_CS11S01"},
+                "tier1_outcome": {"bad_cases_passed": 4},
+            }
+        },
+    }
+
+
+def test_recent_iterations_passthrough_includes_tier_breakdown(monkeypatch, tmp_path: Path):
+    """P0-A: both the proposer and analyzer serialize each recent
+    iteration's `verdict.tier_breakdown`, not just the discard_reason."""
+    monkeypatch.setattr(proposer, "_REPO_ROOT", tmp_path)
+    recent = [_recent_iter_with_tier_breakdown()]
+
+    pclient = FakeClient([_FIXTURE_HYPOTHESIS_JSON])
+    proposer.propose({}, "", recent, client=pclient, config=_DEFAULT_CONFIG)
+    p_user = pclient.calls[0][1]
+    assert "tier_breakdown" in p_user
+    assert "MARKER_CS11S01" in p_user
+
+    aclient = FakeClient([json.dumps({"summary": "ok"})])
+    analyzer.analyze({}, "", recent, client=aclient)
+    a_user = aclient.calls[0][1]
+    assert "tier_breakdown" in a_user
+    assert "MARKER_CS11S01" in a_user
+
+
+def test_candidate_results_passthrough_filters_shadow_per_case():
+    """P0-B firewall: the analyzer sees candidate per-suite results, but
+    shadow per-case detail is aggregate-only — no shadow case_id, tag, or
+    failure_shape may reach the serialized prompt. This test FAILS if the
+    shadow branch is removed from analyzer._summarize_suite_cases."""
+    raw_candidate = [
+        {
+            "iteration_id": "exp-66",
+            "suites": {
+                "shadow": {
+                    "results": {
+                        "case_results": [
+                            {
+                                "case_id": "cs59s01_uc_d_empty_form_account_recovery",
+                                "case_passed": False,
+                                "failure_tags": ["SHADOW_SECRET_TAG"],
+                                "failure_shape": "shadow-secret-shape",
+                            },
+                            {
+                                "case_id": "cs11s01_uc_d_two_emails_one_account",
+                                "case_passed": True,
+                            },
+                        ]
+                    },
+                    "missing": False,
+                },
+                "bad_cases": {
+                    "results": {
+                        "case_results": [
+                            {
+                                "case_id": "cs_uc_a_no_ad_id_ad_specific",
+                                "case_passed": False,
+                                "primary_uc": "UC-A",
+                                "failure_shape": "answers-without-verify",
+                            }
+                        ]
+                    },
+                    "missing": False,
+                },
+            },
+        }
+    ]
+    client = FakeClient([json.dumps({"summary": "ok"})])
+    analyzer.analyze({}, "", [], client=client, recent_candidate_results=raw_candidate)
+    user_prompt = client.calls[0][1]
+
+    # Shadow per-case detail MUST NOT leak (the firewall):
+    assert "cs59s01_uc_d_empty_form_account_recovery" not in user_prompt
+    assert "cs11s01_uc_d_two_emails_one_account" not in user_prompt
+    assert "SHADOW_SECRET_TAG" not in user_prompt
+    assert "shadow-secret-shape" not in user_prompt
+    assert "cs59s" not in user_prompt
+    assert "case_specs_shadow" not in user_prompt
+    # cs<NN>s<NN> shadow-shape regex blacklist — no shadow case-id pattern:
+    assert re.search(r"cs\d+s\d+", user_prompt) is None
+    # But the candidate block IS present, with shadow aggregate counts + the
+    # non-shadow per-case detail:
+    assert "CANDIDATE_RESULTS_SUMMARY" in user_prompt
+    assert "cs_uc_a_no_ad_id_ad_specific" in user_prompt
+    assert '"failed_cases": 1' in user_prompt  # shadow aggregate survives
+
+
+def _pilot_card() -> dict:
+    return {
+        "schema_version": 1,
+        "active_sprint": "S-Y2",
+        "primary_targets": ["cs_uc_a_no_ad_id_ad_specific", "cs_uc_a_loaded_listing"],
+        "anti_kill_control": ["cs_uc_a_generic_policy_question"],
+        "tier2_neighbors": ["cs_uc_a_lookup_failed"],
+        "phase_hint": ["DISCOVER", "RESOLVE"],
+        "use_case_hint": ["UC-A"],
+    }
+
+
+def test_pilot_primary_targets_block_serialized_in_propose_prompt(monkeypatch, tmp_path: Path):
+    """P0-C: the pilot card + skill phase/UC map reach the propose user
+    prompt, and the labels-only directive is present in the system prompt."""
+    monkeypatch.setattr(proposer, "_REPO_ROOT", tmp_path)
+    skill_map = {
+        "server/src/main/resources/skills/resolve_faq_grounded_answer.yaml": {
+            "applicable_phases": ["RESOLVE"],
+            "applicable_use_cases": ["UC-A"],
+        }
+    }
+    client = FakeClient([_FIXTURE_HYPOTHESIS_JSON])
+    proposer.propose(
+        {}, "", [],
+        client=client, config=_DEFAULT_CONFIG,
+        pilot=_pilot_card(), skill_phase_usecase_map=skill_map,
+    )
+    system_prompt, user_prompt = client.calls[0]
+    assert "PILOT_PRIMARY_TARGETS" in user_prompt
+    assert "cs_uc_a_no_ad_id_ad_specific" in user_prompt
+    assert "SKILL_PHASE_USECASE_MAP" in user_prompt
+    # Labels-only directive (verbatim) in the propose.txt system prompt.
+    # Normalize whitespace since the sentence wraps across list-item lines.
+    normalized_system = " ".join(system_prompt.split())
+    assert "evaluation bookkeeping labels" in normalized_system
+    assert (
+        "Do NOT mention, encode, paraphrase, or create rules around these "
+        "IDs or their literal fixture wording in any proposed after_value"
+    ) in normalized_system
+
+
+def test_lessons_md_not_in_propose_user_input_when_disabled(monkeypatch, tmp_path: Path):
+    """P1: lessons.enabled=false replaces the LESSONS_MD body with a
+    placeholder (NOT empty); enabled (default) injects the real text."""
+    monkeypatch.setattr(proposer, "_REPO_ROOT", tmp_path)
+    disabled_cfg = {**_DEFAULT_CONFIG, "lessons": {"enabled": False}}
+    client = FakeClient([_FIXTURE_HYPOTHESIS_JSON])
+    proposer.propose(
+        {}, "SECRET_LESSON_TEXT do the wrong thing", [],
+        client=client, config=disabled_cfg,
+    )
+    user_prompt = client.calls[0][1]
+    assert "SECRET_LESSON_TEXT" not in user_prompt
+    assert "lessons disabled for this run" in user_prompt
+
+    # Control: default (no lessons.enabled key) keeps lessons injection.
+    client2 = FakeClient([_FIXTURE_HYPOTHESIS_JSON])
+    proposer.propose(
+        {}, "SECRET_LESSON_TEXT do the wrong thing", [],
+        client=client2, config=_DEFAULT_CONFIG,
+    )
+    assert "SECRET_LESSON_TEXT" in client2.calls[0][1]
 
 
 # --- lessons_compactor ----------------------------------------------

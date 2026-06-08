@@ -32,6 +32,7 @@ from typing import Any, Sequence
 
 import yaml
 
+from . import config_validator as _config_validator
 from . import preflight as _preflight
 from .memory import experiments_log as _experiments_log
 from .memory import iterations_index as _iterations_index
@@ -349,14 +350,65 @@ def _cmd_report(args: argparse.Namespace) -> int:
 
     records = _experiments_log.read_all(experiments_log)
     lessons_md = _lessons_log.read_all(lessons_path)
-    html = _render_report_html(records, lessons_md, sqlite_path)
+    hit_rates = _pilot_hit_rates(cfg, repo_root, records)
+    html = _render_report_html(records, lessons_md, sqlite_path, hit_rates)
     out_path.write_text(html, encoding="utf-8")
     print(f"[report] wrote {out_path} ({len(records)} iterations)")
     return 0
 
 
+def _pilot_hit_rates(
+    cfg: dict[str, Any], repo_root: Path, records: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Compute the 4-layer pilot hit-rate audit over the iteration log.
+
+    Forensic / observation-only — touches no gate or baseline. The pilot
+    card + per-skill phase/UC map are read fresh; a config with no pilot
+    block yields a degenerate (all-`general`) decomposition.
+    """
+    surface = cfg.get("mutable_surface") or {}
+    allowed_files = surface.get("allowed_skill_files") or []
+    try:
+        pilot = _config_validator.validate_pilot_config(cfg, repo_root)
+    except _config_validator.PilotConfigError:
+        pilot = {}
+    skill_map = _config_validator.build_skill_phase_usecase_map(
+        allowed_files, repo_root
+    )
+    return _config_validator.compute_pilot_hit_rates(records, skill_map, pilot)
+
+
+def _format_hit_rate(value: Any) -> str:
+    return "n/a" if value is None else f"{value * 100:.1f}%"
+
+
+def _render_pilot_hit_rate_html(hit_rates: dict[str, Any]) -> str:
+    """Render the 4-layer pilot hit-rate audit block (forensic)."""
+    if not hit_rates or hit_rates.get("scored_iterations", 0) == 0:
+        return "<h2>Pilot hit-rate audit</h2><p>no scored iterations yet</p>"
+    venn = hit_rates.get("partial_hit_breakdown") or {}
+    venn_rows = "\n".join(
+        f"<tr><td>{_html_escape(k)}</td><td>{v}</td></tr>"
+        for k, v in sorted(venn.items(), key=lambda kv: (-kv[1], kv[0]))
+    )
+    return f"""<h2>Pilot hit-rate audit (forensic; {hit_rates['scored_iterations']} scored iters)</h2>
+<table><tbody>
+<tr><th>phase_usecase_hit_rate</th><td>{_format_hit_rate(hit_rates.get('phase_usecase_hit_rate'))}</td></tr>
+<tr><th>skill_hit_rate (resolve_faq_grounded_answer.yaml)</th><td>{_format_hit_rate(hit_rates.get('skill_hit_rate'))}</td></tr>
+<tr><th>field_family_hit_rate</th><td>{_format_hit_rate(hit_rates.get('field_family_hit_rate'))}</td></tr>
+<tr><th>full_on_gap_hit_rate (S-Y2 primary success metric)</th><td><b>{_format_hit_rate(hit_rates.get('full_on_gap_hit_rate'))}</b></td></tr>
+</tbody></table>
+<h3>partial_hit_breakdown</h3>
+<table><thead><tr><th>layers hit</th><th>count</th></tr></thead><tbody>
+{venn_rows or "<tr><td colspan='2'>-</td></tr>"}
+</tbody></table>"""
+
+
 def _render_report_html(
-    records: list[dict[str, Any]], lessons_md: str, sqlite_path: Path
+    records: list[dict[str, Any]],
+    lessons_md: str,
+    sqlite_path: Path,
+    hit_rates: dict[str, Any] | None = None,
 ) -> str:
     """Minimal HTML report. v1 is a flat table; richer surfaces are
     M-Auto-2 concerns."""
@@ -398,6 +450,8 @@ pre {{ font-size: 11px; margin: 0; max-width: 400px; overflow: auto; }}
 </tr></thead><tbody>
 {body}
 </tbody></table>
+<hr>
+{_render_pilot_hit_rate_html(hit_rates or {})}
 <hr>
 <h2>Lessons</h2>
 <pre>{_html_escape(lessons_md)}</pre>
@@ -543,6 +597,19 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         match.get("anti_hardcode_flag_for_codex", False)
     )
 
+    # S-Y1.5 (#5): per-iteration pilot hit decomposition (forensic). The
+    # running aggregate over the whole log is included for context.
+    pilot_hit_rates = _pilot_hit_rates(cfg, repo_root, records)
+    surface = cfg.get("mutable_surface") or {}
+    try:
+        pilot_card = _config_validator.validate_pilot_config(cfg, repo_root)
+    except _config_validator.PilotConfigError:
+        pilot_card = {}
+    skill_map = _config_validator.build_skill_phase_usecase_map(
+        surface.get("allowed_skill_files") or [], repo_root
+    )
+    iteration_hits = _config_validator.iteration_hits(match, skill_map, pilot_card)
+
     rendered = {
         "iteration_id": exp_id,
         "experiments_log_record": match,
@@ -552,6 +619,8 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         ),
         "anti_hardcode_flag_for_codex": anti_hardcode_flag_for_codex,
         "gaming_flags_summary": gaming_flags_summary,
+        "pilot_iteration_hits": iteration_hits,
+        "pilot_hit_rate_aggregate": pilot_hit_rates,
     }
 
     if include_shadow_detail:

@@ -24,12 +24,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .. import config_validator as _config_validator
 from .analyzer import FailureTaxonomy
 from .llm_client import LLMClient, LLMClientError
 
 
 _PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "propose.txt"
 _REPO_ROOT = Path(__file__).resolve().parents[3]
+
+# P1 (S-Y1.5): when `lessons.enabled` is false, the LESSONS_MD block is
+# replaced with this placeholder — NOT an empty string — so the proposer
+# is told the lessons were intentionally withheld for this run rather
+# than being silently absent. Preserves the file; only the projection
+# into the propose prompt changes.
+_LESSONS_DISABLED_PLACEHOLDER = (
+    "<lessons disabled for this run — historical lessons may not reflect "
+    "the active pilot's targets>"
+)
 
 
 class ProposerInvalidOutputError(Exception):
@@ -79,6 +90,8 @@ def propose(
     client: LLMClient,
     config: dict[str, Any],
     max_retries: int = 3,
+    pilot: dict[str, Any] | None = None,
+    skill_phase_usecase_map: dict[str, dict[str, list[str]]] | None = None,
 ) -> Hypothesis:
     """Build a `Hypothesis` from the analyzer's taxonomy.
 
@@ -87,15 +100,31 @@ def propose(
     surface; missing fields; empty diff). Each retry tightens the
     "respond in JSON" reminder.
 
+    `pilot` + `skill_phase_usecase_map` (S-Y1.5) add the active pilot's
+    PRIMARY TARGETS + per-skill phase/UC declarations to the prompt so
+    the proposer can bias toward a phase/UC-correct skill. Both default
+    to empty, preserving the pre-pilot prompt byte-for-byte.
+
     Raises ProposerInvalidOutputError if all retries fail.
     """
     surface_cfg = (config or {}).get("mutable_surface") or {}
     allowed_files: list[str] = surface_cfg.get("allowed_skill_files") or []
     allowed_paths: list[str] = surface_cfg.get("allowed_field_paths") or []
 
+    # P1 (S-Y1.5): lessons opt-out. When false, withhold the lessons body
+    # behind a placeholder (not empty) — the file + compactor are untouched.
+    lessons_cfg = (config or {}).get("lessons") or {}
+    lessons_enabled = bool(lessons_cfg.get("enabled", True))
+    effective_lessons = lessons if lessons_enabled else _LESSONS_DISABLED_PLACEHOLDER
+
     system = _PROMPT_PATH.read_text(encoding="utf-8")
     base_user = _build_user_input(
-        taxonomy, lessons, recent_iterations, allowed_files
+        taxonomy,
+        effective_lessons,
+        recent_iterations,
+        allowed_files,
+        pilot=pilot or {},
+        skill_phase_usecase_map=skill_phase_usecase_map or {},
     )
 
     last_text = ""
@@ -160,6 +189,9 @@ def _build_user_input(
     lessons: str,
     recent_iterations: list[dict[str, Any]],
     allowed_files: list[str],
+    *,
+    pilot: dict[str, Any] | None = None,
+    skill_phase_usecase_map: dict[str, dict[str, list[str]]] | None = None,
 ) -> str:
     """Bundle the taxonomy + lessons + recent iters + current YAML.
 
@@ -194,6 +226,12 @@ def _build_user_input(
                     "target_field": _extract_target_field(r),
                     "decision": r.get("decision"),
                     "discard_reason": r.get("discard_reason"),
+                    # P0-A (S-Y1.5): pass the per-layer tier_breakdown so the
+                    # proposer can see WHICH cases a prior candidate regressed,
+                    # not just the one-line discard_reason string.
+                    "tier_breakdown": (r.get("verdict") or {}).get(
+                        "tier_breakdown", {}
+                    ),
                 }
                 for r in recent_iterations
             ],
@@ -201,9 +239,20 @@ def _build_user_input(
             default=str,
         ),
         "",
-        "TARGET_SKILL_FILES_CONTENT:",
-        "\n\n".join(skill_content_blocks) or "<no skill files found on disk>",
     ]
+    # P0-C (S-Y1.5): pilot PRIMARY TARGETS + per-skill phase/UC map. Rendered
+    # only when present, so a pre-pilot run's prompt is unchanged.
+    parts.extend(
+        _config_validator.render_pilot_input_blocks(
+            pilot or {}, skill_phase_usecase_map or {}
+        )
+    )
+    parts.extend(
+        [
+            "TARGET_SKILL_FILES_CONTENT:",
+            "\n\n".join(skill_content_blocks) or "<no skill files found on disk>",
+        ]
+    )
     return "\n".join(parts)
 
 
