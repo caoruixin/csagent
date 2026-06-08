@@ -40,6 +40,11 @@ cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/
 | `wmkb_uc_a_trader_flag_secondary_uc_h` | scope-relevant | `570Q5000008wmKbIAI` | Wave A2.1 reclassification map (legacy migration) | 2026-04-30 | **active** | — | — | **IMPROVING** | **IMPROVING** | bot recognises "trader flag wrong on account" as UC-A account/profile question, gives policy-grounded guidance on changing account-type; bot asks one clarifying question if the user wants to appeal (UC-H) vs change setting (UC-A); bot does NOT lock into UC-H intake without an explicit appeal request |
 | `iwzx_uc_k_advert_on_hold_restore` | scope-relevant | `570Q5000008iwZxIAI` | Wave A2.1 reclassification map (legacy migration) | 2026-04-30 | **active** | — | — | **FAIL** | **FAIL** | bot retrieves moderation context to determine policy-driven (UC-FP) vs system-driven (UC-K) hold cause; routes to UC-K intake-and-handover OR UC-FP policy-grounded explanation accordingly; bot does NOT respond with generic "your ad is under review, please wait" template |
 | `fg5q_uc_fp_phone_rejected_repost` | scope-relevant | `570Q5000008fG5qIAE` | Wave A2.1 reclassification map (legacy migration) | 2026-04-30 | **active** | — | — | **PASS** | **PASS** | bot retrieves moderation context, distinguishes policy rejection (UC-FP — explain rule, give in-app messaging alternative) from technical-validation rejection (UC-K intake); bot does NOT respond with generic "please follow the posting guidelines" template without naming the actual rule |
+| `cs_uc_a_no_ad_id_ad_specific` | scope-relevant (proposed **Tier-1 target**) | `synthetic-cs4-cs_uc_a_no_ad_id_ad_specific-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S1) | 2026-06-08 | **opened (086b)** | — | — | — | — | UC-A ad-specific question, no ad_id in form (slot `customer_context_status` `missing_ad_id`→`loaded` on AD-1001): bot elicits the ad reference (or fails lookup then asks) BEFORE any generic FAQ answer; does NOT answer generically or loop on unrelated clarifiers |
+| `cs_uc_a_generic_policy_question` | scope-relevant (proposed **Tier-1 negative-control / anti-误杀**) | `synthetic-cs4-cs_uc_a_generic_policy_question-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S1 anti-误杀) | 2026-06-08 | **opened (086b)** | — | — | — | — | generic search-ranking question, no ad referenced (slot `missing_ad_id`, correct): bot answers FAQ-grounded DIRECTLY without eliciting ad_id; anti-误杀 gate so the S-Y2 pilot procedure does NOT force ad_id elicitation on generic UC-A turns |
+| `cs_uc_a_loaded_listing` | scope-relevant (proposed **Tier-1 target**) | `synthetic-cs4-cs_uc_a_loaded_listing-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S1) | 2026-06-08 | **opened (086b)** | — | — | — | — | email+ad_id pre-loaded (AD-2002 LIVE Home & Garden > Furniture; slot `customer_context_status=loaded`, `moderation_reason_available=false`): bot USES the loaded listing data (≥1 specific field) rather than a generic FAQ answer |
+| `cs_uc_fp_loaded_moderation` | scope-relevant (proposed **Tier-2 neighbor**) | `synthetic-cs4-cs_uc_fp_loaded_moderation-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S2 + OBS-S1) | 2026-06-08 | **opened (086b)** | — | — | — | — | removed listing, moderation pre-loaded (AD-2001 REMOVED; slot `moderation_reason_available=TRUE` / `PROHIBITED_ITEM`): bot grounds the why-removed answer in the actual moderation_review (UC-A or UC-FP both acceptable); does NOT cite a non-matching generic policy article |
+| `cs_uc_a_lookup_failed` | scope-relevant (proposed **Tier-1 target**) | `synthetic-cs4-cs_uc_a_lookup_failed-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S1) | 2026-06-08 | **opened (086b)** | — | — | — | — | invalid form ad_id AD-9999 (slot `customer_context_status=lookup_failed`): bot acknowledges the failed lookup and elicits a corrected ad_id (AD-2002 on T2) or degrades gracefully; does NOT answer as if the listing were loaded or fabricate listing details |
 
 Ledger updates per milestone close: deliver-agent + human jointly record PASS / FAIL / IMPROVING per case row, citing the milestone close run path. **M4-Eval-Cleanup close**: all 12 verdicts UNCHANGED from M3 (cleanup milestone, zero bot-code change); the 5 PASS cases (cs001, cs014, cs029, cs066, fg5q) are now downgrade-ELIGIBLE per §5.6.3 (2 consecutive milestone-close PASS) but remain `active` pending a joint deliver-agent + human downgrade decision at a future bad-case-driven milestone close. See "M4-Eval-Cleanup close" section below. **M5 (Observability Coherence) close**: all 12 verdicts UNCHANGED from M4 (coherence milestone, regression-safety bar; S4's projection gating is semantic-preserving) — PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0. Per-case M5 verdicts + the NEW shadow review are in the "M5 milestone close + S4 (Sprint 53)" section below (the per-row M1–M4 result columns are not extended with an M5 column at this close — M5 = M4 verbatim; the dedicated section is the authoritative per-case record). The 4 consistently-clean PASS cases (cs001, cs014, cs029, cs066) are now at 3 consecutive regression-safe milestone closes (M3/M4/M5) — downgrade-eligibility strengthened, but the downgrade decision stays DEFERRED to a future bad-case-driven milestone close (M5 is not bad-case-anchored); fg5q is NOT downgrade-clean (required iso clears at S3 + S4 per the session-establishment flake).
 
@@ -459,3 +464,86 @@ S-Auto-8 dev handoff §3 reported "0 cases drift across all 46 cases × 2 rounds
 ### Decision
 
 Deliver-agent + human jointly judge the **M-Auto-1C bad-case suite §5.6 PRIMARY GATE: PASS** at close-day. Bad-case suite-aggregate 4/12 case_passed; bidirectional drift signature consistent with LLM-provider variance on byte-identical agent-loop scope; cs001 + wmkb tagged as M-Auto-2 S-Auto-10 cherry-pick candidates (wmkb's close-day PASS does NOT close the failure mode). Anchor_outcome + shadow at suite level within drift envelope (corrected metric: max 9/34 vs 10/34 halt threshold). Tier-0 safety floor + grounding floor untouched. **M-Auto-1C close-day disposition: PASS at §5.6 PRIMARY GATE; PROCEED to Codex milestone-shared review dispatch + M-Auto-1C close-bundle commit.** Reproducible: 3 commands run by deliver-agent 2026-05-30 against foreground :8080 backend (pid=7634 after auto-reboot from prior `mvn spring-boot:run`).
+
+## Sprint 086b / S-Auto-31 — CS4 entity-context cases opened (2026-06-08)
+
+### Posture
+
+Sprint 086b (M-Auto-7 S-Y1 Part B) is **eval-spec authoring only** (layer
+`eval_spec`; no code / no Skill-procedure-text / no schema change; no
+real-LLM run). It authors the CaseSpecs the S-Y2 autoloop pilot will
+optimize against, reconciled to the merged Part A (086a) projection slots
+(`customer_context_status`, `moderation_reason_available`,
+`candidate_use_cases_named`). The 5 NEW cases are designed so each
+fixture choice forces a specific slot state (the "reconciliation against
+the merged slots"); the anti-误杀 negative-control binds the S-Y2
+procedure so it cannot over-correct by forcing ad_id elicitation on
+genuinely-generic UC-A turns. **Targets-fail / control-passes evidence is
+NOT collected in 086b** — it is the pre-pilot re-bless (pilot Part C.1)
+after S-Y1 closes. The 5 ledger rows above carry status `opened (086b)`
+with `—` in the M1–M4 columns (these cases postdate M-Auto-1C); the human
+gates the final tiering at the §5.6 review.
+
+### 5 NEW cases — placeholder → real-fixture reconciliation (verified at HEAD `auto-loop-branch`, 2026-06-08)
+
+The research-agent appendix
+(`docs/solutions/2026-06-08-cs4-casespec-drafts-appendix.md`) used
+placeholder ad_ids (`AD-30xx`) + an illustrative `IMAGE_QUALITY` reason
+that do **not** resolve through the eval harness's `MockGumtreeApiService`.
+Substituted to existing `server/src/main/resources/mock/` fixtures while
+copying (NO new server fixture authored):
+
+| case_id | placeholder → fixture | form email | slot state forced |
+|---|---|---|---|
+| `cs_uc_a_no_ad_id_ad_specific` | turn-2 `AD-3001` → `AD-1001` (LIVE, `live_ad.json`) | `sam.no.ad.id@example.com` (kept) | `customer_context_status` `missing_ad_id` (T1, no form ad_id) → `loaded` (T2 on AD-1001) |
+| `cs_uc_a_generic_policy_question` | none (`ad_id: ''`) | `jordan.generic@example.com` (kept) | `missing_ad_id` (correct — generic question) |
+| `cs_uc_a_loaded_listing` | `AD-3050` → `AD-2002` (LIVE, Home & Garden > Furniture, `carol_listing.json`) | → `carol.blocked@example.com` (seller_email) | `customer_context_status=loaded`; `moderation_reason_available=false` (no review for AD-2002) |
+| `cs_uc_fp_loaded_moderation` | `AD-3060` → `AD-2001` (REMOVED, `alice_removed_prohibited.json`); `IMAGE_QUALITY` → `PROHIBITED_ITEM` (`moderation_reviews/alice_prohibited_item.json`) | → `alice.removed@example.com` (seller_email) | `moderation_reason_available=TRUE` + `loaded` |
+| `cs_uc_a_lookup_failed` | form `AD-9999` (kept, non-resolving) + turn-2 `AD-3070` → `AD-2002` (LIVE) | `casey.lookup.fails@example.com` (kept) | `lookup_failed` (T1 on AD-9999) → `loaded` (T2 on AD-2002) |
+
+Spot-checked: `AD-1001`/`AD-2001`/`AD-2002` each resolve to exactly one
+listing fixture; `AD-9999` has no fixture in `mock/` (intended); only
+`AD-2001` carries a moderation review (`PROHIBITED_ITEM`), `AD-2002` has
+none. Narrative rewrites: `cs_uc_a_loaded_listing` examples →
+status=LIVE / Home & Garden > Furniture; `cs_uc_fp_loaded_moderation`
+hidden_fact + bot_handling_pattern → `PROHIBITED_ITEM` (fixture
+`reason_display`). Alice's `AD-2001` fixture is NOT altered (shared
+read-only by `alice_uc_a_uc_h_misclass` + `cs_uc_fp_loaded_moderation`).
+
+### Schema compile + tool-name lint (dry; no real-LLM run)
+
+All 7 affected YAMLs load through the production loader
+(`eval_interactive.case_spec.loader.load_case_spec`, triggering
+`Expected.__post_init__` validation); full-directory load is 17 specs,
+unique `case_id`s. Every `outcome_check` is in
+`OutcomeChecker.ALL_CHECKS` (`correct_uc` / `correct_outcome` /
+`tool_sequence_match` [+ `turn_efficiency` on the generic-policy
+negative-control]); every `expected_tool_sequence` + `forbidden_tools`
+entry exists in `server/src/main/resources/config/tool-policy.yaml`.
+
+### One reconciliation beyond the §3.2 table (OQ-086b.1)
+
+`cs_uc_a_lookup_failed` appendix draft set `escalation_trigger:
+lookup_failed_user_cannot_correct` with `should_escalate: false`. The
+schema rejects this two ways: (a) `__post_init__` raises when a trigger
+is non-null while `should_escalate=false`, and (b) the string is not a
+canonical `EscalationTrigger` enum value. Reconciled to
+`escalation_trigger: null` — the schema-only valid form given
+`should_escalate: false`. No intent lost: the degradation/escalate path
+stays expressed by `outcome_class: either` + `acceptable_outcomes:
+[resolve, escalate]` + the `closure_criterion` PASS condition (c). This
+did NOT widen the spec to accept current bot behaviour (§5.4); the case
+still pins `correct_uc` / `correct_outcome` / `tool_sequence_match`.
+
+### 2 EXTEND cases — strengthened outcome_checks (rows unchanged above)
+
+- `alice_uc_a_uc_h_misclass`: `outcome_checks: []` →
+  `[correct_uc, correct_outcome, tool_sequence_match]` (appendix §7). No
+  other field touched; its M3/M4/M5/M-Auto verdicts are untouched.
+- `wmkb_uc_a_trader_flag_secondary_uc_h`: `outcome_class: either` →
+  `resolve` (acceptable_outcomes retains the escalate path); added
+  `bot_handling_pattern` + `expected_tool_sequence` + `forbidden_tools`
+  + `max_turns: 6`; `hard_checks` 3 → 8 (alice parity); `outcome_checks:
+  []` → `[correct_uc, correct_outcome, tool_sequence_match]` (appendix
+  §8). Existing ledger verdicts untouched; the strengthened checks gate
+  from the next re-bless onward.

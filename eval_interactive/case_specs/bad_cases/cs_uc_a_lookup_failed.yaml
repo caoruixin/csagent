@@ -1,0 +1,137 @@
+case_id: cs_uc_a_lookup_failed
+source_session_id: synthetic-cs4-cs_uc_a_lookup_failed-2026-06-08
+source_dataset: bad_case_authored
+
+bad_case_metadata:
+  surfaced_by: research-agent (CS4 proposal Part B; criterion #4 — missing_ad_id / lookup_failed must elicit or degrade gracefully, not generic resolution)
+  surfaced_date: 2026-06-08
+  failure_shape: |
+    Form has ad_id (AD-9999, intentionally invalid for test
+    fixture). Pre-chat auto-trigger calls get_customer_context
+    which returns a lookup_failed state (listing not found).
+    Bot today (without OBS-S1 procedure) may ignore the
+    failure and proceed with search_knowledge as if the
+    listing were loaded, producing a generic FAQ answer
+    detached from the user's actual situation.
+  layers_involved: |
+    prompt_projection (customer_context_status: lookup_failed
+    is projected as observable but not bound to procedure);
+    semantic_planner (LLM does not gracefully degrade when
+    lookup state is failed)
+  related_dimensions: [D1, D6]
+  related_r_items:
+    - OBS-S1 (entity-context verification including degradation
+      path)
+  tier: tier_1_target
+
+closure_criterion: |
+  Bot recognises customer_context_status: lookup_failed and
+  gracefully degrades.
+
+  PASS conditions (one of):
+    (a) Bot tells the user the listing lookup failed and asks
+        them to confirm the ad_id (correct user-friendly
+        framing);
+    (b) Bot tells the user the lookup failed and offers
+        generic guidance with explicit acknowledgement that
+        the answer may not match their specific situation;
+    (c) Bot escalates with reason=user_requested or
+        reason=lookup_failed (degradation path; preferred
+        over silent generic answer).
+
+  FAIL conditions:
+    (d) Bot answers with a generic FAQ article as if the
+        listing were loaded — the user has no way to know
+        the lookup failed and may act on wrong info;
+    (e) Bot pretends to know listing details ("your ad in
+        category X is …") that were never loaded — grounding
+        floor violation;
+    (f) Bot escalates with a misleading reason (e.g.
+        intake_complete_for_uc_h on a UC-A case).
+
+form_context:
+  first_name: Casey
+  email: casey.lookup.fails@example.com
+  topic_subject: Ad Support
+  ad_id: AD-9999
+  description: |
+    I can't see my ad anywhere on the site. Did something
+    happen to it?
+
+persona:
+  user_goal_summary: |
+    User typed an invalid ad_id (AD-9999) into the pre-chat
+    form (maybe by typo, maybe because they confused two ads).
+    The user CAN provide the real ad_id if asked. User is
+    cooperative, mildly anxious about the ad.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I can't see my ad anywhere on the site. Did
+       something happen to it?"
+    - "Oh, sorry, the actual ID is AD-2002, not 9999.
+       My mistake."
+    - "OK thanks, that helps."
+  hidden_facts:
+    - fact: "User's real ad_id is AD-2002 (active listing).
+        AD-9999 does not exist in any test fixture."
+      disclose_when: if the bot tells the user the lookup
+        failed and asks to confirm the ad_id
+  will_request_human_if: |
+    the bot fabricates listing details that were not loaded;
+    or the bot proceeds with generic FAQ without acknowledging
+    the lookup failure
+
+expected:
+  outcome_class: either
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'partial'
+  acceptable_outcomes: [resolve, escalate]
+  bot_handling_pattern: |
+    Turn 1: bot reads customer_context_status: lookup_failed.
+    Bot tells the user the listing AD-9999 could not be
+    found and asks to confirm the ad_id.
+
+    Turn 2: user provides AD-2002. Bot calls get_customer_context
+    with the correct ad_id, retrieves the listing, and
+    answers with grounded reference.
+
+    Turn 3: bot confirms resolution. OR (alternate path) bot
+    escalates if the user cannot provide a corrected ad_id
+    after one clarifying turn.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+    - classify_use_case
+    - get_customer_context
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - create_case_controlled
+  grounding_mode: listing_data_or_faq_backed
+  answer_must_not_contain:
+    - Your ad AD-9999 is
+    - Your listing in category
+    - I see your ad
+    - According to your listing
+  max_turns: 6
+
+scoring:
+  hard_checks:
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
+  llm_judge_dimensions: []

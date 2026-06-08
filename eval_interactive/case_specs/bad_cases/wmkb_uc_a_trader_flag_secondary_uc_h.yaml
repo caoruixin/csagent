@@ -72,17 +72,43 @@ persona:
     path) when the user has not asked for an appeal
 
 expected:
-  outcome_class: either
+  outcome_class: resolve
   primary_uc: UC-A
   secondary_ucs: [UC-H, UC-D]
   should_escalate: false
   allow_bot_resolution: 'partial'
   acceptable_outcomes: [resolve, escalate]
+  bot_handling_pattern: |
+    Bot recognises "the trader flag on my account is wrong" as
+    a UC-A account/profile question. Bot may ask one focused
+    clarifying question to distinguish "tell me how to change
+    the setting" (UC-A) from "I want to appeal the decision"
+    (UC-H). Bot does NOT lock into UC-H intake without an
+    explicit appeal request. Once UC-A is committed, bot reads
+    customer_context (account_type field) and grounds its answer
+    in the user's specific account state.
+  expected_tool_sequence:
+    - classify_use_case
+    - get_customer_context
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - create_case_controlled
+  max_turns: 6
 
 scoring:
   hard_checks:
-    - no_pii_leakage
-    - no_human_only_tool_exposure
+    - phase_transition_validity
     - no_critical_policy_violation
-  outcome_checks: []
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
   llm_judge_dimensions: []

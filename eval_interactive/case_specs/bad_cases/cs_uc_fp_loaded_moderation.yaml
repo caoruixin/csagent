@@ -1,0 +1,148 @@
+case_id: cs_uc_fp_loaded_moderation
+source_session_id: synthetic-cs4-cs_uc_fp_loaded_moderation-2026-06-08
+source_dataset: bad_case_authored
+
+bad_case_metadata:
+  surfaced_by: |
+    research-agent (CS4 proposal Part B; UC-FP boundary case;
+    paired with cs_uc_a_loaded_listing as neighbor to test
+    UC-A → UC-FP routing on removed listing with moderation
+    context available)
+  surfaced_date: 2026-06-08
+  failure_shape: |
+    Form has ad_id; listing status=REMOVED; customer_context
+    auto-trigger has loaded moderation_review with a specific
+    removal reason. Bot today (per CS4 trace c891efb0) may
+    classify UC-A and answer with a generic policy article
+    instead of UC-FP-routed grounded answer using the actual
+    moderation_review.
+  layers_involved: |
+    prompt_projection (discover_triage.yaml Sprint 33 cue does
+    not distinguish UC-A vs UC-FP; resolve_faq_grounded_answer
+    UC-FP critical step is mandatory_for UC-FP only — gated
+    behind UC-FP being selected first); semantic_planner
+    (LLM does not prefer UC-FP when moderation_reason is
+    available)
+  related_dimensions: [D1, D6]
+  related_r_items:
+    - OBS-S2 (DISCOVER UC-A vs UC-FP cue; promoted to active
+      via this CaseSpec seed)
+    - OBS-S1 (entity-context verification — supports use of
+      already-loaded moderation_review)
+  tier: tier_2_neighbor
+
+closure_criterion: |
+  Bot uses the already-loaded moderation_review to give a
+  specific grounded answer about WHY the ad was removed,
+  rather than guessing from generic FAQ corpus.
+
+  PASS conditions:
+    (a) Bot's user_message references the specific moderation
+        reason content (e.g. category violation, prohibited item,
+        duplicate listing — whatever the moderation_review
+        actually says for AD-2001);
+    (b) Bot may classify UC-A or UC-FP — both acceptable
+        when moderation_review is consulted (the UC label
+        matters less than the grounding source);
+    (c) `correct_outcome: resolve`.
+
+  FAIL conditions:
+    (d) Bot cites a generic policy article that does not match
+        the moderation_review's actual reason (the CS4 trace
+        c891efb0 failure shape — cited "Paying to Rehome Your
+        Pet" when the actual reason might differ);
+    (e) Bot ignores customer_context.moderation_review
+        entirely and proceeds with search_knowledge for
+        generic "My Ad was Removed" content;
+    (f) Bot escalates without referencing the moderation
+        reason that was available.
+
+form_context:
+  first_name: Avery
+  email: alice.removed@example.com
+  topic_subject: Ad Support
+  ad_id: AD-2001
+  description: |
+    My ad was removed. Can you tell me why?
+
+persona:
+  user_goal_summary: |
+    User had an ad (AD-2001) that was removed by platform
+    moderation. The moderation_review (auto-loaded into
+    customer_context by pre-chat trigger) contains the actual
+    reason. User wants to understand the specific reason —
+    not generic policy info. User will not appeal in this
+    session (could be UC-H follow-on, out of scope).
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, my ad was removed. Can you tell me why?"
+    - "OK that makes sense. Is there anything I can do to
+       repost it correctly?"
+    - "Thanks for explaining."
+  hidden_facts:
+    - fact: "Listing AD-2001 moderation_review.reason_code =
+        PROHIBITED_ITEM (actual moderation reason per dev test
+        fixture alice_prohibited_item.json). User did not know
+        this was the reason."
+      disclose_when: never — this is the data the bot's
+        moderation_review surface should expose
+  will_request_human_if: |
+    the bot cites a generic policy article that doesn't match
+    the actual moderation reason; or the bot says it cannot
+    tell the user why without checking elsewhere when
+    moderation_review is already loaded
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs:
+    - UC-A
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  acceptable_outcomes: [resolve]
+  bot_handling_pattern: |
+    Turn 1: bot reads customer_context.moderation_review (already
+    loaded). Bot answers with the specific reason from the
+    moderation review (e.g., "Your ad was removed because it
+    contained a prohibited item that is not allowed on Gumtree —
+    …"). Bot may classify UC-FP (preferred when moderation_reason
+    is the canonical surface) or UC-A (acceptable if
+    moderation_review is still used).
+
+    Turn 2: bot answers the follow-up (how to repost correctly)
+    with grounded guidance.
+
+    Turn 3: bot confirms resolution (record_outcome).
+  escalation_trigger: null
+  risk_level: medium
+  expected_tool_sequence:
+    - classify_use_case
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - create_case_controlled
+  grounding_mode: moderation_review_and_faq_backed
+  answer_must_not_contain:
+    - I've restored your ad
+    - I'll undo the removal
+    - I have unblocked your listing
+  max_turns: 5
+
+scoring:
+  hard_checks:
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
+  llm_judge_dimensions: []

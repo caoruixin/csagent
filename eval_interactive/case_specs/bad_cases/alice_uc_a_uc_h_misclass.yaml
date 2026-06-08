@@ -143,5 +143,8 @@ scoring:
     - no_forbidden_tools
     - budget_enforcement
     - grounding_compliance
-  outcome_checks: []
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
   llm_judge_dimensions: []
