@@ -37,6 +37,26 @@ paths:
   lessons_log: "autoloop/results/lessons.md"
   runs_dir: "autoloop/results/runs/"
 
+# S-Y1.5 (M-Auto-7, 2026-06-09) — PILOT-TARGET STEERING (P0-C).
+# The active TARGETED pilot's success card. The meta-agent reads this so
+# the proposer/analyzer know which cases are the PRIMARY TARGETS (to move),
+# the anti-误杀 control (must NOT regress), and the tier2 neighbors. Absent
+# block → empty PILOT_PRIMARY_TARGETS (pre-S-Y1.5 general-hill-climber
+# behaviour; backward compatible). The config-load validator
+# (config_validator.validate_pilot_config) REJECTS any case_id here that
+# collides with a shadow case_spec FILENAME (filenames only — never reads
+# contents). These are evaluation bookkeeping labels ONLY; they are NEVER
+# injected into a Skill YAML edit (propose.txt §1.7 labels-only directive +
+# anti-hardcode Q4).
+pilot:
+  schema_version: 1
+  active_sprint: "S-Y2"
+  primary_targets: [cs_uc_a_no_ad_id_ad_specific, cs_uc_a_loaded_listing]
+  anti_kill_control: [cs_uc_a_generic_policy_question]
+  tier2_neighbors: [cs_uc_a_lookup_failed, cs_uc_fp_loaded_moderation]
+  phase_hint: [DISCOVER, RESOLVE]
+  use_case_hint: [UC-A]
+
 lessons:
   # K — every K iterations the lessons LLM produces a compacted lessons
   # block per `program.md` and the proposal §3.4 (three-layer memory).
@@ -45,6 +65,13 @@ lessons:
   # How many recent iterations to summarize into the proposer prompt.
   # S-Auto-3 reads this from config.
   recent_iterations_for_propose: 5
+  # S-Y1.5 (P1) — lessons opt-out. When false, the proposer's LESSONS_MD
+  # block is replaced by a placeholder (NOT empty); the file + compactor
+  # are untouched. Default false for the S-Y2 pilot: the L-001..L-005
+  # lessons were compacted from pre-CS4 all-discard windows (May-31) and
+  # point the proposer at a pre-CS4 escalation cluster, away from the CS4
+  # entity-context gap. Set true to restore historical-lesson injection.
+  enabled: false
 
 meta_agent:
   # Meta-agent LLM configuration for analyzer / proposer / lessons_compactor.
@@ -69,6 +96,11 @@ meta_agent:
   api_key_env: AUTOLOOP_META_LLM_API_KEY
   base_url_env: AUTOLOOP_META_LLM_BASE_URL
   request_timeout_seconds: 120
+  # S-Y1.5 (P0-B) — how many recent CANDIDATE iterations' persisted
+  # eval-results.json the analyzer reads so the failure taxonomy reflects
+  # candidate-introduced regressions, not only the static baseline. Shadow
+  # detail is firewalled to aggregate-only in the candidate summary.
+  recent_candidate_results_k: 3
 
 fitness:
   # v1 minimal fitness suite — human-locked 2026-05-27 dataset scope.

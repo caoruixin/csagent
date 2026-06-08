@@ -7,6 +7,7 @@ and exit 1 against a config that names a non-existent Skill file.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -125,3 +126,143 @@ def test_dry_run_subcommand_invokes_loop() -> None:
     # The S-Auto-3 wiring prints the iteration banner.
     assert "S-Auto-3 territory" not in res.stdout
     assert "starting" in res.stdout or "iteration" in res.stdout.lower()
+
+
+# --- S-Y1.5 (P0-C): dry-run threads the pilot card to the proposer ---
+
+
+_RESOLVE_FAQ_YAML = """\
+name: resolve_faq_grounded_answer
+description: x
+applicable_phases: [RESOLVE]
+applicable_use_cases: [UC-A]
+tools_required:
+  - search_knowledge
+required_context_keys: []
+max_tool_steps: 5
+allow_interim_message: false
+valid_terminal_outcomes: [resolved]
+procedure: |
+  Search the knowledge base and answer with grounded evidence.
+critical_steps:
+  - id: s1
+    trace_check: tool_called
+    mandatory_for: []
+    severity: advisory
+    desc: original step desc
+grounding_instruction: original grounding
+escalation_policy: original escalation
+guardrails: []
+state_inheritance: ""
+"""
+
+
+class _FakeClient:
+    """Queued-response fake LLMClient capturing (system, user) prompts."""
+
+    def __init__(self, responses):
+        from autoloop.meta_agent.llm_client import LLMResponse
+
+        self._responses = list(responses)
+        self._LLMResponse = LLMResponse
+        self.calls = []
+
+    def is_configured(self) -> bool:
+        return True
+
+    def chat(self, system, user):
+        text = self._responses.pop(0)
+        self.calls.append((system, user))
+        return self._LLMResponse(text=text, raw=None)
+
+
+def test_dry_run_with_pilot_config_threads_targets_and_picks_phase_correct_skill(tmp_path):
+    """`run --dry-run` under a populated pilot config serializes
+    PILOT_PRIMARY_TARGETS into the propose prompt and lets the proposer
+    pick a phase-correct skill (resolve_faq_grounded_answer.yaml).
+
+    In-process (a real LLM is unavailable in CI): drives the real
+    analyzer + proposer with a fake client so the proposer prompt and the
+    picked skill are asserted deterministically. The real-LLM `--dry-run
+    -n 2` close checklist covers the rationale-quality dimension.
+    """
+    from autoloop import loop as _loop
+    from autoloop.loop import run_one_iteration
+    from autoloop.meta_agent import proposer as _proposer
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "T"], cwd=repo, check=True, capture_output=True)
+    skill_rel = "server/src/main/resources/skills/resolve_faq_grounded_answer.yaml"
+    skill = repo / skill_rel
+    skill.parent.mkdir(parents=True, exist_ok=True)
+    skill.write_text(_RESOLVE_FAQ_YAML, encoding="utf-8")
+    (repo / "autoloop/results").mkdir(parents=True, exist_ok=True)
+
+    cfg = {
+        "mutable_surface": {
+            "allowed_skill_files": [skill_rel],
+            "allowed_field_paths": [
+                "$.procedure",
+                "$.grounding_instruction",
+                "$.escalation_policy",
+                "$.critical_steps[*].desc",
+            ],
+        },
+        "meta_agent": {"provider": "anthropic", "model": "x", "temperature": 0.0,
+                       "max_tokens": 100, "api_key_env": "AUTOLOOP_META_LLM_API_KEY",
+                       "base_url_env": "AUTOLOOP_META_LLM_BASE_URL"},
+        "paths": {"experiments_log": "autoloop/results/experiments.jsonl",
+                  "lessons_log": "autoloop/results/lessons.md",
+                  "runs_dir": "autoloop/results/runs/"},
+        "lessons": {"compaction_window_k": 10, "recent_iterations_for_propose": 5,
+                    "enabled": False},
+        "fitness": {"baseline_dir": "eval_interactive/results/<PLACEHOLDER>",
+                    "suites": [{"name": "bad_cases", "path": "x", "parallel": 1}]},
+        "pilot": {
+            "schema_version": 1, "active_sprint": "S-Y2",
+            "primary_targets": ["cs_uc_a_no_ad_id_ad_specific", "cs_uc_a_loaded_listing"],
+            "anti_kill_control": ["cs_uc_a_generic_policy_question"],
+            "tier2_neighbors": ["cs_uc_a_lookup_failed"],
+            "phase_hint": ["DISCOVER", "RESOLVE"], "use_case_hint": ["UC-A"],
+        },
+    }
+
+    analyzer_resp = json.dumps({"summary": "s"})
+    proposer_resp = json.dumps({
+        "target_skill_file": skill_rel,
+        "target_field_path": "$.procedure",
+        "before_value": "Search the knowledge base and answer with grounded evidence.\n",
+        "after_value": "Search the knowledge base and confirm the entity context, then answer with grounded evidence.",
+        "rationale": "Guide the agent to verify entity context before answering UC-A FAQs.",
+    })
+    fake = _FakeClient([analyzer_resp, proposer_resp])
+
+    # Proposer reads skill YAML from its module-global repo root; point it
+    # at the fake repo so before/after materialization is self-contained.
+    monkeypatch_repo = _proposer._REPO_ROOT
+    _proposer._REPO_ROOT = repo
+    try:
+        r = run_one_iteration(
+            config=cfg, iteration_id="exp-1",
+            dry_run=True, client=fake, repo_root=repo,
+        )
+    finally:
+        _proposer._REPO_ROOT = monkeypatch_repo
+
+    # Proposer picked the phase-correct skill:
+    assert r.hypothesis is not None
+    assert r.hypothesis.target_skill_file.endswith("resolve_faq_grounded_answer.yaml")
+    # The pilot card reached the propose prompt (2nd chat == proposer):
+    proposer_user_prompt = fake.calls[1][1]
+    assert "PILOT_PRIMARY_TARGETS" in proposer_user_prompt
+    assert "cs_uc_a_no_ad_id_ad_specific" in proposer_user_prompt
+    assert "SKILL_PHASE_USECASE_MAP" in proposer_user_prompt
+    # Dry-run hypothesis.json carries the forensic pilot snapshot:
+    hyp_json = json.loads(
+        (repo / "autoloop/results/runs/exp-1/hypothesis.json").read_text(encoding="utf-8")
+    )
+    assert hyp_json["pilot_snapshot"]["schema_version"] == 1
+    assert hyp_json["lessons_enabled"] is False

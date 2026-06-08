@@ -46,6 +46,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+from . import config_validator as _config_validator
 from .memory import experiments_log as _experiments_log
 from .memory import iterations_index as _iterations_index
 from .memory import lessons_log as _lessons_log
@@ -124,6 +125,13 @@ class IterationResult:
     # distinct from a generic code-exception error in the iter row.
     infra_error: bool = False
     infra_error_reason: str | None = None
+    # S-Y1.5 (#5): forensic per-iteration snapshot of the active pilot
+    # card (target case-id lists + UC/phase hints + 16-char block_sha256)
+    # and the `lessons.enabled` flag in force this iteration. Embedded in
+    # the experiments.jsonl row + dry-run hypothesis.json so an auditor
+    # never has to reconstruct which target card was live. Observation-only.
+    pilot_snapshot: dict[str, Any] | None = None
+    lessons_enabled: bool = True
 
 
 def run_one_iteration(
@@ -154,6 +162,22 @@ def run_one_iteration(
             client = build_client_from_config(config)
         paths = _resolve_paths(config, root)
 
+        # --- 0.5. Pilot card (P0-C) — validated (rejects shadow case_id
+        # collisions), the lazy per-skill phase/UC map, the lessons opt-out
+        # flag, and the forensic snapshot. Computed once per iteration.
+        surface_cfg = (config or {}).get("mutable_surface") or {}
+        allowed_skill_files = surface_cfg.get("allowed_skill_files") or []
+        pilot = _config_validator.validate_pilot_config(config, root)
+        skill_phase_usecase_map = _config_validator.build_skill_phase_usecase_map(
+            allowed_skill_files, root
+        )
+        result.lessons_enabled = bool(
+            ((config or {}).get("lessons") or {}).get("enabled", True)
+        )
+        result.pilot_snapshot = _config_validator.build_pilot_snapshot(
+            pilot, result.lessons_enabled
+        )
+
         # --- 1. Analyzer.
         baseline_summary = _build_baseline_summary(config, root)
         lessons_md = _lessons_log.read_all(paths["lessons"])
@@ -164,11 +188,18 @@ def run_one_iteration(
         recent_iters_dicts = [
             _record_to_dict_for_meta_agent(r) for r in recent_iters_records
         ]
+        # P0-B: the last K candidate iterations' persisted eval results, so the
+        # analyzer's failure taxonomy reflects candidate-introduced regressions,
+        # not only the static baseline. Shadow-firewalled inside `analyze`.
+        recent_candidate_results = _read_recent_candidate_results(config, root)
         taxonomy = _analyzer.analyze(
             baseline_summary,
             lessons_md,
             recent_iters_dicts,
             client=client,
+            recent_candidate_results=recent_candidate_results,
+            pilot=pilot,
+            skill_phase_usecase_map=skill_phase_usecase_map,
         )
 
         # --- 2. Proposer.
@@ -179,6 +210,8 @@ def run_one_iteration(
                 recent_iters_dicts,
                 client=client,
                 config=config,
+                pilot=pilot,
+                skill_phase_usecase_map=skill_phase_usecase_map,
             )
         except ProposerInvalidOutputError as e:
             result.decision = "discard"
@@ -460,6 +493,53 @@ def _build_baseline_summary(config: dict[str, Any], root: Path) -> dict[str, Any
     return _analyzer.build_baseline_summary(results_paths)
 
 
+def _read_recent_candidate_results(
+    config: dict[str, Any], root: Path
+) -> list[dict[str, Any]]:
+    """Load the last K candidate iterations' persisted `eval-results.json`
+    payloads (P0-B).
+
+    K comes from `meta_agent.recent_candidate_results_k` (default 3). The
+    payloads are the raw per-suite results written by
+    `_persist_eval_traces`; the shadow firewall is applied downstream in
+    `analyzer.summarize_candidate_results`. Best-effort: missing files /
+    rows without an `eval_traces_path` are skipped. Most-recent first.
+    """
+    meta_cfg = (config or {}).get("meta_agent") or {}
+    try:
+        k = int(meta_cfg.get("recent_candidate_results_k", 3))
+    except (TypeError, ValueError):
+        k = 3
+    if k <= 0:
+        return []
+
+    paths = _resolve_paths(config, root)
+    # Over-read a window then filter to the K most recent rows that
+    # actually persisted eval traces (keep / discard iters that reached
+    # eval; error / short-circuit iters have no traces).
+    records = _experiments_log.read_recent(paths["experiments_log"], max(k * 8, 24))
+    out: list[dict[str, Any]] = []
+    for rec in reversed(records):
+        traces_path = rec.get("eval_traces_path")
+        if not traces_path:
+            continue
+        p = Path(traces_path)
+        if not p.is_absolute():
+            p = root / traces_path
+        if not p.exists():
+            continue
+        try:
+            with p.open("r", encoding="utf-8") as f:
+                payload = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(payload, dict):
+            out.append(payload)
+        if len(out) >= k:
+            break
+    return out
+
+
 def _materialize_before_after_yaml(
     hypothesis: Hypothesis, root: Path
 ) -> tuple[str, str]:
@@ -539,6 +619,9 @@ def _build_record_dict(
         "eval_traces_path": result.eval_traces_path,
         "infra_error": result.infra_error,
         "infra_error_reason": result.infra_error_reason,
+        # S-Y1.5 (#5): forensic pilot snapshot + lessons-enabled flag.
+        "pilot_snapshot": result.pilot_snapshot,
+        "lessons_enabled": result.lessons_enabled,
     }
 
 
@@ -702,8 +785,15 @@ def _write_dry_run_artefacts(
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     if result.hypothesis is not None:
+        hyp_payload = _safe_asdict(result.hypothesis)
+        if isinstance(hyp_payload, dict):
+            # S-Y1.5 (#5): embed the forensic pilot snapshot + lessons flag
+            # alongside the hypothesis so a dry-run audit reconstructs the
+            # active target card without inference.
+            hyp_payload["pilot_snapshot"] = result.pilot_snapshot
+            hyp_payload["lessons_enabled"] = result.lessons_enabled
         with (runs_dir / "hypothesis.json").open("w", encoding="utf-8") as f:
-            json.dump(_safe_asdict(result.hypothesis), f, indent=2, default=str)
+            json.dump(hyp_payload, f, indent=2, default=str)
     if result.content_validator_verdict is not None:
         with (runs_dir / "content_validator_verdict.json").open(
             "w", encoding="utf-8"

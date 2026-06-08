@@ -21,6 +21,7 @@ import re
 from pathlib import Path
 from typing import Any, TypedDict
 
+from .. import config_validator as _config_validator
 from .llm_client import LLMClient
 
 
@@ -40,10 +41,17 @@ class FailureTaxonomy(TypedDict, total=False):
         skills_critical_steps_advisory_fail:
             {skill_name: {step_id: {fail_count: int, in_cases: [case_id]}}}
         bad_cases_regressing:
-            {case_id: {primary_uc: str, failure_shape: str}}
+            {case_id: {primary_uc: str, failure_shape: str,
+                       target_role?: str}}
         anchor_outcome_closure_criterion_fails:
-            {case_id: {primary_uc: str, closure_criterion_snippet: str}}
+            {case_id: {primary_uc: str, closure_criterion_snippet: str,
+                       target_role?: str}}
         summary: str  (no case_ids; one paragraph)
+
+    `target_role` (S-Y1.5, P0-C) is an optional per-entry tag
+    (`primary` / `anti_kill_control` / `tier2_neighbor` / `general`)
+    added by the analyzer when a pilot card is active; it flows through
+    `_sanitize_taxonomy` untouched and steers the proposer's search.
     """
 
     skills_critical_steps_advisory_fail: dict[str, dict[str, dict[str, Any]]]
@@ -61,6 +69,9 @@ def analyze(
     recent_iterations: list[dict[str, Any]],
     *,
     client: LLMClient,
+    recent_candidate_results: list[dict[str, Any]] | None = None,
+    pilot: dict[str, Any] | None = None,
+    skill_phase_usecase_map: dict[str, dict[str, list[str]]] | None = None,
 ) -> FailureTaxonomy:
     """Run the analyzer LLM and parse its JSON output.
 
@@ -68,10 +79,28 @@ def analyze(
     builds from the most recent eval run; the analyzer does not
     re-read raw results.json. Keeping the analyzer LLM input
     bounded matters for context-window cost.
+
+    S-Y1.5 additions (all default to empty → byte-identical legacy
+    prompt):
+
+    - `recent_candidate_results` (P0-B): raw persisted candidate
+      `eval-results.json` payloads. Sanitized HERE via
+      `summarize_candidate_results` (shadow firewall) before reaching
+      the prompt, so the candidate failure landscape — not just the
+      static baseline — informs the taxonomy.
+    - `pilot` + `skill_phase_usecase_map` (P0-C): the active pilot's
+      PRIMARY TARGETS + per-skill phase/UC declarations, so the
+      analyzer can tag each regressing case with its `target_role`.
     """
+    candidate_summary = summarize_candidate_results(recent_candidate_results)
     system = _PROMPT_PATH.read_text(encoding="utf-8")
     user = _build_user_input(
-        baseline_results_summary, lessons_md, recent_iterations
+        baseline_results_summary,
+        lessons_md,
+        recent_iterations,
+        candidate_results_summary=candidate_summary,
+        pilot=pilot or {},
+        skill_phase_usecase_map=skill_phase_usecase_map or {},
     )
     response = client.chat(system=system, user=user)
     parsed = _safe_parse_json(response.text)
@@ -102,12 +131,7 @@ def build_baseline_summary(results_paths: dict[str, Path]) -> dict[str, Any]:
         if suite_name == "shadow":
             data = _safe_read_json(path) if path.exists() else {}
             cases = (data or {}).get("case_results") or []
-            passed = sum(1 for c in cases if c.get("case_passed") is True)
-            out[suite_name] = {
-                "total_cases": len(cases),
-                "passed_cases": passed,
-                "failed_cases": len(cases) - passed,
-            }
+            out[suite_name] = _summarize_suite_cases(suite_name, cases)
             continue
         if not path.exists():
             continue
@@ -115,22 +139,85 @@ def build_baseline_summary(results_paths: dict[str, Path]) -> dict[str, Any]:
         if not data:
             continue
         cases = data.get("case_results") or []
-        suite_block: dict[str, Any] = {
+        out[suite_name] = _summarize_suite_cases(suite_name, cases)
+    return out
+
+
+def _summarize_suite_cases(
+    suite_name: str, cases: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Per-suite firewall-respecting summary, shared by the baseline
+    summary and the candidate-results summary (P0-B).
+
+    THE SHADOW FIREWALL LIVES HERE: for the ``shadow`` suite ONLY
+    aggregate counts are emitted; per-case shadow detail (case_id,
+    failure_tags, failure_shape) is NEVER included. Removing this
+    branch leaks shadow case_ids into the analyzer prompt — the
+    `test_candidate_results_passthrough_filters_shadow_per_case`
+    regression test asserts exactly that.
+    """
+    if suite_name == "shadow":
+        passed = sum(1 for c in cases if c.get("case_passed") is True)
+        return {
             "total_cases": len(cases),
-            "passed_cases": sum(1 for c in cases if c.get("case_passed") is True),
-            "per_case": [
-                {
-                    "case_id": c.get("case_id"),
-                    "primary_uc": c.get("primary_uc"),
-                    "case_passed": c.get("case_passed"),
-                    "tier2_mandatory_failures": _tier2_mandatory_fail_steps(c),
-                    "failure_shape": c.get("failure_shape"),
-                }
-                for c in cases
-                if c.get("case_passed") is not True
-            ],
+            "passed_cases": passed,
+            "failed_cases": len(cases) - passed,
         }
-        out[suite_name] = suite_block
+    return {
+        "total_cases": len(cases),
+        "passed_cases": sum(1 for c in cases if c.get("case_passed") is True),
+        "per_case": [
+            {
+                "case_id": c.get("case_id"),
+                "primary_uc": c.get("primary_uc"),
+                "case_passed": c.get("case_passed"),
+                "tier2_mandatory_failures": _tier2_mandatory_fail_steps(c),
+                "failure_shape": c.get("failure_shape"),
+            }
+            for c in cases
+            if c.get("case_passed") is not True
+        ],
+    }
+
+
+def summarize_candidate_results(
+    candidate_results: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Sanitize a list of persisted candidate `eval-results.json`
+    payloads into per-iteration per-suite summaries (P0-B).
+
+    Each payload is the dict written by `loop._persist_eval_traces`
+    (shape: ``{"iteration_id", "suites": {name: {"results": {...}}}}``).
+    The same shadow firewall as `build_baseline_summary` is REUSED via
+    `_summarize_suite_cases` — candidate shadow per-case detail is
+    aggregate-only. The analyzer calls this BEFORE building its prompt,
+    so the firewall holds regardless of what the caller passes in.
+    """
+    out: list[dict[str, Any]] = []
+    for payload in candidate_results or []:
+        if not isinstance(payload, dict):
+            continue
+        suites = payload.get("suites") or {}
+        suite_summary: dict[str, Any] = {}
+        if isinstance(suites, dict):
+            for suite_name, entry in suites.items():
+                if not isinstance(entry, dict):
+                    continue
+                data = entry.get("results")
+                cases = (
+                    (data.get("case_results") or [])
+                    if isinstance(data, dict)
+                    else []
+                )
+                suite_summary[suite_name] = _summarize_suite_cases(
+                    suite_name, cases
+                )
+        out.append(
+            {
+                "iteration_id": payload.get("iteration_id"),
+                "suites": suite_summary,
+            }
+        )
     return out
 
 
@@ -156,6 +243,10 @@ def _build_user_input(
     baseline_summary: dict[str, Any],
     lessons_md: str,
     recent_iterations: list[dict[str, Any]],
+    *,
+    candidate_results_summary: list[dict[str, Any]] | None = None,
+    pilot: dict[str, Any] | None = None,
+    skill_phase_usecase_map: dict[str, dict[str, list[str]]] | None = None,
 ) -> str:
     parts = [
         "BASELINE_RESULTS_SUMMARY:",
@@ -173,14 +264,36 @@ def _build_user_input(
                     "target_field": _extract_target_field(r),
                     "decision": r.get("decision"),
                     "discard_reason": r.get("discard_reason"),
+                    # P0-A (S-Y1.5): per-layer tier_breakdown so the analyzer
+                    # sees which cases prior candidates regressed.
+                    "tier_breakdown": (r.get("verdict") or {}).get(
+                        "tier_breakdown", {}
+                    ),
                 }
                 for r in recent_iterations
             ],
             indent=2,
             default=str,
         ),
+        "",
     ]
-    return "\n".join(parts)
+    # P0-B (S-Y1.5): candidate failure landscape (shadow-firewalled by the
+    # caller). Rendered only when present.
+    if candidate_results_summary:
+        parts.extend(
+            [
+                "CANDIDATE_RESULTS_SUMMARY:",
+                json.dumps(candidate_results_summary, indent=2, default=str),
+                "",
+            ]
+        )
+    # P0-C (S-Y1.5): pilot PRIMARY TARGETS + per-skill phase/UC map.
+    parts.extend(
+        _config_validator.render_pilot_input_blocks(
+            pilot or {}, skill_phase_usecase_map or {}
+        )
+    )
+    return "\n".join(parts).rstrip("\n")
 
 
 def _extract_target_skill(record: dict[str, Any]) -> str | None:

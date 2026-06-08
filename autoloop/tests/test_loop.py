@@ -362,6 +362,99 @@ def test_happy_path_keep_full_pipeline(tmp_path: Path):
     assert any(row.get("iteration_id") == "exp-5" for row in rows)
 
 
+# --- S-Y1.5 (#5): pilot snapshot embedded in the experiments.jsonl row -
+
+
+def _pilot_block() -> dict:
+    return {
+        "schema_version": 1,
+        "active_sprint": "S-Y2",
+        "primary_targets": ["cs_uc_a_no_ad_id_ad_specific", "cs_uc_a_loaded_listing"],
+        "anti_kill_control": ["cs_uc_a_generic_policy_question"],
+        "tier2_neighbors": ["cs_uc_a_lookup_failed"],
+        "phase_hint": ["DISCOVER", "RESOLVE"],
+        "use_case_hint": ["UC-A"],
+    }
+
+
+def _run_keep_iteration(repo: Path, cfg: dict, iteration_id: str) -> None:
+    """Drive one full keep iteration with everything external mocked.
+    The pilot snapshot + lessons flag are computed by the real loop code
+    (not mocked), so the persisted row reflects them."""
+    fake_applied = AppliedExperiment(
+        iteration_id=iteration_id,
+        branch_name=f"autoloop/{iteration_id}",
+        commit_sha="abc",
+        skill_file_path=repo / "server/src/main/resources/skills/discover_triage.yaml",
+        backend_port=18556,
+        backend_process=None,
+        original_branch="master",
+    )
+    fake_verdict = LexicographicVerdict(
+        decision="keep",
+        discard_reason=None,
+        layer_results=[],
+        tier_breakdown={"shadow_regression": {"regression_detected": False}},
+        iteration_id=iteration_id,
+    )
+    with patch.object(_loop._analyzer, "analyze", return_value={"summary": "s"}), \
+         patch.object(_loop._proposer, "propose", return_value=_hypothesis()), \
+         patch.object(_loop._applier, "apply", return_value=fake_applied), \
+         patch.object(_loop._applier, "cleanup"), \
+         patch.object(_loop, "_build_baseline_summary", return_value={}), \
+         patch.object(_loop.eval_runner, "run_v1_fitness_suite", return_value={}), \
+         patch.object(_loop.tier_evaluator, "evaluate", return_value=fake_verdict):
+        run_one_iteration(
+            config=cfg, iteration_id=iteration_id,
+            client=_fake_client(), repo_root=repo,
+        )
+
+
+def test_experiment_record_embeds_pilot_snapshot(tmp_path: Path):
+    repo = _make_repo(tmp_path)
+    cfg = _config_for(repo)
+    cfg["pilot"] = _pilot_block()
+    cfg["lessons"]["enabled"] = False
+    _run_keep_iteration(repo, cfg, "exp-5")
+
+    rows = experiments_log.read_all(repo / "autoloop/results/experiments.jsonl")
+    row = next(r for r in rows if r.get("iteration_id") == "exp-5")
+    snap = row["pilot_snapshot"]
+    assert snap is not None
+    assert snap["schema_version"] == 1
+    assert snap["active_sprint"] == "S-Y2"
+    assert "cs_uc_a_no_ad_id_ad_specific" in snap["primary_targets"]
+    assert snap["anti_kill_control"] == ["cs_uc_a_generic_policy_question"]
+    assert snap["phase_hint"] == ["DISCOVER", "RESOLVE"]
+    assert snap["use_case_hint"] == ["UC-A"]
+    # 16-char content hash over the normalized snapshot:
+    assert isinstance(snap["block_sha256"], str)
+    assert len(snap["block_sha256"]) == 16
+
+
+def test_experiment_record_embeds_lessons_enabled_flag(tmp_path: Path):
+    repo = _make_repo(tmp_path)
+    cfg = _config_for(repo)
+    cfg["pilot"] = _pilot_block()
+    cfg["lessons"]["enabled"] = False
+    _run_keep_iteration(repo, cfg, "exp-6")
+
+    rows = experiments_log.read_all(repo / "autoloop/results/experiments.jsonl")
+    row = next(r for r in rows if r.get("iteration_id") == "exp-6")
+    assert row["lessons_enabled"] is False
+    assert row["pilot_snapshot"]["lessons_enabled"] is False
+
+    # Control: enabled=true flows through as true.
+    cfg2 = _config_for(repo)
+    cfg2["pilot"] = _pilot_block()
+    cfg2["lessons"]["enabled"] = True
+    _run_keep_iteration(repo, cfg2, "exp-6b")
+    rows2 = experiments_log.read_all(repo / "autoloop/results/experiments.jsonl")
+    row2 = next(r for r in rows2 if r.get("iteration_id") == "exp-6b")
+    assert row2["lessons_enabled"] is True
+    assert row2["pilot_snapshot"]["lessons_enabled"] is True
+
+
 # --- branch tag --------------------------------------------------------
 
 
