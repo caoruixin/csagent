@@ -6,19 +6,22 @@ bad_case_metadata:
   surfaced_by: research-agent (CS4 proposal Part B; criterion #4 — a failed entity lookup must elicit or degrade gracefully, not silently fall back to a generic answer)
   surfaced_date: 2026-06-08
   demotion_note: |
-    2026-06-08 (deliver, pre-pilot smoke Findings #1+#3): DEMOTED from
-    tier_1_target to tier_2_neighbor / regression-guard. The isolated re-run
-    showed the baseline bot ALREADY handles this gracefully via the
-    AGENT_VISIBLE get_customer_context tool: get_customer_context(AD-9999)
-    returns no listing, the bot asks the user to confirm the ad_id, then
-    get_customer_context(AD-2002) resolves and the bot grounds (UC-A,
-    containment=resolved, outcome=1.0). A case the baseline already passes is
-    not a valid pilot optimization target. Retained as a regression guard for
-    graceful failed-lookup degradation. If a sharper failed-lookup failure is
-    needed, design a new case. NOTE: `lookup_listing_or_ad` is RUNTIME_ONLY
-    (not callable by the agent); `customer_context_status` therefore stays
-    `lookup_skipped` and is OBSERVATION-ONLY — the real signal is the
-    get_customer_context call sequence + graceful framing.
+    2026-06-08 (deliver, pre-pilot smoke Findings #1+#3; rationale CORRECTED
+    after the n=9 re-bless): DEMOTED from tier_1_target to tier_2_neighbor /
+    regression-guard. The correction: this is NOT a case "the baseline already
+    handles." That claim came from a single isolated re-run
+    (get_customer_context(AD-9999) no listing → ask → get_customer_context(AD-2002)
+    resolved, outcome=1.0) that was a lucky draw. Under the n=9 pre-pilot re-bless
+    (m-auto-7-prepilot-baseline-20260608) this case stably FAILS
+    (majority_passed=false, pass_rate≈0.09, stable). It is a HARDER ADJACENT
+    Tier-2 neighbor / graceful-degradation regression guard — NOT a primary pilot
+    optimization target. The pilot should IMPROVE or HOLD it (no regression), but
+    success is measured only on the Tier-1 primary targets
+    (cs_uc_a_no_ad_id_ad_specific + cs_uc_a_loaded_listing). NOTE:
+    `lookup_listing_or_ad` is RUNTIME_ONLY (not callable by the agent);
+    `customer_context_status` therefore stays `lookup_skipped` and is
+    OBSERVATION-ONLY — the real signal is the get_customer_context call sequence
+    + graceful framing.
   failure_shape: |
     Form has ad_id AD-9999 (intentionally non-resolving — absent from all mock
     fixtures). A regressed bot could answer with a generic FAQ as if the
@@ -36,8 +39,8 @@ bad_case_metadata:
 
 closure_criterion: |
   Bot consults get_customer_context(AD-9999), recognises the listing was not
-  found, and degrades gracefully (regression-guard: the baseline already does
-  this).
+  found, and degrades gracefully (Tier-2 regression guard / harder adjacent
+  neighbor — under n=9 the baseline stably fails this; see demotion_note).
 
   PASS conditions (one of):
     (a) Bot tells the user the listing could not be found and asks them to

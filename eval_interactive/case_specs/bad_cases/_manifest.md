@@ -539,11 +539,14 @@ stays the explicit-lookup-path diagnostic).
   (auto-loaded). Both treat `customer_context_status` as observation-only.
   `cs_uc_a_no_ad_id_ad_specific` was already correct (`get_customer_context`
   after eliciting the ad_id).
-- **Finding #1b — `cs_uc_a_lookup_failed` DEMOTED** to `tier_2_neighbor`: the
-  isolated re-run showed the baseline already handles it gracefully via
-  `get_customer_context(AD-9999)`→ask →`get_customer_context(AD-2002)`
-  (resolved, outcome=1.0). A baseline-passing case is not a valid pilot
-  target; kept as a graceful-degradation regression guard.
+- **Finding #1b — `cs_uc_a_lookup_failed` DEMOTED** to `tier_2_neighbor`
+  (rationale corrected after the n=9 re-bless): NOT "baseline already handles it"
+  — that came from a lucky single isolated re-run
+  (`get_customer_context(AD-9999)`→ask →`get_customer_context(AD-2002)`,
+  outcome=1.0). Under n=9 (`m-auto-7-prepilot-baseline-20260608`) it stably FAILS
+  (pass_rate≈0.09). It is a HARDER ADJACENT Tier-2 neighbor / graceful-degradation
+  regression guard — the pilot should improve/hold it but it is NOT a primary
+  target (success = Tier-1 `no_ad_id` + `loaded_listing`).
 - **Finding #2 — anti-误杀 control aligned (§5.6); gate corrected 2026-06-08.**
   Question re-pointed to a generic ad go-live/visibility question covered by
   "Where is my Ad?" (`ka44J000000gKqtQAE`). The anti-误杀 floor is L1-enforced

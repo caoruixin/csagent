@@ -158,7 +158,15 @@ fitness:
   # cs38s01/cs38s02). Codex milestone-shared §4.3 verdict
   # APPROVE_M_AUTO_6_WITH_NON_BLOCKING_OBSERVATIONS / blocking_count=0
   # archived at docs/milestones/M-Auto-6_codex-review.md.
-  baseline_dir: eval_interactive/results/m-auto-6-baseline-shared-20260607
+  # S-Y2 PILOT SETUP (2026-06-08, human-authorized OQ-S87.baseline-dir = (a)):
+  # baseline_dir points at the M-Auto-7 pre-pilot baseline as the pilot's
+  # FITNESS / EXPERIMENT baseline. This is NOT a canonical baseline promotion:
+  # docs/current_eval_baseline.md is UNCHANGED; m-auto-6-baseline-shared-20260607
+  # remains the PREVIOUS CANONICAL baseline; whether to promote the post-pilot
+  # result to canonical is a separate human milestone-close decision (after the
+  # Part D milestone-close re-bless + Codex review). See docs/sprint_objective.md
+  # (S-Y2) §Baseline policy.
+  baseline_dir: eval_interactive/results/m-auto-7-prepilot-baseline-20260608
 
   # Hard cap per suite (30 min). A timeout aborts the loop iteration
   # — partial fitness evidence is worse than no fitness evidence.
