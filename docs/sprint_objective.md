@@ -1,143 +1,157 @@
 ---
-title: Sprint 085 / S-Auto-30 (M-Auto-7 S-X) — CS3 DISCOVER synthesised-null-turn provenance gate
+title: Sprint 086 / S-Auto-31 (M-Auto-7 S-Y1) — CS4 readiness: projection infra (Part A) + executable CaseSpecs (Part B)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
 last_reviewed: 2026-06-08
 review_cadence: per sprint
-supersedes: docs/sprints/sprint-084-objective.md
+supersedes: docs/sprints/sprint-085-objective.md
 superseded_by: null
 notes: >
-  Second autoloop launch blocker of M-Auto-7. Root cause TRACE-CONFIRMED
-  against CS3 session 33edc1eb (eval_interactive/results/20260607-095759):
-  turn-2 LLM emitted user_message="" + no tool_calls; ActionParser.java:70-72
-  substitutes the placeholder "I'm looking into this for you." AT PARSE TIME,
-  so AgentRunLoopImpl sees a NON-BLANK userMsg and the R2.a clarification
-  counter increments on the runtime-synthesised placeholder (count 1->2 →
-  turn-3 force-escalate clarification_budget_exhausted before the LLM sees
-  the user's "Thank you"). The proposal's Option C3.A (userMsg.isBlank()
-  guard) is CONFIRMED INERT — userMsg is never blank at the loop. Fix =
-  structural provenance flag (NOT a content heuristic; keeps the R2.a
-  "structural cardinality only" design). Source: CS3/CS4 proposal §2 +
-  §8.2 (mechanism corrected per trace).
+  Third (and last) autoloop launch blocker of M-Auto-7. Makes the CS4
+  entity-context autoloop pilot runnable: Part A = human projection infra
+  the autoloop will reference; Part B = the authored CaseSpecs the autoloop
+  optimizes against. NO skill-procedure text change here — that is the pilot
+  (S-Y2). Executed as two sequenced dev sessions under one sub-sprint:
+  086a (Part A infra) → 086b (Part B CaseSpecs). candidate-UC names are added
+  as a BACKWARD-COMPATIBLE ADDITIVE slot (`candidate_use_cases_named`); the
+  existing `candidate_use_cases` string-array shape is unchanged (human
+  decision 2026-06-08). Source: CS3/CS4 proposal §3.4 Part A + Part B +
+  appendix (2026-06-08 CaseSpec drafts §2-§8). Pre-pilot baseline re-bless
+  runs after this sub-sprint closes (batched cadence).
 ---
 
-# Sprint 085 / S-Auto-30 — CS3 synthesised-null-turn provenance gate
+# Sprint 086 / S-Auto-31 — CS4 readiness (Part A infra + Part B CaseSpecs)
 
 ## Class
 
-- **Layer (§3.2):** infra (R2.a counter provenance) + prompt_projection
-  (complementary soft DISCOVER cue).
-- **§7 stanza:** REQUIRED (the soft DISCOVER cue touches a skill-yaml
-  semantic surface). Stanza below.
-- **Milestone role:** Phase 1 autoloop launch blocker #2.
+- **Layer (§3.2):** prompt_projection (Part A) + eval_spec (Part B).
+- **§7 stanza:** REQUIRED (projection slots + CaseSpec authoring). Stanza below.
+- **Milestone role:** Phase 1 autoloop launch blocker #3 (last before the
+  pilot). Two sequenced dev sessions: 086a (Part A) → 086b (Part B).
 
 ## Goal
 
-A runtime-synthesised DISCOVER placeholder (injected by ActionParser
-when the LLM null-turns) must NOT be counted as a clarification round
-and must not burn the clarification budget. Mark the synthesised
-placeholder with a structural provenance flag and exclude it from the
-R2.a counter; genuine LLM-authored clarifications keep their existing
-structural counting (anti-误杀).
+Stand up the projection inputs the autoloop pilot will cite and the
+CaseSpecs it will optimize against, so the CS4 entity-context pilot (S-Y2)
+can run on the honest baseline. No procedure-text change — the autoloop
+authors that in S-Y2.
 
-## Scope
+## Scope — Part A (dev session 086a; layer prompt_projection)
 
-1. **`ParsedAction.java`** — add `private boolean userMessageSynthesised;`
-   (Lombok `@Data @Builder` → `isUserMessageSynthesised()` getter, builder
-   `.userMessageSynthesised(...)`; primitive default false).
-2. **`ActionParser.java:70-73`** — when the null-turn fallback fires
-   (`toolCalls.isEmpty() && userMessage.isBlank()`), continue substituting
-   `"I'm looking into this for you."` AND set the builder flag
-   `userMessageSynthesised=true`. The normal path and the parse-failure
-   `buildFallback()` (:120-130) leave it false — the flag marks ONLY the
-   null-turn placeholder, not the handover apology.
-3. **`AgentRunLoopImpl.java:455-457`** — exclude the synthesised placeholder
-   from the counter: add `&& !action.isUserMessageSynthesised()` to the
-   increment condition. Keep the existing structural guards intact
-   (`isDiscoverFreeTextClarification(plan.phase(), false, ucCommittedThisTurn,
-   userMsg)` — DISCOVER + no tools + no UC commit). Do NOT add any content
-   check (no `isClarificationMessage` gate — that would convert the
-   structural counter into a content heuristic; explicitly out of scope per
-   the human decision 2026-06-08).
-4. **Trace event** — surface `user_message_synthesised=true` (or a
-   `discover_null_turn_synthesised` per-turn diagnostic) when the flag is
-   set, via the least-invasive existing per-turn trace/diagnostic surface,
-   so eval/admin can see the null-turn without it forcing escalation.
-5. **`discover_triage.yaml`** — add ONE §1.3-soft cue (near the existing
-   Sprint-33 cue) discouraging null/filler turns: every DISCOVER turn should
-   either call `classify_use_case` or ask one focused clarifying question;
-   do not emit an empty `user_message` / empty `tool_calls` / placeholder
-   filler. Complementary only — the provenance flag is the hard backstop;
-   do NOT rely on the cue as the sole fix.
+A1. **`moderation_reason_available` boolean** — add to
+   `buildDiscoverDisambiguationSignalsNode` (`ContextProjectionBuilder.java:1146-1177`),
+   derived from `session.getModerationContext()` presence (non-null /
+   non-blank). Additive field on the existing disambiguation node. Project
+   ONLY the boolean; NEVER the raw moderation text.
+A2. **candidate-UC human-readable names (BACKWARD-COMPATIBLE ADDITIVE)** —
+   add a NEW projection slot `candidate_use_cases_named` (array of
+   `{"id": <uc>, "name": <UseCaseRegistryService.getUseCase(uc).name()>}`)
+   emitted ALONGSIDE the EXISTING `candidate_use_cases` string array
+   (`ContextProjectionBuilder.java:499-508`). **The existing
+   `candidate_use_cases` shape is UNCHANGED — do not break it.** Gate the new
+   slot via its own skill declaration; null-safe on unknown id; no UC-id
+   rename / migration.
+A3. **`customer_context_status`** — already live (`:1384-1477`); no work.
+   Confirm it is reachable on the relevant phase/UC tuples.
+A4. **yaml declarations** — declare the new `candidate_use_cases_named` slot
+   (and confirm `discover_disambiguation_signals`) in `discover_triage.yaml`,
+   and add the slots to `resolve_faq_grounded_answer.yaml`
+   `required_context_keys` / `state_inheritance.soft_signal_via_projection`
+   if that skill should see them. **NO procedure-text change.**
+
+## Scope — Part B (dev session 086b; layer eval_spec)
+
+B1. Copy the appendix's **5 NEW** CaseSpecs (`cs_uc_a_no_ad_id_ad_specific`,
+   `cs_uc_a_generic_policy_question`, `cs_uc_a_loaded_listing`,
+   `cs_uc_fp_loaded_moderation`, `cs_uc_a_lookup_failed`) into
+   `eval_interactive/case_specs/bad_cases/` and apply the **2 EXTEND** diffs
+   (`alice_uc_a_uc_h_misclass`, `wmkb_uc_a_trader_flag_secondary_uc_h`).
+B2. **MANDATORY first** — reconcile every placeholder (`AD-3001`/`AD-3050`/
+   `AD-3060`/`AD-3070`/`AD-9999`, `IMAGE_QUALITY`) against real fixtures in
+   `data/listings/` / `GumtreeApiService` / `MockGumtreeApiService` /
+   moderation-review fixtures: either swap to a fixture that actually resolves
+   through the lookup path the CaseSpec exercises, or add a fixture entry. A
+   CaseSpec whose ad_id never resolves mis-scores and inverts target/anti-误杀
+   intent.
+B3. Verify each authored CaseSpec compiles against
+   `eval_interactive/eval_interactive/specs/schema.py` (Path γ fields only:
+   `correct_uc` / `correct_outcome` / `tool_sequence_match` + `forbidden_tools`
+   + `answer_must_not_contain` + `closure_criterion` / `bot_handling_pattern`).
+B4. §5.6 bad-case suite tiering review (human-gated) + `_manifest.md` update:
+   Tier-1 target (`cs_uc_a_no_ad_id_ad_specific`, `cs_uc_a_loaded_listing`,
+   `cs_uc_a_lookup_failed`), Tier-1 anti-误杀 negative-control
+   (`cs_uc_a_generic_policy_question`), Tier-2 neighbor
+   (`cs_uc_fp_loaded_moderation`).
 
 ## Hard fences / STOP conditions
 
-- Do NOT raise `max-clarification-rounds` (`control-policy.yaml:1-2`); the
-  cap of 2 is correct — the bug is the false count, not the cap.
-- Do NOT touch the shared placeholder string in `templates.yaml` /
-  `PhaseEvaluator` / `ControlKernel` (used on legitimate slow-LLM paths).
-- Do NOT touch the pre-LLM budget gate at `ControlKernel.java:288-318`.
-- Do NOT add an `isClarificationMessage` / any content/keyword check to the
-  counter (structural provenance only — human decision 2026-06-08).
-- Do NOT change the RESOLVE-intake counter bucket (S-Auto-25 R2.a#5-ext).
-- No Java guard on empty `user_message` (the soft cue is the LLM-side lever).
-- STOP + surface an OQ if excluding synthesised turns regresses a genuine
-  over-clarification session (test #6) — do not weaken the structural guard.
+- Part A: project ONLY `moderation_reason_available` (boolean) — NOT the raw
+  `moderation_reason_text` (PII / grounding-boundary). candidate-UC names are
+  an ADDITIVE new slot (`candidate_use_cases_named`); the existing
+  `candidate_use_cases` string-array shape is UNCHANGED (backward-compatible).
+  No UC-id rename. **No procedure-text change** in either skill yaml (that is
+  the S-Y2 pilot). Slots are data-derived (registry + context presence); no
+  keyword/regex/if-else/enum; no Java branch on the new slots.
+- Part B: do NOT widen any CaseSpec to accept current bot behaviour (§5.4);
+  CaseSpec L2 outcome_checks pin trace shape, not user_message keywords; every
+  `expected_tool_sequence` references a real tool in `tool-policy.yaml`; every
+  target has its paired negative-control (anti-误杀).
+- STOP + surface an OQ if a placeholder cannot be reconciled to a fixture
+  without inventing platform behaviour — do not author a CaseSpec on a
+  non-resolving ad_id.
 
-## Test / eval requirements (all 6 mandatory)
+## Test / eval requirements
 
-1. blank `user_message` + no tool_calls → ActionParser synthesises the
-   placeholder AND `userMessageSynthesised=true` (ActionParser unit test).
-2. that synthesised placeholder turn → `clarificationCount` does NOT
-   increment (AgentRunLoop test).
-3. genuine clarification question (non-blank, `?`-shaped) → `clarificationCount`
-   increments (anti-误杀).
-4. non-synthesised non-blank reply → existing structural counting behavior
-   unchanged (`userMessageSynthesised=false` → counts as before).
-5. CS3 anchor `33edc1eb` shape (3-turn DISCOVER stall) → placeholder no
-   longer pushes count to 2; no premature `clarification_budget_exhausted`
-   force-escalate; turn-3 user message reaches the LLM.
-6. anti-误杀: a genuinely over-clarifying session still hits the cap of 2
-   and escalates as before.
-- Focused Java suite: no new regression vs the post-S-A baseline. Report
-  counts. **No real-LLM re-bless in S-X** — Java/unit + diff verification
-  only; the pre-pilot baseline re-bless runs after S-Y1 (batched cadence).
+- **Part A:** projection unit tests — `moderation_reason_available` true iff
+  `moderationContext` present (+ raw-text-not-leaked assertion); new
+  `candidate_use_cases_named` emits `{id,name}` with registry names (null-safe);
+  the EXISTING `candidate_use_cases` string array is UNCHANGED (backward-compat
+  regression); existing `discover_disambiguation_signals` fields +
+  `customer_context_status` unchanged; reconcile golden projection snapshots
+  additively (new slots appear; existing slots unchanged). Focused Java suite:
+  no new regression vs post-S-X baseline.
+- **Part B:** CaseSpecs compile against the schema; a baseline run (dry, no
+  optimization) shows the Tier-1 targets FAIL and the negative-control PASSES
+  (the gap is real) — this doubles as the pilot's Part C.1 input.
+- **No real-LLM re-bless inside S-Y1** for Part A wiring; the pre-pilot
+  baseline re-bless (= pilot Part C.1) runs after S-Y1 closes (batched cadence).
 
 ## §7 stanza
 
-**Target failure layer:** infra (R2.a counter provenance) + prompt_projection
-(soft DISCOVER cue).
-**Tier-0 invariant:** none added. Restores the §1.4 Runtime clarification-
-counter contract (a clarification round = an LLM-authored clarification
-attempt) by excluding runtime-synthesised placeholders via a structural
-provenance flag.
-**Semantic hardcode:** none. The flag is structural provenance (was the
-reply LLM-authored or runtime-synthesised), NOT a content/keyword/similarity
-heuristic — the R2.a "structural cardinality only" design is preserved. The
-discover_triage.yaml cue is a §1.3-soft sentence, no Java enforcement.
-**Generalization coverage:** T/N/G/S = 1 / 1 / 2 / ≥1 — target = CS3 trace
-33edc1eb; neighbor = legitimate `?`-clarification still counts; negative =
-non-synthesised non-blank reply unchanged + RESOLVE-intake bucket unchanged;
-shadow = held-out DISCOVER null-turn traces.
+**Target failure layer:** prompt_projection (Part A) + eval_spec (Part B).
+**Tier-0 invariant:** none added. Part A extends the §1.4 Runtime-owned
+projection contract with OBSERVABLE additive slots (the runtime does not
+branch on them); the existing `candidate_use_cases` shape is preserved. Part B
+is eval-spec authoring per §5.6.
+**Semantic hardcode:** none. `moderation_reason_available` is a presence
+boolean off `session.moderationContext`; candidate-UC `name` comes from
+`UseCaseRegistryService`. No keyword/regex/enum; no procedure-text change.
+CaseSpec outcome_checks pin trace shape, not message keywords.
+**Generalization coverage:** target/neighbor/negative/shadow = 3 / 1 / 1 / ≥2
+— Tier-1 targets (no_ad_id / loaded_listing / lookup_failed); Tier-2 neighbor
+(uc_fp_loaded_moderation); anti-误杀 negative-control (generic_policy_question);
+shadow = held-out UC-A entity-context + generic-UC-A variants.
 
 ## Codex review plan (§4.3)
 
-Per-sub-sprint Codex deferred to the M-Auto-7 milestone-shared close review.
-No §4.3 trigger fires: not Tier-0; not §1.7-adjacent (structural provenance
-flag + §1.3-soft cue, no keyword/regex/enum); not hard-fence; not
-fix-iteration. Dev does NOT dispatch Codex.
+Per-sub-sprint Codex deferred to the M-Auto-7 milestone-shared close. No §4.3
+trigger: not Tier-0; not §1.7-adjacent (data-derived additive slots + eval
+authoring, no procedure text); not hard-fence; not fix-iteration. The §5.6
+tiering (Part B) is the human gate. Dev does NOT dispatch Codex.
 
 ## Handoff requirements
 
-Dev authors `docs/sprints/sprint-085-handoff.md`: §0 evidence (6 tests
-green; Java suite counts); §11 Codex deferral + any OQs; §12 note that the
-counter-honesty effect is verified at the pre-pilot re-bless (post-S-Y1),
-not in S-X.
+086a dev → `docs/sprints/sprint-086a-handoff.md` (Part A evidence +
+backward-compat confirmation + golden reconcile note). 086b dev →
+`docs/sprints/sprint-086b-handoff.md` (CaseSpecs authored, placeholders
+reconciled to fixtures, schema-compile, baseline-run
+targets-fail/negative-control-pass, §5.6 tiering). Both archived at S-Y1 close.
 
 ## Commit discipline
 
-Stage only authorized files: `ParsedAction.java`, `ActionParser.java`,
-`AgentRunLoopImpl.java`, `discover_triage.yaml`, + the test file(s). No
-`git add -A`. New commit per fix; no `--amend` across a failed hook.
+086a stages only `ContextProjectionBuilder.java`, the two skill yamls
+(declaration-only edits), + projection test file(s) + reconciled golden test(s).
+086b stages only `eval_interactive/case_specs/bad_cases/*` + `_manifest.md` +
+any new fixture file(s). No `git add -A`. New commit per part.
