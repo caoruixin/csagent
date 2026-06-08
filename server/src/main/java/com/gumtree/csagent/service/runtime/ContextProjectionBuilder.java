@@ -508,6 +508,39 @@ public class ContextProjectionBuilder {
                 projection.set("candidate_use_cases", candidateUcsNode);
             }
 
+            // Sprint 86a / S-Auto-31 — candidate_use_cases_named projection
+            // slot. BACKWARD-COMPATIBLE ADDITIVE companion to the bare-ID
+            // candidate_use_cases slot above (which is UNCHANGED). The LLM
+            // otherwise sees only opaque UC ids (["UC-A","UC-FP",...]) and
+            // must recall from training what each id means; surfacing the
+            // registry name alongside each id grounds the DISCOVER
+            // classify_use_case choice (addresses UC-FP invisibility +
+            // UC-G hallucination). Each entry is {id, name}; name falls back
+            // to the id when the registry has no definition (unknown id).
+            // Gated by its OWN required_context_keys declaration via the same
+            // registry-data-driven helper as candidate_use_cases; for
+            // unmapped (phase, UC) tuples the helper defaults to TRUE (emit).
+            // §1.7 boundary: registry-driven lookup; no per-UC if-else, no
+            // keyword/regex/enum branch, and the runtime does NOT branch on
+            // the slot value.
+            if (skillRequiresContextKey(session, activeUc, "candidate_use_cases_named")) {
+                ArrayNode namedUcsNode = objectMapper.createArrayNode();
+                if (session.getCandidateUseCases() != null) {
+                    for (String uc : session.getCandidateUseCases()) {
+                        if (uc == null || uc.isBlank()) {
+                            continue;
+                        }
+                        ObjectNode entry = objectMapper.createObjectNode();
+                        entry.put("id", uc);
+                        UseCaseRegistryService.UseCaseDefinition def =
+                                useCaseRegistry.getUseCase(uc);
+                        entry.put("name", def != null ? def.name() : uc);
+                        namedUcsNode.add(entry);
+                    }
+                }
+                projection.set("candidate_use_cases_named", namedUcsNode);
+            }
+
             // Sprint 31 — Option β alternate_candidate_use_cases projection
             // slot. Soft signal carrying the UCs the intake router considered
             // plausible for the session's topic-subject family when
@@ -1172,6 +1205,18 @@ public class ContextProjectionBuilder {
         }
         node.put("topic_subject_carries_multiple_candidate_ucs", multiCandidate);
         node.set("candidate_ucs_for_topic", candidatesNode);
+
+        // Sprint 86a / S-Auto-31 — moderation_reason_available. PRESENCE-ONLY
+        // boolean: true iff a moderation review is on file for the session
+        // (session.moderationContext present + non-blank). Lets a UC-FP
+        // removal-explanation procedure prefer the moderation-grounded answer
+        // when a reason is on record. HARD FENCE (PII / grounding boundary):
+        // ONLY the boolean is projected — the raw moderation-review text /
+        // reason-code value is NEVER parsed or emitted here.
+        String moderationContext = session.getModerationContext();
+        boolean moderationReasonAvailable =
+                moderationContext != null && !moderationContext.isBlank();
+        node.put("moderation_reason_available", moderationReasonAvailable);
 
         return node;
     }

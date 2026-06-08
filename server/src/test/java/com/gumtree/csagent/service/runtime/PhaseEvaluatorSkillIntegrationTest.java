@@ -268,7 +268,11 @@ class PhaseEvaluatorSkillIntegrationTest {
         assertEquals(expectedUc, plan.useCase());
         assertEquals(DISCOVER_OBJECTIVE, plan.objective());
         assertEquals(List.of("search_knowledge", "classify_use_case"), plan.allowedTools());
-        assertEquals(Set.of("form_context", "candidate_use_cases"), plan.requiredContextKeys());
+        // Sprint 86a / S-Auto-31 — candidate_use_cases_named added additively to
+        // discover_triage.required_context_keys (backward-compatible companion of
+        // the bare-ID candidate_use_cases slot). Existing keys unchanged.
+        assertEquals(Set.of("form_context", "candidate_use_cases", "candidate_use_cases_named"),
+                plan.requiredContextKeys());
         assertEquals(3, plan.maxToolSteps());
         assertEquals(false, plan.allowInterimMessage());
         assertEquals(Set.of(TerminalOutcome.CLARIFICATION_NEEDED,
