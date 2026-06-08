@@ -3,48 +3,57 @@ source_session_id: synthetic-cs4-cs_uc_a_loaded_listing-2026-06-08
 source_dataset: bad_case_authored
 
 bad_case_metadata:
-  surfaced_by: research-agent (CS4 proposal Part B; criterion #3 — loaded customer_context must be used before FAQ)
+  surfaced_by: research-agent (CS4 proposal Part B; criterion #3 — entity context must be verified + used before a generic FAQ answer)
   surfaced_date: 2026-06-08
+  tool_visibility_note: |
+    2026-06-08 (deliver, pre-pilot smoke Findings #1+#3, corrected after the
+    AGENT_VISIBLE vs RUNTIME_ONLY tool review): the agent's entity-verification
+    tool is `get_customer_context` (AGENT_VISIBLE — the composite that returns
+    sanitized account + listing + moderation context). `lookup_listing_or_ad`
+    is RUNTIME_ONLY and is NOT in the LLM tool schema, so the agent can never
+    call it; `customer_context_status` is computed from a `lookup_listing_or_ad`
+    ToolEvent and therefore stays `lookup_skipped` during the agent's normal
+    flow (`GetCustomerContextTool` calls `getListingByAdId` directly without
+    emitting that event). This case keys on the AGENT_VISIBLE signal —
+    `get_customer_context` + grounding in the returned listing data.
+    `customer_context_status` is OBSERVATION-ONLY here, not a pass/fail signal.
   failure_shape: |
-    Form contains both email + ad_id; pre-chat auto-trigger at
-    FormContextIngestionService.java:93-142 successfully loads
-    customer_context (listing + account data). Bot today may
-    still call search_knowledge first and ignore the loaded
-    listing data, producing a generic FAQ answer that doesn't
-    reference the user's specific ad.
+    Form has email + ad_id (AD-2002, a real LIVE listing). The bot today may
+    go straight to search_knowledge and return a generic FAQ answer — or
+    misclassify the UC — without consulting the specific listing via
+    get_customer_context, so the answer is detached from the user's ad.
   layers_involved: |
-    prompt_projection (resolve_faq_grounded_answer.yaml procedure
-    does not bind to customer_context_status: loaded as a
-    consume-first signal); semantic_planner (LLM may ignore
-    pre-loaded data in favor of FAQ retrieval)
+    prompt_projection (resolve_faq_grounded_answer.yaml has no mandatory
+    consult-then-ground critical step keyed on get_customer_context for UC-A);
+    semantic_planner (LLM may answer generically instead of grounding in the
+    specific listing it can retrieve via get_customer_context)
   related_dimensions: [D1, D6]
   related_r_items:
     - OBS-S1 (entity-context verification for UC-A)
   tier: tier_1_target
 
 closure_criterion: |
-  Bot recognises that customer_context is already loaded and
-  USES the listing data in its grounded answer.
+  Bot CONSULTS the specific listing (via get_customer_context for AD-2002, or
+  the pre-chat-loaded customer_context) and USES the listing data in its
+  grounded answer.
 
   PASS conditions:
-    (a) Bot's user_message references listing-specific data
-        (title, status, category, location, price, posted_date
-        — at least one specific field);
-    (b) Bot proceeds to a grounded answer that addresses the
-        user's specific ad situation (e.g., "your listing
-        AD-2002 is in category Home & Garden > Furniture and
-        currently shows as LIVE; visibility looks normal —
-        possible reasons it's not performing: …");
+    (a) Bot consults entity context via get_customer_context(AD-2002) (or
+        demonstrably uses the pre-loaded customer_context.listing);
+    (b) Bot's user_message references listing-specific data (title, status,
+        category, location, price, posted_date — at least one specific field —
+        e.g. "your listing AD-2002 is LIVE in Home & Garden > Furniture …");
     (c) `correct_outcome: resolve`.
 
   FAIL conditions:
-    (d) Bot answers with a generic FAQ article ignoring the
-        loaded listing data;
-    (e) Bot redundantly calls get_customer_context again
-        (acceptable but suboptimal; passes hard checks but L3
-        judge should note inefficiency);
-    (f) Bot's response does not reference any listing-specific
-        field.
+    (d) Bot answers with a generic FAQ article without consulting / using the
+        listing and references no listing-specific field;
+    (e) Bot misclassifies the UC (e.g. UC-B) instead of UC-A;
+    (f) Bot asks the user for an ad_id that is already in form_context.
+
+  Observation (not a gate): `customer_context_status` will read `lookup_skipped`
+  even on a PASS, because it tracks the RUNTIME_ONLY lookup_listing_or_ad tool
+  the agent cannot call — see tool_visibility_note.
 
 form_context:
   first_name: Riley
@@ -58,10 +67,10 @@ form_context:
 persona:
   user_goal_summary: |
     User has an active live listing (AD-2002) and is asking why
-    it's not performing well. The bot's projection has
-    customer_context.listing already populated (status=LIVE,
-    category=Home & Garden > Furniture, price/location set). User
-    is cooperative, interested in concrete advice.
+    it's not performing well. The listing data (status=LIVE,
+    category=Home & Garden > Furniture, price/location set) is
+    retrievable via get_customer_context(AD-2002). User is
+    cooperative, interested in concrete advice.
   frustration_level: mild
   verbosity: normal
   drift_behavior: none
@@ -77,9 +86,9 @@ persona:
         price, description quality) are the standard advice."
       disclose_when: if the bot asks about specific listing details
   will_request_human_if: |
-    the bot answers with a generic article ignoring the
-    user's specific listing data; or the bot asks for ad_id
-    when ad_id is already in form_context
+    the bot answers with a generic article without consulting or
+    referencing the user's specific listing; or the bot asks for
+    ad_id when ad_id is already in form_context
 
 expected:
   outcome_class: resolve
@@ -88,12 +97,13 @@ expected:
   should_escalate: false
   allow_bot_resolution: 'true'
   bot_handling_pattern: |
-    Turn 1: bot reads customer_context.listing (status=LIVE,
-    category=Home & Garden > Furniture, etc. — already loaded in
-    projection). Bot answers with grounded advice that references
-    the user's specific listing context (e.g. category-specific
-    visibility tips) and optionally calls search_knowledge for
-    canonical visibility-tips article.
+    Turn 1: bot consults the specific listing via
+    get_customer_context(AD-2002) (or uses the pre-loaded
+    customer_context.listing) and answers with grounded advice that
+    references the user's specific listing context (status=LIVE,
+    Home & Garden > Furniture, category-specific visibility tips);
+    optionally calls search_knowledge for the canonical
+    visibility-tips article.
 
     Turn 2: user confirms or follows up; bot answers.
 
@@ -102,6 +112,7 @@ expected:
   risk_level: low
   expected_tool_sequence:
     - classify_use_case
+    - get_customer_context
     - search_knowledge
     - resolve_article
     - record_outcome

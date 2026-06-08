@@ -3,51 +3,60 @@ source_session_id: synthetic-cs4-cs_uc_a_lookup_failed-2026-06-08
 source_dataset: bad_case_authored
 
 bad_case_metadata:
-  surfaced_by: research-agent (CS4 proposal Part B; criterion #4 — missing_ad_id / lookup_failed must elicit or degrade gracefully, not generic resolution)
+  surfaced_by: research-agent (CS4 proposal Part B; criterion #4 — a failed entity lookup must elicit or degrade gracefully, not silently fall back to a generic answer)
   surfaced_date: 2026-06-08
+  demotion_note: |
+    2026-06-08 (deliver, pre-pilot smoke Findings #1+#3): DEMOTED from
+    tier_1_target to tier_2_neighbor / regression-guard. The isolated re-run
+    showed the baseline bot ALREADY handles this gracefully via the
+    AGENT_VISIBLE get_customer_context tool: get_customer_context(AD-9999)
+    returns no listing, the bot asks the user to confirm the ad_id, then
+    get_customer_context(AD-2002) resolves and the bot grounds (UC-A,
+    containment=resolved, outcome=1.0). A case the baseline already passes is
+    not a valid pilot optimization target. Retained as a regression guard for
+    graceful failed-lookup degradation. If a sharper failed-lookup failure is
+    needed, design a new case. NOTE: `lookup_listing_or_ad` is RUNTIME_ONLY
+    (not callable by the agent); `customer_context_status` therefore stays
+    `lookup_skipped` and is OBSERVATION-ONLY — the real signal is the
+    get_customer_context call sequence + graceful framing.
   failure_shape: |
-    Form has ad_id (AD-9999, intentionally invalid for test
-    fixture). Pre-chat auto-trigger calls get_customer_context
-    which returns a lookup_failed state (listing not found).
-    Bot today (without OBS-S1 procedure) may ignore the
-    failure and proceed with search_knowledge as if the
-    listing were loaded, producing a generic FAQ answer
-    detached from the user's actual situation.
+    Form has ad_id AD-9999 (intentionally non-resolving — absent from all mock
+    fixtures). A regressed bot could answer with a generic FAQ as if the
+    listing were known, or fabricate listing details, instead of consulting
+    get_customer_context, recognising the empty result, and degrading
+    gracefully (ask for a correct ad_id → get_customer_context(AD-2002)).
   layers_involved: |
-    prompt_projection (customer_context_status: lookup_failed
-    is projected as observable but not bound to procedure);
-    semantic_planner (LLM does not gracefully degrade when
-    lookup state is failed)
+    semantic_planner (graceful degradation when the entity lookup returns no
+    listing); prompt_projection (the empty get_customer_context result is
+    observable)
   related_dimensions: [D1, D6]
   related_r_items:
-    - OBS-S1 (entity-context verification including degradation
-      path)
-  tier: tier_1_target
+    - OBS-S1 (entity-context verification including degradation path)
+  tier: tier_2_neighbor
 
 closure_criterion: |
-  Bot recognises customer_context_status: lookup_failed and
-  gracefully degrades.
+  Bot consults get_customer_context(AD-9999), recognises the listing was not
+  found, and degrades gracefully (regression-guard: the baseline already does
+  this).
 
   PASS conditions (one of):
-    (a) Bot tells the user the listing lookup failed and asks
-        them to confirm the ad_id (correct user-friendly
-        framing);
-    (b) Bot tells the user the lookup failed and offers
-        generic guidance with explicit acknowledgement that
-        the answer may not match their specific situation;
-    (c) Bot escalates with reason=user_requested or
-        reason=lookup_failed (degradation path; preferred
-        over silent generic answer).
+    (a) Bot tells the user the listing could not be found and asks them to
+        confirm the ad_id, then on a corrected id consults
+        get_customer_context(AD-2002) and grounds;
+    (b) Bot tells the user the lookup failed and offers generic guidance with
+        explicit acknowledgement that it may not match their specific situation;
+    (c) Bot escalates with reason=user_requested or a degradation reason
+        (preferred over a silent generic answer).
 
-  FAIL conditions:
-    (d) Bot answers with a generic FAQ article as if the
-        listing were loaded — the user has no way to know
-        the lookup failed and may act on wrong info;
-    (e) Bot pretends to know listing details ("your ad in
-        category X is …") that were never loaded — grounding
-        floor violation;
-    (f) Bot escalates with a misleading reason (e.g.
-        intake_complete_for_uc_h on a UC-A case).
+  FAIL conditions (regression):
+    (d) Bot answers with a generic FAQ article as if the listing were loaded;
+    (e) Bot fabricates listing details that were never retrieved (grounding
+        floor violation);
+    (f) Bot escalates with a misleading reason (e.g. intake_complete_for_uc_h
+        on a UC-A case).
+
+  Observation (not a gate): `customer_context_status` reads `lookup_skipped`
+  (RUNTIME_ONLY lookup tool the agent cannot call) — see demotion_note.
 
 form_context:
   first_name: Casey
@@ -75,13 +84,14 @@ persona:
     - "OK thanks, that helps."
   hidden_facts:
     - fact: "User's real ad_id is AD-2002 (active listing).
-        AD-9999 does not exist in any test fixture."
+        AD-9999 does not resolve via get_customer_context
+        (absent from all fixtures)."
       disclose_when: if the bot tells the user the lookup
         failed and asks to confirm the ad_id
   will_request_human_if: |
-    the bot fabricates listing details that were not loaded;
+    the bot fabricates listing details that were not retrieved;
     or the bot proceeds with generic FAQ without acknowledging
-    the lookup failure
+    the failed lookup
 
 expected:
   outcome_class: either
@@ -91,17 +101,16 @@ expected:
   allow_bot_resolution: 'partial'
   acceptable_outcomes: [resolve, escalate]
   bot_handling_pattern: |
-    Turn 1: bot reads customer_context_status: lookup_failed.
-    Bot tells the user the listing AD-9999 could not be
-    found and asks to confirm the ad_id.
+    Turn 1: bot consults get_customer_context(AD-9999), which returns no
+    listing. Bot tells the user the listing could not be found and asks to
+    confirm the ad_id.
 
-    Turn 2: user provides AD-2002. Bot calls get_customer_context
-    with the correct ad_id, retrieves the listing, and
-    answers with grounded reference.
+    Turn 2: user provides AD-2002. Bot calls get_customer_context(AD-2002),
+    retrieves the listing, and answers with grounded reference.
 
-    Turn 3: bot confirms resolution. OR (alternate path) bot
-    escalates if the user cannot provide a corrected ad_id
-    after one clarifying turn.
+    Turn 3: bot confirms resolution. OR (alternate path) bot escalates
+    gracefully if the user cannot provide a corrected ad_id after one
+    clarifying turn.
   escalation_trigger: null
   risk_level: low
   expected_tool_sequence:

@@ -493,13 +493,13 @@ that do **not** resolve through the eval harness's `MockGumtreeApiService`.
 Substituted to existing `server/src/main/resources/mock/` fixtures while
 copying (NO new server fixture authored):
 
-| case_id | placeholder → fixture | form email | slot state forced |
-|---|---|---|---|
-| `cs_uc_a_no_ad_id_ad_specific` | turn-2 `AD-3001` → `AD-1001` (LIVE, `live_ad.json`) | `sam.no.ad.id@example.com` (kept) | `customer_context_status` `missing_ad_id` (T1, no form ad_id) → `loaded` (T2 on AD-1001) |
-| `cs_uc_a_generic_policy_question` | none (`ad_id: ''`) | `jordan.generic@example.com` (kept) | `missing_ad_id` (correct — generic question) |
-| `cs_uc_a_loaded_listing` | `AD-3050` → `AD-2002` (LIVE, Home & Garden > Furniture, `carol_listing.json`) | → `carol.blocked@example.com` (seller_email) | `customer_context_status=loaded`; `moderation_reason_available=false` (no review for AD-2002) |
-| `cs_uc_fp_loaded_moderation` | `AD-3060` → `AD-2001` (REMOVED, `alice_removed_prohibited.json`); `IMAGE_QUALITY` → `PROHIBITED_ITEM` (`moderation_reviews/alice_prohibited_item.json`) | → `alice.removed@example.com` (seller_email) | `moderation_reason_available=TRUE` + `loaded` |
-| `cs_uc_a_lookup_failed` | form `AD-9999` (kept, non-resolving) + turn-2 `AD-3070` → `AD-2002` (LIVE) | `casey.lookup.fails@example.com` (kept) | `lookup_failed` (T1 on AD-9999) → `loaded` (T2 on AD-2002) |
+| case_id | placeholder → fixture | form email | tier | AGENT_VISIBLE signal (customer_context_status is observation-only) |
+|---|---|---|---|---|
+| `cs_uc_a_no_ad_id_ad_specific` | turn-2 `AD-3001` → `AD-1001` (LIVE, `live_ad.json`) | `sam.no.ad.id@example.com` (kept) | Tier-1 target | T1 `customer_context_status=missing_ad_id` (no form ad_id); the agent should elicit the ad_id then verify via `get_customer_context(AD-1001)` + ground |
+| `cs_uc_a_generic_policy_question` | none (`ad_id: ''`) | `jordan.generic@example.com` (kept) | Tier-1 negative-control | FAQ-resolve via `search_knowledge` (ad go-live/visibility), **no `get_customer_context`, no ad_id elicitation, no escalation** — recalibrated §5.6 gate |
+| `cs_uc_a_loaded_listing` | `AD-3050` → `AD-2002` (LIVE, Home & Garden > Furniture, `carol_listing.json`) | → `carol.blocked@example.com` (seller_email) | Tier-1 target | agent consults `get_customer_context(AD-2002)` + grounds in listing data; `moderation_reason_available=false` (no review for AD-2002) |
+| `cs_uc_fp_loaded_moderation` | `AD-3060` → `AD-2001` (REMOVED, `alice_removed_prohibited.json`); `IMAGE_QUALITY` → `PROHIBITED_ITEM` (`moderation_reviews/alice_prohibited_item.json`) | → `alice.removed@example.com` (seller_email) | Tier-2 neighbor | **`moderation_reason_available=TRUE`** (pre-chat auto-load via `get_customer_context` on REMOVED AD-2001) — the case's signal; agent grounds in the moderation reason |
+| `cs_uc_a_lookup_failed` | form `AD-9999` (kept, non-resolving) + turn-2 `AD-2002` (LIVE) | `casey.lookup.fails@example.com` (kept) | **Tier-2 neighbor (DEMOTED)** | agent consults `get_customer_context(AD-9999)`→empty→asks→`get_customer_context(AD-2002)`; baseline already handles this — regression guard, not a target |
 
 Spot-checked: `AD-1001`/`AD-2001`/`AD-2002` each resolve to exactly one
 listing fixture; `AD-9999` has no fixture in `mock/` (intended); only
@@ -509,6 +509,63 @@ status=LIVE / Home & Garden > Furniture; `cs_uc_fp_loaded_moderation`
 hidden_fact + bot_handling_pattern → `PROHIBITED_ITEM` (fixture
 `reason_display`). Alice's `AD-2001` fixture is NOT altered (shared
 read-only by `alice_uc_a_uc_h_misclass` + `cs_uc_fp_loaded_moderation`).
+
+### Pre-pilot smoke corrections (2026-06-08, deliver — Findings #1/#2/#3)
+
+The pre-pilot §5.9 smoke (n=1, then an isolated re-run) surfaced eval-spec
+issues that were patched before the `--n 9` re-bless. **No Part A
+projection-code change** (per human direction — `customer_context_status`
+stays the explicit-lookup-path diagnostic).
+
+- **Finding #3 (root) — tool visibility: `expected_tool_sequence` must only
+  contain AGENT_VISIBLE tools.** `lookup_listing_or_ad` and
+  `get_moderation_review_context` are **RUNTIME_ONLY** (`tool-policy.yaml`
+  `type: RUNTIME_ONLY`; absent from the LLM tool schema) — the agent can
+  never call them. The agent's entity-verification tool is the AGENT_VISIBLE
+  composite **`get_customer_context`** (which calls `getListingByAdId`
+  directly, without emitting a `lookup_listing_or_ad` ToolEvent). Therefore
+  `customer_context_status` (computed by
+  `ContextProjectionBuilder.computeCustomerContextStatus` from the
+  RUNTIME_ONLY `lookup_listing_or_ad` event) stays `lookup_skipped` during
+  the agent's normal flow and is **OBSERVATION-ONLY**, never a pass/fail
+  signal. (An interim "fix" had wrongly put `lookup_listing_or_ad` into
+  `expected_tool_sequence` for `cs_uc_a_loaded_listing` /
+  `cs_uc_a_lookup_failed`; reverted to `get_customer_context`.) Lesson:
+  the CaseSpec tool-name lint must also check **visibility** (AGENT_VISIBLE),
+  not just registration in `tool-policy.yaml` — see OQ-S86b.4.
+- **Finding #1 — re-orient to the AGENT_VISIBLE path.** `cs_uc_a_loaded_listing`
+  now keys on `get_customer_context(AD-2002)` + grounding in listing data;
+  `cs_uc_fp_loaded_moderation` is pinned on `moderation_reason_available=true`
+  (auto-loaded). Both treat `customer_context_status` as observation-only.
+  `cs_uc_a_no_ad_id_ad_specific` was already correct (`get_customer_context`
+  after eliciting the ad_id).
+- **Finding #1b — `cs_uc_a_lookup_failed` DEMOTED** to `tier_2_neighbor`: the
+  isolated re-run showed the baseline already handles it gracefully via
+  `get_customer_context(AD-9999)`→ask →`get_customer_context(AD-2002)`
+  (resolved, outcome=1.0). A baseline-passing case is not a valid pilot
+  target; kept as a graceful-degradation regression guard.
+- **Finding #2 — anti-误杀 control aligned (§5.6); gate corrected 2026-06-08.**
+  Question re-pointed to a generic ad go-live/visibility question covered by
+  "Where is my Ad?" (`ka44J000000gKqtQAE`). The anti-误杀 floor is L1-enforced
+  by adding **`get_customer_context`** to `forbidden_tools` (alongside
+  `request_handover`) so an over-correction trips `no_forbidden_tools` directly.
+  `correct_outcome` STAYS in `outcome_checks`: it is always-mandatory in the
+  composite scorer (`_ALWAYS_MANDATORY_L2`) and CANNOT be removed via the
+  CaseSpec — a removal fail-closes as `L2_GATE_MISSING:correct_outcome`. That
+  removal is what reddened the pre-pilot re-smoke (run `20260608-041755`), where
+  the bot in fact reached `containment_outcome=resolved` with `correct_uc=1.0`
+  and would have PASSED had `correct_outcome` stayed listed (`tool_sequence_match`
+  is advisory and never gates). Corrected: `correct_outcome` restored + the
+  persona gains one confirmation turn (`max_turns` 4→5) so the bot reliably
+  retries `record_outcome` after a premature-record rejection (OQ-S86b.3). Gate:
+  `correct_uc` + `correct_outcome` + `no_forbidden_tools` + `turn_efficiency`,
+  with `tool_sequence_match` advisory + the `closure_criterion` human review
+  (FAQ-resolve, no ad_id elicitation, no entity lookup, goal_achieved).
+- **OQs surfaced:** OQ-S86b.3 (record_outcome-premature → empty containment
+  measurement artifact; eval-framework follow-up); OQ-S86b.4 (CaseSpec
+  tool-visibility lint — expected_tool_sequence must be AGENT_VISIBLE-only);
+  `customer_context_status` observation-only status documented for the
+  S-Y2 pilot cue design.
 
 ### Schema compile + tool-name lint (dry; no real-LLM run)
 

@@ -122,3 +122,53 @@ Expected re-bless signal (forensic, for the Part C.1 reviewer):
 Tiering is finalized by deliver-agent + human at the §5.6 review (the proposed
 Tier-1/Tier-2 roles are recorded in `_manifest.md`; the human gates the final
 tiering).
+
+## §13 — Post-close pre-pilot-smoke corrections (2026-06-08, deliver)
+
+The §0 evidence table above is the as-delivered 086b record. The pre-pilot
+§5.9 smoke (n=1 bad_cases + anchor_outcome on the restarted backend) then
+surfaced several eval-spec issues, patched in the CaseSpecs + `_manifest.md`
+before the `--n 9` re-bless. No Part A projection code changed. These
+corrections SUPERSEDE the §0 "slot state" claims for the affected rows.
+
+- **Finding #3 (root) — tool visibility.** `lookup_listing_or_ad` +
+  `get_moderation_review_context` are **RUNTIME_ONLY** (`tool-policy.yaml`),
+  not in the LLM tool schema — the agent cannot call them. The agent's
+  entity-verification tool is the AGENT_VISIBLE composite `get_customer_context`
+  (calls `getListingByAdId` directly, no `lookup_listing_or_ad` event). So
+  `customer_context_status` (computed from the RUNTIME_ONLY event) stays
+  `lookup_skipped` in the agent flow and is **observation-only**, not a
+  pass/fail signal. An interim "fix" had wrongly placed `lookup_listing_or_ad`
+  in `expected_tool_sequence` — reverted to `get_customer_context`. Lesson:
+  the CaseSpec tool-name lint must also check **visibility** (OQ-S86b.4).
+- **Finding #1 — re-orient to AGENT_VISIBLE.** `cs_uc_a_loaded_listing` keys on
+  `get_customer_context(AD-2002)` + listing grounding; `cs_uc_fp_loaded_moderation`
+  on `moderation_reason_available=true`; `customer_context_status` observation-only.
+  Supersedes the §0 "slot state" claims for these rows.
+- **Finding #1b — `cs_uc_a_lookup_failed` DEMOTED** to `tier_2_neighbor`: the
+  isolated re-run showed the baseline already handles it via
+  `get_customer_context(AD-9999)`→ask→`get_customer_context(AD-2002)` (resolved,
+  outcome=1.0). Not a valid pilot target; kept as a regression guard.
+- **Finding #2 — anti-误杀 control aligned (§5.6); gate corrected 2026-06-08.**
+  Re-pointed to a generic ad go-live/visibility question covered by "Where is my
+  Ad?" (`ka44J000000gKqtQAE`); `get_customer_context` added to `forbidden_tools`
+  so an over-correction trips `no_forbidden_tools` (the L1 anti-误杀 floor).
+  `correct_outcome` STAYS in `outcome_checks`: it is always-mandatory in the
+  composite scorer (`_ALWAYS_MANDATORY_L2`) and cannot be removed via the
+  CaseSpec — a removal fail-closes as `L2_GATE_MISSING:correct_outcome` (this is
+  what reddened re-smoke run `20260608-041755`, where the bot in fact reached
+  `containment_outcome=resolved` and would have PASSED had the check stayed
+  listed; `tool_sequence_match` is advisory and never gates). Corrected:
+  `correct_outcome` restored + persona given one confirmation turn (`max_turns`
+  4→5) so the goal_achieved terminal reliably stamps `resolved` (CS1
+  `isResolvedSuccessTerminal`). Verified single-case run `20260608-052008`:
+  `case_passed=True`, `correct_outcome=resolve` (1.0), `correct_uc=UC-A`, FAQ
+  path, no `get_customer_context`/`request_handover`, 4 turns, goal_achieved.
+  Not a widen.
+
+All 17 specs re-confirmed schema-loading after the patches. Re-smoke gates the
+patches against the updated GO conditions (safety floor CLEAN; control passes
+under the recalibrated gate; remaining Tier-1 targets fail for intended CS4
+reasons; demoted `lookup_failed` non-blocking; `get_customer_context` path +
+`moderation_reason_available` visible in traces; no TIMEOUT / contract-warnings
+/ LLM-errors) before the `--n 9` is authorized.
