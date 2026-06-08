@@ -10,6 +10,7 @@ tools_required:
 required_context_keys:
   - form_context
   - candidate_use_cases
+  - candidate_use_cases_named
 max_tool_steps: 3
 allow_interim_message: false
 valid_terminal_outcomes:
