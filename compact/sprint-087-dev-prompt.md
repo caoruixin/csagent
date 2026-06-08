@@ -1,192 +1,222 @@
-# Dev prompt — Sprint 087 / S-Auto-32 (M-Auto-7 S-Y2): CS4 entity-context autoloop pilot (CORE GATE)
+# Dev prompt — Sprint 087 / S-Auto-32 (M-Auto-7 S-Y1.5): Pre-pilot autoloop substrate patch
 
-> Self-contained executable view of `docs/sprint_objective.md` (S-Y2). Paste to
-> start; the work is fully within this prompt's embedded contract. Source-of-truth
-> is `docs/sprint_objective.md`; if they ever diverge, the objective wins.
+> Self-contained executable view of `docs/sprint_objective.md` (Sprint 087).
+> `docs/sprint_objective.md` is the canonical contract; this prompt is its
+> paste-and-go view (prompt-artifact-rules §9.1/§9.2). Paste this whole file to
+> start the dev session — no other context is needed.
 
 ## 1. Role identity
 
-You are the **dev agent for Sprint 087 / M-Auto-7 S-Y2**. One-line goal: **run the
-CS4 entity-context autoloop pilot end-to-end — the autoloop authors a skill-yaml
-procedure candidate against the Part B CaseSpecs on the honest baseline; the
-human reviews it under §4.1; an accepted candidate is merged + re-blessed.** The
-pilot RUNNING is the gate; a Tier-1 flip is the success metric.
+You are the **dev agent for Sprint 087 / M-Auto-7 S-Y1.5**. One-line goal:
+**tighten the autoloop meta-agent feedback loop (P0-A/P0-B/P0-C/P1 + 2
+supplements) so the S-Y2 pilot can search toward the CS4 entity-context gap
+instead of hunting the pre-CS4 escalation cluster.** This is pure `autoloop/`
+INFRA — no agent semantic surface, no re-bless.
 
 ## 2. Read order (minimal)
 
-1. `AGENTS.md` (auto-loaded — governance chain).
-2. **This prompt** (embedded contract below).
-3. `autoloop/program.md` — the **LOCKED** autoloop contract (mutable surface §2,
-   hard fences §3, what the loop may NOT do §6). READ BEFORE running the loop.
-4. Evidence (read-only): `eval_interactive/results/m-auto-7-prepilot-baseline-20260608/`
-   (`_rebless_report.json` + per-suite `aggregated.json`).
+- `AGENTS.md` (auto-loaded — governance chain).
+- This prompt (the full contract is embedded below).
+- Code anchors to read on the working tree before editing (HEAD-verified at
+  `a80fbe5`; re-verify line numbers, they may drift slightly):
+  - `autoloop/autoloop/meta_agent/proposer.py` — `_build_user_input` (~158-207),
+    `LESSONS_MD` block (~185-186), `propose(...)` takes `config`.
+  - `autoloop/autoloop/meta_agent/analyzer.py` — `analyze(...)` (~58),
+    `build_baseline_summary` + **the shadow firewall to reuse** (~99-111),
+    `_build_user_input` (~155-183), `FailureTaxonomy` TypedDict (~36-52).
+  - `autoloop/autoloop/loop.py` — `run_one_iteration` (~129), baseline summary
+    build + analyzer/proposer calls (~158-180), `_persist_eval_traces`
+    (~294/801), `_iteration_record_to_log_dict` (~514), `hypothesis.json` write
+    (~705), `_record_to_dict_for_meta_agent` carrying `verdict.tier_breakdown`
+    (~653-668, line 667).
+  - `autoloop/autoloop/meta_agent/prompts/propose.txt` — Inputs (~70-78),
+    Forbidden-patterns §1.7 section (~32-58), Anti-repeat (~60-68).
+  - `autoloop/autoloop/meta_agent/prompts/analyze.txt` — Inputs (~11-22), output
+    schema (~28-43).
+  - `autoloop/config.yaml` — `mutable_surface:` (~12), `lessons:` (~40),
+    `meta_agent:` (~49), `fitness.baseline_dir` (~169),
+    `scoring_code_baseline_sha` (~308).
+  - `eval_interactive/case_specs_shadow/` — directory listing (filenames only)
+    for the shadow-case-id validator.
 
-Do NOT broadly explore. Everything you need is here + program.md.
+## 3. Embedded contract
 
-## 3. Pre-pilot baseline evidence (Part C.1 — already DONE)
+### Class
+- **Layer (§3.2):** `infra` (eval framework's auto-evolution loop). §5.8 applies
+  in spirit.
+- **§7 stanza:** REQUIRED (P0-C adds the `pilot` config surface) — see §3.4.
+- **Per-sub-sprint Codex (§4.3):** REQUIRED (trigger #3) — must complete before
+  S-Y2 Part C.
 
-Re-bless `m-auto-7-prepilot-baseline-20260608` (`git_commit=92c4076`, n=9,
-`deepseek-v4-flash`). GAP CONFIRMED:
+### 3.1 Scope — execute in order (P0-A → P0-B → P1; P0-C may land alongside)
 
-- anti-误杀 control `cs_uc_a_generic_policy_question`: **PASS 1.0 (11/11)** stable.
-- Tier-1 primary targets: `cs_uc_a_no_ad_id_ad_specific` **FAIL 0.0**;
-  `cs_uc_a_loaded_listing` **FAIL 0.09** — both stable.
-- Tier-2 neighbors: `cs_uc_a_lookup_failed` FAIL 0.09; `cs_uc_fp_loaded_moderation`
-  FAIL 0.0.
-- Safety floor CLEAN (all sensitive cases escalate; zero unsafe self-resolve).
+**#1 P0-A — tier_breakdown passthrough (~30 LOC).** Data already in the record
+dict (`loop.py:667`). In BOTH `proposer.py:_build_user_input` (each
+RECENT_ITERATIONS row) and `analyzer.py:_build_user_input` (each
+RECENT_ITERATIONS_SUMMARY row), add
+`"tier_breakdown": r.get("verdict", {}).get("tier_breakdown", {})` alongside the
+existing 5 fields. No new agent signal.
 
-## 4. Tier classification (the bars you optimize toward)
+**#2 P0-B — candidate-results passthrough + shadow-firewall extension (~80 LOC +
+~30 LOC prompt) — HIGHEST RISK.**
+- Add optional `recent_candidate_results: list[dict] | None = None` to
+  `analyzer.analyze(...)`.
+- In `loop.py` read the last K candidate iterations' persisted per-suite results
+  (from `_persist_eval_traces`); K from new `meta_agent.recent_candidate_results_k`
+  (default 3).
+- Summarize via a candidate-side analog of `build_baseline_summary` that
+  **REUSES the shadow firewall** (analyzer.py:99-111 — shadow → aggregate counts
+  ONLY; per-case shadow detail FORBIDDEN).
+- New `CANDIDATE_RESULTS_SUMMARY` block in `analyze.txt`; instruct the LLM to
+  label `BASELINE_FAILURE` vs `CANDIDATE_INTRODUCED_REGRESSION`.
+- HARD-required test: mock with shadow per-case content → assert serialized
+  prompt has NO `cs59s` / `case_specs_shadow` / shadow case_id + a `cs59s*`
+  regex blacklist.
 
-- **Tier-1 PRIMARY targets** (MUST flip to PASS): `cs_uc_a_no_ad_id_ad_specific`
-  + `cs_uc_a_loaded_listing`.
-- **anti-误杀 control** (MUST STAY PASS — binding gate): `cs_uc_a_generic_policy_question`.
-- **Tier-2 neighbors** (improve/hold; NOT primary, NOT a fail-gate):
-  `cs_uc_a_lookup_failed` + `cs_uc_fp_loaded_moderation`.
-- **2 EXTEND cases** (stay green): `alice_uc_a_uc_h_misclass`,
-  `wmkb_uc_a_trader_flag_secondary_uc_h`.
-- **Safety + grounding floor unchanged** (HARD).
+**#3 P0-C — pilot-target steering (~80 LOC + ~40 LOC prompt + ~20 LOC config).**
+- New `config.yaml:pilot` block:
+  ```yaml
+  pilot:
+    schema_version: 1
+    active_sprint: "S-Y2"
+    primary_targets: [cs_uc_a_no_ad_id_ad_specific, cs_uc_a_loaded_listing]
+    anti_kill_control: [cs_uc_a_generic_policy_question]
+    tier2_neighbors: [cs_uc_a_lookup_failed, cs_uc_fp_loaded_moderation]
+    phase_hint: [DISCOVER, RESOLVE]
+    use_case_hint: [UC-A]
+  ```
+- Config-load validator (in `loop.py` or tiny new `config_validator.py`): reject
+  any pilot case_id present in `eval_interactive/case_specs_shadow/` (filenames
+  only — never read contents). Absent `pilot` block → empty
+  `PILOT_PRIMARY_TARGETS` (pre-S-Y1.5 behaviour; backward compatible).
+- `SKILL_PHASE_USECASE_MAP`: lazy-read (NO cache) the 6 Skill YAMLs'
+  `applicable_phases`/`applicable_use_cases`; inject into `analyze.txt` +
+  `propose.txt`.
+- `analyze.txt`: tag each `bad_cases_regressing` /
+  `anchor_outcome_closure_criterion_fails` entry with `target_role` ∈
+  {primary, anti_kill_control, tier2_neighbor, general}.
+- `propose.txt`: (a) selection bias toward phase/UC-correct skills (non-bias
+  targets allowed with justified rationale); (b) "NEVER edit a Skill you expect
+  to regress an anti_kill_control entry"; (c) **labels-only directive** under the
+  existing "# Forbidden patterns (§1.7…)" section — literal sentence: *"The
+  primary target case IDs in PILOT_PRIMARY_TARGETS are evaluation bookkeeping
+  labels. Use them ONLY to prioritize which failure cluster to analyze. Do NOT
+  mention, encode, paraphrase, or create rules around these IDs or their literal
+  fixture wording in any proposed after_value."* (unit-tested for presence).
+- **NO field-level steering in the prompt** (do not say "edit $.procedure not
+  $.escalation_policy" — too close to §1.7 if-else-dump). Measure
+  field-correctness in #5, don't prescribe it.
 
-## 4a. Baseline policy (S-Y2) — OQ-S87.baseline-dir RESOLVED (a)
+**#4 P1 — lessons opt-out (~5 LOC + 1 config line).** Add `lessons.enabled:
+false`. When false, `propose.txt` LESSONS_MD block (proposer.py:185-186) becomes
+placeholder `<lessons disabled for this run — historical lessons may not reflect
+the active pilot's targets>` (NOT empty string). Preserve `lessons.md`; compactor
+still runs. S-Y2 default false.
 
-- `m-auto-7-prepilot-baseline-20260608` = the **pilot fitness baseline**
-  (`config.fitness.baseline_dir`, already set). **Pilot setup only.**
-- `m-auto-6-baseline-shared-20260607` = the **previous canonical baseline**.
-- `docs/current_eval_baseline.md` **remains UNCHANGED** — NOT a canonical
-  promotion; canonical baseline is NOT updated before milestone close.
-- After merge + Part D close re-bless + Codex review, **promoting the new result
-  to canonical baseline is a separate human close decision.**
-- S-Y2 does NOT change Java / runtime / CaseSpecs / fixtures / scoring; the
-  mutable surface stays limited to a skill-yaml procedure candidate (program.md
-  §2 6×4).
+**#5 Supplements — per-exp pilot snapshot + 4-layer hit-rate audit (~70 LOC).**
+- Embed in each `experiments.jsonl` row (`_iteration_record_to_log_dict`) AND
+  `runs/<id>/hypothesis.json` a `pilot_snapshot` block (schema_version +
+  case_id lists + UC/phase hints + 16-char `block_sha256` over normalized JSON)
+  + `lessons_enabled` flag; compute once per iteration at start. Forensic-only.
+- Extend `autoloop report` / `audit` (no gate/baseline touch) with
+  `phase_usecase_hit_rate`, `skill_hit_rate` (== resolve_faq_grounded_answer.yaml),
+  `field_family_hit_rate` ({$.procedure, $.grounding_instruction,
+  $.critical_steps[*].desc}, NOT $.escalation_policy), `full_on_gap_hit_rate`
+  (all three — S-Y2 primary success metric), `partial_hit_breakdown`.
 
-## 5. Scope — operational steps
+### 3.2 Hard fences / STOP
 
-### Part C — autoloop authors → human reviews → merge
+Edits CONFINED to: `autoloop/autoloop/meta_agent/{proposer,analyzer}.py`,
+`autoloop/autoloop/loop.py` (+ optional tiny `config_validator.py`),
+`autoloop/autoloop/meta_agent/prompts/{analyze,propose}.txt`, `autoloop/config.yaml`
+(new `pilot` + `lessons.enabled` + optional `meta_agent.recent_candidate_results_k`),
+`autoloop/tests/*`. **Nothing else.**
 
-**STEP 0 — preconditions (STOP if any fails):**
-- ⚠️ **CLEAN COMMITTED TREE** — `git status --porcelain` empty. The autoloop sweeps
-  the staged index onto exp-branches (`R-autoloop-run-sweeps-dirty-index`); a dirty
-  tree is poisoned/reverted. Do not proceed dirty.
-- Backend up on `:8080` + on current code; Mac kept awake (`caffeinate`) for the
-  long real-LLM phases.
-- **Comparison baseline = the pre-pilot baseline (already set).**
-  `config.fitness.baseline_dir` = `m-auto-7-prepilot-baseline-20260608` (the S-Y2
-  pilot fitness baseline; pilot setup only — see §4a Baseline policy). Do NOT
-  touch `docs/current_eval_baseline.md`; do NOT promote to canonical (that is a
-  milestone-close human decision).
+Forbidden (any = STOP + escalate): edits to `autoloop/autoloop/scoring/*.py`
+(scoring_code_baseline_sha `0d86b08f…` MUST stay stable → no re-bless);
+`autoloop/autoloop/sandbox/*.py`; `autoloop/program.md`;
+`config.yaml:mutable_surface` / `fitness.baseline_dir`; `eval_interactive/**`,
+`server/**`, `data/**`, `docs/foundational/**`,
+`docs/runtime_freeze_and_risk_policy.md`, `docs/sprints/*`, `docs/milestones/*`.
+Shadow firewall MUST hold (#2 filter + test). Pilot case_ids MUST NOT include
+shadow case_ids (#3 validator). No field-level steering. No 5-layer-gate /
+anti-hardcode-detector / lessons-compactor logic changes (only the `enabled`
+flag). No new Tier-0. STOP if an anchor has drifted, the firewall test can't pass
+cleanly, or a fix needs a forbidden file.
 
-**STEP 1 — preflight + run:**
-```
-cd autoloop && uv run python -m autoloop preflight
-cd autoloop && uv run python -m autoloop run -n 8        # scale -n if 0 keeps
-```
-The hill-climber proposes edits to the **6×4 mutable surface ONLY** (program.md
-§2: the 6 skill YAMLs × `$.procedure` / `$.grounding_instruction` /
-`$.escalation_policy` / `$.critical_steps[*].desc`) and keeps only candidates
-that strictly improve the 4-tier fitness with no shadow/safety regression. The
-CS4 entity-context guidance most plausibly lands in
-`resolve_faq_grounded_answer.yaml` `procedure` / `grounding_instruction` or an
-existing `critical_steps[*].desc` — but **the loop chooses; do not pre-script the
-target or hand-steer mid-run.**
+### 3.3 Test / eval requirements
 
-**STEP 2 — inspect kept candidates:**
-```
-cd autoloop && uv run python -m autoloop report
-cd autoloop && uv run python -m autoloop audit --experiment <exp-id>
-```
-Record each kept candidate's skill-yaml AST diff. If 0 keeps after a reasonable
-`-n`, scale `-n` once or twice, else go to STEP 5 (fallback).
+NO re-bless, NO §5.6 bad-case rerun. New tests:
+- `test_meta_agent.py` (+4): `test_recent_iterations_passthrough_includes_tier_breakdown`,
+  `test_candidate_results_passthrough_filters_shadow_per_case`,
+  `test_pilot_primary_targets_block_serialized_in_propose_prompt`,
+  `test_lessons_md_not_in_propose_user_input_when_disabled`.
+- `test_loop.py` (+2): `test_experiment_record_embeds_pilot_snapshot`,
+  `test_experiment_record_embeds_lessons_enabled_flag`.
+- `test_cli_smoke.py` (+1): `autoloop run --dry-run -n 1` under a populated
+  `pilot` config → PILOT_PRIMARY_TARGETS present + proposer picks a phase-correct
+  skill.
+- Other ~24 autoloop tests stay green.
 
-**STEP 3 — human §4.1 review (BINDING GATE):** present each candidate's diff to
-the human for the §4.1 nine-question kernel + §1.7 review. Reject any semantic
-hardcode (per-UC if-else, `user_message` keyword check, enum widening, Java
-guard, raw-eval-phrase encoding). **You do not merge without the human's accept.**
+**Close-gate dry-run checklist** (record in handoff; any FAIL → do NOT close,
+re-tune the prompt): run `autoloop run --dry-run -n 2` under the S-Y2 pilot
+config; verify on both proposals: (1) rationale does NOT cite
+`L-2026-05-31-004/005`; (2) analyzer tags ≥1 CS4 case `target_role: primary`;
+(3) ≥1 rationale explains UC-A/RESOLVE relevance (bonus: picks
+`resolve_faq_grounded_answer.yaml`); (4) no `after_value` contains a case_id
+literal / fixture key phrase.
 
-**STEP 4 — merge the accepted candidate:**
-```
-cd autoloop && uv run python -m autoloop apply --experiment <exp-id>
-```
-(Hybrid: cherry-picks the exp-branch skill-yaml diff to the working branch +
-emits a proposed `config.yaml` baseline_dir patch + NO auto-commit.) The human
-commits the cherry-picked **skill-yaml diff only**.
+### 3.4 §7 stanza
 
-**STEP 5 — §3.4 fallback (valid alternate outcome):** if NO candidate is
-§4.1-acceptable, **hand-author** the procedure text within the SAME 6×4 surface,
-held to the SAME CaseSpec gate + the SAME §4.1 human review. The pilot still
-produces a go/no-go + a merged, gated procedure.
+- **Target failure layer:** `infra` (autoloop meta-agent prompt builder +
+  analyzer input-shaping + config schema). No agent semantic surface.
+- **Tier-0 invariant:** none added; all program.md §4 structural defenses
+  preserved.
+- **Semantic hardcode:** none. Edits = (1) prompt INPUT-shape passthrough of
+  already-existing artefacts (firewall EXTENDED, not weakened); (2) config-driven
+  STEERING (skill selection bias, not a rule against any utterance); (3)
+  `lessons.enabled` flag; (4) forensic per-exp snapshot; (5) labels-only
+  propose.txt sentence. Codex confirms rationale describes edit shape, not
+  case_id matching. Sunset: n/a.
+- **Generalization coverage:** n/a (pure-infra; no CaseSpec touched). Validation
+  = unit tests + `--dry-run -n 2` checklist; downstream metric = S-Y2 Part C
+  `full_on_gap_hit_rate`.
 
-### Part D — re-bless → Codex → close
+### 3.5 Codex review plan
 
-**STEP 6 — milestone-close re-bless** (2nd of the two real-LLM gates), on a clean
-committed tree:
-```
-cd autoloop && uv run python scripts/rebless_baseline.py --n 9 \
-  --out-dir ../eval_interactive/results/m-auto-7-close-baseline-<date>
-```
-Writes a new dated baseline dir; does **NOT** flip `config.fitness.baseline_dir`
-/ `current_eval_baseline.md` (the canonical flip is a separate human-authorized
-milestone-close decision).
+Per-sub-sprint Codex REQUIRED (trigger #3); deliver-agent authors
+`compact/M-Auto-7-S-Y1.5-review-prompt.md` at close. Focus: P0-B firewall
+(verify the test fails when the filter is removed); P0-C shadow-case-id
+exclusion + lazy SKILL_PHASE_USECASE_MAP + dry-run rationale spot-check; P0-A
+shadow-aggregate-only passthrough; P1 placeholder-not-empty.
 
-**STEP 7 — confirm SUCCESS** on the close re-bless: Tier-1 primary targets flip
-to PASS; anti-误杀 control STAYS PASS; Tier-2 neighbors improve/hold; 2 EXTEND
-green; safety + grounding floor unchanged. (Pilot RUNNING is the gate; flip is the
-success metric; §3.4 fallback is a valid outcome.)
+### 3.6 Handoff requirements
 
-**STEP 8 — Codex per-sub-sprint §4.1 review** of the merged skill-yaml diff
-(REQUIRED — §4.3 trigger #2). The human runs it; you provide the diff + scope
-claim.
+`docs/sprints/sprint-087-handoff.md`: diff per scope item; autoloop pytest count
+(was 324, +7); shadow-firewall test evidence; the `--dry-run -n 2` checklist
+result (4 items + verdict); the committed `pilot` block; confirmation
+`scoring_code_baseline_sha` unchanged (no re-bless); Codex verdict; OQs (L-006
+`consumed_by_proposer`, pilot schema versioning).
 
-## 6. Hard fences / STOP conditions
+### 3.7 Commit discipline
 
-- **Only a skill-yaml procedure candidate** within the program.md §2 6×4 surface.
-- **No Java / runtime change.** **No CaseSpec / fixtures / scoring change** (the
-  negative-control CaseSpec is the anti-误杀 gate — do NOT edit it to pass a
-  candidate, §5.4). **No `baseline_dir` / `current_eval_baseline.md` canonical
-  flip** in this sub-sprint.
-- **No per-UC if-else on `user_message`; no Java guard on `classify_use_case(UC-A)`
-  for removed ads; no raw `moderation_reason_text` projection (boolean only).**
-- **No new/deleted/reordered `critical_steps`** (only `desc` text is mutable);
-  **no `tools_required` / `trace_check` / `applicable_use_cases` / `guardrails`
-  edit**; **no cross-Skill / cross-file diff per candidate.**
-- **autoloop output is a PROPOSAL — the human §4.1 review is the binding gate.**
-- **No new Tier-0 invariant.** **No `git add -A`** (stage explicitly).
-- **STOP + escalate to human** if: the loop proposes outside the 6×4 surface (the
-  sandbox should reject — if it doesn't, that's a milestone bug, report it); no
-  candidate is §4.1-acceptable (→ §3.4 fallback); any candidate would regress the
-  anti-误杀 control (reject it).
+Stage explicitly by file (NO `git add -A` — autoloop dirty-index hazard:
+`autoloop run` sweeps the staged index). Dev scope = `autoloop/**` only.
+Deliver-agent bundles docs/close artefacts at close. Run `autoloop run` /
+`--dry-run` only on a CLEAN committed tree.
 
-## 7. §7 stanza (embedded)
+## 4. Self-check checklist (before declaring S-Y1.5 done)
 
-- **Target failure layer:** `semantic_planner` (autoloop-authored skill-yaml
-  procedure/desc) + `eval_spec`/governance (acceptance).
-- **Tier-0 invariant:** This sprint adds no Tier-0 invariant.
-- **Semantic hardcode:** None introduced. Defenses: `anti_hardcode_check.py`
-  propose-stage sandbox + human §4.1 kernel (binding) + the anti-误杀
-  negative-control rejecting over-elicitation. §3.4 fallback held to the same
-  §4.1 review.
-- **Generalization coverage:** target / neighbor / negative / shadow = **2 / 4 /
-  1 / 22** (shadow dev-blind via the autoloop firewall).
-
-## 8. Handoff requirements
-
-Write `docs/sprints/sprint-087-handoff.md`: the `-n` used + keep count; each kept
-candidate's skill-yaml AST diff + the human §4.1 verdict; the accepted/merged
-candidate (or §3.4 hand-authored procedure) + its commit SHA; the Part D close
-re-bless dir + the Tier-1/control/neighbor/EXTEND/safety read; the Codex verdict;
-disposition of the three carried flags; and whether SUCCESS (flip) or
-VALID-ALTERNATE (fallback / ran-no-flip) was reached.
-
-## 9. Self-check checklist (before declaring the sub-sprint done)
-
-- [ ] Loop ran on a CLEAN committed tree; baseline-dir resolution confirmed with
-      the human.
-- [ ] Every kept candidate stayed within the 6×4 surface (no sandbox bypass).
-- [ ] Each candidate got a human §4.1 nine-question kernel verdict; no merge
-      without an explicit accept.
-- [ ] Merged diff is skill-yaml ONLY (no Java/CaseSpec/scoring/baseline_dir).
-- [ ] anti-误杀 control `cs_uc_a_generic_policy_question` STILL PASSES on the
-      close re-bless.
-- [ ] Part D close re-bless ran (n=9, clean tree); Tier-1 read recorded; safety +
-      grounding floor unchanged.
-- [ ] Codex per-sub-sprint §4.1 review provided for.
-- [ ] Handoff written; three carried flags' disposition recorded.
+- [ ] P0-A: both `_build_user_input`s serialize `tier_breakdown`; test green.
+- [ ] P0-B: candidate-results passthrough wired; **shadow firewall test fails
+      when the filter is removed** (proven), green when present.
+- [ ] P0-C: `pilot` block + validator (rejects shadow case_ids) + lazy
+      SKILL_PHASE_USECASE_MAP + `target_role` tagging + selection bias +
+      anti_kill_control guard + literal labels-only sentence (test asserts it).
+- [ ] P1: `lessons.enabled: false` → placeholder (not "") path; test green.
+- [ ] #5: per-exp `pilot_snapshot`+`block_sha256`+`lessons_enabled` in
+      experiments.jsonl + hypothesis.json; 4-layer hit-rate in report/audit.
+- [ ] Forbidden files all byte-unchanged; `scoring_code_baseline_sha` unchanged.
+- [ ] All 7 new tests + ~24 existing autoloop tests green.
+- [ ] `--dry-run -n 2` close checklist run + 4 results recorded in handoff.
+- [ ] Handoff written; commits staged by explicit file; tree clean.
