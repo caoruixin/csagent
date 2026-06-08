@@ -649,7 +649,8 @@ M-Auto-7).
 
 | id | source | description | layer | status |
 |----|--------|-------------|-------|--------|
-| R-uc-a-entity-context-verify-procedure-via-autoloop | M-Auto-7 S-Y1 + S-Y2 (CS4; consolidates retired alias `OQ-M6.uc-fp-resolve-vs-escalate-boundary`) | Before answering an ad-specific question, verify entity context (lookup if identifiers exist, else ask) instead of generic FAQ; autoloop authors the skill-yaml procedure candidate against authored CaseSpecs. PRIMARY = OBS-S1 (UC-A/UC-FP/UC-H verify-entity-context procedure); SECONDARY = OBS-S2 (UC-A vs UC-FP boundary cue). Scope spans S-Y1 readiness (projection infra + executable CaseSpecs) + S-Y2 pilot (autoloop run + §4.1 review + merge + re-bless). Solution docs: `docs/solutions/2026-06-07-cs3-cs4-discover-stall-uc-fp-boundary-empty-trace-ux.md` §3 + `docs/solutions/2026-06-08-cs4-casespec-drafts-appendix.md` | `prompt_projection` (Part A) + `eval_spec` (Part B) + `semantic_planner` (Part C autoloop-authored) | S-Y1 readiness DEV-SIDE CLOSED (Sprint 086a `77b1712` projection slots Java `1383/1/0/2` + 086b `0b111fd` 5 NEW+2 EXTEND CaseSpecs, all 7 schema-compile) / **S-Y2 pilot scope ACTIVE (CORE GATE)** — next gate = pre-pilot baseline re-bless (pilot Part C.1); OQ-S86a.1 + OQ-086b.1/.2 → milestone-shared Codex |
+| R-uc-a-entity-context-verify-procedure-via-autoloop | M-Auto-7 S-Y1 + S-Y2 (CS4; consolidates retired alias `OQ-M6.uc-fp-resolve-vs-escalate-boundary`) | Before answering an ad-specific question, verify entity context (lookup if identifiers exist, else ask) instead of generic FAQ; autoloop authors the skill-yaml procedure candidate against authored CaseSpecs. PRIMARY = OBS-S1 (UC-A/UC-FP/UC-H verify-entity-context procedure); SECONDARY = OBS-S2 (UC-A vs UC-FP boundary cue). Scope spans S-Y1 readiness (projection infra + executable CaseSpecs) + S-Y2 pilot (autoloop run + §4.1 review + merge + re-bless). Solution docs: `docs/solutions/2026-06-07-cs3-cs4-discover-stall-uc-fp-boundary-empty-trace-ux.md` §3 + `docs/solutions/2026-06-08-cs4-casespec-drafts-appendix.md` | `prompt_projection` (Part A) + `eval_spec` (Part B) + `semantic_planner` (Part C autoloop-authored) | S-Y1 readiness DEV-SIDE CLOSED (Sprint 086a `77b1712` projection slots Java `1383/1/0/2` + 086b `0b111fd` 5 NEW+2 EXTEND CaseSpecs, all 7 schema-compile) / **S-Y2 pilot scope ACTIVE (CORE GATE)** — pre-pilot baseline re-bless DONE (Part C.1, `m-auto-7-prepilot-baseline-20260608`, gap confirmed); pre-pilot autoloop substrate patch S-Y1.5 (Sprint 087) inserted + dev+Codex CLOSED (see `R-autoloop-feedback-loop-thinness`); S-Y2 promoted as Sprint 088 / S-Auto-33 (contract active; Part C NOT yet started — human gate); OQ-S86a.1 + OQ-086b.1/.2 → milestone-shared Codex |
+| R-autoloop-feedback-loop-thinness | M-Auto-7 S-Y1.5 (Sprint 087 / S-Auto-32; surfaced 2026-06-09 by the autoloop mechanism audit after the S-Y2 run-1 tranche exp-66/67/68 = 0/3 on-gap, 2/3 phase-incorrect) | Autoloop meta-agent feedback loop too thin to steer toward the active pilot's targets: P0-A proposer/analyzer strip `verdict.tier_breakdown` (no feedback gradient); P0-B analyzer reads only `baseline_dir` (landscape never reflects candidate-introduced regressions); P0-C proposer has no concept of the pilot's PRIMARY TARGETS (hunts off-gap); P1 May-31 lessons (pre-CS4) steer at the wrong cluster. Fix = `config.yaml:pilot` block + tier_breakdown / candidate-results passthrough (shadow firewall EXTENDED) + `lessons.enabled` opt-out + per-exp pilot snapshot + 4-layer hit-rate audit. Solution doc: `docs/solutions/2026-06-08-autoloop-mechanism-audit-and-feedback-loop-tightening.md` (Option B) | `infra` (autoloop meta-agent prompt builder + config) | dev-side CLOSED + per-sub-sprint Codex PASS (Sprint 087; commit `43cd9cf` autoloop/** only; pytest 324→331; shadow-firewall test proven load-bearing; `scoring_code_baseline_sha` unchanged → NO re-bless; `--dry-run -n 2` checklist 4/4 PASS; Codex `APPROVE_S_Y1_5 / blocking_count=0`; 3 P3 NBOs + OQ-S87.1/.2/.3/.4 → milestone-shared Codex) |
 | R-controlkernel-default-resolved-on-close-anti误杀 | M-Auto-7 S-A (CS1) | `ControlKernel.java:575-579` Path B default-stamps `resolved` on phase=CLOSE without grounding (legacy D16.D, pre-M-Auto-6); gate the CLOSE-arm stamp through `isResolvedSuccessTerminal` (inline); lowers pass-rate honestly. Solution doc: `docs/solutions/2026-06-07-cs1-default-resolved-cs2-user-role-projection-gap.md` §3.1 | `infra` (measurement honesty) | dev-side closed / M-Auto-7 S-A (Sprint 084; 5 char-tests green, Java 1363/1/0/2; OQ-S84.1 3-file reconcile + OQ-S84.2 → milestone-shared Codex) |
 | R-discover-null-turn-counter-anti误杀 | M-Auto-7 S-X (CS3; split from retired alias `OQ-M6.empty-trace-and-session-start-flake`) | DISCOVER null-turn placeholder (`AgentRunLoopImpl.java:438-441`) counted by the R2.a clarification counter (`:442-457`) → premature budget force-escalate before the LLM gets a recovery turn. Root cause TRACE-CONFIRMED (session 33edc1eb): `ActionParser.java:70-72` substitutes the placeholder at parse time, so the R2.a counter sees a non-blank reply and counts it (proposal Option C3.A keyed on `userMsg.isBlank()` is INERT). Fix: structural provenance flag (`ParsedAction.userMessageSynthesised`) excludes synthesised placeholders from the counter + §1.3-soft DISCOVER cue + `user_message_synthesised` trace diagnostic (no content heuristic — keeps R2.a structural-only). Solution doc: `docs/solutions/2026-06-07-cs3-cs4-discover-stall-uc-fp-boundary-empty-trace-ux.md` §2 (mechanism corrected per trace) | `infra` (R2.a counter provenance) + `prompt_projection` (soft cue) | dev-side closed / M-Auto-7 S-X (Sprint 085; 6 tests green, Java 1373/1/0/2; OQ-S85.1 golden update + OQ-S85.2 §5.7 note → milestone-shared Codex) |
 | R-user-role-projection-slot-from-listing-ownership | M-Auto-7 S-B (CS2-original) | seller/buyer perspective slip; no `user_role` projection slot. Data-derived `ad_owner\|unknown` slot from form-email↔listing-`posted_by` match + soft cue. **Non-blocking back-half; NOT on the M-Auto-7 core acceptance bar; may carry to a follow-on.** Solution doc: `docs/solutions/2026-06-07-cs1-default-resolved-cs2-user-role-projection-gap.md` §3.2 | `prompt_projection` | active / M-Auto-7 S-B (non-blocking) |
@@ -671,6 +672,45 @@ S-Y1 (CS4 readiness) closed dev-side as two sequenced dev sessions: 086a (Part A
 - **OQ-S86a.1** — A4's conditional `resolve_faq_grounded_answer.yaml` declaration of `discover_disambiguation_signals` was DECLINED (violates the M5-S4 §3.H audit invariant guarded by `Sprint53SkillDeclarationGatingTest`; only `discover_triage` may declare it). Safe for the pilot: CS4 UC-FP routing happens at DISCOVER (where the slot already surfaces); RESOLVE moderation grounding is covered by the existing `consult-moderation-context-on-removal-explanation` critical step. If S-Y2 genuinely needs the slot in RESOLVE-FAQ, that is a deliberate audit revisit (update the audit doc + guard test), not Part A wiring. → S-Y2 / milestone-shared Codex.
 - **OQ-086b.1** — `cs_uc_a_lookup_failed` `escalation_trigger` set to `null` (the appendix's `lookup_failed_user_cannot_correct` is schema-invalid with `should_escalate: false` and not a canonical `EscalationTrigger` enum value). Intent preserved via `acceptable_outcomes: [resolve, escalate]` + closure_criterion (c); NOT a §5.4 widening (still pins `correct_uc`/`correct_outcome`/`tool_sequence_match`). Confirm `null` at the §5.6 tiering; a structured escalate pin would need `should_escalate: true` + a canonical enum value (e.g. `service_degraded`). → §5.6 / human.
 - **OQ-086b.2** — doc-hygiene: the appendix + 086b dev prompt cited the CaseSpec schema at `eval_interactive/eval_interactive/specs/schema.py`; the real path is `eval_interactive/eval_interactive/case_spec/schema.py` (loader `…/case_spec/loader.py`; outcome-check registry `…/scoring/outcome_checks.py`). Compile ran against the real path; the live S-Y1 contract B3 reference was corrected before archival. No effect on the authored cases.
+
+### Sprint 087 / S-Y1.5 (S-Auto-32) CLOSED dev-side + Codex (2026-06-09) — surfaced OQs + NBOs
+
+S-Y1.5 (pre-pilot autoloop substrate patch, INSERTED between S-Y1 and the
+S-Y2 CORE GATE after the S-Y2 run-1 validation tranche surfaced off-gap
+targeting) closed dev-side (commit `43cd9cf`, autoloop/** only, pytest
+324→331) + per-sub-sprint Codex `APPROVE_S_Y1_5 / blocking_count=0`. No
+re-bless (`scoring_code_baseline_sha` unchanged). Archives:
+`docs/sprints/sprint-087-{objective,handoff,codex-review}.md`. S-Y2 promoted
+as Sprint 088 / S-Auto-33 (contract active; Part C NOT started — human gate).
+
+- **OQ-S87.1** — L-006 (next lessons-compactor output at the K=10 boundary)
+  will be written to `lessons.md` while `lessons.enabled:false`, but the
+  proposer does NOT consume it. Open: when/whether to re-enable lessons
+  post-pilot, and whether lessons authored during a disabled window are
+  quarantined or trusted on re-enable. → S-Y2 / milestone-shared Codex.
+- **OQ-S87.2** — `pilot.schema_version:1` is recorded in every
+  `pilot_snapshot` but there is no version migration/validation yet. Open:
+  reject-unknown vs best-effort-read when the pilot schema evolves; whether
+  `validate_pilot_config` should hard-check the version. → milestone-shared Codex.
+- **OQ-S87.3 (= Codex NBO-2, P3 infra)** — P1 lessons opt-out is
+  PROPOSER-only; the analyzer still receives `LESSONS_MD`. The dominant
+  feedback vector was the proposer (run-1 cited L-005), but the analyzer could
+  carry pre-CS4 bias. Open: extend the opt-out to the analyzer? → watch in
+  S-Y2 Part C; milestone-shared Codex.
+- **OQ-S87.4** — `_read_recent_candidate_results` depends on per-iter
+  `eval-results.json` surviving on disk (applier cleanup + forensic retention
+  decide how many of the last K are readable). Open: confirm retention during
+  the S-Y2 Part C run so the analyzer's candidate landscape is non-empty.
+  → S-Y2 Part C.
+- **Codex NBO-1 (P3 infra)** — only one post-patch dry-run artifact (`exp-69`)
+  retained under `autoloop/results/runs/`; preserve both dry-run artifacts (or
+  attach captured prompts to the handoff) for future independent rationale
+  audits.
+- **Codex NBO-3 (P3 infra)** — the analyzer `summary` scrub pattern predates
+  the `cs_uc_a_*` pilot label shape and doesn't scrub it; not a blocker
+  (structured labels are intentional + the labels-only directive holds), but
+  future hardening could extend the defensive scrub if rationales start echoing
+  `cs_*` labels.
 
 ## 6. Closed index (relocated)
 

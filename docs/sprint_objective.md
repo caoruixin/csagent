@@ -1,12 +1,12 @@
 ---
-title: Sprint 087 / S-Auto-32 (M-Auto-7 S-Y2) — CS4 entity-context autoloop pilot (CORE GATE)
+title: Sprint 088 / S-Auto-33 (M-Auto-7 S-Y2) — CS4 entity-context autoloop pilot (CORE GATE)
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
-last_reviewed: 2026-06-08
+last_reviewed: 2026-06-09
 review_cadence: per sprint
-supersedes: docs/sprints/sprint-086-objective.md
+supersedes: docs/sprints/sprint-087-objective.md
 superseded_by: null
 notes: >
   The M-Auto-7 CORE GATE. Part C.1 (pre-pilot baseline re-bless) is DONE
@@ -23,7 +23,7 @@ notes: >
   §Baseline policy.
 ---
 
-# Sprint 087 / S-Auto-32 — CS4 entity-context autoloop pilot (CORE GATE)
+# Sprint 088 / S-Auto-33 — CS4 entity-context autoloop pilot (CORE GATE)
 
 ## Class
 
@@ -229,7 +229,7 @@ authors at Part D).
 
 ## Handoff requirements
 
-`docs/sprints/sprint-087-handoff.md` must record: the `-n` used + keep count;
+`docs/sprints/sprint-088-handoff.md` must record: the `-n` used + keep count;
 each kept candidate's skill-yaml AST diff + the human §4.1 verdict; the
 accepted/merged candidate (or the §3.4 hand-authored procedure) + its commit; the
 Part D close re-bless dir + the Tier-1/control/neighbor/EXTEND/safety read; the
