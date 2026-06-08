@@ -1,0 +1,141 @@
+case_id: cs_uc_a_no_ad_id_ad_specific
+source_session_id: synthetic-cs4-cs_uc_a_no_ad_id_ad_specific-2026-06-08
+source_dataset: bad_case_authored
+
+bad_case_metadata:
+  surfaced_by: research-agent (CS4 proposal Part B; root-cause OBS-S1 entity-context gap)
+  surfaced_date: 2026-06-08
+  failure_shape: |
+    User asks an ad-specific question (e.g. "why isn't my ad showing
+    up in search?") with NO ad_id in form_context. Bot today proceeds
+    directly to search_knowledge and returns a generic FAQ answer
+    (e.g. "check the article on My Ad Visibility") without verifying
+    which specific ad the user means. The generic answer is likely
+    wrong for the user's actual case and reads as guessing.
+  layers_involved: |
+    prompt_projection (resolve_faq_grounded_answer.yaml procedure
+    has no mandatory verify-entity-context critical step for UC-A);
+    semantic_planner (LLM does not act on the observable
+    customer_context_status: missing_ad_id signal)
+  related_dimensions: [D1, D5]
+  related_r_items:
+    - OBS-S1 (UC-A / UC-H / UC-J verify-entity-context procedure;
+      promoted from autoloop-deferred to active via this CaseSpec
+      seed)
+  tier: tier_1_target
+
+closure_criterion: |
+  Bot recognises within turn 1 that it cannot answer this
+  ad-specific question without knowing which specific ad. Bot
+  EITHER:
+
+  (a) Asks one focused clarifying question for the ad reference
+      (ad_id / ad title / ad URL / "which ad"), then on turn 2
+      after the user provides the ad_id calls get_customer_context
+      and proceeds with a grounded answer based on listing data; OR
+
+  (b) Calls a listing lookup tool (get_customer_context or
+      lookup_listing_or_ad) attempt that fails because no ad_id
+      is available, recognises the failure, and asks for the
+      ad reference, then proceeds on turn 2 as in (a).
+
+  FAIL conditions: bot proceeds to search_knowledge BEFORE
+  verifying the ad reference and emits a generic FAQ answer; or
+  bot continues asking other clarifying questions (UC vs UC,
+  understand vs appeal) without ever asking for the ad
+  reference; or bot escalates user_requested or
+  clarification_budget_exhausted within 4 turns when the
+  user is cooperatively providing the ad_id on request.
+
+form_context:
+  first_name: Sam
+  email: sam.no.ad.id@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: |
+    My ad isn't showing up in search results. I posted it
+    yesterday but I can't find it when I search for the title.
+
+persona:
+  user_goal_summary: |
+    User has posted a live ad and believes it should appear in
+    search but cannot find it. User has the ad_id available
+    (AD-1001) and will share it on request. User is cooperative,
+    mildly puzzled, willing to follow the bot's clarifying steps.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, my ad isn't showing up in search results. I posted
+       it yesterday but I can't find it when I search for the
+       title."
+    - "Oh sure, the ad ID is AD-1001."
+    - "Yeah, that's the one. Thanks for checking."
+  hidden_facts:
+    - fact: "User's ad_id is AD-1001; the listing is live but
+        outside the user's selected location filter (a typical
+        UC-A explainable cause). The bot CAN reach a grounded
+        answer once it loads the listing."
+      disclose_when: |
+        if the bot asks for the ad_id or for any identifier
+        that can resolve to AD-1001
+  will_request_human_if: |
+    the bot answers with a generic FAQ article about ad
+    visibility without asking which ad the user is talking
+    about; or the bot loops asking unrelated clarifying
+    questions (understand vs appeal) instead of asking for
+    the ad reference
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: |
+    Turn 1: bot recognises that without an ad reference it cannot
+    give a useful answer. Bot asks ONE focused clarifying
+    question for the ad_id (or attempts a listing lookup that
+    fails on missing identifiers and asks). Bot does NOT emit
+    a generic FAQ answer about ad visibility before verifying
+    the ad.
+
+    Turn 2: user provides AD-1001. Bot calls get_customer_context
+    with the ad_id, retrieves the listing, sees the location-
+    filter explanation in the listing data, and answers with
+    grounded reference to the user's specific ad.
+
+    Turn 3: bot confirms resolution (record_outcome).
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+    - classify_use_case
+    - get_customer_context
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - create_case_controlled
+    - get_message_moderation_context
+  grounding_mode: listing_data_or_faq_backed
+  answer_must_not_contain:
+    - I have updated your ad
+    - I've fixed the visibility
+    - I have resolved your issue
+  max_turns: 6
+
+scoring:
+  hard_checks:
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
+  llm_judge_dimensions: []

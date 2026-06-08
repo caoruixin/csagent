@@ -1,0 +1,132 @@
+case_id: cs_uc_a_loaded_listing
+source_session_id: synthetic-cs4-cs_uc_a_loaded_listing-2026-06-08
+source_dataset: bad_case_authored
+
+bad_case_metadata:
+  surfaced_by: research-agent (CS4 proposal Part B; criterion #3 — loaded customer_context must be used before FAQ)
+  surfaced_date: 2026-06-08
+  failure_shape: |
+    Form contains both email + ad_id; pre-chat auto-trigger at
+    FormContextIngestionService.java:93-142 successfully loads
+    customer_context (listing + account data). Bot today may
+    still call search_knowledge first and ignore the loaded
+    listing data, producing a generic FAQ answer that doesn't
+    reference the user's specific ad.
+  layers_involved: |
+    prompt_projection (resolve_faq_grounded_answer.yaml procedure
+    does not bind to customer_context_status: loaded as a
+    consume-first signal); semantic_planner (LLM may ignore
+    pre-loaded data in favor of FAQ retrieval)
+  related_dimensions: [D1, D6]
+  related_r_items:
+    - OBS-S1 (entity-context verification for UC-A)
+  tier: tier_1_target
+
+closure_criterion: |
+  Bot recognises that customer_context is already loaded and
+  USES the listing data in its grounded answer.
+
+  PASS conditions:
+    (a) Bot's user_message references listing-specific data
+        (title, status, category, location, price, posted_date
+        — at least one specific field);
+    (b) Bot proceeds to a grounded answer that addresses the
+        user's specific ad situation (e.g., "your listing
+        AD-2002 is in category Home & Garden > Furniture and
+        currently shows as LIVE; visibility looks normal —
+        possible reasons it's not performing: …");
+    (c) `correct_outcome: resolve`.
+
+  FAIL conditions:
+    (d) Bot answers with a generic FAQ article ignoring the
+        loaded listing data;
+    (e) Bot redundantly calls get_customer_context again
+        (acceptable but suboptimal; passes hard checks but L3
+        judge should note inefficiency);
+    (f) Bot's response does not reference any listing-specific
+        field.
+
+form_context:
+  first_name: Riley
+  email: carol.blocked@example.com
+  topic_subject: Ad Support
+  ad_id: AD-2002
+  description: |
+    My ad isn't performing well. Not many views. Anything I
+    can do?
+
+persona:
+  user_goal_summary: |
+    User has an active live listing (AD-2002) and is asking why
+    it's not performing well. The bot's projection has
+    customer_context.listing already populated (status=LIVE,
+    category=Home & Garden > Furniture, price/location set). User
+    is cooperative, interested in concrete advice.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, my ad isn't performing well. Not many views.
+       Anything I can do?"
+    - "Yeah, that's the one — AD-2002."
+    - "Thanks, I'll try that."
+  hidden_facts:
+    - fact: "Listing AD-2002 is live (status=LIVE), in the
+        Home & Garden > Furniture category, with photos uploaded.
+        The platform's tips on view increase (refresh, photos,
+        price, description quality) are the standard advice."
+      disclose_when: if the bot asks about specific listing details
+  will_request_human_if: |
+    the bot answers with a generic article ignoring the
+    user's specific listing data; or the bot asks for ad_id
+    when ad_id is already in form_context
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: |
+    Turn 1: bot reads customer_context.listing (status=LIVE,
+    category=Home & Garden > Furniture, etc. — already loaded in
+    projection). Bot answers with grounded advice that references
+    the user's specific listing context (e.g. category-specific
+    visibility tips) and optionally calls search_knowledge for
+    canonical visibility-tips article.
+
+    Turn 2: user confirms or follows up; bot answers.
+
+    Turn 3: bot confirms resolution (record_outcome).
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+    - classify_use_case
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - create_case_controlled
+  grounding_mode: listing_data_and_faq_backed
+  answer_must_not_contain:
+    - Could you share your ad ID
+    - What's your ad_id
+    - I've boosted your listing
+    - I've made your ad more visible
+  max_turns: 5
+
+scoring:
+  hard_checks:
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
+  llm_judge_dimensions: []

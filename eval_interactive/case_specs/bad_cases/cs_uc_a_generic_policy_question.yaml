@@ -1,0 +1,126 @@
+case_id: cs_uc_a_generic_policy_question
+source_session_id: synthetic-cs4-cs_uc_a_generic_policy_question-2026-06-08
+source_dataset: bad_case_authored
+
+bad_case_metadata:
+  surfaced_by: |
+    research-agent (CS4 proposal Part B; ANTI-误杀 binding gate for
+    autoloop Part C output — autoloop's procedure candidate MUST
+    NOT force ad_id elicitation on genuinely-generic questions)
+  surfaced_date: 2026-06-08
+  failure_shape: |
+    User asks a genuinely generic policy / how-it-works question
+    (no specific ad referenced). The autoloop's CS4 fix must not
+    over-correct by forcing ad_id elicitation on all UC-A turns;
+    generic questions should still get a direct FAQ-grounded
+    answer without unnecessary clarification.
+  layers_involved: |
+    anti-误杀 binding gate for prompt_projection / semantic_planner
+    Part C output; protects §1.2 flexibility-over-rigidity
+  related_dimensions: [D1, D5]
+  related_r_items:
+    - OBS-S1 anti-误杀 (paired negative-control with
+      cs_uc_a_no_ad_id_ad_specific)
+  tier: tier_1_negative_control
+
+closure_criterion: |
+  Bot recognises that the question references no specific ad and
+  proceeds DIRECTLY to a grounded FAQ-backed answer.
+
+  PASS conditions:
+    (a) Bot calls classify_use_case → search_knowledge →
+        resolve_article → record_outcome (or comparable FAQ
+        sequence) without first eliciting ad_id;
+    (b) Bot's user_message answers the generic question with
+        grounded references to FAQ articles on search ranking /
+        ad visibility mechanics;
+    (c) `correct_outcome: resolve`.
+
+  FAIL conditions:
+    (d) Bot asks for ad_id or "which ad" — the question is
+        generic and the elicitation is unnecessary friction;
+    (e) Bot escalates because it could not pin entity context;
+    (f) Bot answers with empty / placeholder content because it
+        was waiting for entity verification.
+
+form_context:
+  first_name: Jordan
+  email: jordan.generic@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: |
+    How does Gumtree's search ranking work? What makes some
+    ads appear higher than others?
+
+persona:
+  user_goal_summary: |
+    User wants to understand the platform's search-ranking
+    mechanics in the abstract — not asking about any specific
+    ad they own. User is curious, cooperative, will not provide
+    an ad_id even if asked (they don't have one in mind for
+    this question).
+  frustration_level: calm
+  verbosity: brief
+  drift_behavior: none
+  seed_messages:
+    - "How does Gumtree's search ranking work? What makes some
+       ads appear higher than others?"
+    - "I'm not asking about a specific ad of mine, just curious
+       how it works in general."
+    - "Thanks, that's what I needed."
+  hidden_facts: []
+  will_request_human_if: |
+    the bot demands an ad_id when the question is clearly
+    generic; or the bot fails to answer a question that is
+    well-covered by public FAQ on search ranking
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs:
+    - UC-E
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: |
+    Turn 1: bot recognises the question is generic (no ad
+    referenced; explicit "in general"). Bot proceeds directly to
+    search_knowledge for search-ranking content.
+
+    Turn 2: bot delivers a grounded answer citing FAQ on search
+    ranking / ad visibility mechanics. Bot does NOT ask for
+    ad_id.
+
+    Turn 3: bot confirms resolution (record_outcome).
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+    - classify_use_case
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - request_handover
+    - create_case_controlled
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+    - Could you share your ad ID
+    - Which ad are you asking about
+    - What's your ad_id
+  max_turns: 4
+
+scoring:
+  hard_checks:
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
+    - turn_efficiency
+  llm_judge_dimensions: []
