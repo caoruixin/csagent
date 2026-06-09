@@ -1,13 +1,33 @@
 # Gumtree Customer Service Agent (csagent)
 
-面向分类信息平台的 **LLM-first 客服 Agent**：在可控的运行时骨架内完成 FAQ 自动解答、Intake 信息采集与人工转接，并用双层评估体系验证行为质量。
+这不是一个关键词 chatbot，而是一套**工程方法论**的产物：用 **LLM-first 的语义自由**真正解决分类信息平台的客服问题（FAQ 自动解答、Intake 采集、结构化人工转接），同时把安全、预算、工具权限、评估等机械约束牢牢钉死在确定性的运行时骨架里。支撑它的四块基石——**LLM-vs-Runtime 所有权边界**、**四层评估金字塔（人工为主门）**、**反 hardcode 治理纪律**、**autoloop 元进化**——都是在一轮轮 bad-case 复盘与研究驱动实验中*被迫沉淀出来*的，而非一开始就设计完备。下方「演进轨迹」即这套系统的发现过程。
 
-> **源码即真相**：运行时行为以 `server/src/main/java/com/gumtree/csagent/service/runtime/` 与 `server/src/main/resources/config/`、`skills/` 为准。契约摘要见 [`docs/current/runtime_contract.md`](docs/current/runtime_contract.md)。
+> **源码即真相**：运行时行为以 `server/src/main/java/com/gumtree/csagent/service/runtime/` 与 `server/src/main/resources/config/`、`skills/` 为准。契约摘要见 [`docs/current/runtime_contract.md`](docs/current/runtime_contract.md)；治理宪法见 [`AGENTS.md`](AGENTS.md) → [`docs/current/iteration_governance.md`](docs/current/iteration_governance.md)。
+
+---
+
+## 演进轨迹（迭代驱动的进化）
+
+每个里程碑对应一次「**发现一类问题 → 沉淀一项能力**」，而不是线性堆功能。系统由两条迭代输入驱动：**Path 1 研究驱动**（提假设 → 设计实验 → 验证）与 **Path 2 bad-case 驱动**（人工读 trace → 用[九层 Fix-Layer 分类](docs/current/iteration_governance.md)定位失败层 → 最小修复）。任何语义失败在动手前都要先过[九问反-hardcode kernel](docs/current/anti-hardcode-review-kernel.md)——**默认禁止用关键词 / 正则 / if-else 掩盖语义问题**，否则审查直接 reject。这条纪律，连同下表里被反复踩中的坑，是这套系统真正的护城河。
+
+| 阶段 | 里程碑 | 发现的问题 → 沉淀的能力 |
+|------|--------|------------------------|
+| 骨架 | **M1** | DISCOVER 分类 + Intake：模型优先意图分类、阶段状态机、intake 字段跨轮 durability |
+| 抽象 | **M2** | 把「该怎么做」从 Java 下沉为 **Skill Registry**：行为外置进 YAML 信封（LLM-led / Policy-bounded） |
+| 评估 | **M3-Eval** | **粗到细四层评估金字塔**（Tier-0 安全 → Tier-3 润色），解决「分数涨了但没真正变好」 |
+| 治理 | **M4 / M5** | 评估 harness 清理 + 治理缺口补齐；**可观测一致性**（trace 与真实行为对齐） |
+| 元进化·基底 | **M-Auto-1～3** | **autoloop**：元 Agent 只改 6 个 Skill YAML 做爬山式自进化（基础设施 → 校准 → 信号清洁） |
+| 信号纯净 | **M-Auto-4 / 5** | 发现**评估测量伪影会硬性「误杀」正确行为**；做到 fitness 可靠、判分与 trace 契约诚实 |
+| 底座硬化 | **M-Auto-6** | runtime substrate hygiene + admin 可观测 + intake/澄清契约 + 语料治理 |
+| 元进化·落地 | **M-Auto-7**（进行中） | **CS4 实体上下文 autoloop pilot**（CORE GATE）：autoloop 真正产出 Skill 候选 → 人工 §4.1 审核 → 合入 |
+
+> 里程碑全量归档见 [`docs/milestones/`](docs/milestones/)，当前进度见 [`docs/10-handoff.md`](docs/10-handoff.md)。截至 **2026-06-09**：分支 `auto-loop-branch`，**M-Auto-7** 进行中（S-Y2 / Sprint 088，CS4 entity-context autoloop pilot = CORE GATE，Part C 待人工放行）。
 
 ---
 
 ## 目录
 
+0. [演进轨迹（迭代驱动的进化）](#演进轨迹迭代驱动的进化)
 1. [产品边界](#1-产品边界)
 2. [仓库结构](#2-仓库结构)
 3. [架构总览](#3-架构总览)
@@ -91,14 +111,14 @@ flowchart TB
   end
 
   subgraph API["Spring Boot API :8080"]
-    CC[ChatController<br/>30s deadline]
+    CC["ChatController<br/>30s deadline"]
     SM[SessionManager]
-    CK[ControlKernel<br/>外层环]
-    ARL[AgentRunLoopImpl<br/>内层环]
+    CK["ControlKernel<br/>外层环"]
+    ARL["AgentRunLoopImpl<br/>内层环"]
     PE[PhaseEvaluator]
     CPB[ContextProjectionBuilder]
     TD[ToolDispatcher]
-    SR[SkillRegistry<br/>skills/*.yaml]
+    SR["SkillRegistry<br/>skills/*.yaml"]
   end
 
   subgraph LLM["LLM 层"]
@@ -108,22 +128,22 @@ flowchart TB
   end
 
   subgraph Data["数据层"]
-    PG[(PostgreSQL + pgvector)]
+    PG[("PostgreSQL + pgvector")]
     RD[(Redis 健康检查)]
-    KB[kb_articles / kb_chunks]
+    KB["kb_articles / kb_chunks"]
   end
 
   subgraph Eval["评估层"]
-    EI[eval_interactive<br/>LLM 用户模拟]
-    EJ[eval<br/>CSV 回放]
+    EI["eval_interactive<br/>LLM 用户模拟"]
+    EJ["eval<br/>CSV 回放"]
   end
 
   subgraph Meta["元进化（可选）"]
-    AL[autoloop<br/>仅改 6 个 Skill YAML]
+    AL["autoloop<br/>仅改 6 个 Skill YAML"]
   end
 
   CW --> CC
-  ADM --> Demo[/v1/demo/*]
+  ADM --> Demo["/v1/demo/*"]
   CC --> SM --> CK
   CK --> PE --> SR
   CK --> ARL
@@ -177,16 +197,16 @@ POST /v1/chat/sessions/{id}/messages
 ```mermaid
 flowchart LR
   subgraph Deterministic["Runtime / 确定性"]
-    FSM[Phase FSM<br/>control-policy.yaml]
+    FSM["Phase FSM<br/>control-policy.yaml"]
     BUD[BudgetChecker]
-    ESC[EscalationReasonResolver<br/>23 值优先级]
+    ESC["EscalationReasonResolver<br/>23 值优先级"]
     TP[ToolPolicyEnforcer]
     SG[SkillGuardrailDispatcher]
     PII[投影 PII 脱敏]
   end
 
   subgraph Config["配置驱动"]
-    SK[skills/*.yaml]
+    SK["skills/*.yaml"]
     UCR[use-case-registry.yaml]
     TPY[tool-policy.yaml]
   end
@@ -234,6 +254,7 @@ sequenceDiagram
       TD-->>ARL: ToolResult → accumulated_tool_results
       opt request_handover success
         ARL-->>CK: ESCALATE
+      end
       opt classify_use_case + DISCOVER
         ARL-->>CK: USE_CASE_IDENTIFIED
       end
@@ -404,7 +425,7 @@ messages = [
 | | **eval_interactive/**（主） | **eval/**（CI 回放） |
 |--|---------------------------|---------------------|
 | 用户 | LLM `UserSimulator` 自适应 | CSV 固定 visitor turns |
-| 案例 | YAML CaseSpec（~488+） | 7 数据集 601 sessions |
+| 案例 | YAML CaseSpec（486，另含独立 shadow 集） | 7 数据集 601 sessions |
 | 评分 | L1 硬检查 + L2 结果 + L3 Judge + Tier-2 Skill steps | 7 code + 4 model graders |
 | 用途 | Sprint 验收、锚定回归、人工审 bad case | PR 快速门控 |
 
@@ -425,11 +446,13 @@ messages = [
 
 | 目录 | 角色 |
 |------|------|
-| `anchor/` | 广度回归（~159） |
-| `anchor_outcome/` | 每 UC 一条，人工审第二面 |
-| `bad_cases/` | **主验收**（人工读 trace） |
-| `smoke/` | 快速冒烟（观察 only） |
-| `case_specs_shadow/` | 里程碑 shadow 回归（dev 开发期不可读） |
+| `anchor/`（159） | 广度回归 |
+| `anchor_outcome/`（12） | 每 UC 一条，人工审第二面 |
+| `bad_cases/`（17） | **主验收**（人工读 trace） |
+| `case_families/`（51） | 按失败族聚类的 target / neighbor / negative |
+| `exploration/`（107）· `probe/`（25）· `promotion/`（101） | 探索、定向探针、晋升候选 |
+| `smoke/`（14） | 快速冒烟（已降级为观察指标） |
+| `eval_interactive/case_specs_shadow/` | 里程碑 shadow 回归（独立目录，dev 开发期不可读） |
 
 运行示例：
 
@@ -451,10 +474,11 @@ uv run eval-interactive run --path case_specs/bad_cases/
 |------|------|
 | 可变面 | 6 Skill × procedure / grounding / escalation 等 |
 | Fitness | 五层词典序（Tier-0 安全 → Tier-1 结果 → Tier-2 流程 → 改进 → shadow） |
-| v1 数据集 | 47 cases = bad_cases×12 + anchor_outcome×12 + shadow×23 |
-| 入口 | [`autoloop/README.md`](autoloop/README.md)、`program.md` |
+| Fitness 基线 | `config.fitness.baseline_dir` 指向 `m-auto-7-prepilot-baseline-20260608`（诚实基线，gap 已确认） |
+| 当前 pilot | CS4 实体上下文：Tier-1 目标（`cs_uc_a_*`）+ anti-误杀负控 |
+| 入口 | [`autoloop/README.md`](autoloop/README.md)、[`autoloop/program.md`](autoloop/program.md) |
 
-当前里程碑（`docs/milestone_objective.md`）：**M-Auto-1B** 校准 autoloop 基底。**不影响**在线客服请求路径。
+当前里程碑（`docs/milestone_objective.md`）：**M-Auto-7** — autoloop readiness + CS4 实体上下文 pilot（CORE GATE：autoloop 产出 Skill 候选 → 人工 §4.1 审核 → 合入 + re-bless）。**不影响**在线客服请求路径。
 
 ---
 
@@ -500,9 +524,10 @@ cd eval_interactive && uv run eval-interactive run --path case_specs/smoke/
 ### 10.4 测试
 
 ```bash
-cd server && mvn test                    # ~121 单元/集成（含 20 个 ControlKernel 集成）
-cd eval_interactive && uv run pytest -q  # Python 评估管线
-cd autoloop && uv run --extra dev pytest -q
+cd server && mvn test                    # Java 基线 1383/1/0/2（含 ControlKernel 集成；1 个继承性已知失败）
+cd eval_interactive && uv run pytest -q  # 评估管线 ~553（548 + 5 继承）
+cd autoloop && uv run --extra dev pytest -q   # autoloop ~331
+cd ui && npm test                        # UI vitest 10 passed
 ```
 
 集成测试模式：**Mockito 组装真实 `ControlKernel` + `AgentRunLoopImpl`**，stub `LlmInvocationService`（非全栈 E2E）。
@@ -579,7 +604,7 @@ cd autoloop && uv run --extra dev pytest -q
 | Autoloop | [`autoloop/README.md`](autoloop/README.md)、[`autoloop/program.md`](autoloop/program.md) |
 | 架构历史 | [`docs/foundational/`](docs/foundational/) Phase 0–5 规格 |
 
-**当前活跃工作**（2026-05-29）：分支 `auto-loop-branch`，里程碑 **M-Auto-1B**（autoloop 校准）；运行时 **六 phase 全走 AgentRunLoop**。详见 [`docs/10-handoff.md`](docs/10-handoff.md)。
+**当前活跃工作**（2026-06-09）：分支 `auto-loop-branch`，里程碑 **M-Auto-7**（autoloop readiness + CS4 实体上下文 pilot，CORE GATE）；运行时 **六 phase 全走 AgentRunLoop**。详见 [`docs/10-handoff.md`](docs/10-handoff.md)。
 
 ---
 
