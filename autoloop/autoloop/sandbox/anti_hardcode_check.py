@@ -120,6 +120,44 @@ def _trim(s: str, n: int = 200) -> str:
     return s[:n]
 
 
+def _first_new_match(
+    regexes,
+    text: str,
+    before_norm: str,
+    *,
+    predicate=None,
+    render=None,
+) -> str | None:
+    """First regex match that is predicate-qualifying AND baseline-new.
+
+    Iterates every match of every regex (in order) and returns the
+    trimmed display string of the first match that:
+
+    - satisfies `predicate(m)` if a predicate is given (the rule's
+      existing membership / window check, preserved verbatim), and
+    - whose normalized regex span (`m.group(0)`) is NOT already present
+      in `before_norm` (baseline-whitelist suppression).
+
+    `render(m)` builds the display string when the rule reports a window
+    around the match rather than the raw span (Q2-tier0, Q4-id_assign);
+    it defaults to the raw span. Suppression is always tested against
+    `m.group(0)`, never the rendered window.
+
+    When `before_norm` is empty the suppression set is empty, so the
+    first predicate-qualifying match is returned — i.e. for non-predicate
+    rules this is byte-identical to the previous `re.search` first-match.
+    """
+    for rx in regexes:
+        for m in rx.finditer(text):
+            if predicate is not None and not predicate(m):
+                continue
+            if before_norm and m.group(0) in before_norm:
+                continue
+            out = render(m) if render is not None else m.group(0)
+            return _trim(out)
+    return None
+
+
 # Q1 — semantic hardcode patterns -------------------------------------
 
 # IF/THEN decision tree. Captures both single-line and multi-line
@@ -151,19 +189,18 @@ _RE_Q1_CONTAINS_MATCHES = re.compile(
 )
 
 
-def _q1_if_then(text: str) -> str | None:
-    m = _RE_Q1_IF_THEN.search(text) or _RE_Q1_ARROW_TREE.search(text)
-    return _trim(m.group(0)) if m else None
+def _q1_if_then(text: str, before_norm: str) -> str | None:
+    return _first_new_match(
+        (_RE_Q1_IF_THEN, _RE_Q1_ARROW_TREE), text, before_norm
+    )
 
 
-def _q1_or_keywords(text: str) -> str | None:
-    m = _RE_Q1_OR_KEYWORDS.search(text)
-    return _trim(m.group(0)) if m else None
+def _q1_or_keywords(text: str, before_norm: str) -> str | None:
+    return _first_new_match((_RE_Q1_OR_KEYWORDS,), text, before_norm)
 
 
-def _q1_contains_matches(text: str) -> str | None:
-    m = _RE_Q1_CONTAINS_MATCHES.search(text)
-    return _trim(m.group(0)) if m else None
+def _q1_contains_matches(text: str, before_norm: str) -> str | None:
+    return _first_new_match((_RE_Q1_CONTAINS_MATCHES,), text, before_norm)
 
 
 # Q2 — Tier-0 invariant invention attempts ----------------------------
@@ -197,29 +234,34 @@ _RE_Q2_TIER0_PHRASE = re.compile(
 )
 
 
-def _q2_must_always(text: str) -> str | None:
-    m = _RE_Q2_MUST_ALWAYS.search(text)
-    if not m:
-        return None
-    snippet = m.group(0).lower()
-    for dim in _SOFT_SEMANTIC_DIMENSIONS:
-        if dim in snippet:
-            return _trim(m.group(0))
-    return None
+def _q2_must_always(text: str, before_norm: str) -> str | None:
+    def _pred(m: "re.Match[str]") -> bool:
+        snippet = m.group(0).lower()
+        return any(dim in snippet for dim in _SOFT_SEMANTIC_DIMENSIONS)
+
+    return _first_new_match(
+        (_RE_Q2_MUST_ALWAYS,), text, before_norm, predicate=_pred
+    )
 
 
-def _q2_tier0_invention(text: str) -> str | None:
-    m = _RE_Q2_TIER0_PHRASE.search(text)
-    if not m:
-        return None
+def _q2_tier0_invention(text: str, before_norm: str) -> str | None:
     # Within ~80 chars of the Tier-0-like phrase, look for an
     # "add" / "new" / "introduce" verb that implies inventing one.
-    start = max(0, m.start() - 80)
-    end = min(len(text), m.end() + 80)
-    window = text[start:end]
-    if re.search(r"\b(?:add|new|introduce|require)\b", window):
-        return _trim(window)
-    return None
+    def _window(m: "re.Match[str]") -> str:
+        start = max(0, m.start() - 80)
+        end = min(len(text), m.end() + 80)
+        return text[start:end]
+
+    def _pred(m: "re.Match[str]") -> bool:
+        return bool(re.search(r"\b(?:add|new|introduce|require)\b", _window(m)))
+
+    return _first_new_match(
+        (_RE_Q2_TIER0_PHRASE,),
+        text,
+        before_norm,
+        predicate=_pred,
+        render=_window,
+    )
 
 
 # Q4 — case_id / session_id / iteration_id literals --------------------
@@ -240,18 +282,19 @@ _RE_Q4_ID_ASSIGN = re.compile(
 )
 
 
-def _q4_case_id_token(text: str) -> str | None:
-    m = _RE_Q4_CASE_ID_TOKEN.search(text)
-    return _trim(m.group(0)) if m else None
+def _q4_case_id_token(text: str, before_norm: str) -> str | None:
+    return _first_new_match((_RE_Q4_CASE_ID_TOKEN,), text, before_norm)
 
 
-def _q4_id_assign(text: str) -> str | None:
-    m = _RE_Q4_ID_ASSIGN.search(text)
-    if not m:
-        return None
-    start = max(0, m.start() - 20)
-    end = min(len(text), m.end() + 40)
-    return _trim(text[start:end])
+def _q4_id_assign(text: str, before_norm: str) -> str | None:
+    def _window(m: "re.Match[str]") -> str:
+        start = max(0, m.start() - 20)
+        end = min(len(text), m.end() + 40)
+        return text[start:end]
+
+    return _first_new_match(
+        (_RE_Q4_ID_ASSIGN,), text, before_norm, render=_window
+    )
 
 
 # Q5 — LLM-ownership-shrinking language --------------------------------
@@ -275,35 +318,29 @@ _RE_Q5_STANDALONE_MUST = re.compile(
 )
 
 
-def _q5_force_assistant(text: str) -> str | None:
-    m = _RE_Q5_FORCE_ASSISTANT.search(text)
-    return _trim(m.group(0)) if m else None
+def _q5_force_assistant(text: str, before_norm: str) -> str | None:
+    return _first_new_match((_RE_Q5_FORCE_ASSISTANT,), text, before_norm)
 
 
-def _q5_bot_must_always(text: str) -> str | None:
-    m = _RE_Q5_BOT_MUST_ALWAYS.search(text)
-    return _trim(m.group(0)) if m else None
+def _q5_bot_must_always(text: str, before_norm: str) -> str | None:
+    return _first_new_match((_RE_Q5_BOT_MUST_ALWAYS,), text, before_norm)
 
 
-def _q5_do_not_consider(text: str) -> str | None:
-    m = _RE_Q5_DO_NOT_CONSIDER.search(text)
-    if not m:
-        return None
-    snippet = m.group(0).lower()
-    for dim in _SOFT_SEMANTIC_DIMENSIONS:
-        if dim in snippet:
-            return _trim(m.group(0))
-    return None
+def _q5_do_not_consider(text: str, before_norm: str) -> str | None:
+    def _pred(m: "re.Match[str]") -> bool:
+        snippet = m.group(0).lower()
+        return any(dim in snippet for dim in _SOFT_SEMANTIC_DIMENSIONS)
+
+    return _first_new_match(
+        (_RE_Q5_DO_NOT_CONSIDER,), text, before_norm, predicate=_pred
+    )
 
 
-def _q5_standalone_must(text: str) -> str | None:
-    m = _RE_Q5_STANDALONE_MUST.search(text)
-    if not m:
-        return None
+def _q5_standalone_must(text: str, before_norm: str) -> str | None:
     # If the broader Q2/Q5 high-confidence patterns also matched,
     # they will rank above this rule by id (Q2 < Q5.) — this rule is
     # the borderline FLAG_FOR_CODEX path.
-    return _trim(m.group(0))
+    return _first_new_match((_RE_Q5_STANDALONE_MUST,), text, before_norm)
 
 
 # ---------------------------------------------------------------------
@@ -364,10 +401,18 @@ def anti_hardcode_check(
     anti_cfg = ((config or {}).get("anti_hardcode") or {})
     synonym_enabled = bool(anti_cfg.get("synonym_map_enabled", False))
     normalized = _normalize(text, synonym_map_enabled=synonym_enabled)
+    # Baseline-whitelist suppression: a rule match is ignored when the
+    # substring it matched already exists in the candidate's untouched
+    # baseline (`before_value`). Normalize the baseline with the SAME
+    # synonym flag so the matched spans live in the same surface. Empty
+    # / absent before_value → empty suppression set → no-op (S-Auto-35).
+    before_norm = _normalize(
+        hypothesis.before_value or "", synonym_map_enabled=synonym_enabled
+    )
 
     flag_pending: tuple[str, str] | None = None
     for rule_id, severity, fn in _RULES:
-        match = fn(normalized)
+        match = fn(normalized, before_norm)
         if match is None:
             continue
         if severity == _FAIL:

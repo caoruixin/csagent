@@ -378,6 +378,150 @@ def test_fix_c_step1_multi_line_when_arrow_decomposition_fails():
 
 
 # ---------------------------------------------------------------------
+# S-Auto-35 — baseline-whitelist suppression. A rule match is ignored
+# when the substring it matched already exists in the candidate's
+# untouched `before_value`. This unblocks pure-additive candidates whose
+# baseline prose already trips a rule, without weakening the detector
+# against patterns the candidate actually introduces.
+# ---------------------------------------------------------------------
+
+
+# Real exp-70 (before, after) pair captured from the Run-1 tranche
+# (`autoloop/results/experiments.jsonl`). Embedded verbatim (JSON-safe
+# escaping) so the suppression test exercises the exact false-positive
+# that motivated the fix: the baseline `$.procedure` already contains the
+# `when available, otherwise its article_id) -> record_outcome` arrow-tree
+# that, post-`_normalize(synonym_map_enabled=True)`, matches `Q1` arrow
+# tree. The 1478-char pure-additive append introduces no new Q1 match.
+_EXP70_BEFORE = "You are a helpful Gumtree customer support agent. Resolve the user's issue using the provided tools. FAQ-path RESOLVE flow (S1): the intended terminal sequence is search_knowledge -> resolve_article -> grounded customer-facing answer (with a display_citation citation — the article's source_url when available, otherwise its article_id) -> record_outcome. Only escalate via request_handover after a valid resolve attempt cannot complete (no viable hit, or resolve_article could not produce a grounded answer)."
+
+_EXP70_AFTER = "You are a helpful Gumtree customer support agent. Resolve the user's issue using the provided tools. FAQ-path RESOLVE flow (S1): the intended terminal sequence is search_knowledge -> resolve_article -> grounded customer-facing answer (with a display_citation citation — the article's source_url when available, otherwise its article_id) -> record_outcome. Only escalate via request_handover after a valid resolve attempt cannot complete (no viable hit, or resolve_article could not produce a grounded answer). Listing-context awareness: when the per-turn projection already carries a concrete listing reference (form_context or listing_context surfaces the customer's specific ad), treat the loaded listing as the case anchor and resolve from that listing's state alongside the grounded knowledge surface — answer the user's specific question against the listing data you already hold rather than asking the customer to restate an identifier the runtime has projected. Ad-specific questions without a listing reference: when the user's question concerns a specific ad's state but no listing reference is present in projected context and the user has not shared one, branch the resolve path on whether the question is answerable generically. Where the user's question has a generic policy or process answer that does not depend on the specific listing, run the normal search_knowledge -> resolve_article sequence and answer from the article surface. Where the answer genuinely requires the specific listing, ask one focused clarifying question for the listing reference before attempting to resolve, rather than guessing or escalating prematurely. Lookup-failure path: if a listing-lookup tool returns no record or surfaces an error, that is a legitimate resolve outcome — explain what the available context does and does not show, offer the generic-policy answer where it applies, and request_handover with an appropriate escalation_reason rather than fabricating listing-specific facts."
+
+# A ≥120-char clean buffer with no if / then / when / arrow tokens. Sits
+# between a baseline pattern and the appended clause so a rule's greedy
+# trailing capture (`[\s\S]{0,80}` / `{1,120}`) stays inside baseline
+# text and the matched span remains a substring of `before_norm`.
+_CLEAN_BUFFER = (
+    " Otherwise continue with the standard grounded resolution path and "
+    "keep the customer informed about all the available options at every "
+    "stage of the process here."
+)
+
+
+def test_q1_arrow_tree_baseline_match_suppressed():
+    """REAL exp-70 pair: the matched arrow-tree span is 100% baseline
+    text; the 1478-char additive clause adds no new Q1 match. With the
+    baseline supplied, the false-positive is suppressed → PASS."""
+    res = anti_hardcode_check(
+        _hyp(_EXP70_AFTER, _EXP70_BEFORE),
+        config=_SYNONYM_ENABLED_CFG,
+    )
+    assert res.verdict == "PASS", (
+        f"exp-70 pure-additive candidate MUST PASS under baseline "
+        f"suppression; got {res.verdict} ({res.rule_id} / "
+        f"{res.matched_substring!r})"
+    )
+
+
+def test_q1_arrow_tree_new_match_still_caught():
+    """No-op-when-novel: a candidate that ADDS a fresh `if X -> Y`
+    arrow-tree clause on top of clean baseline prose still FAILs — the
+    new span is absent from `before_norm`, so suppression does not
+    fire."""
+    before = (
+        "You resolve the user issue using the available grounded tools "
+        "and knowledge surfaces."
+    )
+    after = (
+        before + " if the listing is flagged -> escalate immediately to "
+        "a human agent for manual review."
+    )
+    res = anti_hardcode_check(_hyp(after, before), config=_SYNONYM_ENABLED_CFG)
+    assert res.verdict == "FAIL", (
+        f"candidate-introduced arrow tree MUST still FAIL; got {res.verdict}"
+    )
+    assert res.rule_id.startswith("Q1."), f"expected Q1; got {res.rule_id}"
+
+
+def test_q1_if_then_baseline_match_suppressed():
+    """Synthetic IF/THEN decision tree present in the untouched baseline;
+    the candidate only appends clean prose. The IF/THEN span is in
+    `before_norm` → suppressed → PASS. (Same text with an empty baseline
+    FAILs — see the existing Q1 decision-tree fixtures — so this is a
+    genuine suppression, not a vacuous pass.)"""
+    before = (
+        "Triage rules: if the user reports a billing error then gather "
+        "the order id before proposing next steps for them." + _CLEAN_BUFFER
+    )
+    after = (
+        before + " Additionally, keep the tone warm and concise "
+        "throughout the interaction with the customer."
+    )
+    res = anti_hardcode_check(_hyp(after, before), config=_SYNONYM_ENABLED_CFG)
+    assert res.verdict == "PASS", (
+        f"pure-additive over IF/THEN baseline MUST PASS; got {res.verdict} "
+        f"({res.rule_id})"
+    )
+
+
+def test_q2_q4_q5_baseline_match_suppressed():
+    """Suppression is uniform across the Q2 / Q4 / Q5 rule families, not
+    just Q1. Each baseline already carries the offending span; the
+    candidate only appends clean prose → PASS for every family. Each
+    `after` FAILs with an empty baseline (verified in the matching
+    positive fixtures above), so none of these is vacuous."""
+    q2_before = (
+        "The runtime must always reject any user goal that mentions a "
+        "competitor product line directly." + _CLEAN_BUFFER
+    )
+    q4_before = (
+        "Apply the documented handling for cs042 and cs101 historical "
+        "sessions during the migration window." + _CLEAN_BUFFER
+    )
+    q5_before = (
+        "Force the assistant to always emit the canned closing reply "
+        "verbatim at the end of the session." + _CLEAN_BUFFER
+    )
+    tail = " Keep the closing message brief and friendly for the customer."
+    for label, before in (("Q2", q2_before), ("Q4", q4_before), ("Q5", q5_before)):
+        res = anti_hardcode_check(
+            _hyp(before + tail, before), config=_SYNONYM_ENABLED_CFG
+        )
+        assert res.verdict == "PASS", (
+            f"{label} baseline-match MUST be suppressed; got {res.verdict} "
+            f"({res.rule_id})"
+        )
+
+
+def test_double_encoding_bypass_documented():
+    """ACCEPTED trade-off (documented): baseline-whitelisting suppresses a
+    pattern that the candidate COPIES verbatim to a new position, because
+    the copied span is still `in before_norm`. The detector therefore
+    PASSes even though the field now carries the pattern twice. This is
+    the deliberate limit of substring-based suppression: it cannot tell a
+    pure-additive context-carry from a deliberate double-encoding. The
+    field still shows the doubled pattern to a human / Codex auditor; the
+    propose-stage detector simply does not block on it.
+
+    A `.contains(` literal is used so the matched span is short and
+    self-contained (no greedy trailing capture), making the
+    span-equality with baseline unambiguous."""
+    before = (
+        "Use the legacy message.contains( probe in the deprecated triage "
+        "branch for now during rollout."
+    )
+    after = (
+        before + " Reminder for maintainers: the legacy "
+        "message.contains( probe still appears here in the notes."
+    )
+    res = anti_hardcode_check(_hyp(after, before), config=_SYNONYM_ENABLED_CFG)
+    assert res.verdict == "PASS", (
+        f"double-encoded copy is suppressed by design; got {res.verdict} "
+        f"({res.rule_id})"
+    )
+
+
+# ---------------------------------------------------------------------
 # Detector self-discipline regression (D2)
 # ---------------------------------------------------------------------
 
