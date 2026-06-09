@@ -1,81 +1,83 @@
-# QA Report: LLM Interaction Detail (Admin TraceViewer)
+# QA Report — LLM Config Centralization
 
-**Generated**: 2026-04-25  
-**Scope**: Frontend-only changes — `TraceStep` types, `mapTrace` in `client.ts`, `TraceViewer.tsx` (LlmDetailPanel + metadata).  
-**Tech stack**: React + TypeScript (Vite), ESLint (flat config), no new backend changes tested.
+**Generated**: 2026-05-16 (local run)  
+**Scope**: Phases 1–6 per verification plan; server module + runtime smoke.
+
+## Summary Table (user-requested format)
+
+### Phase 1: Compilation
+
+**Status**: PASS  
+
+**Details**: `mvn -pl server compile test-compile -q` completed with exit code 0.
+
+### Phase 2: Unit Tests
+
+**Status**: FAIL  
+
+**Failures**:
+- `SystemPromptUserRequestedTiebreakerTest.systemPrompt_marksActiveUcTiebreakerExplicitly` — `ACTIVE-UC TIEBREAKER must be tagged with the Sprint 6 anchor` — `expected: <true> but was: <false>` (prompt text no longer contains the substring `"Sprint 6"` near the ACTIVE-UC block; section header `ACTIVE-UC TIEBREAKER:` remains).
+
+**Fixes applied**: None (failure is driven by `prompts/system_prompt.txt` content vs golden test, not by LLM constructor/config beans).
+
+**Totals**: Tests run: 917, Failures: 1, Errors: 0, Skipped: 2.
+
+### Phase 3: Startup Verification
+
+**Status**: PASS  
+
+**Startup log line** (excerpt):
+
+`LLM provider lineup: primary=deepseek[model=deepseek-v4-flash, base=https://api.deepseek.com/v1, key=present, thinking=disabled], fallback=kimi[model=kimi-k2.6, base=https://api.moonshot.ai/v1, key=present, thinking=disabled]`
+
+**Checks**:
+- model `deepseek-v4-flash` (not `deepseek-v4-pro`): ✓  
+- Kimi key present: ✓  
+- DeepSeek key present: ✓  
+- Thinking disabled for both: ✓  
+
+**Dotenv**: Startup used `mvn spring-boot:run -Dspring-boot.run.profiles=local` from `server/`; lineup shows `.env.local`-backed keys/model as expected on this machine.
+
+### Phase 4: API Smoke Test
+
+**Status**: PASS (with corrections to the scripted curl plan)
+
+**Notes**:
+- Documented API is `POST /v1/chat/sessions` with snake_case keys (`first_name`, `topic_subject`, …), not `POST /api/chat/session` (that path returns `No static resource`, HTTP 500).
+- Smoke test used `http://127.0.0.1:8080` for reliable JSON responses.
+
+**Sample**: Session creation + `POST /v1/chat/sessions/{id}/messages` with message `hi, I cannot see my advert` returned a normal assistant reply (not “Sorry, I'm a bit slow…” / deadline copy). `additional_data.latency_ms` ~4.8s.
+
+**Logs**: `LLM [chat:request] provider=deepseek model=deepseek-v4-flash` with successful `LLM [chat:response]` lines (no timeout on primary).
+
+### Phase 5: Hardcode Audit
+
+**Status**: PASS (with documented allowances)
+
+| Pattern | Result |
+|--------|--------|
+| `rg "deepseek-v4-pro" --type java --type py` | Matches: `LlmConfigValidatorTest.java` (explicit test setup), Python regression tests (`test_case_spec_*.py`) — acceptable as fixtures/tests, not production defaults. |
+| `rg "DASHSCOPE_CHAT_MODEL"` | No matches in java/py/yaml. |
+| `rg 'model.*=.*"kimi-k2' --type java` | No matches. |
+
+**Remaining references in `server/src/main/java`**: comments only (e.g. `OpenAiCompatibleLlmClient`, `ChatController` javadoc) — **LOW** for “zero hardcode” policy.
+
+### Phase 6: Browser Test
+
+**Status**: SKIPPED  
+
+**Details**: `curl` to `http://127.0.0.1:5173/` failed (connection error during this run). Earlier `lsof` had shown a node process on 5173; no interactive browser verification performed here.
 
 ---
 
-## Test cases
+## Issues Found
 
-| ID | Description | Status | Details |
-|----|-------------|--------|---------|
-| P1-001 | TypeScript: `npx tsc --noEmit` in `ui/` | **PASS** | Exit code 0. |
-| P1-002 | ESLint: `src/components/admin/TraceViewer.tsx`, `src/types/index.ts`, `src/api/client.ts` | **FAIL** | 3 errors (see below). `index.ts` reported no issues. |
-| P1-003 | All planned `data-testid` attributes present in `TraceViewer.tsx` | **PASS** | Found: `llm-reasoning`, `projected-context-toggle`, `llm-raw-response-toggle`, `action-params-toggle`, `llm-detail-btn`. |
-| P2-001 | Production build: `npm run build` | **PASS** | `tsc -b && vite build` completed; assets emitted. |
-| P3-001 | `TraceStep` includes 8 new optional fields | **PASS** | `projected_context`, `llm_raw_response`, `action_parameters`, `source_ids`, `phase_before`, `phase_after`, `active_use_case`, `latency_ms` — all optional. |
-| P3-002 | `mapTrace` accepts camelCase and snake_case from API | **PASS** | Uses `??` fallbacks (e.g. `t.llmRawResponse ?? t.llm_raw_response`). |
-| P3-003 | JSON string fields use `tryParse` | **PASS** | `projected_context` and `action_parameters` parsed when `typeof ... === 'string'`. |
-| P3-004 | `LlmDetailPanel` tolerates missing/empty data | **PASS** | Handles no LLM, parse errors, empty projected context, optional tool data. **Note**: `action-params-toggle` is **not** rendered when `action_parameters` is empty/undefined (conditional block). |
-| P3-005 | `parseLlmRawResponse` edge cases | **PASS** | `null`/empty → no error; valid JSON → parsed; invalid JSON → `parseError: true`, raw shown in raw section. |
-| P3-006 | `getReasoningText` behavior | **PASS** | Returns `null` when parse error, non-object, or no `reasoning` key; normalizes non-string `reasoning` via `JSON.stringify`. |
-| P3-007 | Collapsible sections default collapsed | **PASS** | `useState(false)` for projected, raw, and action toggles. |
-| P3-008 | `data-testid` names match test plan | **PASS** | Matches specified IDs. |
-| P4-001 | API smoke: `GET /v1/demo/sessions` | **PASS** | Backend responded with JSON session list (localhost:8080). |
-| P4-002 | API smoke: trace payload includes new BotTurn-style fields | **SKIP** | `GET .../trace` returned `[]` for sampled session; could not validate live field presence. |
+| # | Severity | Description | Status |
+|---|----------|-------------|--------|
+| 1 | MEDIUM | `SystemPromptUserRequestedTiebreakerTest` fails: `system_prompt.txt` no longer contains `"Sprint 6"` anchor required by Sprint 6 §G1 regression test. | OPEN |
+| 2 | LOW | Test plan’s URLs/body shape (`/api/chat/session`, camelCase JSON) do not match `ChatController` (`/v1/chat/sessions`, snake_case). | DOC / OPEN |
+| 3 | LOW | `deepseek-v4-pro` still appears in Java/Python **tests** and eval helpers by design; confirm team acceptance. | OPEN (policy) |
 
----
+### Overall Verdict: **FAIL**
 
-## Summary
-
-| Metric | Count |
-|--------|-------|
-| Total test cases | 14 |
-| Passed | 12 |
-| Failed | 1 |
-| Skipped | 1 |
-
----
-
-## Issues (severity)
-
-### 1. ESLint errors on targeted files (lint fails)
-
-- **Severity**: **Major** (breaks `npx eslint ...` in CI or pre-commit if enforced).
-- **Details**:
-  - `client.ts:133` — `@typescript-eslint/no-explicit-any` on `turns: any[]` in `mapTrace` (touches changed code).
-  - `client.ts:204` — `no-explicit-any` in `getPerUCMetrics` map callback (unchanged feature area, but file is in lint scope).
-  - `TraceViewer.tsx:18` — `react-hooks/set-state-in-effect`: synchronous `setLoading(true)` inside `useEffect` body.
-- **Suggestion**: Replace `any` with a typed DTO or `unknown` + narrow; adjust loading pattern per React guidance (e.g. derive loading from request promise / key) or document eslint-disable with rationale if intentional.
-
-### 2. `action-params-toggle` only when action parameters are non-empty
-
-- **Severity**: **Minor** (E2E or automation that always expects the toggle in DOM will not find it on turns without `action_parameters`).
-- **File**: `TraceViewer.tsx` — section wrapped in `{!isEmptyRecord(step.action_parameters) && (...)}`.
-- **Suggestion**: If tests require a stable selector, add an always-present wrapper with a test id, or document that the toggle is conditional.
-
-### 3. Live trace empty for sample session
-
-- **Severity**: **Cosmetic** for this QA run (environment/data), not a code defect.
-- **Details**: Could not end-to-end verify API returns `llmRawResponse`, `projectedContext`, etc., because trace array was empty.
-
----
-
-## Code review notes (no issue logged)
-
-- Metadata bar: phase label, `active_use_case` badge, `latency_ms`, `source_ids` count — consistent optional chaining.
-- `llm-detail-btn` uses `e.stopPropagation()` to avoid toggling the step card — appropriate.
-- `LlmDetailPanel` uses light blue container (`#F0F9FF` / `#BAE6FD`) for reasoning area as specified.
-
----
-
-## Quick reference: `data-testid` line map
-
-| testid | Approx. line |
-|--------|----------------|
-| `llm-reasoning` | 124 |
-| `projected-context-toggle` | 161 |
-| `llm-raw-response-toggle` | 187 |
-| `action-params-toggle` | 210 (conditional) |
-| `llm-detail-btn` | 379 |
+**Reason**: Phase 2 unit suite has 1 failing test (`917` run, `1` failure). LLM config centralization, compile, startup lineup, and runtime LLM smoke (Phase 1, 3, 4) behaved as expected on the test host.

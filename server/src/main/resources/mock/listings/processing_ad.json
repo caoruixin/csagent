@@ -5,8 +5,11 @@
   "status": "PROCESSING",
   "seller_email": "john.doe@example.com",
   "created_date": "2025-12-18",
+  "posted_date": "2025-12-18",
   "price": 350.00,
   "currency": "GBP",
+  "location": "Manchester",
   "views": 0,
-  "replies": 0
+  "replies": 0,
+  "is_featured": false
 }

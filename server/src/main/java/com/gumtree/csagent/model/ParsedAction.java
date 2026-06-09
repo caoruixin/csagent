@@ -36,4 +36,15 @@ public class ParsedAction {
 
     /** Internal reasoning, not shown to the customer. */
     private String reasoning;
+
+    /**
+     * Structural provenance flag: true when {@link #userMessage} was
+     * runtime-synthesised by {@code ActionParser} at the null-turn fallback
+     * ({@code tool_calls} empty AND {@code user_message} blank), NOT authored
+     * by the LLM. The R2.a DISCOVER clarification counter excludes synthesised
+     * turns so a runtime placeholder cannot burn the clarification budget.
+     * The parse-failure handover apology ({@code buildFallback}) leaves this
+     * false — it is a different case. Primitive default {@code false}.
+     */
+    private boolean userMessageSynthesised;
 }

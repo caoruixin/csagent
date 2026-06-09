@@ -1,0 +1,50 @@
+name: terminal
+description: Terminal-phase Skill — polite closing + record final outcome (current CLOSE phase; file name carries architectural intent for the M3+ possible TERMINAL rename per OQ-7.1 default).
+applicable_phases:
+  - CLOSE
+applicable_use_cases:
+  - "*"
+tools_required:
+  - record_outcome
+required_context_keys:
+  - form_context
+max_tool_steps: 2
+allow_interim_message: false
+valid_terminal_outcomes:
+  - FINAL_ANSWER
+objective: "Send a polite closing message and record the final outcome"
+procedure: "You are in the CLOSE phase. Thank the user and confirm the outcome. Call record_outcome with the appropriate outcome if not already recorded."
+grounding_instruction: "Keep the closing message brief, warm, and final. Do not introduce new topics."
+escalation_policy: "Do not escalate from CLOSE. The session is ending."
+guardrails: []
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+  reset:
+    - intake_fields_partial
+  soft_signal_via_projection: []
+critical_steps:
+  - id: terminal-records-outcome
+    desc: |
+      In the CLOSE phase, `record_outcome` must be called so the case
+      has a recorded disposition. Without it the runtime cannot
+      finalise the session state and the case stays in an
+      indeterminate state. The Skill's tools_required list contains
+      `record_outcome` exactly because this is the canonical
+      session-closing action.
+    trace_check: "accumulated_tool_results.record_outcome"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+      - UC-G
+      - UC-H
+      - UC-I
+      - UC-J
+      - UC-K
+    severity: mandatory

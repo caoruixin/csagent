@@ -17,12 +17,20 @@ from pathlib import Path
 
 import click
 
+from eval_interactive.batch.sets import is_human_judgment_suite
 from eval_interactive.case_spec.schema import CaseSpec
 from eval_interactive.config import Config
 from eval_interactive.scoring.composite import CompositeScore, compute_composite
 from eval_interactive.scoring.hard_checks import HardChecker, HardCheckResult
 from eval_interactive.scoring.llm_judge import LlmJudge
 from eval_interactive.scoring.outcome_checks import OutcomeChecker
+from eval_interactive.scoring.skill_procedure_check import (
+    CriticalStepResult,
+    SkillProcedureExtractor,
+    Tier2Result,
+    load_skills_from_dir,
+    tier2_results_to_gate,
+)
 from eval_interactive.scoring.stall_detector import StallDetector
 from eval_interactive.simulator.agent_client import AgentClient
 from eval_interactive.simulator.session_runner import SessionResult, SessionRunner
@@ -30,6 +38,58 @@ from eval_interactive.simulator.user_simulator import UserSimulator
 from eval_interactive.trace.collector import TraceCollector, TraceContractError
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_case_passed_authority(case_spec: CaseSpec) -> str:
+    """Map a CaseSpec's source suite to the ``case_passed_authority``
+    string emitted on every per-case result dict (S-Cleanup-2).
+
+    - "human_review" when ``case_spec.source_suite`` matches an
+      opt-in human-judgment suite per
+      ``iteration_governance.md`` §5.6 (``bad_cases`` /
+      ``anchor_outcome``).
+    - "programmatic" otherwise, including the safety default when
+      ``source_suite`` is ``None`` (e.g., a CaseSpec instantiated
+      directly in tests, or loaded from a path the loader could not
+      classify).
+
+    Defensive: the unknown / ``None`` default falls into the
+    programmatic bucket so the human_review annotation is never
+    applied unless the suite is positively identified. ``getattr``
+    with a default also tolerates mock CaseSpec stand-ins in trace-
+    contract tests that pre-date the ``source_suite`` field.
+    """
+    return (
+        "human_review"
+        if is_human_judgment_suite(getattr(case_spec, "source_suite", None))
+        else "programmatic"
+    )
+
+
+def _collect_presented_step_ids(per_turn_trace: list[dict]) -> set[str]:
+    """Return the set of ``critical_steps[].id`` the runtime presented
+    to the LLM across the session.
+
+    Reads ``per_turn_trace[].phase_plan.critical_steps[].id`` — the
+    eval-visible mirror of the runtime's per-turn projection (populated
+    by ``ContextProjectionBuilder``; each turn's ``phase_plan`` is the
+    Skill the runtime's ``SkillRegistry.select`` picked for that phase).
+    Union across turns so a multi-phase session that traversed
+    DISCOVER → RESOLVE → ESCALATE collects every Skill's presented step
+    ids.
+
+    Empty set is a meaningful signal — see
+    :meth:`BatchExecutor._compute_tier2_result` for the defensive
+    inert-default it triggers.
+    """
+    presented: set[str] = set()
+    for turn in per_turn_trace or ():
+        phase_plan = turn.get("phase_plan") or {}
+        for step in phase_plan.get("critical_steps") or ():
+            sid = step.get("id") if isinstance(step, dict) else None
+            if sid:
+                presented.add(str(sid))
+    return presented
 
 
 @dataclass
@@ -47,6 +107,22 @@ class RunResult:
 class BatchExecutor:
     """Runs multiple evaluation sessions with configurable parallelism."""
 
+    # Repo-root-relative path to the canonical Skill YAMLs (single source
+    # of truth per the M3-Eval proposal §5 decision 5; Java
+    # ``SkillLoader`` is the authoritative validator at Spring
+    # bootstrap, this Python loader is the eval-side mirror). Same
+    # ``parents[3]`` calculation tests/test_skill_procedure_extractor.py
+    # uses (with ``parents[2]`` from the tests dir → ``parents[3]`` from
+    # ``eval_interactive/eval_interactive/batch/executor.py``).
+    _SKILLS_DIR: Path = (
+        Path(__file__).resolve().parents[3]
+        / "server"
+        / "src"
+        / "main"
+        / "resources"
+        / "skills"
+    )
+
     def __init__(self, config: Config):
         """Initialize with the application config.
 
@@ -55,6 +131,15 @@ class BatchExecutor:
                     parallelism, timeout, and output directory.
         """
         self._config = config
+        # S-Eval-5 (M3-Eval, Option A AUTHORIZED 2026-05-22 per
+        # ``docs/sprint_objective.md`` §2.6): the production eval-harness
+        # path now passes a ``tier2_result`` to ``compute_composite``
+        # so the populated ``critical_steps`` content from S-Eval-3 is
+        # no longer structurally inert. Built lazily on first use so
+        # tests that don't exercise the executor end-to-end (and
+        # checkouts that may legitimately omit the Java tree) don't
+        # pay the load cost or fail at import time.
+        self._skill_extractor: SkillProcedureExtractor | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -100,6 +185,24 @@ class BatchExecutor:
             f"Starting batch run '{label}' -- {len(cases)} case(s), "
             f"parallel={parallel}"
         )
+
+        # S-Cleanup-2 (M4-Eval-Cleanup): when the run contains cases
+        # from an opt-in human-judgment suite (``bad_cases`` or
+        # ``anchor_outcome`` per ``iteration_governance.md`` §5.6),
+        # surface the suite-mode header so consumers do not mistake
+        # programmatic PASS/FAIL for the acceptance gate. The per-case
+        # ``case_passed_authority`` field on each result records the
+        # same distinction at row granularity.
+        if any(
+            is_human_judgment_suite(getattr(c, "source_suite", None))
+            for c in cases
+        ):
+            click.echo(
+                "  Suite type: human_judgment (per "
+                "iteration_governance.md §5.6); programmatic PASS/FAIL "
+                "is informational only — manual review of "
+                "closure_criterion against per_turn_trace is the gate."
+            )
 
         tasks = [
             self._run_one(case, semaphore)
@@ -237,7 +340,13 @@ class BatchExecutor:
             )
 
             # 5. Hard checks (L1)
-            l1_results = hard_checker.run_checks(case_spec, trace_data, stall_result)
+            # S-Auto-19 (#1): thread the simulator stop_reason so
+            # ``trace_minimum`` can treat a blank containment_outcome on a
+            # legitimately-resolved one-shot terminal (``goal_achieved`` etc.)
+            # as a valid measured terminal rather than partial instrumentation.
+            l1_results = hard_checker.run_checks(
+                case_spec, trace_data, stall_result, session_result.stop_reason
+            )
 
             # 6. Outcome checks (L2)
             l2_results = outcome_checker.run_checks(case_spec, trace_data)
@@ -247,8 +356,25 @@ class BatchExecutor:
                 case_spec, trace_data, session_result.transcript
             )
 
+            # 7a. Tier-2 ``skill_procedure_followship`` (Sprint 46 /
+            # S-Eval-5 Option A AUTHORIZED 2026-05-22 per
+            # ``docs/sprint_objective.md`` §2.6). The S-Eval-3 populated
+            # ``critical_steps`` on each Skill YAML are evaluated
+            # against the per-turn trace; a mandatory-step FAIL whose
+            # ``mandatory_for`` UC list includes ``active_use_case``
+            # flips Tier-2 to critical and (via ``compute_composite``)
+            # flips ``case_passed``. Empty / absent
+            # ``critical_steps`` → ``Tier2Result(PASS, advisory)`` and
+            # no gate effect (parity with the S-Eval-2 default).
+            per_turn_trace = self._build_per_turn_trace(trace_data)
+            tier2_result = self._compute_tier2_result(
+                per_turn_trace, trace_data.session_state.active_use_case
+            )
+
             # 8. Composite score (Wave B1.1: pass case_spec so the composite
-            # scorer can apply mandatory-L2 gates in addition to L1 gates).
+            # scorer can apply mandatory-L2 gates in addition to L1 gates;
+            # S-Eval-5 Option A: pass tier2_result so the Tier-2 gate
+            # flows through to production ``case_passed``).
             composite_score = compute_composite(
                 case_spec.case_id,
                 l1_results,
@@ -256,6 +382,7 @@ class BatchExecutor:
                 l3_results,
                 stall_result,
                 case_spec=case_spec,
+                tier2_result=tier2_result,
             )
 
             # Sprint 25 (R-per-llm-call-latency-instrumentation): fetch the
@@ -272,13 +399,36 @@ class BatchExecutor:
                 case_spec, session_result, trace_data, composite_score, llm_calls
             )
 
-            status = "PASS" if composite_score.case_passed and composite_score.composite >= 0.7 else "FAIL"
-            click.echo(
-                f"  {status:7s} {case_spec.case_id}  "
-                f"composite={composite_score.composite:.3f}  "
-                f"turns={session_result.total_turns}  "
-                f"stop={session_result.stop_reason}"
+            programmatic_status = (
+                "PASS"
+                if composite_score.case_passed and composite_score.composite >= 0.7
+                else "FAIL"
             )
+            # S-Cleanup-2 (M4-Eval-Cleanup): cases from an opt-in
+            # human-judgment suite render the per-case stdout line with
+            # a ``HUMAN_REVIEW`` prefix instead of ``PASS`` / ``FAIL``
+            # so a reader does not mistake the programmatic verdict for
+            # the §5.6 acceptance gate. The composite / turns / stop
+            # metrics are still surfaced because they remain useful as
+            # observation signals.
+            if is_human_judgment_suite(
+                getattr(case_spec, "source_suite", None)
+            ):
+                click.echo(
+                    f"  HUMAN_REVIEW {case_spec.case_id}  "
+                    f"(programmatic={programmatic_status}; human "
+                    f"review of closure_criterion required per §5.6)  "
+                    f"composite={composite_score.composite:.3f}  "
+                    f"turns={session_result.total_turns}  "
+                    f"stop={session_result.stop_reason}"
+                )
+            else:
+                click.echo(
+                    f"  {programmatic_status:7s} {case_spec.case_id}  "
+                    f"composite={composite_score.composite:.3f}  "
+                    f"turns={session_result.total_turns}  "
+                    f"stop={session_result.stop_reason}"
+                )
 
             return case_result
 
@@ -288,6 +438,72 @@ class BatchExecutor:
     # ------------------------------------------------------------------
     # Serialisation helpers
     # ------------------------------------------------------------------
+
+    def _get_skill_extractor(self) -> SkillProcedureExtractor | None:
+        """Lazy-load the SkillProcedureExtractor.
+
+        Returns ``None`` if the canonical skills directory is missing
+        (e.g., the eval_interactive checkout is exercised without the
+        Java tree). In that case Tier-2 stays inert via the empty-list
+        gate produced by ``tier2_results_to_gate(())`` — preserving the
+        S-Eval-2 backward-compat default.
+        """
+        if self._skill_extractor is not None:
+            return self._skill_extractor
+        if not self._SKILLS_DIR.is_dir():
+            logger.warning(
+                "Skill YAML dir not found at %s; Tier-2 skill_procedure_followship "
+                "will stay inert (PASS / advisory).",
+                self._SKILLS_DIR,
+            )
+            return None
+        self._skill_extractor = SkillProcedureExtractor.from_skills(
+            load_skills_from_dir(self._SKILLS_DIR)
+        )
+        return self._skill_extractor
+
+    def _compute_tier2_result(
+        self,
+        per_turn_trace: list[dict],
+        active_use_case: str | None,
+    ) -> Tier2Result:
+        """Aggregate per-Skill ``critical_steps`` evaluation into one
+        Tier-2 verdict, scoped to the steps the runtime actually
+        presented.
+
+        S-Cleanup-3 (#9): the previous implementation iterated every
+        loaded Skill and evaluated every step whose ``mandatory_for``
+        UC list included ``active_use_case``. Because the escalate
+        Skill's ``escalate-via-request-handover`` step is mandatory
+        for all 12 UCs, any resolve-path session (no escalation) was
+        spuriously flipped to ``case_passed=False`` by a step the
+        session never traversed. The fix scopes evaluation to the
+        critical-step ids the runtime emitted into
+        ``per_turn_trace[].phase_plan.critical_steps[].id`` — the same
+        single-source-of-truth surface the runtime LLM consumed in the
+        per-turn projection. See
+        ``docs/solutions/tier2_skill_traversal_design_memo.md`` for the
+        offline reproduction + Option (b) decision.
+
+        Defensive default: if the trace carries no
+        ``phase_plan.critical_steps`` on any turn (older traces, error
+        turns, or partial runs), evaluate NOTHING → inert PASS /
+        advisory. We deliberately do NOT fall back to all-Skills
+        because that re-introduces the misflip; the empty-list default
+        preserves S-Eval-2 backward-compat semantics.
+        """
+        presented_ids = _collect_presented_step_ids(per_turn_trace)
+        if not presented_ids:
+            return tier2_results_to_gate(())
+        ext = self._get_skill_extractor()
+        if ext is None:
+            return tier2_results_to_gate(())
+        scoped_results: list[CriticalStepResult] = []
+        for skill_name in ext.skills_by_name:
+            for r in ext.extract(per_turn_trace, skill_name, active_use_case):
+                if r.step_id in presented_ids:
+                    scoped_results.append(r)
+        return tier2_results_to_gate(scoped_results)
 
     @staticmethod
     def _fetch_llm_calls(
@@ -373,6 +589,17 @@ class BatchExecutor:
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
+            # S-Cleanup-2 (M4-Eval-Cleanup): "human_review" for cases
+            # loaded from the opt-in human-judgment suites
+            # (``bad_cases`` / ``anchor_outcome`` per
+            # ``iteration_governance.md`` §5.6); "programmatic"
+            # otherwise. Consumers MUST NOT treat ``case_passed`` as
+            # the acceptance gate when authority == "human_review";
+            # the §5.6 manual review of ``closure_criterion`` against
+            # ``per_turn_trace`` is the gate. The field is informational
+            # for the executor itself — composite / case_passed are
+            # still computed unchanged.
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
             "session_id": session_result.session_id,
             "total_turns": session_result.total_turns,
             "stop_reason": session_result.stop_reason,
@@ -396,9 +623,43 @@ class BatchExecutor:
                 for r in composite_score.l2_results
             ],
             "l3_results": [
-                {"dimension": r.dimension, "score": r.score, "reasoning": r.reasoning}
+                {
+                    "dimension": r.dimension,
+                    "score": r.score,
+                    "reasoning": r.reasoning,
+                    # S-Eval-5 (M3-Eval): surface dim severity so trend
+                    # reports can split advisory dims (the three demoted
+                    # legacy dims + new ``user_goal_achievement``) from
+                    # critical dims (``premature_finish`` / ``stall_quality``)
+                    # without re-deriving the split from the dim name.
+                    "severity": getattr(r, "severity", "critical"),
+                }
                 for r in composite_score.l3_results
             ],
+            # S-Eval-5 (M3-Eval, Option A AUTHORIZED): per-step Tier-2
+            # ``skill_procedure_followship`` outcomes. Empty list when
+            # the extractor is inert (e.g., Skill YAMLs absent or no
+            # applicable step matched the active UC). The aggregate
+            # gate verdict is already encoded in
+            # ``composite_score.tier2_result``; this list is the
+            # per-step detail consumers need for trend reports + the
+            # M3-Eval close manual review surface.
+            "tier2_result": {
+                "passed": composite_score.tier2_result.passed,
+                "severity": composite_score.tier2_result.severity,
+                "failed_step_ids": list(composite_score.tier2_result.failed_step_ids),
+                "detail": composite_score.tier2_result.detail,
+                "per_step": [
+                    {
+                        "step_id": s.step_id,
+                        "desc": s.desc,
+                        "outcome": s.outcome,
+                        "severity": s.severity,
+                        "detail": s.detail,
+                    }
+                    for s in composite_score.tier2_result.per_step
+                ],
+            },
             "transcript": session_result.transcript,
             # Codex (latest review) §1.1: per-case status must use the same
             # gate as the summary pass count — case_passed AND composite>=0.7
@@ -441,6 +702,7 @@ class BatchExecutor:
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
             "session_id": "",
             "total_turns": 0,
             "stop_reason": "timeout",
@@ -484,6 +746,7 @@ class BatchExecutor:
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
             "session_id": "",
             "total_turns": 0,
             "stop_reason": "error",
@@ -532,6 +795,7 @@ class BatchExecutor:
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
             "session_id": exc.session_id,
             "total_turns": 0,
             "stop_reason": "contract_violation",
@@ -575,7 +839,24 @@ class BatchExecutor:
         """Compute aggregate metrics across all cases.
 
         Returns a dict with overall rates, per-UC breakdown,
-        escalation correctness, and policy compliance.
+        escalation correctness, policy compliance, and the
+        ``suite_authority`` aggregate flag (Sprint 50 / M5 S1).
+
+        ``suite_authority`` is a single source-of-truth signal
+        derived from per-case ``case_passed_authority``
+        annotations (see :func:`_resolve_case_passed_authority`).
+        Both the HTML and JSON report renderers consume this
+        field so the two surfaces cannot drift on the
+        human-judgment vs programmatic distinction.
+
+        - ``"human_review"`` — every case is human_review.
+        - ``"programmatic"`` — every case is programmatic.
+        - ``"mixed"`` — both authorities are present (e.g., a
+          custom path that loaded specs from multiple suites).
+        - ``"programmatic"`` — for an empty case list, matching
+          the safety default used by
+          :func:`_resolve_case_passed_authority` for unknown
+          source suites.
         """
         total = len(case_results)
         if total == 0:
@@ -592,6 +873,7 @@ class BatchExecutor:
                 "escalation_correctness": 0.0,
                 "policy_compliance_rate": 0.0,
                 "mean_turns_to_resolution": 0.0,
+                "suite_authority": "programmatic",
             }
 
         passed = sum(
@@ -667,6 +949,26 @@ class BatchExecutor:
         )
         policy_compliance_rate = compliant / total if total else 0.0
 
+        # ``suite_authority`` aggregate (Sprint 50 / M5 S1): derive
+        # once from the per-case ``case_passed_authority`` annotations
+        # so the HTML and JSON renderers consume a single source of
+        # truth. Per-case authority is resolved by
+        # :func:`_resolve_case_passed_authority` upstream from
+        # ``CaseSpec.source_suite`` via
+        # :func:`sets.is_human_judgment_suite`. Cases that pre-date the
+        # annotation (``None``) coalesce to ``"programmatic"`` here,
+        # matching the safety default used per-case.
+        authorities = {
+            (r.get("case_passed_authority") or "programmatic")
+            for r in case_results
+        }
+        if authorities == {"human_review"}:
+            suite_authority = "human_review"
+        elif authorities == {"programmatic"}:
+            suite_authority = "programmatic"
+        else:
+            suite_authority = "mixed"
+
         return {
             "total_cases": total,
             "passed_cases": passed,
@@ -682,6 +984,7 @@ class BatchExecutor:
             "mean_turns_to_resolution": (
                 round(sum(turns) / total, 2) if total else 0.0
             ),
+            "suite_authority": suite_authority,
         }
 
     # ------------------------------------------------------------------

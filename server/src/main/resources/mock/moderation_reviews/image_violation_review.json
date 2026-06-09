@@ -1,0 +1,9 @@
+{
+  "review_id": "REV-016",
+  "ad_id": "AD-3004",
+  "review_type": "AUTOMATED",
+  "decision": "REMOVED",
+  "reason_code": "IMAGE_VIOLATION",
+  "reason_display": "Your ad was removed because the images did not comply with our image policy.",
+  "reviewed_at": "2026-05-06T12:00:00Z"
+}

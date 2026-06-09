@@ -1,0 +1,43 @@
+case_id: anchor_outcome_uc_i_payment
+source_session_id: 570Q5000008hOYjIAM
+source_dataset: anchor_outcome_uc_i_delivery_refund_reuse
+closure_criterion: |
+  The user has a payment / delivery dispute (UC-I intake-then-escalate;
+  e.g. paid for a delivery that did not arrive). The bot is judged
+  closed when it (a) acknowledges the dispute in user-facing terms,
+  (b) collects the required intake fields (registered email, order
+  identifier or ad reference, brief description), and (c) escalates
+  with a useful handover summary that names the payment dispute.
+  Closure FAILS if the bot unilaterally promises a refund, asks the
+  same intake field across multiple turns without progress, or
+  terminates without a handover.
+form_context:
+  first_name: Mateusz
+  email: customer@example.com
+  topic_subject: Delivery
+  ad_id: ''
+  description: Refund delivery
+persona:
+  user_goal_summary: |
+    User wants a refund for a delivery charge because the courier
+    missed the delivery window and the package has not arrived. They
+    intend to escalate to consumer rights if not refunded.
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: none
+  seed_messages:
+    - "I paid for delivery but the package never arrived and the courier missed the delivery window. I want a refund for the delivery charge."
+  hidden_facts:
+    - fact: Order number is 13752368.
+      disclose_when: when the bot asks for an order identifier
+  will_request_human_if: ''
+expected:
+  outcome_class: escalate
+  primary_uc: UC-I
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

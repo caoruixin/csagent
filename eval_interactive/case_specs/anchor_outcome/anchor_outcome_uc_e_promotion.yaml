@@ -1,0 +1,40 @@
+case_id: anchor_outcome_uc_e_promotion
+source_session_id: 570Q5000008NMRRIA4
+source_dataset: anchor_outcome_uc_e_top_ad_reuse
+closure_criterion: |
+  The user paid for an ad promotion (Top Ad) and the listing is not where
+  they expected (not at the top, not visible, etc.). The bot is judged
+  closed when it (a) answers with grounded info about how the promoted
+  placement works and how long activation takes, OR (b) escalates with a
+  useful handover that names the promotion-paid-but-not-visible shape.
+  Closure FAILS if the bot fabricates a refund, makes a unilateral
+  promise about the listing placement, or terminates without acknowledging
+  the paid-promotion failure mode.
+form_context:
+  first_name: Gary
+  email: customer@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: I paid to put my ad on top of the page and it's not at the top
+persona:
+  user_goal_summary: |
+    User paid for a Top Ad promotion and the listing is not appearing at
+    the top of search results. They want to know why and either get the
+    placement applied or be refunded.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "I paid to put my ad for my business at the top of the page but it's not at the top."
+  hidden_facts: []
+  will_request_human_if: bot cannot explain why the promoted placement is missing
+expected:
+  outcome_class: either
+  primary_uc: UC-E
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'partial'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

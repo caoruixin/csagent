@@ -1,11 +1,11 @@
 source_session_id: 570Q5000008U5C9IAK
-case_id_hint: row_95
-llm_model: deepseek-v4-pro
-prompt_hash: 432b2a6d80d9fd77a610716264e67dc2aa5b2bc21ce05fc18b04844a0730c8c0
-generated_at: '2026-04-30T13:29:14.626823+00:00'
+case_id_hint: cs_interactive_095
+llm_model: deepseek-v4-flash
+prompt_hash: 5ef2b75beadd7cc5c7adc006eb8b1bf018dcb5b018dfa72fb4267cb0078eb291
+generated_at: '2026-05-22T16:00:32.999319+00:00'
 llm_confidence: high
-llm_rationale: Seed messages are verbatim and issue-relevant. Updated user_goal_summary to be more precise and under 280 characters.
-  Added a hidden fact from the agent-provided profile link.
+llm_rationale: Seed messages are verbatim from visitor issue-bearing turns. User goal summary captures the factual desire
+  without bot instructions. Hidden fact is grounded in the transcript. All changes are supported by the conversation.
 rule_draft:
   seed_messages:
   - Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before
@@ -18,23 +18,23 @@ rule_draft:
 llm_proposal:
   seed_messages:
   - Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before
-  - No I will try that. Thank you
-  - Thanks I'll try that. And then will it stay as that address for next time?
-  user_goal_summary: 'The user wants to change the email address associated with their app account to the one they use on
-    the computer, so they can see their live ads and receive messages on the app. Drift: soft_shift.'
-  hidden_facts:
-  - fact: The user's account profile with live ads is located at https://www.gumtree.com/profile/account/20709352fbc0a3c3eadf8a799b11fb76
-    disclose_when: when the bot asks for account details or profile link to verify identity
+  - Yes on the computer on that address I have bit having set up the app and it looks like another email addre. I don't get
+    them on the app anymore
+  - How do I change the email address on the app?
+  user_goal_summary: 'User wants to correct the email address on the app account so they can receive messages and view ads.
+    Drift: soft_shift.'
+  hidden_facts: []
 accepted_value:
   seed_messages:
   - Thank you. Would the wrong email address on the app perhaps not allow syncing but it was working before
-  - No I will try that. Thank you
-  - Thanks I'll try that. And then will it stay as that address for next time?
-  user_goal_summary: 'The user wants to change the email address associated with their app account to the one they use on
-    the computer, so they can see their live ads and receive messages on the app. Drift: soft_shift.'
-  hidden_facts:
-  - fact: The user's account profile with live ads is located at https://www.gumtree.com/profile/account/20709352fbc0a3c3eadf8a799b11fb76
-    disclose_when: when the bot asks for account details or profile link to verify identity
+  - Yes on the computer on that address I have bit having set up the app and it looks like another email addre. I don't get
+    them on the app anymore
+  - How do I change the email address on the app?
+  user_goal_summary: 'User wants to correct the email address on the app account so they can receive messages and view ads.
+    Drift: soft_shift.'
+  hidden_facts: []
   verbosity: normal
 acceptance_reason: auto_accept_high_confidence
-validation_notes: []
+validation_notes:
+- 'unsupported_hidden_fact_dropped: "The user''s computer account email is the one they provided, but the app is signed into
+  a different email address."'

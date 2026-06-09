@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.model.ToolCall;
+import com.gumtree.csagent.service.runtime.skill.DispatchContext;
+import com.gumtree.csagent.service.runtime.skill.RejectVerdict;
+import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.ToolPolicyEnforcer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +20,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.lenient;
@@ -48,6 +53,7 @@ class Sprint7IntakeStateTest {
 
     private ContextProjectionBuilder builder;
     private PhaseEvaluator phaseEvaluator;
+    private SkillGuardrailDispatcher dispatcher;
 
     @Mock private UseCaseRegistryService useCaseRegistry;
     @Mock private ControlPolicyService controlPolicy;
@@ -62,12 +68,19 @@ class Sprint7IntakeStateTest {
 
     @BeforeEach
     void setUp() {
-        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         builder.initToolSchemas();
         phaseEvaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, builder, actionParser, objectMapper,
-                createCaseTool, eventEmitter, toolDispatcher);
+                createCaseTool, eventEmitter, toolDispatcher,
+                SkillTestFixtures.productionRegistry(), null);
+        // Sprint 39 — the Sprint 7 §I2 intake-complete predicate is now an
+        // intake_complete_required Skill guardrail enforced by
+        // SkillGuardrailDispatcher (Sprint 37 freeze §8.2.2 / §9). The
+        // production dispatcher wraps the production SkillRegistry which
+        // loads the resolve_intake_collect_and_handover.yaml + guardrails.
+        dispatcher = SkillTestFixtures.productionDispatcher();
         lenient().when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
         lenient().when(controlPolicy.getMaxBotTurnsIntake()).thenReturn(8);
         lenient().when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
@@ -210,55 +223,60 @@ class Sprint7IntakeStateTest {
                 "Intake systemInstruction must enumerate UC-K canonical fields");
     }
 
-    // -------- shouldRejectIncompleteIntakeHandover --------
+    // -------- intake_complete_required Skill guardrail (Sprint 39 migration) --------
+    // Sprint 7 §I2's `shouldRejectIncompleteIntakeHandover` static predicate
+    // is migrated into the `intake_complete_required` Skill guardrail declared
+    // on `resolve_intake_collect_and_handover.yaml` and enforced by
+    // SkillGuardrailDispatcher per Sprint 37 freeze §8.2.2. The behavioural
+    // contract is preserved verbatim; only the invocation surface changes.
 
     @Test
-    void shouldRejectIncompleteIntakeHandover_rejectsWhenAllFieldsMissing() {
+    void intakeCompleteRequired_rejectsWhenAllFieldsMissing() {
         BotSession session = intakeSession("UC-K");
         ToolCall call = new ToolCall("request_handover",
                 Map.of("escalation_reason", "intake_complete_for_uc_k"));
-        assertTrue(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(intakePlan("UC-K"), call, session));
+        assertTrue(rejectsIntakeIncomplete(intakePlan("UC-K"), call, session));
     }
 
     @Test
-    void shouldRejectIncompleteIntakeHandover_rejectsWhenOneFieldMissing() {
+    void intakeCompleteRequired_rejectsWhenOneFieldMissing() {
         BotSession session = intakeSession("UC-K");
         session.setIntakeFields("{\"platform\":\"Android 14\"}");
         ToolCall call = new ToolCall("request_handover",
                 Map.of("escalation_reason", "intake_complete_for_uc_k"));
-        assertTrue(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(intakePlan("UC-K"), call, session));
+        assertTrue(rejectsIntakeIncomplete(intakePlan("UC-K"), call, session));
     }
 
     @Test
-    void shouldRejectIncompleteIntakeHandover_allowsWhenAllFieldsPresent() {
+    void intakeCompleteRequired_allowsWhenAllFieldsPresent() {
         BotSession session = intakeSession("UC-K");
         session.setIntakeFields(
                 "{\"platform\":\"Chrome on Windows 11\",\"repro_steps_or_error_message\":\"button gone\"}");
         ToolCall call = new ToolCall("request_handover",
                 Map.of("escalation_reason", "intake_complete_for_uc_k"));
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(intakePlan("UC-K"), call, session));
+        assertFalse(rejectsIntakeIncomplete(intakePlan("UC-K"), call, session));
     }
 
     @Test
-    void shouldRejectIncompleteIntakeHandover_allowsUserRequestedRegardlessOfFields() {
+    void intakeCompleteRequired_allowsUserRequestedRegardlessOfFields() {
         BotSession session = intakeSession("UC-K");
         ToolCall call = new ToolCall("request_handover",
                 Map.of("escalation_reason", "user_requested"));
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(intakePlan("UC-K"), call, session),
+        assertFalse(rejectsIntakeIncomplete(intakePlan("UC-K"), call, session),
                 "user_requested handover must always pass — Sprint 6 G1 cs176 contract");
     }
 
     @Test
-    void shouldRejectIncompleteIntakeHandover_allowsIncompleteIntakeReason() {
+    void intakeCompleteRequired_allowsIncompleteIntakeReason() {
         BotSession session = intakeSession("UC-K");
         ToolCall call = new ToolCall("request_handover",
                 Map.of("escalation_reason", "incomplete_intake"));
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(intakePlan("UC-K"), call, session),
+        assertFalse(rejectsIntakeIncomplete(intakePlan("UC-K"), call, session),
                 "incomplete_intake is the canonical fallback when fields cannot be collected");
     }
 
     @Test
-    void shouldRejectIncompleteIntakeHandover_doesNotFireForFaqPathUc() {
+    void intakeCompleteRequired_doesNotFireForFaqPathUc() {
         BotSession session = BotSession.builder()
                 .sessionId("test-faq").activeUseCase("UC-A").currentPhase("RESOLVE")
                 .handlingState("BOT_HANDLING").totalBotTurns(0).clarificationCount(0)
@@ -266,7 +284,28 @@ class Sprint7IntakeStateTest {
                 .build();
         ToolCall call = new ToolCall("request_handover",
                 Map.of("escalation_reason", "intake_complete_for_uc_k"));
-        assertFalse(AgentRunLoopImpl.shouldRejectIncompleteIntakeHandover(faqPlan("UC-A"), call, session));
+        // UC-A is in the resolve_faq_grounded_answer Skill scope which does
+        // NOT declare intake_complete_required; the dispatcher should not
+        // fire on this guardrail type for FAQ-path UCs.
+        assertFalse(rejectsIntakeIncomplete(faqPlan("UC-A"), call, session));
+    }
+
+    /**
+     * Sprint 39 — invoke the unified dispatcher's checkBeforeDispatch with
+     * the active Skill resolved via the production SkillRegistry; assert that
+     * a non-empty verdict was returned and carries the canonical Sprint 7 §I2
+     * reject-reason label.
+     */
+    private boolean rejectsIntakeIncomplete(PhasePlan plan, ToolCall call, BotSession session) {
+        DispatchContext ctx = new DispatchContext(
+                plan, session, Map.of(), null, Optional.empty());
+        Optional<RejectVerdict> verdict = dispatcher.checkBeforeDispatch(plan, call, ctx);
+        if (verdict.isEmpty()) return false;
+        assertEquals(SkillGuardrailDispatcher.INTAKE_INCOMPLETE_REJECT_REASON,
+                verdict.get().predicateName(),
+                "intake_complete_required guardrail must use the Sprint 7 §I2 canonical "
+                        + "reject-reason label");
+        return true;
     }
 
     // -------- persistInlineIntakeFields --------

@@ -174,6 +174,8 @@ public class SessionManager {
                     // logged for debugging but not stuffed into the enum value.
                     session.setCurrentPhase("ESCALATE");
                     session.setHandlingState("QUEUE_TO_HUMAN");
+                    logHandlingStateTransition(session.getSessionId(), "BOT_HANDLING",
+                            "QUEUE_TO_HUMAN", "routing_out_of_scope");
                     session.setContainmentOutcome("escalated");
                     session.setEscalationReason("out_of_scope");
                     log.info("Session {}: OUT_OF_SCOPE routing detail={}",
@@ -183,6 +185,18 @@ public class SessionManager {
                 }
             }
             case AMBIGUOUS -> {
+                // Sprint 31 — Option β: preserve the intake-time alternate-UC
+                // snapshot the router considered plausible for this
+                // topic-subject family. Until Sprint 31 this list was
+                // discarded; the slot is now persisted onto the session and
+                // surfaced as the per-turn `alternate_candidate_use_cases`
+                // projection soft signal. The LLM owns whether to act on it;
+                // the runtime does NOT branch on the value.
+                List<String> ambiguousCandidates = routingResult.ambiguousCandidates();
+                session.setIntakeAmbiguousCandidates(
+                        ambiguousCandidates == null
+                                ? null
+                                : ambiguousCandidates.toArray(new String[0]));
                 // Move to DISCOVER to disambiguate
                 session.setCurrentPhase("DISCOVER");
                 greeting = buildAmbiguousGreeting(firstName, topicSubject);
@@ -335,6 +349,9 @@ public class SessionManager {
                     .build();
         }
 
+        // #5 — capture handling_state before the kernel may transition it.
+        String priorHandlingState = session.getHandlingState();
+
         // Process through control kernel
         ControlKernel.KernelResult result = controlKernel.processMessage(session, userMessage);
 
@@ -348,6 +365,10 @@ public class SessionManager {
                 recordOutcome(session);
             }
         }
+
+        // #5 — diagnostic trail for any handling_state transition this turn.
+        logHandlingStateTransition(sessionId, priorHandlingState,
+                session.getHandlingState(), "control_kernel");
 
         // Save session state
         session.setUpdatedAt(OffsetDateTime.now());
@@ -665,6 +686,22 @@ public class SessionManager {
             return !candidates.contains(session.getActiveUseCase());
         }
         return false;
+    }
+
+    /**
+     * Sprint 079 / S-Auto-24 (M-Auto-6 Sub-sprint B, #5) — non-behavioural
+     * diagnostic trail for handling_state transitions. Pure logging: this
+     * method changes no session state. It exists so a future "case missing in
+     * admin" investigation has a paper trail of when a session changed
+     * disposition (BOT_HANDLING / QUEUE_TO_HUMAN / HUMAN_HANDLING / CLOSED) and
+     * which path drove the change. No-ops when the state is unchanged.
+     */
+    private void logHandlingStateTransition(String sessionId, String oldState,
+                                            String newState, String source) {
+        if (!Objects.equals(oldState, newState)) {
+            log.info("handling_state transition: session={} {} -> {} source={}",
+                    sessionId, oldState, newState, source);
+        }
     }
 
     private void emitEvent(BotSession session, String eventType, int turnIndex, String payload) {

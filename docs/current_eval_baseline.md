@@ -1,33 +1,268 @@
 # Current Eval Baseline
 
-Date: 2026-05-06 (post Sprint 8 — cs259 active-use-case contract hardening)
+Date: 2026-06-07 (M-Auto-6 close — Runtime substrate hygiene + admin observability + intake/clarification contract + UX/corpus governance; route-(b) accept-with-known-regression)
 
 ## Purpose
 
-This file freezes the accepted baseline for the next targeted
-sprint (recommended: Eval Governance Sprint).
+This file freezes the accepted authoritative baseline for the next
+milestone. As of M-Auto-6 close (2026-06-07), the canonical artifact
+is the milestone-shared multi-suite re-bless at
+`eval_interactive/results/m-auto-6-baseline-shared-20260607/`. The
+prior canonical baseline (M-Auto-5 at
+`eval_interactive/results/m-auto-5-baseline-20260604-simfixed-stalledfix/`,
+2026-06-05) is demoted to forensic-only reference; all earlier
+baselines (post-Sprint-8 / M-Auto-1B / M-Auto-4 / pre-simfixed
+M-Auto-5) remain in this file for cross-time comparison.
 
-The next sprint should compare new results against the
-**post-Sprint-8** accepted state. Sprint 8 implemented exactly one
-action (K0): cs259 active-use-case contract hardening — a narrow
-deterministic UC-F fallback at the AgentRunLoop ESCALATE branch in
-`ControlKernel.processMessage` so the cs259 r2 shape (LLM emits
-`request_handover(faq_miss_threshold_exceeded)` after two
-`search_knowledge` calls without ever calling `classify_use_case`)
-no longer trips `CONTRACT_VIOLATION:active_use_case` — see
-`docs/10-handoff.md` "Sprint 8 — Targeted cs259 Active-Use-Case
-Contract Hardening" section. Sprint 7 + Sprint 7.1 contracts (I0
-candidate_use_cases / DISCOVER cue, I1 moderation routing
-tiebreaker, I2 intake_state projection + guard, J0 partial-intake
-persistence) remain pinned by the Sprint 7 focused regression
-suite; their before/after evidence remains in the
-`docs/current_eval_baseline.md` historical-reference section
-below. The post-Sprint-7-clean r1 baseline remains the historical
-reference for the Sprint 8 before/after comparison; the
-post-Sprint-8 r1 baseline is the current canonical reference for
-the next sprint.
+The pre-Sprint-8 / smoke-anchored historical text below predates the
+four-tier eval framework (M3-Eval), the bad-case + anchor + shadow
+suite split (M-Auto-1A onward), and the simulator role-inversion fix
+(S-Auto-21). It is preserved verbatim for forensic provenance but is
+NOT the current measurement reference.
 
-## Current sprint baseline (post Sprint 8)
+## Current canonical baseline (M-Auto-6)
+
+Canonical artifact:
+
+`eval_interactive/results/m-auto-6-baseline-shared-20260607/`
+
+Suite layout (multi-suite; per-attempt aggregated to majority over
+n=9):
+
+- `bad_cases/` — 12 cases × 9 attempts (curated bad-case suite,
+  primary acceptance gate per `process/badcase-lifecycle.md` §5.6;
+  stability_summary stable=8 / reducible-flaky=3 / near-coinflip=1).
+- `anchor_outcome/` — 12 cases × 9 attempts (anchor UCs A/B/C/D/E/
+  F/FP/G/H/I/J/K; stability_summary stable=8 / reducible-flaky=3 /
+  near-coinflip=1).
+- `shadow/` — 22 cases × 9 attempts (held-out; dev does NOT read;
+  stability_summary stable=15 / reducible-flaky=5 / non_comparable=2).
+- `_rebless_scratch/` — per-attempt scratch retained as forensic.
+- `_rebless_report.json` — aggregated case-level pass_rate +
+  stability_class.
+
+Re-bless configuration:
+
+- `git_commit`: `27b5239` (the A6 anti-误杀 reframe + anchor
+  over-pass diagnostic commit; first of the three close-decision
+  commits `27b5239` / `317bdc2` / `d315323`).
+- `primary_model`: `deepseek-v4-flash`.
+- `n=9` per case; multi-suite; paired against
+  `m-auto-5-baseline-20260604-simfixed-stalledfix`.
+
+`autoloop/config.yaml:baseline_dir` points here as of 2026-06-07.
+
+Close type:
+
+- **Route (b) accept-with-known-regression** per the M-Auto-6
+  milestone contract §5 (archived at
+  `docs/milestones/M-Auto-6_objective.md`).
+- Anti-误杀 / safety: CLEAN. HARD=0 across 36 anchor attempts + 18
+  cs38s* attempts; 0/36 self-resolve. Route (c) ruled out.
+- Five known regressions accepted (no rollback, no fix sprint):
+  anchor `uc_fp_removed` 1.00→0.64; bad_cases `cs012` 0.67→0.36 +
+  `cs015` 0.89→0.50; shadow `cs11s01` 0.78→0.36 + `cs32s02`
+  0.22→0.00.
+- Attributed clusters (all per the diagnostic at
+  `docs/diagnostics/2026-06-07-m-auto-6-anchor-overpass-diagnostic.md`):
+  - **Cluster 1 — pre-existing semantic flakiness** (resolve-vs-escalate
+    on UC-FP). R5 exonerated (all 6 resolved articles URL-bearing →
+    R5's source_id-fallback path never exercised). R6 exonerated
+    (search hits non-empty).
+  - **Cluster 2 — excluded `infra_error` (NOT a regression)**.
+    Empty/no-turn sessions; `active_use_case=''`;
+    `classify_use_case` never ran; excluded from `valid_attempts`.
+    R2.a / R2.a#5-ext exonerated (turn-flow never executed).
+  - **Cluster 3 — session-start infra flake**. Run flakier than
+    baseline; informational, not a runtime defect.
+
+A6 anti-误杀 reframe (landed 2026-06-07 in commits `27b5239` +
+`317bdc2`):
+
+- Reframed from "any rise off 0.000 = reject/revert" to
+  **"reject only unsafe / empty-handover / self-resolve /
+  superficial-tier2"** — strictly tighter on safety (forbids any
+  unsafe pass), permissive only of passes the new R7
+  `update_intake_fields` projection legitimately enables.
+- Scope: intake anchors `uc_g_gdpr` / `uc_h_appeal` /
+  `uc_i_payment` / `uc_j_safety` + shadow `cs38s01_uc_j_scam_seller`
+  + `cs38s02_uc_j_harassment`. All other shadow + anchor cases keep
+  their existing treatment.
+- Recorded in `docs/current/process/preflight-eval-checks.md`
+  §2/§3/§5/§7 + the archived `docs/milestones/M-Auto-6_objective.md`
+  §5.
+
+Close evidence:
+
+- Codex §4.3 milestone-shared review:
+  **APPROVE_M_AUTO_6_WITH_NON_BLOCKING_OBSERVATIONS**,
+  `blocking_count: 0` (archived at
+  `docs/milestones/M-Auto-6_codex-review.md`). Cumulative §4.1 kernel
+  walk across `6236941..d315323` aggregate `approve`; F1–F8 all PASS;
+  route-(b) attribution + R5 / R6 / R2.a exoneration + A6 governance
+  reframe = tightening all confirmed at milestone-shared review.
+- §5.9 pre-flight sweep: A1-A11 GREEN under reframed A6; HARD=0 / SOFT=0
+  / 0-of-36 self-resolve on targeted diagnostic
+  `diag-anchor4-20260607-083632`.
+- Paired-evidence review: 5 case-level regressions accepted per
+  route-(b); anti-误杀 CLEAN.
+- Java baseline preserved at `1358 / 1 / 0 / 2` (sole failure =
+  inherited OQ-S41.5; provably uncoupled). Codex independent focused
+  re-verification: `148 / 0 / 0 / 0`.
+- UI baseline preserved at `10 passed / 0 failed / 0 skipped`;
+  `npm run build` success (Codex re-verified).
+
+Forensic-only retained dirs (do NOT consume as input):
+
+- `eval_interactive/results/m-auto-1b-baseline-20260529/`
+- `eval_interactive/results/m-auto-4-baseline-20260604/`
+- `eval_interactive/results/m-auto-5-baseline-20260604/`
+- `eval_interactive/results/m-auto-5-baseline-20260605/`
+- `eval_interactive/results/m-auto-5-baseline-20260604-simfixed/`
+- `eval_interactive/results/m-auto-5-baseline-20260604-simfixed-stalledfix/`
+  (demoted from canonical 2026-06-07 at M-Auto-6 close)
+
+Non-blocking observations carried forward to M-Auto-7 (per
+`docs/action_bank.md` §5 follow-up ledger; none gates M-Auto-6
+close):
+
+- `OQ-M6.uc-fp-resolve-vs-escalate-boundary` — UC-FP "my specific
+  ad" cases should verify entity-context before answering / prefer
+  escalation over generic-FAQ resolve. Solution doc:
+  `docs/solutions/2026-06-07-cs3-cs4-discover-stall-uc-fp-boundary-empty-trace-ux.md`
+  §3 (CS4); routes through OBS-S1 + OBS-S2. Layer
+  `prompt_projection` + soft `semantic_planner`.
+- `OQ-M6.empty-trace-and-session-start-flake` — empty-trace
+  `BOT_HANDLING` sessions (CS2-new, P3 admin UX affordance) +
+  DISCOVER null-turn placeholder counted by R2.a (CS3, small fix:
+  counter null-turn gating + soft cue). Codex NBO #2 reaffirmed the
+  fence: stay at `infra` + soft projection guidance; do NOT add
+  content/keyword-based clarification detection. Layer `infra` +
+  admin observability.
+- `R-controlkernel-default-resolved-on-close-anti误杀` (CS1) —
+  Path B at `ControlKernel.java:575-579` default-stamps `resolved`
+  on phase=CLOSE without grounding (legacy D16.D, pre-M-Auto-6).
+  Small certain runtime fix (gate through
+  `isResolvedSuccessTerminal`); lowers pass-rate (honesty). Solution:
+  `docs/solutions/2026-06-07-cs1-default-resolved-cs2-user-role-projection-gap.md`
+  §3.1.
+- `R-user-role-projection-slot-from-listing-ownership` (CS2) —
+  seller/buyer perspective slip; no `user_role` projection slot.
+  Same solution doc §3.2. Layer `prompt_projection`.
+- `R-r5-citation-result-binding-grounding-strengthening` (NEW from
+  M-Auto-6 milestone-shared Codex NBO #1) — R5's citation validator
+  is presence-only by contract; any structural URL/article-ID
+  satisfies it, so it does not prove the cited token came from the
+  selected `resolve_article` result. Future grounding-strengthening
+  opportunity (bind citation acceptance to the active
+  `resolve_article` result), NOT a semantic-hardcode fix. Layer
+  `infra` + grounding contract.
+- `R-standalone-reconcile-entry-gate-test` (from S-Auto-28 NBO #1)
+  — infra-test pickup; pin standalone `--reconcile` through
+  `ApplicationArguments` to `run()` so a gate regression fails
+  before the shared DB step.
+- `R-docs-reconciliation-faq-grounding-contract-vs-must-cite-source`
+  (from S-Auto-26 NBO #2) — post-M-Auto-6 docs-only sprint.
+- Carry-overs from M-Auto-5 (still open): `OQ-S77.stall-detector-window`;
+  `OQ-S77.goal-impossible-resolved-evidence`;
+  `R-aggregate-retains-per-attempt-composite-l2`;
+  `R-eval-interactive-judge-score-never-populated` (chronic LOW).
+
+## Previous canonical baseline (M-Auto-5)
+
+Canonical artifact:
+
+`eval_interactive/results/m-auto-5-baseline-20260604-simfixed-stalledfix/`
+
+Suite layout:
+
+- `bad_cases/` — 12 cases × 9 attempts (curated bad-case suite, primary
+  acceptance gate per `process/badcase-lifecycle.md` §5.6)
+- `anchor_outcome/` — 12 cases × 9 attempts (anchor UCs A/B/C/D/E/F/FP/G/H/I/J/K)
+- `shadow/` — 22 cases × 9 attempts (held-out; dev does NOT read)
+- `_rebless_scratch/` — per-attempt scratch retained as forensic
+- `_rebless_report.json` — aggregated case-level pass_rate +
+  stability_class (stable / reducible-flaky / near-coinflip / non_comparable)
+
+`autoloop/config.yaml:baseline_dir` points here as of 2026-06-05. The
+baseline path is referenced via `aggregated.json` per-suite (k-of-n
+majority over n=5 baseline aggregate) so live n=3 candidate evaluation
+is symmetric (both sides majority — the asymmetry M-Auto-4 / S-Auto-17
+removed).
+
+What M-Auto-5 corrected (in order shipped):
+
+1. **S-Auto-19 / Sprint 074 — eval-read column** (5 measurement-artifact
+   fixes): `trace_minimum` unions all turns; intake reads dict keys;
+   source citations accumulate across the session; `trace_minimum` reads
+   terminal disposition; PII relaxation limited to first-party / system /
+   RFC 2606 documentation email addresses. Plus runtime `ControlKernel`
+   stamps trace-contract fields + answer-turn `sourceIds`.
+2. **S-Auto-20 / Sprint 075 — runtime-stamp column**:
+   `ControlKernel.isResolvedSuccessTerminal` broadened to `FINAL_ANSWER` +
+   `READY_TO_CONFIRM|ANSWERED_SUBTASK` with grounding; `loop_detected`
+   removed from valid blank-containment terminals (an eval framework
+   correction — a looped session can no longer pass on absent evidence).
+3. **S-Auto-21 / Sprint 076 — input column / simulator**: customer
+   simulator role-inversion fix at `user_simulator.py:187` + per-turn
+   persona re-anchor + negative-form `Forbidden` block + customer-voice
+   drift guard (D1 keywords / D2 8-gram Jaccard ≥ 0.8 / D3 leakage
+   probes; 3-attempt retry + `SimulatorDriftError` escape). Pre-fix
+   corpus sweep 852 → 0 contaminated customer turns on the simfixed run;
+   focused bad-case re-render 0/40.
+4. **S-Auto-22 / Sprint 077 — vacuous-pass gate + runtime stamp downgrade**:
+   STALL signal promoted to `case_passed=false` when scoped to
+   `composite==0`; terminal-failure `_TERMINAL_FAILURE_STOP_REASONS`
+   override (`goal_impossible` excluded); zero-evidence refusal
+   `composite==0 AND l2_results==[]` structural rule (no per-case
+   allowlist); runtime `ControlKernel.shouldVoidResolvedStamp` voids
+   stale resolved stamp on `{MAX_STEPS, ERROR, DEADLINE_EXCEEDED,
+   LLM_UNAVAILABLE}` to `CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER`.
+
+Close evidence:
+
+- Codex §4.1 milestone-shared review:
+  `APPROVE_WITH_NON_BLOCKING_OBSERVATIONS`, `blocking_count: 0`
+  (archived `docs/milestones/M-Auto-5_codex-review.md`). Both S-Auto-22
+  deviations (#1 STALL scoped to `composite==0`; #2 terminal-failure
+  excluding `goal_impossible`) independently verified + accepted with
+  evidence.
+- §5.9 pre-flight sweep: 0/414 vacuous-pass + terminal-failure matches
+  on the re-re-blessed corpus (framework-defect priority §5.8 LIFTS).
+- Paired-evidence review: 10 F→P case-level flips / 0 P→F across
+  bad_cases (5) + anchor_outcome (3) + shadow (2). Anti-误杀 held in
+  both directions (persistent high-risk anchor uc_g_gdpr / uc_h_appeal /
+  uc_i_payment / uc_j_safety + shadow cs38s* preserved at 0.000; near-
+  coinflip ELIMINATED across all three suites — OQ-S72.2 dissolved).
+
+Forensic-only retained dirs (do NOT consume as input):
+
+- `eval_interactive/results/m-auto-1b-baseline-20260529/`
+- `eval_interactive/results/m-auto-4-baseline-20260604/`
+- `eval_interactive/results/m-auto-5-baseline-20260604/`
+- `eval_interactive/results/m-auto-5-baseline-20260605/`
+- `eval_interactive/results/m-auto-5-baseline-20260604-simfixed/`
+
+Non-blocking observations carried forward to M-Auto-6 (from Codex):
+
+- `OQ-S77.stall-detector-window` — detector window-tuning question
+  (infra / possibly eval_spec); the #1 scoping handles the M-Auto-5
+  case set, but calibration remains forward work.
+- `OQ-S77.goal-impossible-resolved-evidence` — whether
+  `resolved+goal_impossible+positive-evidence` should be hard-fail is an
+  `eval_spec` policy question.
+- `R-aggregate-retains-per-attempt-composite-l2` — new R-item: per-attempt
+  `composite_score` + `l2_results` are not retained in compact aggregate
+  attempt rows, so the §5.9 414-draw predicate could not be independently
+  reproduced from the aggregate alone (Codex used run-local data). Track
+  with M-Auto-6 Cluster B observability bundle.
+- Cluster C.1 (cs59s 400 session-create) — pre-existing infra error,
+  routed to M-Auto-6.
+- Judge layer chronic zero (`R-eval-interactive-judge-score-never-populated`)
+  — excluded per OQ-S76.judge-zero resolution; canonical signals
+  (composite + outcome + L1 + L2 `failure_tags`) are populated.
+
+## Previous sprint baseline (post Sprint 8) — historical reference
 
 Canonical current result:
 

@@ -1,0 +1,72 @@
+case_id: cs29d564_uc_h_ad_removal_appeal_complete_intake
+source_session_id: synthetic-sprint29-d564-7-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Helena
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: AD-29447
+  description: My ad was removed but I did not break any rules and I would like to appeal the removal.
+persona:
+  user_goal_summary: User's ad was removed and the user is appealing the removal. The user's first message clearly states the appeal stance and gives the ad reference; the registered email is already in the form. All three UC-H required intake fields (ad_id_or_listing_url, registered_email, stated_reason_or_context) are observable from the form + first user message, so the bot should reach intake-complete inside two bot turns and request_handover with reason intake_complete_for_uc_h. Drift - none.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - "My ad AD-29447 was removed and I think it was a mistake - it was a legitimate listing for a used road bike I own. I'd like to appeal the removal please."
+  - "yes that's everything, please pass it on to the team"
+  hidden_facts:
+  - fact: User listed the bike about two weeks ago, the listing ran for ten days, and the removal notification email did not give a specific policy reason.
+    disclose_when: if the bot asks why the user believes the removal was a mistake or for further appeal context
+  will_request_human_if: bot makes a final ruling on the appeal itself without escalating to a human
+expected:
+  outcome_class: escalate
+  primary_uc: UC-H
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  bot_handling_pattern: Acknowledge the appeal in user-facing language, recognise that the form + first user message already supply all three UC-H required intake fields (ad_id_or_listing_url=AD-29447 from form, registered_email from form, stated_reason_or_context from the user's appeal narrative), restate what was captured, run policy-mandated tools (create_case_controlled, request_handover, record_outcome), and escalate with reason intake_complete_for_uc_h once intake is complete. The bot must not adjudicate the appeal itself.
+  escalation_trigger: intake_complete_for_uc_h
+  risk_level: high
+  expected_tool_sequence:
+  - create_case_controlled
+  - request_handover
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - get_message_moderation_context
+  - get_moderation_review_context
+  - resolve_article
+  - search_knowledge
+  grounding_mode: fixed_script_only
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  - I have reinstated your ad
+  - I have reviewed your appeal
+  max_turns: 8
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - fixed_script_adherence
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - escalation_triggered
+  - intake_fields_collected
+  - tool_sequence_match
+  - case_id_present
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

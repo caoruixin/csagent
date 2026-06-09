@@ -1,0 +1,685 @@
+{
+  "foreign_keys": [
+    {
+      "constraint_name": "bot_events_session_id_fkey",
+      "source_column": "session_id",
+      "source_table": "bot_events",
+      "target_column": "session_id",
+      "target_table": "bot_sessions"
+    },
+    {
+      "constraint_name": "bot_turns_session_id_fkey",
+      "source_column": "session_id",
+      "source_table": "bot_turns",
+      "target_column": "session_id",
+      "target_table": "bot_sessions"
+    },
+    {
+      "constraint_name": "mock_cases_session_id_fkey",
+      "source_column": "session_id",
+      "source_table": "mock_cases",
+      "target_column": "session_id",
+      "target_table": "bot_sessions"
+    },
+    {
+      "constraint_name": "mock_handover_log_session_id_fkey",
+      "source_column": "session_id",
+      "source_table": "mock_handover_log",
+      "target_column": "session_id",
+      "target_table": "bot_sessions"
+    },
+    {
+      "constraint_name": "session_outcomes_session_id_fkey",
+      "source_column": "session_id",
+      "source_table": "session_outcomes",
+      "target_column": "session_id",
+      "target_table": "bot_sessions"
+    }
+  ],
+  "tables": {
+    "bot_events": [
+      {
+        "column_default": null,
+        "column_name": "event_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "session_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "event_type",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "turn_index",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "payload",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      }
+    ],
+    "bot_sessions": [
+      {
+        "column_default": null,
+        "column_name": "session_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "sf_bot_session_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "case_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "'bot_v1'::text",
+        "column_name": "traffic_variant",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "'BOT_HANDLING'::text",
+        "column_name": "handling_state",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "'INIT'::text",
+        "column_name": "current_phase",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "active_use_case",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "candidate_use_cases",
+        "data_type": "ARRAY",
+        "is_nullable": "YES",
+        "udt_name": "_text"
+      },
+      {
+        "column_default": null,
+        "column_name": "intent_confidence",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "udt_name": "numeric"
+      },
+      {
+        "column_default": "0",
+        "column_name": "total_bot_turns",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": "0",
+        "column_name": "clarification_count",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": "0",
+        "column_name": "faq_miss_count",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": "0",
+        "column_name": "repeated_action_count",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "last_action",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "form_topic_subject",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "form_context",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": null,
+        "column_name": "customer_context",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": null,
+        "column_name": "listing_context",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": null,
+        "column_name": "moderation_context",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": "'{}'::text[]",
+        "column_name": "articles_shown",
+        "data_type": "ARRAY",
+        "is_nullable": "NO",
+        "udt_name": "_text"
+      },
+      {
+        "column_default": null,
+        "column_name": "intake_fields",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": null,
+        "column_name": "containment_outcome",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "escalation_reason",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "'v1.0.0'::text",
+        "column_name": "prompt_version",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "'local'::text",
+        "column_name": "model_version",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "'v1.0.0'::text",
+        "column_name": "projection_version",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      },
+      {
+        "column_default": null,
+        "column_name": "closed_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "udt_name": "timestamptz"
+      }
+    ],
+    "bot_turns": [
+      {
+        "column_default": null,
+        "column_name": "turn_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "session_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "turn_index",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "user_message",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "projected_context",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": null,
+        "column_name": "llm_raw_response",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "tool_calls",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": null,
+        "column_name": "bot_response",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "source_ids",
+        "data_type": "ARRAY",
+        "is_nullable": "YES",
+        "udt_name": "_text"
+      },
+      {
+        "column_default": null,
+        "column_name": "phase_before",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "phase_after",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "active_use_case",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "latency_ms",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      }
+    ],
+    "llm_call_log": [
+      {
+        "column_default": "nextval('llm_call_log_id_seq'::regclass)",
+        "column_name": "id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "udt_name": "int8"
+      },
+      {
+        "column_default": null,
+        "column_name": "session_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "turn_index",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "call_type",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "model",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "prompt_tokens",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "completion_tokens",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "latency_ms",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "request_summary",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "response_summary",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "true",
+        "column_name": "success",
+        "data_type": "boolean",
+        "is_nullable": "NO",
+        "udt_name": "bool"
+      },
+      {
+        "column_default": null,
+        "column_name": "error_message",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      }
+    ],
+    "mock_cases": [
+      {
+        "column_default": null,
+        "column_name": "case_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "session_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "use_case_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "subject",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "contact_email",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "ad_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "'New'::text",
+        "column_name": "status",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "queue_name",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "intake_fields",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      }
+    ],
+    "mock_handover_log": [
+      {
+        "column_default": null,
+        "column_name": "log_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "session_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "handover_payload",
+        "data_type": "jsonb",
+        "is_nullable": "NO",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": null,
+        "column_name": "transfer_result",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      },
+      {
+        "column_default": null,
+        "column_name": "customer_message",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "transcript",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      }
+    ],
+    "session_outcomes": [
+      {
+        "column_default": null,
+        "column_name": "session_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "outcome",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "use_case_id",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "escalation_reason",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "udt_name": "text"
+      },
+      {
+        "column_default": null,
+        "column_name": "articles_shown",
+        "data_type": "ARRAY",
+        "is_nullable": "YES",
+        "udt_name": "_text"
+      },
+      {
+        "column_default": null,
+        "column_name": "total_turns",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "udt_name": "int4"
+      },
+      {
+        "column_default": null,
+        "column_name": "total_latency_ms",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "udt_name": "int8"
+      },
+      {
+        "column_default": null,
+        "column_name": "trace_metadata",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "udt_name": "jsonb"
+      },
+      {
+        "column_default": "now()",
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "udt_name": "timestamptz"
+      }
+    ]
+  }
+}

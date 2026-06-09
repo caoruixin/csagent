@@ -1,0 +1,25 @@
+{
+  "conversation_id": "CONV-004",
+  "total_messages": 6,
+  "blocked_messages": 2,
+  "messages": [
+    {
+      "message_id": "MSG-020",
+      "sender_id": "USR-099",
+      "content_preview": "[blocked]",
+      "blocked": true,
+      "block_reason": "SCAM_ATTEMPT",
+      "block_reason_display": "Message blocked: this message was flagged as a potential scam or fraud attempt.",
+      "blocked_at": "2026-05-01T09:15:00Z"
+    },
+    {
+      "message_id": "MSG-022",
+      "sender_id": "USR-099",
+      "content_preview": "[blocked]",
+      "blocked": true,
+      "block_reason": "EXTERNAL_LINK",
+      "block_reason_display": "Message blocked: external links to payment or transaction sites are not permitted.",
+      "blocked_at": "2026-05-01T09:30:00Z"
+    }
+  ]
+}

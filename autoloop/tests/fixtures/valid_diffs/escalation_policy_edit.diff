@@ -1,0 +1,34 @@
+file_path: server/src/main/resources/skills/escalate.yaml
+expected_decision: ACCEPT
+expected_reason_substring: whitelisted
+expected_changed_path_match: "$.escalation_policy"
+before: |
+  name: escalate
+  applicable_use_cases: ["*"]
+  tools_required: [request_handover]
+  procedure: "finalize handover"
+  grounding_instruction: "be polite"
+  escalation_policy: "already in ESCALATE"
+  guardrails: []
+  state_inheritance: {inherit: [], reset: [], soft_signal_via_projection: []}
+  critical_steps:
+    - id: handover-call
+      desc: "call request_handover"
+      trace_check: "result.handover"
+      mandatory_for: [UC-A]
+      severity: mandatory
+after: |
+  name: escalate
+  applicable_use_cases: ["*"]
+  tools_required: [request_handover]
+  procedure: "finalize handover"
+  grounding_instruction: "be polite"
+  escalation_policy: "already in ESCALATE; carry escalation_reason from the canonical enum"
+  guardrails: []
+  state_inheritance: {inherit: [], reset: [], soft_signal_via_projection: []}
+  critical_steps:
+    - id: handover-call
+      desc: "call request_handover"
+      trace_check: "result.handover"
+      mandatory_for: [UC-A]
+      severity: mandatory

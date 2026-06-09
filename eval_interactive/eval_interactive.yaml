@@ -1,13 +1,24 @@
 bot:
-  base_url: http://localhost:8080
+  # Env-var indirection (Sprint 56 / S-Auto-3 OQ-S56.1): the autoloop
+  # applier spawns a parallel Spring on a free alt port and sets
+  # CSAGENT_BACKEND_URL=http://127.0.0.1:<alt-port> before invoking
+  # `eval-interactive run`. For standalone (human) eval-interactive
+  # usage, set CSAGENT_BACKEND_URL=http://localhost:8080 in
+  # `.env.local` (the dotenv loader at eval_interactive/eval_interactive/config.py
+  # reads repo-root `.env.local` automatically).
+  base_url: ${CSAGENT_BACKEND_URL}
 
 llm:
-  # Values resolved from env vars at runtime
-  base_url: ${DASHSCOPE_BASE_URL}
-  api_key: ${DASHSCOPE_API_KEY}
-  model: ${DASHSCOPE_CHAT_MODEL}
+  base_url: ${SIMULATOR_BASE_URL}
+  api_key: ${SIMULATOR_API_KEY}
+  model: ${SIMULATOR_MODEL}
   temperature: 0.0
-  simulator_temperature: 0.7
+  # OQ-S65.8: deterministic simulator. Default was 0.7 → bad_cases ranged
+  # 6/4/5 at bot temp=0; attribution analysis showed remaining variance
+  # came from moonshot simulator non-determinism + session-start flakiness.
+  # Set to 0.0 to remove the simulator-side variance source so candidate
+  # fitness signal in the autoloop is not noise-dominated.
+  simulator_temperature: 0.0
 
 simulator:
   max_turns: 15
@@ -27,7 +38,10 @@ stall_detector:
   followup_window_turns: 2
 
 batch:
-  parallel: 3
+  # parallel=1 default aligned with dataclass default at config.py:85 per
+  # S-Cleanup-1 close (2026-05-23) OQ-S47.1 disposition; M3-Eval close
+  # evidence supports sequential runs for bad-case suite stability.
+  parallel: 1
   timeout_per_session_seconds: 120
 
 report:

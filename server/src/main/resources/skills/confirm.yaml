@@ -1,0 +1,69 @@
+name: confirm
+description: CONFIRM phase Skill — interpret user satisfaction with prior answer; record_outcome resolved or rebound to RESOLVE.
+applicable_phases:
+  - CONFIRM
+applicable_use_cases:
+  - "*"
+tools_required:
+  - record_outcome
+  - request_handover
+required_context_keys:
+  - form_context
+  - conversation_history
+max_tool_steps: 2
+allow_interim_message: false
+valid_terminal_outcomes:
+  - FINAL_ANSWER
+  - CLARIFICATION_NEEDED
+  - ESCALATE
+objective: "Determine whether the user is satisfied with the prior answer"
+procedure: "You are in the CONFIRM phase. Interpret whether the user is satisfied with the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., 'no', 'still not working', 'I need more help'), call request_handover with reason 'user_dissatisfied' OR transition back to RESOLVE if appropriate."
+grounding_instruction: "Read the user's response carefully. Sentiment matters more than literal words. When unclear, ask a single yes/no clarification."
+escalation_policy: "Escalate if user clearly expresses dissatisfaction or requests a human."
+guardrails: []
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+    - intake_fields_partial
+  reset: []
+  soft_signal_via_projection: []
+critical_steps:
+  - id: record-outcome-on-confirmed-resolve
+    desc: |
+      Once the user confirms the prior answer worked, call
+      `record_outcome` so the case closes with a RESOLVED disposition.
+      Skipping `record_outcome` leaves the resolution unrecorded and
+      the case in an indeterminate state — the runtime cannot finalise
+      a session that the LLM treated as resolved but never bound to a
+      `record_outcome` call.
+    trace_check: "accumulated_tool_results.record_outcome"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+    severity: mandatory
+  - id: confirm-honours-user-dissatisfaction
+    desc: |
+      If the user's CONFIRM-phase reply expresses dissatisfaction or
+      asks for further help, do not record the outcome as RESOLVED.
+      The healthy exits are either return control to a fresh RESOLVE
+      attempt (when there is a viable retry path) or dispatch
+      `request_handover` so a human can pick up. Recording RESOLVED
+      while the user is unhappy is a state-fidelity failure: the
+      session would close as solved while the trace shows the user
+      still needs help.
+    trace_check: "any_of(accumulated_tool_results.record_outcome, accumulated_tool_results.request_handover)"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+    severity: advisory

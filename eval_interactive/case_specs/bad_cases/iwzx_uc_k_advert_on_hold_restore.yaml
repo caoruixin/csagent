@@ -1,0 +1,85 @@
+case_id: iwzx_uc_k_advert_on_hold_restore
+source_session_id: 570Q5000008iwZxIAI
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008iwZxIAI
+  surfaced_by: Wave A2.1 reclassification map (legacy migration)
+  surfaced_date: 2026-04-30
+  failure_shape: |
+    "My advert is on hold for the second time — please restore it" is a UC-K (Technical
+    Support) issue when the "hold" is a technical / system state, with UC-FP / UC-B fallback
+    when the hold is policy-related. The pre-override CaseSpec pinned UC-B (Posting); the
+    repeated-hold framing ("2nd time", "please restore") is technical-support intake material
+    (collect platform / ad_id / what error message / when did the hold last lift). Risk: the
+    bot may answer with a generic "your ad is under review, please wait" template (UC-B
+    pattern) instead of opening a technical-support intake to investigate why the hold keeps
+    firing on the same listing.
+  layers_involved: prompt_projection (UC-K technical-regression route hint not strong enough
+    against UC-B posting framing); skill_state (UC-K intake fields — platform,
+    repro_steps_or_error_message — must be collected if hold is technical);
+    semantic_planner (LLM may commit to UC-B without surfacing the "repeated hold" technical
+    signal).
+  related_dimensions: [D1, D2]
+  related_r_items: []
+  tier: scope-relevant
+
+closure_criterion: |
+  Bot recognises "advert on hold 2nd time, please restore" as a technical-support intake
+  candidate (UC-K) when the hold framing is "system / repeated / error", and runs
+  get_customer_context + retrieves the listing's moderation context to determine whether the
+  hold is policy-driven (UC-FP) or system-driven (UC-K). If UC-K, bot collects platform +
+  repro_steps_or_error_message intake fields, creates a UC-K case via create_case_controlled,
+  and hands over with reason=intake_complete_for_uc_k. If UC-FP, bot explains the policy
+  reason for the hold and the steps required (edit / repost / appeal). Bot does NOT respond
+  with a generic "your ad is under review, please wait" template that ignores the repeated-hold
+  signal. Bot does NOT escalate before retrieving the moderation context.
+
+form_context:
+  first_name: Customer
+  email: advert.on.hold@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: |
+    My advert has been put on hold for the second time. Can you please restore it? It is the
+    same ad as before and I do not understand why this keeps happening.
+
+persona:
+  user_goal_summary: |
+    User has posted the same ad more than once and each time it has gone on hold (system
+    review status). The user wants the platform to investigate why the hold keeps firing on
+    the same listing (likely a technical bug, possibly a content-policy issue) and to restore
+    the ad. The user is cooperative; willing to provide platform / repro info if asked.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, my ad has been put on hold for the second time. It's the same ad. Please can you restore it?"
+    - "Why does this keep happening?"
+  hidden_facts:
+    - fact: User reposted the same ad after the first hold lifted; the moderation system
+        re-flagged it on a content rule that the user is unaware of.
+      disclose_when: if the bot asks whether the user re-posted vs the same ad lifting back
+        automatically OR what (if anything) was edited between the two posts
+    - fact: The hold reason in moderation context this time is the same as the first time
+        (image policy); the user did not change the image when reposting.
+      disclose_when: if the bot retrieves the moderation context and asks the user to confirm
+        what they kept the same vs changed
+  will_request_human_if: the bot responds with a generic "your ad is under review, please wait"
+    template without retrieving the actual moderation context
+
+expected:
+  outcome_class: either
+  primary_uc: UC-K
+  secondary_ucs: [UC-FP, UC-B]
+  should_escalate: false
+  allow_bot_resolution: 'partial'
+  acceptable_outcomes: [resolve, escalate]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

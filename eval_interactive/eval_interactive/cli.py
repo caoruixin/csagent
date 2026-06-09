@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 
 import click
@@ -34,8 +35,8 @@ def main():
 )
 @click.option(
     "--llm-model",
-    default="deepseek-v4-pro",
-    help="DeepSeek model name (default deepseek-v4-pro).",
+    default=os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+    help="LLM model for persona review (from DEEPSEEK_MODEL env var).",
 )
 @click.option(
     "--llm-cache-dir",
@@ -137,7 +138,12 @@ def extract(
 @main.command()
 @click.option(
     "--set", "case_set", default="anchor",
-    help="Case set to run: anchor, promotion, exploration, smoke, or all",
+    help=(
+        "Case set to run: anchor, promotion, exploration, smoke, all "
+        "(default registry); bad_cases, anchor_outcome (opt-in "
+        "human-judgment suites; NOT included in --set all per "
+        "iteration_governance.md §5.6 — select explicitly)"
+    ),
 )
 @click.option("--path", "custom_path", default=None, help="Custom case spec path (file or dir)")
 @click.option("--label", default=None, help="Run label")

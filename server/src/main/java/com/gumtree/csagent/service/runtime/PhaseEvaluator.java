@@ -6,6 +6,9 @@ import com.gumtree.csagent.model.*;
 import com.gumtree.csagent.service.guardrails.ScriptLibraryService;
 import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.runtime.skill.Skill;
+import com.gumtree.csagent.service.runtime.skill.SkillRegistry;
+import com.gumtree.csagent.service.runtime.skill.SkillStateBus;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolDispatcher;
 import com.gumtree.csagent.service.tools.ToolResult;
@@ -13,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Per-phase logic evaluator. Determines what action to take based on
@@ -159,11 +163,18 @@ public class PhaseEvaluator {
      *   <li>Session has at least one logged clarification turn → {@code
      *       clarification_budget_exhausted} (the agent kept asking instead of
      *       converging).</li>
-     *   <li>Loop ran search_knowledge at least once → {@code
-     *       faq_miss_threshold_exceeded} (only reachable when the agent did
-     *       not also stall on clarification).</li>
+     *   <li>The most-recent {@code search_knowledge} result was a genuine miss
+     *       ({@code faq_miss=true}) → {@code faq_miss_threshold_exceeded} (only
+     *       reachable when the agent did not also stall on clarification).
+     *       Sprint 070 / S-Auto-14 (B1) made this step evidence-aware: a
+     *       search that returned a viable hit ({@code faq_miss=false}) no
+     *       longer attributes here — the loop ran out of budget with a usable
+     *       answer in hand, which is the catch-all below, not a knowledge
+     *       miss. A null / malformed result map also falls through (no
+     *       positive miss evidence).</li>
      *   <li>Otherwise → {@code turn_budget_exhausted} (catch-all per Phase 2
-     *       §2.4).</li>
+     *       §2.4 — also covers a viable-hit exhaustion and a turn with no
+     *       {@code search_knowledge} call).</li>
      * </ol>
      */
     String resolveMaxStepsReason(PhasePlan plan,
@@ -176,75 +187,37 @@ public class PhaseEvaluator {
                 && session.getClarificationCount() > 0) {
             return "clarification_budget_exhausted";
         }
-        boolean searchedKnowledge = false;
+        // Step 3 (Sprint 070 / S-Auto-14, B1) — evidence-aware FAQ attribution.
+        // Attribute to faq_miss_threshold_exceeded ONLY when the MOST-RECENT
+        // search_knowledge result was a genuine miss (faq_miss=true). When the
+        // last search returned a viable hit (faq_miss=false) the loop ran out
+        // of budget WITH a usable answer, which is the turn_budget_exhausted
+        // catch-all below, not a knowledge miss. The faq_miss flag is read off
+        // the dispatched result map (the same flag the S-Auto-13b A3 gate
+        // reads); a null / malformed map falls through (no positive miss).
+        ToolEvent lastSearch = null;
         if (result != null && result.toolEvents() != null) {
             for (ToolEvent te : result.toolEvents()) {
                 if ("search_knowledge".equals(te.toolName())) {
-                    searchedKnowledge = true;
-                    break;
+                    lastSearch = te;
                 }
             }
         }
-        if (searchedKnowledge) {
+        if (lastSearch != null && lastSearch.resultData() instanceof Map<?, ?> data
+                && Boolean.TRUE.equals(data.get("faq_miss"))) {
             return "faq_miss_threshold_exceeded";
         }
         return "turn_budget_exhausted";
     }
 
-    /**
-     * Build the INTAKE system instruction for a given UC. Mirrors the legacy
-     * {@code resolveIntake} prompt pattern: acknowledge with empathy, collect
-     * any missing required details, hand over to the named team, and (for
-     * UC-H/J/K) create a tracking case before handover.
-     *
-     * <p>Sprint 7 §I2 — references the {@code intake_state} projection slot
-     * so the LLM can see which required fields have already been collected
-     * and which are still missing, ask only for the next missing field, and
-     * provide the collected values back to the runtime via
-     * {@code request_handover.arguments.intake_fields} when intake is
-     * complete.
-     */
-    private String buildIntakeSystemInstruction(String uc,
-                                                UseCaseRegistryService.UseCaseDefinition ucDef) {
-        String teamName = UC_TEAM_NAME.getOrDefault(uc, "specialist");
-        String slaHours = DEFAULT_SLA_HOURS;
-        StringBuilder sb = new StringBuilder();
-        sb.append("You are a Gumtree customer support agent collecting intake information for ");
-        sb.append(ucDef.name()).append(". ");
-        sb.append("Your role: (1) acknowledge the user's issue with empathy, ");
-        sb.append("(2) ask for any missing required details, ");
-        sb.append("(3) confirm the team handling this is ").append(teamName)
-                .append(" and SLA is ").append(slaHours).append(" hours, ");
-        sb.append("(4) call request_handover when intake is complete.");
-        // Codex 1.8: case creation is a runtime-only side effect; do NOT instruct
-        // the LLM to order it. The runtime creates the tracking case
-        // deterministically before handover for UC-H/J/K.
-        sb.append(" Do not attempt to resolve the issue yourself — you are an intake agent only.");
-
-        // Sprint 7 §I2 — intake_state cue. Reference the projected
-        // intake_state slot so the LLM stops re-deriving the missing-field
-        // set every turn (cs_066 r2 turn-budget variance shape).
-        List<String> required = IntakeFieldsRegistry.requiredFieldsFor(uc);
-        if (!required.isEmpty()) {
-            sb.append(" Read the projected `intake_state.fields_remaining` array")
-                    .append(" — that is the canonical list of required fields not yet")
-                    .append(" collected for ").append(uc).append(" (canonical required set: ")
-                    .append(required).append("). Ask ONLY for the next field in")
-                    .append(" `intake_state.fields_remaining`; do NOT repeat questions about")
-                    .append(" fields already in `intake_state.fields_collected`. When")
-                    .append(" `intake_state.fields_remaining` is empty AND")
-                    .append(" `intake_state.intake_complete` is true, call")
-                    .append(" `request_handover` with escalation_reason='")
-                    .append(intakeCompleteTrigger(uc))
-                    .append("' AND include the collected values under")
-                    .append(" `arguments.intake_fields` (e.g.")
-                    .append(" {\"intake_fields\": {\"field_a\": \"value_a\", ...}}). The")
-                    .append(" runtime refuses an `intake_complete_for_*` handover when any")
-                    .append(" required field is missing — it will downgrade the call and")
-                    .append(" hint which fields are still needed.");
-        }
-        return sb.toString();
-    }
+    // Sprint 39 — the legacy buildIntakeSystemInstruction(uc, ucDef) helper
+    // is removed; its content is now externalized in
+    // server/src/main/resources/skills/resolve_intake_collect_and_handover.yaml
+    // (procedure field) and the per-UC substitutions are performed by
+    // substitutePlaceholders(...) below per Sprint 37 freeze §6.2.5.
+    // DEFAULT_SLA_HOURS is a hardcoded "24-48" in the Skill YAML procedure;
+    // it is intentionally NOT a substitution placeholder because no per-UC
+    // variation exists.
 
     private final UseCaseRegistryService useCaseRegistry;
     private final KnowledgeSearchService knowledgeSearchService;
@@ -256,6 +229,8 @@ public class PhaseEvaluator {
     private final CreateCaseControlledTool createCaseTool;
     private final EventEmitter eventEmitter;
     private final ToolDispatcher toolDispatcher;
+    private final SkillRegistry skillRegistry;
+    private final SkillStateBus skillStateBus;
 
     public PhaseEvaluator(UseCaseRegistryService useCaseRegistry,
                           KnowledgeSearchService knowledgeSearchService,
@@ -266,7 +241,9 @@ public class PhaseEvaluator {
                           ObjectMapper objectMapper,
                           CreateCaseControlledTool createCaseTool,
                           EventEmitter eventEmitter,
-                          ToolDispatcher toolDispatcher) {
+                          ToolDispatcher toolDispatcher,
+                          SkillRegistry skillRegistry,
+                          SkillStateBus skillStateBus) {
         this.useCaseRegistry = useCaseRegistry;
         this.knowledgeSearchService = knowledgeSearchService;
         this.scriptLibrary = scriptLibrary;
@@ -277,6 +254,8 @@ public class PhaseEvaluator {
         this.createCaseTool = createCaseTool;
         this.eventEmitter = eventEmitter;
         this.toolDispatcher = toolDispatcher;
+        this.skillRegistry = skillRegistry;
+        this.skillStateBus = skillStateBus;
     }
 
     // ---------------- tool_calls / user_message helpers ----------------
@@ -389,263 +368,170 @@ public class PhaseEvaluator {
         String phase = session.getCurrentPhase();
         String activeUc = session.getActiveUseCase();
 
-        // D16.D: DISCOVER plan — identify use case via clarifying questions.
-        // 2026-05-02 (Fix 3c): added `classify_use_case` to allowedTools so
-        // the LLM can commit a UC once intent is clear; closes
-        // CONTRACT_VIOLATION:active_use_case missing_after_turns. See
-        // phase0 §0.6 deviation entry 2026-05-02.
-        if ("DISCOVER".equals(phase)) {
-            return PhasePlan.builder()
-                    .phase("DISCOVER")
-                    .useCase(activeUc) // may be null while still discovering
-                    .objective("Identify the user's use case by asking clarifying questions or "
-                            + "interpreting their message, then commit it via classify_use_case")
-                    .allowedTools(List.of("search_knowledge", "classify_use_case"))
-                    .requiredContextKeys(Set.of("form_context", "candidate_use_cases"))
-                    .maxToolSteps(2)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(
-                            TerminalOutcome.CLARIFICATION_NEEDED,
-                            TerminalOutcome.FINAL_ANSWER,
-                            TerminalOutcome.ESCALATE))
-                    .systemInstruction(
-                            "You are in the DISCOVER phase. Your goal is to identify which Use Case "
-                                    + "applies to the customer. Look at the form context, candidate use cases, "
-                                    + "and conversation history. When the user's intent is clear (or you can "
-                                    + "infer it with a supporting detail), call classify_use_case with the "
-                                    + "matching use_case_id and a confidence in [0,1]. Otherwise ask one clear "
-                                    + "clarifying question, or escalate if the user's request is out of scope. "
-                                    + "Sprint 7 §I0 weak-candidate cue: when "
-                                    + "`candidate_use_cases` is empty or weak AND the form context is empty / "
-                                    + "UNKNOWN topic AND the current user message is clearly FAQ-shaped "
-                                    + "(\"how do I X\", \"can I Y\", \"what items are allowed\") OR is "
-                                    + "payment / sale-proceeds-shaped (\"how do I receive payment\", "
-                                    + "\"how do I get paid when I sell\", \"how does payout work\"), do NOT "
-                                    + "request_handover with `faq_miss_threshold_exceeded` after a single user "
-                                    + "turn. Instead, gather enough evidence to classify toward the right "
-                                    + "FAQ-path UC: call `search_knowledge` with the user's question as the "
-                                    + "query, then call `classify_use_case` with the most plausible UC "
-                                    + "(payment / sale-proceeds questions point to UC-F; how-to-post and "
-                                    + "general advertising questions to UC-B; messaging to UC-C; account / "
-                                    + "login to UC-D). Once classified, RESOLVE will run the grounded resolve "
-                                    + "sequence.")
-                    .groundingInstruction(
-                            "Do not commit to detailed answers in DISCOVER. Your job is to determine the "
-                                    + "use case category (call classify_use_case), then RESOLVE will produce the "
-                                    + "actual resolution.")
-                    .escalationPolicy(
-                            "Escalate if user explicitly requests human help, if request is clearly out of scope, "
-                                    + "or if you cannot disambiguate after one clarification.")
-                    .build();
-        }
-
-        // D16.D: CONFIRM plan — interpret whether the user is satisfied with prior answer.
-        // maxToolSteps=2 so the loop can: (1) call record_outcome / request_handover,
-        // then (2) emit a final friendly user_message that PhaseEvaluator maps to CLOSE.
-        if ("CONFIRM".equals(phase)) {
-            return PhasePlan.builder()
-                    .phase("CONFIRM")
-                    .useCase(activeUc)
-                    .objective("Determine whether the user is satisfied with the prior answer")
-                    .allowedTools(List.of("record_outcome", "request_handover"))
-                    .requiredContextKeys(Set.of("form_context", "conversation_history"))
-                    .maxToolSteps(2)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(
-                            TerminalOutcome.FINAL_ANSWER,
-                            TerminalOutcome.CLARIFICATION_NEEDED,
-                            TerminalOutcome.ESCALATE))
-                    .systemInstruction(
-                            "You are in the CONFIRM phase. Interpret whether the user is satisfied with "
-                                    + "the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), "
-                                    + "call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., "
-                                    + "'no', 'still not working', 'I need more help'), call request_handover "
-                                    + "with reason 'user_dissatisfied' OR transition back to RESOLVE if "
-                                    + "appropriate.")
-                    .groundingInstruction(
-                            "Read the user's response carefully. Sentiment matters more than literal words. "
-                                    + "When unclear, ask a single yes/no clarification.")
-                    .escalationPolicy(
-                            "Escalate if user clearly expresses dissatisfaction or requests a human.")
-                    .build();
-        }
-
-        // D16.D: CLOSE plan — terminal closing turn. maxToolSteps=2 so the loop can
-        // optionally call record_outcome and still emit a final closing user_message.
-        if ("CLOSE".equals(phase)) {
-            return PhasePlan.builder()
-                    .phase("CLOSE")
-                    .useCase(activeUc)
-                    .objective("Send a polite closing message and record the final outcome")
-                    .allowedTools(List.of("record_outcome"))
-                    .requiredContextKeys(Set.of("form_context"))
-                    .maxToolSteps(2)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(TerminalOutcome.FINAL_ANSWER))
-                    .systemInstruction(
-                            "You are in the CLOSE phase. Thank the user and confirm the outcome. "
-                                    + "Call record_outcome with the appropriate outcome if not already recorded.")
-                    .groundingInstruction(
-                            "Keep the closing message brief, warm, and final. Do not introduce new topics.")
-                    .escalationPolicy(
-                            "Do not escalate from CLOSE. The session is ending.")
-                    .build();
-        }
-
-        // D16.D: ESCALATE plan — finalize handover to a human agent.
-        if ("ESCALATE".equals(phase)) {
-            // Codex 1.8 / customer_service_tool_spec_v0_2.yaml: create_case_controlled
-            // is a ``runtime_only`` tool (visibility: runtime_only). The runtime
-            // already creates the case deterministically via
-            // ControlKernel.createCaseIfNeeded for forced escalations and
-            // PhaseEvaluator.createCaseIfAllowed for intake completion, so the LLM
-            // must not be permitted to order this side effect. Drop it from the
-            // LLM-visible tool list. record_outcome stays so the agent can
-            // close out the session.
-            List<String> tools = List.of("request_handover", "record_outcome");
-            return PhasePlan.builder()
-                    .phase("ESCALATE")
-                    .useCase(activeUc)
-                    .objective("Complete the handover to a human agent and inform the customer")
-                    .allowedTools(tools)
-                    .requiredContextKeys(Set.of("form_context", "customer_context"))
-                    .maxToolSteps(2)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(
-                            TerminalOutcome.ESCALATE,
-                            TerminalOutcome.FINAL_ANSWER))
-                    .systemInstruction(
-                            "You are in the ESCALATE phase. Send a clear handover message and ensure "
-                                    + "request_handover has been called with an appropriate escalation_reason.")
-                    .groundingInstruction(
-                            "Tell the user a human agent will assist them. Provide expected SLA if known. "
-                                    + "Do not promise specific outcomes.")
-                    .escalationPolicy(
-                            "Already in ESCALATE — finalize the handover.")
-                    .build();
-        }
-
-        if (!"RESOLVE".equals(phase)) {
-            // Unrecognized phase — fall back to legacy path.
-            return null;
-        }
-        if (activeUc == null || activeUc.isBlank()) {
-            return null;
-        }
-        if (INTAKE_UCS.contains(activeUc)) {
-            // D16.C: INTAKE branch.
-            UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
-            if (ucDef == null) {
-                return null;
+        // Sprint 39 (NEW M2): SkillRegistry-driven composition for ALL 6
+        // phases per Sprint 37 freeze decisions (e §6.2.5 + §6.2.6) and
+        // (c §4.1). The 4 simpler Sprint 38 Skills (DISCOVER + CONFIRM +
+        // CLOSE + ESCALATE) carry guardrails: [] and no template
+        // placeholders; the 2 Sprint 39 RESOLVE Skills (FAQ + INTAKE) carry
+        // guardrails enforced by SkillGuardrailDispatcher and template
+        // placeholders substituted by composeSkillPhasePlan(...).
+        if (skillRegistry != null) {
+            Optional<Skill> selected = skillRegistry.select(phase, activeUc);
+            if (selected.isPresent()) {
+                Skill newSkill = selected.get();
+                // Sprint 41 — SkillStateBus integration per design doc §10.3.
+                // Detect a Skill switch and invoke the bus once at the boundary:
+                //   (a) prior turn's active_use_case is non-null AND differs
+                //       from the current session.activeUseCase, AND
+                //   (b) the resolved Skill for the prior (phase_after, prior_uc)
+                //       differs by name from newSkill.
+                // Detection rides on existing M1 surfaces (BotTurn.activeUseCase
+                // + BotTurn.phaseAfter); no new classifier introduced per
+                // M2 §6 #5 fence.
+                maybeApplyStateBusOnSwitch(history, session, newSkill);
+                return composeSkillPhasePlan(newSkill, phase, activeUc);
             }
-            String teamName = UC_TEAM_NAME.getOrDefault(activeUc, "specialist");
-
-            // Codex 1.8: case creation is runtime-only (tool_spec
-            // visibility: runtime_only). The deterministic
-            // PhaseEvaluator.createCaseIfAllowed / ControlKernel.createCaseIfNeeded
-            // hooks already create UC-H/J/K cases before handover, so the LLM
-            // must never be permitted to call create_case_controlled. Both UCs
-            // and UC-G/I therefore expose only request_handover here.
-            boolean needsCase = Set.of("UC-H", "UC-J", "UC-K").contains(activeUc);
-            List<String> tools = List.of("request_handover");
-
-            return PhasePlan.builder()
-                    .phase("RESOLVE")
-                    .useCase(activeUc)
-                    .objective("Collect required intake details for " + ucDef.name()
-                            + " and hand over to the " + teamName + " team")
-                    .allowedTools(tools)
-                    .requiredContextKeys(Set.of("form_context", "customer_context"))
-                    .maxToolSteps(3)
-                    .allowInterimMessage(false)
-                    .validTerminalOutcomes(Set.of(
-                            TerminalOutcome.CLARIFICATION_NEEDED,
-                            TerminalOutcome.ESCALATE))
-                    .systemInstruction(buildIntakeSystemInstruction(activeUc, ucDef))
-                    .groundingInstruction(
-                            "Use fixed-script templates and standard intake questions. "
-                                    + "Do NOT cite knowledge articles. Do NOT search the knowledge base. "
-                                    + "Your job is to collect required information and escalate to the human "
-                                    + teamName + " team. "
-                                    + (needsCase
-                                            ? "A tracking case will be created automatically by the runtime when you escalate; "
-                                              + "you do not need to call any case-creation tool yourself."
-                                            : ""))
-                    .escalationPolicy(
-                            "Escalate via request_handover with reason='" + intakeCompleteTrigger(activeUc) + "' "
-                                    + "once intake fields are collected. "
-                                    + "Escalate immediately if the user explicitly requests human help.")
-                    .build();
         }
+        // Unknown phase OR unmapped (phase, useCase) tuple — fall back to
+        // null (the kernel handles null plans defensively). Pre-Sprint-39
+        // this fall-through carried the legacy RESOLVE-INTAKE and
+        // RESOLVE-FAQ branches; both are now externalized to
+        // server/src/main/resources/skills/resolve_*.yaml.
+        return null;
+    }
 
-        // RESOLVE / FAQ branch.
-        UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
-        if (ucDef == null) {
-            return null;
+    /**
+     * Sprint 41 — invoke {@link SkillStateBus#applyOnSkillSwitch} at the
+     * Skill-switch boundary per design doc §10.3. Skill-switch is detected
+     * when (a) the prior persisted turn carries a non-null
+     * {@code active_use_case} that differs from the current session's
+     * active UC, AND (b) the Skill resolved for the prior
+     * {@code (phase_after, prior_uc)} differs by name from {@code newSkill}.
+     *
+     * <p>Detection rides on existing M1 surfaces (BotTurn.activeUseCase
+     * + BotTurn.phaseAfter); no new classifier introduced per M2 §6 #5
+     * fence. Per §1.7: this method has NO per-UC-pair branch — the bus
+     * itself applies the new Skill's {@code state_inheritance} declaration
+     * verbatim.
+     *
+     * <p>Defensive: no-op when {@code skillStateBus} is null (test
+     * harness fallback), when {@code history} is empty, when the prior
+     * turn has no committed {@code active_use_case}, OR when the prior
+     * Skill resolves to the same Skill as {@code newSkill}.
+     */
+    private void maybeApplyStateBusOnSwitch(List<BotTurn> history,
+                                             BotSession session,
+                                             Skill newSkill) {
+        if (skillStateBus == null || history == null || history.isEmpty()
+                || session == null || newSkill == null) {
+            return;
         }
-        // Skip plan if path is explicitly INTAKE (defense in depth — INTAKE_UCS
-        // already covers UC-G/H/I/J/K).
-        if ("INTAKE".equals(ucDef.path())) {
-            return null;
-        }
+        BotTurn priorTurn = history.get(history.size() - 1);
+        if (priorTurn == null) return;
+        String priorUc = priorTurn.getActiveUseCase();
+        String activeUc = session.getActiveUseCase();
+        if (priorUc == null || priorUc.isBlank()) return;
+        if (Objects.equals(priorUc, activeUc)) return;
+        String priorPhase = priorTurn.getPhaseAfter();
+        if (priorPhase == null || priorPhase.isBlank()) return;
+        Skill priorSkill = skillRegistry.select(priorPhase, priorUc).orElse(null);
+        if (priorSkill == null) return;
+        if (Objects.equals(priorSkill.name(), newSkill.name())) return;
+        skillStateBus.applyOnSkillSwitch(priorSkill, newSkill, session);
+    }
 
-        // Sprint 6 §G2 — S1 FAQ-grounded-resolve PhasePlan branch.
-        // Enforces the terminal sequence search_knowledge -> resolve_article ->
-        // grounded customer-facing answer -> record_outcome, OR an explicit
-        // handover only after a valid resolve attempt cannot complete. The
-        // server-side handover-guard in AgentRunLoopImpl owns the deterministic
-        // predicate; this systemInstruction / groundingInstruction / escalationPolicy
-        // triple makes the contract visible to the LLM. record_outcome is added
-        // to allowedTools so the LLM can call it after a grounded answer
-        // without leaving RESOLVE.
+    /**
+     * Compose a {@link Skill} with session state into a {@link PhasePlan} per
+     * Sprint 37 freeze §4.1 decision (c). The output is observationally
+     * identical to the pre-migration hardcoded per-phase branch for the
+     * representative UCs covered by the Skill (verified by
+     * {@code PhaseEvaluatorSkillIntegrationTest} for Sprint 38's 4 simpler
+     * phases and {@code PhaseEvaluatorResolveSkillIntegrationTest} for
+     * Sprint 39's 2 RESOLVE phases).
+     *
+     * <p>Sprint 39: applies template substitution per design doc §6.2.5 /
+     * §6.2.6 to the RESOLVE Skills' text fields. Each placeholder is a
+     * SINGLE registry / map lookup keyed by the active UC — there is NO
+     * per-UC-pair branch logic in the substitution body per §1.7 + M2 §6 #1.
+     * Skills that do not contain a placeholder (Sprint 38's 4 simpler phase
+     * Skills) pass their text fields through unchanged.
+     */
+    private PhasePlan composeSkillPhasePlan(Skill skill, String phase, String activeUc) {
+        Set<TerminalOutcome> outcomes = skill.validTerminalOutcomes().stream()
+                .map(TerminalOutcome::valueOf)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        int maxToolSteps = skill.maxToolSteps() != null ? skill.maxToolSteps() : 2;
+
         return PhasePlan.builder()
-                .phase("RESOLVE")
-                .useCase(activeUc)
-                .objective("Determine the customer's issue and provide a grounded, helpful answer for "
-                        + ucDef.name())
-                .allowedTools(List.of("get_customer_context", "search_knowledge",
-                        "resolve_article", "record_outcome", "request_handover"))
-                .requiredContextKeys(Set.of("form_context", "customer_context",
-                        "listing_context", "moderation_context"))
-                .maxToolSteps(4)
-                .allowInterimMessage(false)
-                .validTerminalOutcomes(Set.of(
-                        TerminalOutcome.FINAL_ANSWER,
-                        TerminalOutcome.CLARIFICATION_NEEDED,
-                        TerminalOutcome.ESCALATE))
-                .systemInstruction(
-                        "You are a helpful Gumtree customer support agent. "
-                                + "Resolve the user's issue using the provided tools. "
-                                + "FAQ-path RESOLVE flow (S1): the intended terminal sequence is "
-                                + "search_knowledge -> resolve_article -> grounded customer-facing "
-                                + "answer (with a source_id citation) -> record_outcome. "
-                                + "Only escalate via request_handover after a valid resolve "
-                                + "attempt cannot complete (no viable hit, or resolve_article "
-                                + "could not produce a grounded answer).")
-                .groundingInstruction(
-                        "If tool data contains specific information about the user's case "
-                                + "(account/ad/moderation), answer from that first. "
-                                + "For policy/process explanations, you MUST call search_knowledge "
-                                + "first if accumulated_tool_results.search_knowledge is empty; "
-                                + "do not produce a factual customer-facing answer without "
-                                + "grounded knowledge evidence. After search_knowledge returns a "
-                                + "viable hit, you MUST call resolve_article for the top hit "
-                                + "before answering the customer; cite the source_id in your "
-                                + "user_message. If search_knowledge returns no viable hit, "
-                                + "request_handover with escalation_reason="
-                                + "'faq_miss_threshold_exceeded' is allowed.")
-                .escalationPolicy(
-                        "Escalate via request_handover if (a) the user explicitly requests "
-                                + "a human (use escalation_reason='user_requested', priority 1), "
-                                + "or (b) search_knowledge returned no viable hit and you "
-                                + "cannot answer (use 'faq_miss_threshold_exceeded'), or "
-                                + "(c) the issue is genuinely out of scope (use 'out_of_scope'). "
-                                + "Do NOT short-circuit to request_handover("
-                                + "'faq_miss_threshold_exceeded') when search_knowledge "
-                                + "already returned a viable hit and resolve_article has not "
-                                + "yet been attempted — the runtime will refuse such a "
-                                + "handover and require a resolve_article attempt first.")
+                .phase(phase)
+                .useCase(activeUc) // may be null in DISCOVER while still discovering
+                .objective(substitutePlaceholders(skill.objective(), activeUc))
+                .allowedTools(skill.toolsRequired())
+                .requiredContextKeys(new LinkedHashSet<>(skill.requiredContextKeys()))
+                .maxToolSteps(maxToolSteps)
+                .allowInterimMessage(skill.allowInterimMessage())
+                .validTerminalOutcomes(outcomes)
+                .systemInstruction(substitutePlaceholders(skill.procedure(), activeUc))
+                .groundingInstruction(substitutePlaceholders(skill.groundingInstruction(), activeUc))
+                .escalationPolicy(substitutePlaceholders(skill.escalationPolicy(), activeUc))
                 .build();
+    }
+
+    /**
+     * Substitute Sprint 39 RESOLVE-Skill template placeholders per Sprint 37
+     * freeze §6.2.5 / §6.2.6. Six placeholders, each filled by a SINGLE
+     * registry / map lookup keyed by the active UC; no per-UC-pair branch
+     * logic per §1.7 + M2 §6 #1. Skills that do not contain a placeholder
+     * pass their text through unchanged.
+     *
+     * <ul>
+     *   <li>{@code {uc_name}} — display name from {@link UseCaseRegistryService}.</li>
+     *   <li>{@code {uc_id}} — the active UC itself.</li>
+     *   <li>{@code {team_name}} — {@link #UC_TEAM_NAME} map (defaults to
+     *       {@code "specialist"}).</li>
+     *   <li>{@code {intake_complete_trigger}} — canonical
+     *       {@code intake_complete_for_uc_X} via {@link #intakeCompleteTrigger(String)}.</li>
+     *   <li>{@code {case_creation_note}} — case-creation appendix for UC-H/J/K
+     *       (M1 {@code ControlKernel.createCaseIfNeeded} runtime side effect),
+     *       empty for UC-G/I and non-intake UCs.</li>
+     *   <li>{@code {intake_required_fields}} —
+     *       {@link IntakeFieldsRegistry#requiredFieldsFor(String)} list rendered
+     *       via Java {@code List.toString()}. Sixth placeholder (beyond the
+     *       five named in Sprint 39 contract §2.2 D-c) preserves byte-for-byte
+     *       equivalence with the legacy
+     *       {@code buildIntakeSystemInstruction(...)} output; flagged in
+     *       handoff §7 OQ for deliver-agent + human review at Sprint 39 close.</li>
+     * </ul>
+     */
+    private String substitutePlaceholders(String text, String activeUc) {
+        if (text == null) return null;
+        if (activeUc == null || activeUc.isBlank()) return text;
+
+        String ucName = activeUc;
+        try {
+            UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
+            if (ucDef != null && ucDef.name() != null) {
+                ucName = ucDef.name();
+            }
+        } catch (Exception ex) {
+            // Defensive: fall back to the raw UC id if the registry rejects.
+        }
+        String teamName = UC_TEAM_NAME.getOrDefault(activeUc, "specialist");
+        String trigger = intakeCompleteTrigger(activeUc);
+        boolean needsCase = Set.of("UC-H", "UC-J", "UC-K").contains(activeUc);
+        String caseNote = needsCase
+                ? "A tracking case will be created automatically by the runtime when you escalate; "
+                        + "you do not need to call any case-creation tool yourself."
+                : "";
+        String requiredFields = IntakeFieldsRegistry.requiredFieldsFor(activeUc).toString();
+
+        return text
+                .replace("{uc_name}", ucName)
+                .replace("{uc_id}", activeUc)
+                .replace("{team_name}", teamName)
+                .replace("{intake_complete_trigger}", trigger)
+                .replace("{case_creation_note}", caseNote)
+                .replace("{intake_required_fields}", requiredFields);
     }
 
     /**

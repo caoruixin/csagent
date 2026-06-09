@@ -1,0 +1,69 @@
+case_id: cs32t01_uc_a_uc_c_drift
+source_session_id: synthetic-sprint32-target-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Priya
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Hi, my listing is not getting any attention and I am also having trouble with my account messages, can you help?
+persona:
+  user_goal_summary: User has two distinct issues. The primary opening complaint is visibility-shaped (UC-A) — the paid Top Ad listing is not getting views — but on turn 2 the user surfaces a separate UC-C concern (replies from a specific buyer are not being received). The two issues are genuinely distinct; the user expects the bot to recognise the topic shift on turn 2 and either reroute to the messaging issue or ask a focused clarifying question about which issue to address first. This is the §7.2 worked-example shape (`docs/current/iteration_governance.md` §7.2 promoted into the failure-brief at `docs/diagnostics/failure-briefs/sprint32-uc-a-uc-c-alternate-uc-readiness.md`). The Sprint 31 alternate_candidate_use_cases projection slot is the soft signal the bot is expected to read on the drift turn. Drift - soft_shift.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: soft_shift
+  seed_messages:
+  - "I paid for a Top Ad on my listing but it does not seem to be getting any views — can you check what is happening?"
+  - "and by the way the replies from one buyer are not coming through to me either, can you also check that?"
+  - "ok, the messaging issue is actually the more urgent one — please look at that first"
+  hidden_facts:
+  - fact: The user has been getting some email reply notifications from other buyers but the inbox view shows no messages from one specific buyer the user is trying to communicate with about a sale.
+    disclose_when: if the bot asks where the user is seeing the missing messages or whether other buyers reply normally
+  will_request_human_if: the bot ignores the messaging issue surfaced on turn 2 and continues to answer only the visibility question
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs:
+  - UC-A
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: On turn 1 the bot acknowledges the visibility complaint (UC-A) and may begin gathering UC-A context. On turn 2 the user surfaces a second issue (UC-C messaging delivery). The bot is expected to recognise the topic shift — observable via the alternate_candidate_use_cases projection slot if it carries UC-C on the AMBIGUOUS-intake path, or via the user's plain-language drift signal — and either (a) reroute active_use_case to UC-C, run policy-mandated tools (search_knowledge, resolve_article, record_outcome) for the messaging issue, and produce a grounded answer, or (b) ask one focused clarifying question about which issue to address first and then route accordingly. The end-state UC is UC-C because turn 3 explicitly prioritises the messaging issue. The bot must not silently stamp active_use_case=UC-A through the drift and answer the messaging complaint inside the UC-A frame.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 12
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

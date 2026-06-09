@@ -11,6 +11,12 @@ tools:
   request_handover:
     type: AGENT_VISIBLE
     allowed-ucs: [ALL]
+  # Sprint 080 / R7 — no-side-effect intake-field accumulation tool. Scoped to
+  # the intake UCs (UC-G/H/I/J/K) so it is only reachable on the RESOLVE-INTAKE
+  # Skill where intake fields are collected. Does NOT trigger handover.
+  update_intake_fields:
+    type: AGENT_VISIBLE
+    allowed-ucs: [UC-G, UC-H, UC-I, UC-J, UC-K]
   record_outcome:
     type: AGENT_VISIBLE
     allowed-ucs: [ALL]

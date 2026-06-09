@@ -14,9 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Sprint 9 §O2 — bounded sanitized projection unit tests. Pin the
- * size cap, PII redaction, and tool-aware {@code resolve_article}
- * summary fields so the {@code bot_turns.tool_calls} trace stays
- * non-empty without leaking large or sensitive payloads.
+ * size cap and tool-aware {@code resolve_article} summary fields so the
+ * {@code bot_turns.tool_calls} trace stays non-empty without leaking large
+ * payloads. Demo policy: diagnostic strings (guardrail predicates, KB
+ * source ids) pass through verbatim; only credential-like map keys are
+ * redacted.
  */
 class ToolCallTraceSanitizerTest {
 
@@ -75,7 +77,24 @@ class ToolCallTraceSanitizerTest {
     }
 
     @Test
-    void sanitize_redactsEmailFromStringFields() {
+    void sanitizeResultData_preservesSalesforceSourceIdInSearchHits() {
+        String sourceId = "ka4P2000000060bIAA";
+        Map<String, Object> hit = Map.of(
+                "source_id", sourceId,
+                "title", "I Can't Find My Ad",
+                "score", 2.5);
+        Map<String, Object> result = Map.of("hits", List.of(hit), "faq_miss", true);
+
+        Object sanitized = ToolCallTraceSanitizer.sanitizeResultData("search_knowledge", result);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> safe = (Map<String, Object>) sanitized;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> firstHit = (Map<String, Object>) ((List<?>) safe.get("hits")).get(0);
+        assertEquals(sourceId, firstHit.get("source_id"));
+    }
+
+    @Test
+    void sanitize_preservesEmailInStringFields() {
         Map<String, Object> payload = Map.of(
                 "title", "Contact alice@example.com for details",
                 "source_id", "kb-pii");
@@ -83,8 +102,7 @@ class ToolCallTraceSanitizerTest {
         Object sanitized = ToolCallTraceSanitizer.sanitizeResultData("resolve_article", payload);
         @SuppressWarnings("unchecked")
         Map<String, Object> safe = (Map<String, Object>) sanitized;
-        assertTrue(((String) safe.get("title")).contains("[REDACTED_EMAIL]"));
-        assertFalse(((String) safe.get("title")).contains("alice@example.com"));
+        assertTrue(((String) safe.get("title")).contains("alice@example.com"));
     }
 
     @Test
@@ -127,78 +145,51 @@ class ToolCallTraceSanitizerTest {
         assertTrue(summary.contains("queued"));
     }
 
-    // ── Sprint 9.1 — sanitization closure fix ──────────────────────────
-
     @Test
-    void sanitizeErrorMessage_redactsEmailPhoneAndToken() {
-        String raw = "Salesforce 503: failed for alice@example.com phone +44 20 7946 0958 "
-                + "auth Bearer abcdef0123456789ABCDEFGHabcdef01";
-        String safe = ToolCallTraceSanitizer.sanitizeErrorMessage(raw);
-        assertNotNull(safe);
-        assertFalse(safe.contains("alice@example.com"),
-                "email must be redacted in error_message (was: " + safe + ")");
-        assertFalse(safe.contains("20 7946 0958"),
-                "phone digits must be redacted in error_message (was: " + safe + ")");
-        assertFalse(safe.contains("abcdef0123456789ABCDEFGHabcdef01"),
-                "long bearer token must be redacted in error_message (was: " + safe + ")");
-        assertTrue(safe.contains("[REDACTED_EMAIL]"));
-        assertTrue(safe.contains("[REDACTED_PHONE]"));
-        // The Bearer header should hit the BEARER pattern, not LONG_TOKEN.
-        assertTrue(safe.contains("[REDACTED_BEARER]"),
-                "Bearer pattern must surface as a bearer-specific marker (was: " + safe + ")");
+    void sanitizeErrorMessage_preservesGuardrailPredicate() {
+        String predicate = "progressive_resolve_record_outcome_premature";
+        assertEquals(predicate, ToolCallTraceSanitizer.sanitizeErrorMessage(predicate));
     }
 
     @Test
-    void summarize_failedTool_redactsErrorContents() {
+    void summarize_failedTool_passesErrorVerbatim() {
         String raw = "downstream rejected token=ZjY1OWY3MGVjN2E4NDI2OTk5OWY1MDE5OWM2NjY2ZGY "
                 + "for user alice@example.com";
         String summary = ToolCallTraceSanitizer.summarize(
                 "request_handover", false, null, raw);
         assertTrue(summary.startsWith("error:"));
-        assertFalse(summary.contains("alice@example.com"),
-                "failed-tool result_summary must redact email (was: " + summary + ")");
-        assertFalse(summary.contains("ZjY1OWY3MGVjN2E4NDI2OTk5OWY1MDE5OWM2NjY2ZGY"),
-                "failed-tool result_summary must redact long random tokens (was: " + summary + ")");
-        assertTrue(summary.contains("[REDACTED_EMAIL]"));
+        assertTrue(summary.contains("alice@example.com"),
+                "failed-tool result_summary must pass through diagnostic text (was: " + summary + ")");
+        assertTrue(summary.contains("ZjY1OWY3MGVjN2E4NDI2OTk5OWY1MDE5OWM2NjY2ZGY"));
     }
 
     @Test
-    void sanitizeResultData_redactsErrorFieldFromGenericMap() {
-        // Some tool wraps its failure as { "error": "...", ... }. The
-        // generic sanitizer must scrub the embedded sensitive surface
-        // even though the entry isn't surfaced via error_message.
+    void sanitizeResultData_preservesErrorFieldFromGenericMap() {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("error",
                 "salesforce 401: Authorization Bearer abcdef0123456789ABCDEFGHabcdef0123 "
                         + "rejected for user@example.com (postcode SW1A 1AA)");
+
         Object sanitized = ToolCallTraceSanitizer.sanitizeResultData("request_handover", payload);
         @SuppressWarnings("unchecked")
         Map<String, Object> safe = (Map<String, Object>) sanitized;
         String err = (String) safe.get("error");
         assertNotNull(err);
-        assertFalse(err.contains("user@example.com"));
-        assertFalse(err.contains("abcdef0123456789ABCDEFGHabcdef0123"));
-        assertFalse(err.contains("SW1A 1AA"));
-        assertTrue(err.contains("[REDACTED_EMAIL]"));
-        assertTrue(err.contains("[REDACTED_BEARER]"));
-        assertTrue(err.contains("[REDACTED_POSTCODE]"));
+        assertTrue(err.contains("user@example.com"));
+        assertTrue(err.contains("SW1A 1AA"));
+        assertTrue(err.contains("Bearer abcdef0123456789ABCDEFGHabcdef0123"));
     }
 
     @Test
     void sanitizeResultData_redactsSensitiveKeyValuesEvenIfBenignContent() {
-        // Sprint 9.1: the value under a sensitive key is replaced with
-        // [REDACTED_SECRET] regardless of contents — even strings that
-        // would not match any value pattern.
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("password", "hunter2");           // short, benign-looking
-        payload.put("token", "shorttoken");           // too short for LONG_TOKEN
-        payload.put("secret", "abc");                 // 3 chars
-        payload.put("api_key", "k1");                 // tiny
+        payload.put("password", "hunter2");
+        payload.put("token", "shorttoken");
+        payload.put("secret", "abc");
+        payload.put("api_key", "k1");
         payload.put("authorization", "anything-here");
-        // Casing / separator variations must hit the same rule.
         payload.put("Auth-Header", "x-y-z");
         payload.put("Refresh_Token", "q");
-        // Benign keys must NOT be redacted by key alone.
         payload.put("source_id", "kb-1");
 
         Object sanitized = ToolCallTraceSanitizer.sanitizeResultData("anything", payload);
@@ -212,49 +203,11 @@ class ToolCallTraceSanitizerTest {
         assertEquals("[REDACTED_SECRET]", safe.get("authorization"));
         assertEquals("[REDACTED_SECRET]", safe.get("Auth-Header"));
         assertEquals("[REDACTED_SECRET]", safe.get("Refresh_Token"));
-        // source_id remains as-is — benign key, benign value.
         assertEquals("kb-1", safe.get("source_id"));
     }
 
     @Test
-    void sanitizeResultData_redactsSensitiveValuesUnderBenignKeys() {
-        // Sprint 9.1: values that LOOK sensitive get redacted even when
-        // the surrounding key is innocuous (e.g. tool dumped a stray
-        // Authorization header into a "note" field).
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("note", "raw header: Bearer abcdef0123456789ABCDEFGHabcdef01");
-        payload.put("contact", "alice@example.com or 020 7946 0958");
-        payload.put("next_step", "check postcode SW1A 1AA");
-        payload.put("hash", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-        payload.put("api_session_token_value", "sk_abcd12345678efgh");
-
-        Object sanitized = ToolCallTraceSanitizer.sanitizeResultData("anything", payload);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> safe = (Map<String, Object>) sanitized;
-
-        assertTrue(((String) safe.get("note")).contains("[REDACTED_BEARER]"));
-        assertFalse(((String) safe.get("note")).contains("abcdef0123456789ABCDEFGHabcdef01"));
-
-        String contact = (String) safe.get("contact");
-        assertTrue(contact.contains("[REDACTED_EMAIL]"));
-        assertFalse(contact.contains("alice@example.com"));
-        assertTrue(contact.contains("[REDACTED_PHONE]"));
-
-        assertTrue(((String) safe.get("next_step")).contains("[REDACTED_POSTCODE]"));
-        assertFalse(((String) safe.get("next_step")).contains("SW1A 1AA"));
-
-        // 64-char hex must be marked as a long token even under a benign key.
-        assertEquals("[REDACTED_TOKEN]", safe.get("hash"));
-
-        // sk_-prefixed api keys hit the API_KEY_PREFIX pattern.
-        assertTrue(((String) safe.get("api_session_token_value")).contains("[REDACTED_API_KEY]"));
-    }
-
-    @Test
     void resolveArticle_safeSummaryShape_isPreservedAfterRedactionRules() {
-        // Regression: hardening must not reshape the resolve_article
-        // summary — source_id / article_id / title / source_url /
-        // excerpt are still the canonical surface fields.
         Map<String, Object> articlePayload = new LinkedHashMap<>();
         articlePayload.put("source_id", "kb-001");
         articlePayload.put("article_id", "kb-001");

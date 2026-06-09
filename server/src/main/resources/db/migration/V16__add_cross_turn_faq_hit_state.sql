@@ -1,0 +1,41 @@
+-- Sprint 071 / S-Auto-15 (M-Auto-3, workstream A) — persisted cross-turn
+-- search_knowledge re-search suppression state on bot_sessions.
+--
+-- SessionManager.processMessage reloads the BotSession from the DB every
+-- turn (SessionManager.java:306 sessionRepository.findById), so per-run()
+-- locals AND @Transient fields cannot carry across turns. The within-turn
+-- A3 backstop (AgentRunLoopImpl `lastSearchKnowledgeViableHit`, a per-run
+-- local) therefore only sees ONE outer turn; the cross-turn paraphrase
+-- storm (the bot re-searching the same UN-DRIFTED intent across consecutive
+-- turns) survives it. These three PERSISTED columns carry a standing
+-- viable-hit marker across turns so a NEW, SEPARATE, fail-open, drift-aware
+-- cross-turn gate (alongside — not modifying — the within-turn A3 gate /
+-- the A1 dedup cache) can suppress only the storm beyond the first allowed
+-- cross-turn refinement.
+--
+-- Default = ALLOW: the gate suppresses ONLY when all four invariant
+-- conditions PROVE true (same un-drifted UC + no drift this turn + a
+-- standing hit for that exact UC + budget already spent). Any null /
+-- missing signal -> ALLOW. Keyed purely on the existing
+-- activeUseCase / driftType / faq_miss signals + a cardinality budget;
+-- no query-content / keyword / regex / similarity / per-UC matching.
+--
+-- * cross_turn_faq_hit_use_case  — the active_use_case at which the standing
+--   search_knowledge viable hit (faq_miss=false) was captured. Condition 1
+--   compares it to the current active_use_case. Nullable; null = no standing
+--   hit = gate disabled (fail-open).
+-- * cross_turn_faq_hit_payload   — the serialized search_knowledge result
+--   payload of that standing viable hit, SERVED to the LLM on suppression
+--   (so a suppressed re-search still sees the prior viable hit under
+--   accumulated_tool_results). jsonb nullable; null = gate disabled.
+-- * cross_turn_search_allowed_since_hit — the cardinality budget counter:
+--   how many cross-turn search_knowledge calls for this UC have ALREADY
+--   been allowed since the standing hit was captured. Budget FIXED at 1 —
+--   the FIRST post-hit cross-turn re-search (the legitimate refinement) is
+--   always allowed (counter incremented to 1); only the 2nd+ (counter >= 1)
+--   is eligible for suppression. INTEGER NOT NULL DEFAULT 0; reset to 0
+--   when a fresh standing hit is captured and on every reset event
+--   (UC change, drift, genuine miss, resolution, escalation, record_outcome).
+ALTER TABLE bot_sessions ADD COLUMN cross_turn_faq_hit_use_case VARCHAR(64);
+ALTER TABLE bot_sessions ADD COLUMN cross_turn_faq_hit_payload jsonb;
+ALTER TABLE bot_sessions ADD COLUMN cross_turn_search_allowed_since_hit INTEGER NOT NULL DEFAULT 0;

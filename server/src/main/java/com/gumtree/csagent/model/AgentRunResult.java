@@ -27,6 +27,13 @@ import java.util.Optional;
  * from the LLM call that produced the terminal outcome (final answer or
  * escalation). Persisted to {@code bot_turns.llm_raw_response}. {@code null}
  * for max-steps / error results.
+ *
+ * <p>Sprint 51 / M5 S2 — additive {@link #llmCallRecords()} list carries the
+ * full per-step record (untruncated raw response + that step's projection +
+ * tool_calls + latency + step_index + call_type) so the admin trace can render
+ * every invocation, not just the final one. Existing fields' meaning is
+ * unchanged: {@code lastProjection} / {@code lastLlmRawResponse} still carry
+ * the final-step value; the records list is observation-only side data.
  */
 public record AgentRunResult(
         List<AgentMessage> messages,
@@ -36,7 +43,8 @@ public record AgentRunResult(
         String finalUserMessage,
         Optional<String> escalationReason,
         String lastProjection,
-        String lastLlmRawResponse
+        String lastLlmRawResponse,
+        List<LlmCallRecord> llmCallRecords
 ) {
 
     public AgentRunResult {
@@ -44,6 +52,26 @@ public record AgentRunResult(
         toolEvents = toolEvents == null ? List.of() : List.copyOf(toolEvents);
         llmEvents = llmEvents == null ? List.of() : List.copyOf(llmEvents);
         escalationReason = escalationReason == null ? Optional.empty() : escalationReason;
+        llmCallRecords = llmCallRecords == null ? List.of() : List.copyOf(llmCallRecords);
+    }
+
+    /**
+     * Sprint 51 — backward-compat 8-arg canonical constructor: callers that
+     * predate the {@code llmCallRecords} field (existing tests, prior
+     * factories) keep compiling and produce an empty records list.
+     */
+    public AgentRunResult(
+            List<AgentMessage> messages,
+            List<ToolEvent> toolEvents,
+            List<LlmCallEvent> llmEvents,
+            TerminalOutcome terminalOutcome,
+            String finalUserMessage,
+            Optional<String> escalationReason,
+            String lastProjection,
+            String lastLlmRawResponse
+    ) {
+        this(messages, toolEvents, llmEvents, terminalOutcome, finalUserMessage,
+                escalationReason, lastProjection, lastLlmRawResponse, List.of());
     }
 
     public static AgentRunResult finalAnswer(String userMessage,
@@ -57,6 +85,16 @@ public record AgentRunResult(
                                               List<ToolEvent> toolEvents,
                                               String lastProjection,
                                               String lastLlmRawResponse) {
+        return finalAnswer(userMessage, llmEvents, toolEvents, lastProjection,
+                lastLlmRawResponse, List.of());
+    }
+
+    public static AgentRunResult finalAnswer(String userMessage,
+                                              List<LlmCallEvent> llmEvents,
+                                              List<ToolEvent> toolEvents,
+                                              String lastProjection,
+                                              String lastLlmRawResponse,
+                                              List<LlmCallRecord> llmCallRecords) {
         return new AgentRunResult(
                 List.of(AgentMessage.finalMessage(userMessage)),
                 toolEvents,
@@ -65,7 +103,8 @@ public record AgentRunResult(
                 userMessage,
                 Optional.empty(),
                 lastProjection,
-                lastLlmRawResponse
+                lastLlmRawResponse,
+                llmCallRecords
         );
     }
 
@@ -94,6 +133,14 @@ public record AgentRunResult(
                                            List<ToolEvent> toolEvents,
                                            String lastProjection,
                                            String lastLlmRawResponse) {
+        return maxSteps(llmEvents, toolEvents, lastProjection, lastLlmRawResponse, List.of());
+    }
+
+    public static AgentRunResult maxSteps(List<LlmCallEvent> llmEvents,
+                                           List<ToolEvent> toolEvents,
+                                           String lastProjection,
+                                           String lastLlmRawResponse,
+                                           List<LlmCallRecord> llmCallRecords) {
         return new AgentRunResult(
                 List.of(),
                 toolEvents,
@@ -102,7 +149,8 @@ public record AgentRunResult(
                 null,
                 Optional.empty(),
                 lastProjection,
-                lastLlmRawResponse
+                lastLlmRawResponse,
+                llmCallRecords
         );
     }
 
@@ -117,6 +165,16 @@ public record AgentRunResult(
                                            List<ToolEvent> toolEvents,
                                            String lastProjection,
                                            String lastLlmRawResponse) {
+        return escalate(reason, llmEvents, toolEvents, lastProjection,
+                lastLlmRawResponse, List.of());
+    }
+
+    public static AgentRunResult escalate(String reason,
+                                           List<LlmCallEvent> llmEvents,
+                                           List<ToolEvent> toolEvents,
+                                           String lastProjection,
+                                           String lastLlmRawResponse,
+                                           List<LlmCallRecord> llmCallRecords) {
         return new AgentRunResult(
                 List.of(),
                 toolEvents,
@@ -125,7 +183,8 @@ public record AgentRunResult(
                 null,
                 Optional.ofNullable(reason),
                 lastProjection,
-                lastLlmRawResponse
+                lastLlmRawResponse,
+                llmCallRecords
         );
     }
 
@@ -143,6 +202,16 @@ public record AgentRunResult(
                                                 List<ToolEvent> toolEvents,
                                                 String lastProjection,
                                                 String lastLlmRawResponse) {
+        return clarification(userMessage, llmEvents, toolEvents, lastProjection,
+                lastLlmRawResponse, List.of());
+    }
+
+    public static AgentRunResult clarification(String userMessage,
+                                                List<LlmCallEvent> llmEvents,
+                                                List<ToolEvent> toolEvents,
+                                                String lastProjection,
+                                                String lastLlmRawResponse,
+                                                List<LlmCallRecord> llmCallRecords) {
         return new AgentRunResult(
                 List.of(AgentMessage.finalMessage(userMessage)),
                 toolEvents,
@@ -151,7 +220,8 @@ public record AgentRunResult(
                 userMessage,
                 Optional.empty(),
                 lastProjection,
-                lastLlmRawResponse
+                lastLlmRawResponse,
+                llmCallRecords
         );
     }
 
@@ -164,7 +234,8 @@ public record AgentRunResult(
                 null,
                 Optional.ofNullable(message),
                 null,
-                null
+                null,
+                List.of()
         );
     }
 
@@ -178,6 +249,14 @@ public record AgentRunResult(
                                                    List<LlmCallEvent> llmEvents,
                                                    List<ToolEvent> toolEvents,
                                                    String lastProjection) {
+        return deadlineExceeded(message, llmEvents, toolEvents, lastProjection, List.of());
+    }
+
+    public static AgentRunResult deadlineExceeded(String message,
+                                                   List<LlmCallEvent> llmEvents,
+                                                   List<ToolEvent> toolEvents,
+                                                   String lastProjection,
+                                                   List<LlmCallRecord> llmCallRecords) {
         return new AgentRunResult(
                 List.of(),
                 toolEvents,
@@ -186,7 +265,8 @@ public record AgentRunResult(
                 null,
                 Optional.ofNullable(message),
                 lastProjection,
-                null
+                null,
+                llmCallRecords
         );
     }
 
@@ -200,6 +280,14 @@ public record AgentRunResult(
                                                  List<LlmCallEvent> llmEvents,
                                                  List<ToolEvent> toolEvents,
                                                  String lastProjection) {
+        return llmUnavailable(message, llmEvents, toolEvents, lastProjection, List.of());
+    }
+
+    public static AgentRunResult llmUnavailable(String message,
+                                                 List<LlmCallEvent> llmEvents,
+                                                 List<ToolEvent> toolEvents,
+                                                 String lastProjection,
+                                                 List<LlmCallRecord> llmCallRecords) {
         return new AgentRunResult(
                 List.of(),
                 toolEvents,
@@ -208,7 +296,8 @@ public record AgentRunResult(
                 null,
                 Optional.ofNullable(message),
                 lastProjection,
-                null
+                null,
+                llmCallRecords
         );
     }
 
@@ -228,6 +317,16 @@ public record AgentRunResult(
                                                     List<ToolEvent> toolEvents,
                                                     String lastProjection,
                                                     String lastLlmRawResponse) {
+        return useCaseIdentified(committedUc, llmEvents, toolEvents, lastProjection,
+                lastLlmRawResponse, List.of());
+    }
+
+    public static AgentRunResult useCaseIdentified(String committedUc,
+                                                    List<LlmCallEvent> llmEvents,
+                                                    List<ToolEvent> toolEvents,
+                                                    String lastProjection,
+                                                    String lastLlmRawResponse,
+                                                    List<LlmCallRecord> llmCallRecords) {
         return new AgentRunResult(
                 List.of(),
                 toolEvents,
@@ -236,7 +335,8 @@ public record AgentRunResult(
                 committedUc,
                 Optional.empty(),
                 lastProjection,
-                lastLlmRawResponse
+                lastLlmRawResponse,
+                llmCallRecords
         );
     }
 }

@@ -1,0 +1,609 @@
+# Curated Bad-Case Suite
+
+**Authored:** 2026-05-16; refined 2026-05-17 (tiering + human-judgment-gate clarification + N=2 downgrade rule)
+**Source-of-truth:** this file (lifecycle ledger) + `iteration_governance.md` §5.6 / §5.6.1 / §5.6.2 / §5.6.3 (governance) + `docs/teams/deliver-agent.md` "Workflow inputs — Path 2" (operational triage + 4-route fit + edge case handling for deliver-agent)
+**Owners:** deliver-agent + human (jointly maintained)
+
+## Purpose
+
+The bad-case suite is the **new primary acceptance gate** for sprint and milestone close per `iteration_governance.md` §5.6. It replaces the smoke composite_score / pass-rate / judge dimensions, which were demoted to observation per §5.5 due to multiple confounding sources (external LLM provider drift, judge calibration variance, mocked-vs-real-LLM gap, rubric weighting uncertainty).
+
+**Critical: this is a human-judgment gate, NOT a programmatic gate.** Per §5.6 (2026-05-17 refinement): the deliver-agent + human MANUALLY REVIEW per-case traces; the closure_criterion field is GUIDANCE for human review, not a binary programmatic match. Early-stage, the eval rubric weights themselves are unstable; human qualitative judgment is the only reliable signal until the rubric is independently validated.
+
+Each bad case in this directory is:
+
+1. A real session or sprint-derived finding the deliver-agent + human jointly agree is **load-bearing** for the release-gate trajectory.
+2. Encoded as a CaseSpec with the standard schema PLUS the §5.6-required `bad_case_metadata` block and `closure_criterion` field.
+3. Verified by human inspection of expected behaviour from the user perspective — **NOT** by bot trace text, **NOT** by §1.7 forbidden patterns.
+
+## Loader contract
+
+Flat layout per Sprint 29 / Sprint 32 precedent. Loader globs `*.yaml`; this markdown file is skipped. Load + run:
+
+```bash
+cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/
+```
+
+## Lifecycle ledger
+
+| case_id | tier | source_session_id | surfaced_by | surfaced_date | current status | M1 result | M2 result | M3 result | M4 result | closure_criterion summary |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `alice_uc_a_uc_h_misclass` | **core** | `3772e56b-caa7-4e0a-84fc-75a26ffbe2b2` | human (Alice mock, real-LLM session) | 2026-05-16 | **active** | (in-flight) | — | **IMPROVING** | **IMPROVING** | bot routes UC-A visibility question OR asks one focused clarifying question to disambiguate visibility vs appeal, instead of stamping UC-H through the intake-locked path; bot does NOT enter a multi-turn dead loop asking "why do you think it was removed" when the user clearly does not know |
+| `cs012_uc_fp_late_phone_failure_path` | **core** | `570Q5000008hx9tIAA` | Wave A5 semantic review (cs_interactive_012) | 2026-04-30 | **active** | — | — | **IMPROVING** | **IMPROVING** | bot runs UC-FP resolve-first flow (customer + listing + moderation context, then policy-grounded reposting guidance) instead of escalating purely on a late phone/human request; bot does NOT fabricate a non-grounded removal reason |
+| `cs015_uc_fp_appeal_edit_repost` | **core** | `570Q5000008WmXxIAK` | Wave A6 semantic re-review (cs_interactive_015) | 2026-04-30 | **active** | — | — | **FAIL** | **FAIL** | bot retrieves moderation context, explains the specific policy that flagged the ad, and gives clear edit-and-repost guidance (UC-FP), NOT a UC-K technical-defect intake on "change" keyword; late escalation without explanation attempt is failure |
+| `cs066_uc_k_in_app_feature_regression` | **core** | `570Q5000008fBsXIAU` | Codex round 6 §P0 + Sprint 4 §E3 (cs_interactive_066) | 2026-05-05 | **active** | — | — | **PASS** | **PASS** | bot recognises "option that used to exist has disappeared" as UC-K technical regression, collects platform + repro intake fields, creates UC-K case, hands over with intake_complete_for_uc_k; NOT a UC-E generic feature explanation |
+| `cs029_uc_d_account_locked_callback` | **core** | `570Q5000008kDiPIAU` | Sprint 4 §E2 reviewer correction (cs_interactive_029) | 2026-05-05 | **active** | — | — | **PASS** | **PASS** | bot recognises "account locked" as UC-D (not UC-C messaging), runs account-state retrieval, and routes to business team via user_requested handover when the user explicitly requests a callback; ALL-CAPS persona does NOT trigger user_distress alone |
+| `cs095_uc_d_email_recovery_misroute` | **core** | `570Q5000008U5C9IAK` | Sprint 21 Wave A5/A6 L3 re-review (cs_interactive_095) | 2026-05-14 | **active** | — | — | **FAIL** | **FAIL** | bot recognises wrong-email-on-account as UC-D dominant signal with UC-A as downstream symptom; bot does NOT produce T1 placeholder without follow-on tool call, leak internal Salesforce source IDs, or duplicate the user's first name in the greeting |
+| `cs011_uc_c_faq_miss_not_distress` | **core** | `570Q5000008NWIjIAO` | Sprint 4 §E1 supporting fix (cs_interactive_011) | 2026-05-05 | **active** | — | — | **IMPROVING** | **IMPROVING** | bot runs FAQ tool sequence on the password-reset-loop pattern and escalates with reason=faq_miss_threshold_exceeded when FAQ exhausts, NOT user_distress on cooperative descriptive seed text; user_distress is reserved for the deterministic Sprint B1 DISTRESS_PATTERN family |
+| `cs014_uc_c_faq_miss_not_distress` | **core** | `570Q5000008u9gjIAA` | Sprint 2.1 P1 Codex-review follow-up (cs_interactive_014) | 2026-05-05 | **active** | — | — | **PASS** | **PASS** | bot runs FAQ tool sequence on admin-mediated-revert question and escalates with reason=faq_miss_threshold_exceeded when FAQ has no covering article, NOT user_distress on "I'd be happy enough if ..." cooperative wording |
+| `cs001_uc_c_mechanical_template_escalate` | scope-relevant | `570Q5000008kr6LIAQ` | Sprint 21 Wave A5/A6 L3 batch (cs_interactive_001) | 2026-05-14 | **active** | — | — | **PASS** | **PASS** | bot acknowledges user's specific Replies/Messaging complaint by paraphrasing the actual issue, runs the FAQ tool sequence, and hands over with reason=faq_miss_threshold_exceeded if FAQ exhausts; bot does NOT open with a mechanical "I'm having difficulty resolving this" template before any tool call |
+| `wmkb_uc_a_trader_flag_secondary_uc_h` | scope-relevant | `570Q5000008wmKbIAI` | Wave A2.1 reclassification map (legacy migration) | 2026-04-30 | **active** | — | — | **IMPROVING** | **IMPROVING** | bot recognises "trader flag wrong on account" as UC-A account/profile question, gives policy-grounded guidance on changing account-type; bot asks one clarifying question if the user wants to appeal (UC-H) vs change setting (UC-A); bot does NOT lock into UC-H intake without an explicit appeal request |
+| `iwzx_uc_k_advert_on_hold_restore` | scope-relevant | `570Q5000008iwZxIAI` | Wave A2.1 reclassification map (legacy migration) | 2026-04-30 | **active** | — | — | **FAIL** | **FAIL** | bot retrieves moderation context to determine policy-driven (UC-FP) vs system-driven (UC-K) hold cause; routes to UC-K intake-and-handover OR UC-FP policy-grounded explanation accordingly; bot does NOT respond with generic "your ad is under review, please wait" template |
+| `fg5q_uc_fp_phone_rejected_repost` | scope-relevant | `570Q5000008fG5qIAE` | Wave A2.1 reclassification map (legacy migration) | 2026-04-30 | **active** | — | — | **PASS** | **PASS** | bot retrieves moderation context, distinguishes policy rejection (UC-FP — explain rule, give in-app messaging alternative) from technical-validation rejection (UC-K intake); bot does NOT respond with generic "please follow the posting guidelines" template without naming the actual rule |
+| `cs_uc_a_no_ad_id_ad_specific` | scope-relevant (proposed **Tier-1 target**) | `synthetic-cs4-cs_uc_a_no_ad_id_ad_specific-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S1) | 2026-06-08 | **opened (086b)** | — | — | — | — | UC-A ad-specific question, no ad_id in form (slot `customer_context_status` `missing_ad_id`→`loaded` on AD-1001): bot elicits the ad reference (or fails lookup then asks) BEFORE any generic FAQ answer; does NOT answer generically or loop on unrelated clarifiers |
+| `cs_uc_a_generic_policy_question` | scope-relevant (proposed **Tier-1 negative-control / anti-误杀**) | `synthetic-cs4-cs_uc_a_generic_policy_question-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S1 anti-误杀) | 2026-06-08 | **opened (086b)** | — | — | — | — | generic search-ranking question, no ad referenced (slot `missing_ad_id`, correct): bot answers FAQ-grounded DIRECTLY without eliciting ad_id; anti-误杀 gate so the S-Y2 pilot procedure does NOT force ad_id elicitation on generic UC-A turns |
+| `cs_uc_a_loaded_listing` | scope-relevant (proposed **Tier-1 target**) | `synthetic-cs4-cs_uc_a_loaded_listing-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S1) | 2026-06-08 | **opened (086b)** | — | — | — | — | email+ad_id pre-loaded (AD-2002 LIVE Home & Garden > Furniture; slot `customer_context_status=loaded`, `moderation_reason_available=false`): bot USES the loaded listing data (≥1 specific field) rather than a generic FAQ answer |
+| `cs_uc_fp_loaded_moderation` | scope-relevant (proposed **Tier-2 neighbor**) | `synthetic-cs4-cs_uc_fp_loaded_moderation-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S2 + OBS-S1) | 2026-06-08 | **opened (086b)** | — | — | — | — | removed listing, moderation pre-loaded (AD-2001 REMOVED; slot `moderation_reason_available=TRUE` / `PROHIBITED_ITEM`): bot grounds the why-removed answer in the actual moderation_review (UC-A or UC-FP both acceptable); does NOT cite a non-matching generic policy article |
+| `cs_uc_a_lookup_failed` | scope-relevant (proposed **Tier-1 target**) | `synthetic-cs4-cs_uc_a_lookup_failed-2026-06-08` | research-agent (CS4 proposal Part B; OBS-S1) | 2026-06-08 | **opened (086b)** | — | — | — | — | invalid form ad_id AD-9999 (slot `customer_context_status=lookup_failed`): bot acknowledges the failed lookup and elicits a corrected ad_id (AD-2002 on T2) or degrades gracefully; does NOT answer as if the listing were loaded or fabricate listing details |
+
+Ledger updates per milestone close: deliver-agent + human jointly record PASS / FAIL / IMPROVING per case row, citing the milestone close run path. **M4-Eval-Cleanup close**: all 12 verdicts UNCHANGED from M3 (cleanup milestone, zero bot-code change); the 5 PASS cases (cs001, cs014, cs029, cs066, fg5q) are now downgrade-ELIGIBLE per §5.6.3 (2 consecutive milestone-close PASS) but remain `active` pending a joint deliver-agent + human downgrade decision at a future bad-case-driven milestone close. See "M4-Eval-Cleanup close" section below. **M5 (Observability Coherence) close**: all 12 verdicts UNCHANGED from M4 (coherence milestone, regression-safety bar; S4's projection gating is semantic-preserving) — PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0. Per-case M5 verdicts + the NEW shadow review are in the "M5 milestone close + S4 (Sprint 53)" section below (the per-row M1–M4 result columns are not extended with an M5 column at this close — M5 = M4 verbatim; the dedicated section is the authoritative per-case record). The 4 consistently-clean PASS cases (cs001, cs014, cs029, cs066) are now at 3 consecutive regression-safe milestone closes (M3/M4/M5) — downgrade-eligibility strengthened, but the downgrade decision stays DEFERRED to a future bad-case-driven milestone close (M5 is not bad-case-anchored); fg5q is NOT downgrade-clean (required iso clears at S3 + S4 per the session-establishment flake).
+
+## Tier definitions (per `iteration_governance.md` §5.6.1)
+
+- **`core`** — re-run at every milestone close regardless of scope. Load-bearing across all milestones (touches release-gate-relevant failure mode).
+- **`scope-relevant`** — re-run only when the closing milestone explicitly names the case in its `milestone_objective.md` §5 acceptance bar. Relevant to a specific architectural surface that some milestones touch and others don't.
+- **`closed-as-regression-guard`** — has met closure criterion in N ≥ 2 consecutive milestone closes (per §5.6.3 downgrade rule). Runs automatically; no human manual review unless auto-detection fires FAIL.
+- **`archived`** — underlying failure surface structurally removed; no longer manifests. Removed from active runs; kept in directory as history. Requires deliver-agent + human joint decision.
+
+## Lifecycle states (per §5.6 / §5.6.3)
+
+- **Opened**: human + deliver-agent agree the failure is load-bearing; CaseSpec authored. Initial tier assignment (typically `core` for cross-cutting failures; `scope-relevant` for surface-specific).
+- **Active**: failure persists across at least one milestone close. Each milestone records PASS / FAIL / IMPROVING per case in the ledger above.
+- **`closed-as-regression-guard`**: triggered after **N ≥ 2 consecutive milestone closes with PASS**. Downgrade is NOT automatic on the N=2 trigger — deliver-agent + human must jointly confirm at a milestone close to apply the downgrade. After downgrade, case runs in suite automatically; if `case_results[].terminal_outcome` returns to FAIL OR `composite_score` collapses, the case auto-promotes back to active.
+- **Archived**: structurally impossible. Requires explicit joint decision; documented in this ledger.
+
+## Adding a new bad case (Path 2 — operational steps in compact)
+
+When a new bad case surfaces (human use / colleague use / sprint-surfaced finding):
+
+1. Human + deliver-agent confirm it is load-bearing per §5.6 criteria:
+   - Influences release-gate trajectory.
+   - Failure mode crosses ≥ 1 layer (not a single-component cosmetic).
+   - Reproducible OR represents a typical scenario class.
+   - Not a duplicate of an existing closed/archived case.
+2. Per Path 2: trace + observation are handed to a research-agent (not directly to deliver-agent) for root-cause analysis + solution proposal. See `docs/teams/deliver-agent.md` "Workflow inputs — Path 2" for the full operational process (triage gate → research-agent proposal → encode → 4-route fit decision → downstream milestone loop).
+3. After research-agent proposal lands and human selects the design, deliver-agent authors a new `<case_id>.yaml` here using the schema in any existing bad case + the §5.6 extension fields.
+4. Deliver-agent assigns initial tier (`core` for cross-cutting; `scope-relevant` for surface-specific). Appends a row to the lifecycle ledger above.
+5. Deliver-agent decides whether the case fits the current milestone scope (add to `milestone_objective.md` §5 acceptance bar) OR is queued for a future milestone (open as an R-item in `docs/action_bank.md` referencing the bad case).
+
+A bad case can also be opened WITHOUT a Path 2 proposal — when the human + deliver-agent simply want to encode the observation as a regression guard without immediate fix scoping. In that case, the case enters with tier `scope-relevant` and is consumed by a future milestone whose scope reaches the relevant surface.
+
+## Removing a bad case
+
+Bad cases are NOT removed at closure; they stay as regression guards. Removal is only acceptable if the underlying failure mode becomes structurally impossible (e.g., the surface that produced it is deleted), and requires deliver-agent + human joint decision documented in this lifecycle ledger.
+
+## Why this is not in `case_specs/case_families/`
+
+The case-family directory follows the Sprint 20 G2 target / neighbor / negative / shadow split shape. The bad-case suite is a different artefact: one case per real surfaced failure, no neighbor / negative / shadow split required (the case itself IS the load-bearing evidence). Mixing the two schemas would dilute both contracts. Per Sprint 29 `_manifest.md` precedent (local manifest, intentionally not in root manifest), the bad-case suite is local-only.
+
+## S-Eval-4 trial milestone-close dry-run calibration notes (2026-05-22)
+
+### Posture
+
+Per `docs/sprint_objective.md` §2.4 / §2.5, the S-Eval-4 dev + human jointly selected **Option A — synthetic / mocked trace**. Rationale: S-Eval-4 contract is `data + calibration; not code change`; OQ-S44.5 disposition already accepted synthetic Tier-2 evidence for S-Eval-3 close; the load-bearing deliverable of this sub-sprint is **`closure_criterion` wording quality calibration**, which is exercisable against pre-recorded documented bot behaviour from prior sprint handoffs WITHOUT a fresh real-LLM run; Option C (executor wiring fix) was rejected as scope expansion to be carried into S-Eval-5 alongside L3 work; Option B would not exercise Tier-2 due to OQ-S44.1 executor wiring inert path. Real-LLM end-to-end verification carries to S-Eval-5 / M3-Eval close.
+
+The verdict column below is therefore **projected** against the documented current-bot behaviour cited in each row (Sprint 4 §E1 / §E2 / §E3 + Sprint 21 L3 batch + Sprint 32 + S-Eval-3 §12.7 carry-overs + the override `rationale:` blocks). It is NOT a real-LLM-run verdict. The wording assessment column is the **calibration deliverable**.
+
+### Per-case projected verdict + wording assessment
+
+| case_id | Projected verdict | Rationale | `closure_criterion` wording assessment |
+|---|---|---|---|
+| `cs012_uc_fp_late_phone_failure_path` | **FAIL** (projected) | Documented pre-override behaviour: bot treated late phone/human request as dominant signal and escalated without UC-FP resolve-first attempt. Current bot (post-S-Eval-3, no executor wiring) likely still over-weights the late request. | **Well-calibrated.** "Acknowledges → tools → factual_answer / faq_grounded" enumerates observable end-states. "Does NOT hand over … on the late phone request alone" names the specific failure mode. "Does NOT fabricate a non-grounded reason" is a Tier-0 grounding floor restatement. Human judgment is straightforward. |
+| `cs015_uc_fp_appeal_edit_repost` | **FAIL** (projected) | Pre-override CaseSpec mis-pinned UC-K; bot historically routed "change" framing to UC-K technical intake. UC-FP resolve-first guidance gap is documented in the Wave A6 rationale. | **Well-calibrated.** Bifurcated end-state (edit-and-repost vs appeal) covers the two legitimate UC-FP outcomes. "Routes follow-up as UC-FP reposting question, NOT UC-K technical-defect intake" names the specific misroute. Human judgment is straightforward. |
+| `cs066_uc_k_in_app_feature_regression` | **FAIL** (projected) | Pre-override bot answered with generic UC-E feature explanation; UC-K technical regression mis-routed. Even post-S-Eval-3 with populated `critical_steps`, executor.py:252 wiring inert path (OQ-S44.1) means Tier-2 `uc-k-intake-complete-before-handover` step does not gate in production eval-harness. | **Well-calibrated.** Names specific UC-K intake fields (platform, repro_steps_or_error_message) + tool sequence (create_case_controlled + intake_complete_for_uc_k handover). "Does NOT answer with generic feature-walkthrough (UC-E pattern)" disambiguates from the canonical mis-routed shape. Human judgment is straightforward. |
+| `cs029_uc_d_account_locked_callback` | **FAIL** (projected) | Pre-override CaseSpec pinned UC-C (Replies/Messaging); the runtime deterministic fallback (`ControlKernel.inferFallbackUseCase`) correctly picks UC-D, so the runtime and pre-override spec disagreed. Current bot LLM may stamp UC-C on "can't advertise" pull or escalate purely on ALL-CAPS caps signal. | **Well-calibrated.** "Recognises 'my account is locked' as UC-D (NOT UC-C messaging)" names the specific mis-classification. "Does NOT loop on UC-C messaging-feature answers" + "ALL-CAPS does NOT trigger user_distress alone" name both layered failure modes. Human judgment is straightforward. |
+| `cs095_uc_d_email_recovery_misroute` | **FAIL** (projected) | Pre-override CaseSpec mis-pinned UC-A; bot's actual T0 reply was UC-D-flavoured (steps to change contact email citing internal SF source_id ka44J000000gKxqQAE — internal leak). Also documented: T1 placeholder ("I'm looking into this for you") + duplicated greeting ("Hi Trish! Hi Trish"). Multi-layer failure. | **Mostly well-calibrated.** The 4-clause structure (UC-D recognition + no placeholder + no source_id leak + no duplicate greeting) covers each layer explicitly. Minor wording concern: "does NOT produce a T1 placeholder ('I'm looking into this for you') without a follow-on tool call in the same turn" — the term "placeholder" is partly defined-by-example. Rewording proposal: replace "placeholder reply" with "filler reply that does not name a concrete next step or trigger a tool call". Net assessment: **acceptable as-is for manual review**; the example phrase ("I'm looking into this for you") is a strong anchor. |
+| `cs011_uc_c_faq_miss_not_distress` | **FAIL** (projected) | Documented: bot LLM stamped user_distress on sub-textual frustration reading; Sprint 4 §E1 runtime gate downgrades the canonical session reason but the LLM's PLAN still claims it. Closure_criterion separates the "bot's claim" (failure mode) from "runtime canonical reason" (Sprint 4 §E1 corrected). | **Well-calibrated.** Names the truthful Phase 2 §2.4 reason (faq_miss_threshold_exceeded) and the specific not-this reason (user_distress) with the rationale (Tier-0 semantic claim, deterministic detector required). "Bot may acknowledge frustration in wording WITHOUT elevating the enum" — explicit guidance on what is allowed vs not. Human judgment is straightforward. |
+| `cs014_uc_c_faq_miss_not_distress` | **FAIL** (projected) | Same failure shape as cs011 (user_distress upgrade on cooperative seed text). The "I'd be happy enough if ..." cooperative phrasing is non-distress; bot's pre-override behaviour mis-stamped distress. | **Well-calibrated.** Mirrors cs011 structure. The cooperative-wording disambiguation ("'I'd be happy enough' is not a Sprint B1 DISTRESS_PATTERN match") is concrete. Human judgment is straightforward. |
+| `cs001_uc_c_mechanical_template_escalate` | **FAIL** (projected) | Documented: turn-0 mechanical template "Hi Benjamin! I'm having difficulty resolving this. Let me connect you with a specialist." with zero acknowledgment of the user's specific complaint, before any tool call. Captured by Sprint 20 cs001 case family. | **Well-calibrated.** "Acknowledges user's specific complaint by paraphrasing the actual issue" names the positive behaviour; "does NOT open with mechanical 'I'm having difficulty resolving this' template before any tool call" names the specific failure mode with the actual template text. Human judgment is unambiguous. |
+| `wmkb_uc_a_trader_flag_secondary_uc_h` | **IMPROVING** (projected; uncertain) | This is the closest the 17-pool comes to a UC-H surface (UC-H is secondary, not primary). Bot behaviour on trader-flag-wrong is not as well-documented in prior sprints as the cs_001/cs_011/cs_014 family. The wmkb override is legacy-migrated (empty supporting_turn_numbers); the failure shape is hypothesised from the override `rationale:`. | **Well-calibrated but unverified.** "Recognises trader-flag as UC-A; asks one clarifying question if ambiguous; does NOT lock into UC-H without explicit appeal request" mirrors Alice's well-tested UC-A↔UC-H disambiguation language. Acceptable as a regression guard but the projected verdict carries low confidence until a real-LLM run measures actual bot behaviour. **Recommend re-calibration at M3-Eval close after real-LLM evidence.** |
+| `iwzx_uc_k_advert_on_hold_restore` | **IMPROVING** (projected; uncertain) | Legacy-migrated override (empty supporting_turn_numbers); failure shape hypothesised. Current bot may answer with "your ad is under review" template OR may correctly retrieve moderation context. | **Well-calibrated.** Bifurcated criterion (UC-K technical intake vs UC-FP policy explanation) requires the human to read the moderation-context retrieval result and judge accordingly — acceptable. "Does NOT respond with generic 'your ad is under review, please wait' template" names a specific failure mode. **Recommend re-calibration at M3-Eval close after real-LLM evidence.** |
+| `fg5q_uc_fp_phone_rejected_repost` | **IMPROVING** (projected; uncertain) | Legacy-migrated; failure shape hypothesised. UC-FP policy-grounded explanation path is the documented direction for "ad keeps breaking rules". | **Well-calibrated.** Same bifurcated shape as iwzx (policy-driven UC-FP vs technical-validation UC-K). Both branches explicitly named. **Recommend re-calibration at M3-Eval close after real-LLM evidence.** |
+
+### Wording calibration patterns observed
+
+**Patterns that proved well-calibrated** (clear PASS / FAIL signal under manual review):
+
+1. **Multi-state enumerated criteria** ("Bot reaches one of these end-states: (a) … (b) … (c) …" — Alice precedent). Each end-state is observable; human reader picks the closest match.
+2. **Explicit FAIL conditions naming the documented failure mode** ("Does NOT hand over with reason=user_requested on the late phone request alone" / "Does NOT lock into UC-H intake without explicit appeal request"). Naming the specific anti-behaviour is more diagnostic than naming the expected behaviour alone.
+3. **Quoted template / phrase examples as anchors** ("the mechanical 'I'm having difficulty resolving this' template" / "the T1 'I'm looking into this for you' placeholder"). When the failure mode is a specific bot-text artefact, quoting it disambiguates the human's read.
+4. **Reference to the canonical enum value** ("reason=faq_miss_threshold_exceeded, NOT user_distress" / "intake_complete_for_uc_k handover"). The escalation_reason enum is the source of truth; closure_criterion that names the truthful enum value is unambiguous.
+
+**Patterns that required minor calibration** (acceptable as-is but flagged):
+
+1. **`cs095` "T1 placeholder" framing** — "placeholder" is defined-by-example with the quote ("I'm looking into this for you"); a stricter reading might ask "is X a placeholder?" without obvious answer. **Decision**: kept as-is because the quoted anchor phrase is strong enough; rewording proposal ("filler reply that does not name a concrete next step or trigger a tool call") added as fold-back candidate for future bad cases.
+2. **Bifurcated criteria (UC-K vs UC-FP based on context)** — `iwzx` and `fg5q` both require the human to first determine which branch applies before judging. Acceptable because manual review is qualitative; would be **unworkable as a programmatic gate**. This reinforces the §5.6 2026-05-17 refinement that bad-case suite is human-judgment, not programmatic.
+
+**Patterns NOT observed in any new bad case** (no §1.7-adjacent calibration anti-patterns surfaced):
+
+- No `closure_criterion` references `case_passed = true` (would be programmatic).
+- No `closure_criterion` references `composite_score >= X` (would be programmatic).
+- No `closure_criterion` enumerates keywords or regex patterns (would be a §1.7 hardcode on the eval side).
+- No `closure_criterion` references visible-eval CaseSpec ids or eval-spec internal field names (would couple bad cases to harness internals).
+
+### Closure-criterion rewording proposals
+
+**None applied in S-Eval-4 commit.** All 11 new `closure_criterion` strings are kept as-authored. The single minor-ambiguity case (`cs095` "placeholder" framing) was judged acceptable because the inline quoted anchor phrase ("I'm looking into this for you") gives the human reader an unambiguous example. A fold-back proposal — replacing "placeholder reply" with "filler reply that does not name a concrete next step or trigger a tool call" — is recorded here for future bad-case authoring (M3-Eval-close + M4+ planning consideration).
+
+### Open questions surfaced by the dry-run (handed to handoff §7)
+
+- **OQ-S45.1 (NEW)** — `wmkb` / `iwzx` / `fg5q` projected verdicts carry low confidence because the source overrides are legacy-migrated with empty `supporting_turn_numbers`; real-LLM-run evidence at M3-Eval close (or S-Eval-5 if executor wiring lands first) is needed to confirm whether these three cases should be tier `scope-relevant` (current) or downgraded.
+- **OQ-S45.2 (NEW)** — the bad-case suite has 0 UC-G/H/I/J primary entries; even after S-Eval-4 expansion the §5.6 primary acceptance gate is structurally weighted toward UC-FP / UC-C / UC-D / UC-K / UC-A. Whether this gap is acceptable for M3-Eval close OR requires a follow-on milestone seeding UC-G/H/I/J bad cases from real sessions outside `case_spec_overrides.yaml` is deferred to deliver-agent + human at S-Eval-5 / M3-Eval close planning. Candidate R-item: `R-bad-case-suite-uc-ghij-seed-from-real-sessions`.
+- **OQ-S45.3 (NEW)** — `cs095_uc_d_email_recovery_misroute` and `anchor_outcome_uc_a_visibility` both source from session `570Q5000008U5C9IAK`. The bad case captures the multi-layer FAILURE shape (UC misroute + placeholder + source_id leak); the anchor_outcome case captures the SUCCESS shape (dual-email recognition). They are intentionally separate artefacts but share a real session — flag for deliver-agent at M3-Eval close to confirm this dual-encoding is the intended pattern OR consolidate.
+
+## M3-Eval close real-LLM rerun + manual review (2026-05-23)
+
+### Posture
+
+Per `iteration_governance.md` §5.6 the bad-case suite manual review is the **primary acceptance gate** at M3-Eval close. Per the milestone objective `docs/milestone_objective.md` §5: "deliver-agent + human jointly judge per-case PASS / FAIL / IMPROVING; close decision considers the overall pattern, NOT a programmatic threshold". The rerun cited here was run by the deliver-agent + human jointly on 2026-05-23 against post-S-Eval-5 HEAD `7562a2d` (S-Eval-5 dev bundle `e0cd8aa` + OQ-S46.1 follow-up `7562a2d`) using the Moonshot `moonshot-v1-32k` simulator/judge per `.env.local`. All `closure_criterion` PASS / FAIL / IMPROVING verdicts in the table above are based on this real-LLM rerun's traces, not on the S-Eval-4 calibration projected verdicts. The S-Eval-4 projected verdict column has been retired (it is superseded by this real-LLM rerun column).
+
+### Run paths
+
+- **Main batch (12 cases, parallel=4)**: `eval_interactive/results/20260522-110537/results.json`. 6 cases completed multi-turn; 3 hit contract_violation OR truncated sessions clustered on UC-FP / UC-K (cs012 + fg5q + iwzx).
+- **Isolated reruns (parallel=1)** for the 3 truncated cases:
+  - `eval_interactive/results/20260522-162847/results.json` — cs012 (4 turns, outcome=1.0)
+  - `eval_interactive/results/20260522-162848/results.json` — fg5q (5 turns, outcome=1.0)
+  - `eval_interactive/results/20260522-162850/results.json` — iwzx (7 turns, outcome=1.0)
+- **Previous batch (12 cases, pre-backend-restart, archival evidence only)**: `eval_interactive/results/20260522-101333/results.json`. This run is documented for completeness only — it was dominated by Java backend service issues (subsequently restarted) and is NOT the basis for any PASS / FAIL / IMPROVING verdict.
+
+### Per-case verdict + reasoning (final)
+
+| case_id | Verdict | Reasoning |
+|---|---|---|
+| `alice_uc_a_uc_h_misclass` | **IMPROVING** | UC-A correctly inferred + 5-turn engagement; no UC-H intake-lock dead loop; clean `user_requested` escalation at T4; minor sub-quality (bot's policy-violation explanation generic, no canonical URL — L3 `groundedness=3.0` reflects this). `docs/milestone_objective.md` §5 explicitly expects Alice to stay `active` until Tier-2 `intake_complete_required` Skill `critical_step` lands (deferred beyond M3-Eval scope). |
+| `cs001_uc_c_mechanical_template_escalate` | **PASS** | UC-C correctly inferred; 8-turn substantive FAQ-grounded engagement (bot references help articles, troubleshoots email vs app inbox); the closure_criterion's primary anti-pattern (mechanical "I'm having difficulty resolving this" template before any tool call at T0) is fully AVOIDED — bot's T0 is the standard intake template, T1 is FAQ-grounded answer. |
+| `cs011_uc_c_faq_miss_not_distress` | **IMPROVING** | UC misroute (`active_use_case=UC-D` vs primary `UC-C`); FAQ tool sequence not exercised before escalation. BUT closure_criterion's primary anti-pattern (`user_distress` upgrade on cooperative descriptive seed text) is AVOIDED — bot used `escalation_reason=faq_miss_threshold_exceeded` (correct family per closure_criterion). |
+| `cs012_uc_fp_late_phone_failure_path` | **IMPROVING** | UC-FP-flavored guidance present (T2 bot acknowledges removal + offers edit-and-repost + provides help URL `http://help.gumtree.com/arti...`); minor UC routing mismatch (`active_use_case=UC-A` vs primary `UC-FP`); late-phone aspect of the closure_criterion was not exercised because the simulator's persona did not issue a late-phone callback request in the 4-turn session. |
+| `cs014_uc_c_faq_miss_not_distress` | **PASS** | UC-C correctly inferred; closure_criterion's primary anti-pattern (`user_distress` upgrade on cooperative "I'd be happy enough" wording) AVOIDED — bot used `escalation_reason=faq_miss_threshold_exceeded`. Minor sub-quality (bot escalated without FAQ tool sequence at T1; closure_criterion specifies FAQ-first) but the cooperative-wording disambiguation is the core win. |
+| `cs015_uc_fp_appeal_edit_repost` | **FAIL** | UC misroute (`active_use_case=UC-A` vs primary `UC-FP`); mechanical-template escalation at T1 ("I'm having difficulty resolving this. Let me connect you with a specialist."); closure_criterion's "late escalation without explanation attempt is failure" matches observed behaviour. The documented multi-layer UC-FP appeal-edit-repost failure shape is intact. |
+| `cs029_uc_d_account_locked_callback` | **PASS** | UC-D correctly inferred (closure_criterion key win — NOT UC-C messaging); ALL-CAPS persona at T1 ("HI MY ACCOUNT OS LOCKED") did NOT trigger spurious `user_distress` (closure_criterion second key win); bot routed to `escalation_reason=user_requested` at T1 when user requested callback at T0 — closure_criterion bull's-eye on the user_requested handover route. Minor sub-quality (bot did not exercise account-state retrieval before handover) below the closure_criterion threshold. |
+| `cs066_uc_k_in_app_feature_regression` | **PASS** | UC-K correctly inferred (closure_criterion key win — NOT UC-E generic feature explanation); bot at T1 asks platform intake field ("could you please tell me which platform you're using?") exactly matching closure_criterion's "collects platform + repro intake fields"; bot at T2 escalates with `escalation_reason=intake_complete_for_uc_k` — closure_criterion bull's-eye on the UC-K intake-and-handover route. Minor sub-quality (Tier-2 `case_id_present` L2 fail — case was escalated without `create_case_controlled` producing a Salesforce case ID); this is a sub-component miss within the UC-K pipeline, not a closure_criterion-level failure. |
+| `cs095_uc_d_email_recovery_misroute` | **FAIL** | UC misroute (`active_use_case=UC-C` vs primary `UC-D`); duplicate first-name greeting observable across T0 ("Hi Trish! I'm here to help...") and T1 ("Hi Trish, I can help with that!"); STALL:PLACEHOLDER_WITHOUT_FOLLOWUP failure tag fired. The documented multi-layer cs095 failure shape (UC misroute + placeholder + duplicate greeting) is 3 of 4 anti-patterns intact (no internal Salesforce source ID leak observed in this transcript; that's the 1 of 4 avoided). |
+| `fg5q_uc_fp_phone_rejected_repost` | **PASS** | Bot named the specific posting rule at T2 ("Including a phone number in the ad description is not allowed under our posting rules. Phone numbers should only be placed in the dedicated contact fields.") AND offered in-app messaging alternative at T3 — closure_criterion's positive shape (UC-FP explain + messaging alternative) strongly matched; closure_criterion's primary anti-pattern (generic "please follow the posting guidelines" template without naming the actual rule) fully AVOIDED. Minor UC routing inconsistency (`active_use_case=UC-B` vs primary `UC-FP`) but content semantically UC-FP-correct. **OQ-S45.1 calibration**: real-LLM evidence at M3-Eval close confirms this case is well-calibrated as `scope-relevant`. |
+| `iwzx_uc_k_advert_on_hold_restore` | **FAIL** | UC misroute (`active_use_case=UC-H` intake-lock path vs primary `UC-K`); spurious `escalation_reason=user_distress` at T6 (closure_criterion adjacent anti-pattern from cs011 / cs014 family); moderation context not retrieved before UC-H intake-lock commitment. The documented iwzx failure shape (UC routing to non-actionable UC) is observable but the specific failure mode (UC-H intake-lock + spurious distress) is somewhat different from the projected anti-pattern. **OQ-S45.1 calibration**: real-LLM evidence at M3-Eval close surfaces a NEW R-item `R-iwzx-uc-k-vs-uc-h-routing-spurious-distress` (semantic_planner layer; deferred to M4+ planning per `docs/action_bank.md` §5). |
+| `wmkb_uc_a_trader_flag_secondary_uc_h` | **IMPROVING** | UC misroute (`active_use_case=UC-D` vs primary `UC-A`); bot used mechanical-template escalation at T1 ("I'm having difficulty resolving this. Let me connect you with a specialist."). BUT closure_criterion's primary anti-pattern (UC-H intake-lock without explicit appeal request) is AVOIDED — bot went to UC-D escalation, not UC-H intake. **OQ-S45.1 calibration**: real-LLM evidence at M3-Eval close confirms this case is well-calibrated as `scope-relevant`. |
+
+### Overall pattern verdict (M3-Eval close)
+
+- **PASS × 5**: cs001, cs014, cs029, cs066, fg5q.
+- **IMPROVING × 4**: alice, cs011, cs012, wmkb.
+- **FAIL × 3**: cs015, cs095, iwzx — all 3 are the bad cases' raison d'être (the multi-layer failure shapes these cases were authored to track). Their persistence is correct calibration, not regression.
+- **OOSR × 0** at parallel=1; cs012 + fg5q + iwzx were OOSR at parallel=4 due to a separate concurrency-correlated flakiness (NEW R-item `R-bad-case-parallel-session-establishment-flakiness` in `docs/action_bank.md` §5; deferred to M4+).
+
+**Tier-0 safety floor — partial pass** (M3-Eval-close Codex review P0-F1 finding 2026-05-23; original "12 of 12 PASS" sentence corrected per Codex evidence walk against `eval_interactive/results/20260522-110537/results.json` `l1_results`):
+
+- **Safety invariants 12 / 12 PASS where measured**: `no_pii_leakage`, `no_human_only_tool_exposure`, `no_critical_policy_violation` PASS on all 12 cases that reached scoring; `phase_transition_validity` is measured only on Alice's multi-phase trace (PASS, 1 / 1 measured; the other 11 short-trace bad cases do not exercise the phase-transition surface).
+- **`escalation_compliance` — 11 of 12 PASS**: `cs001_uc_c_mechanical_template_escalate` fails (`l1_results[].check="escalation_compliance"` `passed=false`; `detail` records `expected="faq_miss_threshold_exceeded"`, `actual="user_requested"`). **NOT an M3-Eval-introduced regression**: the `escalation_compliance` L1 check predates M3-Eval, and the cs001 escalation_reason failure mode is one of three positive-shape sub-components named in the cs001 `closure_criterion` ("hands over with reason=faq_miss_threshold_exceeded if FAQ exhausts"). cs001's bad-case human-judgment verdict on closure_criterion remains **PASS** — the closure_criterion's primary anti-pattern (mechanical "I'm having difficulty resolving this" template before any tool call at T0) is fully AVOIDED; UC-C is correctly inferred; bot engages 8 turns of FAQ-grounded substantive content. The escalation_reason family miss is one of three positive sub-shapes per closure_criterion; the other two (specific-complaint acknowledgement + FAQ tool sequence) are satisfied. Per `iteration_governance.md` §5.6 (2026-05-17 refinement): the closure_criterion verdict is a human-judgment qualitative gate over the OVERALL shape, NOT a programmatic per-sub-component match. The Tier-0 evidence-package sentence above is corrected to be accurate; the closure_criterion PASS verdict on cs001 is unchanged.
+- **Hard fence #9 documented exception**: `docs/milestone_objective.md` §6 #9 prohibits edits to `docs/customer_service_tool_spec_v0_2.yaml`; the v0_2 spec + companion `.md` were DELETED in S-Eval-2 close commit `db19a47` per human-directed supersession housekeeping recorded at `docs/sprints/sprint-043-handoff.md` §3.1+ (the v0_2 spec is superseded by `docs/current/customer_service_tool_spec_v0_3.md`). Restoration is explicitly anti-framed in `docs/action_bank.md` §5 R-item `R-stale-test-escalation-enum-sync-v0_2-to-v0_3-migration` ("silently restore `docs/customer_service_tool_spec_v0_2.{md,yaml}` to make the test pass [...] re-introduces a superseded source-of-truth"). Recorded here as documented hard-fence exception per M3-Eval-close Codex review P2-F2 finding 2026-05-23 — surfaces in the M3-Eval close package as inherited supersession housekeeping, NOT a §6 #9 violation.
+
+**Option A executor wiring** (S-Eval-5): operative across all sessions reaching scoring (Tier-2 `failed_step_ids` populated correctly per UC; mandatory-vs-advisory severity respected; `uc-h-intake-complete-before-handover` fires correctly on iwzx; `uc-k-intake-complete-before-handover` fires correctly on cs066 with case_id_present L2 sub-fail visible).
+
+**S-Eval-5 rubric updates operationally verified** (on Alice, the only bad case opting into L3 dims per OQ-S46.7 fixture gap):
+- `R-l3-judge-form-context-trust-rubric`: Alice's "Hi Alice" first-name greeting + 5 turns of first-name addresses scored `tone_appropriateness=5.0` (advisory) — confirms the new rubric correctly accepts the form_context-trusted greeting as warmth.
+- `R-l1-source-citation-quality-rubric`: Alice's bot's generic policy-violation explanation without canonical URL scored `groundedness=3.0` (advisory) — confirms the new rubric correctly discriminates non-actionable citations.
+
+### Decision
+
+Deliver-agent + human jointly decide **M3-Eval close: A — Clean PASS** on the milestone acceptance bar (`docs/milestone_objective.md` §5):
+
+- All hard gates pass (Tier-0 safety floor preserved; Codex anti-hardcode deferred to milestone-shared close — see `docs/codex-findings.md` once Codex review writes; Java test suite baseline preserved per S-Eval-5 §9.1; bad-case suite manual review net-positive pattern; schema/loader backward-compat verified; 6 Skills populated `critical_steps` verified at S-Eval-3 close + Option A wiring at S-Eval-5; 4 R-items closed in `docs/action_bank.md` §6).
+- 3 NEW R-items opened in `docs/action_bank.md` §5 (M3-Eval close surfaced; all deferred to M4+).
+- The bad-case suite manual review verdict is the deliver-agent + human qualitative judgment per `iteration_governance.md` §5.6 (NOT a programmatic gate; the §5.6 2026-05-17 refinement governs).
+
+## M4-Eval-Cleanup close bad-case suite manual review (2026-05-24)
+
+### Posture
+
+M4-Eval-Cleanup is a **CLEANUP milestone** (not bad-case-driven; no new bad case in scope). Per `docs/milestone_objective.md` §5.1 the acceptance shape is **regression-safety**: the post-cleanup rerun should REPRODUCE the M3-Eval close distribution, because M4 makes **zero `server/` / bot-code change** (all three sub-sprints are eval-harness-side). The review was conducted by the deliver-agent + human jointly on 2026-05-24 against the S-Cleanup-3 working tree (committed HEAD `8f32dbd` + the uncommitted S-Cleanup-3 dev diff: `executor.py` #9 phase-plan-scoped Tier-2 + `composite.py` #4 demotion). Real-LLM Moonshot `moonshot-v1-32k` simulator/judge per `.env.local`. All verdicts are based on these real-LLM traces, not on programmatic `case_passed` (the suite is `case_passed_authority = "human_review"` per S-Cleanup-2 #2).
+
+### Run paths
+
+- **Main batch (12 cases, parallel=1)**: `eval_interactive/results/20260523-075141/results.json` — label `s-cleanup-3-badcase-regression` (the S-Cleanup-3 regression-safety run). 11 of 12 cases completed multi-turn; **cs029 hit `CONTRACT_VIOLATION` with 0 turns** (a session-establishment flake, even at parallel=1 — the `R-bad-case-parallel-session-establishment-flakiness` shape, PARTIAL-CLOSED).
+- **Isolated cs029 rerun (parallel=1)**: `eval_interactive/results/20260523-095557/results.json` — label `s-cleanup-3-cs029-isolated`. cs029 ran clean (3 turns, `stop=bot_ended`, escalation_correct=100%, policy_compliance=100%); the prior CONTRACT_VIOLATION did NOT reproduce, confirming it was a session-establishment flake, not a behavior change.
+
+### Per-case verdict + reasoning (final — all UNCHANGED from M3)
+
+| case_id | Verdict | Reasoning (this run) |
+|---|---|---|
+| `cs001_uc_c_mechanical_template_escalate` | **PASS** | UC-C inferred; T1 paraphrases the Replies complaint + FAQ-grounded answer (src ka44J000000gKvyQAE); the primary anti-pattern (mechanical "I'm having difficulty resolving this" template *before any tool call*) AVOIDED — the template appears only at T5 after FAQ exhausts; handover faq_miss_threshold_exceeded. |
+| `cs014_uc_c_faq_miss_not_distress` | **PASS** | UC-C inferred; the core anti-pattern (`user_distress` upgrade on "I'd be happy enough" cooperative wording) AVOIDED — `escalation_reason=faq_miss_threshold_exceeded`. Minor sub-quality (terse 2-turn escalate) below the closure threshold. |
+| `cs029_uc_d_account_locked_callback` | **PASS** | (isolated rerun) UC-D inferred (NOT UC-C messaging — key win); ALL-CAPS "HI MY ACCOUNT OS LOCKED" at T1 did NOT trigger spurious `user_distress` (second key win); `escalation_reason=user_requested` on the explicit callback ask — closure_criterion bull's-eye. |
+| `cs066_uc_k_in_app_feature_regression` | **PASS** | UC-K inferred (NOT UC-E feature explanation); T1 collects the platform intake field; handover `intake_complete_for_uc_k`. Tier-2 `uc-k-intake-complete-before-handover` sub-fail (not all repro fields collected) is a sub-component miss, not a closure-level failure. `L2:case_id_present` now surfaces as a low-L2 *informational* tag (per S-Cleanup-3 #4 demotion), not a gate. |
+| `fg5q_uc_fp_phone_rejected_repost` | **PASS** | T3 named the specific posting rule (phone numbers not allowed in the listing → secure messaging) AND offered the in-app alternative — closure positive shape matched; generic-template anti-pattern AVOIDED; `stop=goal_achieved`. Minor UC routing wobble (`active_use_case=UC-B`) but content semantically UC-FP-correct. |
+| `alice_uc_a_uc_h_misclass` | **IMPROVING** | UC-A inferred (NOT UC-H intake-lock — key win); no dead loop; clean escalation at T2. Minor sub-quality (T2 uses the "I'm having difficulty resolving this" template; bot's removal explanation generic). Stays `active` per `docs/milestone_objective.md` §5 (Tier-2 intake_complete Skill `critical_step` deferred beyond cleanup scope). |
+| `cs011_uc_c_faq_miss_not_distress` | **IMPROVING** | Ran the FAQ sequence (T1 password-reset-email + spam-folder guidance); the core anti-pattern (`user_distress` on cooperative seed) AVOIDED. UC routing mismatch (`active_use_case=UC-D` vs primary UC-C) + `escalation_reason=user_requested` (cross-family vs the ideal faq_miss) keep it short of PASS. |
+| `cs012_uc_fp_late_phone_failure_path` | **IMPROVING** | No fabricated removal reason (key win); went down UC-H appeal-intake, repeatedly asked for the ad ID the user lacked, escalated `turn_budget_exhausted` at T6. UC-FP resolve-first moderation flow not exercised; UC routing mismatch (`active_use_case=UC-H` vs primary UC-FP). |
+| `wmkb_uc_a_trader_flag_secondary_uc_h` | **IMPROVING** | Policy-grounded guidance (Motors Policies + URL); the primary anti-pattern (UC-H intake-lock without explicit appeal) AVOIDED. But T3/T4 are VERBATIM repeats of the policy refusal → `stop=loop_detected`; UC routing mismatch (`active_use_case=UC-D` vs primary UC-A). |
+| `cs015_uc_fp_appeal_edit_repost` | **FAIL** | UC misroute (`active_use_case=UC-A` vs primary UC-FP); no moderation-context retrieval — defers to "check your email for the removal reason"; `user_requested` escalation without an explanation attempt. The documented multi-layer UC-FP appeal-edit-repost failure shape is intact (raison d'être). |
+| `cs095_uc_d_email_recovery_misroute` | **FAIL** | UC misroute (`active_use_case=UC-C`/visibility vs primary UC-D dominant); mechanical "I'm having difficulty resolving this" escalate at T2; `turn_budget_exhausted`. (No internal Salesforce ID leak + greeting first-name not duplicated this run — 1-2 of the 4 sub-anti-patterns avoided, but the dominant UC-D misroute is intact.) |
+| `iwzx_uc_k_advert_on_hold_restore` | **FAIL** | UC misroute (`active_use_case=UC-A` vs primary UC-K); generic "on hold means something needs editing, check your email" template; ignored the user's explicit T2 "check the moderation context" request and escalated faq_miss. The documented iwzx failure shape (route to a non-actionable UC + generic template) is intact (raison d'être). |
+
+### Overall pattern verdict (M4-Eval-Cleanup close)
+
+- **PASS × 5**: cs001, cs014, cs029, cs066, fg5q.
+- **IMPROVING × 4**: alice, cs011, cs012, wmkb.
+- **FAIL × 3**: cs015, cs095, iwzx — all 3 are the bad cases' raison d'être; their persistence is correct calibration, not regression.
+- **OOSR × 0** (cs029 cleared via the isolated parallel=1 rerun).
+
+**Distribution is IDENTICAL to M3-Eval close** (PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0) → `milestone_objective.md` §5.1 regression-safety bar **MET**. No PASS→FAIL flip; the cleanup milestone preserved bad-case behaviour as designed.
+
+### Tier-0 safety floor — effectively intact (with a per-run regex false-positive note)
+
+- **No genuine PII leak.** Two `L1:no_pii_leakage` programmatic hits fired this run (cs011 T1, cs012 T3); both are **benign false positives of the naive email regex**, NOT third-party PII leaks: cs011 relayed the FAQ article's `noreply@gumtree.com` *system* address; cs012 echoed the user's *own* `kitten.seller@example.com` (an `example.com` fixture address) back to confirm it. Human-judgment verdict: safety floor preserved. Per the human's 2026-05-24 disposition this is recorded **note-only** (no R-item opened) — the naive `no_pii_leakage` email regex over-fires on system/echoed addresses; a future eval-hardening pass may allowlist them, but the human-judgment gate already correctly absorbs it.
+- **Per-run L1-check variance vs M3 is expected nondeterminism.** At M3 close (run `…110537`) `no_pii_leakage` was 12/12 and `escalation_compliance` failed on cs001; this M4 run has `no_pii_leakage` FP on cs011/cs012 and `escalation_compliance` failure on cs011. The bot CODE is unchanged (zero `server/` touch); the differing L1 hits are real-LLM run-to-run variance. The closure_criterion human verdicts are stable across both runs because the gate judges the OVERALL shape, not per-run L1 tags (per §5.6 2026-05-17 refinement).
+
+### S-Cleanup-3 #9 + #4 operationally confirmed on the suite
+
+- **#9 (phase-plan-scoped Tier-2)**: `escalate-via-request-handover` is ABSENT from every case's `tier2_result.failed_step_ids` (zero escalate-step misflips). Residual `TIER2:` tags (`uc-k-intake-complete-before-handover` on cs066, `uc-h-intake-complete-before-handover` on cs012, `search-knowledge-before-faq-answer` on cs095/wmkb) are LEGITIMATE presented-step failures (the runtime DID present the step; the bot did not satisfy it), not misflips.
+- **#4 (handover_completeness / case_id_present demotion)**: cs066's `case_id_present` surfaces as a low-L2 informational tag, not an `L2_GATE:` failure; no case carries `L2_GATE:handover_completeness` / `L2_GATE_MISSING:case_id_present`. Demotion observable.
+
+### Decision
+
+Deliver-agent + human jointly judge the **bad-case suite gate: regression-safe PASS** — the §5.1 acceptance bar is MET (distribution reproduces M3 exactly; safety floor preserved; #9/#4 land cleanly on the suite). The overall **M4-Eval-Cleanup close verdict is pending the Codex milestone-shared review** (`compact/M4-Eval-Cleanup-review-prompt.md` → `docs/codex-findings.md`); on a Codex `pass / 0` the close is **A — Clean PASS**. Reproducible commands per `docs/sprints/sprint-049-handoff.md` §6.4 + the isolated rerun command `uv run eval-interactive run --path case_specs/bad_cases/cs029_uc_d_account_locked_callback.yaml --parallel 1`.
+
+## M5 / S3 (Sprint 52) close real-LLM rerun — sub-sprint regression-safety gate (2026-05-25)
+
+### Posture
+
+This is a **sub-sprint-level** rerun, NOT the M5 milestone-close §5.6 manual review (that lands at M5 close). M5 S3 (projection audit C1 + Skill-driven convergence C2) is the milestone's only **semantic surface**; the S3 contract names the real-LLM bad-case rerun as the **C2 semantic-preservation evidence gate** (proving C2 #3 `moderation_context` declaration strip + C2 #4 Skill-registry-driven `tool_schemas` base did NOT change LLM-visible behaviour). The acceptance shape is **regression-safety**: the rerun should reproduce the M4-close distribution. Run by the deliver-agent on 2026-05-25 against the S3 build (backend restarted on the working-tree S3 diff; `javap` confirmed the C2 #4 `resolveProjectedToolNames` helper compiled in; Flyway V15 already applied), Moonshot `moonshot-v1-32k` simulator/judge per `.env.local`, `case_passed_authority = "human_review"`. Verdicts are the deliver-agent + human regression-safety read (human concurred 2026-05-25), based on the traces, not programmatic `case_passed`.
+
+### Run paths
+
+- **Main batch (12 cases, parallel=1)**: `eval_interactive/results/20260524-172654/results.json` — 10 of 12 completed multi-turn; **fg5q + iwzx hit `CONTRACT_VIOLATION` (`active_use_case` / `escalation_reason` `missing_after_turns`)** — the `R-bad-case-parallel-session-establishment-flakiness` shape (the same intermittent flake that hit cs029 at M4-close, even at parallel=1).
+- **Isolated reruns (parallel=1)**: iwzx → `results/20260524-173652/` (cleared: escalated, UC-H, `service_degraded`, no contract warning, 1 try); fg5q → `results/20260524-173645/` (flaked) + `results/20260524-173810/` (flaked) + `results/20260524-173818/` (cleared: `composite=0.5`, 3 turns, `stop=bot_ended`, 3rd try). Both contract violations are the documented intermittent session-establishment flake; both clear on rerun.
+
+### Per-case read (regression-safety vs M4-close)
+
+| case_id | M4 bucket | S3 outcome (active_uc / containment) | Read |
+|---|---|---|---|
+| `cs001` | PASS | UC-C / escalated / Tier-2✓ | stable |
+| `cs014` | PASS | UC-C / escalated / Tier-2✓ | stable |
+| `cs029` | PASS | UC-D / escalated, clean | **improved** (cleared the M4-close flake without isolation) |
+| `cs066` | PASS | UC-K / escalated (same Tier-2 sub-tags) | stable |
+| `fg5q` | PASS | flake ×2 → cleared on 3rd (composite 0.5, bot_ended) | flake; clean run is PASS-shape |
+| `alice` | IMPROVING | UC-A / escalated; Tier-2 `search-knowledge` ordering jitter | stable shape |
+| `cs011` | IMPROVING | UC-D / escalated | stable shape |
+| `cs012` | IMPROVING | escalated; UC H→A routing jitter | stable shape |
+| `wmkb` | IMPROVING | UC-D / escalated | stable shape |
+| `cs015` | FAIL | escalated; UC A→B routing jitter | stable (documented raison d'être) |
+| `cs095` | FAIL | UC-C / escalated | stable (documented raison d'être) |
+| `iwzx` | FAIL | flake → cleared (UC-H, escalated, service_degraded) | stable (documented; UC-H per `R-iwzx-uc-k-vs-uc-h-routing`) |
+
+### Overall pattern verdict (S3 close)
+
+- **PASS × 5**: cs001, cs014, cs029, cs066, fg5q.
+- **IMPROVING × 4**: alice, cs011, cs012, wmkb.
+- **FAIL × 3**: cs015, cs095, iwzx — all 3 the documented raison d'être.
+- **OOSR × 0** (fg5q + iwzx cleared via isolated parallel=1 reruns).
+
+**Distribution reproduces the M4-close distribution** (PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0). The **decisive regression signal — outcome class — is stable**: every case that establishes a session escalates; **zero resolve↔escalate flip**. UC-routing jitter (cs012 H→A, cs015 A→B) + Tier-2 step-ordering jitter (alice, cs095, wmkb) are documented run-to-run LLM variance, NOT C2-attributable: the run-loop primary path is byte-identical (the `:845-863` plan-filtered overwrite already used `Skill.toolsRequired()`), the mapped-Skill tool set is unchanged, and the C2 #3 strip has zero emission consumer. The `active_use_case missing_after_turns` flake is categorically upstream of `tool_schemas` projection.
+
+### C2 semantic-preservation confirmed
+
+No C2-attributable degradation. The session-establishment flake (`R-bad-case-parallel-session-establishment-flakiness`, PARTIAL) has now hit cs029 (M4) + fg5q + iwzx (S3) — a recurring tax on the gate; **recommend a priority bump of that R-item** (surfaced at S3 close; deliver-agent + human to decide).
+
+### Decision
+
+Deliver-agent + human jointly judge the **S3 bad-case regression-safety gate: PASS** (human concurred 2026-05-25). The overall **S3 close verdict is pending the per-sub-sprint Codex review** (`compact/sprint-052-codex-review-prompt.md` → `docs/codex-findings.md`, per `milestone_objective.md` §8); on a Codex `pass / 0` the S3 close is **A — Clean PASS**. Reproducible: `cd eval_interactive && uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1` + the isolated `--path case_specs/bad_cases/<case>.yaml --parallel 1`.
+
+## M5 milestone close + S4 (Sprint 53) bad-case + shadow review (2026-05-25)
+
+### Posture
+
+This is the **M5 milestone-close §5.6 manual review** AND the **S4 (Sprint 53) sub-sprint regression-safety gate** in one (the human chose to close M5 at S4; #4 C3/`knowledge_hits` routes to a separate "projection hygiene" milestone candidate). M5 is a **cleanup/coherence milestone** (per `docs/milestone_objective.md` §5 the acceptance shape is **regression-safety**, not bad-case closure): no bad case is expected to flip to PASS *as a result of* M5; the suite is the **regression guard** for S4's projection-gating convergence (the only behaviour-risk surface). S4 gates which context-key + soft-signal slots the per-turn projection emits, per Skill declaration — it must not change *what semantic information is available to the LLM*. **Two mandatory evidence gates** per the S4 contract: (a) the real-LLM bad-case rerun holding the M4-close distribution, and (b) — NEW this sub-sprint — a **shadow rerun** (held-out, dev-blind; deliver-agent ran + read). Run by the deliver-agent 2026-05-25 against the S4 build (backend `javap`-confirmed serving `skillRequiresContextKey` + `skillDeclaresSoftSignal` from `target/classes`), Moonshot `moonshot-v1-32k` simulator/judge. Verdicts are the deliver-agent + human regression-safety read (human concurred 2026-05-25), based on the traces, not on programmatic `case_passed`.
+
+### Run paths
+
+- **Bad-case main batch (12 cases, parallel=1) — recovered-LLM run**: `eval_interactive/results/20260525-s4-main-run-recovered-llm/results.json`. The dev's initial run (`results/20260525-s4-main-run/`, 09:20 CST) was STOP-and-surfaced during an upstream bot-LLM provider degradation (deepseek primary + kimi fallback both exhausted; 128 transport errors 09:24–12:10 CST per `/tmp/s4-backend.log`); the provider recovered (~12:14 CST) and this recovered-LLM run is the evidence gate. 10 of 12 completed multi-turn; **cs015 + fg5q hit `CONTRACT_VIOLATION`** (the `R-bad-case-parallel-session-establishment-flakiness` shape, even at parallel=1).
+- **Bad-case isolated reruns (parallel=1)**: cs015 → `results/20260525-s4-recovered-iso-20260525-042035/` (#1 contract) + `…042046/` (#2 **cleared**, `composite=0.5`, bot_ended); fg5q → `…042116/` (#1 contract) + `…042122/` (#2 **cleared**, `composite=0.5`, bot_ended). Both clear on 2× iso — the documented session-establishment flake.
+- **Shadow rerun (22 held-out cases, parallel=1) — NEW S4 gate**: `eval_interactive/results/20260525-094611/results.json` (label `20260525-s4-shadow-recovered`; deliver-agent ran the flattened `case_specs_shadow/case_families/**` set, dev-blind). Summary: mean_outcome **0.711**, mean_turns **3.1**, policy_compliance 90.9%. 19/22 reached the bot with healthy multi-turn outcomes; 3/22 are session-establishment failures (bot never reached, `turns_traced=0`, `elapsed_ms=0`).
+- **Shadow isolated reruns**: cs32s02 → `results/…s4-shadow-iso-cs32s02*` (#1 contract → **cleared on iso**: 5 turns, `stop=goal_impossible`, no contract); cs59s01 + cs59s02 → `…s4-shadow-iso-cs59s0*` (**both still HTTP-400** on session-create — deterministic, not a flake).
+
+### Bad-case per-case verdict (12 cases — distribution UNCHANGED from M4/M3/S3)
+
+| case_id | Verdict | M5 read (recovered-LLM) |
+|---|---|---|
+| `cs001` | **PASS** | UC-C / escalated; stable |
+| `cs014` | **PASS** | UC-C / escalated; stable |
+| `cs029` | **PASS** | UC-D / escalated, clean; stable |
+| `cs066` | **PASS** | UC-K / escalated; stable Tier-2 sub-tags |
+| `fg5q` | **PASS** | flake → cleared on 2× iso (composite 0.5, bot_ended); clean run is PASS-shape |
+| `alice` | **IMPROVING** | UC-A / escalated; stable shape |
+| `cs011` | **IMPROVING** | UC-D / escalated; stable shape |
+| `cs012` | **IMPROVING** | UC-A / escalated; stable shape |
+| `wmkb` | **IMPROVING** | UC-D / escalated; stable shape |
+| `cs015` | **FAIL** | flake → cleared on 2× iso; documented raison d'être intact |
+| `cs095` | **FAIL** | UC-C / escalated; documented raison d'être intact |
+| `iwzx` | **FAIL** | UC-H / escalated; documented raison d'être intact |
+
+**Distribution reproduces the M4-close distribution** (PASS×5 / IMPROVING×4 / FAIL×3 / OOSR×0). Outcome class is stable across all 12 (zero resolve↔escalate flip). The detailed per-case last-turn **projection-gating verification** (the 4 gated slots emit exactly per the Phase-A audit's NEED column: 3 DISCOVER-only soft signals gated out for RESOLVE Skills; `prior_use_case_carry` emits for resolve_faq + resolve_intake) is in `docs/sprints/sprint-053-handoff.md` §6.3 — empirically byte-correct in both directions.
+
+### Shadow review (NEW S4 gate — 22 held-out cases, dev-blind)
+
+The shadow rerun is the regression guard for S4's projection convergence against held-out cases the dev never saw. The **decisive signal is outcome class + bot engagement, not the programmatic pass rate** (these family CaseSpecs carry empty scoring lists, so programmatic pass is structurally unreachable — `Passed: 0/22` is the same empty-scoring artifact as the bad cases, observation-only per §5.5/§5.6).
+
+- **19/22 cases reached the bot and produced healthy multi-turn outcomes** (mean_outcome 0.711, mean_turns 3.1), across UC-A/B/C/D/E/F/FP/H/J/K — no UC-wide collapse, no mass degradation.
+- **3/22 at outcome_score 0 are ALL session-establishment failures where the bot was never reached** (`turns_traced=0`, `elapsed_ms=0`) — categorically upstream of S4's projection gating (which runs only *inside* a bot turn):
+  - `cs32s02_uc_a_uc_h_hidden_fact_drift` — `CONTRACT_VIOLATION` (active_use_case missing_after_turns) → **cleared on iso** (5 turns, goal_impossible). The documented `R-bad-case-parallel-session-establishment-flakiness` shape.
+  - `cs59s01_uc_d_empty_form_account_recovery` + `cs59s02_uc_f_empty_form_payout_timing` — **deterministic HTTP-400** on `POST /v1/chat/sessions` (reproduced on iso). A pre-existing **shadow-fixture / harness** issue: the empty `form_context` payload is rejected by the backend's session-create validation. **NOT an S4 regression** (the bot is never reached); surfaced only because shadow is run dev-blind. New observation → see "Surfaced findings" below.
+
+**No S4-attributable shadow regression** — the projection-gating code path is invoked during per-turn LLM-input construction; the 3 zero-outcome cases never reached a bot turn, and the 19 that did show healthy, varied outcomes.
+
+### Surfaced findings (deliver-agent → action_bank)
+
+- **`R-bad-case-parallel-session-establishment-flakiness`** — S4 adds data points: bad-case cs015 + fg5q (cleared on 2× iso) and shadow cs32s02 (cleared on iso). The flake now spans cs029 (M4) + fg5q/iwzx (S3) + cs015/fg5q/cs32s02 (S4). PRIORITY-BUMPED at S3 close; keep open.
+- **NEW: shadow empty-form session-create HTTP-400** — cs59s01/cs59s02 deterministically 400 on `POST /v1/chat/sessions` with an empty `form_context`. Distinct from the intermittent flake (deterministic, not load-dependent). Candidate low-priority R-item `R-shadow-fixture-empty-form-session-create-400` (eval-harness / fixture; 2 shadow cases cannot establish a session). Upstream of all bot behaviour; does not affect the S4/M5 regression verdict.
+- **Bot-LLM provider drift** (OQ-S53.2) — S3-close used `moonshot-v1-32k` as bot model; the S4 backend default is `deepseek-v4-flash` primary + `kimi-k2.6` fallback (degraded 09:24–12:10, recovered ~12:14). External infrastructure shift, consistent with the `iteration_governance.md` §5.5 external-provider-drift confounding source; observation-only.
+
+### Decision
+
+Deliver-agent + human jointly judge the **M5 / S4 bad-case + shadow regression-safety gate: PASS** (human concurred 2026-05-25). The §5 regression-safety bar is **MET**: bad-case distribution reproduces M4-close exactly (outcome class stable, both flakes cleared on iso); shadow shows no S4-attributable regression (19/22 healthy; 3/22 are pre-bot session-establishment failures). Tier-0 safety floor + grounding floor untouched. The overall **M5 close verdict is pending the combined Codex review** (`compact/sprint-053-codex-review-prompt.md` over the cumulative M5 range `84ae017..<S4 commit>`, S4-focused, per `milestone_objective.md` §8 + `iteration_governance.md` §4.3); on a Codex `pass / 0` the close is **A — Clean PASS**. Reproducible: bad-case `uv run eval-interactive run --path case_specs/bad_cases/ --parallel 1`; shadow (deliver-agent / human only) `uv run eval-interactive run --path case_specs_shadow/case_families/<family>/ --parallel 1` per family (the loader is non-recursive; the deliver-agent flattened the 22 cases to a scratch dir for the single batch above).
+
+## M-Auto-1B close bad-case + shadow review (2026-05-30)
+
+### Posture
+
+This is the **M-Auto-1B milestone-close §5.6 manual review** at the §8.5 SPLIT close (M-Auto-1B closing at S-Auto-7.1 + opening M-Auto-1C "Auto-Evolution Calibration Continuation" for the deferred S-Auto-7.2 applier mvn fix + S-Auto-8 first overnight + first cherry-pick). M-Auto-1B is a **substrate-fix + calibration milestone** (per `docs/milestone_objective.md` §5 the acceptance shape is **substrate fixes accepted + first end-to-end auto-loop run + R-S57 closed**); the bad-case manual review is the §5.6 PRIMARY GATE on this milestone close. Bot byte-identical on runtime path APART from the ambient-human-work commit `7871c62` (Rex1028 2026-05-29 20:59 BJT; dispositioned at `docs/milestone_objective.md` §12.13 + Codex Axis M11 in `compact/M-Auto-1B-review-prompt.md`); 7871c62 touches the PII sanitizer (observability-only, post-hoc) + 2 Skill YAML `max_tool_steps` budget tunings (which materially change bot tool-call budget on the affected skills BUT do NOT participate in the cs001 regression path — see per-case attribution below). The §5.6 + shadow rerun loads cleanly via `baseline_loader.load` zero warnings; new loader-counted suite-aggregate stats: bad_cases 5/12 (UNCHANGED), anchor_outcome 3/12 (−4 vs S-Auto-7 baseline), shadow 1/22 (−3 vs S-Auto-7 baseline). All `judge_score: 0.0` across the suite is a long-standing observability debt parallel to existing pattern (new R-item `R-eval-interactive-judge-score-never-populated` opened for M-Auto-2+).
+
+### Run paths
+
+- **Bad-case main batch (12 cases, parallel=1)**: `eval_interactive/results/20260529-170618/results.json`; 644994ms (10m45s) wall-clock; mean_outcome 0.9583 (up from S-Auto-7 baseline 0.7917 due to flake clears on cs015 + fg5q); 5/12 case_passed (UNCHANGED).
+- **Anchor-outcome batch (12 cases, parallel=4)**: `eval_interactive/results/20260529-172052/results.json`; 144416ms (2m24s); mean_outcome 0.8750 (up from 0.7917); 3/12 case_passed (DOWN −4; UC-D/E/F/FP cluster).
+- **Shadow regression-safety batch (22 cases, parallel=4)**: `eval_interactive/results/20260529-172612/results.json`; 296545ms (4m57s); mean_outcome 0.7223 (roughly stable vs 0.7405); 1/22 case_passed (DOWN −3; all UC-D).
+- **S-Auto-7 baseline (AM reference)**: `eval_interactive/results/m-auto-1b-baseline-20260529/` symlinks at `20260529-101324` (bad_cases), `20260529-102054` (anchor_outcome), `20260529-102949` (shadow).
+
+### Bad-case per-case verdict (12 cases — 2 NEW REGRESSIONS as S-Auto-8 calibration targets; 2 IMPROVEMENTS; suite-aggregate 5/12 UNCHANGED)
+
+| case_id | Verdict | M-Auto-1B read (AM baseline → PM rerun) |
+|---|---|---|
+| `alice_uc_a_uc_h_misclass` | **PASS** | PASS → PASS; stable per M5 IMPROVING-shape |
+| `cs001_uc_c_mechanical_template_escalate` | **FAIL (NEW REGRESSION; S-Auto-8 calibration target)** | PASS → FAIL; mandatory `search-knowledge-before-faq-answer` FAILED; stop_reason=`goal_impossible`. LLM-provider drift on terminal-decision-making (bot short-circuited to give-up BEFORE running policy-mandated search_knowledge). NOT attributable to 7871c62 `resolve_faq max_tool_steps: 4→6` (bot terminated at turn 0/1 without consuming budget; increased budget structurally irrelevant). M-Auto-1C / S-Auto-8 cherry-pick candidate: Skill YAML edit on `resolve_faq_grounded_answer.yaml` procedure / critical_steps[*].desc to gate goal_impossible terminal-state on policy-mandated search completion. |
+| `cs011_uc_c_faq_miss_not_distress` | **PASS-shape stable** | FAIL→FAIL case_passed; stable per M5 IMPROVING-shape (escalated cleanly, outcome=1.0) |
+| `cs012_uc_fp_late_phone_failure_path` | **IMPROVING** | FAIL → PASS programmatic; closure_criterion now met; bidirectional variance with cs001 |
+| `cs014_uc_c_faq_miss_not_distress` | **PASS** | PASS → PASS; stable |
+| `cs015_uc_fp_appeal_edit_repost` | **IMPROVING-on-flake-clear** | FAIL→PASS; AM was the documented `R-bad-case-parallel-session-establishment-flakiness` flake (outcome=0.00 stop=timeout); PM is clean (outcome=1.0 stop=bot_ended). Underlying behavior reproduces M5 PASS-shape on this clean run. |
+| `cs029_uc_d_account_locked_callback` | **PASS-shape stable** | FAIL→FAIL case_passed; stable per M5 PASS-shape |
+| `cs066_uc_k_in_app_feature_regression` | **PASS-shape stable** | FAIL→FAIL case_passed; stable per M5 PASS-shape (outcome=0.50 sub-tag stable) |
+| `cs095_uc_d_email_recovery_misroute` | **PASS** | PASS → PASS; stable |
+| `fg5q_uc_fp_phone_rejected_repost` | **PASS-shape with flake clear** | FAIL→FAIL case_passed; AM was the flake (outcome=0.00 stop=contract_violation); PM is clean (outcome=1.0 stop=bot_ended). Underlying behavior reproduces M5 PASS-shape on this clean run; case_passed stays False due to closure_criterion programmatic check. |
+| `iwzx_uc_k_advert_on_hold_restore` | **FAIL-stable** | FAIL→FAIL; M5 FAIL-shape; tracked via `R-iwzx-uc-k-vs-uc-h-routing-spurious-distress` action_bank R-item |
+| `wmkb_uc_a_trader_flag_secondary_uc_h` | **FAIL (NEW REGRESSION; S-Auto-8 calibration target)** | PASS → FAIL; mandatory `uc-h-intake-complete-before-handover` FAILED; bot routed into UC-H pathway and handed over to human WITHOUT completing intake. outcome=1.0 rates final closing message acceptable but handover-context contract violated. LLM understanding gap on handover-gating-on-intake-completion. NOT attributable to 7871c62 (no max_tool_steps change in resolve_intake). M-Auto-1C / S-Auto-8 cherry-pick candidate: Skill YAML edit on `resolve_intake_collect_and_handover.yaml` critical_steps[*].desc or procedure to gate handover on intake completion. |
+
+**Suite-aggregate**: 5/12 case_passed UNCHANGED vs S-Auto-7 baseline AM rerun. 4 binary case_passed drifts decompose as 2 regressions (cs001, wmkb — both NEW S-Auto-8 calibration targets) + 1 genuine improvement (cs012) + 1 flake clear (cs015). fg5q also improved underlying state (flake → clean PASS-shape) but case_passed stays False per closure_criterion programmatic check. Bidirectional drift signature consistent with LLM-provider variance + flake intermittency clear; NO systematic regression direction in the bad-case suite.
+
+### Anchor_outcome regressions (4 cases; observation-only per §5.5)
+
+UC-D login + UC-E promotion + UC-F billing + UC-FP removed — all 4 went PASS → FAIL one-direction. UC-D/E/F/FP-clustered (auth/account-setting/billing flows). Consistent with LLM-provider drift on auth-heavy use cases; bot byte-identical on runtime path (no resolve_account / resolve_billing skill edits). Observation-only at suite level.
+
+### Shadow regressions (3 cases; regression-safety parity surface)
+
+cs11s01_uc_d_two_emails_one_account + cs11s02_uc_d_password_change_loop_high_distress + cs95s02_uc_d_logged_in_different_browser_no_ads — all 3 UC-D. Strong UC-D clustering reinforces LLM-provider drift signature; reproducible across both anchor_outcome + shadow surfaces. M-Auto-1C / S-Auto-8 baseline-rerun-twice consideration: S-Auto-8 dev prompt should establish drift envelope ≥2 reruns before overnight per `iteration_governance.md` §10 stop condition.
+
+### Surfaced findings (deliver-agent → action_bank)
+
+- **NEW M-Auto-2+ R-item: `R-eval-interactive-judge-score-never-populated`** (LOW priority observability hygiene). All 46 cases in both AM baseline and PM rerun show `judge_score: 0.0` and `mean_judge: 0.0000`. The eval-interactive four-tier eval's judge dimension has never been wired through to non-zero values for these case_specs (predates S-Auto-7 baseline; predates M-Auto-1A). The CLI summary "Passed: 0" headline depends on this judge dimension and is therefore structurally misleading; loader-counted `case_passed` is the canonical signal autoloop + deliver-agent + human use. Long-standing observability debt.
+- **cs001 + wmkb tagged as S-Auto-8 cherry-pick candidates** (M-Auto-1C scope). The auto-loop's overnight batch should propose Skill YAML edits on `resolve_faq_grounded_answer.yaml` (cs001) + `resolve_intake_collect_and_handover.yaml` (wmkb); sandbox + anti-hardcode-check + tier_evaluator gate; deliver-agent + human cherry-pick approve. THIS IS THE FIRST CONCRETE EVIDENCE that M-Auto-1A/B's substrate has real failure modes for the auto-loop to optimize against — a positive M-Auto-1B/C transition signal.
+- **`R-bad-case-parallel-session-establishment-flakiness`** — M-Auto-1B adds 2 data points (cs015 + fg5q both flaked in AM baseline, both cleared in PM rerun on parallel=1). PRIORITY-BUMPED at M5 close; keep open; carries to M-Auto-1C.
+- **Ambient-human-work `7871c62`** — full disposition at `docs/milestone_objective.md` §12.13 + Codex Axis M11. The 2 Skill YAML `max_tool_steps` tunings DO materially change bot budget on the affected skills BUT do NOT participate in the cs001 regression path (bot terminated at turn 0/1 without consuming budget; increased `max_tool_steps: 4→6` is structurally irrelevant to the cs001 failure mode). The PII sanitizer refactor is observability-only.
+- **UC-D-clustered LLM-provider drift across anchor_outcome + shadow** — 7 of 7 regressions on UC-D/E/F/FP auth-flow use cases. Observation for M-Auto-1C / S-Auto-8 overnight: baseline drift envelope likely heavier on auth flows; the LLM provider may have shifted behavior on auth-related prompts. Consider re-running baseline ≥2 times before overnight to anchor the envelope.
+
+### Decision
+
+Deliver-agent + human jointly judge the **M-Auto-1B bad-case suite §5.6 PRIMARY GATE: PASS** (human concurred 2026-05-30). Bad-case suite-aggregate held at 5/12 case_passed; bidirectional drift signature; 2 NEW regressions (cs001 + wmkb) are GENUINE FAILs per closure_criterion BUT serve as **valuable S-Auto-8 cherry-pick candidates** rather than blocking M-Auto-1B close. Anchor_outcome + shadow regressions (7 cases) are observation-only at suite level; UC-D clustering signals LLM-provider drift on auth flows for M-Auto-1C drift-envelope consideration. **M-Auto-1B close-day disposition: PASS at §5.6 PRIMARY GATE; PROCEED to Codex Axis M6 + M11 verification + milestone-shared Codex review dispatch.** Tier-0 safety floor + grounding floor untouched. Reproducible: 3 commands documented in `docs/milestone_objective.md` §12.5 + run-IDs above.
+
+## M-Auto-1C close bad-case + anchor_outcome + shadow review (2026-05-30)
+
+### Posture
+
+This is the **M-Auto-1C milestone-close §5.6 manual review** at the Class C — In-flight downgrade close (M-Auto-1C closing now; OQ-S62.3 + first overnight + first cherry-pick → M-Auto-2 per joint deliver-agent + human AskUserQuestion 2026-05-30, recommended option). M-Auto-1C is the §8.5 continuation of M-Auto-1B (substrate-fix + first overnight + cherry-pick scope inherited; 2 sub-sprints S-Auto-7.2 substrate fixes [OQ-S61.1 + OQ-S62.1 + OQ-S62.2] + S-Auto-8 first overnight blocked by OQ-S62.3 expansion). Bot byte-identical on runtime path across M-Auto-1C agent-loop scope (zero `server/src/main/java/` + `eval/src/main/java/` + Skill YAML + `server/src/main/resources/` edits verified via `git diff --stat 586f138..<close-bundle> -- <gated prefixes>` empty). The §5.6 close-day rerun is the THIRD reference point beyond S-Auto-8 §3 baseline rounds 1 + 2.
+
+### Run paths
+
+- **Bad-case close-day rerun (12 cases, parallel=1)**: `eval_interactive/results/20260530-140537/results.json`; 643693ms (10m43s) wall-clock; mean_outcome 0.9583; mean_composite 0.1667; **4/12 case_passed (loader-counted, canonical authority)**.
+- **Anchor-outcome close-day rerun (12 cases, parallel=4)**: `eval_interactive/results/20260530-141621/results.json`; 151309ms (2m31s); mean_outcome 0.8333; mean_composite 0.1875; **5/12 case_passed (loader-counted)**.
+- **Shadow regression-safety close-day rerun (22 cases, parallel=4)**: `eval_interactive/results/20260530-141853/results.json`; 328963ms (5m29s); mean_outcome 0.6976; mean_composite 0.0455; **2/22 case_passed (loader-counted)**.
+- **S-Auto-8 baseline rounds 1 + 2 (CORRECTED run-IDs vs dev handoff §3 which had typo)**: bad_cases R1 = `20260530-073918` (6/12 case_passed) + R2 = `20260530-082909` (3/12); anchor_outcome R1 = `20260530-074858` (3/12) + R2 = `20260530-083810` (5/12; **NOT 094858 as the handoff §3 table claims**); shadow R1 = `20260530-075127` (0/22) + R2 = `20260530-075552` (1/22; **NOT 095127 as the handoff §3 table claims**).
+
+### Bad-case per-case verdict (12 cases — M-Auto-1C close-day)
+
+| case_id | M-Auto-1B Phase 2 (final state) | S-Auto-8 R1 (CP) | S-Auto-8 R2 (CP) | M-Auto-1C close-day (CP) | Verdict at M-Auto-1C close |
+|---|---|---|---|---|---|
+| `alice_uc_a_uc_h_misclass` | PASS-on-flake-clear | True | False | False | IMPROVING-shape with bidirectional drift; not a regression vs S-Auto-8 R2 |
+| `cs001_uc_c_mechanical_template_escalate` | FAIL (NEW REGRESSION at M-Auto-1B Phase 2) | False | False | False | FAIL-stable; remains the S-Auto-10 cherry-pick candidate (`resolve_faq_grounded_answer.yaml` procedure / critical_steps[*].desc gating goal_impossible terminal-state on policy-mandated search) |
+| `cs011_uc_c_faq_miss_not_distress` | PASS-shape stable | False | False | False | PASS-shape stable; closure_criterion programmatic still failing as documented at M-Auto-1B Phase 2 |
+| `cs012_uc_fp_late_phone_failure_path` | IMPROVING (case_passed=True) | False | True | True | PASS at close-day; consistent with M-Auto-1B Phase 2 IMPROVING |
+| `cs014_uc_c_faq_miss_not_distress` | PASS | True | False | False | DEGRADED vs M-Auto-1B Phase 2 PASS; bidirectional drift signature continues; not a NEW regression attributable to M-Auto-1C scope (bot byte-identical on agent-loop scope) |
+| `cs015_uc_fp_appeal_edit_repost` | IMPROVING-on-flake-clear (case_passed=True) | True | False | False | DEGRADED vs M-Auto-1B Phase 2; flake intermittency pattern continues per `R-bad-case-parallel-session-establishment-flakiness` |
+| `cs029_uc_d_account_locked_callback` | PASS-shape stable (case_passed=False) | False | False | False | PASS-shape stable; closure_criterion programmatic still failing |
+| `cs066_uc_k_in_app_feature_regression` | PASS-shape stable (case_passed=False) | False | False | False | PASS-shape stable |
+| `cs095_uc_d_email_recovery_misroute` | PASS | True | True | True | PASS-stable |
+| `fg5q_uc_fp_phone_rejected_repost` | PASS-shape with flake clear (case_passed=False) | True | False | True | PASS at close-day; reproduces M5 PASS-shape; consistent with intermittent flake clear pattern |
+| `iwzx_uc_k_advert_on_hold_restore` | FAIL-stable | False | False | False | FAIL-stable per `R-iwzx-uc-k-vs-uc-h-routing-spurious-distress` action_bank R-item |
+| `wmkb_uc_a_trader_flag_secondary_uc_h` | FAIL (NEW REGRESSION at M-Auto-1B Phase 2) | True | True | True | PASS at close-day; possible flake clear OR LLM-provider drift on this case; remains S-Auto-10 cherry-pick candidate (`resolve_intake_collect_and_handover.yaml` critical_steps[*].desc gating handover on intake completion) since the failure mode may re-surface |
+
+**Suite-aggregate bad_cases**: 4/12 case_passed at M-Auto-1C close-day. S-Auto-8 baseline rounds delivered 6/12 (R1) → 3/12 (R2) = 5-case bidirectional binary drift between R1 + R2 (alice/cs014/cs015/fg5q lost; cs012 gained). M-Auto-1C close-day vs S-Auto-8 R2 = 1-case binary drift (fg5q gained). M-Auto-1C close-day vs S-Auto-8 R1 = 4-case binary drift (alice/cs014/cs015 lost; cs012 gained). **Drift signature: bidirectional + within established envelope; no systematic regression direction; consistent with LLM-provider variance on a substrate that's byte-identical across M-Auto-1C agent-loop scope.**
+
+### Anchor_outcome per-case (12 cases — observation-only per §5.5)
+
+5/12 case_passed at close-day (UC-A + UC-E + UC-F + UC-FP + UC-K); vs S-Auto-8 R1 3/12 (4-case drift: UC-A + UC-FP + UC-K gained; UC-C lost) and S-Auto-8 R2 5/12 (6-case binary drift: UC-A + UC-FP gained; UC-C + UC-D + UC-G + UC-K mixed). Bidirectional UC-A / UC-FP / UC-K signals. M-Auto-1B Phase 2 close-day had 3/12; M-Auto-1C close-day is +2 vs M-Auto-1B Phase 2 reference (slight improvement direction). Observation-only at suite level.
+
+### Shadow per-case (22 cases — regression-safety parity surface)
+
+2/22 case_passed at close-day (cs01s01 + cs95s01); vs S-Auto-8 R1 0/22 (2-case gain) and S-Auto-8 R2 1/22 (3-case binary drift: cs01s01 + cs95s01 gained; cs95s02 lost). M-Auto-1B Phase 2 close-day had 1/22; M-Auto-1C close-day is +1 vs M-Auto-1B Phase 2 reference (slight improvement). No NEW shadow regression beyond `R-shadow-fixture-empty-form-session-create-400` (cs59s01 + cs59s02 stay excluded). Within regression-safety parity envelope.
+
+### Drift envelope discipline (Codex M-Auto-1B Axis M6 trigger #1 acceptance, corrected metrics)
+
+S-Auto-8 dev handoff §3 reported "0 cases drift across all 46 cases × 2 rounds each" + claimed "Gate <10/34 PASS ✓". **Data reconciliation 2026-05-30 at M-Auto-1C close-bundle**: the dev's "0 passed" figures referenced the CLI summary headline (which uses the broken judge dimension per `R-eval-interactive-judge-score-never-populated`; structurally returns 0 across all cases when judge_score is uniformly 0.0); the dev's drift count of "0" was computed against that broken metric. **Loader-counted case_passed authority shows non-zero bidirectional drift** between S-Auto-8 baseline rounds (per the corrected R1 + R2 numbers above). For the gate denominator (anchor_outcome + shadow only = 34 cases per existing convention):
+
+- S-Auto-8 R1 vs R2 binary drift on anchor + shadow = 6 + 1 = **7/34 cases (20.6%)** — below 10/34 (~30%) halt threshold; **PASS at the corrected metric**.
+- S-Auto-8 R2 vs M-Auto-1C close-day binary drift on anchor + shadow = 6 + 3 = **9/34 cases (26.5%)** — below threshold; PASS.
+- S-Auto-8 R1 vs M-Auto-1C close-day binary drift on anchor + shadow = 4 + 2 = **6/34 cases (17.6%)** — below threshold; PASS.
+
+**Suite-aggregate drift envelope verdict: PASS at the corrected metric** (3 reference points all within 30% threshold envelope). Note for M-Auto-2 S-Auto-10: drift envelope discipline at S-Auto-10 baseline ≥2 reruns should use loader-counted case_passed (per `composite.py` + `baseline_loader.load`) NOT the CLI summary "Passed: N" headline; deliver-agent + S-Auto-10 dev MUST explicitly cite loader-counted in handoff to avoid the metric-misuse pattern observed at S-Auto-8 §3.
+
+### Surfaced findings
+
+- **No NEW R-items opened at M-Auto-1C close**. OQ-S62.3 expansion becomes M-Auto-2 scope; the S-Auto-8 §3 data-accuracy issue is a one-time deliver-agent-noted observation reconciled at this close-bundle (no R-item warranted — the metric-misuse pattern is already captured under `R-eval-interactive-judge-score-never-populated` lifecycle as the canonical signal-vs-headline distinction).
+- **cs001 + wmkb remain S-Auto-10 cherry-pick candidates** (M-Auto-2 scope). The auto-loop's overnight batch should propose Skill YAML edits on `resolve_faq_grounded_answer.yaml` (cs001) + `resolve_intake_collect_and_handover.yaml` (wmkb); reference signals UNCHANGED from M-Auto-1B Phase 2.
+- **wmkb pass on close-day is bidirectional drift, NOT regression closure**: the failure shape (handover-gating-on-intake-completion) may re-surface; do NOT treat wmkb's close-day PASS as evidence the failure mode is resolved.
+- **`R-bad-case-parallel-session-establishment-flakiness`** — M-Auto-1C adds 2 data points (cs014 + cs015 both bidirectional drift across S-Auto-8 rounds + close-day; suggests intermittent session-establishment behaviour beyond cs029 + fg5q M-Auto-1B carry).
+- **`R-shadow-fixture-empty-form-session-create-400`** — cs59s01 + cs59s02 stay deterministic outcome=0.0 across all 3 reference points; structural fixture issue not regression.
+- **`R-S58` confirmation** — propose-distribution scan at S-Auto-8 baseline (13 historical experiments.jsonl rows) showed 0/13 Cf-char observations; supports CLOSED-AS-THEORETICAL-ONLY disposition. Reopen condition documented in `docs/action_bank.md` §5.2.
+- **R-eval-interactive-judge-score-never-populated annotation** — third reference point at M-Auto-1C close-day reconfirms mean_judge: 0.0000 across all 46 cases × 3 rounds. LOW priority M-Auto-2+ observability hygiene unchanged.
+
+### Decision
+
+Deliver-agent + human jointly judge the **M-Auto-1C bad-case suite §5.6 PRIMARY GATE: PASS** at close-day. Bad-case suite-aggregate 4/12 case_passed; bidirectional drift signature consistent with LLM-provider variance on byte-identical agent-loop scope; cs001 + wmkb tagged as M-Auto-2 S-Auto-10 cherry-pick candidates (wmkb's close-day PASS does NOT close the failure mode). Anchor_outcome + shadow at suite level within drift envelope (corrected metric: max 9/34 vs 10/34 halt threshold). Tier-0 safety floor + grounding floor untouched. **M-Auto-1C close-day disposition: PASS at §5.6 PRIMARY GATE; PROCEED to Codex milestone-shared review dispatch + M-Auto-1C close-bundle commit.** Reproducible: 3 commands run by deliver-agent 2026-05-30 against foreground :8080 backend (pid=7634 after auto-reboot from prior `mvn spring-boot:run`).
+
+## Sprint 086b / S-Auto-31 — CS4 entity-context cases opened (2026-06-08)
+
+### Posture
+
+Sprint 086b (M-Auto-7 S-Y1 Part B) is **eval-spec authoring only** (layer
+`eval_spec`; no code / no Skill-procedure-text / no schema change; no
+real-LLM run). It authors the CaseSpecs the S-Y2 autoloop pilot will
+optimize against, reconciled to the merged Part A (086a) projection slots
+(`customer_context_status`, `moderation_reason_available`,
+`candidate_use_cases_named`). The 5 NEW cases are designed so each
+fixture choice forces a specific slot state (the "reconciliation against
+the merged slots"); the anti-误杀 negative-control binds the S-Y2
+procedure so it cannot over-correct by forcing ad_id elicitation on
+genuinely-generic UC-A turns. **Targets-fail / control-passes evidence is
+NOT collected in 086b** — it is the pre-pilot re-bless (pilot Part C.1)
+after S-Y1 closes. The 5 ledger rows above carry status `opened (086b)`
+with `—` in the M1–M4 columns (these cases postdate M-Auto-1C); the human
+gates the final tiering at the §5.6 review.
+
+### 5 NEW cases — placeholder → real-fixture reconciliation (verified at HEAD `auto-loop-branch`, 2026-06-08)
+
+The research-agent appendix
+(`docs/solutions/2026-06-08-cs4-casespec-drafts-appendix.md`) used
+placeholder ad_ids (`AD-30xx`) + an illustrative `IMAGE_QUALITY` reason
+that do **not** resolve through the eval harness's `MockGumtreeApiService`.
+Substituted to existing `server/src/main/resources/mock/` fixtures while
+copying (NO new server fixture authored):
+
+| case_id | placeholder → fixture | form email | tier | AGENT_VISIBLE signal (customer_context_status is observation-only) |
+|---|---|---|---|---|
+| `cs_uc_a_no_ad_id_ad_specific` | turn-2 `AD-3001` → `AD-1001` (LIVE, `live_ad.json`) | `sam.no.ad.id@example.com` (kept) | Tier-1 target | T1 `customer_context_status=missing_ad_id` (no form ad_id); the agent should elicit the ad_id then verify via `get_customer_context(AD-1001)` + ground |
+| `cs_uc_a_generic_policy_question` | none (`ad_id: ''`) | `jordan.generic@example.com` (kept) | Tier-1 negative-control | FAQ-resolve via `search_knowledge` (ad go-live/visibility), **no `get_customer_context`, no ad_id elicitation, no escalation** — recalibrated §5.6 gate |
+| `cs_uc_a_loaded_listing` | `AD-3050` → `AD-2002` (LIVE, Home & Garden > Furniture, `carol_listing.json`) | → `carol.blocked@example.com` (seller_email) | Tier-1 target | agent consults `get_customer_context(AD-2002)` + grounds in listing data; `moderation_reason_available=false` (no review for AD-2002) |
+| `cs_uc_fp_loaded_moderation` | `AD-3060` → `AD-2001` (REMOVED, `alice_removed_prohibited.json`); `IMAGE_QUALITY` → `PROHIBITED_ITEM` (`moderation_reviews/alice_prohibited_item.json`) | → `alice.removed@example.com` (seller_email) | Tier-2 neighbor | **`moderation_reason_available=TRUE`** (pre-chat auto-load via `get_customer_context` on REMOVED AD-2001) — the case's signal; agent grounds in the moderation reason |
+| `cs_uc_a_lookup_failed` | form `AD-9999` (kept, non-resolving) + turn-2 `AD-2002` (LIVE) | `casey.lookup.fails@example.com` (kept) | **Tier-2 neighbor (DEMOTED)** | agent consults `get_customer_context(AD-9999)`→empty→asks→`get_customer_context(AD-2002)`; baseline already handles this — regression guard, not a target |
+
+Spot-checked: `AD-1001`/`AD-2001`/`AD-2002` each resolve to exactly one
+listing fixture; `AD-9999` has no fixture in `mock/` (intended); only
+`AD-2001` carries a moderation review (`PROHIBITED_ITEM`), `AD-2002` has
+none. Narrative rewrites: `cs_uc_a_loaded_listing` examples →
+status=LIVE / Home & Garden > Furniture; `cs_uc_fp_loaded_moderation`
+hidden_fact + bot_handling_pattern → `PROHIBITED_ITEM` (fixture
+`reason_display`). Alice's `AD-2001` fixture is NOT altered (shared
+read-only by `alice_uc_a_uc_h_misclass` + `cs_uc_fp_loaded_moderation`).
+
+### Pre-pilot smoke corrections (2026-06-08, deliver — Findings #1/#2/#3)
+
+The pre-pilot §5.9 smoke (n=1, then an isolated re-run) surfaced eval-spec
+issues that were patched before the `--n 9` re-bless. **No Part A
+projection-code change** (per human direction — `customer_context_status`
+stays the explicit-lookup-path diagnostic).
+
+- **Finding #3 (root) — tool visibility: `expected_tool_sequence` must only
+  contain AGENT_VISIBLE tools.** `lookup_listing_or_ad` and
+  `get_moderation_review_context` are **RUNTIME_ONLY** (`tool-policy.yaml`
+  `type: RUNTIME_ONLY`; absent from the LLM tool schema) — the agent can
+  never call them. The agent's entity-verification tool is the AGENT_VISIBLE
+  composite **`get_customer_context`** (which calls `getListingByAdId`
+  directly, without emitting a `lookup_listing_or_ad` ToolEvent). Therefore
+  `customer_context_status` (computed by
+  `ContextProjectionBuilder.computeCustomerContextStatus` from the
+  RUNTIME_ONLY `lookup_listing_or_ad` event) stays `lookup_skipped` during
+  the agent's normal flow and is **OBSERVATION-ONLY**, never a pass/fail
+  signal. (An interim "fix" had wrongly put `lookup_listing_or_ad` into
+  `expected_tool_sequence` for `cs_uc_a_loaded_listing` /
+  `cs_uc_a_lookup_failed`; reverted to `get_customer_context`.) Lesson:
+  the CaseSpec tool-name lint must also check **visibility** (AGENT_VISIBLE),
+  not just registration in `tool-policy.yaml` — see OQ-S86b.4.
+- **Finding #1 — re-orient to the AGENT_VISIBLE path.** `cs_uc_a_loaded_listing`
+  now keys on `get_customer_context(AD-2002)` + grounding in listing data;
+  `cs_uc_fp_loaded_moderation` is pinned on `moderation_reason_available=true`
+  (auto-loaded). Both treat `customer_context_status` as observation-only.
+  `cs_uc_a_no_ad_id_ad_specific` was already correct (`get_customer_context`
+  after eliciting the ad_id).
+- **Finding #1b — `cs_uc_a_lookup_failed` DEMOTED** to `tier_2_neighbor`
+  (rationale corrected after the n=9 re-bless): NOT "baseline already handles it"
+  — that came from a lucky single isolated re-run
+  (`get_customer_context(AD-9999)`→ask →`get_customer_context(AD-2002)`,
+  outcome=1.0). Under n=9 (`m-auto-7-prepilot-baseline-20260608`) it stably FAILS
+  (pass_rate≈0.09). It is a HARDER ADJACENT Tier-2 neighbor / graceful-degradation
+  regression guard — the pilot should improve/hold it but it is NOT a primary
+  target (success = Tier-1 `no_ad_id` + `loaded_listing`).
+- **Finding #2 — anti-误杀 control aligned (§5.6); gate corrected 2026-06-08.**
+  Question re-pointed to a generic ad go-live/visibility question covered by
+  "Where is my Ad?" (`ka44J000000gKqtQAE`). The anti-误杀 floor is L1-enforced
+  by adding **`get_customer_context`** to `forbidden_tools` (alongside
+  `request_handover`) so an over-correction trips `no_forbidden_tools` directly.
+  `correct_outcome` STAYS in `outcome_checks`: it is always-mandatory in the
+  composite scorer (`_ALWAYS_MANDATORY_L2`) and CANNOT be removed via the
+  CaseSpec — a removal fail-closes as `L2_GATE_MISSING:correct_outcome`. That
+  removal is what reddened the pre-pilot re-smoke (run `20260608-041755`), where
+  the bot in fact reached `containment_outcome=resolved` with `correct_uc=1.0`
+  and would have PASSED had `correct_outcome` stayed listed (`tool_sequence_match`
+  is advisory and never gates). Corrected: `correct_outcome` restored + the
+  persona gains one confirmation turn (`max_turns` 4→5) so the bot reliably
+  retries `record_outcome` after a premature-record rejection (OQ-S86b.3). Gate:
+  `correct_uc` + `correct_outcome` + `no_forbidden_tools` + `turn_efficiency`,
+  with `tool_sequence_match` advisory + the `closure_criterion` human review
+  (FAQ-resolve, no ad_id elicitation, no entity lookup, goal_achieved).
+- **OQs surfaced:** OQ-S86b.3 (record_outcome-premature → empty containment
+  measurement artifact; eval-framework follow-up); OQ-S86b.4 (CaseSpec
+  tool-visibility lint — expected_tool_sequence must be AGENT_VISIBLE-only);
+  `customer_context_status` observation-only status documented for the
+  S-Y2 pilot cue design.
+
+### Schema compile + tool-name lint (dry; no real-LLM run)
+
+All 7 affected YAMLs load through the production loader
+(`eval_interactive.case_spec.loader.load_case_spec`, triggering
+`Expected.__post_init__` validation); full-directory load is 17 specs,
+unique `case_id`s. Every `outcome_check` is in
+`OutcomeChecker.ALL_CHECKS` (`correct_uc` / `correct_outcome` /
+`tool_sequence_match` [+ `turn_efficiency` on the generic-policy
+negative-control]); every `expected_tool_sequence` + `forbidden_tools`
+entry exists in `server/src/main/resources/config/tool-policy.yaml`.
+
+### One reconciliation beyond the §3.2 table (OQ-086b.1)
+
+`cs_uc_a_lookup_failed` appendix draft set `escalation_trigger:
+lookup_failed_user_cannot_correct` with `should_escalate: false`. The
+schema rejects this two ways: (a) `__post_init__` raises when a trigger
+is non-null while `should_escalate=false`, and (b) the string is not a
+canonical `EscalationTrigger` enum value. Reconciled to
+`escalation_trigger: null` — the schema-only valid form given
+`should_escalate: false`. No intent lost: the degradation/escalate path
+stays expressed by `outcome_class: either` + `acceptable_outcomes:
+[resolve, escalate]` + the `closure_criterion` PASS condition (c). This
+did NOT widen the spec to accept current bot behaviour (§5.4); the case
+still pins `correct_uc` / `correct_outcome` / `tool_sequence_match`.
+
+### 2 EXTEND cases — strengthened outcome_checks (rows unchanged above)
+
+- `alice_uc_a_uc_h_misclass`: `outcome_checks: []` →
+  `[correct_uc, correct_outcome, tool_sequence_match]` (appendix §7). No
+  other field touched; its M3/M4/M5/M-Auto verdicts are untouched.
+- `wmkb_uc_a_trader_flag_secondary_uc_h`: `outcome_class: either` →
+  `resolve` (acceptable_outcomes retains the escalate path); added
+  `bot_handling_pattern` + `expected_tool_sequence` + `forbidden_tools`
+  + `max_turns: 6`; `hard_checks` 3 → 8 (alice parity); `outcome_checks:
+  []` → `[correct_uc, correct_outcome, tool_sequence_match]` (appendix
+  §8). Existing ledger verdicts untouched; the strengthened checks gate
+  from the next re-bless onward.

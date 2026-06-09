@@ -1,0 +1,81 @@
+case_id: fg5q_uc_fp_phone_rejected_repost
+source_session_id: 570Q5000008fG5qIAE
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008fG5qIAE
+  surfaced_by: Wave A2.1 reclassification map (legacy migration)
+  surfaced_date: 2026-04-30
+  failure_shape: |
+    "My ad keeps breaking the rules" + "my phone number is being rejected" is a UC-FP (Failed
+    Posting / policy-grounded reposting) issue with a UC-K (Technical Support) fallback when
+    the phone-number rejection turns out to be a technical input-validation bug, and a UC-C
+    fallback if the rejection is about a messaging-feature flag. The pre-override CaseSpec
+    pinned UC-B (Posting); the policy-grounded explanation path the user actually needs is
+    UC-FP. Risk: bot may answer with a generic "please follow the posting guidelines" template
+    without retrieving the moderation context that names the specific rule and without
+    distinguishing policy rejection from technical validation rejection.
+  layers_involved: prompt_projection (UC-FP policy-grounded explanation route hint vs UC-B
+    generic posting reply); semantic_planner (LLM may commit to UC-B and skip moderation
+    context retrieval); eval_spec (UC-B pin masked the UC-FP failure shape).
+  related_dimensions: [D1]
+  related_r_items: []
+  tier: scope-relevant
+
+closure_criterion: |
+  Bot retrieves customer + listing + moderation context, distinguishes whether the rule
+  violation is policy-driven (UC-FP — explain the specific policy and acceptable wording /
+  alternatives) or technical-validation-driven (UC-K — collect platform / repro / version
+  and route to Technical Support intake). On the phone-number rejection specifically, bot
+  explains whether platform policy disallows phone numbers in listing body (UC-FP) or whether
+  this is a known input-validation bug (UC-K) before offering next steps. Bot does NOT
+  respond with a generic "please follow the posting guidelines" template without naming the
+  actual rule that fired. Bot does NOT escalate before attempting policy-grounded explanation.
+
+form_context:
+  first_name: Customer
+  email: posting.rules@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: |
+    My ad keeps breaking the rules and my phone number is being rejected when I try to put it
+    in the listing. Can someone explain what is going on?
+
+persona:
+  user_goal_summary: |
+    User is trying to post an ad and keeps getting rule-violation errors; specifically, the
+    phone number in the listing body is being rejected by the form. The user wants to know
+    (a) what specific policy is being violated, and (b) whether there is a workaround (use
+    the contact form, use the in-app messaging system, etc.). The user is cooperative and
+    not asking to escalate.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, my ad keeps breaking the rules. Specifically my phone number is being rejected when I try to put it in the listing. What's wrong?"
+    - "How am I supposed to let buyers contact me if I can't put a phone number in?"
+  hidden_facts:
+    - fact: Platform policy disallows phone numbers in listing body (anti-spam / anti-scam);
+        buyer-seller contact happens via in-app messaging.
+      disclose_when: if the bot explains the policy reason for the rejection
+    - fact: User is unaware of the in-app messaging system; this is the user's first listing.
+      disclose_when: if the bot asks whether the user has used the platform's messaging system
+        before OR if the bot suggests using in-app messaging
+  will_request_human_if: the bot responds with a generic "please follow the posting guidelines"
+    without naming the specific policy that disallows phone numbers in the listing body
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-FP
+  secondary_ucs: [UC-K, UC-C]
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  acceptable_outcomes: [resolve]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

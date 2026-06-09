@@ -1,0 +1,9 @@
+{
+  "review_id": "REV-011",
+  "ad_id": "AD-2004",
+  "review_type": "AUTOMATED",
+  "decision": "REMOVED",
+  "reason_code": "PET_LIMIT_EXCEEDED",
+  "reason_display": "Your ad was removed because you have exceeded the maximum number of pet-related ads allowed within a 30-day period.",
+  "reviewed_at": "2026-04-22T09:00:00Z"
+}

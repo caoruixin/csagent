@@ -52,8 +52,10 @@ logger = logging.getLogger(__name__)
 # DeepSeek transport
 # ---------------------------------------------------------------------------
 
-DEEPSEEK_ENDPOINT = "https://api.deepseek.com/v1/chat/completions"
-DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro"
+DEEPSEEK_ENDPOINT = (
+    os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1") + "/chat/completions"
+)
+DEFAULT_DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
 
 # Mirrors extractor.SOURCE_DATASET_TURNS_FILE so the shadow-audit script can
 # share this map without importing the production extractor.

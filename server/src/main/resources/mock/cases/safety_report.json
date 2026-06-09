@@ -1,0 +1,17 @@
+{
+  "case_id": "CASE-SEED-005",
+  "use_case_id": "UC-J",
+  "subject": "Report suspicious listing - possible scam",
+  "description": "I found a listing selling 50 phones at an extremely low price. This looks like a scam. The seller asked me to pay via bank transfer outside Gumtree.",
+  "contact_email": "jack.reporter@example.com",
+  "ad_id": "AD-2006",
+  "status": "New",
+  "queue_name": "Trust_Safety_Queue",
+  "intake_fields": {
+    "report_type": "scam_listing",
+    "reported_ad_id": "AD-2006",
+    "reported_user_id": "USR-099",
+    "urgency": "high",
+    "financial_loss": false
+  }
+}

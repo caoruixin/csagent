@@ -1,0 +1,78 @@
+name: escalate
+description: ESCALATE phase Skill — finalize handover and inform the customer.
+applicable_phases:
+  - ESCALATE
+applicable_use_cases:
+  - "*"
+tools_required:
+  - request_handover
+  - record_outcome
+required_context_keys:
+  - form_context
+  - customer_context
+max_tool_steps: 2
+allow_interim_message: false
+valid_terminal_outcomes:
+  - ESCALATE
+  - FINAL_ANSWER
+objective: "Complete the handover to a human agent and inform the customer"
+procedure: "You are in the ESCALATE phase. Send a clear handover message and ensure request_handover has been called with an appropriate escalation_reason."
+grounding_instruction: "Tell the user a human agent will assist them. Provide expected SLA if known. Do not promise specific outcomes."
+escalation_policy: "Already in ESCALATE — finalize the handover."
+guardrails: []
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+  reset:
+    - intake_fields_partial
+  soft_signal_via_projection: []
+critical_steps:
+  - id: escalate-via-request-handover
+    desc: |
+      In the ESCALATE phase, `request_handover` is the tool that
+      completes the escalation, carrying an `escalation_reason` from
+      the canonical enum and the relevant intake context. Closing the
+      case in ESCALATE without dispatching `request_handover` leaves
+      no handover artefact for the downstream team and breaks the
+      handover-completeness contract — the user is told a human will
+      help while the runtime has no record to route on.
+    trace_check: "accumulated_tool_results.request_handover"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+      - UC-G
+      - UC-H
+      - UC-I
+      - UC-J
+      - UC-K
+    severity: mandatory
+  - id: record-outcome-after-handover-on-escalate
+    desc: |
+      After `request_handover` is dispatched in ESCALATE, also call
+      `record_outcome` so the session has a final disposition
+      recorded. The handover is the action that routes to a human;
+      `record_outcome` is the state-of-record that closes the session
+      cleanly. The order matters: record the outcome after the
+      handover so the recorded disposition reflects the completed
+      action, not an intention.
+    trace_check: "tool_event_seq(request_handover) < tool_event_seq(record_outcome)"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+      - UC-G
+      - UC-H
+      - UC-I
+      - UC-J
+      - UC-K
+    severity: advisory

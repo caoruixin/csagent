@@ -1,0 +1,68 @@
+case_id: cs29d616_uc_c_message_delivery_mild_frustration
+source_session_id: synthetic-sprint29-d616-2-01
+source_dataset: case_family_authored
+form_context:
+  first_name: Owen
+  email: customer@example.com
+  topic_subject: Replies & Messaging
+  ad_id: ''
+  description: I have been trying to reply to a buyer for two days and they keep saying they cannot see my messages.
+persona:
+  user_goal_summary: User believes that their replies to a buyer are not being delivered; the user is mildly frustrated about the wasted time but is not asking for a human and is willing to follow guidance from the FAQ. Routine UC-C messaging-delivery question; FAQ-resolvable from the "Sending & Receiving Messages" knowledge surface. The bot must attempt a real FAQ resolve before considering escalation - premature short-circuit to request_handover with reason faq_miss_threshold_exceeded on this FAQ-path question is the prohibited shape. Drift - none.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+  - "I have been trying to reply to a buyer for two days and they say they cannot see my messages. It is really frustrating, can you help me figure out what is going on?"
+  - "ok that makes sense, let me check the spam folder thing and the in-app inbox"
+  hidden_facts:
+  - fact: User has been using the in-app messaging on the website for about six months without problems before this. The user can see their own sent replies in their own inbox view, so from the user's side the messages look sent.
+    disclose_when: if the bot asks where the user is seeing the delivery problem or whether the user can see their own sent replies
+  will_request_human_if: the bot refuses to look up the answer and escalates without attempting a real FAQ resolve first
+expected:
+  outcome_class: resolve
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: Acknowledge the messaging-delivery concern, run policy-mandated tools (search_knowledge, resolve_article, record_outcome), produce a grounded answer about how Gumtree messages are delivered (in-app inbox, possible email-notification spam-folder behaviour) before considering any escalation. Mild user frustration is not by itself a signal to escalate; the D616.2 directive prohibits short-circuiting to request_handover(faq_miss_threshold_exceeded) when a viable FAQ hit is available and resolve_article has not yet been attempted.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - get_customer_context
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 12
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

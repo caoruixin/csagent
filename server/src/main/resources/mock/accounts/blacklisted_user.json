@@ -3,10 +3,16 @@
   "email": "blocked.user@example.com",
   "display_name": "Blocked U.",
   "account_status": "BLACKLISTED",
+  "account_type": "PERSONAL",
   "registration_date": "2021-03-20",
+  "creation_date": "2021-03-20",
   "total_ads_posted": 120,
+  "total_ads_count": 120,
   "active_ads": 0,
+  "active_ads_count": 0,
   "warnings": 5,
   "is_known_good": false,
-  "is_blacklisted": true
+  "is_blacklisted": true,
+  "has_verified_email": true,
+  "has_verified_phone": false
 }

@@ -1,18 +1,22 @@
 package com.gumtree.csagent.service.observability;
 
+import com.gumtree.csagent.controller.dto.BotTurnTrace;
 import com.gumtree.csagent.model.BotEvent;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.BotTurn;
+import com.gumtree.csagent.model.BotTurnLlmCall;
 import com.gumtree.csagent.model.enums.ContainmentOutcome;
 import com.gumtree.csagent.model.enums.EventType;
 import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotSessionRepository;
+import com.gumtree.csagent.repository.BotTurnLlmCallRepository;
 import com.gumtree.csagent.repository.BotTurnRepository;
 import com.gumtree.csagent.service.observability.model.FunnelMetrics;
 import com.gumtree.csagent.service.observability.model.UcMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,13 +29,16 @@ public class LocalEventStore {
     private final BotEventRepository botEventRepository;
     private final BotTurnRepository botTurnRepository;
     private final BotSessionRepository botSessionRepository;
+    private final BotTurnLlmCallRepository botTurnLlmCallRepository;
 
     public LocalEventStore(BotEventRepository botEventRepository,
                            BotTurnRepository botTurnRepository,
-                           BotSessionRepository botSessionRepository) {
+                           BotSessionRepository botSessionRepository,
+                           BotTurnLlmCallRepository botTurnLlmCallRepository) {
         this.botEventRepository = botEventRepository;
         this.botTurnRepository = botTurnRepository;
         this.botSessionRepository = botSessionRepository;
+        this.botTurnLlmCallRepository = botTurnLlmCallRepository;
     }
 
     public List<BotEvent> getSessionEvents(String sessionId) {
@@ -44,6 +51,26 @@ public class LocalEventStore {
 
     public List<BotTurn> getSessionTrace(String sessionId) {
         return botTurnRepository.findBySessionIdOrderByTurnIndex(sessionId);
+    }
+
+    /**
+     * Sprint 51 / M5 S2 — admin-trace nested projection: each {@link BotTurn}
+     * with its per-step {@link BotTurnLlmCall} list nested under it. The base
+     * BotTurn fields stay JsonUnwrapped (same shape as the legacy
+     * {@code List<BotTurn>} payload); the new {@code llm_calls} array carries
+     * the full per-invocation records. Frozen
+     * {@code GET /sessions/{id}/llm-calls} payload is untouched (eval-harness
+     * contract).
+     */
+    public List<BotTurnTrace> getSessionTraceWithLlmCalls(String sessionId) {
+        List<BotTurn> turns = botTurnRepository.findBySessionIdOrderByTurnIndex(sessionId);
+        List<BotTurnTrace> result = new ArrayList<>(turns.size());
+        for (BotTurn turn : turns) {
+            List<BotTurnLlmCall> calls =
+                    botTurnLlmCallRepository.findByBotTurnIdOrderByStepIndex(turn.getTurnId());
+            result.add(new BotTurnTrace(turn, calls));
+        }
+        return result;
     }
 
     public Optional<BotSession> getSessionWithOutcome(String sessionId) {

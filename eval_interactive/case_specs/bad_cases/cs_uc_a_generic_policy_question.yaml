@@ -1,0 +1,187 @@
+case_id: cs_uc_a_generic_policy_question
+source_session_id: synthetic-cs4-cs_uc_a_generic_policy_question-2026-06-08
+source_dataset: bad_case_authored
+
+bad_case_metadata:
+  surfaced_by: |
+    research-agent (CS4 proposal Part B; ANTI-误杀 binding gate for
+    autoloop Part C output — autoloop's procedure candidate MUST
+    NOT force entity-context lookup / ad_id elicitation on
+    genuinely-generic UC-A questions)
+  surfaced_date: 2026-06-08
+  recalibrated: |
+    2026-06-08 (deliver, pre-pilot smoke Finding #2 + §5.6 gate alignment):
+    (1) The original "search ranking" question had no covering FAQ article →
+    baseline escalated faq_miss; re-pointed to a generic ad go-live/visibility
+    question covered by the "Where is my Ad?" article (ka44J000000gKqtQAE) so
+    the baseline FAQ-resolves.
+    (2) §5.6 gate alignment (NOT a widen): the control's job is to confirm the
+    bot does NOT over-elicit entity context on a generic question. The anti-误杀
+    floor is L1-enforced by adding get_customer_context to forbidden_tools
+    (alongside request_handover) so an over-correction trips no_forbidden_tools
+    directly. correct_outcome STAYS in outcome_checks: it is always-mandatory in
+    the composite scorer (`_ALWAYS_MANDATORY_L2`) and CANNOT be removed via the
+    CaseSpec — a removal fail-closes as L2_GATE_MISSING:correct_outcome (this is
+    exactly what reddened the re-smoke run 041755, where the bot in fact reached
+    containment_outcome=resolved with correct_uc=1.0 and would have PASSED had
+    correct_outcome stayed in the list). To keep that mandatory resolved-stamp
+    reliable, the persona gains one confirmation turn (max_turns 4→5) so the bot
+    has room to retry record_outcome after the SkillGuardrailDispatcher rejects
+    a premature one (see measurement_artifact). The gate is thus: correct_uc
+    (UC-A) + correct_outcome (resolve) + no_forbidden_tools (no
+    get_customer_context / request_handover) + turn_efficiency, with
+    tool_sequence_match advisory + the closure_criterion human review.
+  measurement_artifact: |
+    OQ-S86b.3 — `record_outcome` can be rejected with
+    `progressive_resolve_record_outcome_premature` (SkillGuardrailDispatcher),
+    so a behaviourally-correct FAQ resolution that reaches `goal_achieved`
+    can end with an EMPTY `containment_outcome` when the persona ends the
+    conversation before the bot retries record_outcome. NOT the CS1
+    honest-resolved-stamp; an intermittent turn-timing artifact (cs001 hit the
+    same guard but still reached containment=resolved with a longer flow; the
+    re-smoke 041755 landed resolved, the earlier smoke did not). MITIGATED here
+    by the +1 persona confirmation turn (gives the bot room to land
+    record_outcome); the underlying guard-timing defect remains tracked for
+    eval-framework / runtime follow-up. A residual empty-stamp run with
+    otherwise-correct behaviour is a §5.6 human PASS-on-behavior + re-run, not a
+    control failure.
+  failure_shape: |
+    User asks a genuinely generic policy / how-it-works question
+    (no specific ad referenced). The autoloop's CS4 fix must not
+    over-correct by forcing ad_id elicitation / entity lookup on
+    all UC-A turns; generic questions should still get a direct
+    FAQ-grounded answer without unnecessary clarification.
+  layers_involved: |
+    anti-误杀 binding gate for prompt_projection / semantic_planner
+    Part C output; protects §1.2 flexibility-over-rigidity
+  related_dimensions: [D1, D5]
+  related_r_items:
+    - OBS-S1 anti-误杀 (paired negative-control with
+      cs_uc_a_no_ad_id_ad_specific)
+  tier: tier_1_negative_control
+
+closure_criterion: |
+  Bot recognises that the question references no specific ad and
+  proceeds DIRECTLY to a grounded FAQ-backed answer.
+
+  PASS conditions (all):
+    (a) Bot follows the FAQ path classify_use_case → search_knowledge →
+        resolve_article (correct_uc = UC-A) WITHOUT eliciting an ad_id and
+        WITHOUT an entity-context lookup (no get_customer_context, no
+        lookup_listing_or_ad);
+    (b) Bot's user_message answers the generic question with grounded
+        references to the ad go-live / visibility FAQ (e.g. "Where is my Ad?":
+        processing times, expired vs processing, when an ad appears);
+    (c) Bot does NOT escalate / request_handover; the session reaches
+        goal_achieved (user satisfied).
+
+  NOTE: the resolved containment stamp IS expected — the persona is stabilized
+  with a confirmation turn so the bot lands record_outcome. If the OQ-S86b.3
+  premature-record artifact still leaves containment_outcome empty on an
+  otherwise-correct run (FAQ-resolve, no ad_id ask, no get_customer_context,
+  goal_achieved), that is a §5.6 human PASS-on-behavior + re-run, not a control
+  failure.
+
+  FAIL conditions:
+    (d) Bot asks for ad_id / "which ad", or calls get_customer_context — the
+        question is generic and the elicitation/lookup is unnecessary friction
+        (the over-correction this control guards against);
+    (e) Bot escalates / request_handover because it could not FAQ-answer;
+    (f) Bot answers with empty / placeholder content because it was waiting
+        for entity verification.
+
+form_context:
+  first_name: Jordan
+  email: jordan.generic@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: |
+    How long does it usually take for a newly posted ad to go
+    live on Gumtree, and what are the general reasons an ad
+    might not appear straight away?
+
+persona:
+  user_goal_summary: |
+    User wants to understand, in the abstract, how long ads take
+    to go live after posting and why an ad might not appear right
+    away — NOT asking about any specific ad they own. User is
+    curious, cooperative, and will NOT provide an ad_id even if
+    asked (they have no specific ad issue in mind).
+  frustration_level: calm
+  verbosity: brief
+  drift_behavior: none
+  seed_messages:
+    - "How long does it usually take for a new ad to go live
+       after I post it? And what are the usual reasons an ad
+       might not show up right away?"
+    - "No, it's not about a specific ad of mine — I'm just
+       trying to understand how it works in general before I
+       post."
+    - "Got it — so a short processing delay is normal and there
+       are a few usual reasons. That makes sense."
+    - "Great, thanks — that's exactly what I needed."
+  hidden_facts: []
+  will_request_human_if: |
+    the bot demands an ad_id or looks up entity context when the
+    question is clearly generic; or the bot fails to answer a
+    question that is well-covered by public FAQ on ad go-live /
+    visibility
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: |
+    Turn 1: bot recognises the question is generic (no ad
+    referenced; explicit "in general"). Bot proceeds directly to
+    search_knowledge for ad go-live / visibility content. Bot does
+    NOT call get_customer_context and does NOT ask for an ad_id.
+
+    Turn 2: bot delivers a grounded answer citing the ad go-live /
+    visibility FAQ ("Where is my Ad?": processing times, expired vs
+    processing, when an ad appears). Bot does NOT ask for ad_id.
+
+    Turn 3: user acknowledges the answer landed; bot confirms and —
+    now that the user has signalled satisfaction — records the
+    resolution (record_outcome).
+
+    Turn 4: user signs off; session reaches goal_achieved with
+    containment_outcome=resolved.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+    - classify_use_case
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - get_customer_context
+    - request_handover
+    - create_case_controlled
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+    - Could you share your ad ID
+    - Which ad are you asking about
+    - What's your ad_id
+  # max_turns 4→5: one extra confirmation turn so the bot has room to retry
+  # record_outcome after a premature-record rejection (OQ-S86b.3).
+  max_turns: 5
+
+scoring:
+  hard_checks:
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
+    - turn_efficiency
+  llm_judge_dimensions: []

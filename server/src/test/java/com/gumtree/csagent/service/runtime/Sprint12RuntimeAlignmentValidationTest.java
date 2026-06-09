@@ -18,6 +18,10 @@ import com.gumtree.csagent.model.ToolEvent;
 import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotTurnRepository;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.runtime.skill.DispatchContext;
+import com.gumtree.csagent.service.runtime.skill.RejectVerdict;
+import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolPolicyEnforcer;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 import java.util.Set;
 
@@ -173,7 +178,7 @@ class Sprint12RuntimeAlignmentValidationTest {
                 .thenReturn(List.of("search_knowledge", "resolve_article",
                         "record_outcome", "request_handover"));
         ContextProjectionBuilder builder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer, null);
         builder.initToolSchemas();
         return builder;
     }
@@ -411,7 +416,7 @@ class Sprint12RuntimeAlignmentValidationTest {
         Map<String, Object> args = new LinkedHashMap<>();
         args.put("outcome_class", "resolve");
         ToolCall call = ToolCall.builder().name("record_outcome").arguments(args).build();
-        assertTrue(AgentRunLoopImpl.shouldRejectPrematureResolveOutcome(plan, s, call),
+        assertTrue(dispatcherRejectsPrematureResolve(plan, s, call),
                 "record_outcome(resolve) before CONFIRM / terminal evidence must be rejected.");
 
         // CONFIRM phase: the guard must let the call through.
@@ -424,8 +429,7 @@ class Sprint12RuntimeAlignmentValidationTest {
                 .allowedTools(List.of("record_outcome", "request_handover"))
                 .maxToolSteps(2)
                 .build();
-        assertFalse(AgentRunLoopImpl.shouldRejectPrematureResolveOutcome(
-                        confirmPlan, confirmSession, call),
+        assertFalse(dispatcherRejectsPrematureResolve(confirmPlan, confirmSession, call),
                 "CONFIRM-phase record_outcome(resolve) must pass through the guard.");
     }
 
@@ -580,5 +584,35 @@ class Sprint12RuntimeAlignmentValidationTest {
         assertTrue(foundSoftShift,
                 "drift_history must surface at least one SOFT_SHIFT entry from t1. "
                         + "Actual drift_history: " + drift);
+    }
+
+    /**
+     * Sprint 39 — invoke the unified SkillGuardrailDispatcher per the
+     * Sprint 37 freeze §8.2.3 migration of Sprint 11 §M1
+     * shouldRejectPrematureResolveOutcome. The dispatcher delegates to the
+     * untouched ResolveDispositionEvaluator frozen surface per
+     * runtime_freeze_and_risk_policy.md §1.1 #3.
+     */
+    private boolean dispatcherRejectsPrematureResolve(PhasePlan plan,
+                                                      BotSession session,
+                                                      ToolCall call) {
+        SkillGuardrailDispatcher dispatcher = SkillTestFixtures.productionDispatcher();
+        Object outcomeObj = call.getArguments() == null
+                ? null : call.getArguments().get("outcome_class");
+        if (outcomeObj == null && call.getArguments() != null) {
+            outcomeObj = call.getArguments().get("outcome");
+        }
+        String outcomeClass = outcomeObj == null ? null : outcomeObj.toString();
+        DispatchContext ctx = new DispatchContext(
+                plan, session, java.util.Map.of(), null, Optional.empty());
+        Optional<RejectVerdict> verdict =
+                dispatcher.checkBeforeOutcomePersist(plan, outcomeClass, ctx);
+        if (verdict.isEmpty()) return false;
+        org.junit.jupiter.api.Assertions.assertEquals(
+                SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON,
+                verdict.get().predicateName(),
+                "premature_resolve_outcome_guard must use the Sprint 11 §M1 "
+                        + "canonical reject-reason label");
+        return true;
     }
 }

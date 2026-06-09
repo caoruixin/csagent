@@ -4,38 +4,66 @@ doc_tier: current-runtime
 status: current
 implementation_status: partial
 source_of_truth: this file
-last_reviewed: 2026-05-11
+last_reviewed: 2026-06-04
 review_cadence: every 3-5 sprints
 supersedes: []
 superseded_by: null
 notes: >
-  Iteration constitution + governance bundle. Section 1 is the LLM-first
-  constitution. Sections 2-6 are the operational gates: Failure Brief
-  template, Fix Layer Classification checklist, Anti-Hardcode review
-  prompt, Eval Acceptance Rules, and Architecture-Health Metric
-  definitions. Metrics are defined only; collection lands in a later
-  sprint. The Failure Brief and Fix Layer checklist drive G1 / G2.
+  Always-loaded Layer-A constitution + the gates every role needs every
+  session: §1 (LLM-first constitution), §2 (Failure Brief template;
+  covers agent semantic + eval-framework failures via §3 `infra`), §3
+  (Fix Layer Classification checklist), §4.1/§4.2 (anti-hardcode kernel
+  pointer + sprint-close header), §5.1-§5.5/§5.7-§5.9 (Eval Acceptance
+  Rules + smoke-demotion rule + mocked-LLM evidence gate +
+  framework-defect priority + pre-flight QA gate), §7.1
+  (sprint-objective stanza template). On 2026-06-02 the high-churn
+  role-specific process material was carved into on-demand Layer-B docs
+  under docs/current/process/ (milestone-framework §8 + §4.3,
+  prompt-artifact-rules §9, badcase-lifecycle §5.6 + §5.5 rationale,
+  architecture-health-metrics §6) plus docs/current/governance-examples.md
+  (the §2 and §7.2 worked examples). Moved sections leave a one-line
+  stub here so §-number citations from archives still resolve. The
+  Failure Brief and Fix Layer checklist drive G1 / G2.
 ---
 
 # Iteration governance
 
-This document is the operational rulebook for how we iterate on the
-customer-service agent. Section 1 is the LLM-first **Constitution**.
-Sections 2–6 are the operational gates that turn the Constitution into
-day-to-day decisions: a **Failure Brief Template** for capturing what
-went wrong, a **Fix Layer Classification Checklist** for routing the
-fix to the right layer, an **Anti-Hardcode Review Prompt** for catching
-semantic hardcodes in PR review, **Eval Acceptance Rules** for what
-counts as a passing sprint, and **Architecture-Health Metric
-definitions** for tracking whether the system is getting healthier or
-more brittle over time. Section 7 specifies the **sprint-objective
-stanza** that semantic-touching sprints must include.
+This document is the always-loaded **Layer-A** core: the timeless
+LLM-first **Constitution** (§1) plus the gates every role needs every
+session — the Failure Brief template (§2), the Fix Layer Classification
+checklist (§3), the Anti-Hardcode review kernel pointer + sprint-close
+header (§4.1/§4.2), the Eval Acceptance Rules (§5, including the
+smoke-demotion rule §5.5, the mocked-LLM evidence gate §5.7, the
+framework-defect priority §5.8, and the pre-flight QA gate §5.9), and
+the required sprint-objective stanza template (§7.1).
+
+High-churn, role-specific process material has been carved into
+on-demand **Layer-B** process docs (load by role when relevant); the
+numbers below stay as one-line stubs so §-number citations still
+resolve:
+
+- `process/milestone-framework.md` — §8 milestone framework + §4.3
+  milestone-shared Codex review.
+- `process/prompt-artifact-rules.md` — §9 agent prompt artifact rules.
+- `process/badcase-lifecycle.md` — §5.6 curated bad-case suite
+  lifecycle + the §5.5 dated rationale.
+- `process/architecture-health-metrics.md` — §6 metric definitions.
+- `governance-examples.md` — the §2 `cs_example_001` brief and the
+  §7.2 worked sprint stanza.
 
 Doc-tier and source-of-truth conventions are defined in
 [`doc_governance.md`](doc_governance.md). Per-task reading lists and
 the Context Pack Prompt are in
 [`agent_context_guide.md`](agent_context_guide.md). This file
 references both; it does not duplicate them.
+
+**Governance-doc editing discipline**: planning-time scope authorization
+(e.g., "if (a), fold back §X") does NOT authorize execution-time content.
+Before editing any governance-tier doc, verify: (1) timelessness — no
+sprint numbers, R-item IDs, or dates; (2) principle vs current-state —
+governance teaches principles, not findings; (3) necessity — would
+backlog carry the load without the edit? (4) durable shift vs reaction.
+If any check fails, put the content in `action_bank.md` or sprint archives.
 
 ## 1. Constitution
 
@@ -91,10 +119,11 @@ regress safety, grounding, wrong containment, or architecture health.
 
 ## 2. Failure Brief Template
 
-A **Failure Brief** is a short, structured record of one observed agent
-failure. Briefs are filed jointly by a human (who labels the expected
-behaviour) and a deliver agent (who labels the layer hypothesis and the
-"do not do" list). They live under
+A **Failure Brief** is a short, structured record of one observed
+failure — either an agent semantic failure or an eval-framework /
+infrastructure failure. Briefs are filed jointly by a human (who labels
+the expected behaviour) and a deliver agent (who labels the layer
+hypothesis and the "do not do" list). They live under
 `docs/diagnostics/failure-briefs/<brief-id>.md` once the directory is
 populated in Sprint 18 (G1). Briefs are the input to G1 / G2: they
 become the source for Failure Portfolio entries and, downstream, the
@@ -132,43 +161,12 @@ Every brief has these six fields:
   short-term hardcode that would close the symptom without solving
   the failure.*
 
-### Example brief — `cs_example_001` (hypothetical; not a real CaseSpec id)
+### Example brief — `cs_example_001`
 
-**What happened?**
-A UC-A user (listing visibility / paid Top Ad) says on turn 2 "and BTW
-the replies to my buyer aren't coming through either, can you check?"
-The bot continues to stamp `active_use_case=UC-A` and answers the
-messaging complaint as if it were a follow-up about the listing.
-
-**What should a good CS agent have done?**
-Recognize the topic shift on turn 2, treat the messaging complaint as
-a new issue, and reroute to UC-C (Replies / Messaging) — or, if
-ambiguous, ask one clarifying question — instead of carrying UC-A
-forward.
-
-**Why does this matter?**
-Carrying the prior UC through a topic shift corrupts intake, gives an
-off-topic answer, and is exactly the failure mode the Constitution's
-drift / topic-shift bullet (§1.3) says the LLM is supposed to own.
-
-**Is this a one-off or a pattern?**
-Pattern. UC-A↔UC-C soft-shift is a documented cross-UC scenario
-already partly covered by the Sprint 10 §L1 reroute pipeline. The
-remaining question is whether the projection / signals reaching the
-LLM are sufficient on a soft shift.
-
-**Which layer is likely responsible?**
-Most likely `prompt_projection` (the LLM did not see a sufficient
-alternate-UC signal on turn 2) or `semantic_planner` (the LLM saw the
-signal and still chose UC-A). Section 3's checklist disambiguates.
-
-**What should NOT be done?**
-Adding a regex on "replies" / "messages not coming through" to
-`DriftDetector` to force the reroute. That is a keyword / regex
-semantic hardcode and breaks the Constitution's Iteration rule
-(§1.5). The fix lives in `prompt_projection` (surface a soft
-alternate-UC signal) or `semantic_planner`, not in Java pattern
-matching.
+Moved to [`governance-examples.md`](governance-examples.md) on 2026-06-02
+to keep this file always-loadable. The worked six-field example
+(hypothetical, not a real CaseSpec id) lives there; cite as
+"governance-examples (§2 example)".
 
 ## 3. Fix Layer Classification Checklist
 
@@ -274,67 +272,14 @@ The per-PR verdict set below is different from the **sprint-close
 review header** used in `docs/codex-findings.md`. Both are spelled out
 at the end of this section so the two are not conflated.
 
-### 4.1 Copy-pastable prompt
+### 4.1 Nine-question anti-hardcode kernel
 
-```text
-You are the Anti-Hardcode Review Agent. The PR below proposes a change
-to this repo. Your job is to decide whether the change introduces a
-semantic hardcode — a keyword / regex / if-else / enum / per-UC matrix
-that encodes a decision the LLM is supposed to own under
-docs/current/iteration_governance.md §1.3 — and to issue a verdict.
-
-Scope exemption: pure infra, docs-only, config-governance, and
-characterization-test PRs are not subject to this review. If the PR
-is purely one of those, return `approve` with a one-line note naming
-the exemption.
-
-For every other PR, walk these nine questions in order. For each
-"yes" or each concern, paste the diff snippet and the reasoning.
-
-1. Does the PR add a keyword / regex / if-else / enum / per-UC matrix
-   for a semantic decision (drift detection, escalation, UC
-   selection, risk classification, follow-up, intake routing)?
-2. If yes to (1), is the change justified as protecting a current
-   Tier-0 invariant named in docs/runtime_freeze_and_risk_policy.md
-   §1 / §2?
-3. Could the same outcome be achieved by projecting a soft signal to
-   the LLM (an additional projected slot, a candidate list, a
-   diagnostic flag) instead of a hard branch in Java or the prompt?
-4. Does the change encode visible-eval case text, trace-specific
-   phrasing, or a CaseSpec id into runtime, prompt, or judge config?
-5. Does the change move semantic ownership from the LLM to Java —
-   that is, shrink what docs/current/iteration_governance.md §1.3
-   says the LLM owns?
-6. Does the change add an if-else block to the prompt instead of
-   principle-level or observable-state guidance?
-7. Does the change preserve tool schema, capability / permission
-   boundary, PII / safety floor, and grounding floor?
-8. Does the PR ship generalization eval coverage — target, neighbor,
-   negative, and shadow cases — and not only the target case?
-9. If the change is temporary, does it carry an explicit rollback or
-   sunset plan (downgrade-to-signal trigger, retirement sprint id)?
-
-Return exactly one verdict:
-
-- `approve` — the change is not a semantic hardcode, or is justified
-  as protecting a current Tier-0 invariant with adequate generalization
-  coverage and a clear rollback if temporary.
-- `approve with downgrade-to-signal follow-up` — the change is
-  acceptable as an interim measure, but a follow-up sprint must
-  convert it into a soft signal projected to the LLM. Name the
-  trigger that should fire the conversion.
-- `reject as semantic hardcode` — the change encodes a soft semantic
-  decision the LLM should own; questions 1 and 2 fail, or questions
-  5 / 6 fail, with no Tier-0 claim and no sunset plan.
-- `needs human architecture decision` — the change crosses an
-  unresolved governance question (new escalation reason enum value,
-  new Tier-0 candidate, LLM-vs-Java boundary shift, new tool surface)
-  and a human reviewer must decide before merge.
-
-Do not rewrite the PR. Do not propose a code fix beyond naming the
-layer in docs/current/iteration_governance.md §3 that the fix should
-target.
-```
+The canonical copy-pastable prompt lives at
+[`docs/current/anti-hardcode-review-kernel.md`](anti-hardcode-review-kernel.md).
+It contains nine questions, a scope exemption clause, and four
+possible verdicts (`approve`, `approve with downgrade-to-signal
+follow-up`, `reject as semantic hardcode`, `needs human architecture
+decision`).
 
 ### 4.2 Sprint-close review header (separate convention)
 
@@ -352,6 +297,10 @@ summary: <one paragraph>
 The per-PR verdict set in §4.1 and the sprint-close header in §4.2
 are different artefacts. The per-PR verdict reviews a single PR; the
 sprint-close header reviews the sprint as a whole and gates closure.
+
+### 4.3 Milestone-shared Codex review
+
+Moved to [`process/milestone-framework.md`](process/milestone-framework.md) on 2026-06-02 to keep this file always-loadable. Cite as "milestone-framework §4.3".
 
 ## 5. Eval Acceptance Rules
 
@@ -409,23 +358,68 @@ if the CaseSpec is wrong, fix the CaseSpec and document the override
 in the sprint handoff with the layer classification
 (`eval_spec`) from Section 3.
 
-## 6. Architecture-Health Metrics (definitions only)
+### 5.5 Smoke composite_score demoted to observation
 
-These four metrics are defined here and are referenced by Section 5's
-acceptance bars. Collection lands in a later sprint; no metric is
-collected, dashboard'd, or alerted on as of Sprint 17.
+The 14-case smoke summary metrics
+(`mean_composite_score` / `mean_outcome_score` / `mean_judge_score` /
+`task_success_rate` / `passed_cases`) are formally **demoted from
+hard close gates to observations**. They continue to be computed,
+recorded in `eval_interactive/results/*/results.json`, and tracked
+across sprints, but they no longer block sprint or milestone close.
+The dated rationale for this demotion is preserved in
+[`process/badcase-lifecycle.md`](process/badcase-lifecycle.md) §5.5
+(historical).
 
-| metric | definition | unit | observation cadence | source artifact | collection_status |
-| --- | --- | --- | --- | --- | --- |
-| `new_semantic_hardcode_count` | Number of new keyword / regex / if-else / enum entries added to runtime or prompt for a semantic decision in a PR | count per PR | per PR | PR diff + Anti-Hardcode review verdict | not_started |
-| `soft_signal_conversion_count` | Number of existing semantic hardcodes downgraded to LLM-projected soft signals | count per sprint | per sprint close | sprint handoff | not_started |
-| `planner_ownership_ratio` | Fraction of semantic decisions in the runtime owned by LLM planning vs Java guard / regex | percentage | per sprint close (manual count) | runtime survey | not_started |
-| `shadow_disagreement_rate` | Fraction of shadow cases where LLM decision disagrees with the human-labelled expected behaviour | percentage | per shadow run | shadow eval result | not_started |
+**What stays as hard close gate** (unchanged):
 
-The direction of health is: `new_semantic_hardcode_count` down,
-`soft_signal_conversion_count` up, `planner_ownership_ratio` up,
-`shadow_disagreement_rate` down. When collection lands, Section 5.1's
-"Architecture-health metrics not regressed" bar consults these.
+- **Codex §4.1 nine-question anti-hardcode kernel pass** at the
+  PR / sprint / milestone level per the §4 dispatch convention.
+- **Java test suite no new regression** (baseline preservation
+  against the documented inherited-failure baseline).
+- **Safety floor unchanged** — per §5.1.
+- **Grounding floor unchanged** — per §5.1.
+
+**Primary gate:** the curated bad-case suite manual review pass. The
+suite lifecycle, tiering, and selection rules live in
+[`process/badcase-lifecycle.md`](process/badcase-lifecycle.md) §5.6.
+
+### 5.6 Curated bad-case suite (primary acceptance gate)
+
+Moved to [`process/badcase-lifecycle.md`](process/badcase-lifecycle.md) on 2026-06-02 to keep this file always-loadable. Cite as "badcase-lifecycle §5.6" (incl. §5.6.1 / §5.6.2 / §5.6.3).
+
+### 5.7 Eval evidence gate (mocked-LLM)
+
+**Eval evidence gate**: mocked-LLM tests cannot be primary evidence that
+a prompt change caused a behaviour change — the mock controls the measured
+variable. Real-LLM rerun is the eval evidence gate; mocked-LLM tests
+cover projection/rendering/dispatch wiring only.
+
+### 5.8 Framework-defect priority
+
+A brief whose §3 layer is `infra` AND whose scope is the eval
+framework (simulator, trace emitter, scoring, baseline
+aggregation, judge harness) preempts semantic sub-sprints: while
+such a brief is open, do not launch new semantic sub-sprints and
+do not perform §5.6 bad-case rerun. Human override is permitted
+and must be recorded in the sprint handoff. Rationale: §1.7.
+
+### 5.9 Pre-flight QA before batch eval runs
+
+Before any expensive batch eval run, execute the standing
+pre-flight checklist on a sample of the target run; output is
+go / no-go with cited evidence. The checklist is incremental:
+each new §3 `infra` framework brief contributes the cheapest
+read-only check that would have caught it. The checklist lives
+in the most recent `docs/diagnostics/` eval-framework audit
+until it outgrows one audit's scope, then is promoted to
+`docs/current/process/preflight-eval-checks.md`. The pass may
+be executed by a human or by a coding sub-agent on the human's
+behalf; the same pattern applies to the §5.6 post-batch manual
+review pass.
+
+## 6. Architecture-Health Metrics
+
+Moved to [`process/architecture-health-metrics.md`](process/architecture-health-metrics.md) on 2026-06-02 to keep this file always-loadable. Cite as "architecture-health-metrics §6". The four metrics are defined only; collection is not implemented.
 
 ## 7. Required sprint-objective stanza for semantic-touching sprints
 
@@ -433,8 +427,7 @@ A **semantic-touching sprint** is any sprint that changes prompt, a
 runtime semantic decision (UC routing, drift detection, escalation
 posture, follow-up policy), the eval spec, or judge calibration.
 Pure infra, docs-only, config-governance, and characterization-test
-sprints (Sprint 15 and Sprint 16 are recent examples) are **exempt**
-and need not include the stanza.
+sprints are **exempt** and need not include the stanza.
 
 Semantic-touching sprints **must** include the stanza below in
 `docs/sprint_objective.md`. Codex review checks for it as part of the
@@ -467,40 +460,21 @@ the four fields without a stretch is a sprint that has not yet
 decided what it is doing; it should be re-scoped before the dev
 agent runs.
 
-### 7.2 Worked example — hypothetical Sprint 18 fix for `cs_example_001`
+### 7.2 Worked example — hypothetical Sprint 18 fix
 
-The Section 2 brief for `cs_example_001` hypothesized that the
-UC-A↔UC-C topic-shift failure lives in `prompt_projection`. A
-hypothetical Sprint 18 takes the fix:
+Moved to [`governance-examples.md`](governance-examples.md) on 2026-06-02
+to keep this file always-loadable. The filled-in stanza example for
+`cs_example_001` lives there; cite as "governance-examples (§7.2 example)".
 
-```markdown
-## Layer-classification + anti-hardcode stanza
+**Multi-layer prospective variant**: investigation + bundle-or-defer
+sprints span multiple candidate layers; §7 stanza is per-decision-outcome
+multi-layer prospective (enumerate possible §3.2 layers per case). Bundle
+policy must live in sprint_objective so Codex can verify scope discipline.
 
-**Target failure layer:** prompt_projection
+## 8. Milestone framework
 
-**Tier-0 invariant:** This sprint adds no Tier-0 invariant. The
-Constitution's drift / topic-shift bullet (§1.3 LLM owns) governs the
-behaviour the projection enables; the projection itself sits inside
-the Runtime's "trace and eval contract" responsibility (§1.4).
+Moved to [`process/milestone-framework.md`](process/milestone-framework.md) on 2026-06-02 to keep this file always-loadable. Cite as "milestone-framework §8.N" (§8.1–§8.7).
 
-**Semantic hardcode:** No semantic hardcode introduced. The new
-`alternate_candidate_use_cases` projected slot is a soft signal — a
-list of UCs the existing `RuntimeIntentClassifier` already surfaces —
-exposed to the LLM through the per-turn projection. The LLM owns
-whether to act on it. No new keyword, regex, or per-UC matrix is
-added to `DriftDetector` or the prompt.
+## 9. Agent prompt artifact rules
 
-**Generalization coverage:** target = UC-A↔UC-C drift (including
-`cs_example_001` once promoted from a hypothetical brief).
-Neighbor = UC-A↔UC-D, UC-A↔UC-F drift on the same projection.
-Negative = UC-A single-issue follow-up that should stay in UC-A
-(no false positive on the soft signal). Shadow = held-out UC-A↔UC-C
-and UC-A↔UC-D drift traces, not visible to the dev agent. Counts
-deferred to the G2 case-family sprint; this Sprint 18 stanza names
-the required families.
-```
-
-A future deliver agent should be able to paste this template into a
-new `docs/sprint_objective.md` and fill the four fields without
-further interpretation. If filling a field requires guessing intent,
-the sprint is not ready to start.
+Moved to [`process/prompt-artifact-rules.md`](process/prompt-artifact-rules.md) on 2026-06-02 to keep this file always-loadable. Cite as "prompt-artifact-rules §9.N" (§9.1–§9.6).

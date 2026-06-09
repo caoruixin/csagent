@@ -1,0 +1,81 @@
+case_id: cs066_uc_k_in_app_feature_regression
+source_session_id: 570Q5000008fBsXIAU
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008fBsXIAU
+  surfaced_by: Codex round 6 §P0 reclassification + Sprint 4 §E3 formalization (cs_interactive_066)
+  surfaced_date: 2026-05-05
+  failure_shape: |
+    "Why am I not getting the option to add my phone number as a point of contact when listing
+    an item any more?" is an in-app technical regression (a contact-add option that used to be
+    available has disappeared) — Phase 2 §2.2:500 places this under UC-K (Technical Support
+    intake), not UC-E (product / feature explanation FAQ). The pre-override CaseSpec pinned
+    UC-E on a shallow keyword reading ("explain feature"), losing the intake-then-handover
+    path the user actually needs (platform, repro_steps_or_error_message) and the
+    intake_complete_for_uc_k handover.
+  layers_involved: prompt_projection (UC-K technical-regression route hint not strong enough
+    against UC-E "explain feature" pull); semantic_planner (LLM mis-classified as UC-E and
+    answered with a generic feature explanation instead of opening an intake);
+    skill_state (intake fields for UC-K — platform, repro_steps_or_error_message — must be
+    collected before create_case_controlled + request_handover); eval_spec (UC-E pin masked
+    the failure shape).
+  related_dimensions: [D1, D2]
+  related_r_items: []
+  tier: core
+
+closure_criterion: |
+  Bot recognises the user's "the option to X has disappeared" framing as a technical regression
+  (UC-K), acknowledges the issue, collects the required UC-K intake fields (platform —
+  iOS / Android / web; repro steps or error message), creates a UC-K case via
+  create_case_controlled, and hands over to Technical Support with reason
+  intake_complete_for_uc_k. Bot does NOT answer the question with a generic feature-walkthrough
+  (UC-E pattern) when the user has clearly said the option used to exist and no longer does.
+  Bot does NOT call request_handover before intake fields are collected (that would be a lie
+  about state per the IntakeFieldsRegistry contract).
+
+form_context:
+  first_name: Customer
+  email: phone.contact.regression@example.com
+  topic_subject: Technical Support
+  ad_id: ''
+  description: |
+    Why am I not getting the option to add my phone number as a point of contact when listing
+    an item any more? It used to be there and now it isn't.
+
+persona:
+  user_goal_summary: |
+    User has been using the platform's listing flow for some time and previously had the option
+    to add their phone number as a contact method when posting an ad. The option has disappeared
+    from the listing form. The user wants the platform to investigate (technical regression),
+    not a generic explanation of how contact methods work.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, when I'm listing an item I used to be able to add my phone number as a point of contact but now that option is gone. Can you check why?"
+    - "It was definitely there before. Has something changed?"
+  hidden_facts:
+    - fact: User is on the iOS mobile app; the option disappeared after a recent app update.
+      disclose_when: if the bot asks for platform / device / app version / when the option was last seen
+    - fact: User has tried logging out and back in, and reinstalling the app, with no change.
+      disclose_when: if the bot asks for repro steps / what the user has already tried
+  will_request_human_if: the bot answers with a generic feature explanation that ignores the
+    "used to be there and is now gone" framing
+
+expected:
+  outcome_class: escalate
+  primary_uc: UC-K
+  secondary_ucs: [UC-E]
+  should_escalate: true
+  allow_bot_resolution: 'false'
+  escalation_trigger: intake_complete_for_uc_k
+  acceptable_outcomes: [escalate]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

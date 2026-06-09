@@ -196,6 +196,11 @@ If a foundational doc has not been touched in many sprints and the system
 has moved, that is a fold-back signal even if no individual sprint produced
 a "big" change.
 
+**Archive operation note**: `git mv` archives HEAD/index content, not
+working-tree content. When archiving sprint_objective or other live files
+at close, stage working-tree modifications first, then rename; otherwise
+the archive captures stale content and requires a fixup commit.
+
 ## Claude Code and Codex responsibilities
 
 We use two agents in different roles for docs work:
@@ -214,6 +219,45 @@ We use two agents in different roles for docs work:
 Either agent may identify a need for the other; neither is expected to be
 authoritative alone. A docs PR should reflect both passes.
 
+## `10-handoff.md` retention rule
+
+`docs/10-handoff.md` is a cross-session state file, not a growing history
+log. It uses a three-section structure with a retention window:
+
+- **§0 — Cold-start table**: always current. Deliver-agent replaces it
+  at each sub-sprint or milestone close. Agents read §0 first on cold
+  start.
+- **§1 — Narrative**: retains at most the **current milestone context**
+  (active milestone lead + active sub-sprint details) plus the **last
+  closed milestone** summary paragraph with archive pointer. One-line
+  summaries for earlier milestones are kept only until the §2 archive
+  index captures them.
+- **§2 — Milestone archive index**: a compact table of all closed
+  milestones with status, close date, and archive path. Updated by the
+  deliver-agent at each milestone close.
+
+**Retention window**: at each **milestone close**, the deliver-agent:
+
+1. Writes the new milestone close lead to §1 (replacing the prior lead).
+2. Compresses the prior §1 content that is now fully archived (its
+   detailed sub-sprint paragraphs are in `docs/sprints/`; its milestone
+   verdict is in `docs/milestones/`). Retains at most a 1-sentence
+   summary + archive pointer for the preceding milestone.
+3. Adds a row to the §2 archive index.
+4. Deletes any §1 content older than the preceding milestone — those
+   details live exclusively in the milestone and sprint archives.
+
+**Reading rule for agents**: on cold start, read §0 (structured table)
+first. Read §1 only for narrative context on the current / last closed
+milestone. Do NOT read §1 expecting full history — use the §2 archive
+index to find older milestones, then read the specific archive file.
+
+**Why this rule**: without retention, §1 grows without bound (~168K
+characters after 49 sprints / 4 milestones). Each paragraph duplicates
+information already captured in `docs/sprints/` and `docs/milestones/`
+archives. The retention window keeps `10-handoff.md` usable as a
+cold-start document while preserving full history via archive pointers.
+
 ## PR checklist for docs-only reconciliation
 
 Before merging a docs-only reconciliation PR:
@@ -223,6 +267,9 @@ Before merging a docs-only reconciliation PR:
 - [ ] No sprint archive (`docs/sprints/*`, `docs/archive/*`) was edited.
 - [ ] Every claim about delivered behavior cites a concrete code path or is
       explicitly marked as an example / illustration.
+- [ ] Every quantitative claim (counts, scores, rates) cites source path +
+      extraction method (jq filter, git numstat, script command). Unrecorded
+      methodology becomes unverifiable downstream.
 - [ ] Front matter is present on new docs and updated on touched docs:
       `doc_tier`, `status`, `implementation_status`, `source_of_truth`,
       `last_reviewed`.

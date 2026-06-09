@@ -5,7 +5,9 @@
 .env.local
 
 # Data files (large CSVs, Excel, filtered output)
-data/
+data/*
+!data/knowledge/
+!data/mock_business_exports/
 
 # claude env files
 .claude/
@@ -46,4 +48,7 @@ eval_interactive/results/*
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+#ultrareview/compare 工具的临时输出
+.compare-output/
 

@@ -16,8 +16,21 @@ _Sessions audited: **367**_
   - I am confused i see you guys both of my email but when i log in i use [EMAIL]. it's really confused me
   - Thank you, so the details login i am having issues with is the [EMAIL]
 - outcome decision: faq_transcript_escalation: transcript_indicated_outcome=escalate; flags=unresolved_user_signals,human_investigation_signals; reason=unresolved user signal(s) combined with agent investigation/follow-up language; trigger=clarification_budget_exhausted
+- case-level override applied: **YES**
+  - override source: Sprint 21 Wave A5/A6 L3 batch disposition (R-cs001-escalation-trigger-l3-review)
+  - reviewer: human semantic review (Sprint 21 L3 batch)
+  - date: 2026-05-14
+  - confidence: `high`
+  - supporting turns: `[0, 1]`
+  - rationale: The L1-generated CaseSpec pairs `escalation_trigger: clarification_budget_exhausted` with `bot_handling_pattern` naming "intake fields (none)" — a logical contradiction (no clarification budget exists to exhaust when no clarification fields are required). The bot's actual `escalation_reason=faq_miss_threshold_exceeded` on this UC-C session matches phase 2 §2.4 for a case that runs `search_knowledge` and exhausts FAQ without a resolve-grade hit (trace shows `search_knowledge` + 3 × `resolve_article` + `request_handover`). This override aligns the CaseSpec's expected reason with the truthful phase 2 reason and the bot's actual correct behaviour on this specific dimension; it is NOT a §1.7 widening to mask a bot mistake. The bot's separate L3-quality failure (turn-0 mechanical template "Hi Benjamin! I'm having difficulty resolving this. Let me connect you with a specialist." with zero acknowledgement of the user's specific complaint "I am unable to receive messages on my account") is a `prompt_projection` / `semantic_planner` bug captured by the Sprint 20 cs001 case family and is NOT papered over by this override.
+  - status: `approved`
+  - case_id_hint: `cs_interactive_001`
+  - changed expected fields:
+    - `bot_handling_pattern`: `Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.` -> `Acknowledge the user's specific Replies/Messaging complaint, run policy-mandated tools (search_knowledge, resolve_article, request_handover, record_outcome), collect required intake fields (none), and hand over with reason faq_miss_threshold_exceeded once FAQ search exhausts without a resolve-grade hit on the UC-C messaging topic.`
+    - `escalation_trigger`: `clarification_budget_exhausted` -> `faq_miss_threshold_exceeded`
 - policy-vs-HR mismatches:
   - forbidden_tools: HR(non-human-only)=['create_case_controlled'] vs policy=['create_case_controlled', 'get_moderation_review_context']
+  - escalation_trigger: HR='clarification_budget_exhausted' vs final='faq_miss_threshold_exceeded'
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
 - llm_cache_hit: `True`
 - llm_offline_fallback: `False`
@@ -2482,7 +2495,7 @@ _Sessions audited: **367**_
 ## 570Q5000008U5C9IAK (case_id=cs_interactive_095)
 
 - original primary_uc (HR): `UC-B`
-- final primary_uc: `UC-A`
+- final primary_uc: `UC-D`
 - turns file: `drift_control_turns.csv`
 - turn count: `18`
 - transcript outcome: `resolve`
@@ -2493,25 +2506,27 @@ _Sessions audited: **367**_
   - No I will try that. Thank you
   - Thanks I'll try that. And then will it stay as that address for next time?
 - outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
-- classification override applied: **YES** -> primary=UC-A, secondary=['UC-D', 'UC-K']
+- classification override applied: **YES** -> primary=UC-D, secondary=['UC-A', 'UC-K']
 - case-level override applied: **YES**
-  - override source: Wave A2.1 reclassification map
-  - reviewer: legacy migration from extractor.py UC_B_RECLASSIFICATION_OVERRIDES (Wave A2.1)
-  - date: 2026-04-30
+  - override source: Sprint 21 Wave A5/A6 L3 re-review (supersedes Wave A2.1 legacy UC-A migration)
+  - reviewer: human semantic review (Sprint 21 L3 batch)
+  - date: 2026-05-14
   - confidence: `high`
-  - supporting turns: `[]`
-  - rationale: Wrong email, no adverts showing -- UC-A with UC-D / UC-K fallback.
+  - supporting turns: `[0, 1]`
+  - rationale: The cs_095 user's form description ("I think I have the wrong email address on my app account so am not getting messages to the app and it's telling me I have no adverts.. I cant see where it can be changed, can you help") is a UC-D account/email-recovery shape: the dominant signal is wrong-email-on-account, and the "no adverts showing" sub-symptom is a downstream consequence of the email/account mismatch rather than a standalone UC-A Top-Ad visibility query. PRD and Eval both classify this case as UC-D. The bot's own behaviour on session 570Q5000008U5C9IAK confirms the mis-classification: active_use_case=UC-A was stamped (per the Wave A2.1 legacy override) but the user-facing T0 reply is UC-D-flavored (the bot answered by giving steps to change the contact email, citing internal SF source_id ka44J000000gKxqQAE). Wave A2.1 was migrated_from_legacy: true with empty supporting_turn_numbers — a low-evidence inherited classification that predates PRD/Eval convergence on UC-D. This override flips classification to UC-D primary (secondary [UC-A, UC-K]); the bot's separate L1 no_stall (T1 PLACEHOLDER_WITHOUT_FOLLOWUP "I'm looking into this for you"), duplicated greeting ("Hi Trish! Hi Trish"), and internal SF source_id leak are real bot bugs at `prompt_projection` / `semantic_planner` that this eval_spec override does NOT widen eval to accept.
   - status: `approved`
-  - migrated_from_legacy: `true`
+  - case_id_hint: `cs_interactive_095`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['get_customer_context', 'search_knowledge', 'resolve_article', 'record_outcome']
-  - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'lookup_customer_account']
+  - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
-- llm_cache_hit: `True`
+- llm_cache_hit: `False`
 - llm_offline_fallback: `False`
 - llm_acceptance_reason: `auto_accept_high_confidence`
 - llm_confidence: `high`
-- llm_persona_changed_fields: `['user_goal_summary', 'hidden_facts']`
+- llm_persona_changed_fields: `['seed_messages', 'user_goal_summary']`
+- llm_validation_notes:
+  - unsupported_hidden_fact_dropped: "The user's computer account email is the one they provided, but the app is signed into a different email address."
 
 ## 570Q5000008t5H0IAI (case_id=cs_interactive_096)
 
@@ -4993,18 +5008,27 @@ _Sessions audited: **367**_
   - OK. Thanks once again.
   - Before we end. Do I need to post photos as well?
 - outcome decision: policy_default: transcript evidence unclear or insufficient; policy_outcome=resolve, policy_should_escalate=False
+- classification override applied: **YES** -> primary=None, secondary=['UC-K', 'UC-D']
+- case-level override applied: **YES**
+  - override source: Sprint 21 Wave A5/A6 L3 batch disposition (R-cs192-secondary-ucs-duplicate-uc-b)
+  - reviewer: human semantic review (Sprint 21 L3 batch)
+  - date: 2026-05-14
+  - confidence: `high`
+  - supporting turns: `[0, 1]`
+  - rationale: The L1-generated CaseSpec for cs_192 lists UC-B both as `classification.primary_uc` and as a member of `classification.secondary_ucs: [UC-K, UC-D, UC-B]` — a generator quirk where the L1 rule extractor appended UC-B from a separate signal source without deduplicating against primary_uc. The cs_192 transcript across turns 0 and 1 (form description "I want to give away free items. Can I do this on your site? And if so then how do I do it?" and follow-up "OK. What items are allowed?") shows no UC-B-distinct-from-primary signal: UC-B appears once as the primary UC and once as a generator-duplicate in secondary_ucs. This override removes the duplicate UC-B from secondary_ucs, leaving [UC-K, UC-D] as the actual secondary candidates. Zero-scoring-impact correction (the L2 `correct_uc` check compares the bot's stamped UC to the union of primary and secondary, and the dedupe leaves that union unchanged). The bot's separate UC-B template-escalate failure on this resolvable giveaway question is a `prompt_projection` / `semantic_planner` bug captured by the Sprint 20 cs192 case family and is NOT affected by this override.
+  - status: `approved`
+  - case_id_hint: `cs_interactive_192`
 - policy-vs-HR mismatches:
   - expected_tool_sequence: HR=['search_knowledge', 'resolve_article', 'answer_grounded', 'record_outcome'] vs final=['search_knowledge', 'resolve_article', 'record_outcome']
   - forbidden_tools: HR(non-human-only)=['create_case_controlled', 'get_customer_context'] vs policy=['create_case_controlled', 'get_customer_context', 'get_message_moderation_context', 'get_moderation_review_context', 'lookup_customer_account', 'lookup_listing_or_ad']
 - dropped hidden_facts (already in form_context): ['email is customer@example.com']
-- llm_cache_hit: `True`
+- llm_cache_hit: `False`
 - llm_offline_fallback: `False`
-- llm_acceptance_reason: `auto_accept_high_confidence`
-- llm_confidence: `high`
-- llm_persona_changed_fields: `['seed_messages', 'user_goal_summary']`
+- llm_acceptance_reason: `rule_fallback_low_confidence`
+- llm_confidence: `medium`
 - llm_validation_notes:
-  - unsupported_hidden_fact_dropped: "The user's old account email is [EMAIL]."
-  - unsupported_hidden_fact_dropped: "The user's previous account username is new_creashune."
+  - unsupported_hidden_fact_dropped: 'The user wants to give away second-hand clothes, a jute floor mat, a large suitcase, picture frames, a CD/radio player, and bric-a-brac.'
+  - unsupported_hidden_fact_dropped: 'The user has an existing account on the site.'
 
 ## 570Q5000008c5TWIAY (case_id=cs_interactive_193)
 

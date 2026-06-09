@@ -50,7 +50,16 @@ export interface Session {
   turns: number;
   created_at: string;
   updated_at: string;
+  // Coarse semantic status (active / escalated / ended) derived from
+  // handling_state; retained for sorting + backward compatibility.
   status: string;
+  // Raw BotSession.handling_state value (BOT_HANDLING / QUEUE_TO_HUMAN /
+  // HUMAN_HANDLING / CLOSED). Surfaced so the admin badge can render every
+  // terminal state distinctly instead of collapsing to three buckets.
+  handling_state: string;
+  // Canonical escalation_reason enum value when present (ESCALATE /
+  // QUEUE_TO_HUMAN sessions); empty otherwise.
+  escalation_reason: string;
 }
 
 export interface TraceStep {
@@ -68,6 +77,31 @@ export interface TraceStep {
   phase_after?: string;
   active_use_case?: string;
   latency_ms?: number;
+  // Sprint 51 / M5 S2 — per-invocation full-fidelity records from the new
+  // `bot_turn_llm_calls` table. One entry per LLM call inside the
+  // AgentRunLoop step boundary for this turn (FAQ Skill: up to
+  // `max_tool_steps`). The existing `llm_raw_response` / `projected_context`
+  // single fields above keep carrying the FINAL step's value
+  // (backward-compat); this array carries every step. Default-collapsed in
+  // the UI because per-step projections are heavy.
+  llm_calls?: LlmCall[];
+}
+
+// Sprint 51 / M5 S2 — per-invocation record. Mirrors the
+// `bot_turn_llm_calls` row shape exposed via /sessions/{id}/trace.
+export interface LlmCall {
+  id?: number;
+  bot_turn_id?: string;
+  step_index: number;
+  call_type: string; // "chat" | "routing" | "rerank"
+  model?: string;
+  latency_ms?: number;
+  llm_raw_response?: string;
+  // Backend serialises jsonb as a JSON-encoded string (same as
+  // BotTurn.projected_context). The viewer parses it lazily on expand.
+  projected_context?: string;
+  tool_calls?: string;
+  created_at?: string;
 }
 
 export interface ToolCall {
@@ -86,6 +120,15 @@ export interface ToolCall {
   result_data?: unknown;
   result_summary?: string;
   source?: string;
+  // Sprint 067 / S-Auto-12 (A1 idempotency) — persisted on byte-identical
+  // repeats served from the per-run cache (tool not re-dispatched). The
+  // backend only emits these keys on a deduplicated event; a normal dispatch
+  // carries neither. Surfaced so the trace can fold the repeats by default
+  // while preserving the full audit on expand.
+  deduplicated?: boolean;
+  original_at_step?: number;
+  step_index?: number;
+  sequence_index?: number;
 }
 
 export interface TraceResponse {

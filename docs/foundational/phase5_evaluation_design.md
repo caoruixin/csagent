@@ -1,3 +1,24 @@
+---
+title: Phase 5 — Evaluation Design (V1)
+doc_tier: foundational
+status: partial
+implementation_status: partial
+source_of_truth: this file (with §6.9 superseded by docs/milestones/M3-Eval_objective.md + docs/current/iteration_governance.md §5.5/§5.6 — see §6.9 supersession block)
+last_reviewed: 2026-05-24
+review_cadence: every 3-5 sprints
+supersedes: []
+superseded_by: null
+notes: >
+  Front matter added 2026-05-24 (Sprint 50 / M5 S1) when §6.9 "Top-Line
+  Metrics (7 Key — Interactive + Replay)" was marked superseded by the
+  M3-Eval four-tier evaluation pyramid + the §5.5 smoke composite_score
+  demotion + the §5.6 curated bad-case suite human-judgment primary
+  gate. Only §6.9 carries the supersession; the rest of the document is
+  current-or-partial against the post-M3 / post-M4 system. No other
+  section is rewritten by the fold-back — see the supersession block
+  immediately before §6.9 for the cite list.
+---
+
 # Phase 5 — Evaluation Design (V1)
 
 > **Customer Service Agent V1** evaluation specification instantiation for Gumtree CS Bot. This document transforms the normative eval spec (`customer_service_agent_eval_spec.md`) and the built eval datasets (`data/eval_datasets/`) into a concrete, executable evaluation plan.
@@ -1144,6 +1165,19 @@ claims that require grounding. Only score low when the bot makes factual claims 
 | `tool_error_rate` | % tool calls failing | < 2% | Runtime |
 
 ### 6.9 Top-Line Metrics (7 Key — Interactive + Replay)
+
+> **SUPERSEDED 2026-05-24 (Sprint 50 / Milestone M5 — Observability Coherence S1).**
+>
+> **Status**: `superseded` (this subsection only; the rest of Phase 5 §6 remains current-or-partial).
+> **Implementation status**: `historical` (the 7-metric framing was the pre-M3 release-reporting dashboard; the harness no longer renders it as the primary view).
+> **Superseded by**:
+> - `docs/milestones/M3-Eval_objective.md` — the **M3-Eval four-tier evaluation pyramid** (Tier-0 safety floor / Tier-1 outcome / Tier-2 critical-flow / Tier-3 polish-advisory) is the post-M3 evaluation architecture. The four-tier pyramid replaces the 7-metric top-line view as the primary stakeholder surface.
+> - `docs/current/iteration_governance.md` §5.5 — the smoke composite_score and the four other smoke aggregates (`mean_outcome_score`, `mean_judge_score`, `task_success_rate`, `passed_cases`) are formally **demoted from hard close gates to observations** (the §6.9 framing implied they were the gate; they are not).
+> - `docs/current/iteration_governance.md` §5.6 — the **curated bad-case suite** is the new PRIMARY acceptance gate via **human review** of `closure_criterion` against `per_turn_trace`. The §6.9 "Reporting rule" sentence ("All eval reports must display these 7 metrics prominently") no longer holds for human-judgment suites; the report renderer at `eval_interactive/eval_interactive/report/html_report.py` was re-aligned in Sprint 50 / M5 S1 to surface the four-tier pyramid first and to badge `suite_authority: human_review | programmatic | mixed` (per the M4-Eval-Cleanup `case_passed_authority` annotation).
+>
+> **Per `docs/current/doc_governance.md` "Docs ahead of code" / "Code ahead of docs" rules, the §6.9 content below is *preserved as historical record*** — it is intentionally NOT rewritten or deleted. The 7 metric definitions remain useful as a vocabulary anchor for downstream consumers of `results.json` (the aggregates `task_success_rate`, `stall_rate`, `policy_compliance_rate`, `mean_turns_to_resolution`, `mean_composite_score` continue to be computed by `batch/executor.py::_compute_summary` and serialised; only the HTML *rendering* of the 7-card dashboard was removed in Sprint 50).
+>
+> **Note on the three N/A metrics**: `correct_tool_invocation_rate`, `escalation_correctness_rate`, and `grounded_final_answer_rate` (rows 3, 4, 5 below) have never been implemented end-to-end in `_compute_summary` (the executor emits `escalation_correctness`, not `escalation_correctness_rate`; the other two are unimplemented). They surface as N/A in any historical report rendered under the §6.9 framing. Implementing them is explicitly out of scope for Sprint 50; if a future milestone needs them, the work belongs to a Tier-3-advisory expansion, not to a §6.9 revival.
 
 These 7 metrics provide the unified top-line view across both eval modes. They are the primary metrics for stakeholder reporting and release decisions.
 

@@ -1,0 +1,18 @@
+{
+  "user_id": "USR-014",
+  "email": "eve.searcher@example.com",
+  "display_name": "Eve S.",
+  "account_status": "ACTIVE",
+  "account_type": "PERSONAL",
+  "registration_date": "2025-01-20",
+  "creation_date": "2025-01-20",
+  "total_ads_posted": 3,
+  "total_ads_count": 3,
+  "active_ads": 2,
+  "active_ads_count": 2,
+  "warnings": 0,
+  "is_known_good": true,
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": false
+}

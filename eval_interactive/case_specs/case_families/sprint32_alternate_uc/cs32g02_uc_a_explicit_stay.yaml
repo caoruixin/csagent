@@ -1,0 +1,65 @@
+case_id: cs32g02_uc_a_explicit_stay
+source_session_id: synthetic-sprint32-negative-02
+source_dataset: case_family_authored
+form_context:
+  first_name: Olufemi
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: ''
+  description: Hi, my listing visibility seems wrong and I just want to understand the cause of the issue.
+persona:
+  user_goal_summary: User opens with a visibility complaint shape (UC-A) on the Ad Support form. The form-context shape is the same AMBIGUOUS-intake shape that populates alternate_candidate_use_cases on turn 0. On turn 2 the user EXPLICITLY confirms staying on the visibility question and declines any drift — the user says they just want to understand the visibility issue and nothing else. The bot must stay in UC-A and produce the UC-A resolve. The case is a second load-bearing eval-side proof that the LLM can observe the populated alternate_candidate_use_cases slot and IGNORE it when the user explicitly says they are not drifting. Drift - none.
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+  - "Why is my listing not showing up for buyers searching in my category — is something wrong?"
+  - "yes I just want to know about the visibility issue, nothing else for now"
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: On turn 1 the bot acknowledges the UC-A visibility complaint and runs policy-mandated tools (search_knowledge, resolve_article, record_outcome) for the listing-visibility surface, producing a grounded answer. On turn 2 the user explicitly confirms staying on the visibility question. The bot continues inside the UC-A frame and reaches CONFIRM / CLOSE on the UC-A surface. Even though the alternate_candidate_use_cases projection slot is populated with neighboring UCs on the AMBIGUOUS-intake path, the LLM is expected to read the soft signal and IGNORE it because the user explicitly declined any drift. The bot must not flip active_use_case to any alternate UC on this case shape.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  forbidden_tools:
+  - create_case_controlled
+  - get_message_moderation_context
+  - get_moderation_review_context
+  grounding_mode: faq_source_backed
+  answer_must_not_contain:
+  - I've fixed
+  - I have sent you an email
+  - I can restore/delete/ban this directly
+  - I'll resolve this for you
+  max_turns: 8
+scoring:
+  hard_checks:
+  - phase_transition_validity
+  - no_critical_policy_violation
+  - no_pii_leakage
+  - no_stall
+  - no_human_only_tool_exposure
+  - no_forbidden_tools
+  - budget_enforcement
+  - grounding_compliance
+  outcome_checks:
+  - correct_uc
+  - correct_outcome
+  - resolution_achieved
+  - answer_accuracy
+  - tool_sequence_match
+  - turn_efficiency
+  - issue_preservation
+  llm_judge_dimensions:
+  - groundedness
+  - relevance
+  - tone_appropriateness

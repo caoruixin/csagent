@@ -1,0 +1,143 @@
+name: resolve_faq_grounded_answer
+description: RESOLVE-FAQ phase Skill — grounded FAQ resolve with citation.
+applicable_phases:
+  - RESOLVE
+applicable_use_cases:
+  - UC-A
+  - UC-B
+  - UC-C
+  - UC-D
+  - UC-E
+  - UC-F
+  - UC-FP
+tools_required:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - record_outcome
+  - request_handover
+required_context_keys:
+  - form_context
+  - customer_context
+  - listing_context
+max_tool_steps: 6
+allow_interim_message: false
+valid_terminal_outcomes:
+  - FINAL_ANSWER
+  - CLARIFICATION_NEEDED
+  - ESCALATE
+objective: "Determine the customer's issue and provide a grounded, helpful answer for {uc_name}"
+procedure: "You are a helpful Gumtree customer support agent. Resolve the user's issue using the provided tools. FAQ-path RESOLVE flow (S1): the intended terminal sequence is search_knowledge -> resolve_article -> grounded customer-facing answer (with a display_citation citation — the article's source_url when available, otherwise its article_id) -> record_outcome. Only escalate via request_handover after a valid resolve attempt cannot complete (no viable hit, or resolve_article could not produce a grounded answer)."
+grounding_instruction: "If tool data contains specific information about the user's case (account/ad/moderation), answer from that first. For policy/process explanations, you MUST call search_knowledge first if accumulated_tool_results.search_knowledge is empty; do not produce a factual customer-facing answer without grounded knowledge evidence. After search_knowledge returns a viable hit, you MUST call resolve_article for the top hit before answering the customer; cite the display_citation token returned by resolve_article in your user_message (URL when available, article_id otherwise). If search_knowledge returns no viable hit, request_handover with escalation_reason='faq_miss_threshold_exceeded' is allowed. After a search_knowledge returns a viable hit (faq_miss=false), do NOT re-search this turn — draft your grounded answer from the existing hits via resolve_article, or escalate; a fresh search_knowledge is only warranted if the prior result was faq_miss=true or your new query is materially different from what you already searched."
+escalation_policy: "Escalate via request_handover if (a) the user explicitly requests a human (use escalation_reason='user_requested', priority 1), or (b) search_knowledge returned no viable hit and you cannot answer (use 'faq_miss_threshold_exceeded'), or (c) the issue is genuinely out of scope (use 'out_of_scope'). Do NOT short-circuit to request_handover('faq_miss_threshold_exceeded') when search_knowledge already returned a viable hit and resolve_article has not yet been attempted — the runtime will refuse such a handover and require a resolve_article attempt first."
+guardrails:
+  - type: faq_miss_handover_requires_resolve_attempt
+    on_fail: reject_with_hint
+    parameters: {}
+  - type: premature_resolve_outcome_guard
+    on_fail: reject_with_hint
+    parameters: {}
+  - type: must_cite_source
+    on_fail: reject_with_hint
+    parameters:
+      outcome_class: resolve
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+  reset:
+    - intake_fields_partial
+  soft_signal_via_projection:
+    - prior_use_case_carry
+critical_steps:
+  - id: search-knowledge-before-faq-answer
+    desc: |
+      Before composing a factual customer-facing answer for an
+      FAQ-path use case (UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP),
+      retrieve the knowledge surface via `search_knowledge`. A factual
+      answer not anchored in retrieved knowledge is a fabrication
+      risk; ground the answer in the article surface first per the
+      FAQ grounding contract. Case-specific data the bot already
+      holds (account / ad / moderation context) may still be answered
+      from directly per the Skill's grounding instruction; this step
+      governs the policy / process / how-to surface.
+    trace_check: "accumulated_tool_results.search_knowledge"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+    severity: mandatory
+  - id: resolve-article-after-search-hit
+    desc: |
+      Once `search_knowledge` returns a viable hit, run `resolve_article`
+      for the chosen hit before answering the customer. The resolve
+      step is what surfaces the citation-bearing content that the
+      customer-facing reply depends on for the `display_citation` citation.
+      Cases with no viable search hit may legitimately escalate via
+      `request_handover` with `escalation_reason=faq_miss_threshold_exceeded`
+      instead — this step is advisory because the cleanly-handed-over
+      no-hit path also bypasses `resolve_article`.
+    trace_check: "tool_event_seq(search_knowledge) < tool_event_seq(resolve_article)"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+    severity: advisory
+  - id: record-outcome-on-grounded-answer
+    desc: |
+      Once a customer-facing FAQ-grounded answer is delivered, call
+      `record_outcome` to bind the resolution disposition to the case.
+      The runtime needs this signal to close the case as RESOLVED.
+      Cases that escalate via `request_handover` for a no-hit are
+      exempt — they legitimately bypass `record_outcome` from this
+      Skill — which is why this step is advisory rather than gate-
+      contributing.
+    trace_check: "accumulated_tool_results.record_outcome"
+    mandatory_for:
+      - UC-A
+      - UC-B
+      - UC-C
+      - UC-D
+      - UC-E
+      - UC-F
+      - UC-FP
+    severity: advisory
+  - id: consult-moderation-context-on-removal-explanation
+    desc: |
+      For UC-FP (Correct Deletion Explanation), the moderation context
+      is the canonical reason metadata for an honest explanation of why
+      the listing was removed. Consult `get_moderation_review_context`
+      so the answer is grounded in the actual reason rather than a
+      plausible-sounding guess. Without the moderation context, a
+      UC-FP factual reply about the removal reason crosses the
+      grounding floor (per `faq_grounding_contract.md`); the
+      `must_cite_source` guardrail catches the FAQ citation surface
+      but the moderation-reason surface needs its own anchor.
+    trace_check: "accumulated_tool_results.get_moderation_review_context"
+    mandatory_for:
+      - UC-FP
+    severity: mandatory
+  - id: reroute-on-actionable-appeal-intent
+    desc: |
+      If during UC-FP resolution the user's stance shifts from
+      understanding the removal to actively appealing it, the
+      appropriate next move is to surface the UC-H appeal-intake path
+      — either by completing the explanation and naming the appeal
+      route as a follow-on, or by escalating with a useful handover
+      summary that names the appeal request. The failure mode this
+      step guards against is locking the user into UC-H intake
+      purely on the listing-status signal before the user has
+      expressed an intent to appeal; the user's stated need is the
+      disambiguation signal, not the listing's database row.
+    trace_check: "any_of(accumulated_tool_results.record_outcome, accumulated_tool_results.request_handover)"
+    mandatory_for:
+      - UC-FP
+    severity: advisory

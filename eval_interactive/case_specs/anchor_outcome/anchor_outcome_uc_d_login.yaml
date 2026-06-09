@@ -1,0 +1,37 @@
+case_id: anchor_outcome_uc_d_login
+source_session_id: 570Q5000008NWIjIAO
+source_dataset: anchor_outcome_uc_d_login_reuse
+closure_criterion: |
+  The user cannot log in (UC-D account access). The bot is judged closed
+  when it walks the user through password reset / login-recovery using
+  grounded steps, or escalates with a useful handover that names the
+  login-failure shape. Closure FAILS if the bot promises to "reset the
+  account" itself, fabricates an account state, or terminates without
+  giving a concrete next step.
+form_context:
+  first_name: Wasim
+  email: customer@example.com
+  topic_subject: Account Support
+  ad_id: ''
+  description: Login issue
+persona:
+  user_goal_summary: |
+    User cannot log in to their account. They want a concrete recovery
+    path - password reset, account-recovery flow, or human help.
+  frustration_level: mild
+  verbosity: terse
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I can't log in to my account."
+  hidden_facts: []
+  will_request_human_if: ''
+expected:
+  outcome_class: either
+  primary_uc: UC-D
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'partial'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

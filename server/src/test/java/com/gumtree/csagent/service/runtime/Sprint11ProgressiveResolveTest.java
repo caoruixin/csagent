@@ -13,6 +13,10 @@ import com.gumtree.csagent.model.ToolEvent;
 import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotTurnRepository;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.runtime.skill.DispatchContext;
+import com.gumtree.csagent.service.runtime.skill.RejectVerdict;
+import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -270,7 +275,7 @@ class Sprint11ProgressiveResolveTest {
         args.put("outcome_class", "resolve");
         ToolCall call = ToolCall.builder().name("record_outcome").arguments(args).build();
 
-        boolean reject = AgentRunLoopImpl.shouldRejectPrematureResolveOutcome(
+        boolean reject = dispatcherRejectsPrematureResolve(
                 plan, sessionWithAd("1234567890"), call);
         assertTrue(reject,
                 "record_outcome(resolve) on a RESOLVE plan must be rejected when the "
@@ -295,8 +300,7 @@ class Sprint11ProgressiveResolveTest {
         args.put("outcome_class", "resolve");
         ToolCall call = ToolCall.builder().name("record_outcome").arguments(args).build();
 
-        boolean reject = AgentRunLoopImpl.shouldRejectPrematureResolveOutcome(
-                plan, s, call);
+        boolean reject = dispatcherRejectsPrematureResolve(plan, s, call);
         assertFalse(reject,
                 "record_outcome(resolve) on a CONFIRM plan must pass through the guard.");
     }
@@ -382,7 +386,8 @@ class Sprint11ProgressiveResolveTest {
                 objectMapper,
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.CreateCaseControlledTool.class),
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.observability.EventEmitter.class),
-                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class));
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class),
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
         BotSession s = sessionWithAd("1234567890");
         PhaseTransitionDecision decision =
                 real.interpretRunResult(plan, listingStatusAnswer, s);
@@ -444,7 +449,7 @@ class Sprint11ProgressiveResolveTest {
                 .thenReturn(java.util.List.of("search_knowledge", "resolve_article"));
 
         ContextProjectionBuilder realBuilder = new ContextProjectionBuilder(
-                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer);
+                objectMapper, useCaseRegistry, controlPolicyMock, toolPolicyEnforcer, null);
         realBuilder.initToolSchemas();
 
         String json = realBuilder.buildProjection(s, java.util.List.of(), null,
@@ -499,7 +504,8 @@ class Sprint11ProgressiveResolveTest {
                 objectMapper,
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.CreateCaseControlledTool.class),
                 org.mockito.Mockito.mock(com.gumtree.csagent.service.observability.EventEmitter.class),
-                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class));
+                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class),
+                SkillTestFixtures.productionRegistry(), null);
         BotSession s = sessionWithAd("1234567890");
         PhaseTransitionDecision decision = real.interpretRunResult(plan, softAnswer, s);
         assertEquals("RESOLVE", decision.nextPhase(),
@@ -507,5 +513,36 @@ class Sprint11ProgressiveResolveTest {
                         + "do not collapse to CONFIRM and short-circuit the close.");
         assertNotNull(s.getTaskStatus(),
                 "Sprint 11 §M0 — task_status must be populated by the disposition evaluator.");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Sprint 39 dispatcher helper — Sprint 11 §M1's
+    // shouldRejectPrematureResolveOutcome predicate now lives inside the
+    // SkillGuardrailDispatcher's premature_resolve_outcome_guard handler
+    // (Sprint 37 freeze §8.2.3). The handler still delegates to the
+    // untouched ResolveDispositionEvaluator frozen surface per
+    // runtime_freeze_and_risk_policy.md §1.1 #3; only the invocation
+    // site moves.
+    // ─────────────────────────────────────────────────────────────
+    private boolean dispatcherRejectsPrematureResolve(PhasePlan plan,
+                                                       BotSession session,
+                                                       ToolCall call) {
+        SkillGuardrailDispatcher dispatcher = SkillTestFixtures.productionDispatcher();
+        Object rawOutcome = call.getArguments() == null
+                ? null : call.getArguments().get("outcome_class");
+        if (rawOutcome == null && call.getArguments() != null) {
+            rawOutcome = call.getArguments().get("outcome");
+        }
+        String outcomeClass = rawOutcome == null ? null : rawOutcome.toString();
+        DispatchContext ctx = new DispatchContext(
+                plan, session, Map.of(), null, Optional.empty());
+        Optional<RejectVerdict> verdict =
+                dispatcher.checkBeforeOutcomePersist(plan, outcomeClass, ctx);
+        if (verdict.isEmpty()) return false;
+        assertEquals(SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON,
+                verdict.get().predicateName(),
+                "premature_resolve_outcome_guard must use the Sprint 11 §M1 "
+                        + "canonical reject-reason label");
+        return true;
     }
 }

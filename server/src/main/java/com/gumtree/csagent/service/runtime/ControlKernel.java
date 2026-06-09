@@ -8,6 +8,7 @@ import com.gumtree.csagent.repository.BotEventRepository;
 import com.gumtree.csagent.repository.BotTurnRepository;
 import com.gumtree.csagent.service.llm.LlmCallContext;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.observability.TraceWriter;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolResult;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,16 @@ public class ControlKernel {
      */
     private static final long MIN_RESOLVE_REPLAN_BUDGET_MS = 8_000L;
 
+    // Sprint 077 / S-Auto-22 (OQ-S77 #4): the downgraded containment value
+    // written when a prior "resolved" stamp is invalidated by a later
+    // runtime-observable failure terminal (see shouldVoidResolvedStamp). A
+    // free-form trace-contract value (the containment column is not enforced
+    // against the ContainmentOutcome enum); it is intentionally NOT "resolved"
+    // / "escalated" / "abandoned" so the trace honestly records "an earlier
+    // turn answered, but the session then failed before completing".
+    static final String CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER =
+            "incomplete_after_partial_answer";
+
     private final BotTurnRepository turnRepository;
     private final BotEventRepository eventRepository;
     private final BudgetChecker budgetChecker;
@@ -61,6 +72,14 @@ public class ControlKernel {
     private final EscalationReasonResolver escalationResolver;
     private final RuntimeIntentClassifier runtimeIntentClassifier;
     private final RerouteDecider rerouteDecider;
+    /**
+     * Sprint 51 / M5 S2 — per-step LLM record persistence. Optional
+     * (constructor-injected) so the many ControlKernel tests built before S2
+     * continue compiling with null; production wiring sets it. When null,
+     * the per-step records are accumulated by the loop but not persisted —
+     * the existing BotTurn single-column trace is unaffected.
+     */
+    private final TraceWriter traceWriter;
 
     @Autowired
     public ControlKernel(BotTurnRepository turnRepository,
@@ -77,7 +96,8 @@ public class ControlKernel {
                          AgentRunLoop agentRunLoop,
                          EscalationReasonResolver escalationResolver,
                          RuntimeIntentClassifier runtimeIntentClassifier,
-                         RerouteDecider rerouteDecider) {
+                         RerouteDecider rerouteDecider,
+                         TraceWriter traceWriter) {
         this.turnRepository = turnRepository;
         this.eventRepository = eventRepository;
         this.budgetChecker = budgetChecker;
@@ -93,6 +113,7 @@ public class ControlKernel {
         this.escalationResolver = escalationResolver;
         this.runtimeIntentClassifier = runtimeIntentClassifier;
         this.rerouteDecider = rerouteDecider;
+        this.traceWriter = traceWriter;
     }
 
     /**
@@ -122,7 +143,39 @@ public class ControlKernel {
                 eventEmitter, contextProjectionBuilder, agentRunLoopProperties,
                 agentRunLoop, escalationResolver,
                 new RuntimeIntentClassifier(escalationResolver, objectMapper),
-                new RerouteDecider());
+                new RerouteDecider(),
+                null);
+    }
+
+    /**
+     * Sprint 51 / M5 S2 — backwards-compat constructor preserved for the
+     * Sprint 10/11/12/13 tests that wire {@link RuntimeIntentClassifier} /
+     * {@link RerouteDecider} explicitly but predate the {@link TraceWriter}
+     * dependency. Chains to the canonical constructor with a null
+     * {@code TraceWriter} (per-step records accumulate but are not persisted —
+     * the existing BotTurn single-column trace is unaffected, which is what
+     * those tests assert against).
+     */
+    public ControlKernel(BotTurnRepository turnRepository,
+                         BotEventRepository eventRepository,
+                         BudgetChecker budgetChecker,
+                         DriftDetector driftDetector,
+                         PhaseEvaluator phaseEvaluator,
+                         ControlPolicyService controlPolicy,
+                         ObjectMapper objectMapper,
+                         CreateCaseControlledTool createCaseTool,
+                         EventEmitter eventEmitter,
+                         ContextProjectionBuilder contextProjectionBuilder,
+                         AgentRunLoopProperties agentRunLoopProperties,
+                         AgentRunLoop agentRunLoop,
+                         EscalationReasonResolver escalationResolver,
+                         RuntimeIntentClassifier runtimeIntentClassifier,
+                         RerouteDecider rerouteDecider) {
+        this(turnRepository, eventRepository, budgetChecker, driftDetector,
+                phaseEvaluator, controlPolicy, objectMapper, createCaseTool,
+                eventEmitter, contextProjectionBuilder, agentRunLoopProperties,
+                agentRunLoop, escalationResolver,
+                runtimeIntentClassifier, rerouteDecider, null);
     }
 
     /**
@@ -249,7 +302,17 @@ public class ControlKernel {
             // Sprint §A1: route through the resolver so a higher-priority
             // semantic reason already on the session (e.g. ``user_requested``
             // set in step 2.5) is not overwritten by the budget close-out.
-            applyEscalationReason(session, mapBudgetToEscalationReason(exceededBudget.get()));
+            // R2.a #5 (+ R2.a#5-ext, Sprint 080) — phase-aware re-map so a
+            // free-text clarification repetition (`max-repeated-same-action`)
+            // is stamped with the accurate `clarification_budget_exhausted`
+            // reason instead of the misleading generic `turn_budget_exhausted`:
+            // DISCOVER free-text (c9) OR RESOLVE-INTAKE free-text on an intake
+            // UC (c14). Guarded by phase + last-action + active UC so a
+            // RESOLVE repeated TOOL call, and a RESOLVE non-intake UC, both keep
+            // `turn_budget_exhausted` (anti-误杀 invariant #12).
+            applyEscalationReason(session, mapBudgetToEscalationReason(
+                    exceededBudget.get(), session.getCurrentPhase(),
+                    session.getLastAction(), session.getActiveUseCase()));
             return forceEscalate(session, phaseBefore, userMessage, startTime,
                     "I've reached the limit of what I can assist with on this topic. " +
                     "Let me connect you with a human agent who can help further.");
@@ -508,12 +571,84 @@ public class ControlKernel {
 
                 // D16.D: mirror the legacy evaluateClose state-setting when the
                 // agent loop terminates in CLOSE. SessionManager reads
-                // containmentOutcome via recordOutcome.
+                // containmentOutcome via recordOutcome. Sprint 084 / S-Auto-29:
+                // the legacy mirror's unconditional "resolved" default is now
+                // GROUNDING-GATED through isResolvedSuccessTerminal — the same
+                // gate Path C (below) and shouldVoidResolvedStamp (Path D)
+                // already apply. The CLOSE transition is LLM-owned (the LLM
+                // emits next_phase=CLOSE), so a DISCOVER-stalled clarifier close,
+                // a hallucinated "user confirmed" close, or a simulator drop-out
+                // close must NOT be credited as a resolved success when the loop
+                // delivered no grounded answer. handlingState=CLOSED and
+                // emitSessionClosed stay UNCONDITIONAL (the session did close);
+                // only the "resolved" credit is gated. No new enum value: with
+                // no grounding evidence containment is left null and the eval
+                // routes case_passed by L2 evidence, not by a false default.
                 if ("CLOSE".equals(phaseAfter)) {
                     session.setHandlingState("CLOSED");
-                    if (session.getContainmentOutcome() == null) {
+                    if (session.getContainmentOutcome() == null
+                            && isResolvedSuccessTerminal(session, runResult)) {
                         session.setContainmentOutcome("resolved");
                     }
+                    eventEmitter.emitSessionClosed(session.getSessionId(),
+                            session.getContainmentOutcome());
+                } else if (isResolvedSuccessTerminal(session, runResult)) {
+                    // Sprint 074 / S-Auto-19 (#1) + Sprint 075 / S-Auto-20 (#1
+                    // broadening) — runtime trace-contract completion, NOT a
+                    // semantic change. Stamp a complete terminal disposition
+                    // when the agent loop delivered a SUBSTANTIVE GROUNDED
+                    // answer that resolved the issue (terminalOutcome
+                    // FINAL_ANSWER + resolve_disposition READY_TO_CONFIRM OR
+                    // ANSWERED_SUBTASK + non-empty articlesShown) WITHOUT yet
+                    // reaching a dedicated record_outcome / CONFIRM turn.
+                    // S-Auto-19 gated only on READY_TO_CONFIRM, which was INERT
+                    // on the simulator-preempted goal_achieved one-shot path
+                    // (the sim ends the session before the CONFIRM turn, so the
+                    // disposition stays ANSWERED_SUBTASK) — leaving 0 resolved
+                    // stamps across the whole m-auto-5 re-bless and a blank
+                    // containment_outcome the eval mis-judged as partially
+                    // instrumented. ANTI-误杀 hard constraint (see
+                    // isResolvedSuccessTerminal): NEVER fires on an unresolved
+                    // terminal — MAX_STEPS / ERROR / DEADLINE_EXCEEDED /
+                    // LLM_UNAVAILABLE / CLARIFICATION_NEEDED /
+                    // USE_CASE_IDENTIFIED are excluded by the FINAL_ANSWER gate;
+                    // escalation is excluded (it already stamped "escalated"
+                    // above and the non-null containment guard also returns
+                    // false); mid-resolution turns (ASKED_FOR_SLOT /
+                    // CONTINUE_RESOLVE) are excluded by the disposition
+                    // allow-list; an ungrounded answer is excluded by the
+                    // articlesShown requirement; and a pre-existing non-null
+                    // containment is never overwritten.
+                    session.setContainmentOutcome("resolved");
+                    eventEmitter.emitSessionClosed(session.getSessionId(),
+                            session.getContainmentOutcome());
+                } else if (shouldVoidResolvedStamp(session, runResult)) {
+                    // Sprint 077 / S-Auto-22 (OQ-S77 #4) — runtime trace-contract
+                    // honesty, NOT a semantic change. An EARLIER turn stamped
+                    // containment_outcome="resolved" (via the CLOSE /
+                    // isResolvedSuccessTerminal arms above on a prior turn), but
+                    // THIS turn reached a runtime-observable unresolved failure
+                    // terminal (MAX_STEPS / ERROR / DEADLINE_EXCEEDED /
+                    // LLM_UNAVAILABLE). The resolved stamp is now stale; voiding
+                    // it keeps the trace internally consistent (the §1.4
+                    // trace-contract owner must not credit a success that
+                    // subsequent state invalidated). The prior value is preserved
+                    // on priorContainmentOutcome + the emitted SESSION_CLOSED
+                    // event for provenance. ANTI-误杀: shouldVoidResolvedStamp
+                    // fires ONLY when containment is exactly "resolved" AND the
+                    // terminal is one of the runtime failure shapes, so a
+                    // legitimate FINAL_ANSWER resolve (goal_achieved one-shot) is
+                    // never voided. loop_detected / goal_impossible are
+                    // simulator-side terminals the runtime never sees; those are
+                    // gated eval-side (OQ-S77 #2).
+                    String prior = session.getContainmentOutcome();
+                    voidResolvedStamp(session);
+                    log.info("Session {}: OQ-S77 #4 voided stale containment "
+                                    + "'{}' -> '{}' on terminalOutcome={} (earlier "
+                                    + "turn stamped resolved; session then failed)",
+                            session.getSessionId(), prior,
+                            session.getContainmentOutcome(),
+                            runResult.terminalOutcome());
                     eventEmitter.emitSessionClosed(session.getSessionId(),
                             session.getContainmentOutcome());
                 }
@@ -627,6 +762,58 @@ public class ControlKernel {
             default:
                 return "turn_budget_exhausted";
         }
+    }
+
+    /**
+     * R2.a #5 (+ R2.a#5-ext, Sprint 080) — phase-aware overload. The
+     * {@code max-repeated-same-action} budget is NOT DISCOVER-only
+     * ({@code trackRepeatedAction} fires on any repeated action/tool-call in
+     * any phase), so the single-arg mapping keeps it on the generic
+     * {@code turn_budget_exhausted}. Here we re-map it to the EXISTING
+     * {@code clarification_budget_exhausted} enum value ONLY when the
+     * repetition was a free-text clarification round — i.e. the repeated action
+     * key is a free-text reply ({@code "answer"} / {@code "clarify"}, never a
+     * tool name) AND the session is in a phase that does free-text
+     * clarification:
+     * <ul>
+     *   <li>{@code DISCOVER} — the original R2.a #5 path (c9); or</li>
+     *   <li>{@code RESOLVE} on an intake UC
+     *       ({@link IntakeFieldsRegistry#isIntakeUseCase(String)}) — the
+     *       R2.a#5-ext path (c14): the RESOLVE-INTAKE Skill collects required
+     *       fields by asking the user free-text questions, so a repeated
+     *       clarification there is a clarification-budget hit, not a generic
+     *       turn-budget hit.</li>
+     * </ul>
+     *
+     * <p>Anti-误杀 invariant #12 is preserved: a RESOLVE repeated TOOL call
+     * (action key is a tool name, not free-text), a RESOLVE non-intake UC, and
+     * every non-{@code max-repeated-same-action} budget are all delegated
+     * unchanged to {@link #mapBudgetToEscalationReason(String)}. NO new enum
+     * value is added; {@code isIntakeUseCase} reuses the existing R1.a #2
+     * classification (zero new per-UC matrix).
+     */
+    static String mapBudgetToEscalationReason(String bucket, String currentPhase,
+                                              String lastAction, String activeUseCase) {
+        if ("max-repeated-same-action".equals(bucket)
+                && isFreeTextActionKey(lastAction)
+                && (
+                    "DISCOVER".equalsIgnoreCase(currentPhase)
+                    || ("RESOLVE".equalsIgnoreCase(currentPhase)
+                        && IntakeFieldsRegistry.isIntakeUseCase(activeUseCase))
+                )) {
+            return "clarification_budget_exhausted";
+        }
+        return mapBudgetToEscalationReason(bucket);
+    }
+
+    /**
+     * True iff a repeated-action key denotes a free-text (no-tool-call) reply.
+     * The live {@code deriveRunResultKey} emits {@code "answer"} for a no-tool
+     * turn; the legacy {@code deriveRepetitionKey} emits {@code "clarify"}.
+     * Any tool-name key (e.g. {@code "search_knowledge"}) returns false.
+     */
+    private static boolean isFreeTextActionKey(String key) {
+        return "answer".equals(key) || "clarify".equals(key);
     }
 
     /**
@@ -1200,6 +1387,208 @@ public class ControlKernel {
                 || session.getCandidateUseCases().length == 0) {
             session.setCandidateUseCases(new String[]{fallbackUc});
         }
+    }
+
+    /**
+     * Sprint 074 / S-Auto-19 (#1 runtime — trace-contract completion):
+     * true when the agent loop reached a RESOLVED success terminal that did
+     * NOT route through a dedicated record_outcome-only CLOSE turn, so the
+     * runtime should stamp {@code containment_outcome="resolved"} as a
+     * complete terminal disposition.
+     *
+     * <p>This fires ONLY when ALL of these hold (anti-误杀 — it must never
+     * stamp "resolved" on a genuinely unresolved terminal):
+     * <ul>
+     *   <li>{@code runResult.terminalOutcome() == FINAL_ANSWER} — the LLM
+     *       produced a customer-facing answer with no further tool calls.
+     *       This deliberately EXCLUDES {@code MAX_STEPS}, {@code ERROR},
+     *       {@code DEADLINE_EXCEEDED}, {@code LLM_UNAVAILABLE},
+     *       {@code CLARIFICATION_NEEDED}, {@code USE_CASE_IDENTIFIED}, and
+     *       {@code ESCALATE} (escalation already stamps "escalated").</li>
+     *   <li>{@code session.getResolveDisposition()} is {@code READY_TO_CONFIRM}
+     *       OR {@code ANSWERED_SUBTASK} — the answer resolved the issue.
+     *       Sprint 075 / S-Auto-20 broadened this from {@code READY_TO_CONFIRM}-
+     *       only: on the simulator-preempted {@code goal_achieved} one-shot path
+     *       the disposition at terminal is {@code ANSWERED_SUBTASK} (a non-
+     *       question / non-slot-request grounded answer), and the session ends
+     *       before a dedicated CONFIRM / record_outcome turn could promote it
+     *       to {@code READY_TO_CONFIRM}. The mid-resolution dispositions
+     *       {@code ASKED_FOR_SLOT} and {@code CONTINUE_RESOLVE} remain
+     *       EXCLUDED — the bot is still working the issue / asked for a missing
+     *       slot, so it has not resolved.</li>
+     *   <li>{@code session.getArticlesShown()} is non-empty — the answer is a
+     *       SUBSTANTIVE GROUNDED resolution, not an ungrounded reply. An
+     *       answer that never surfaced any retrieved knowledge does not earn
+     *       {@code "resolved"}.</li>
+     *   <li>{@code session.getContainmentOutcome() == null} — never
+     *       overwrite a containment value already stamped (e.g. escalated).</li>
+     * </ul>
+     * The {@code goal_impossible} / {@code loop_detected} eval terminals do
+     * not present a {@code FINAL_ANSWER}+grounded-resolved-disposition pairing
+     * (a loop repeats an identical reply; {@code goal_impossible} is the
+     * simulator persona giving up) and so never reach this branch.
+     */
+    static boolean isResolvedSuccessTerminal(BotSession session, AgentRunResult runResult) {
+        if (session == null || runResult == null) {
+            return false;
+        }
+        if (session.getContainmentOutcome() != null) {
+            // Sprint 075 / S-Auto-20 anti-误杀: never overwrite a containment
+            // value already stamped (e.g. "escalated").
+            return false;
+        }
+        if (runResult.terminalOutcome() != com.gumtree.csagent.model.TerminalOutcome.FINAL_ANSWER) {
+            // FINAL_ANSWER gate excludes every genuinely-unresolved terminal:
+            // MAX_STEPS / ERROR / DEADLINE_EXCEEDED / LLM_UNAVAILABLE /
+            // CLARIFICATION_NEEDED / USE_CASE_IDENTIFIED / ESCALATE.
+            return false;
+        }
+        // Sprint 075 / S-Auto-20 (#1 runtime — trace-contract completion).
+        // Broaden the disposition gate from READY_TO_CONFIRM-only to also
+        // accept ANSWERED_SUBTASK. RATIONALE: on the simulator-preempted
+        // ``goal_achieved`` one-shot path the bot delivers a substantive
+        // grounded FINAL_ANSWER and the simulator ends the session (user
+        // satisfied) BEFORE the bot reaches a dedicated record_outcome /
+        // CONFIRM turn — so READY_TO_CONFIRM never holds and the
+        // S-Auto-19 gate was INERT (0 ``resolved`` stamps across the whole
+        // m-auto-5 re-bless; all 51 goal_achieved draws left blank). The
+        // disposition at that terminal is ANSWERED_SUBTASK
+        // (ResolveDispositionEvaluator: a non-question / non-slot-request
+        // grounded answer), which the contract defines as "the bot
+        // delivered a grounded answer or a soft next step". Stamping
+        // "resolved" here records the disposition the bot ALREADY reached;
+        // it changes no decision (§1.4 trace-contract, not §1.3 semantics).
+        //
+        // ANTI-误杀 (counter-tested) — this NEVER fires on an unresolved
+        // terminal:
+        //   * ASKED_FOR_SLOT / CONTINUE_RESOLVE (mid-resolution: the bot is
+        //     still working the issue / asked for a missing slot) are
+        //     EXCLUDED by the disposition allow-list below;
+        //   * ESCALATE is excluded (it already stamped "escalated" above and
+        //     the non-null containment guard returns false anyway);
+        //   * a substantive grounding requirement (getArticlesShown
+        //     non-empty) ensures we only stamp a GROUNDED answer that
+        //     actually resolved the issue — an ungrounded FINAL_ANSWER
+        //     (e.g. a never-searched reply) does not earn "resolved".
+        String disposition = session.getResolveDisposition();
+        boolean dispositionResolved =
+                com.gumtree.csagent.model.ResolveDisposition.READY_TO_CONFIRM.name().equals(disposition)
+                        || com.gumtree.csagent.model.ResolveDisposition.ANSWERED_SUBTASK.name().equals(disposition);
+        if (!dispositionResolved) {
+            return false;
+        }
+        String[] articlesShown = session.getArticlesShown();
+        return articlesShown != null && articlesShown.length > 0;
+    }
+
+    /**
+     * Sprint 077 / S-Auto-22 (OQ-S77 #4 — runtime trace-contract honesty):
+     * the COMPANION to {@link #isResolvedSuccessTerminal}. True when a later
+     * turn reaches a runtime-observable UNRESOLVED FAILURE terminal on a
+     * session that an EARLIER turn already stamped {@code "resolved"} — i.e.
+     * the resolved stamp is now stale and must be downgraded so the trace does
+     * not credit a success that subsequent state invalidated.
+     *
+     * <p>Fires ONLY when BOTH hold (anti-误杀 — never voids a legitimate
+     * resolve):
+     * <ul>
+     *   <li>{@code session.getContainmentOutcome()} is exactly
+     *       {@code "resolved"} — only a prior resolved stamp can be voided;
+     *       {@code "escalated"} / blank / an already-downgraded value are left
+     *       untouched.</li>
+     *   <li>{@code runResult.terminalOutcome()} is a runtime-observable
+     *       unresolved failure: {@code MAX_STEPS}, {@code ERROR},
+     *       {@code DEADLINE_EXCEEDED}, or {@code LLM_UNAVAILABLE}.</li>
+     * </ul>
+     *
+     * <p>{@code FINAL_ANSWER} is deliberately EXCLUDED, so the goal_achieved
+     * one-shot path (FINAL_ANSWER) NEVER downgrades — that path stamps
+     * resolved via {@link #isResolvedSuccessTerminal} and stays resolved.
+     * {@code ESCALATE} is excluded (escalation already stamps "escalated", so
+     * containment is not "resolved" by the time this runs).
+     *
+     * <p>SCOPE NOTE: the {@code loop_detected} and {@code goal_impossible}
+     * terminals from the S-Auto-21 corpus are SIMULATOR-side verdicts computed
+     * ACROSS turns (the simulator sees two identical bot replies, or the
+     * persona gives up) and are never delivered to the runtime, which processes
+     * one turn at a time. The runtime therefore cannot observe them and cannot
+     * downgrade on them; those are handled eval-side by OQ-S77 #2
+     * ({@code hard_checks._check_trace_minimum} Mode-3). This guard and the
+     * eval-side gate are complementary: together they ensure a "resolved" stamp
+     * contradicted by ANY terminal failure (runtime- or simulator-observed) is
+     * not credited.
+     */
+    static boolean shouldVoidResolvedStamp(BotSession session, AgentRunResult runResult) {
+        if (session == null || runResult == null) {
+            return false;
+        }
+        if (!"resolved".equals(session.getContainmentOutcome())) {
+            return false;
+        }
+        com.gumtree.csagent.model.TerminalOutcome t = runResult.terminalOutcome();
+        return t == com.gumtree.csagent.model.TerminalOutcome.MAX_STEPS
+                || t == com.gumtree.csagent.model.TerminalOutcome.ERROR
+                || t == com.gumtree.csagent.model.TerminalOutcome.DEADLINE_EXCEEDED
+                || t == com.gumtree.csagent.model.TerminalOutcome.LLM_UNAVAILABLE;
+    }
+
+    /**
+     * Sprint 077 / S-Auto-22 (OQ-S77 #4): apply the resolved-stamp downgrade.
+     * Preserves the prior {@code "resolved"} value on
+     * {@link BotSession#getPriorContainmentOutcome()} (provenance) and
+     * overwrites {@code containment_outcome} with
+     * {@link #CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER}. Callers MUST gate
+     * this behind {@link #shouldVoidResolvedStamp} — this method does not
+     * re-check the precondition so it stays a pure mutation that is trivially
+     * unit-testable in both directions.
+     */
+    static void voidResolvedStamp(BotSession session) {
+        session.setPriorContainmentOutcome(session.getContainmentOutcome());
+        session.setContainmentOutcome(CONTAINMENT_INCOMPLETE_AFTER_PARTIAL_ANSWER);
+    }
+
+    /**
+     * Sprint 074 / S-Auto-19 (#2 runtime — trace-contract completion):
+     * decide which source ids the answer-turn {@code BotTurn.sourceIds}
+     * should carry.
+     *
+     * <p>The prompt directs the bot to retrieve on one turn and ANSWER from
+     * the accumulated hits on a LATER turn. That later answer turn runs no
+     * {@code search_knowledge}, so {@code thisTurnSourceIds} (collected from
+     * this run's tool events) is empty even though the session is grounded.
+     * {@code sessionResolvedSourceIds} ({@code session.getArticlesShown()},
+     * read BEFORE the per-turn merge) is the durable session-wide set of
+     * source ids surfaced on EARLIER turns. We carry it on the answer turn so
+     * the trace UI and downstream grounding consumers see the answer's
+     * grounding without re-deriving it from prior turns.
+     *
+     * <p>Read-correctness only, not a grounding-rule change:
+     * <ul>
+     *   <li>a non-empty per-turn set is never overwritten;</li>
+     *   <li>the fallback applies only to a substantive (non-blank) answer
+     *       turn that did NOT escalate — escalation/handover turns make no
+     *       grounding claim and keep null;</li>
+     *   <li>a session with no prior grounding leaves the turn ungrounded, so
+     *       a genuinely never-searched answer still carries none.</li>
+     * </ul>
+     */
+    static String[] resolveAnswerTurnSourceIds(String[] thisTurnSourceIds,
+                                               String[] sessionResolvedSourceIds,
+                                               String persistedBotResponse,
+                                               String phaseAfter) {
+        if (thisTurnSourceIds != null && thisTurnSourceIds.length > 0) {
+            return thisTurnSourceIds;
+        }
+        boolean substantiveAnswerTurn =
+                persistedBotResponse != null
+                        && !persistedBotResponse.isBlank()
+                        && !"ESCALATE".equals(phaseAfter);
+        if (substantiveAnswerTurn
+                && sessionResolvedSourceIds != null
+                && sessionResolvedSourceIds.length > 0) {
+            return sessionResolvedSourceIds.clone();
+        }
+        return thisTurnSourceIds;
     }
 
     /**
@@ -1806,6 +2195,47 @@ public class ControlKernel {
                     entry.put("tool_name", te.toolName());
                     entry.put("success", te.success());
                     entry.put("latency_ms", te.latencyMs());
+                    // Sprint 067 / S-Auto-12 (A1 idempotency 回挡) — surface
+                    // the per-run dedup annotation on the persisted trace so
+                    // report.html / admin trace can show that a byte-
+                    // identical repeat was served from cache (tool not re-
+                    // executed) rather than mis-reading it as a fresh
+                    // dispatch. Only emitted on deduplicated events; a
+                    // normal dispatch carries neither key.
+                    if (te.deduplicated()) {
+                        entry.put("deduplicated", true);
+                        entry.put("original_at_step", te.originalAtStep());
+                    }
+                    // Sprint 069 / S-Auto-13b (A3 deterministic backstop) —
+                    // mirror the deduplicated flatten for the faq_miss-state
+                    // gate so report.html / admin trace can show that a
+                    // same-turn search_knowledge re-search was suppressed
+                    // (served from the prior viable-hit result, tool not
+                    // re-executed) rather than mis-reading it as a fresh
+                    // dispatch. Distinct annotation from the A1 deduplicated
+                    // pair: A1 keys on a byte-identical arguments hash,
+                    // this gate keys on the faq_miss RESULT state — a given
+                    // event carries one annotation or the other, never both.
+                    if (te.paraphraseSuppressed()) {
+                        entry.put("paraphrase_suppressed", true);
+                        entry.put("faq_hit_at_step", te.faqHitAtStep());
+                    }
+                    // Sprint 071 / S-Auto-15 (workstream A) — mirror the
+                    // within-turn paraphrase_suppressed flatten for the NEW,
+                    // SEPARATE BotSession-scoped cross-turn gate so
+                    // report.html / admin trace can show that a cross-turn
+                    // search_knowledge re-search was suppressed (served from
+                    // the standing viable-hit payload captured in a prior
+                    // bot turn, tool not re-executed). Distinct annotation
+                    // from both the A1 deduplicated pair and the within-turn
+                    // paraphrase_suppressed pair: this gate keys on the
+                    // PERSISTED standing-hit UC + drift + a cardinality
+                    // budget across turns. A given event carries at most one
+                    // of the three annotations.
+                    if (te.crossTurnParaphraseSuppressed()) {
+                        entry.put("cross_turn_paraphrase_suppressed", true);
+                        entry.put("cross_turn_hit_at_turn", te.crossTurnHitAtTurn());
+                    }
                     // Sprint 9.1 — sanitize the verbatim tool error
                     // message before it lands on the persisted trace
                     // column so secrets / sensitive PII that the tool
@@ -1991,6 +2421,29 @@ public class ControlKernel {
                         session.getSessionId(), ex.getMessage());
             }
 
+            // Sprint 074 / S-Auto-19 (#2 runtime — trace-contract completion,
+            // not semantic): attach the session's resolved grounding to the
+            // answer turn when this turn retrieved nothing itself. The prompt
+            // directs the bot to search on one turn and then ANSWER from the
+            // accumulated hits on a LATER turn; that later answer turn ran no
+            // search_knowledge, so {@code sourceIds} (built above from THIS
+            // run's tool events only) is empty even though the session is
+            // grounded. {@code articlesShown} is the durable session-wide set
+            // of source ids surfaced on prior turns (it is merged AFTER the
+            // BotTurn build below, so reading it here reflects EARLIER turns).
+            // Carrying it on {@code BotTurn.sourceIds} lets the trace UI and
+            // downstream grounding consumers see the answer turn's grounding
+            // without re-deriving it from prior turns. Guard rails:
+            //   - only when this turn produced a substantive (non-blank) reply
+            //     and is NOT an escalation/handover turn (no grounding claim
+            //     to back on those — they keep null);
+            //   - never overwrite a non-empty per-turn {@code sourceIds};
+            //   - a session with no prior grounding leaves the turn ungrounded
+            //     (so a genuinely never-searched answer still carries none).
+            String[] answerTurnSourceIds = resolveAnswerTurnSourceIds(
+                    sourceIds, session.getArticlesShown(),
+                    persistedBotResponse, phaseAfter);
+
             BotTurn turn = BotTurn.builder()
                     .turnId(UUID.randomUUID().toString())
                     .sessionId(session.getSessionId())
@@ -2000,7 +2453,7 @@ public class ControlKernel {
                     .llmRawResponse(result.lastLlmRawResponse())
                     .botResponse(persistedBotResponse)
                     .toolCalls(toolCallsJson)
-                    .sourceIds(sourceIds)
+                    .sourceIds(answerTurnSourceIds)
                     .phaseBefore(phaseBefore)
                     .phaseAfter(phaseAfter)
                     .activeUseCase(session.getActiveUseCase())
@@ -2008,6 +2461,19 @@ public class ControlKernel {
                     .createdAt(OffsetDateTime.now())
                     .build();
             turnRepository.save(turn);
+
+            // Sprint 51 / M5 S2 — observation-only: after the BotTurn row is
+            // persisted (the FK target), persist one bot_turn_llm_calls row
+            // per LLM invocation accumulated by AgentRunLoopImpl. The
+            // BotTurn's existing llm_raw_response / projected_context columns
+            // are UNCHANGED in semantics (final-step value). The traceWriter
+            // can be null in some unit tests that bypass the @Autowired path;
+            // skip silently in that case.
+            if (traceWriter != null
+                    && result.llmCallRecords() != null
+                    && !result.llmCallRecords().isEmpty()) {
+                traceWriter.recordLlmCalls(turn.getTurnId(), result.llmCallRecords());
+            }
 
             // Sprint 14 §L1 / §L2 — stamp source-evidence lineage and FAQ
             // grounding diagnostics onto the BotSession transient slots
@@ -2135,6 +2601,13 @@ public class ControlKernel {
         java.util.List<ToolEvent> mergedTool = new java.util.ArrayList<>();
         if (discover.toolEvents() != null) mergedTool.addAll(discover.toolEvents());
         if (resolve.toolEvents() != null) mergedTool.addAll(resolve.toolEvents());
+        // Sprint 51 / M5 S2 — merge per-step records too so the admin trace
+        // surfaces every invocation across the DISCOVER + same-turn RESOLVE
+        // replan.
+        java.util.List<com.gumtree.csagent.model.LlmCallRecord> mergedRecords =
+                new java.util.ArrayList<>();
+        if (discover.llmCallRecords() != null) mergedRecords.addAll(discover.llmCallRecords());
+        if (resolve.llmCallRecords() != null) mergedRecords.addAll(resolve.llmCallRecords());
         return new AgentRunResult(
                 resolve.messages(),
                 mergedTool,
@@ -2143,7 +2616,8 @@ public class ControlKernel {
                 resolve.finalUserMessage(),
                 resolve.escalationReason(),
                 resolve.lastProjection(),
-                resolve.lastLlmRawResponse());
+                resolve.lastLlmRawResponse(),
+                mergedRecords);
     }
 
     private void emitEvent(BotSession session, String eventType, int turnIndex, String payload) {

@@ -1,0 +1,428 @@
+# autoloop runtime config — M-Auto-1A S-Auto-1 scope.
+#
+# The mutable_surface block is the structural anchor for the sandbox.
+# It encodes the LOCKED contract from `program.md` §2 and from
+# `docs/solutions/auto_evolution_skill_driven_v1.md` §3.1 (collapsed
+# tightened version).
+#
+# To unlock additional Skill files OR additional fields requires a NEW
+# milestone + a NEW `program.md` v2 + explicit human authorization (per
+# `program.md` §8 Versioning).
+
+mutable_surface:
+  # The four LLM-soft field paths that auto-loop's meta-agent may
+  # propose edits to. Anything else inside a Skill YAML is structurally
+  # rejected by `autoloop/sandbox/yaml_diff_validator.py`.
+  allowed_field_paths:
+    - "$.procedure"
+    - "$.grounding_instruction"
+    - "$.escalation_policy"
+    - "$.critical_steps[*].desc"
+
+  # The six Skill YAML files whose LLM-soft fields auto-loop may target.
+  # File paths are relative to the repo root.
+  allowed_skill_files:
+    - "server/src/main/resources/skills/discover_triage.yaml"
+    - "server/src/main/resources/skills/resolve_faq_grounded_answer.yaml"
+    - "server/src/main/resources/skills/resolve_intake_collect_and_handover.yaml"
+    - "server/src/main/resources/skills/confirm.yaml"
+    - "server/src/main/resources/skills/escalate.yaml"
+    - "server/src/main/resources/skills/terminal.yaml"
+
+paths:
+  # All paths are relative to the repo root unless otherwise noted.
+  # S-Auto-1 does not yet read or write these; S-Auto-3 will populate.
+  experiments_log: "autoloop/results/experiments.jsonl"
+  iterations_index: "autoloop/results/iterations.jsonl"
+  lessons_log: "autoloop/results/lessons.md"
+  runs_dir: "autoloop/results/runs/"
+
+# S-Y1.5 (M-Auto-7, 2026-06-09) — PILOT-TARGET STEERING (P0-C).
+# The active TARGETED pilot's success card. The meta-agent reads this so
+# the proposer/analyzer know which cases are the PRIMARY TARGETS (to move),
+# the anti-误杀 control (must NOT regress), and the tier2 neighbors. Absent
+# block → empty PILOT_PRIMARY_TARGETS (pre-S-Y1.5 general-hill-climber
+# behaviour; backward compatible). The config-load validator
+# (config_validator.validate_pilot_config) REJECTS any case_id here that
+# collides with a shadow case_spec FILENAME (filenames only — never reads
+# contents). These are evaluation bookkeeping labels ONLY; they are NEVER
+# injected into a Skill YAML edit (propose.txt §1.7 labels-only directive +
+# anti-hardcode Q4).
+pilot:
+  schema_version: 1
+  active_sprint: "S-Y2"
+  primary_targets: [cs_uc_a_no_ad_id_ad_specific, cs_uc_a_loaded_listing]
+  anti_kill_control: [cs_uc_a_generic_policy_question]
+  tier2_neighbors: [cs_uc_a_lookup_failed, cs_uc_fp_loaded_moderation]
+  phase_hint: [DISCOVER, RESOLVE]
+  use_case_hint: [UC-A]
+
+lessons:
+  # K — every K iterations the lessons LLM produces a compacted lessons
+  # block per `program.md` and the proposal §3.4 (three-layer memory).
+  # S-Auto-3 reads this; S-Auto-1 only persists the value.
+  compaction_window_k: 10
+  # How many recent iterations to summarize into the proposer prompt.
+  # S-Auto-3 reads this from config.
+  recent_iterations_for_propose: 5
+  # S-Y1.5 (P1) — lessons opt-out. When false, the proposer's LESSONS_MD
+  # block is replaced by a placeholder (NOT empty); the file + compactor
+  # are untouched. Default false for the S-Y2 pilot: the L-001..L-005
+  # lessons were compacted from pre-CS4 all-discard windows (May-31) and
+  # point the proposer at a pre-CS4 escalation cluster, away from the CS4
+  # entity-context gap. Set true to restore historical-lesson injection.
+  enabled: false
+
+meta_agent:
+  # Meta-agent LLM configuration for analyzer / proposer / lessons_compactor.
+  # Provider: AICodeWith (https://api.aicodewith.com) — Anthropic-compatible
+  # protocol per https://docs.aicodewith.com/en/docs/claude-code (the service
+  # exposes Claude / Codex / Gemini through Anthropic-style env vars).
+  #
+  # Credentials live in `autoloop/.env.local` (gitignored). The env-var
+  # NAMES are autoloop-namespaced (NOT the AICodeWith-recommended
+  # ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL) to avoid colliding with
+  # any system-wide Anthropic env vars the human may have set for other
+  # tools (e.g. Claude Code, other Anthropic SDK clients). S-Auto-3 dev
+  # passes them explicitly to the SDK constructor:
+  #   client = anthropic.Anthropic(
+  #       api_key=os.environ["AUTOLOOP_META_LLM_API_KEY"],
+  #       base_url=os.environ.get("AUTOLOOP_META_LLM_BASE_URL"),
+  #   )
+  provider: anthropic                   # SDK: `anthropic` Python package; Anthropic-compatible API
+  model: claude-opus-4-7                # best-reasoning default for meta-agent; downgrade to claude-sonnet-4-6 for cost/latency if needed
+  temperature: 0.3                       # low for reproducibility of propose / analyze
+  max_tokens: 4096
+  api_key_env: AUTOLOOP_META_LLM_API_KEY
+  base_url_env: AUTOLOOP_META_LLM_BASE_URL
+  request_timeout_seconds: 120
+  # S-Y1.5 (P0-B) — how many recent CANDIDATE iterations' persisted
+  # eval-results.json the analyzer reads so the failure taxonomy reflects
+  # candidate-introduced regressions, not only the static baseline. Shadow
+  # detail is firewalled to aggregate-only in the candidate summary.
+  recent_candidate_results_k: 3
+
+fitness:
+  # v1 minimal fitness suite — human-locked 2026-05-27 dataset scope.
+  # anchor (159) is NOT here per docs/milestone_objective.md §2
+  # dataset-scope; M-Auto-2 may revisit. Each suite is invoked via
+  # `eval-interactive run --path <suite> --parallel <N>
+  #  --output-dir <results_root>/<suite>/` by
+  # autoloop/scoring/eval_runner.py. Paths are repo-root-relative.
+  suites:
+    - name: bad_cases
+      path: eval_interactive/case_specs/bad_cases/
+      parallel: 1                    # bad-case session-establishment flakiness mitigation per M5-close R-item
+    - name: anchor_outcome
+      path: eval_interactive/case_specs/anchor_outcome/
+      parallel: 2                    # OQ-S65.8 mitigation: reduced from 4 to lower concurrent LLM load (give-up degradation)
+    - name: shadow
+      path: eval_interactive/case_specs_shadow/
+      parallel: 2                    # OQ-S65.8 mitigation: reduced from 4 to lower concurrent LLM load (give-up degradation)
+
+  # Layer 3 improvement-threshold mode. 'case_count' is the v1 choice
+  # (2026-05-27 human-locked); a 'percent' mode is reserved for
+  # later milestones where N is larger and a 2% threshold becomes
+  # meaningful (12+12=24 cases makes 2% = 0.48 cases, which is not).
+  improvement_threshold_mode: case_count
+  improvement_min_cases: 1
+
+  # Layer 4 shadow gate. 3% drop tolerance is the proposal §3.3 v1
+  # threshold; tightening / loosening is a future-milestone decision.
+  shadow_max_drop_pct: 3.0
+
+  # Layer 1 anchor_outcome strictness. 0 = no programmatic-pass case
+  # may flip down between baseline and current.
+  anchor_outcome_max_drop_cases: 0
+
+  # Explicit baseline pointer (no auto-latest heuristic). Blessed at
+  # S-Auto-7 close (2026-05-29) per docs/sprints/sprint-060-handoff.md
+  # §6: a staging directory at the path below contains per-suite
+  # symlinks to the three eval-interactive runs that constitute the
+  # M-Auto-1B baseline (bad_cases run-id 20260529-101324 / 12 cases /
+  # anchor_outcome run-id 20260529-102054 / 12 cases / shadow run-id
+  # 20260529-102949 / 22 cases — 46 cases total). The shadow count
+  # is 22 (not the previously-assumed 23) because `_manifest.yaml`
+  # at the top level was the 23rd entry and is a manifest, not a
+  # case_spec; loader fix landed in S-Auto-7 skips `_*.yaml` files.
+  # Re-blessing at any future milestone is a deliver-agent + human
+  # decision per `gaming.suspect_baseline_manipulation` notes.
+  #
+  # S-Auto-17 (2026-06-04, M-Auto-4): re-blessed as an AGGREGATED (majority-
+  # over-n=5) artifact so the baseline side is symmetric with the live n=3
+  # candidate (flipping n>1 against a single-draw baseline manufactures
+  # regressions — the asymmetry this sub-sprint removes). Each suite dir holds
+  # `aggregated.json` (per-case majority_passed + pass_rate + stability_class);
+  # baseline_loader prefers it over results.json. Honest-majority shift vs the
+  # retained single-draw baseline: bad_cases 5→5, anchor_outcome 7→4 (3 lucky
+  # single-draw passes are majority-fails), shadow 4→2 (+2 now non_comparable
+  # instead of mis-counted as failures: cs59s01/cs59s02 hard-error on session
+  # create — pre-existing infra, see sprint-073 handoff §3). The OLD single-run
+  # baseline is RETAINED on disk (m-auto-1b-baseline-20260529) and never
+  # overwritten — only this POINTER moves (reversible). git_commit recorded in
+  # each aggregated.json. Expect `gaming.suspect_baseline_manipulation` to
+  # observe this change (intended; recorded in the handoff).
+  # Prior pointers: eval_interactive/results/m-auto-1b-baseline-20260529,
+  #                 eval_interactive/results/m-auto-4-baseline-20260604.
+  # M-Auto-5 close 2026-06-05: pointer moved to the simulator-fixed +
+  # stall-not-gated authoritative re-re-bless. Corrected measurement across
+  # all four columns (eval read / runtime stamp / input simulator / gate
+  # vacuous-pass + runtime stamp downgrade). Codex §4.1 milestone-shared
+  # review APPROVE_WITH_NON_BLOCKING_OBSERVATIONS (blocking_count=0); §5.9
+  # pre-flight sweep PASS (0/414 vacuous-pass + terminal-failure matches);
+  # paired-evidence review 10 F→P / 0 P→F across bad_cases + anchor_outcome
+  # + shadow (anti-误杀 held in both directions). Older baseline dirs
+  # (m-auto-1b-baseline-20260529, m-auto-4-baseline-20260604,
+  # m-auto-5-baseline-20260604, m-auto-5-baseline-20260605,
+  # m-auto-5-baseline-20260604-simfixed,
+  # m-auto-5-baseline-20260604-simfixed-stalledfix) retained on disk as
+  # forensic-only.
+  #
+  # M-Auto-6 close (2026-06-07) — route-(b) accept-with-known-regression
+  # (per docs/milestone_objective.md §5 + docs/action_bank.md §5).
+  # Milestone-shared re-bless ran at git_commit=27b5239, n=9, multi-suite
+  # (bad_cases + anchor_outcome + shadow); anti-误杀 CLEAN (HARD=0 across
+  # 36 anchor attempts + 18 cs38s* attempts; 0/36 self-resolve); five
+  # accepted regressions attributed to pre-existing semantic flakiness
+  # (R5/R6/R2.a exonerated per docs/diagnostics/2026-06-07-m-auto-6-anchor-overpass-diagnostic.md);
+  # A6 anti-误杀 reframed from "0.000 floor" to "safety-of-pass"
+  # (preflight-eval-checks.md §2/§3/§5/§7; scope = uc_g/h/i/j +
+  # cs38s01/cs38s02). Codex milestone-shared §4.3 verdict
+  # APPROVE_M_AUTO_6_WITH_NON_BLOCKING_OBSERVATIONS / blocking_count=0
+  # archived at docs/milestones/M-Auto-6_codex-review.md.
+  # S-Y2 PILOT SETUP (2026-06-08, human-authorized OQ-S87.baseline-dir = (a)):
+  # baseline_dir points at the M-Auto-7 pre-pilot baseline as the pilot's
+  # FITNESS / EXPERIMENT baseline. This is NOT a canonical baseline promotion:
+  # docs/current_eval_baseline.md is UNCHANGED; m-auto-6-baseline-shared-20260607
+  # remains the PREVIOUS CANONICAL baseline; whether to promote the post-pilot
+  # result to canonical is a separate human milestone-close decision (after the
+  # Part D milestone-close re-bless + Codex review). See docs/sprint_objective.md
+  # (S-Y2) §Baseline policy.
+  baseline_dir: eval_interactive/results/m-auto-7-prepilot-baseline-20260608
+
+  # Hard cap per suite (30 min). A timeout aborts the loop iteration
+  # — partial fitness evidence is worse than no fitness evidence.
+  eval_suite_timeout_seconds: 1800
+
+  # Sequential suite execution in v1. M-Auto-2 may parallelize, but
+  # only after evaluating LLM-provider rate-limit + bad-case
+  # session-establishment flakiness interaction.
+  parallel_suites: false
+
+  # S-Auto-16 (M-Auto-4) — k-of-n fitness-measurement reliability.
+  # S-Auto-17 (2026-06-04) FLIPPED LIVE 1→3: now sound because the baseline
+  # was re-blessed as an aggregated majority-over-n=5 artifact FIRST (see
+  # baseline_dir above), so BOTH sides are majority — the candidate path
+  # (tier_evaluator._effective_case_passed) and the baseline path
+  # (baseline_loader._summarize_aggregated / _baseline_case_pass_map read
+  # majority_passed) are symmetric. Each live iteration runs every suite 3×
+  # and collapses per-case pass/fail to a strict majority over provider-
+  # comparable (configured-primary) draws; a single noisy flip no longer
+  # gates. n=5 is NOT pulled forward (near-coinflip cases get ~0 variance
+  # reduction from a larger n — surfaced for eval_spec/semantic triage instead;
+  # OQ-S72.2). Provider comparability anchors on provider_policy.primary_model.
+  samples_per_case: 3
+  aggregation:
+    method: majority
+    # Floor of provider-comparable attempts for a gating verdict. Below
+    # it a case is non_comparable / infra_error and does NOT gate.
+    min_valid_attempts: 3
+    # Extra full passes run when a case is short of min_valid_attempts.
+    attempt_retry_cap: 2
+  provider_policy:
+    # Autoloop fitness eval is primary-provider-only so the majority vote
+    # is over one model population (the product runtime keeps its own
+    # fallback chain — this governs the FITNESS harness only). Fallback
+    # comparability is derived from the eval results.json llm_calls[].model
+    # field. An attempt served by the fallback is dropped (provider_mixed).
+    fitness_provider: primary_only
+    prefer_retry_primary: true
+    on_fallback: drop_attempt_non_comparable
+    record_per_attempt: [actual_provider, actual_model, fallback_count, request_id]
+    # S-Auto-17 (OQ-S72.1): the CONFIGURED primary chat model name. Provider
+    # comparability anchors on THIS string, not the per-run empirical modal
+    # model. A `chat`-callType call whose `model` != this value is a real
+    # fallback (provider_mixed → dropped from the vote), even when the
+    # fallback engaged for the WHOLE run (the bug the modal heuristic missed).
+    # Source of truth: the backend's configured chat model — the exact string
+    # eval-interactive records in `llm_calls[].model` for callType=="chat".
+    # Sourced 2026-06-03 from DEEPSEEK_MODEL in the repo-root .env.local and
+    # cross-checked against the M-Auto-1B baseline results.json (chat model
+    # = `deepseek-v4-flash` across all three suites). Fail-safe: if unset/
+    # empty, eval_runner._run_majority_passes RAISES EvalRunnerConfigError
+    # rather than degrading to "modal == primary".
+    primary_model: deepseek-v4-flash
+
+  # S-Auto-17 (OQ-S72.2): per-case stability classification thresholds for
+  # the baseline re-bless. A cardinality policy over the majority pass_rate
+  # (NOT over case content). `stable` cases are hard anchors; `near-coinflip`
+  # cases (p≈0.5) get ~0 variance reduction from a k-of-n majority and are
+  # surfaced as an eval_spec / semantic-ambiguity signal (NOT force-stabilized
+  # with a larger n). Defaults: stable if pass_rate <= 0.2 or >= 0.8;
+  # near-coinflip if 0.4 <= pass_rate <= 0.6; reducible-flaky otherwise.
+  # Consumed by autoloop/scripts/rebless_baseline.py + aggregate.classify_stability.
+  stability_thresholds:
+    stable_low: 0.2
+    stable_high: 0.8
+    coinflip_low: 0.4
+    coinflip_high: 0.6
+
+  # S-Auto-4 — scoring-code drift baseline. The value here is the
+  # SHA-256 content hash produced by `gaming._compute_scoring_code_sha()`
+  # over the five files (`tier_evaluator.py` + `eval_runner.py` +
+  # `baseline_loader.py` + `gaming.py` + `aggregate.py`). S-Auto-16
+  # widened the set from four to five: `aggregate.py` produces the
+  # majority_passed verdict the fitness gate consumes, so it joins the
+  # drift coverage.
+  #
+  # Original M-Auto-1A close value (2026-05-27 against commit `1feef1f`)
+  # was `5177b674b5ad249d7c0e706f3c827010c8dab511240f239dbd3be6f689a0331c`.
+  # First fill attempt was the literal git commit SHA `"1feef1f"`,
+  # which Codex per-sub-sprint review (`docs/codex-findings.md`
+  # Axis C milestone-shared note 2026-05-27) flagged as a format
+  # mismatch — gaming.py compares against this content hash, not
+  # against a git commit id, so `1feef1f` produced an
+  # observation-only `scoring_code_drift.sha_changed` on every
+  # iteration. Resolved at S-Auto-4 close-bundle fix-up by computing
+  # the actual hash and recording it here.
+  #
+  # S-Auto-7 close (2026-05-29) rebaselined to the value below after
+  # Blocker B fix path (b) modified `eval_runner.py` (fence #13
+  # controlled override; the other three scoring files remain
+  # byte-identical to their M-Auto-1A close form). Reproducibility:
+  # `uv run --extra dev python -c "from autoloop.scoring.gaming \
+  # import _compute_scoring_code_sha; print(_compute_scoring_code_sha())"`
+  # at S-Auto-7 HEAD must reproduce the value below. See
+  # `docs/sprints/sprint-060-handoff.md` §5.
+  #
+  # Subsequent commits touching any of these five files will
+  # trigger `gaming.scoring_code_drift.sha_changed` ERROR (intended
+  # behaviour). If reset to null, the check emits WARN
+  # `rule_id=scoring_code_drift.baseline_missing` (D3: never guess;
+  # never silently hash-as-baseline).
+  # S-Auto-10 (2026-05-31, OQ-S65.5): rebaselined after a human-authorized
+  # fence-#13 controlled override to eval_runner.run_suite — it now resolves the
+  # repo-root-relative suite path to an absolute path before passing --path to
+  # eval-interactive (cwd=eval_interactive previously doubled the path segment,
+  # so every candidate eval crashed with FileNotFoundError and was silently
+  # scored as 0 cases passed -> spurious tier1 5->0 on every iteration). Prior
+  # value (S-Auto-7 close): 22548e20ea50518b35c78cebddde891ddb46ea0452e32e49518ad4caab9188a9.
+  # S-Auto-10 (2026-05-31, OQ-S65.6): rebaselined again after a 2nd human-authorized
+  # fence-#13 override to tier_evaluator._evaluate_layer0 — Layer 0 is now a DELTA
+  # vs baseline (fails only on NEWLY-introduced Tier-0 violations; pre-existing
+  # baseline bad-case failures are ignored) instead of an absolute floor that made
+  # `keep` unsatisfiable. Prior value (OQ-S65.5): 7b9954f212afe61946631afd1737f23f7b94f659095ab6b1769a0c86aa29a6e9.
+  # S-Auto-16 (2026-06-03, M-Auto-4): rebaselined after the k-of-n fitness-
+  # measurement machinery landed — `aggregate.py` (NEW) joined the hash set
+  # (four -> five files), and `eval_runner.py` (n-loop + per-attempt
+  # aggregation), `tier_evaluator.py` (majority signal + L0 stable-
+  # reproduction), and `gaming.py` (widened set) were edited. All edits are
+  # n=1-inert (committed samples_per_case=1 is byte-identical to today).
+  # Pre-S-Auto-16 value (OQ-S65.6): 35305bd84402ac455b126be5bcf8b2cb3b3fa55e3399f2c02443ea74bd8704e8.
+  # S-Auto-16 §0 fix (same sub-sprint): the per-attempt provider-comparability
+  # detection was scoped to the agent `chat` callType (rerank/embedding use a
+  # different model BY DESIGN — they are not fallbacks). This corrected a
+  # mis-detection that flagged ~93% of attempts as provider_mixed and edited
+  # eval_runner.py again. Superseded intra-sprint value:
+  # d62537d23f9707231aa8599a1c1853e9b2d1c58686afe3198fdf489e48bd2cbd.
+  # S-Auto-17 (2026-06-03, M-Auto-4): rebaselined after the configured-primary
+  # detector fix (OQ-S72.1) edited `eval_runner.py` (anchor on
+  # provider_policy.primary_model + EvalRunnerConfigError fail-safe; removed
+  # `_modal_model`), `aggregate.py` gained `classify_stability` (per-case
+  # stability cardinality policy), `baseline_loader.py` gained the aggregated
+  # (re-blessed) artifact loader (majority + stability_class), and
+  # `tier_evaluator.py` `_baseline_case_pass_map` now reads `majority_passed`
+  # for baseline-majority symmetry. `gaming.py` is byte-identical. Recompute:
+  # `uv run --extra dev python -c "from autoloop.scoring.gaming import \
+  # _compute_scoring_code_sha; print(_compute_scoring_code_sha())"` at
+  # S-Auto-17 HEAD must reproduce the value below. Pre-S-Auto-17 value:
+  # bb3ced3d37b9d39dd527a0f5be4dcbb0bfea41370ecfccb0b0d317b5c6a26e8d.
+  scoring_code_baseline_sha: "0d86b08fc0309196d9fc49f4924fe446b36d6c04301c4bcb406ca12337dd149e"
+
+content_validator:
+  # S-Auto-4 — structural integrity checker that runs BEFORE the
+  # YAML-diff sandbox. Fails on zero-length / overflow / underflow /
+  # corrupted placeholder tokens / forbidden deny-list tokens.
+
+  # Custom placeholder token shapes BEYOND the default 3 generic shapes
+  # (curly `{TOKEN}`, dollar `${TOKEN}`, angle `<TOKEN>`). D3: ships
+  # empty by default; Salesforce-specific or locale-specific shapes
+  # require explicit human curation here.
+  custom_token_shapes: []
+
+  # Forbidden-token deny-list — strings that should never appear in a
+  # propose `after_value`. Seeded small; deliver-agent + human curate
+  # at S-Auto-4 close. Adding entries is a separate sprint decision.
+  deny_list:
+    - "<<SYSTEM>>"
+    - "<<USER>>"
+
+  # Length sanity bounds. `length_overflow_ratio` rejects `after_value`
+  # > max(5x `before_value`, `length_overflow_absolute_ceiling`).
+  # Adjusted per S-Auto-7.2 (OQ-S62.1): short policy fields (~150-200
+  # chars) gaining coherent structural detail were rejected at ratio
+  # 5.07x / 5.80x. The absolute_ceiling gives short fields room to
+  # grow without weakening the bound on longer fields, where the
+  # relative ratio still dominates.
+  # S-Auto-8 (2026-05-30): bumped ceiling 1000 → 1200 after exp-13
+  # smoke iter rejected `escalate.yaml $.procedure` 143 → 1089 chars
+  # (7.61x ratio, ceiling overflow at 1000). The expansion was
+  # coherent structural detail, not rambling. New 1200 cap retains
+  # the ~7-8x guard for short fields while admitting M-Auto-1B Goal
+  # #3 (tier_evaluator end-to-end exercise) on short-procedure
+  # propose distributions.
+  # `length_underflow_ratio` rejects `after_value` < 0.1x
+  # `before_value` IFF `before_value` >= `length_underflow_min_before`.
+  length_overflow_ratio: 5.0
+  length_overflow_absolute_ceiling: 1200
+  length_underflow_ratio: 0.1
+  length_underflow_min_before: 50
+
+anti_hardcode:
+  # S-Auto-4 — real anti-hardcode detector. Replaces the S-Auto-3
+  # placeholder always-PASS hook. Deterministic regex + heuristic
+  # (NO LLM, NO new heavy dep). PASS / FAIL / FLAG_FOR_CODEX verdicts.
+  enabled: true
+
+  # Synonym-map normalization (e.g. "equals" → "=", "->" → "→"). Off
+  # by default; deliver-agent enables after calibration evidence shows
+  # it adds detection coverage without spiking false-positive rate.
+  #
+  # Fix-C step 2 (S-Auto-5, 2026-05-28): Path A — flipped false → true
+  # after batch calibration. Evidence: 3 real-meta-agent propose samples
+  # (exp-2/3/4) all PASS under synonym_map_enabled=true (0 FP on clean
+  # prose); 17-fixture calibration suite preserves 11 FAIL + 4 PASS + 2
+  # FLAG outcome; Codex Axis B exact bypass `Whenever ... =>` now FAILs
+  # via Q1.if_then_decision_tree after the new word-boundary regex
+  # normalization in anti_hardcode_check._normalize(). See
+  # docs/sprints/sprint-058-handoff.md §5 for per-sample evidence +
+  # OQ-S58.x for the <10 real-sample-count gap (augmented via existing
+  # 17-fixture suite = 20 calibration data points).
+  synonym_map_enabled: true
+
+  # Operational warning threshold on `FLAG_FOR_CODEX` rate over the
+  # calibration table. Above this, detector is too noisy and needs
+  # re-calibration before broader use.
+  flag_for_codex_rate_warn_threshold: 0.25
+
+gaming:
+  # S-Auto-4 — seven post-eval anti-gaming checks. All
+  # OBSERVATION-ONLY in v1: flags surface via `experiments_log` +
+  # `autoloop audit` but do NOT alter the loop's keep/discard verdict.
+  # M-Auto-1B may promote ERROR-severity checks to gating after
+  # calibration.
+  enabled: true
+  observation_only_in_v1: true
+
+  # Shadow-leak signatures. CONFIG-DRIVEN ONLY (D3). The detector must
+  # NEVER read `eval_interactive/case_specs_shadow/` content. Adding
+  # signatures here is an out-of-band human-approved action.
+  shadow_leak_signatures:
+    - "cs59s"
+    - "shadow_case_id"
+    - "shadow/"
+    - "case_specs_shadow"
+
+  # Threshold for `anomalous_metric_movement`: improvement_count /
+  # diff_chars ratio above which the WARN flag fires.
+  anomalous_metric_movement_threshold: 0.05

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -133,8 +134,8 @@ def main() -> int:
     parser.add_argument(
         "--llm-model",
         type=str,
-        default="deepseek-v4-pro",
-        help="DeepSeek model name (default deepseek-v4-pro).",
+        default=os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+        help="LLM model name (from DEEPSEEK_MODEL env var).",
     )
     parser.add_argument(
         "--llm-cache-dir",

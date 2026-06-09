@@ -156,6 +156,74 @@ class ResolveArticleToolTest {
                 "search_knowledge.hits[*].source_id must be directly callable as resolve_article(source_id=...)");
     }
 
+    // ---------- R5 #1: display_citation ----------
+
+    @Test
+    void execute_displayCitation_isSourceUrl_whenSourceUrlPresent() {
+        when(kbArticleRepository.findById(FAQ_ID)).thenReturn(Optional.of(buildArticle()));
+
+        ToolResult result = tool.execute(buildSession(), Map.of("source_id", FAQ_ID));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals("https://help.example/faq/where-is-my-ad", data.get("display_citation"),
+                "display_citation must be the source_url when it is present and non-blank");
+    }
+
+    @Test
+    void execute_displayCitation_fallsBackToArticleId_whenSourceUrlNull() {
+        KbArticle article = KbArticle.builder()
+                .articleId(FAQ_ID)
+                .title("Where is my advert?")
+                .description("Ads can be hidden during moderation review.")
+                .sourceUrl(null)
+                .isPublished(true)
+                .build();
+        when(kbArticleRepository.findById(FAQ_ID)).thenReturn(Optional.of(article));
+
+        ToolResult result = tool.execute(buildSession(), Map.of("source_id", FAQ_ID));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals(FAQ_ID, data.get("display_citation"),
+                "display_citation must fall back to article_id when source_url is null");
+    }
+
+    @Test
+    void execute_displayCitation_fallsBackToArticleId_whenSourceUrlBlank() {
+        KbArticle article = KbArticle.builder()
+                .articleId(FAQ_ID)
+                .title("Where is my advert?")
+                .description("Ads can be hidden during moderation review.")
+                .sourceUrl("   ")
+                .isPublished(true)
+                .build();
+        when(kbArticleRepository.findById(FAQ_ID)).thenReturn(Optional.of(article));
+
+        ToolResult result = tool.execute(buildSession(), Map.of("source_id", FAQ_ID));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals(FAQ_ID, data.get("display_citation"),
+                "display_citation must fall back to article_id when source_url is blank");
+    }
+
+    @Test
+    void execute_displayCitation_isAdditive_existingFieldsPreserved() {
+        when(kbArticleRepository.findById(FAQ_ID)).thenReturn(Optional.of(buildArticle()));
+
+        ToolResult result = tool.execute(buildSession(), Map.of("source_id", FAQ_ID));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        // Negative A — existing article_id field still populated as-was.
+        assertEquals(FAQ_ID, data.get("article_id"),
+                "display_citation is additive: article_id must remain unchanged");
+        // Negative B — existing source_url field still populated as-was.
+        assertEquals("https://help.example/faq/where-is-my-ad", data.get("source_url"),
+                "display_citation is additive: source_url must remain unchanged");
+    }
+
     @Test
     void execute_unknownSourceId_returnsArticleNotFoundError() {
         when(kbArticleRepository.findById("missing")).thenReturn(Optional.empty());
@@ -164,6 +232,75 @@ class ResolveArticleToolTest {
 
         assertFalse(result.isSuccess());
         assertTrue(result.getErrorMessage().contains("Article not found"));
+    }
+
+    // ---------- R6 (Sub-sprint C-2b): direct-resolve invariant ----------
+
+    @Test
+    void execute_searchIneligibleArticle_stillResolvesByDirectId() {
+        // anti-误杀 #1 — the R6 search-surface filter (KnowledgeSearchService)
+        // hides search_knowledge_eligible=false articles from the LLM-facing
+        // search surface ONLY. resolve_article resolves directly by id via the
+        // repository (it never goes through KnowledgeSearchService), so a
+        // human-CS agent (or the LLM following a known article_id) must still
+        // be able to fetch a (temp) CS-only template. The eligibility flag is
+        // NOT a published-safety refusal: the article is published, so it
+        // resolves successfully.
+        KbArticle csTemplate = KbArticle.builder()
+                .articleId("ka41r000000LIEJAA4")
+                .title("(temp) Ad removed - By CS (general)")
+                .description("Sorry to hear your ad's not live! ... XXXXXXXXX ...")
+                .sourceUrl(null)
+                .ucTags(new String[]{"UC-B"})
+                .isPublished(true)
+                .searchKnowledgeEligible(false)
+                .build();
+        when(kbArticleRepository.findById("ka41r000000LIEJAA4"))
+                .thenReturn(Optional.of(csTemplate));
+
+        ToolResult result = tool.execute(buildSession(),
+                Map.of("source_id", "ka41r000000LIEJAA4"));
+
+        assertTrue(result.isSuccess(),
+                "a search_knowledge_eligible=false (but published) article must still "
+                        + "resolve via resolve_article — the R6 filter is at the search surface only");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals("ka41r000000LIEJAA4", data.get("source_id"));
+        assertEquals("(temp) Ad removed - By CS (general)", data.get("title"));
+        assertEquals(Boolean.TRUE, data.get("safe_to_show"),
+                "published + non-blank body → safe_to_show true; eligibility does not gate direct resolve");
+    }
+
+    @Test
+    void execute_searchIneligibleArticle_stillResolvesByDirectId_secondTemplate() {
+        // Same anti-误杀 #1 invariant as above, pinned for the second flagged
+        // article so both eligibility=false rows in the corpus are covered by
+        // the direct-resolve characterization.
+        KbArticle csTemplate = KbArticle.builder()
+                .articleId("ka41r000000LIEEAA4")
+                .title("(temp) NTD Ad Removed Information")
+                .description("The 'Rights' owner of the item you're advertising ...")
+                .sourceUrl(null)
+                .ucTags(new String[]{"UC-B"})
+                .isPublished(true)
+                .searchKnowledgeEligible(false)
+                .build();
+        when(kbArticleRepository.findById("ka41r000000LIEEAA4"))
+                .thenReturn(Optional.of(csTemplate));
+
+        ToolResult result = tool.execute(buildSession(),
+                Map.of("source_id", "ka41r000000LIEEAA4"));
+
+        assertTrue(result.isSuccess(),
+                "a search_knowledge_eligible=false (but published) article must still "
+                        + "resolve via resolve_article — the R6 filter is at the search surface only");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals("ka41r000000LIEEAA4", data.get("source_id"));
+        assertEquals("(temp) NTD Ad Removed Information", data.get("title"));
+        assertEquals(Boolean.TRUE, data.get("safe_to_show"),
+                "published + non-blank body → safe_to_show true; eligibility does not gate direct resolve");
     }
 
     private static BotSession buildSession() {

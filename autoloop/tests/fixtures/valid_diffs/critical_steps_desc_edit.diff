@@ -1,0 +1,44 @@
+file_path: server/src/main/resources/skills/confirm.yaml
+expected_decision: ACCEPT
+expected_reason_substring: whitelisted
+expected_changed_path_match: "$.critical_steps[0].desc"
+before: |
+  name: confirm
+  applicable_use_cases: ["*"]
+  tools_required: [record_outcome]
+  procedure: "interpret satisfaction"
+  grounding_instruction: "sentiment over words"
+  escalation_policy: "escalate on dissatisfaction"
+  guardrails: []
+  state_inheritance: {inherit: [], reset: [], soft_signal_via_projection: []}
+  critical_steps:
+    - id: outcome-on-confirm
+      desc: "call record_outcome when satisfied"
+      trace_check: "result.record_outcome"
+      mandatory_for: [UC-A]
+      severity: mandatory
+    - id: honour-dissatisfaction
+      desc: "do not record RESOLVED if user is unhappy"
+      trace_check: "any_of(result.record_outcome, result.request_handover)"
+      mandatory_for: [UC-A]
+      severity: advisory
+after: |
+  name: confirm
+  applicable_use_cases: ["*"]
+  tools_required: [record_outcome]
+  procedure: "interpret satisfaction"
+  grounding_instruction: "sentiment over words"
+  escalation_policy: "escalate on dissatisfaction"
+  guardrails: []
+  state_inheritance: {inherit: [], reset: [], soft_signal_via_projection: []}
+  critical_steps:
+    - id: outcome-on-confirm
+      desc: "call record_outcome promptly once the user confirms satisfaction"
+      trace_check: "result.record_outcome"
+      mandatory_for: [UC-A]
+      severity: mandatory
+    - id: honour-dissatisfaction
+      desc: "do not record RESOLVED if user is unhappy"
+      trace_check: "any_of(result.record_outcome, result.request_handover)"
+      mandatory_for: [UC-A]
+      severity: advisory

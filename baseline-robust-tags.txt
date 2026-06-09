@@ -1,0 +1,6 @@
+pass2 bad_cases 20260601-005918
+pass2 anchor_outcome 20260601-010118
+pass2 case_specs_shadow 20260601-010404
+pass3 bad_cases 20260601-011048
+pass3 anchor_outcome 20260601-011348
+pass3 case_specs_shadow 20260601-011539

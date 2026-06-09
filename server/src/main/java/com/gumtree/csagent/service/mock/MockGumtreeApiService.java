@@ -66,8 +66,8 @@ public class MockGumtreeApiService implements GumtreeApiService {
                 return account;
             }
         }
-        log.debug("No account match for email={}, returning default active_user", email);
-        return accounts.getOrDefault("active_user", Map.of());
+        log.info("No account found for email={}", email);
+        return Map.of();
     }
 
     public Map<String, Object> getListingByAdId(String adId) {
@@ -76,8 +76,8 @@ public class MockGumtreeApiService implements GumtreeApiService {
                 return listing;
             }
         }
-        log.debug("No listing match for adId={}, returning default live_ad", adId);
-        return listings.getOrDefault("live_ad", Map.of());
+        log.info("No listing found for adId={}", adId);
+        return Map.of();
     }
 
     public Map<String, Object> getModerationReview(String adId) {
@@ -86,8 +86,8 @@ public class MockGumtreeApiService implements GumtreeApiService {
                 return review;
             }
         }
-        log.debug("No moderation review for adId={}, returning first available", adId);
-        return moderationReviews.values().stream().findFirst().orElse(Map.of());
+        log.info("No moderation review found for adId={}", adId);
+        return Map.of();
     }
 
     public Map<String, Object> getMessageModerationHistory(String conversationId) {
@@ -96,8 +96,8 @@ public class MockGumtreeApiService implements GumtreeApiService {
                 return moderation;
             }
         }
-        log.debug("No message moderation for conversationId={}, returning default clean", conversationId);
-        return messageModeration.getOrDefault("clean", Map.of());
+        log.info("No message moderation found for conversationId={}", conversationId);
+        return Map.of();
     }
 
     /**

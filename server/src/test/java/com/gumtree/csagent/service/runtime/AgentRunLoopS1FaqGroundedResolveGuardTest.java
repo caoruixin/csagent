@@ -7,6 +7,10 @@ import com.gumtree.csagent.model.ParsedAction;
 import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.model.TerminalOutcome;
 import com.gumtree.csagent.model.ToolCall;
+import com.gumtree.csagent.service.runtime.skill.DispatchContext;
+import com.gumtree.csagent.service.runtime.skill.RejectVerdict;
+import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.ToolDispatcher;
 import com.gumtree.csagent.service.tools.ToolResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,11 +68,19 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
     @Mock private ActionParser actionParser;
 
     private AgentRunLoopImpl loop;
+    private SkillGuardrailDispatcher dispatcher;
 
     @BeforeEach
     void setUp() {
+        // Sprint 39 — wire the production SkillGuardrailDispatcher so the
+        // faq_miss_handover_requires_resolve_attempt Skill guardrail (declared
+        // on resolve_faq_grounded_answer.yaml per Sprint 37 freeze §8.2.1)
+        // fires at the integration dispatch site exactly as the legacy
+        // Sprint 6 §G2 shouldRejectFaqMissHandover static predicate did.
+        dispatcher = SkillTestFixtures.productionDispatcher();
         loop = new AgentRunLoopImpl(llmInvocation, toolDispatcher,
-                contextProjectionBuilder, actionParser, new com.fasterxml.jackson.databind.ObjectMapper());
+                contextProjectionBuilder, actionParser,
+                new com.fasterxml.jackson.databind.ObjectMapper(), dispatcher);
     }
 
     private PhasePlan faqPlan(String uc) {
@@ -127,7 +140,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         Map<String, Object> acc = new LinkedHashMap<>();
         acc.put("search_knowledge", viableSearchHits());
 
-        assertTrue(AgentRunLoopImpl.shouldRejectFaqMissHandover(plan, handover, acc),
+        assertTrue(dispatcherRejectsFaqMiss(plan, handover, acc),
                 "cs_259 shape (search hits, no resolve_article yet) must trigger the S1 guard");
     }
 
@@ -142,7 +155,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         acc.put("search_knowledge", viableSearchHits());
         acc.put("resolve_article", Map.of("article", "x", "source_id", "kb-001"));
 
-        assertFalse(AgentRunLoopImpl.shouldRejectFaqMissHandover(plan, handover, acc),
+        assertFalse(dispatcherRejectsFaqMiss(plan, handover, acc),
                 "Once resolve_article has been attempted, faq_miss handover is allowed");
     }
 
@@ -156,7 +169,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         Map<String, Object> acc = new LinkedHashMap<>();
         // No search_knowledge in accumulated_tool_results.
 
-        assertFalse(AgentRunLoopImpl.shouldRejectFaqMissHandover(plan, handover, acc),
+        assertFalse(dispatcherRejectsFaqMiss(plan, handover, acc),
                 "cs_192 shape (search not yet run) is owned by the prompt nudge; "
                         + "the S1 guard must not fire and pre-empt a legitimate "
                         + "no-search escalation path");
@@ -172,7 +185,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         Map<String, Object> acc = new LinkedHashMap<>();
         acc.put("search_knowledge", emptySearch());
 
-        assertFalse(AgentRunLoopImpl.shouldRejectFaqMissHandover(plan, handover, acc),
+        assertFalse(dispatcherRejectsFaqMiss(plan, handover, acc),
                 "When search_knowledge returns no viable hit, faq_miss_threshold_exceeded is allowed");
     }
 
@@ -186,7 +199,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         Map<String, Object> acc = new LinkedHashMap<>();
         acc.put("search_knowledge", viableSearchHits());
 
-        assertFalse(AgentRunLoopImpl.shouldRejectFaqMissHandover(plan, handover, acc),
+        assertFalse(dispatcherRejectsFaqMiss(plan, handover, acc),
                 "user_requested handover must always pass through — Sprint 6 §G1 priority 1");
     }
 
@@ -200,7 +213,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         Map<String, Object> acc = new LinkedHashMap<>();
         acc.put("search_knowledge", viableSearchHits());
 
-        assertFalse(AgentRunLoopImpl.shouldRejectFaqMissHandover(plan, handover, acc),
+        assertFalse(dispatcherRejectsFaqMiss(plan, handover, acc),
                 "user_distress handover must always pass through");
     }
 
@@ -221,7 +234,7 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         Map<String, Object> acc = new LinkedHashMap<>();
         acc.put("search_knowledge", viableSearchHits());
 
-        assertFalse(AgentRunLoopImpl.shouldRejectFaqMissHandover(plan, handover, acc),
+        assertFalse(dispatcherRejectsFaqMiss(plan, handover, acc),
                 "INTAKE-path UCs (UC-G/H/I/J/K) must not be affected by the S1 guard");
     }
 
@@ -241,8 +254,29 @@ class AgentRunLoopS1FaqGroundedResolveGuardTest {
         Map<String, Object> acc = new LinkedHashMap<>();
         acc.put("search_knowledge", viableSearchHits());
 
-        assertFalse(AgentRunLoopImpl.shouldRejectFaqMissHandover(
-                discoverPlan, handover, acc));
+        assertFalse(dispatcherRejectsFaqMiss(discoverPlan, handover, acc));
+    }
+
+    /**
+     * Sprint 39 — invoke the unified SkillGuardrailDispatcher per the
+     * Sprint 37 freeze §8.2.1 migration of Sprint 6 §G2
+     * shouldRejectFaqMissHandover. Returns true iff the dispatcher returns a
+     * non-empty verdict carrying the canonical S1 reject-reason label.
+     */
+    private boolean dispatcherRejectsFaqMiss(PhasePlan plan,
+                                              ToolCall handover,
+                                              Map<String, Object> accumulated) {
+        DispatchContext ctx = new DispatchContext(
+                plan, null, accumulated, null, Optional.empty());
+        Optional<RejectVerdict> verdict =
+                dispatcher.checkBeforeDispatch(plan, handover, ctx);
+        if (verdict.isEmpty()) return false;
+        org.junit.jupiter.api.Assertions.assertEquals(
+                SkillGuardrailDispatcher.FAQ_MISS_REJECT_REASON,
+                verdict.get().predicateName(),
+                "faq_miss_handover_requires_resolve_attempt guardrail must use the "
+                        + "Sprint 6 §G2 canonical reject-reason label");
+        return true;
     }
 
     // ---------- Integration tests (full loop) ----------

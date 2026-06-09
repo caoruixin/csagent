@@ -19,7 +19,7 @@ from .schema import (
 )
 
 
-def _parse_case_spec(raw: dict) -> CaseSpec:
+def _parse_case_spec(raw: dict, source_suite: str | None = None) -> CaseSpec:
     """Parse a raw dict (from YAML) into a CaseSpec dataclass."""
     fc_raw = raw["form_context"]
     form_context = FormContext(
@@ -57,9 +57,11 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
     )
 
     e_raw = raw["expected"]
-    # Wave A3: ``allow_bot_resolution`` and ``bot_handling_pattern`` are
-    # required fields on the new schema; legacy yaml will not have them, so
-    # fall back to safe defaults. ``escalation_trigger`` is now an enum that
+    # Wave A3: ``allow_bot_resolution`` is a required schema field; legacy
+    # yaml may not have it, so we fall back to a safe default.
+    # S-Eval-1 (M3-Eval): ``bot_handling_pattern`` demoted to optional; pass
+    # through whatever the YAML supplies (None when omitted) instead of
+    # injecting a placeholder string. ``escalation_trigger`` is an enum that
     # rejects empty strings -- normalise empty/missing to None.
     raw_trigger = e_raw.get("escalation_trigger", None)
     if isinstance(raw_trigger, str) and not raw_trigger.strip():
@@ -70,7 +72,7 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
         secondary_ucs=e_raw.get("secondary_ucs", []),
         should_escalate=e_raw["should_escalate"],
         allow_bot_resolution=e_raw.get("allow_bot_resolution", "false"),
-        bot_handling_pattern=e_raw.get("bot_handling_pattern", "(legacy spec - bot_handling_pattern not specified)"),
+        bot_handling_pattern=e_raw.get("bot_handling_pattern"),
         escalation_trigger=raw_trigger,
         risk_level=e_raw.get("risk_level", "low"),
         expected_tool_sequence=e_raw.get("expected_tool_sequence", []),
@@ -96,14 +98,24 @@ def _parse_case_spec(raw: dict) -> CaseSpec:
         persona=persona,
         expected=expected,
         scoring=scoring,
+        closure_criterion=raw.get("closure_criterion"),
+        source_suite=source_suite,
     )
 
 
-def load_case_spec(path: str | Path) -> CaseSpec:
+def load_case_spec(
+    path: str | Path, source_suite: str | None = None
+) -> CaseSpec:
     """Load a single CaseSpec from a YAML file.
 
     Args:
         path: Path to a .yaml or .yml file.
+        source_suite: Optional suite name override. When ``None``,
+            inferred from the parent directory's name so a fixture at
+            ``case_specs/bad_cases/foo.yaml`` carries
+            ``source_suite="bad_cases"``. Used downstream by the
+            executor to mark per-case ``case_passed_authority`` per
+            ``iteration_governance.md`` §5.6.
 
     Returns:
         Parsed CaseSpec instance.
@@ -119,14 +131,30 @@ def load_case_spec(path: str | Path) -> CaseSpec:
     with open(path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
-    return _parse_case_spec(raw)
+    if source_suite is None:
+        source_suite = path.parent.name or None
+
+    return _parse_case_spec(raw, source_suite=source_suite)
 
 
-def load_case_specs(directory: str | Path) -> list[CaseSpec]:
+def load_case_specs(
+    directory: str | Path, source_suite: str | None = None
+) -> list[CaseSpec]:
     """Load all CaseSpec YAML files from a directory.
+
+    Walks the directory recursively so nested layouts like
+    ``case_specs_shadow/case_families/<family>/*.yaml`` are supported
+    alongside flat layouts like ``case_specs/bad_cases/*.yaml``.
+    Files whose basename starts with ``_`` (the manifest / metadata
+    convention used by ``_manifest.yaml`` and similar) are skipped —
+    they are not case specs and do not satisfy the CaseSpec schema.
 
     Args:
         directory: Path to a directory containing .yaml/.yml files.
+        source_suite: Optional suite name override. When ``None``,
+            uses ``directory.name`` so every CaseSpec loaded from
+            ``case_specs/bad_cases/`` carries
+            ``source_suite="bad_cases"``.
 
     Returns:
         List of parsed CaseSpec instances, sorted by case_id.
@@ -140,11 +168,21 @@ def load_case_specs(directory: str | Path) -> list[CaseSpec]:
     if not directory.is_dir():
         raise NotADirectoryError(f"Expected a directory: {directory}")
 
+    if source_suite is None:
+        source_suite = directory.name or None
+
+    def _is_case_spec(p: Path) -> bool:
+        return not p.name.startswith("_")
+
     specs: list[CaseSpec] = []
-    for yaml_file in sorted(directory.glob("*.yaml")):
-        specs.append(load_case_spec(yaml_file))
-    for yml_file in sorted(directory.glob("*.yml")):
-        specs.append(load_case_spec(yml_file))
+    for yaml_file in sorted(directory.rglob("*.yaml")):
+        if not _is_case_spec(yaml_file):
+            continue
+        specs.append(load_case_spec(yaml_file, source_suite=source_suite))
+    for yml_file in sorted(directory.rglob("*.yml")):
+        if not _is_case_spec(yml_file):
+            continue
+        specs.append(load_case_spec(yml_file, source_suite=source_suite))
 
     specs.sort(key=lambda s: s.case_id)
     return specs

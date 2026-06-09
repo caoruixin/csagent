@@ -15,17 +15,18 @@ spring:
 llm:
   kimi:
     api-key: ${KIMI_API_KEY:}
-    base-url: ${KIMI_BASE_URL:https://api.moonshot.ai/v1}
-    model: ${KIMI_MODEL:kimi-k2.6}
+    base-url: ${KIMI_BASE_URL:}
+    model: ${KIMI_MODEL:}
+    thinking-enabled: ${KIMI_THINKING_ENABLED:false}
   deepseek:
     api-key: ${DEEPSEEK_API_KEY:}
-    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}
-    model: ${DEEPSEEK_MODEL:deepseek-v4-pro}
+    base-url: ${DEEPSEEK_BASE_URL:}
+    model: ${DEEPSEEK_MODEL:}
+    thinking-enabled: ${DEEPSEEK_THINKING_ENABLED:false}
   dashscope:
     api-key: ${DASHSCOPE_API_KEY:}
-    base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
-    chat-model: ${DASHSCOPE_CHAT_MODEL:qwen-plus}
-    embedding-model: ${DASHSCOPE_EMBEDDING_MODEL:text-embedding-v3}
+    base-url: ${DASHSCOPE_BASE_URL:}
+    embedding-model: ${DASHSCOPE_EMBEDDING_MODEL:}
     embedding-dimension: ${DASHSCOPE_EMBEDDING_DIMENSION:768}
 
 mock:

@@ -1,0 +1,42 @@
+case_id: anchor_outcome_uc_h_appeal
+source_session_id: synthetic-sprint29-d564-7-01
+source_dataset: anchor_outcome_uc_h_appeal_reuse
+closure_criterion: |
+  The user's ad was removed and they want to appeal the removal (UC-H
+  intake-then-escalate). The bot is judged closed when it (a)
+  acknowledges the appeal stance, (b) recognises that the form_context
+  already supplies ad_id + registered email and that the user message
+  supplies stated_reason_or_context (so intake completes in 1-2 bot
+  turns), and (c) escalates with a useful handover that names the
+  appeal. Closure FAILS if the bot adjudicates the appeal itself,
+  asks for ad_id when it is already in form_context, or loops asking
+  for intake fields already collected.
+form_context:
+  first_name: Helena
+  email: customer@example.com
+  topic_subject: Ad Support
+  ad_id: AD-29447
+  description: My ad was removed but I did not break any rules and I would like to appeal the removal.
+persona:
+  user_goal_summary: |
+    User's ad was removed and the user is appealing the removal. The
+    user's first message clearly states the appeal stance and references
+    the ad id; the registered email is in the form. The user wants the
+    appeal escalated to the moderation team, not adjudicated by the bot.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "My ad AD-29447 was removed and I think it was a mistake - it was a legitimate listing. I'd like to appeal the removal please."
+  hidden_facts: []
+  will_request_human_if: bot adjudicates the appeal instead of escalating
+expected:
+  outcome_class: escalate
+  primary_uc: UC-H
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'false'
+scoring:
+  hard_checks: []
+  outcome_checks: []
+  llm_judge_dimensions: []

@@ -37,8 +37,13 @@ public class ChatController {
      * Frontend axios is bumped in lockstep to 60 s so the user-facing
      * "Sorry, I'm a bit slow right now" rendering stays a graceful give-up,
      * not a network error.
+     *
+     * <p>2026-06-01 (OQ-S65.8): raised 30 s → 60 s. Under the autoloop's
+     * sustained concurrent eval load the deepseek-v4-flash bot routinely
+     * exceeded 30 s and gave up, coercing escalations to service_degraded
+     * and polluting fitness verdicts as spurious tier0 regressions.
      */
-    private static final long USER_FACING_LLM_DEADLINE_MS = 30_000L;
+    private static final long USER_FACING_LLM_DEADLINE_MS = 60_000L;
 
     private final SessionManager sessionManager;
 

@@ -48,7 +48,8 @@ class Sprint81PhaseEvaluatorUseCaseIdentifiedTest {
         evaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
-                new ObjectMapper(), createCaseTool, eventEmitter, toolDispatcher);
+                new ObjectMapper(), createCaseTool, eventEmitter, toolDispatcher,
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
     }
 
     private PhasePlan discoverPlan() {

@@ -1,0 +1,44 @@
+file_path: server/src/main/resources/skills/discover_triage.yaml
+expected_decision: ACCEPT
+expected_reason_substring: whitelisted
+expected_changed_path_match: "$.procedure"
+before: |
+  name: discover_triage
+  applicable_use_cases:
+    - UC-A
+  tools_required:
+    - search_knowledge
+  procedure: "step one"
+  grounding_instruction: "ground"
+  escalation_policy: "escalate"
+  guardrails: []
+  state_inheritance:
+    inherit: [customer_context]
+    reset: []
+    soft_signal_via_projection: []
+  critical_steps:
+    - id: step-one
+      desc: "do step one"
+      trace_check: "result.foo"
+      mandatory_for: [UC-A]
+      severity: advisory
+after: |
+  name: discover_triage
+  applicable_use_cases:
+    - UC-A
+  tools_required:
+    - search_knowledge
+  procedure: "step one — revised wording emphasising clarity"
+  grounding_instruction: "ground"
+  escalation_policy: "escalate"
+  guardrails: []
+  state_inheritance:
+    inherit: [customer_context]
+    reset: []
+    soft_signal_via_projection: []
+  critical_steps:
+    - id: step-one
+      desc: "do step one"
+      trace_check: "result.foo"
+      mandatory_for: [UC-A]
+      severity: advisory

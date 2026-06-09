@@ -514,29 +514,26 @@ delivered today. Treat anything in them as forward-looking:
   behavior. Until decided, do not treat "tool schema projected" as
   equivalent to "tool dispatch allowed" — the two filters are
   independent and either can deny.
-- **Moderation context: written but not projected.** The
-  treatment of `moderation_context` is inconsistent today:
-  - `FormContextIngestionService` writes `session.moderationContext`
-    when the form-driven `get_customer_context` returns a moderation
-    review.
-  - `RequestHandoverTool` reads `session.moderationContext` when
-    assembling handover identifiers.
-  - The FAQ RESOLVE `PhasePlan.requiredContextKeys` list (in
-    `PhaseEvaluator.plan(...)`) names `moderation_context` as a
-    required projection key.
-  - But `ContextProjectionBuilder` does **not** emit a
-    `moderation_context` slot at all; only `customer_context` and
-    `listing_context` are projected, and only via
-    `session.getCustomerContext()` / `session.getListingContext()`.
+- **Moderation context: session-internal / handover-only (resolved
+  M5-S3 via option (b)).** `session.moderationContext` is written by
+  `FormContextIngestionService` (when the form-driven
+  `get_customer_context` returns a moderation review) and read by
+  `RequestHandoverTool` (when assembling handover identifiers), but it
+  is **not** part of the LLM-visible projection:
+  - `ContextProjectionBuilder` does **not** emit a `moderation_context`
+    slot; only `customer_context` and `listing_context` are projected,
+    via `session.getCustomerContext()` / `session.getListingContext()`.
+  - The FAQ RESOLVE Skill (`resolve_faq_grounded_answer.yaml`) formerly
+    declared `moderation_context` in `required_context_keys` — a
+    dangling declaration with no emission consumer. M5-S3 (Sprint 52,
+    C2 #3) took **option (b)**: dropped `moderation_context` from that
+    declaration so `PhasePlan.requiredContextKeys` now reflects what is
+    actually projected (`form_context`, `customer_context`,
+    `listing_context`). The M5-S3 C1 consumption map
+    (`docs/diagnostics/m5-s3-projection-consumption-map.md`) confirmed
+    no projection / eval-trace-contract / drift-reconstruction consumer
+    depended on the declaration.
 
-  In other words `moderation_context` is currently session-internal
-  / handover-only despite being declared a required projection key.
-  Decide whether to (a) add a `moderation_context` projection slot
-  driven from `session.moderationContext`, (b) drop
-  `moderation_context` from `PhasePlan.requiredContextKeys` so the
-  required-keys list reflects what is actually projected, or (c)
-  explicitly document the slot as session-internal /
-  handover-payload-only and remove it from the projection contract.
-  Until decided, treat `moderation_context` as **not present in
-  the LLM-visible projection**, regardless of whether
-  `session.moderationContext` is populated.
+  `moderation_context` is therefore **not present in the LLM-visible
+  projection**; `session.moderationContext` remains session-internal /
+  handover-payload-only by design.

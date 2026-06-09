@@ -1,0 +1,16 @@
+{
+  "conversation_id": "CONV-005",
+  "total_messages": 9,
+  "blocked_messages": 1,
+  "messages": [
+    {
+      "message_id": "MSG-030",
+      "sender_id": "USR-098",
+      "content_preview": "[blocked]",
+      "blocked": true,
+      "block_reason": "HARASSMENT",
+      "block_reason_display": "Message blocked: this message was flagged for containing abusive or harassing language.",
+      "blocked_at": "2026-04-28T14:50:00Z"
+    }
+  ]
+}

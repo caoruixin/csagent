@@ -11,6 +11,7 @@ import com.gumtree.csagent.model.ToolEvent;
 import com.gumtree.csagent.service.guardrails.ScriptLibraryService;
 import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
 import com.gumtree.csagent.service.observability.EventEmitter;
+import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
 import com.gumtree.csagent.service.tools.ToolDispatcher;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +54,8 @@ class PhaseEvaluatorPlanTest {
         evaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjection, actionParser,
-                objectMapper, createCaseTool, eventEmitter, toolDispatcher);
+                objectMapper, createCaseTool, eventEmitter, toolDispatcher,
+                SkillTestFixtures.productionRegistry(), null);
     }
 
     private BotSession session(String phase, String uc) {
@@ -82,7 +84,7 @@ class PhaseEvaluatorPlanTest {
         assertTrue(plan.allowedTools().contains("search_knowledge"));
         assertTrue(plan.allowedTools().contains("resolve_article"));
         assertTrue(plan.allowedTools().contains("request_handover"));
-        assertEquals(4, plan.maxToolSteps());
+        assertEquals(6, plan.maxToolSteps());
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.FINAL_ANSWER));
         assertNotNull(plan.systemInstruction());
         assertNotNull(plan.groundingInstruction());
@@ -130,8 +132,8 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-G"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover"), plan.allowedTools(),
-                "UC-G must only allow request_handover (no case creation)");
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
+                "UC-G allows request_handover + update_intake_fields, but no case creation");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
@@ -146,8 +148,8 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-I"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover"), plan.allowedTools(),
-                "UC-I must only allow request_handover (no case creation)");
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
+                "UC-I allows request_handover + update_intake_fields, but no case creation");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
@@ -163,8 +165,8 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-J"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover"), plan.allowedTools(),
-                "UC-J must only allow request_handover; case creation is runtime-only");
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
+                "UC-J allows request_handover + update_intake_fields; case creation is runtime-only");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
@@ -180,8 +182,8 @@ class PhaseEvaluatorPlanTest {
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-K"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover"), plan.allowedTools(),
-                "UC-K must only allow request_handover; case creation is runtime-only");
+        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
+                "UC-K allows request_handover + update_intake_fields; case creation is runtime-only");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertFalse(plan.allowedTools().contains("search_knowledge"));
     }
@@ -260,7 +262,7 @@ class PhaseEvaluatorPlanTest {
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.CLARIFICATION_NEEDED));
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.FINAL_ANSWER));
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.ESCALATE));
-        assertEquals(2, plan.maxToolSteps());
+        assertEquals(3, plan.maxToolSteps());
     }
 
     @Test
@@ -336,7 +338,11 @@ class PhaseEvaluatorPlanTest {
 
     @Test
     void plan_unknownUcInRegistry_returnsNull() {
-        when(useCaseRegistry.getUseCase("UC-X")).thenReturn(null);
+        // Sprint 39 — post-migration, plan() no longer calls
+        // useCaseRegistry.getUseCase() directly for the RESOLVE branch
+        // (composition flows through SkillRegistry.select). UC-X is not
+        // in either RESOLVE Skill's applicable_use_cases, so the registry
+        // returns Optional.empty() and plan returns null.
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-X"), "msg", List.of());
         assertNull(plan);
     }

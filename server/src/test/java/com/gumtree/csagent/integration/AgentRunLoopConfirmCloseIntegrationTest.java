@@ -83,7 +83,8 @@ class AgentRunLoopConfirmCloseIntegrationTest {
         PhaseEvaluator phaseEvaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, contextProjectionBuilder, actionParser,
-                objectMapper, createCaseTool, eventEmitter, toolDispatcher);
+                objectMapper, createCaseTool, eventEmitter, toolDispatcher,
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
 
         AgentRunLoop agentRunLoop = new AgentRunLoopImpl(
                 llmInvocation, toolDispatcher, contextProjectionBuilder, actionParser, objectMapper);
@@ -109,6 +110,17 @@ class AgentRunLoopConfirmCloseIntegrationTest {
         session.setActiveUseCase("UC-A");
         session.setTotalBotTurns(1);
         session.setFormContext("{\"email\":\"alice@example.com\"}");
+        // Sprint 084 / S-Auto-29: a satisfied-user session reaching CONFIRM has
+        // already earned containment="resolved" on its prior RESOLVE->CONFIRM
+        // turn via isResolvedSuccessTerminal (Path C: FINAL_ANSWER +
+        // READY_TO_CONFIRM + grounding). The CONFIRM->CLOSE arm does NOT
+        // re-derive the stamp — interpretRunResult's CONFIRM case sets no
+        // resolve_disposition, so the gate cannot fire here — it PRESERVES the
+        // prior stamp via the non-null guard. Before S-Auto-29 the arm
+        // re-derived "resolved" via an unconditional default that also
+        // mis-credited ungrounded closes; that default is now gated. This
+        // fixture models the prior-turn stamp the production flow carries.
+        session.setContainmentOutcome("resolved");
 
         when(budgetChecker.checkBudgets(any())).thenReturn(Optional.empty());
         when(driftDetector.detect(any(), anyString())).thenReturn(
@@ -180,7 +192,9 @@ class AgentRunLoopConfirmCloseIntegrationTest {
         assertEquals("CLOSED", session.getHandlingState(),
                 "CLOSE phase should set handlingState=CLOSED");
         assertEquals("resolved", session.getContainmentOutcome(),
-                "CLOSE phase should default containmentOutcome to 'resolved'");
+                "CONFIRM->CLOSE preserves the prior-turn 'resolved' stamp via the "
+                        + "non-null guard (S-Auto-29: the arm no longer re-derives it "
+                        + "by unconditional default)");
 
         // 5. SESSION_CLOSED event was emitted by ControlKernel
         verify(eventEmitter).emitSessionClosed(eq("sess-confirm-1"), eq("resolved"));

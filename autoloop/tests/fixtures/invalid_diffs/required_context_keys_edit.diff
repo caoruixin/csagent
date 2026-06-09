@@ -1,0 +1,15 @@
+file_path: server/src/main/resources/skills/discover_triage.yaml
+expected_decision: REJECT
+expected_reason_substring: required_context_keys
+before: |
+  name: discover_triage
+  required_context_keys: [form_context]
+  procedure: "step one"
+  grounding_instruction: "ground"
+  escalation_policy: "escalate"
+after: |
+  name: discover_triage
+  required_context_keys: [form_context, candidate_use_cases]
+  procedure: "step one"
+  grounding_instruction: "ground"
+  escalation_policy: "escalate"

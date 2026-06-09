@@ -1,0 +1,18 @@
+{
+  "user_id": "USR-018",
+  "email": "jack.reporter@example.com",
+  "display_name": "Jack R.",
+  "account_status": "ACTIVE",
+  "account_type": "PERSONAL",
+  "registration_date": "2025-02-14",
+  "creation_date": "2025-02-14",
+  "total_ads_posted": 6,
+  "total_ads_count": 6,
+  "active_ads": 3,
+  "active_ads_count": 3,
+  "warnings": 0,
+  "is_known_good": true,
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": true
+}

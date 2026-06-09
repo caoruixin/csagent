@@ -1,8 +1,10 @@
 package com.gumtree.csagent.service.runtime;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.gumtree.csagent.model.BotSession;
 import com.gumtree.csagent.model.BotTurn;
@@ -10,6 +12,8 @@ import com.gumtree.csagent.model.KnowledgeHit;
 import com.gumtree.csagent.model.PhasePlan;
 import com.gumtree.csagent.model.TerminalOutcome;
 import com.gumtree.csagent.model.ToolEvent;
+import com.gumtree.csagent.service.runtime.skill.Skill;
+import com.gumtree.csagent.service.runtime.skill.SkillRegistry;
 import com.gumtree.csagent.service.tools.ToolPolicyEnforcer;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +26,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -37,10 +42,34 @@ public class ContextProjectionBuilder {
             "[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}"
     );
 
+    /**
+     * Sprint 41 — aging window (in turns) for the {@code prior_use_case_carry}
+     * projection slot per design doc §10.4 + OLD Sprint 36 OQ 7.7 default
+     * carried forward. The slot is null when the most recent UC switch is
+     * more than {@value} turns ago. Single integer constant: NO per-UC
+     * variation per §1.7.
+     */
+    static final int PRIOR_USE_CASE_CARRY_AGING_TURNS = 4;
+
+    /**
+     * Sprint 41 — cap on the number of citations surfaced in the
+     * {@code prior_use_case_carry} slot per design doc §10.4 + OLD Sprint 36
+     * OQ 7.7 default carried forward. Single integer constant: NO per-UC
+     * variation per §1.7.
+     */
+    static final int PRIOR_USE_CASE_CARRY_CITATION_CAP = 3;
+
+    /** Canonical DISCOVER phase label (mirrors AgentRunLoopImpl.DISCOVER_PHASE). */
+    private static final String DISCOVER_PHASE = "DISCOVER";
+
+    /** R4.a — explicit listing-verification tool name (LookupListingTool). */
+    private static final String LOOKUP_LISTING_TOOL = "lookup_listing_or_ad";
+
     private final ObjectMapper objectMapper;
     private final UseCaseRegistryService useCaseRegistry;
     private final ControlPolicyService controlPolicy;
     private final ToolPolicyEnforcer toolPolicyEnforcer;
+    private final SkillRegistry skillRegistry;
 
     /**
      * Sprint 20 Track B — stable JSON canonicaliser for the
@@ -62,11 +91,13 @@ public class ContextProjectionBuilder {
     public ContextProjectionBuilder(ObjectMapper objectMapper,
                                      UseCaseRegistryService useCaseRegistry,
                                      ControlPolicyService controlPolicy,
-                                     ToolPolicyEnforcer toolPolicyEnforcer) {
+                                     ToolPolicyEnforcer toolPolicyEnforcer,
+                                     SkillRegistry skillRegistry) {
         this.objectMapper = objectMapper;
         this.useCaseRegistry = useCaseRegistry;
         this.controlPolicy = controlPolicy;
         this.toolPolicyEnforcer = toolPolicyEnforcer;
+        this.skillRegistry = skillRegistry;
     }
 
     @PostConstruct
@@ -110,6 +141,20 @@ public class ContextProjectionBuilder {
                         + "clear, >= 0.5 with explicit topic + at least one supporting detail; below "
                         + "0.5, ask another clarifying question instead of calling this tool.",
                 buildClassifyUseCaseArgsSchema()));
+
+        // Sprint 080 / R7 — no-side-effect intake-field accumulation tool. The
+        // schema is registered here; whether it is projected to the LLM on a
+        // given turn is gated by `plan.allowedTools()` (the intake Skill's
+        // `tools_required`), exactly like every other tool schema.
+        toolSchemas.put("update_intake_fields", buildToolSchema(
+                "update_intake_fields",
+                "Persist partial intake fields collected from the user so they "
+                        + "survive across turns. Use this when you have identified one "
+                        + "or more intake fields the user has provided but you do not "
+                        + "yet have a complete set to call request_handover. Does NOT "
+                        + "trigger handover. See `required_intake_fields_for_active_uc` "
+                        + "in the projection for the active UC's required-fields list.",
+                buildUpdateIntakeFieldsArgsSchema()));
 
         log.info("Initialized {} tool schemas for context projection", toolSchemas.size());
     }
@@ -155,6 +200,30 @@ public class ContextProjectionBuilder {
             required.add(fieldName);
             schema.set("required", required);
         }
+        return schema;
+    }
+
+    /**
+     * Sprint 080 / R7 — {@code update_intake_fields} arguments schema. A single
+     * required {@code fields} property typed as a free-form
+     * {@code string -> string} object (mirrors the R1.a {@code intake_fields}
+     * slot). No per-UC field enumeration: which fields belong to which UC is
+     * surfaced separately via {@code required_intake_fields_for_active_uc}.
+     */
+    private ObjectNode buildUpdateIntakeFieldsArgsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+        ObjectNode fieldsProp = objectMapper.createObjectNode();
+        fieldsProp.put("type", "object");
+        ObjectNode additional = objectMapper.createObjectNode();
+        additional.put("type", "string");
+        fieldsProp.set("additionalProperties", additional);
+        props.set("fields", fieldsProp);
+        schema.set("properties", props);
+        ArrayNode required = objectMapper.createArrayNode();
+        required.add("fields");
+        schema.set("required", required);
         return schema;
     }
 
@@ -228,6 +297,22 @@ public class ContextProjectionBuilder {
         enumValues.add("runtime_error_threshold");
         reasonProp.set("enum", enumValues);
         props.set("escalation_reason", reasonProp);
+        // R1.a #1 — declare the intake_fields slot the validator
+        // (SkillGuardrailDispatcher) + AgentRunLoopImpl.persistInlineIntakeFields
+        // already expect. Free-form string->string map; intentionally NOT a
+        // per-UC property matrix (§1.7) — the per-active-UC required key list is
+        // surfaced separately via the required_intake_fields_for_active_uc
+        // projection field. OPTIONAL (absent from the required[] array) so
+        // non-intake UCs are unaffected; only intake UCs (UC-G/H/I/J/K) need it.
+        ObjectNode intakeFieldsProp = objectMapper.createObjectNode();
+        intakeFieldsProp.put("type", "object");
+        intakeFieldsProp.put("description",
+                "Required for intake UCs (UC-G / UC-H / UC-I / UC-J / UC-K) — "
+                        + "see the `required_intake_fields_for_active_uc` "
+                        + "projection field for the active UC's required-fields "
+                        + "list. Free-form string-to-string map of the collected "
+                        + "intake field values for this handover.");
+        props.set("intake_fields", intakeFieldsProp);
         schema.set("properties", props);
         ArrayNode required = objectMapper.createArrayNode();
         required.add("escalation_reason");
@@ -377,21 +462,172 @@ public class ContextProjectionBuilder {
                 projection.set("intake_state", intakeStateNode);
             }
 
+            // R1.a #2 — per-active-UC required-intake-fields hint. Gives the LLM
+            // a structured per-turn list of EXACTLY which field keys to populate
+            // in the next request_handover.arguments.intake_fields call, sourced
+            // from the SAME IntakeFieldsRegistry the validator uses (single
+            // source of truth — no per-UC matrix replicated here, §1.7). Present
+            // ONLY for intake UCs; for null / non-intake UCs the field is OMITTED
+            // entirely (distinguish "not applicable" from "no fields required" —
+            // never an empty list).
+            if (IntakeFieldsRegistry.isIntakeUseCase(activeUc)) {
+                ArrayNode requiredForUc = objectMapper.createArrayNode();
+                for (String f : IntakeFieldsRegistry.requiredFieldsFor(activeUc)) {
+                    requiredForUc.add(f);
+                }
+                projection.set("required_intake_fields_for_active_uc", requiredForUc);
+            }
+
             // Sprint 7 §I0 — C5 candidate_use_cases projection. Surfaces the
             // routing-derived candidate UC list so the DISCOVER cue can act
             // on it deterministically. Empty array signals "no candidates yet"
             // (UNKNOWN topic + empty description), which the DISCOVER
             // systemInstruction reads as the trigger to gather evidence
             // before escalating with faq_miss_threshold_exceeded.
-            ArrayNode candidateUcsNode = objectMapper.createArrayNode();
-            if (session.getCandidateUseCases() != null) {
-                for (String uc : session.getCandidateUseCases()) {
-                    if (uc != null && !uc.isBlank()) {
-                        candidateUcsNode.add(uc);
+            //
+            // Sprint 53 / M5 S4 — Skill-declared context-key gating
+            // (#2). Per the Phase-A audit
+            // (`docs/diagnostics/m5-s4-skill-declaration-audit.md` §3.E),
+            // only `discover_triage` declares `candidate_use_cases` in
+            // `required_context_keys` AND only DISCOVER actually reads
+            // the slot (post-DISCOVER Skills work on a committed UC).
+            // Gating reads `Skill.requiredContextKeys()`; for unmapped
+            // (phase, UC) tuples the helper defaults to TRUE (emit) so
+            // legacy/unmapped sessions keep pre-S4 behaviour. §1.7
+            // boundary: no per-UC if-else; the gate is registry-data-
+            // driven (the YAML declaration).
+            if (skillRequiresContextKey(session, activeUc, "candidate_use_cases")) {
+                ArrayNode candidateUcsNode = objectMapper.createArrayNode();
+                if (session.getCandidateUseCases() != null) {
+                    for (String uc : session.getCandidateUseCases()) {
+                        if (uc != null && !uc.isBlank()) {
+                            candidateUcsNode.add(uc);
+                        }
                     }
                 }
+                projection.set("candidate_use_cases", candidateUcsNode);
             }
-            projection.set("candidate_use_cases", candidateUcsNode);
+
+            // Sprint 86a / S-Auto-31 — candidate_use_cases_named projection
+            // slot. BACKWARD-COMPATIBLE ADDITIVE companion to the bare-ID
+            // candidate_use_cases slot above (which is UNCHANGED). The LLM
+            // otherwise sees only opaque UC ids (["UC-A","UC-FP",...]) and
+            // must recall from training what each id means; surfacing the
+            // registry name alongside each id grounds the DISCOVER
+            // classify_use_case choice (addresses UC-FP invisibility +
+            // UC-G hallucination). Each entry is {id, name}; name falls back
+            // to the id when the registry has no definition (unknown id).
+            // Gated by its OWN required_context_keys declaration via the same
+            // registry-data-driven helper as candidate_use_cases; for
+            // unmapped (phase, UC) tuples the helper defaults to TRUE (emit).
+            // §1.7 boundary: registry-driven lookup; no per-UC if-else, no
+            // keyword/regex/enum branch, and the runtime does NOT branch on
+            // the slot value.
+            if (skillRequiresContextKey(session, activeUc, "candidate_use_cases_named")) {
+                ArrayNode namedUcsNode = objectMapper.createArrayNode();
+                if (session.getCandidateUseCases() != null) {
+                    for (String uc : session.getCandidateUseCases()) {
+                        if (uc == null || uc.isBlank()) {
+                            continue;
+                        }
+                        ObjectNode entry = objectMapper.createObjectNode();
+                        entry.put("id", uc);
+                        UseCaseRegistryService.UseCaseDefinition def =
+                                useCaseRegistry.getUseCase(uc);
+                        entry.put("name", def != null ? def.name() : uc);
+                        namedUcsNode.add(entry);
+                    }
+                }
+                projection.set("candidate_use_cases_named", namedUcsNode);
+            }
+
+            // Sprint 31 — Option β alternate_candidate_use_cases projection
+            // slot. Soft signal carrying the UCs the intake router considered
+            // plausible for the session's topic-subject family when
+            // RoutingResult.AMBIGUOUS fired at session creation, minus the
+            // currently active UC. Empty array signals either (a) the intake
+            // routed deterministically to a single UC (no alternates
+            // considered) or (b) the active UC is the only surviving
+            // candidate after filtering. The runtime does NOT branch on
+            // this value; the LLM owns whether to act on it.
+            //
+            // Sprint 53 / M5 S4 — `soft_signal_via_projection` gating
+            // (#5). Per the Phase-A audit
+            // (`docs/diagnostics/m5-s4-skill-declaration-audit.md` §3.G),
+            // only `discover_triage` declares this slot in
+            // `state_inheritance.soft_signal_via_projection` AND only
+            // DISCOVER procedure references it. Gating reads
+            // `Skill.stateInheritance().softSignalViaProjection()`; for
+            // unmapped (phase, UC) tuples the helper defaults to TRUE
+            // (emit) — defensive pre-S4 behaviour preservation. The slot
+            // is null/empty for most sessions even when emitted (only
+            // populated when intake-router fired AMBIGUOUS), so the
+            // shape-change risk is minimal. §1.7 boundary: registry/
+            // Skill-driven.
+            if (skillDeclaresSoftSignal(session, activeUc, "alternate_candidate_use_cases")) {
+                ArrayNode alternateCandidateUcsNode = objectMapper.createArrayNode();
+                String activeUcForAlternate = session.getActiveUseCase();
+                if (session.getIntakeAmbiguousCandidates() != null) {
+                    for (String uc : session.getIntakeAmbiguousCandidates()) {
+                        if (uc != null && !uc.isBlank() && !uc.equals(activeUcForAlternate)) {
+                            alternateCandidateUcsNode.add(uc);
+                        }
+                    }
+                }
+                projection.set("alternate_candidate_use_cases", alternateCandidateUcsNode);
+            }
+
+            // Sprint 33 — discover_disambiguation_signals projection slot.
+            // Soft signal carrying observable evidence that the user's
+            // DISCOVER session is in a state where multiple UCs are
+            // plausibly responsive: the listing is in a not-visible
+            // state (REMOVED / SUSPENDED / EXPIRED) AND the form
+            // topic_subject maps to more than one candidate UC in
+            // {@link UseCaseRegistryService#getCandidateUcsForTopic}.
+            // The slot is observable evidence the LLM MAY use to inform
+            // classify_use_case (e.g. to ask one clarifying question
+            // before committing); the runtime does NOT enforce or branch
+            // on the slot value.
+            //
+            // Sprint 53 / M5 S4 — `soft_signal_via_projection` gating
+            // (#5). Per the Phase-A audit
+            // (`docs/diagnostics/m5-s4-skill-declaration-audit.md` §3.H),
+            // only `discover_triage` declares + reads. Same pattern as
+            // `alternate_candidate_use_cases` above.
+            if (skillDeclaresSoftSignal(session, activeUc, "discover_disambiguation_signals")) {
+                projection.set("discover_disambiguation_signals",
+                        buildDiscoverDisambiguationSignalsNode(session));
+            }
+
+            // Sprint 41 — prior_use_case_carry projection slot per Sprint 37
+            // freeze decision (i) §10.4. Surfaces continuity state as soft
+            // signal when the session has experienced a prior UC switch
+            // within the aging window (default 4 turns). The slot carries
+            // (a) the prior active UC, (b) the prior Skill name (resolved
+            // via SkillRegistry.select), (c) up to 3 most recent citation
+            // source_ids from the prior UC's turns, and (d) the aging
+            // window constant for LLM diagnostic visibility. The slot is
+            // null when no prior UC switch has occurred OR when the
+            // aging-out window has elapsed. Construction is REGISTRY-DRIVEN:
+            // single aging constant + single citation cap; NO per-UC
+            // variation in shape per §1.7. LLM-owned read per §1.3: the
+            // LLM decides whether to surface continuity, ask, or ignore.
+            //
+            // Sprint 53 / M5 S4 — `soft_signal_via_projection` gating
+            // (#5). Per the Phase-A audit
+            // (`docs/diagnostics/m5-s4-skill-declaration-audit.md` §3.I),
+            // `resolve_faq_grounded_answer` + `resolve_intake_collect_and_handover`
+            // declare + need this slot (UC-A↔UC-C / cross-UC continuity is
+            // a RESOLVE-Skill concern); other Skills have
+            // `previous_active_use_case` as a separate slot for drift
+            // context and don't need the carry's prior_skill_name +
+            // citation list. Defensive default = emit for unmapped
+            // tuples.
+            if (skillDeclaresSoftSignal(session, activeUc, "prior_use_case_carry")) {
+                JsonNode priorUseCaseCarryNode =
+                        buildPriorUseCaseCarryNode(session, conversationHistory);
+                projection.set("prior_use_case_carry", priorUseCaseCarryNode);
+            }
 
             // Sprint 10 §L2 — minimal projected issue-state. Surfaces the
             // runtime reroute outcome (previous_active_use_case, drift_type,
@@ -534,20 +770,41 @@ public class ContextProjectionBuilder {
             budgetNode.put("max_faq_miss", controlPolicy.getMaxFaqMiss());
             projection.set("budget_state", budgetNode);
 
-            // Tool schemas (visible tools for current UC) — full per-tool schema objects.
-            // ToolPolicyEnforcer drives WHICH tools appear; the static schema map provides the
-            // {name, description, arguments_schema} payload. Per phase0 §0.6, this is the sole
-            // tool-discovery channel for the LLM (single-layer tool-use; no per-phase action list).
+            // R2.a #4 — DISCOVER clarification budget soft signal. Surfaces the
+            // now-live clarification counter (R2.a #3 wires the increment on the
+            // AgentRunLoopImpl path) as observable state so the LLM can sequence
+            // DISCOVER turns BEFORE the hard cap fires. Cardinality only — the
+            // LLM still owns next-action (§1.3); no semantic hardcode. Emitted
+            // only in DISCOVER (the only phase where clarification rounds are
+            // counted); absent in every other phase.
+            if (DISCOVER_PHASE.equalsIgnoreCase(session.getCurrentPhase())) {
+                ObjectNode budgetsNode = objectMapper.createObjectNode();
+                ObjectNode clarificationBudget = objectMapper.createObjectNode();
+                clarificationBudget.put("used", session.getClarificationCount());
+                clarificationBudget.put("max", controlPolicy.getMaxClarificationRounds());
+                budgetsNode.set("clarification", clarificationBudget);
+                projection.set("budgets", budgetsNode);
+            }
+
+            // Tool schemas — Skill-registry-driven (M2-correct). When the
+            // active (phase, UC) maps to a Skill, the Skill's
+            // {@code tools_required} is the projection surface (single source
+            // of truth shared with {@code PhasePlan.allowedTools()} and the
+            // ToolDispatcher whitelist). When no Skill maps the tuple
+            // (e.g. RESOLVE with no active UC, or a future phase with no
+            // Skill yet), fall back to the pre-M2 UC-driven palette via
+            // {@code ToolPolicyEnforcer} so legacy / unmapped cases keep
+            // their previous behaviour. The run-loop {@code build(...)}
+            // path's {@code :allowedTools} overwrite remains as defense-
+            // in-depth; for mapped Skills it now writes the same set.
             ArrayNode toolSchemasNode = objectMapper.createArrayNode();
-            if (activeUc != null) {
-                for (String toolName : toolPolicyEnforcer.getVisibleToolsForUc(activeUc)) {
-                    ObjectNode schema = toolSchemas.get(toolName);
-                    if (schema != null) {
-                        toolSchemasNode.add(schema.deepCopy());
-                    } else {
-                        log.warn("No static tool schema registered for visible tool '{}' (UC={})",
-                                toolName, activeUc);
-                    }
+            for (String toolName : resolveProjectedToolNames(session, activeUc)) {
+                ObjectNode schema = toolSchemas.get(toolName);
+                if (schema != null) {
+                    toolSchemasNode.add(schema.deepCopy());
+                } else {
+                    log.warn("No static tool schema registered for projected tool '{}' (phase={}, uc={})",
+                            toolName, session.getCurrentPhase(), activeUc);
                 }
             }
             projection.set("tool_schemas", toolSchemasNode);
@@ -724,6 +981,15 @@ public class ContextProjectionBuilder {
             // present even when there is no PhasePlan / accumulated results.
             projection.set("already_called", buildAlreadyCalledNode(priorToolEvents));
 
+            // R4.a #6 + #7 — ad-context premise projection. Surfaces already-
+            // observed runtime state (form_context.email/ad_id presence + the
+            // lookup_listing_or_ad tool result) as a structured enum + struct,
+            // so the LLM has observable premise state without being told what to
+            // say (§1.3). Emitted on EVERY live-path turn (shape stability;
+            // before the early-return below) — NOT a per-UC matrix. ZERO content
+            // matching of user messages; derived entirely from runtime state.
+            addAdContextPremiseProjection(projection, session, priorToolEvents);
+
             if (plan == null && (accumulatedToolResults == null || accumulatedToolResults.isEmpty())) {
                 return objectMapper.writeValueAsString(projection);
             }
@@ -788,6 +1054,35 @@ public class ContextProjectionBuilder {
                 if (plan.systemInstruction() != null) {
                     planNode.put("system_instruction", plan.systemInstruction());
                 }
+
+                // Sprint 43 (S-Eval-2, NEW Milestone M3-Eval): render the
+                // active Skill's `critical_steps[].desc` slice as an LLM-
+                // visible projection slot, immediately after the procedure
+                // narrative (which is folded into `system_instruction` via
+                // PhaseEvaluator.plan() — see PhaseEvaluator.java:459).
+                // Empty list → no `critical_steps` key (parity with M2
+                // envelope behaviour; existing prompt-composition golden
+                // tests stay green). Each rendered entry carries both
+                // `id` and `desc` so S-Eval-3 authors can cross-reference
+                // steps from one `desc` to another by stable id.
+                // Per contract §8 (S-Eval-2 stanza): no semantic hardcode.
+                // Rendering surfaces the soft narrative to the LLM (§1.3
+                // LLM-owned: LLM owns whether to act on it).
+                if (skillRegistry != null && plan.useCase() != null) {
+                    skillRegistry.select(plan.phase(), plan.useCase()).ifPresent(skill -> {
+                        if (!skill.criticalSteps().isEmpty()) {
+                            ArrayNode stepsNode = objectMapper.createArrayNode();
+                            for (var step : skill.criticalSteps()) {
+                                ObjectNode stepNode = objectMapper.createObjectNode();
+                                stepNode.put("id", step.id());
+                                stepNode.put("desc", step.desc());
+                                stepsNode.add(stepNode);
+                            }
+                            planNode.set("critical_steps", stepsNode);
+                        }
+                    });
+                }
+
                 if (plan.escalationPolicy() != null) {
                     planNode.put("escalation_policy", plan.escalationPolicy());
                 }
@@ -814,6 +1109,35 @@ public class ContextProjectionBuilder {
                     }
                 }
                 projection.set("accumulated_tool_results", toolResultsNode);
+
+                // Sprint 068 (S-Auto-13, A3) — paraphrase-storm echo. This is
+                // the run-loop-path analogue of the legacy `knowledge_instruction`
+                // snippet in buildProjection (which only fires when knowledgeHits
+                // is pre-loaded — never the case in the loop, where knowledge
+                // arrives via accumulated_tool_results). When a prior
+                // search_knowledge has already landed a viable hit
+                // (faq_miss=false) this turn, surface a soft anti-re-search
+                // signal so the LLM drafts from the existing hits via
+                // resolve_article instead of re-issuing a paraphrased search.
+                // The LLM owns whether to re-search (§1.3 / §1.5 soft-signal-
+                // first); the runtime does NOT block a re-search dispatch on
+                // this slot. A fresh search remains warranted when the prior
+                // result was faq_miss=true or the new query is materially
+                // different.
+                JsonNode priorSearch = toolResultsNode.get("search_knowledge");
+                if (priorSearch != null && priorSearch.has("faq_miss")
+                        && !priorSearch.path("faq_miss").asBoolean(true)) {
+                    projection.put("prior_search_knowledge_viable_hit", true);
+                    projection.put("search_reuse_instruction",
+                            "A prior search_knowledge in this turn already returned a viable hit "
+                            + "(faq_miss=false); the hits are in "
+                            + "accumulated_tool_results.search_knowledge.hits. Do NOT call "
+                            + "search_knowledge again this turn — draft your grounded "
+                            + "customer-facing answer via resolve_article from those existing "
+                            + "hits (cite the source_id), or escalate. A fresh search_knowledge "
+                            + "is only warranted if the prior result was faq_miss=true or your "
+                            + "new query is materially different from what you already searched.");
+                }
             }
 
             return objectMapper.writeValueAsString(projection);
@@ -822,6 +1146,247 @@ public class ContextProjectionBuilder {
                     ex.getMessage());
             return baseJson;
         }
+    }
+
+    /**
+     * Sprint 33 — build the {@code discover_disambiguation_signals}
+     * projection slot. Returns an {@link ObjectNode} carrying three
+     * fields, always present (null / false / empty when no signal
+     * fires) for projection-shape stability:
+     *
+     * <ul>
+     *   <li>{@code ad_status_observed} — the listing's status string
+     *       when {@code session.listingContext.status} is one of
+     *       {@code REMOVED / SUSPENDED / EXPIRED} (states where the
+     *       listing is not visible to the user); {@code null}
+     *       otherwise.</li>
+     *   <li>{@code topic_subject_carries_multiple_candidate_ucs} —
+     *       {@code true} iff the form's {@code topic_subject} maps
+     *       to more than one UC in
+     *       {@link UseCaseRegistryService#getCandidateUcsForTopic}.</li>
+     *   <li>{@code candidate_ucs_for_topic} — the candidate UC list
+     *       for that topic, or empty when the topic is null or
+     *       single-candidate.</li>
+     * </ul>
+     *
+     * <p>The slot is observable evidence the LLM may consume to inform
+     * DISCOVER classification; the runtime does NOT branch on the
+     * slot. A future Java decision-path branch on this slot would be
+     * a §1.7 forbidden hardcode and would fail the companion
+     * {@code AgentRunLoopDiscoverDisambiguationNonEnforcementIntegrationTest}
+     * parameterised invariance bars.
+     */
+    private ObjectNode buildDiscoverDisambiguationSignalsNode(BotSession session) {
+        ObjectNode node = objectMapper.createObjectNode();
+
+        String adStatus = extractListingStatus(session);
+        if (adStatus != null
+                && ("REMOVED".equals(adStatus)
+                        || "SUSPENDED".equals(adStatus)
+                        || "EXPIRED".equals(adStatus))) {
+            node.put("ad_status_observed", adStatus);
+        } else {
+            node.putNull("ad_status_observed");
+        }
+
+        ArrayNode candidatesNode = objectMapper.createArrayNode();
+        String topic = session.getFormTopicSubject();
+        boolean multiCandidate = false;
+        if (topic != null && !topic.isBlank()) {
+            List<String> candidates = useCaseRegistry.getCandidateUcsForTopic(topic);
+            if (candidates != null && candidates.size() > 1) {
+                multiCandidate = true;
+                for (String uc : candidates) {
+                    if (uc != null && !uc.isBlank()) {
+                        candidatesNode.add(uc);
+                    }
+                }
+            }
+        }
+        node.put("topic_subject_carries_multiple_candidate_ucs", multiCandidate);
+        node.set("candidate_ucs_for_topic", candidatesNode);
+
+        // Sprint 86a / S-Auto-31 — moderation_reason_available. PRESENCE-ONLY
+        // boolean: true iff a moderation review is on file for the session
+        // (session.moderationContext present + non-blank). Lets a UC-FP
+        // removal-explanation procedure prefer the moderation-grounded answer
+        // when a reason is on record. HARD FENCE (PII / grounding boundary):
+        // ONLY the boolean is projected — the raw moderation-review text /
+        // reason-code value is NEVER parsed or emitted here.
+        String moderationContext = session.getModerationContext();
+        boolean moderationReasonAvailable =
+                moderationContext != null && !moderationContext.isBlank();
+        node.put("moderation_reason_available", moderationReasonAvailable);
+
+        return node;
+    }
+
+    /**
+     * Sprint 33 — read {@code session.listingContext.status} from the
+     * jsonb string when present. Returns {@code null} when the
+     * listing context is absent, unparseable, or has no
+     * {@code status} text field.
+     */
+    private String extractListingStatus(BotSession session) {
+        String raw = session.getListingContext();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode tree = objectMapper.readTree(raw);
+            if (tree == null || !tree.isObject()) {
+                return null;
+            }
+            com.fasterxml.jackson.databind.JsonNode statusNode = tree.get("status");
+            if (statusNode == null || !statusNode.isTextual()) {
+                return null;
+            }
+            String text = statusNode.asText();
+            return (text == null || text.isBlank()) ? null : text;
+        } catch (Exception ex) {
+            log.debug("Sprint 33: listing_context parse failed for session {}: {}",
+                    session.getSessionId(), ex.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Sprint 41 — build the {@code prior_use_case_carry} projection slot
+     * per design doc §10.4. The slot surfaces continuity state when the
+     * session has experienced a prior UC switch within the aging window
+     * (default {@link #PRIOR_USE_CASE_CARRY_AGING_TURNS} turns). It carries:
+     *
+     * <ul>
+     *   <li>{@code prior_active_use_case} — the UC immediately preceding
+     *       the current active UC.</li>
+     *   <li>{@code prior_skill_name} — the Skill resolved via
+     *       {@link SkillRegistry#select(String, String)} for the prior
+     *       turn's {@code phase_after} + prior UC.</li>
+     *   <li>{@code prior_citations} — up to
+     *       {@link #PRIOR_USE_CASE_CARRY_CITATION_CAP} most recent
+     *       citation source_ids from turns where the active UC matched
+     *       the prior UC.</li>
+     *   <li>{@code ages_out_after_turns} — the single integer aging
+     *       window constant; diagnostic visibility for the LLM.</li>
+     * </ul>
+     *
+     * <p>Returns {@link NullNode#getInstance()} when (a) the conversation
+     * history is empty or absent, (b) the current active UC is null
+     * (DISCOVER pre-classification), (c) no prior turn carries a different
+     * active UC (single-UC session), OR (d) the most recent UC switch is
+     * more than {@link #PRIOR_USE_CASE_CARRY_AGING_TURNS} turns ago
+     * (aged out).
+     *
+     * <p>§1.7 boundary: construction is REGISTRY-DRIVEN. The aging window
+     * is a single integer constant; the citation cap is a single integer
+     * constant; the {@code prior_skill_name} is resolved via the registry
+     * lookup. NO per-UC variation in slot shape.
+     *
+     * <p>§1.3 boundary: the slot is a soft signal. The LLM reads the slot
+     * value on the next turn and judges whether to surface continuity,
+     * ask, or ignore. The runtime does NOT enforce action on the slot.
+     */
+    private JsonNode buildPriorUseCaseCarryNode(BotSession session,
+                                                 List<BotTurn> conversationHistory) {
+        if (session == null) {
+            return NullNode.getInstance();
+        }
+        String currentActiveUc = session.getActiveUseCase();
+        if (currentActiveUc == null || currentActiveUc.isBlank()) {
+            return NullNode.getInstance();
+        }
+        if (conversationHistory == null || conversationHistory.isEmpty()) {
+            return NullNode.getInstance();
+        }
+
+        // Walk history in reverse to find the most recent turn whose
+        // active_use_case is non-null AND differs from the current active
+        // UC. That turn marks the prior UC switch boundary.
+        BotTurn priorSwitchTurn = null;
+        for (int i = conversationHistory.size() - 1; i >= 0; i--) {
+            BotTurn t = conversationHistory.get(i);
+            if (t == null) continue;
+            String tUc = t.getActiveUseCase();
+            if (tUc != null && !tUc.isBlank() && !tUc.equals(currentActiveUc)) {
+                priorSwitchTurn = t;
+                break;
+            }
+        }
+        if (priorSwitchTurn == null) {
+            return NullNode.getInstance();
+        }
+
+        // Aging check: if the most recent UC switch is more than the
+        // configured aging window away from the current (in-flight) turn,
+        // drop the slot. The "current turn index" is the index this turn
+        // will receive once persisted = (last persisted turn_index + 1).
+        Integer priorTurnIdx = priorSwitchTurn.getTurnIndex();
+        BotTurn lastTurn = conversationHistory.get(conversationHistory.size() - 1);
+        int currentTurnIdx = (lastTurn != null && lastTurn.getTurnIndex() != null)
+                ? lastTurn.getTurnIndex() + 1
+                : conversationHistory.size();
+        if (priorTurnIdx == null) {
+            return NullNode.getInstance();
+        }
+        if (currentTurnIdx - priorTurnIdx > PRIOR_USE_CASE_CARRY_AGING_TURNS) {
+            return NullNode.getInstance();
+        }
+
+        String priorUc = priorSwitchTurn.getActiveUseCase();
+
+        // Resolve prior_skill_name via SkillRegistry.select on the prior
+        // turn's phase_after + prior UC. Null when registry select misses
+        // (e.g., legacy turn without a Skill mapping).
+        String priorSkillName = null;
+        if (skillRegistry != null) {
+            String priorPhase = priorSwitchTurn.getPhaseAfter();
+            if (priorPhase != null && !priorPhase.isBlank()) {
+                priorSkillName = skillRegistry.select(priorPhase, priorUc)
+                        .map(Skill::name)
+                        .orElse(null);
+            }
+        }
+
+        // Collect citation source_ids from turns where active_use_case
+        // matched the prior UC, cap to the most recent
+        // PRIOR_USE_CASE_CARRY_CITATION_CAP. Walk in reverse to gather
+        // most-recent first.
+        ArrayNode citationsNode = objectMapper.createArrayNode();
+        int collected = 0;
+        for (int i = conversationHistory.size() - 1; i >= 0
+                && collected < PRIOR_USE_CASE_CARRY_CITATION_CAP; i--) {
+            BotTurn t = conversationHistory.get(i);
+            if (t == null) continue;
+            String tUc = t.getActiveUseCase();
+            if (tUc == null || !tUc.equals(priorUc)) continue;
+            String[] sids = t.getSourceIds();
+            if (sids == null) continue;
+            for (String sid : sids) {
+                if (sid == null || sid.isBlank()) continue;
+                ObjectNode cite = objectMapper.createObjectNode();
+                cite.put("source_id", sid);
+                cite.put("from_use_case", priorUc);
+                if (t.getTurnIndex() != null) {
+                    cite.put("turn_index", t.getTurnIndex());
+                } else {
+                    cite.putNull("turn_index");
+                }
+                citationsNode.add(cite);
+                collected++;
+                if (collected >= PRIOR_USE_CASE_CARRY_CITATION_CAP) break;
+            }
+        }
+
+        ObjectNode node = objectMapper.createObjectNode();
+        node.set("prior_citations", citationsNode);
+        node.put("prior_active_use_case", priorUc);
+        if (priorSkillName != null) {
+            node.put("prior_skill_name", priorSkillName);
+        } else {
+            node.putNull("prior_skill_name");
+        }
+        node.put("ages_out_after_turns", PRIOR_USE_CASE_CARRY_AGING_TURNS);
+        return node;
     }
 
     /**
@@ -858,6 +1423,167 @@ public class ContextProjectionBuilder {
             alreadyCalled.add(entry);
         }
         return alreadyCalled;
+    }
+
+    // ------------------------------------------------------------------
+    // R4.a — ad-context premise projection (#6 customer_context_status +
+    // #7 ad_reference). STRUCTURAL ONLY: derived from runtime form_context
+    // fields + the lookup_listing_or_ad tool result. NEVER from user-message
+    // content / NLP / keyword matching. NO reason text emitted.
+    // ------------------------------------------------------------------
+
+    /**
+     * Resolved state of the explicit {@code lookup_listing_or_ad} listing
+     * verification step. {@code MISSING} (ran but no listing found) is kept
+     * DISTINCT from {@code SKIPPED} (never ran) — collapsing them removes the
+     * load-bearing premise signal R4 surfaces (anti-误杀 invariant #11).
+     */
+    enum ListingLookupState { OK, MISSING, FAILED, SKIPPED }
+
+    /**
+     * Pure mapping from the three runtime facts about the listing lookup to a
+     * {@link ListingLookupState}. Structural only.
+     */
+    static ListingLookupState deriveListingLookupState(boolean triggered,
+                                                       boolean succeeded,
+                                                       boolean listingResolved) {
+        if (!triggered) {
+            return ListingLookupState.SKIPPED;
+        }
+        if (!succeeded) {
+            return ListingLookupState.FAILED;
+        }
+        return listingResolved ? ListingLookupState.OK : ListingLookupState.MISSING;
+    }
+
+    /**
+     * Compute the {@code customer_context_status} enum value. Priority order is
+     * LOAD-BEARING (anti-误杀 invariant #10): {@code missing_email} /
+     * {@code missing_ad_id} / {@code lookup_failed} / {@code lookup_skipped}
+     * take precedence over {@code loaded} so a populated customer context never
+     * masks an absent ad_id premise (the c7 scenario). FIRST match wins.
+     */
+    static String computeCustomerContextStatus(String email, String adId,
+                                               ListingLookupState lookup) {
+        if (email == null || email.isBlank()) {
+            return "missing_email";
+        }
+        if (adId == null || adId.isBlank()) {
+            return "missing_ad_id";
+        }
+        if (lookup == ListingLookupState.FAILED) {
+            return "lookup_failed";
+        }
+        if (lookup == ListingLookupState.SKIPPED) {
+            return "lookup_skipped";
+        }
+        // email + ad_id present, lookup ran (OK or ran-but-no-result MISSING):
+        // the premise is verifiable. The ad-specific nuance (OK vs MISSING)
+        // is carried by ad_reference.listing_lookup (#7).
+        return "loaded";
+    }
+
+    /** Lower-case token for the {@code ad_reference.listing_lookup} field. */
+    static String listingLookupToken(ListingLookupState state) {
+        switch (state) {
+            case OK:
+                return "ok";
+            case MISSING:
+                return "missing";
+            case FAILED:
+                return "failed";
+            case SKIPPED:
+            default:
+                return "skipped";
+        }
+    }
+
+    /**
+     * Emit the R4 {@code customer_context_status} enum (#6) and the
+     * {@code ad_reference} struct (#7) onto the live-path projection. Reads
+     * {@code form_context.email} / {@code form_context.ad_id} and the most
+     * recent {@code lookup_listing_or_ad} tool event from the current run's
+     * {@code priorToolEvents}. Block content is ground-truth runtime state
+     * only — no LLM-generated string, no reason text.
+     */
+    private void addAdContextPremiseProjection(ObjectNode projection,
+                                               BotSession session,
+                                               List<ToolEvent> priorToolEvents) {
+        String email = formField(session, "email");
+        String adId = formField(session, "ad_id");
+
+        ToolEvent lookupEvent = lastToolEvent(priorToolEvents, LOOKUP_LISTING_TOOL);
+        boolean triggered = lookupEvent != null;
+        boolean succeeded = triggered && lookupEvent.success();
+        boolean listingResolved = succeeded && toolResultResolvedListing(lookupEvent);
+        ListingLookupState lookupState =
+                deriveListingLookupState(triggered, succeeded, listingResolved);
+
+        projection.put("customer_context_status",
+                computeCustomerContextStatus(email, adId, lookupState));
+
+        ObjectNode adReference = objectMapper.createObjectNode();
+        if (adId == null || adId.isBlank()) {
+            adReference.putNull("form_ad_id");
+        } else {
+            adReference.put("form_ad_id", adId);
+        }
+        adReference.put("listing_lookup", listingLookupToken(lookupState));
+        projection.set("ad_reference", adReference);
+    }
+
+    /**
+     * Read a single string field from {@code session.formContext} (the parsed
+     * pre-chat form JSON). Returns null on absent / blank / parse failure —
+     * the projection never fails closed on a malformed form blob.
+     */
+    private String formField(BotSession session, String field) {
+        if (session == null || session.getFormContext() == null
+                || session.getFormContext().isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode form = objectMapper.readTree(session.getFormContext());
+            JsonNode value = form == null ? null : form.get(field);
+            if (value == null || value.isNull()) {
+                return null;
+            }
+            String text = value.isValueNode() ? value.asText("") : value.toString();
+            return (text == null || text.isBlank()) ? null : text;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /** Most recent successful-or-failed event for {@code toolName}, or null. */
+    private static ToolEvent lastToolEvent(List<ToolEvent> events, String toolName) {
+        if (events == null || events.isEmpty()) {
+            return null;
+        }
+        ToolEvent found = null;
+        for (ToolEvent evt : events) {
+            if (evt != null && toolName.equals(evt.toolName())) {
+                found = evt;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * True iff the {@code lookup_listing_or_ad} result resolved a listing.
+     * {@link com.gumtree.csagent.service.tools.LookupListingTool} returns
+     * {@code {found:true, listing:{...}}} on a hit and {@code {found:false}}
+     * when no listing exists.
+     */
+    private static boolean toolResultResolvedListing(ToolEvent event) {
+        if (event == null || !event.success() || event.resultData() == null) {
+            return false;
+        }
+        Object data = event.resultData();
+        if (data instanceof Map<?, ?> map) {
+            return Boolean.TRUE.equals(map.get("found"));
+        }
+        return false;
     }
 
     /**
@@ -1014,6 +1740,122 @@ public class ContextProjectionBuilder {
             sb.append("Current phase: ").append(phase).append(".");
         }
         return sb.toString().trim();
+    }
+
+    /**
+     * Resolve the projected {@code tool_schemas} surface for a session.
+     *
+     * <p>Registry/Skill-driven (M2-correct): when {@link SkillRegistry#select}
+     * matches a Skill for the session's {@code (currentPhase, activeUseCase)}
+     * tuple, the Skill's {@code toolsRequired} list is the projection
+     * surface — the same single source of truth that
+     * {@code PhaseEvaluator.plan(...)} composes into
+     * {@code PhasePlan.allowedTools()} and that
+     * {@code ToolDispatcher.validateAgainstPlan} enforces. When no Skill
+     * maps the tuple (legacy / unmapped phase, or RESOLVE with no committed
+     * UC yet), fall back to the pre-M2 UC-driven palette via
+     * {@code ToolPolicyEnforcer.getVisibleToolsForUc(activeUseCase)} so the
+     * legacy fallback path keeps its previous behaviour.
+     *
+     * <p>§1.7 boundary: no per-UC if-else, no keyword/regex/enum branch.
+     * The path is registry/Skill-driven; the UC-driven fallback is a
+     * single defensive call that mirrors pre-M2 behaviour for any tuple
+     * the registry does not cover. The Skill's {@code toolsRequired} list
+     * is itself registry data (loaded from
+     * {@code server/src/main/resources/skills/*.yaml}).
+     */
+    private List<String> resolveProjectedToolNames(BotSession session, String activeUseCase) {
+        if (session == null) {
+            return Collections.emptyList();
+        }
+        String phase = session.getCurrentPhase();
+        if (skillRegistry != null) {
+            Optional<Skill> selected = skillRegistry.select(phase, activeUseCase);
+            if (selected.isPresent()) {
+                List<String> toolsRequired = selected.get().toolsRequired();
+                return toolsRequired == null ? Collections.emptyList() : toolsRequired;
+            }
+        }
+        if (activeUseCase == null) {
+            return Collections.emptyList();
+        }
+        return toolPolicyEnforcer.getVisibleToolsForUc(activeUseCase);
+    }
+
+    /**
+     * Sprint 53 / M5 S4 — Skill-declared context-key gating helper (C2 #2).
+     *
+     * <p>Returns {@code true} iff the Skill that
+     * {@link SkillRegistry#select} maps to the session's
+     * {@code (currentPhase, activeUseCase)} tuple declares {@code key} in
+     * its {@code required_context_keys} list. Defaults to {@code true}
+     * (emit) when (a) the registry is unavailable, (b) the session has
+     * no current phase, OR (c) no Skill maps the tuple — defensive
+     * pre-S4 behaviour preservation for legacy / unmapped sessions.
+     *
+     * <p>Per the Phase-A audit
+     * ({@code docs/diagnostics/m5-s4-skill-declaration-audit.md} §4.A),
+     * only {@code candidate_use_cases} is routed to this gate in S4
+     * (the four other context slots stay unconditional / data-gated /
+     * registry-gated per the audit's §4.B / §4.C disposition).
+     *
+     * <p>§1.7 boundary: no per-UC if-else, no keyword/regex/enum branch.
+     * The gate reads registry data (the Skill YAML declaration); the
+     * defensive fallback is a single uniform {@code true}.
+     */
+    private boolean skillRequiresContextKey(BotSession session, String activeUseCase, String key) {
+        if (skillRegistry == null || session == null) {
+            return true;
+        }
+        String phase = session.getCurrentPhase();
+        if (phase == null) {
+            return true;
+        }
+        Optional<Skill> selected = skillRegistry.select(phase, activeUseCase);
+        if (selected.isEmpty()) {
+            return true;
+        }
+        List<String> declared = selected.get().requiredContextKeys();
+        return declared != null && declared.contains(key);
+    }
+
+    /**
+     * Sprint 53 / M5 S4 — Skill-declared soft-signal gating helper (C2 #5).
+     *
+     * <p>Returns {@code true} iff the Skill that
+     * {@link SkillRegistry#select} maps to the session's
+     * {@code (currentPhase, activeUseCase)} tuple declares {@code slot}
+     * in its {@code state_inheritance.soft_signal_via_projection} list.
+     * Defaults to {@code true} (emit) when (a) the registry is
+     * unavailable, (b) the session has no current phase, OR (c) no
+     * Skill maps the tuple — same defensive pre-S4 default as
+     * {@link #skillRequiresContextKey} for legacy/unmapped sessions.
+     *
+     * <p>Per the Phase-A audit
+     * ({@code docs/diagnostics/m5-s4-skill-declaration-audit.md} §3.G /
+     * §3.H / §3.I), the three soft-signal slots
+     * ({@code alternate_candidate_use_cases},
+     * {@code discover_disambiguation_signals},
+     * {@code prior_use_case_carry}) all route to this gate; their DECL
+     * coverage matches their NEED column exactly (no dropped signal).
+     *
+     * <p>§1.7 boundary: registry/Skill-driven; the soft signal stays
+     * LLM-owned per §1.3 (the gate decides whether the slot is
+     * projected; the LLM decides whether to act on it).
+     */
+    private boolean skillDeclaresSoftSignal(BotSession session, String activeUseCase, String slot) {
+        if (skillRegistry == null || session == null) {
+            return true;
+        }
+        String phase = session.getCurrentPhase();
+        if (phase == null) {
+            return true;
+        }
+        Optional<Skill> selected = skillRegistry.select(phase, activeUseCase);
+        if (selected.isEmpty()) {
+            return true;
+        }
+        return selected.get().stateInheritance().softSignalViaProjection().contains(slot);
     }
 
     /**

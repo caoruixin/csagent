@@ -1,0 +1,89 @@
+case_id: cs011_uc_c_faq_miss_not_distress
+source_session_id: 570Q5000008NWIjIAO
+source_dataset: bad_case_from_override
+
+bad_case_metadata:
+  source_session_id: 570Q5000008NWIjIAO
+  surfaced_by: Sprint 4 §E1 supporting fix (cs_interactive_011)
+  surfaced_date: 2026-05-05
+  failure_shape: |
+    A long-form login / password-reset-loop description (lower case, no DISTRESS_PATTERN match,
+    no ALL-CAPS shout) is mis-stamped as user_distress escalation by the bot LLM, on the
+    strength of a sub-textual "I'm frustrated by multiple agent attempts" reading. The
+    deterministic Sprint B1 detector cannot fire user_distress on these seeds; the Sprint 4 §E1
+    runtime gate (ControlKernel.applyEscalationReason) correctly downgrades the bot LLM's
+    user_distress claim to faq_miss_threshold_exceeded — the truthful Phase 2 §2.4 reason
+    (the FAQ corpus has no useful article for the password-reset-loop pattern, so the bot
+    exhausts FAQ search and hands over). The eval-spec pre-override mis-labelled the
+    expected escalation_trigger as user_distress, masking the bot's actual contract-violating
+    behaviour: claiming a Tier-0 semantic signal that the deterministic detector did not see.
+  layers_involved: semantic_planner (LLM upgrading the canonical reason to user_distress on
+    sub-text rather than the deterministic detector signal); java_guard (the Sprint 4 §E1
+    runtime gate correctly downgrades; the bot should not be making the claim in the first
+    place); eval_spec (pre-override expected.escalation_trigger=user_distress masked the
+    failure shape).
+  related_dimensions: [D4]
+  related_r_items: []
+  tier: core
+
+closure_criterion: |
+  Bot runs the policy-mandated FAQ tool sequence (get_customer_context, search_knowledge,
+  resolve_article) on the password-reset-loop pattern. When the FAQ corpus has no useful
+  article, bot hands over with reason=faq_miss_threshold_exceeded (the truthful Phase 2 §2.4
+  reason), NOT user_distress. Bot does NOT claim user_distress on lower-case, descriptive,
+  cooperative seed text — user_distress is a Tier-0 semantic claim reserved for the
+  deterministic Sprint B1 DISTRESS_PATTERN family (ALL-CAPS shouts, explicit threat / harm
+  language, etc.). Bot may acknowledge the user's frustration in its wording without elevating
+  the escalation_reason enum.
+
+form_context:
+  first_name: Customer
+  email: login.loop@example.com
+  topic_subject: Account & Login
+  ad_id: ''
+  description: |
+    I keep trying to reset my password but I never receive the reset email. I have tried three
+    times today on the website and on the app. It's strange because I get other emails from you
+    fine. I have spoken to two different agents already and neither has been able to help. I
+    don't know what to try next.
+
+persona:
+  user_goal_summary: |
+    User cannot log in because the password reset email is not arriving; they have already
+    contacted human agents twice with no resolution. They want the platform to actually fix
+    the email-delivery issue, not another self-serve "try resetting again" walkthrough. The
+    user is cooperative and descriptive (not shouting), but frustrated by repeated failed
+    agent contacts.
+  frustration_level: mild
+  verbosity: verbose
+  drift_behavior: none
+  seed_messages:
+    - "I keep trying to reset my password but the email never arrives. I have tried three times today on the website and on the app."
+    - "I have already spoken to two different agents and neither could help. What do I try next?"
+  hidden_facts:
+    - fact: User's reset emails are being filtered into a spam / promotions folder by their
+        email provider; they have not checked that folder.
+      disclose_when: if the bot asks the user to check spam / junk / promotions folders
+    - fact: User's account email is correct on the platform side; the issue is on the email
+        provider side and is not visible to the user.
+      disclose_when: if the bot asks whether the user has tried any other email recovery
+        method (e.g., verifying via SMS)
+  will_request_human_if: the bot escalates with reason user_distress on this descriptive,
+    cooperative text — that would be the documented failure mode
+
+expected:
+  outcome_class: escalate
+  primary_uc: UC-C
+  secondary_ucs: []
+  should_escalate: true
+  allow_bot_resolution: 'partial'
+  escalation_trigger: faq_miss_threshold_exceeded
+  acceptable_outcomes: [escalate]
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+  outcome_checks: []
+  llm_judge_dimensions: []

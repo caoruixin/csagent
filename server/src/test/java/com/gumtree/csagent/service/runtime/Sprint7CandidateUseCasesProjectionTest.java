@@ -55,12 +55,13 @@ class Sprint7CandidateUseCasesProjectionTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer);
+        builder = new ContextProjectionBuilder(objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);
         builder.initToolSchemas();
         phaseEvaluator = new PhaseEvaluator(
                 useCaseRegistry, knowledgeSearchService, scriptLibrary,
                 llmInvocation, builder, actionParser, objectMapper,
-                createCaseTool, eventEmitter, toolDispatcher);
+                createCaseTool, eventEmitter, toolDispatcher,
+                com.gumtree.csagent.service.runtime.skill.SkillTestFixtures.productionRegistry(), null);
         lenient().when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
         lenient().when(controlPolicy.getMaxBotTurnsIntake()).thenReturn(8);
         lenient().when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
@@ -160,9 +161,10 @@ class Sprint7CandidateUseCasesProjectionTest {
         assertTrue(si.contains("faq_miss_threshold_exceeded"),
                 "Cue must explicitly name faq_miss_threshold_exceeded as the wrong move");
         assertTrue(si.contains("search_knowledge"),
-                "Cue must direct the bot to call search_knowledge first");
+                "Cue must reference search_knowledge (S-Auto-13: do NOT pre-search in DISCOVER; "
+                        + "the grounded search runs in RESOLVE)");
         assertTrue(si.contains("classify_use_case"),
-                "Cue must direct the bot to call classify_use_case after search");
+                "Cue must direct the bot to call classify_use_case first (S-Auto-13 classify-first)");
     }
 
     @Test

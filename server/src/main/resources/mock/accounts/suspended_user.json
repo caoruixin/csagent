@@ -3,10 +3,16 @@
   "email": "jane.suspended@example.com",
   "display_name": "Jane S.",
   "account_status": "SUSPENDED",
+  "account_type": "PERSONAL",
   "registration_date": "2022-06-10",
+  "creation_date": "2022-06-10",
   "total_ads_posted": 45,
+  "total_ads_count": 45,
   "active_ads": 0,
+  "active_ads_count": 0,
   "warnings": 2,
   "is_known_good": false,
-  "is_blacklisted": false
+  "is_blacklisted": false,
+  "has_verified_email": true,
+  "has_verified_phone": false
 }

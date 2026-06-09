@@ -1,0 +1,9 @@
+{
+  "review_id": "REV-015",
+  "ad_id": "AD-3003",
+  "review_type": "MANUAL",
+  "decision": "REMOVED",
+  "reason_code": "MISLEADING_CONTENT",
+  "reason_display": "Your ad was removed because it contained misleading or inaccurate information about the product or service.",
+  "reviewed_at": "2026-05-05T16:45:00Z"
+}
