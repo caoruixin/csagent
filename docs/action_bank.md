@@ -712,6 +712,42 @@ as Sprint 088 / S-Auto-33 (contract active; Part C NOT started — human gate).
   future hardening could extend the defensive scrub if rationales start echoing
   `cs_*` labels.
 
+### Sprint 090 / S-Y1.5b/c (S-Auto-35/36) Codex combo review (2026-06-11) — surfaced blocking R-item
+
+The S-Y1.5b/c anti-hardcode detector combo (S-Y1.5b scope fix `9c62a86`
+LANDED; S-Y1.5c severity calibration `75b302c`) went to a combined
+per-sub-sprint §4.3 Codex review (`compact/sprint-090-review-prompt.md`).
+Verdicts written to `docs/codex-findings.md`: **S-Y1.5b `pass` /
+blocking_count 0** (standalone approve re-confirmed under the combined
+lens); **S-Y1.5c `fix_required` / blocking_count 1** (Kernel verdict
+`needs human architecture decision`). One blocking R-item surfaced.
+
+- **R-S90.5** (`infra`; **OPEN — current blocking finding**) — S-Y1.5c's
+  retained default-FAIL set is not limited to unambiguous §1.7 surfaces.
+  `Q4.case_id_literal`'s regex `\bcs[0-9a-z_]{2,}\b`
+  (`autoloop/autoloop/sandbox/anti_hardcode_check.py:274`) matches ANY word
+  beginning `cs` + 2 alnum/underscore, so ordinary terms (`CSAT`,
+  `csagent`, `css`) FALSE-FAIL as if they were CaseSpec-id leaks. This
+  breaks S-Y1.5c's load-bearing claim that the four retained FAIL rules are
+  all "surface form == constitutional intent", and re-opens a
+  false-positive-discard vector on exactly the `resolve_faq` surface the
+  S-Y2 pilot runs on. Codex confirmed `cs011`, `cs_uc_a_no_ad_id`,
+  `session_id=abc`, `case_id: 42` all still correctly FAIL (the behavior
+  the fix must preserve). **Disposition (human decision 2026-06-11):
+  tighten the regex, keep FAIL** — require a CaseSpec-id discriminator
+  (`cs` immediately followed by digit/underscore, e.g.
+  `\bcs[0-9_][0-9a-z_]+\b`), keeping `Q4.case_id_literal` severity `_FAIL`
+  so the §1.7 raw-eval-phrase hard-discard for real ids is preserved.
+  Fix scoped as the targeted fix-iteration **S-Y1.5d / S-Auto-37**
+  (`compact/sprint-090d-dev-prompt.md`; one regex line + precision tests:
+  real ids FAIL, ordinary cs-words PASS; scoring SHA stable → no re-bless).
+  A targeted §4.3 Codex re-review of the Q4 regex diff then flips the
+  S-Y1.5c stanza `fix_required → pass`/0 and marks R-S90.5 resolved-by-d.
+  **Status: blocks S-Y1.5c close AND the S-Y2 Part C `-n 3` re-tranche
+  until S-Y1.5d lands + re-review passes.** Refs:
+  `docs/codex-findings.md` (R-S90.5 finding);
+  `docs/solutions/2026-06-11-sy15bc-combo-implementation-plan.md` §11.
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact

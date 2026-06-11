@@ -6,7 +6,7 @@ implementation_status: in_progress
 source_of_truth: this file
 authored_by: research-agent
 authored_date: 2026-06-11
-last_reviewed: 2026-06-11
+last_reviewed: 2026-06-12
 review_cadence: per sub-sprint
 supersedes: []
 superseded_by: null
@@ -726,6 +726,60 @@ working tree:
   paused; resumes per §9 after combo close).
 - Forensic: `autoloop/results/experiments.jsonl` (exp-69..exp-76;
   particularly exp-70 / exp-76 for S-Y1.5b validation).
+
+## 11. Combo review outcome + S-Y1.5d targeted fix-iteration (2026-06-11)
+
+The S-Y1.5b/c combo was implemented and reviewed:
+
+- **S-Y1.5b** = commit `9c62a86` (landed earlier).
+- **S-Y1.5c** = commit `75b302c` (registry severity demote + override
+  hatch + propose.txt clarification + tests; autoloop pytest 344 green;
+  `scoring_code_baseline_sha` stable → no re-bless; §3.4 dry-run exp-77
+  clean → PROCEED).
+
+**Combined per-sub-sprint §4.3 Codex review** (prompt
+`compact/sprint-090-review-prompt.md`; verdicts in
+`docs/codex-findings.md`):
+
+- **S-Y1.5b: `pass` / blocking_count 0** — the standalone approve is
+  re-confirmed under the combined lens; c does not touch suppression /
+  normalization / rule bodies.
+- **S-Y1.5c: `fix_required` / blocking_count 1** — Kernel verdict
+  `needs human architecture decision`, blocker **R-S90.5**.
+
+**R-S90.5** (layer `infra`): `Q4.case_id_literal`'s regex
+`\bcs[0-9a-z_]{2,}\b` (`anti_hardcode_check.py:274`) false-FAILs ordinary
+`cs…` words (`CSAT`, `csagent`, `css`), so the retained default-FAIL set is
+NOT limited to "surface == constitutional intent" — undermining S-Y1.5c's
+load-bearing claim and re-opening a false-positive-discard vector on the
+`resolve_faq` pilot surface. Codex confirmed `cs011`, `cs_uc_a_no_ad_id`,
+`session_id=abc`, `case_id: 42` still correctly FAIL. Logged in
+`docs/action_bank.md` (Sprint 090 surfaced backlog) as the current blocking
+finding.
+
+**Human architecture decision (2026-06-11): tighten the regex, keep FAIL.**
+Resolved by a targeted fix-iteration **S-Y1.5d / S-Auto-37** (dev prompt
+`compact/sprint-090d-dev-prompt.md`):
+
+- Tighten `_RE_Q4_CASE_ID_TOKEN` to require a CaseSpec-id discriminator
+  (`cs` immediately followed by digit/underscore, e.g.
+  `\bcs[0-9_][0-9a-z_]+\b`); keep `Q4.case_id_literal` severity `_FAIL`
+  (the §1.7 raw-eval-phrase hard-discard for real ids is preserved).
+- Binding test matrix: `cs011`/`cs_uc_a_no_ad_id`/`cs38s01`/`cs59s` FAIL;
+  `CSAT`/`csagent`/`css` PASS; mid-word `cs` stays PASS.
+- One regex line + tests, `autoloop/**` only; full pytest green;
+  `scoring_code_baseline_sha` stable → no re-bless; no §3.4 dry-run needed
+  (detector only becomes more permissive on a false-positive class).
+- A **targeted §4.3 Codex re-review** of the Q4 regex diff then flips the
+  S-Y1.5c stanza `fix_required → pass`/0 and marks R-S90.5
+  resolved-by-S-Y1.5d. This makes S-Y1.5c's "four retained FAILs are
+  surface==intent" thesis actually true (the discriminator makes
+  `cs<digit|_>` a CaseSpec-id surface).
+
+**Updated close + resumption sequence** (supersedes the b+c framing in §0 /
+§5 / §9): combo close = **b + c + d**. The §5 step 12 / §9 S-Y2 Part C
+`run -n 3` re-tranche is gated behind **S-Y1.5d landing + its targeted
+Codex re-review passing + a clean tree**, not behind the original b+c close.
 
 ---
 
