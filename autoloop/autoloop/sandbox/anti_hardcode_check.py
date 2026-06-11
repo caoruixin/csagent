@@ -348,21 +348,48 @@ def _q5_standalone_must(text: str, before_norm: str) -> str | None:
 # ---------------------------------------------------------------------
 
 # Rule order: alphabetical by rule_id. Final verdict = first matching
-# rule's severity (deterministic across runs). FAIL outranks
+# rule's effective severity (deterministic across runs). FAIL outranks
 # FLAG_FOR_CODEX; PASS only when no rule matches.
+#
+# S-Y1.5c severity calibration: FAIL is reserved for rules whose surface
+# form == constitutional intent (raw eval identifiers, Tier-0 invention,
+# code-style `.contains(`/`.matches(` enumeration) — those are
+# unambiguous §1.7 evidence the propose stage may discard outright. The
+# semantic-judgment rules (if/then + arrow decision trees, OR-keyword
+# enumeration, MUST/NEVER/force-the-assistant against §1.3 soft
+# dimensions) are demoted to FLAG_FOR_CODEX so the per-sub-sprint Codex
+# Kernel review (§4.1/§4.3) — where that judgment constitutionally
+# belongs — adjudicates them instead of the propose-stage filter
+# false-positive-rejecting legitimate principle-level narrative.
 _RULES: tuple[tuple[str, str, Any], ...] = (
     ("Q1.contains_or_matches_literal", _FAIL, _q1_contains_matches),
-    ("Q1.enumerated_or_keywords", _FAIL, _q1_or_keywords),
-    ("Q1.if_then_decision_tree", _FAIL, _q1_if_then),
-    ("Q2.must_always_against_soft_dimension", _FAIL, _q2_must_always),
+    ("Q1.enumerated_or_keywords", _FLAG, _q1_or_keywords),
+    ("Q1.if_then_decision_tree", _FLAG, _q1_if_then),
+    ("Q2.must_always_against_soft_dimension", _FLAG, _q2_must_always),
     ("Q2.tier0_invariant_invention_attempt", _FAIL, _q2_tier0_invention),
     ("Q4.case_id_literal", _FAIL, _q4_case_id_token),
     ("Q4.id_assignment_literal", _FAIL, _q4_id_assign),
-    ("Q5.bot_must_always", _FAIL, _q5_bot_must_always),
-    ("Q5.do_not_consider_soft_dimension", _FAIL, _q5_do_not_consider),
-    ("Q5.force_assistant_to", _FAIL, _q5_force_assistant),
+    ("Q5.bot_must_always", _FLAG, _q5_bot_must_always),
+    ("Q5.do_not_consider_soft_dimension", _FLAG, _q5_do_not_consider),
+    ("Q5.force_assistant_to", _FLAG, _q5_force_assistant),
     ("Q5.standalone_must_borderline", _FLAG, _q5_standalone_must),
 )
+
+
+def _effective_severity(rule_id: str, default: str, config: dict | None) -> str:
+    """Effective severity for a rule, honoring config overrides.
+
+    Order: anti_hardcode.severity_overrides[rule_id] > _RULES default.
+    Only "FAIL" / "FLAG_FOR_CODEX" are valid; any other value is ignored
+    (treated as no override) so a config typo cannot disable a rule.
+    """
+    overrides = ((config or {}).get("anti_hardcode") or {}).get(
+        "severity_overrides"
+    ) or {}
+    candidate = overrides.get(rule_id)
+    if candidate in ("FAIL", "FLAG_FOR_CODEX"):
+        return candidate
+    return default
 
 
 # ---------------------------------------------------------------------
@@ -415,14 +442,15 @@ def anti_hardcode_check(
         match = fn(normalized, before_norm)
         if match is None:
             continue
-        if severity == _FAIL:
+        eff = _effective_severity(rule_id, severity, config)
+        if eff == _FAIL:
             return AntiHardcodeResult(
                 verdict="FAIL",
                 rule_id=rule_id,
                 matched_substring=match,
                 placeholder=False,
             )
-        if severity == _FLAG and flag_pending is None:
+        if eff == _FLAG and flag_pending is None:
             flag_pending = (rule_id, match)
 
     if flag_pending is not None:

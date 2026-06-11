@@ -45,21 +45,25 @@ def _hyp(after: str, before: str = "x") -> Hypothesis:
 
 
 def test_q1_if_then_decision_tree_rejected():
+    # S-Y1.5c: Q6 — an if/then decision tree may be a principle-level
+    # narrative the LLM still judges; demoted FAIL → FLAG so Codex adjudicates.
     res = anti_hardcode_check(
         _hyp("if user.message contains 'appeal' then route to UC-H"),
         config={},
     )
-    assert res.verdict == "FAIL"
-    assert res.rule_id.startswith("Q1.")
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q1.if_then_decision_tree"
 
 
 def test_q1_or_keyword_enumeration_rejected():
+    # S-Y1.5c: Q3 — OR-keyword enumeration can be few-shot illustrative
+    # teaching, not a routing rule dump; demoted FAIL → FLAG for Codex.
     res = anti_hardcode_check(
         _hyp("escalate if message contains 'appeal' or 'refund' or 'compensation'"),
         config={},
     )
-    assert res.verdict == "FAIL"
-    assert res.rule_id.startswith("Q1.")
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q1.enumerated_or_keywords"
 
 
 def test_q1_contains_literal_rejected():
@@ -97,12 +101,17 @@ def test_q1_clean_soft_narrative_passes():
 
 
 def test_q2_runtime_must_always_on_soft_dimension_rejected():
+    # S-Y1.5c: Q6 — "must always" against a §1.3 soft dimension may be
+    # narrative emphasis rather than a Tier-0 invention; Codex judges
+    # whether it crosses the line. Demoted FAIL → FLAG. (Genuine Tier-0
+    # invention is still caught by Q2.tier0_invariant_invention_attempt,
+    # which stays FAIL — see test below.)
     res = anti_hardcode_check(
         _hyp("The runtime must always reject any user goal that mentions refunds."),
         config={},
     )
-    assert res.verdict == "FAIL"
-    assert res.rule_id.startswith("Q2.")
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q2.must_always_against_soft_dimension"
 
 
 def test_q2_tier0_invention_attempt_rejected():
@@ -155,9 +164,11 @@ def test_q4_case_id_in_assignment_rejected():
         _hyp("If case_id: 9999 then continue intake."),
         config={},
     )
-    # The if/then alone would already fire Q1; we accept either Q1
-    # or Q4 here as long as the verdict is FAIL.
+    # Post-S-Y1.5c the if/then alone only FLAGs (demoted), but
+    # Q4.id_assignment_literal (`case_id:`) stays FAIL and outranks the
+    # pending FLAG, so the verdict is FAIL via Q4.
     assert res.verdict == "FAIL"
+    assert res.rule_id == "Q4.id_assignment_literal"
 
 
 def test_q4_clean_text_with_cs_in_word_passes():
@@ -176,30 +187,37 @@ def test_q4_clean_text_with_cs_in_word_passes():
 
 
 def test_q5_force_assistant_to_rejected():
+    # S-Y1.5c: Q6 — "force the assistant to ..." is LLM-ownership-shrinking
+    # language but a borderline semantic judgment; demoted FAIL → FLAG so
+    # Codex decides whether it genuinely strips a §1.3-owned decision.
     res = anti_hardcode_check(
         _hyp("Force the assistant to always emit the canned reply."),
         config={},
     )
-    assert res.verdict == "FAIL"
-    assert res.rule_id.startswith("Q5.")
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q5.force_assistant_to"
 
 
 def test_q5_bot_must_always_rejected():
+    # S-Y1.5c: Q6 — "the bot must always ..." may be narrative emphasis;
+    # demoted FAIL → FLAG for Codex adjudication.
     res = anti_hardcode_check(
         _hyp("The bot must always escalate whenever the user mentions refunds."),
         config={},
     )
-    assert res.verdict == "FAIL"
-    assert res.rule_id.startswith("Q5.")
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q5.bot_must_always"
 
 
 def test_q5_do_not_consider_soft_dimension_rejected():
+    # S-Y1.5c: Q3/Q6 — "do not consider <soft dimension>" is a semantic
+    # judgment about what the LLM may reason over; demoted FAIL → FLAG.
     res = anti_hardcode_check(
         _hyp("Do not consider the user goal — proceed directly to escalation."),
         config={},
     )
-    assert res.verdict == "FAIL"
-    assert res.rule_id.startswith("Q5.")
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q5.do_not_consider_soft_dimension"
 
 
 def test_q5_standalone_must_borderline_flag_for_codex():
@@ -228,32 +246,40 @@ def test_q5_borderline_standalone_must_emit_flag():
 
 
 def test_unicode_nfkc_full_width_if_detected():
-    # Full-width "if" should still match after NFKC normalization.
+    # Full-width "if" should still match after NFKC normalization. The
+    # match is the proof of normalization; S-Y1.5c demotes the Q1.if_then
+    # verdict FAIL → FLAG (Q6 principle-level narrative).
     res = anti_hardcode_check(
         _hyp("ｉｆ user.message contains 'appeal' then route to UC-H"),
         config={},
     )
-    assert res.verdict == "FAIL"
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q1.if_then_decision_tree"
 
 
 def test_multi_line_decomposition_if_then_detected():
+    # Multi-line if/then decomposition still detected; S-Y1.5c demotes the
+    # Q1.if_then verdict FAIL → FLAG (Q6 — Codex judges the narrative).
     text = (
         "if the user mentions an appeal\n"
         "  - and the case is already open\n"
         "then route to escalation"
     )
     res = anti_hardcode_check(_hyp(text), config={})
-    assert res.verdict == "FAIL"
-    assert res.rule_id.startswith("Q1.")
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q1.if_then_decision_tree"
 
 
 def test_synonym_map_arrow_when_enabled():
+    # Arrow decision tree (=> normalized to →) detected via the shared
+    # Q1.if_then_decision_tree id; S-Y1.5c demotes FAIL → FLAG (Q6).
     cfg = {"anti_hardcode": {"synonym_map_enabled": True}}
     res = anti_hardcode_check(
         _hyp("if user.message contains 'appeal' => route to UC-H"),
         config=cfg,
     )
-    assert res.verdict == "FAIL"
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q1.if_then_decision_tree"
 
 
 # ---------------------------------------------------------------------
@@ -283,11 +309,15 @@ def test_result_placeholder_is_false():
 
 
 def test_fail_carries_matched_substring():
+    # Uses a kept-FAIL pattern (Q1.contains_or_matches_literal, surface ==
+    # intent) so this remains a FAIL-path result-shape contract test after
+    # the S-Y1.5c demote of the if/then family to FLAG.
     res = anti_hardcode_check(
-        _hyp("if user.message contains 'appeal' then escalate"),
+        _hyp("when message.contains(\"appeal\") then escalate"),
         config={},
     )
     assert res.verdict == "FAIL"
+    assert res.rule_id == "Q1.contains_or_matches_literal"
     assert res.matched_substring is not None
     assert len(res.matched_substring) > 0
     assert len(res.matched_substring) <= 200
@@ -304,10 +334,13 @@ def test_fail_carries_matched_substring():
 _SYNONYM_ENABLED_CFG = {"anti_hardcode": {"synonym_map_enabled": True}}
 
 
-def test_fix_c_step1_codex_axis_b_bypass_now_fails():
+def test_fix_c_step1_codex_axis_b_bypass_now_caught():
     """R-S57 / Codex Axis B: `Whenever <X> => <Y>` previously bypassed
     the detector because " whenever " (space-bounded) did not fire at
-    start-of-string. Fix-C step 1 word-boundary regex closes the bypass."""
+    start-of-string. Fix-C step 1 word-boundary regex closes the bypass:
+    the shape is still CAUGHT (not silently passed). S-Y1.5c demotes the
+    Q1.if_then verdict FAIL → FLAG (Q6), so "caught" now means
+    FLAG_FOR_CODEX → routed to Codex, not a propose-stage discard."""
     res = anti_hardcode_check(
         _hyp(
             "Whenever the customer describes an appeal => route to escalation "
@@ -315,12 +348,13 @@ def test_fix_c_step1_codex_axis_b_bypass_now_fails():
         ),
         config=_SYNONYM_ENABLED_CFG,
     )
-    assert res.verdict == "FAIL", (
-        f"Codex Axis B bypass MUST FAIL after Fix-C step 1; got "
+    assert res.verdict == "FLAG_FOR_CODEX", (
+        f"Codex Axis B bypass MUST be caught (FLAG post-S-Y1.5c); got "
         f"{res.verdict} ({res.rule_id})"
     )
-    assert res.rule_id.startswith("Q1."), (
-        f"Expected Q1 family rule; got {res.rule_id}"
+    assert res.rule_id == "Q1.if_then_decision_tree", (
+        f"Expected Q1.if_then_decision_tree (arrow form shares the id); "
+        f"got {res.rule_id}"
     )
 
 
@@ -356,11 +390,11 @@ def test_fix_c_step1_clean_prose_whenever_subordinate_clause_still_passes():
     )
 
 
-def test_fix_c_step1_multi_line_when_arrow_decomposition_fails():
-    """Multi-line `When ...\\n=> ...` shape must FAIL after Fix-C step 1:
+def test_fix_c_step1_multi_line_when_arrow_decomposition_caught():
+    """Multi-line `When ...\\n=> ...` shape is caught after Fix-C step 1:
     whitespace-collapse joins the lines, word-boundary regex maps
     'when' → 'if', synonym_map maps '=>' → '→', then Q1 arrow_tree
-    matches."""
+    matches. S-Y1.5c demotes the Q1.if_then verdict FAIL → FLAG (Q6)."""
     text = (
         "When the customer mentions a refund\n"
         "=> escalate to UC-H without further triage."
@@ -369,11 +403,13 @@ def test_fix_c_step1_multi_line_when_arrow_decomposition_fails():
         _hyp(text),
         config=_SYNONYM_ENABLED_CFG,
     )
-    assert res.verdict == "FAIL", (
-        f"Multi-line 'When => ' MUST FAIL; got {res.verdict}"
+    assert res.verdict == "FLAG_FOR_CODEX", (
+        f"Multi-line 'When => ' MUST be caught (FLAG post-S-Y1.5c); got "
+        f"{res.verdict}"
     )
-    assert res.rule_id.startswith("Q1."), (
-        f"Expected Q1 family rule; got {res.rule_id}"
+    assert res.rule_id == "Q1.if_then_decision_tree", (
+        f"Expected Q1.if_then_decision_tree (arrow form shares the id); "
+        f"got {res.rule_id}"
     )
 
 
@@ -425,9 +461,11 @@ def test_q1_arrow_tree_baseline_match_suppressed():
 
 def test_q1_arrow_tree_new_match_still_caught():
     """No-op-when-novel: a candidate that ADDS a fresh `if X -> Y`
-    arrow-tree clause on top of clean baseline prose still FAILs — the
-    new span is absent from `before_norm`, so suppression does not
-    fire."""
+    arrow-tree clause on top of clean baseline prose is still caught — the
+    new span is absent from `before_norm`, so baseline suppression does
+    not fire. S-Y1.5c demotes the Q1.if_then verdict FAIL → FLAG (Q6);
+    "caught" now means the rule still triggers (FLAG, not suppressed PASS),
+    which is what this suppression test asserts."""
     before = (
         "You resolve the user issue using the available grounded tools "
         "and knowledge surfaces."
@@ -437,18 +475,22 @@ def test_q1_arrow_tree_new_match_still_caught():
         "a human agent for manual review."
     )
     res = anti_hardcode_check(_hyp(after, before), config=_SYNONYM_ENABLED_CFG)
-    assert res.verdict == "FAIL", (
-        f"candidate-introduced arrow tree MUST still FAIL; got {res.verdict}"
+    assert res.verdict == "FLAG_FOR_CODEX", (
+        f"candidate-introduced arrow tree MUST still trigger (FLAG "
+        f"post-S-Y1.5c, not suppressed PASS); got {res.verdict}"
     )
-    assert res.rule_id.startswith("Q1."), f"expected Q1; got {res.rule_id}"
+    assert res.rule_id == "Q1.if_then_decision_tree", (
+        f"expected Q1.if_then_decision_tree; got {res.rule_id}"
+    )
 
 
 def test_q1_if_then_baseline_match_suppressed():
     """Synthetic IF/THEN decision tree present in the untouched baseline;
     the candidate only appends clean prose. The IF/THEN span is in
     `before_norm` → suppressed → PASS. (Same text with an empty baseline
-    FAILs — see the existing Q1 decision-tree fixtures — so this is a
-    genuine suppression, not a vacuous pass.)"""
+    triggers Q1.if_then — FLAG_FOR_CODEX post-S-Y1.5c, see the existing
+    Q1 decision-tree fixtures — so this is a genuine suppression to PASS,
+    not a vacuous pass.)"""
     before = (
         "Triage rules: if the user reports a billing error then gather "
         "the order id before proposing next steps for them." + _CLEAN_BUFFER
@@ -468,8 +510,10 @@ def test_q2_q4_q5_baseline_match_suppressed():
     """Suppression is uniform across the Q2 / Q4 / Q5 rule families, not
     just Q1. Each baseline already carries the offending span; the
     candidate only appends clean prose → PASS for every family. Each
-    `after` FAILs with an empty baseline (verified in the matching
-    positive fixtures above), so none of these is vacuous."""
+    `after` triggers its rule with an empty baseline (verified in the
+    matching positive fixtures above: Q4 → FAIL, Q2/Q5 → FLAG_FOR_CODEX
+    post-S-Y1.5c), so none of these is a vacuous pass — suppression is
+    what turns the trigger into PASS here."""
     q2_before = (
         "The runtime must always reject any user goal that mentions a "
         "competitor product line directly." + _CLEAN_BUFFER
@@ -519,6 +563,97 @@ def test_double_encoding_bypass_documented():
         f"double-encoded copy is suppressed by design; got {res.verdict} "
         f"({res.rule_id})"
     )
+
+
+# ---------------------------------------------------------------------
+# S-Y1.5c — severity calibration. The semantic-judgment rules are
+# demoted FAIL → FLAG_FOR_CODEX (routed to per-sub-sprint Codex review);
+# the surface==intent rules stay FAIL. `severity_overrides` is a
+# reversibility hatch that re-promotes / demotes any rule per-experiment
+# without a code change.
+# ---------------------------------------------------------------------
+
+
+def test_severity_overrides_promote_demoted_rule_back_to_FAIL():
+    """Reversibility: an override re-promotes a demoted rule to FAIL on a
+    NEW (non-baseline) match of that rule."""
+    cfg = {"anti_hardcode": {"severity_overrides": {"Q1.if_then_decision_tree": "FAIL"}}}
+    res = anti_hardcode_check(
+        _hyp("if the listing is flagged then escalate to a human agent."),
+        config=cfg,
+    )
+    assert res.verdict == "FAIL", f"override to FAIL must FAIL; got {res.verdict}"
+    assert res.rule_id == "Q1.if_then_decision_tree"
+
+
+def test_severity_overrides_demote_fail_to_flag():
+    """Override MACHINERY works both directions: a kept-FAIL rule can be
+    demoted to FLAG per-experiment (forensic only — the DEFAULT Q4 stays
+    FAIL, asserted separately and hard-fenced)."""
+    cfg = {"anti_hardcode": {"severity_overrides": {"Q4.case_id_literal": "FLAG_FOR_CODEX"}}}
+    res = anti_hardcode_check(
+        _hyp("Apply special handling for cs011 sessions."),
+        config=cfg,
+    )
+    assert res.verdict == "FLAG_FOR_CODEX", (
+        f"override to FLAG must FLAG; got {res.verdict}"
+    )
+    assert res.rule_id == "Q4.case_id_literal"
+
+
+def test_default_severity_demotes_q1_if_then_to_flag():
+    """Default config: a NEW if/then decision tree is FLAG, not FAIL."""
+    res = anti_hardcode_check(
+        _hyp("if the customer disputes a charge then open an appeal."),
+        config={},
+    )
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q1.if_then_decision_tree"
+
+
+def test_default_severity_demotes_q1_arrow_tree_to_flag():
+    """Default config: a NEW arrow decision tree (if X → Y) demotes via the
+    SHARED registry id Q1.if_then_decision_tree — there is no separate
+    Q1.arrow_tree rule_id, so flipping the one entry covers both forms."""
+    cfg = {"anti_hardcode": {"synonym_map_enabled": True}}
+    res = anti_hardcode_check(
+        _hyp("if the customer disputes a charge -> open an appeal."),
+        config=cfg,
+    )
+    assert res.verdict == "FLAG_FOR_CODEX"
+    assert res.rule_id == "Q1.if_then_decision_tree"
+
+
+def test_default_severity_keeps_q4_case_id_as_fail():
+    """Default config: a raw eval CaseSpec id stays FAIL (surface ==
+    constitutional intent). Hard-fenced — Q4 default must not be demoted."""
+    res = anti_hardcode_check(
+        _hyp("Apply the documented handling for cs_uc_a_no_ad_id during intake."),
+        config={},
+    )
+    assert res.verdict == "FAIL"
+    assert res.rule_id == "Q4.case_id_literal"
+
+
+def test_default_severity_keeps_q1_contains_matches_as_fail():
+    """Default config: a code-style `.contains(...)` literal stays FAIL."""
+    res = anti_hardcode_check(
+        _hyp('classify the case when message.contains("refund") is true.'),
+        config={},
+    )
+    assert res.verdict == "FAIL"
+    assert res.rule_id == "Q1.contains_or_matches_literal"
+
+
+def test_default_severity_keeps_q2_tier0_invention_as_fail():
+    """Default config: an attempt to mint a new Tier-0 invariant stays
+    FAIL (Tier-0 minting authorization is not the proposer's to grant)."""
+    res = anti_hardcode_check(
+        _hyp("Add a new tier-0 invariant requiring escalation on every turn."),
+        config={},
+    )
+    assert res.verdict == "FAIL"
+    assert res.rule_id == "Q2.tier0_invariant_invention_attempt"
 
 
 # ---------------------------------------------------------------------
