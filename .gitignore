@@ -52,3 +52,6 @@ replay_pid*
 #ultrareview/compare 工具的临时输出
 .compare-output/
 
+# aidazi framework-generation scratch (separate project; not CS-agent service code)
+compact/aidazi-*
+
