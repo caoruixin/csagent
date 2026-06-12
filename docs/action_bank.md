@@ -766,8 +766,12 @@ lens); **S-Y1.5c `fix_required` / blocking_count 1** (Kernel verdict
   passes `csat`/`csagent`/`css`/`csv`; narrow residual (`css3`/`cs50`/
   `cs2go` still FAIL — non-blocking OQ). Corrected fix = S-Y1.5d attempt-2
   (revised `compact/sprint-090d-dev-prompt.md` + re-review against the full
-  452-id matrix). **Status: blocks S-Y1.5c/d close AND S-Y2 Part C until
-  attempt-2 lands + re-review passes.** **Env note:** during this session a
+  452-id matrix). **Status: RESOLVED 2026-06-12** by S-Y1.5d attempt-2
+  (`708f8cb3`, regex `\bcs[a-z0-9_]*[0-9_][a-z0-9_]*\b`); targeted Codex
+  re-review independently re-verified (452 cs-ids / 0 misses; `csmp_*` FAIL;
+  `CSAT`/`csagent` PASS) and returned `pass`/0 on S-Y1.5b/c/d — **R-S90.5 AND
+  R-S90.6 both resolved; the S-Y1.5b/c/d combo is closed**
+  (`docs/codex-findings.md`). **Env note:** during this session a
   shell `cwd` drift into `autoloop/` (from an earlier `cd autoloop`) made
   recursive `grep -r`/`find`/`ls` over relative `eval_interactive/…` paths
   return empty (the dir doesn't exist under `autoloop/`) — briefly mistaken
