@@ -266,13 +266,14 @@ def _q2_tier0_invention(text: str, before_norm: str) -> str | None:
 
 # Q4 — case_id / session_id / iteration_id literals --------------------
 
-# `cs<NNN>` / `cs[a-z0-9_]+` token — explicit eval CaseSpec id leakage.
-# Whitelist: bare "cs" inside a known generic English word (e.g.
-# "discussion" contains "cs"? no — `\bcs` is a word boundary so the
-# pattern requires "cs" as the start of an identifier; this avoids
-# matching within ordinary words).
+# CaseSpec id token (e.g. `cs<NNN>`, `cs_<slug>`, `cs<n>s<n>`) — explicit
+# eval id leakage. The discriminator is a digit or underscore *immediately*
+# after `cs`: real CaseSpec ids always have one, ordinary `cs`+letter words
+# (CSAT, csagent, css) never do. `\bcs` anchors to an identifier start so
+# mid-word "cs" (discuss, customers) is excluded; the trailing `[0-9a-z_]+`
+# preserves the original ≥2-chars-after-`cs` minimum.
 _RE_Q4_CASE_ID_TOKEN = re.compile(
-    r"\bcs[0-9a-z_]{2,}\b",
+    r"\bcs[0-9_][0-9a-z_]+\b",
     re.IGNORECASE,
 )
 # Explicit identifier assignment.

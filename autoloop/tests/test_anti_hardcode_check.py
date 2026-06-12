@@ -181,6 +181,36 @@ def test_q4_clean_text_with_cs_in_word_passes():
     assert res.verdict == "PASS"
 
 
+def test_q4_ordinary_cs_words_pass():
+    # R-S90.5: a word starting `cs` followed by a LETTER (not digit /
+    # underscore) is ordinary language, not a CaseSpec id. These are the
+    # exact probe strings Codex flagged as false FAILs in S-Y1.5c.
+    for prose in (
+        "Use CSAT feedback as an aggregate quality signal.",
+        "The csagent should provide grounded answers.",
+        "Apply the css and cstring helpers when rendering the reply.",
+    ):
+        res = anti_hardcode_check(_hyp(prose), config={})
+        assert res.verdict == "PASS", (
+            f"ordinary cs-word prose must PASS; got {res.verdict} "
+            f"({res.rule_id}) for {prose!r}"
+        )
+
+
+def test_q4_underscore_and_shadow_case_ids_still_fail():
+    # The discriminator (digit / underscore right after `cs`) still catches
+    # underscore-slug ids and `cs<n>s<n>` shadow ids — these MUST stay FAIL.
+    for case_id in ("cs_uc_a_no_ad_id", "cs38s01", "cs59s"):
+        res = anti_hardcode_check(
+            _hyp(f"Apply the documented handling for {case_id} during intake."),
+            config={},
+        )
+        assert res.verdict == "FAIL", (
+            f"CaseSpec id {case_id!r} must FAIL; got {res.verdict}"
+        )
+        assert res.rule_id == "Q4.case_id_literal"
+
+
 # ---------------------------------------------------------------------
 # Q5 — LLM-ownership-shrinking language
 # ---------------------------------------------------------------------
