@@ -743,10 +743,37 @@ lens); **S-Y1.5c `fix_required` / blocking_count 1** (Kernel verdict
   real ids FAIL, ordinary cs-words PASS; scoring SHA stable → no re-bless).
   A targeted §4.3 Codex re-review of the Q4 regex diff then flips the
   S-Y1.5c stanza `fix_required → pass`/0 and marks R-S90.5 resolved-by-d.
-  **Status: blocks S-Y1.5c close AND the S-Y2 Part C `-n 3` re-tranche
-  until S-Y1.5d lands + re-review passes.** Refs:
+  **Status (2026-06-12):** S-Y1.5d attempt-1 (`40f8c07`) resolved the
+  CSAT/csagent false-positive but introduced **R-S90.6** (below) and was
+  HELD; the corrected attempt-2 resolves both. Refs:
   `docs/codex-findings.md` (R-S90.5 finding);
   `docs/solutions/2026-06-11-sy15bc-combo-implementation-plan.md` §11.
+- **R-S90.6** (`infra`; **OPEN — current blocking finding**, surfaced by
+  the S-Y1.5d targeted re-review 2026-06-12) — S-Y1.5d attempt-1's
+  tightened regex `\bcs[0-9_][0-9a-z_]+\b` required the digit/underscore
+  discriminator *immediately after* `cs`, so real `cs`+letter CaseSpec ids
+  (the `manual_probe_uc_a_resolve_must` family:
+  `csmp_g01_uc_a_genuine_faq_miss_obscure`, `csmp_s01_…`, `csmp_n01_…`)
+  returned PASS — a false-negative that weakens the §1.7 Q4 hard-discard.
+  Codex re-review verdict on S-Y1.5d: `fix_required` / blocking_count 1
+  (S-Y1.5c stays held). **Deliver-agent verification (direct Python
+  `os.walk` from the repo root): the corpus has 452 distinct cs-ids, every
+  one containing a digit or underscore, and ZERO pure-letter cs-ids.**
+  **Disposition (human decision 2026-06-12):
+  proceed with the corrected regex `\bcs[a-z0-9_]*[0-9_][a-z0-9_]*\b`
+  (digit/underscore ANYWHERE in the cs-token), keep `Q4.case_id_literal`
+  `_FAIL`.** Verified: catches all 452 ids (0 misses incl. `csmp_*`),
+  passes `csat`/`csagent`/`css`/`csv`; narrow residual (`css3`/`cs50`/
+  `cs2go` still FAIL — non-blocking OQ). Corrected fix = S-Y1.5d attempt-2
+  (revised `compact/sprint-090d-dev-prompt.md` + re-review against the full
+  452-id matrix). **Status: blocks S-Y1.5c/d close AND S-Y2 Part C until
+  attempt-2 lands + re-review passes.** **Env note:** during this session a
+  shell `cwd` drift into `autoloop/` (from an earlier `cd autoloop`) made
+  recursive `grep -r`/`find`/`ls` over relative `eval_interactive/…` paths
+  return empty (the dir doesn't exist under `autoloop/`) — briefly mistaken
+  for a suppressed/hallucinated result. Lesson: run corpus checks from the
+  repo root (or with absolute paths); a direct Python `os.walk` is the
+  authoritative check.
 
 ## 6. Closed index (relocated)
 

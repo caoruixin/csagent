@@ -776,10 +776,29 @@ Resolved by a targeted fix-iteration **S-Y1.5d / S-Auto-37** (dev prompt
   surface==intent" thesis actually true (the discriminator makes
   `cs<digit|_>` a CaseSpec-id surface).
 
+**Update 2026-06-12 — R-S90.6 (S-Y1.5d needed a second attempt).** S-Y1.5d
+attempt-1 (`40f8c07`, regex `\bcs[0-9_][0-9a-z_]+\b`) was HELD by the
+targeted Codex re-review (`fix_required`/1): requiring the discriminator
+*immediately after* `cs` let real `cs`+letter ids (the
+`manual_probe_uc_a_resolve_must` family `csmp_g01…`/`csmp_s01…`/`csmp_n01…`)
+PASS — a false-negative weakening the Q4 hard-discard (**R-S90.6**, logged
+in `docs/action_bank.md`). Deliver-agent verified (direct Python `os.walk` from the
+repo root) that the corpus has **452 distinct cs-ids, all containing a
+digit or underscore, 0 pure-letter cs-ids**. (Recursive shell searches gave
+misleading empty results mid-investigation — a shell `cwd` had drifted into
+`autoloop/`, so relative `eval_interactive/…` searches found nothing; run
+from the repo root or use absolute paths.) **Human decision 2026-06-12: corrected regex
+`\bcs[a-z0-9_]*[0-9_][a-z0-9_]*\b`** (digit/underscore ANYWHERE in the
+token), keep `_FAIL`. Verified: catches all 452 ids (0 misses incl.
+`csmp_*`), passes `csat`/`csagent`/`css`/`csv`; residual `css3`/`cs50`
+non-blocking OQ. Attempt-2 = revised `compact/sprint-090d-dev-prompt.md` +
+re-review against the full 452-id matrix.
+
 **Updated close + resumption sequence** (supersedes the b+c framing in §0 /
 §5 / §9): combo close = **b + c + d**. The §5 step 12 / §9 S-Y2 Part C
-`run -n 3` re-tranche is gated behind **S-Y1.5d landing + its targeted
-Codex re-review passing + a clean tree**, not behind the original b+c close.
+`run -n 3` re-tranche is gated behind **S-Y1.5d attempt-2 landing + its
+targeted Codex re-review passing + a clean tree**, not behind the original
+b+c close.
 
 ---
 
