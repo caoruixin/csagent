@@ -211,6 +211,45 @@ def test_q4_underscore_and_shadow_case_ids_still_fail():
         assert res.rule_id == "Q4.case_id_literal"
 
 
+def test_q4_csmp_letter_prefixed_case_ids_still_fail():
+    # R-S90.6 regression guard: real `cs`+LETTER CaseSpec ids (the
+    # manual_probe `csmp_*` family) carry a digit/underscore LATER in the
+    # token, not immediately after `cs`. Attempt-1's `\bcs[0-9_]…` regex
+    # required the discriminator right after `cs`, so these PASSed (a
+    # false-negative that weakened the §1.7 Q4 hard-discard). The corrected
+    # "digit/underscore ANYWHERE" regex must FAIL them.
+    for case_id in (
+        "csmp_g01_uc_a_genuine_faq_miss_obscure",
+        "csmp_s01_uc_a_search_hits_with_ad_id_mismatch",
+        "csmp_n01_uc_a_visibility_search_hits",
+    ):
+        res = anti_hardcode_check(
+            _hyp(f"Apply the documented handling for {case_id} during intake."),
+            config={},
+        )
+        assert res.verdict == "FAIL", (
+            f"CaseSpec id {case_id!r} must FAIL; got {res.verdict}"
+        )
+        assert res.rule_id == "Q4.case_id_literal"
+
+
+def test_q4_pure_letter_cs_words_still_pass():
+    # Companion to the R-S90.6 guard: confirm the corrected regex does NOT
+    # over-correct — pure `cs`+letter words (no digit/underscore anywhere)
+    # remain ordinary language and must PASS.
+    for prose in (
+        "Use CSAT feedback as an aggregate quality signal.",
+        "The csagent should provide grounded answers.",
+        "Apply the css and cstring helpers when rendering the reply.",
+        "Export the csv before computing the cscience metric.",
+    ):
+        res = anti_hardcode_check(_hyp(prose), config={})
+        assert res.verdict == "PASS", (
+            f"pure-letter cs-word prose must PASS; got {res.verdict} "
+            f"({res.rule_id}) for {prose!r}"
+        )
+
+
 # ---------------------------------------------------------------------
 # Q5 — LLM-ownership-shrinking language
 # ---------------------------------------------------------------------

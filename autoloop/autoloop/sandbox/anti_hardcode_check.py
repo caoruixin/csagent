@@ -266,14 +266,20 @@ def _q2_tier0_invention(text: str, before_norm: str) -> str | None:
 
 # Q4 — case_id / session_id / iteration_id literals --------------------
 
-# CaseSpec id token (e.g. `cs<NNN>`, `cs_<slug>`, `cs<n>s<n>`) — explicit
-# eval id leakage. The discriminator is a digit or underscore *immediately*
-# after `cs`: real CaseSpec ids always have one, ordinary `cs`+letter words
-# (CSAT, csagent, css) never do. `\bcs` anchors to an identifier start so
-# mid-word "cs" (discuss, customers) is excluded; the trailing `[0-9a-z_]+`
-# preserves the original ≥2-chars-after-`cs` minimum.
+# CaseSpec id token (e.g. `cs<NNN>`, `cs_<slug>`, `cs<n>s<n>`,
+# `csmp_<slug>`) — explicit eval id leakage. The discriminator is a digit
+# or underscore *anywhere* in the cs-token: real CaseSpec ids always
+# contain at least one, while ordinary `cs`+letter words (CSAT, csagent,
+# css, csv) are pure letters and never do. `\bcs` anchors to an identifier
+# start so mid-word "cs" (discuss, customers) is excluded; the `[0-9_]`
+# requirement inside the `[a-z0-9_]*` runs ensures the token carries an
+# id-shape discriminator (R-S90.6: the attempt-1 `\bcs[0-9_]…` form
+# required the discriminator *immediately* after `cs` and so missed
+# `cs`+letter-prefixed slug ids). Concrete id literals are kept out of
+# this source per the D2 self-discipline test; the test matrix in
+# `tests/test_anti_hardcode_check.py` carries the real-id examples.
 _RE_Q4_CASE_ID_TOKEN = re.compile(
-    r"\bcs[0-9_][0-9a-z_]+\b",
+    r"\bcs[a-z0-9_]*[0-9_][a-z0-9_]*\b",
     re.IGNORECASE,
 )
 # Explicit identifier assignment.
