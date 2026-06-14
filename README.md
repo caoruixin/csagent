@@ -1,4 +1,4 @@
-# Gumtree Customer Service Agent (csagent)
+# Customer Service Agent (csagent)
 
 这不是一个关键词 chatbot，而是一套**工程方法论**的产物：用 **LLM-first 的语义自由**真正解决分类信息平台的客服问题（FAQ 自动解答、Intake 采集、结构化人工转接），同时把安全、预算、工具权限、评估等机械约束牢牢钉死在确定性的运行时骨架里。支撑它的四块基石——**LLM-vs-Runtime 所有权边界**、**四层评估金字塔（人工为主门）**、**反 hardcode 治理纪律**、**autoloop 元进化**——都是在一轮轮 bad-case 复盘与研究驱动实验中*被迫沉淀出来*的，而非一开始就设计完备。下方「演进轨迹」即这套系统的发现过程。
 
@@ -49,7 +49,7 @@
 
 ### 解决什么问题
 
-在 Gumtree 客服场景中，Agent 位于**客户与人工坐席之间**：
+在客服场景中，Agent 位于**客户与人工坐席之间**：
 
 - **FAQ 路径**（UC-A～UC-FP）：检索帮助中心 → 引用文章 → 记录解决结果
 - **Intake 路径**（UC-G～UC-K）：收集必填字段 → 创建 Case → 结构化转人工
@@ -69,7 +69,7 @@
 ### Out of scope（当前仓库）
 
 - 执行业务副作用（退款、删帖、改账户）— Agent 只**解释流程**并转人工
-- 生产级 Gumtree / Salesforce 集成（本地为 Mock）
+- 生产级 Salesforce 集成（本地为 Mock）
 - Streaming / 多模态 / 跨会话长期记忆
 - 容器化部署与 CI（需自行补齐）
 
@@ -610,7 +610,7 @@ cd ui && npm test                        # UI vitest 10 passed
 
 ## 附录：对比表（Harness vs 典型 Chatbot vs 2025 Agent 框架）
 
-| 能力 | Gumtree csagent | 传统规则 Chatbot | 通用 Agent 框架（LangGraph 等） |
+| 能力 | csagent | 传统规则 Chatbot | 通用 Agent 框架（LangGraph 等） |
 |------|-----------------|------------------|--------------------------------|
 | 意图路由 | LLM + 确定性 prior | 关键词/决策树 | 自由 LLM 路由 |
 | 工具约束 | 三重白名单 + guardrail | 固定 API | 开发者自定 |

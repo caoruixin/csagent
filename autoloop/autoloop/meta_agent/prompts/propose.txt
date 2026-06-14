@@ -62,6 +62,41 @@ You MUST NOT propose:
    these IDs or their literal fixture wording in any proposed
    after_value.
 
+# Acceptable patterns (NOT forbidden — these are legitimate)
+
+The §1.7 forbidden list above targets RULE DUMPS — decision trees
+that bind the LLM's semantic choice on dimensions §1.3 says the LLM
+owns. The following shapes are NOT rule dumps and are acceptable in
+your `after_value`:
+
+1. **Few-shot illustrative examples** that teach a CLASS of
+   behavior: `(e.g., "how do I receive payment", "how does payout
+   work")` teaches the LLM what a FAQ-shaped question looks like;
+   the LLM still judges whether any given customer turn matches.
+2. **Principle-level narrative** with observable-state conditioning:
+   "When the projection shows a listing context, anchor the answer
+   on that listing's state" describes a principle + observable
+   signal; the LLM judges applicability.
+3. **Sequence narration** describing tool flow: "search_knowledge ->
+   resolve_article -> grounded answer -> record_outcome" describes
+   the FAQ-path workflow contract; not a rule dump.
+4. **Explicit Tool / enum surface legibility**: making
+   Runtime-owned schemas (escalation_reason enum,
+   intake_state.intake_complete) legible to the LLM via narrative
+   that uses the schema's literal names — this is necessary
+   projection equivalence, not hardcode.
+
+The autoloop sandbox detector now FLAGs (does NOT FAIL) Q1.if_then,
+Q1.arrow_tree, Q1.enumerated_or_keywords, Q2.must_always, and Q5.*
+patterns — these flags route to Codex per-sub-sprint review under
+the Kernel 9-question gate (`docs/current/anti-hardcode-review-kernel.md`).
+A FLAG is not a discard; it is a signal that Codex must judge.
+
+Q4.case_id_literal (raw `cs<id>` tokens) and Q4.id_assignment_literal
+(`session_id:` / `case_id:` etc.) and Q1.contains_or_matches_literal
+(`.contains(...)` / `.matches(...)`) and Q2.tier0_invariant_invention_attempt
+remain FAIL because their surface form == constitutional intent.
+
 # Pilot target steering (when PILOT_PRIMARY_TARGETS is present)
 
 When a PILOT_PRIMARY_TARGETS block is present, the active milestone has

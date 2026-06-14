@@ -712,6 +712,73 @@ as Sprint 088 / S-Auto-33 (contract active; Part C NOT started — human gate).
   future hardening could extend the defensive scrub if rationales start echoing
   `cs_*` labels.
 
+### Sprint 090 / S-Y1.5b/c (S-Auto-35/36) Codex combo review (2026-06-11) — surfaced blocking R-item
+
+The S-Y1.5b/c anti-hardcode detector combo (S-Y1.5b scope fix `9c62a86`
+LANDED; S-Y1.5c severity calibration `75b302c`) went to a combined
+per-sub-sprint §4.3 Codex review (`compact/sprint-090-review-prompt.md`).
+Verdicts written to `docs/codex-findings.md`: **S-Y1.5b `pass` /
+blocking_count 0** (standalone approve re-confirmed under the combined
+lens); **S-Y1.5c `fix_required` / blocking_count 1** (Kernel verdict
+`needs human architecture decision`). One blocking R-item surfaced.
+
+- **R-S90.5** (`infra`; **OPEN — current blocking finding**) — S-Y1.5c's
+  retained default-FAIL set is not limited to unambiguous §1.7 surfaces.
+  `Q4.case_id_literal`'s regex `\bcs[0-9a-z_]{2,}\b`
+  (`autoloop/autoloop/sandbox/anti_hardcode_check.py:274`) matches ANY word
+  beginning `cs` + 2 alnum/underscore, so ordinary terms (`CSAT`,
+  `csagent`, `css`) FALSE-FAIL as if they were CaseSpec-id leaks. This
+  breaks S-Y1.5c's load-bearing claim that the four retained FAIL rules are
+  all "surface form == constitutional intent", and re-opens a
+  false-positive-discard vector on exactly the `resolve_faq` surface the
+  S-Y2 pilot runs on. Codex confirmed `cs011`, `cs_uc_a_no_ad_id`,
+  `session_id=abc`, `case_id: 42` all still correctly FAIL (the behavior
+  the fix must preserve). **Disposition (human decision 2026-06-11):
+  tighten the regex, keep FAIL** — require a CaseSpec-id discriminator
+  (`cs` immediately followed by digit/underscore, e.g.
+  `\bcs[0-9_][0-9a-z_]+\b`), keeping `Q4.case_id_literal` severity `_FAIL`
+  so the §1.7 raw-eval-phrase hard-discard for real ids is preserved.
+  Fix scoped as the targeted fix-iteration **S-Y1.5d / S-Auto-37**
+  (`compact/sprint-090d-dev-prompt.md`; one regex line + precision tests:
+  real ids FAIL, ordinary cs-words PASS; scoring SHA stable → no re-bless).
+  A targeted §4.3 Codex re-review of the Q4 regex diff then flips the
+  S-Y1.5c stanza `fix_required → pass`/0 and marks R-S90.5 resolved-by-d.
+  **Status (2026-06-12):** S-Y1.5d attempt-1 (`40f8c07`) resolved the
+  CSAT/csagent false-positive but introduced **R-S90.6** (below) and was
+  HELD; the corrected attempt-2 resolves both. Refs:
+  `docs/codex-findings.md` (R-S90.5 finding);
+  `docs/solutions/2026-06-11-sy15bc-combo-implementation-plan.md` §11.
+- **R-S90.6** (`infra`; **OPEN — current blocking finding**, surfaced by
+  the S-Y1.5d targeted re-review 2026-06-12) — S-Y1.5d attempt-1's
+  tightened regex `\bcs[0-9_][0-9a-z_]+\b` required the digit/underscore
+  discriminator *immediately after* `cs`, so real `cs`+letter CaseSpec ids
+  (the `manual_probe_uc_a_resolve_must` family:
+  `csmp_g01_uc_a_genuine_faq_miss_obscure`, `csmp_s01_…`, `csmp_n01_…`)
+  returned PASS — a false-negative that weakens the §1.7 Q4 hard-discard.
+  Codex re-review verdict on S-Y1.5d: `fix_required` / blocking_count 1
+  (S-Y1.5c stays held). **Deliver-agent verification (direct Python
+  `os.walk` from the repo root): the corpus has 452 distinct cs-ids, every
+  one containing a digit or underscore, and ZERO pure-letter cs-ids.**
+  **Disposition (human decision 2026-06-12):
+  proceed with the corrected regex `\bcs[a-z0-9_]*[0-9_][a-z0-9_]*\b`
+  (digit/underscore ANYWHERE in the cs-token), keep `Q4.case_id_literal`
+  `_FAIL`.** Verified: catches all 452 ids (0 misses incl. `csmp_*`),
+  passes `csat`/`csagent`/`css`/`csv`; narrow residual (`css3`/`cs50`/
+  `cs2go` still FAIL — non-blocking OQ). Corrected fix = S-Y1.5d attempt-2
+  (revised `compact/sprint-090d-dev-prompt.md` + re-review against the full
+  452-id matrix). **Status: RESOLVED 2026-06-12** by S-Y1.5d attempt-2
+  (`708f8cb3`, regex `\bcs[a-z0-9_]*[0-9_][a-z0-9_]*\b`); targeted Codex
+  re-review independently re-verified (452 cs-ids / 0 misses; `csmp_*` FAIL;
+  `CSAT`/`csagent` PASS) and returned `pass`/0 on S-Y1.5b/c/d — **R-S90.5 AND
+  R-S90.6 both resolved; the S-Y1.5b/c/d combo is closed**
+  (`docs/codex-findings.md`). **Env note:** during this session a
+  shell `cwd` drift into `autoloop/` (from an earlier `cd autoloop`) made
+  recursive `grep -r`/`find`/`ls` over relative `eval_interactive/…` paths
+  return empty (the dir doesn't exist under `autoloop/`) — briefly mistaken
+  for a suppressed/hallucinated result. Lesson: run corpus checks from the
+  repo root (or with absolute paths); a direct Python `os.walk` is the
+  authoritative check.
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact

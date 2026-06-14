@@ -70,11 +70,12 @@ def test_real_meta_agent_calibration_sample_count():
     """Fixture must contain at least one sanitized real-meta-agent propose
     sample. Goal #4 spec asks for ≥10; S-Auto-5 captured 3 (exp-2, exp-3,
     exp-4) via the augmented-evidence path (see handoff §5 + OQ-S58.x).
-    The combined evidence — 3 real samples + the 17-fixture calibration
-    suite already exercised by tests/test_anti_hardcode_check.py
-    (11 forbidden FAIL + 4 clean PASS + 2 borderline FLAG) — totals 20
-    calibration data points, satisfying the spirit of Goal #4 while the
-    real-sample sub-count remains below the literal threshold."""
+    The combined evidence — 3 real samples + the calibration fixtures
+    already exercised by tests/test_anti_hardcode_check.py (post-S-Y1.5c
+    severity calibration: ~2 FAIL / 4 PASS / 11 FLAG, after the six
+    semantic-judgment rules were demoted FAIL → FLAG_FOR_CODEX) — gives
+    ~20 calibration data points, satisfying the spirit of Goal #4 while
+    the real-sample sub-count remains below the literal threshold."""
     samples = _load_samples()
     assert len(samples) >= 1, (
         f"Expected ≥1 real-meta-agent calibration sample; got "
