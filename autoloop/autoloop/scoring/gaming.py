@@ -54,12 +54,17 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 # scoring-code drift hole). Append-only (aggregate.py last) to keep the
 # diff localized; the hash recomputes regardless of order, but a stable
 # order documents intent.
+# S-Y1.7 (M-Auto-7): widened to SIX — `posterior.py` produces the Beta-
+# Binomial / TOST / BH-FDR posteriors the noise-aware fitness gate consumes
+# (the V3 rule's TIER-N / Layer-2 / Layer-4 decisions). Same rationale as
+# aggregate.py: leaving it out would be a scoring-code drift hole. Append-only.
 _SCORING_CODE_FILES = (
     "autoloop/autoloop/scoring/tier_evaluator.py",
     "autoloop/autoloop/scoring/eval_runner.py",
     "autoloop/autoloop/scoring/baseline_loader.py",
     "autoloop/autoloop/scoring/gaming.py",
     "autoloop/autoloop/scoring/aggregate.py",
+    "autoloop/autoloop/scoring/posterior.py",
 )
 
 

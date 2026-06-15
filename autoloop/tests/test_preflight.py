@@ -21,6 +21,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import json
+
 from autoloop import preflight
 from autoloop.preflight import (
     PreflightResult,
@@ -29,6 +31,7 @@ from autoloop.preflight import (
     check_clean_working_tree,
     check_foreground_backend,
     check_meta_llm_api_key,
+    check_non_comparable_rate,
     check_postgres_reachable,
     check_redis_reachable,
     format_report,
@@ -37,6 +40,57 @@ from autoloop.preflight import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+# --- check_non_comparable_rate (P0.6c §5.9 observational) ------------
+
+
+def _write_suite_results(suite_dir: Path, cases: list[dict]) -> None:
+    suite_dir.mkdir(parents=True, exist_ok=True)
+    (suite_dir / "results.json").write_text(
+        json.dumps({"case_results": cases}), encoding="utf-8"
+    )
+
+
+def _cfg_suites() -> dict:
+    return {"fitness": {"suites": [{"name": "bad_cases"}, {"name": "shadow"}]}}
+
+
+def test_non_comparable_rate_ok_below_threshold(tmp_path: Path):
+    _write_suite_results(tmp_path / "bad_cases", [
+        {"case_id": "a", "comparable": True, "majority_passed": True},
+        {"case_id": "b", "comparable": True, "majority_passed": False},
+    ])
+    _write_suite_results(tmp_path / "shadow", [
+        {"case_id": "c", "comparable": True, "majority_passed": True},
+    ])
+    r = check_non_comparable_rate(_cfg_suites(), tmp_path)
+    assert r.status == "ok"
+    assert r.details["per_suite"]["bad_cases"]["rate"] == 0.0
+
+
+def test_non_comparable_rate_warns_above_threshold(tmp_path: Path):
+    # 2 of 3 non-comparable = 66.7% > 20% default.
+    _write_suite_results(tmp_path / "bad_cases", [
+        {"case_id": "a", "comparable": True, "majority_passed": True},
+        {"case_id": "b", "comparable": False, "majority_passed": None},
+        {"case_id": "c", "comparable": False, "majority_passed": None},
+    ])
+    _write_suite_results(tmp_path / "shadow", [
+        {"case_id": "d", "comparable": True, "majority_passed": True},
+    ])
+    r = check_non_comparable_rate(_cfg_suites(), tmp_path)
+    assert r.status == "warn"
+    assert "bad_cases" in r.message
+    assert r.details["per_suite"]["bad_cases"]["rate"] > 0.20
+
+
+def test_non_comparable_rate_not_in_default_gate():
+    """The observational alert is NOT wired into the 6-check run_preflight gate
+    (it needs a sampled results dir; §5.9 pass invokes it separately)."""
+    import inspect
+    src = inspect.getsource(run_preflight)
+    assert "check_non_comparable_rate" not in src
 
 
 # --- check_foreground_backend ----------------------------------------

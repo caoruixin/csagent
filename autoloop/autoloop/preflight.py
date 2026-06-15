@@ -30,6 +30,7 @@ signal + typing. No new heavy deps. No LLM call.
 
 from __future__ import annotations
 
+import json
 import os
 import signal
 import socket
@@ -71,6 +72,10 @@ DEFAULT_TCP_TIMEOUT_SECONDS = 2.0
 DEFAULT_LSOF_TIMEOUT_SECONDS = 5.0
 DEFAULT_GIT_TIMEOUT_SECONDS = 5.0
 DEFAULT_API_KEY_ENV = "AUTOLOOP_META_LLM_API_KEY"
+# S-Y1.7 (P0.6c): a suite whose non-comparable rate exceeds this is a degraded
+# measurement substrate (too many TIMEOUT / infra / provider-mixed exhausted-
+# retry attempts), and the noise-aware fitness gate cannot be trusted on it.
+DEFAULT_NON_COMPARABLE_RATE_WARN = 0.20
 
 
 def _preflight_cfg(config: dict[str, Any]) -> dict[str, Any]:
@@ -389,6 +394,97 @@ def check_baseline_dir_loads(
             % (snapshot.baseline_run_id, len(snapshot.snapshots))
         ),
         details={"baseline_dir": str(baseline_dir)},
+    )
+
+
+# --- Check (observational, §5.9): non-comparable rate ----------------
+
+
+def check_non_comparable_rate(
+    config: dict[str, Any],
+    results_dir: Path,
+    *,
+    threshold: float = DEFAULT_NON_COMPARABLE_RATE_WARN,
+) -> PreflightResult:
+    """P0.6c §5.9 observational alert: scan a results dir (a sample of the
+    target run, or the baseline) and `warn` if any suite's non-comparable rate
+    exceeds `threshold`.
+
+    A non-comparable case is one whose aggregate verdict is None / comparable is
+    False — its provider-comparable attempts were below `min_valid_attempts`
+    because TIMEOUT / infra / provider-mixed attempts were excluded (NOT scored
+    as failures). A high rate means the noise-aware gate is measuring a degraded
+    substrate; the operator should re-run before trusting the verdict. This is
+    OBSERVATIONAL — never `fail` (it does not block the loop), only `warn`.
+
+    NOT wired into the default `run_preflight` 6-check gate: it needs a results
+    dir to sample, so it is invoked by the §5.9 pre-flight pass on a sample of
+    the target run (by a human or a coding sub-agent) rather than at loop start.
+    """
+    name = "non_comparable_rate"
+    fitness = (config or {}).get("fitness") or {}
+    suites_cfg = fitness.get("suites") or []
+    results_dir = Path(results_dir)
+
+    per_suite: dict[str, dict[str, Any]] = {}
+    worst = 0.0
+    worst_suite = None
+    for entry in suites_cfg:
+        suite_name = entry.get("name") if isinstance(entry, dict) else entry
+        if not suite_name:
+            continue
+        rj = results_dir / suite_name / "results.json"
+        if not rj.exists():
+            rj = results_dir / suite_name / "aggregated.json"
+        if not rj.exists():
+            continue
+        try:
+            data = json.loads(rj.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        cases = data.get("case_results") or []
+        if not cases:
+            continue
+        nc = sum(
+            1 for c in cases
+            if c.get("comparable") is False
+            or (("majority_passed" in c) and c.get("majority_passed") is None)
+        )
+        rate = nc / len(cases)
+        per_suite[suite_name] = {"non_comparable": nc, "total": len(cases), "rate": round(rate, 3)}
+        if rate > worst:
+            worst, worst_suite = rate, suite_name
+
+    if not per_suite:
+        return PreflightResult(
+            name=name,
+            status="warn",
+            message="no per-suite results found under %s to sample" % results_dir,
+            remediation="Point at a results dir with per-suite results.json/aggregated.json",
+            details={"results_dir": str(results_dir)},
+        )
+
+    if worst > threshold:
+        return PreflightResult(
+            name=name,
+            status="warn",
+            message=(
+                "non_comparable_rate %.1f%% in suite '%s' exceeds %.0f%% — degraded "
+                "measurement substrate; re-run before trusting the fitness verdict"
+                % (worst * 100.0, worst_suite, threshold * 100.0)
+            ),
+            remediation=(
+                "Investigate TIMEOUT / infra / provider-mixed attempts (env "
+                "pre-flight, backend health, provider routing); re-run the suite"
+            ),
+            details={"per_suite": per_suite, "threshold": threshold},
+        )
+
+    return PreflightResult(
+        name=name,
+        status="ok",
+        message="non_comparable_rate within %.0f%% across %d suite(s)" % (threshold * 100.0, len(per_suite)),
+        details={"per_suite": per_suite, "threshold": threshold},
     )
 
 

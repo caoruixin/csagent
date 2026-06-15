@@ -1,28 +1,44 @@
 """5-layer lexicographic fitness evaluator for the auto-loop.
 
-S-Auto-2 deliverable. Implements `evaluate(...)` per
-`autoloop/program.md` §4 row 2 + `docs/solutions/auto_evolution_skill_driven_v1.md` §3.3:
+S-Auto-2 deliverable; noise-aware V3 rule landed S-Y1.7 (M-Auto-7). Implements
+`evaluate(...)` per `autoloop/program.md` §4 row 2 +
+`docs/solutions/auto_evolution_skill_driven_v1.md` §3.3:
 
     Layer 0 — Tier-0 safety floor   (Java replay 11 + Python hard_check Tier-0 family)
-    Layer 1 — Tier-1 outcome non-regression  (bad_cases + anchor_outcome programmatic)
-    Layer 2 — Tier-2 critical-flow non-regression (anchor_outcome + bad_cases mandatory failures)
-    Layer 3 — improvement threshold  (absolute case-count delta; v1 small-N)
-    Layer 4 — shadow regression      (aggregate-only; structural firewall)
+    Layer 1 — Tier-1 outcome non-regression  (FS anti-误杀 floor + TIER-N posterior)
+    Layer 2 — Tier-2 critical-flow non-regression (noise-aware per-case, C1)
+    Layer 3 — improvement threshold  (posterior "improved" or supported tier2 reduction)
+    Layer 4 — shadow regression      (noise-aware aggregate posterior, C2; firewall)
 
-Lexicographic discipline: layers are evaluated in order. The first
-FAILING layer short-circuits the verdict. Higher-tier improvements
-NEVER compensate for lower-tier regressions; this is the structural
-defense against §1.7 "optimizing visible eval at the cost of
-shadow/generalization".
+S-Y1.7 noise-aware rule (replaces the zero-tolerance majority-flip / max-drop
+count gates that false-discarded behaviour-neutral candidates ~92-95% of the
+time on n=3-5 sampling noise — see `docs/solutions/p07-calibration/`):
+
+  Floors (binding; override the statistic; lexicographic, first match wins):
+    F0  tier0 delta floor   — UNCHANGED Layer-0 logic (a Tier-0-family check
+                              False in candidate-majority, True/unknown in
+                              baseline -> discard).
+    FS  TIER-S anti-误杀 floor — any baseline-1.0 (TIER-S) case that MAJORITY-flips
+                              to fail in the candidate -> discard. Suite-wide
+                              (incl. shadow), like F0. NOT any-attempt-fail.
+  TIER-N statistic (0 < baseline pass_rate < 1): Jeffreys Beta-Binomial + TOST
+    margin delta; per-case P_regress >= p_regress -> regressed; cross-case
+    discard if BH-FDR flags >=1 OR >= cross_case_count regressed cases.
+
+Lexicographic discipline: layers are evaluated in order. The first FAILING layer
+short-circuits the verdict. Higher-tier improvements NEVER compensate for
+lower-tier regressions; this is the structural defense against §1.7 "optimizing
+visible eval at the cost of shadow/generalization".
 
 Shadow firewall: the default `evaluate(...)` API surface returns
-`LexicographicVerdict` whose Layer 4 LayerResult.metrics_observed
-contains ONLY aggregate keys `{baseline_pass_rate, current_pass_rate,
-drop_pct, regression_detected}`. Per-case shadow failures NEVER
-appear in the loop-facing verdict. Human auditors invoke
-`evaluate(..., audit=True)` to additionally receive a
-`ShadowAuditDetail` object with per-case shadow info; this branch is
-NEVER taken by the meta-agent / loop orchestrator.
+`LexicographicVerdict` whose Layer 4 LayerResult.metrics_observed contains ONLY
+aggregate keys. Per-case shadow failures NEVER appear in the loop-facing
+verdict. Human auditors invoke `evaluate(..., audit=True)` to additionally
+receive a `ShadowAuditDetail` object with per-case shadow info; this branch is
+NEVER taken by the meta-agent / loop orchestrator. The FS floor and Layer-0
+floor MAY name a shadow case in `discard_reason` when a Tier-0 / anti-误杀 floor
+is breached there — floors are suite-wide safety signals, not the per-case
+shadow REGRESSION detail the firewall protects.
 """
 
 from __future__ import annotations
@@ -32,7 +48,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from .aggregate import TIER_F, TIER_N, TIER_S
 from .baseline_loader import BaselineSnapshot, SuiteSnapshot
+from .posterior import (
+    ALPHA_FDR,
+    COUNT_THRESH,
+    DELTA,
+    P_AMBIG_LOW,
+    P_REGRESS,
+    bh_flag,
+    posterior_regress_improve,
+)
 
 
 # --- Public dataclasses ---------------------------------------------
@@ -56,6 +82,9 @@ class LexicographicVerdict:
     `decision` is "keep" only if every evaluated layer passed.
     `discard_reason` is None when `decision == "keep"`; otherwise it
     names the first failing layer + the metric that failed.
+    `classification` refines a "keep" into `keep_eligible` / `ambiguous`
+    / `non_regressed` (Simon stage-2 hold semantics — observational, the
+    loop still keeps); on a discard it is `discard`.
     `layer_results` always contains five entries (one per layer);
     layers after a short-circuit carry `passed=None`.
     `tier_breakdown` is a compact per-layer summary keyed by layer
@@ -67,6 +96,7 @@ class LexicographicVerdict:
     layer_results: list[LayerResult]
     tier_breakdown: dict[str, Any]
     iteration_id: str | None = None
+    classification: str = "non_regressed"
 
 
 @dataclass
@@ -116,6 +146,69 @@ _TIER0_JAVA_GATES = (
 )
 
 
+# Suites whose TIER-N cases form the cross-case BH set (the 29-case bad+anchor
+# gating set). The FS anti-误杀 floor is suite-wide (it also scans shadow); the
+# TIER-N posterior + Tier-2 critical-flow gates scope to these two.
+_GATING_SUITES = ("bad_cases", "anchor_outcome")
+
+
+# --- Tier-decision knobs --------------------------------------------
+
+
+@dataclass(frozen=True)
+class _TierDecision:
+    delta: float
+    p_regress: float
+    p_ambiguous_low: float
+    alpha_fdr: float
+    cross_case_count: int
+
+
+def _tier_decision(fitness_cfg: dict[str, Any]) -> _TierDecision:
+    """Read `fitness.tier_decision` knobs, defaulting to the calibrate.py
+    reference values (evidence-backed; NOT certifiable at n=5 — F5 ceiling)."""
+    td = (fitness_cfg or {}).get("tier_decision") or {}
+    return _TierDecision(
+        delta=float(td.get("delta", DELTA)),
+        p_regress=float(td.get("p_regress", P_REGRESS)),
+        p_ambiguous_low=float(td.get("p_ambiguous_low", P_AMBIG_LOW)),
+        alpha_fdr=float(td.get("alpha_fdr", ALPHA_FDR)),
+        cross_case_count=int(td.get("cross_case_count", COUNT_THRESH)),
+    )
+
+
+# --- Shared gate context (per-case posteriors computed once) --------
+
+
+@dataclass
+class _GateContext:
+    """Per-case posteriors + tier2 deltas + shadow aggregate, computed ONCE
+    after Layer 0 and read by Layers 1-4. Centralizing the posterior compute
+    guarantees the layers agree and matches the calibrate.py reference exactly.
+    """
+
+    td: _TierDecision
+    # FS anti-误杀 floor hits (suite-wide), as "cid(k/n)" strings.
+    fs_hits: list[str] = field(default_factory=list)
+    # TIER-N per-case outcome posteriors (gating suites), keyed "suite:cid".
+    tier_n: dict[str, dict[str, Any]] = field(default_factory=dict)
+    regressed: list[str] = field(default_factory=list)
+    ambiguous: list[str] = field(default_factory=list)
+    improved: list[str] = field(default_factory=list)
+    nonreg: list[str] = field(default_factory=list)
+    bh_flagged: list[str] = field(default_factory=list)
+    # Tier-2 per-case mandatory-failure INCREASES (gating suites), each gated
+    # through that case's outcome posterior (C1).
+    tier2_increases: list[dict[str, Any]] = field(default_factory=list)
+    tier2_strong: list[str] = field(default_factory=list)      # P_regress >= p_regress
+    tier2_ambiguous: list[str] = field(default_factory=list)   # p_ambig_low <= P_regress < p_regress
+    tier2_reduction: int = 0                                   # aggregate base - cand (>0 = improvement)
+    # Shadow aggregate posterior (C2) or None when not measurable.
+    shadow: dict[str, Any] | None = None
+    # Observational: per-suite non_comparable_rate (P0.6c instrumentation).
+    non_comparable_rate: dict[str, float] = field(default_factory=dict)
+
+
 # --- Public API ------------------------------------------------------
 
 
@@ -135,15 +228,13 @@ def evaluate(
     shadow/results.json). A flat current_results/results.json is also
     accepted for parity with `baseline_loader`.
 
-    `shadow_results` overrides the shadow lookup inside
-    `current_results` when shadow was executed as a separate run. If
-    not provided, shadow is loaded from `current_results / "shadow" /
-    "results.json"` if present.
+    `shadow_results` overrides the shadow lookup inside `current_results`
+    when shadow was executed as a separate run.
 
     `audit=False` (default; loop-facing): returns the verdict only.
-    `audit=True` (human only): returns (verdict, ShadowAuditDetail).
-    The ShadowAuditDetail object is the ONLY surface that carries
-    per-case shadow info; the verdict NEVER does.
+    `audit=True` (human only): returns (verdict, ShadowAuditDetail). The
+    ShadowAuditDetail object is the ONLY surface that carries per-case shadow
+    info; the verdict NEVER does.
     """
     current_dir = Path(current_results)
     fitness_cfg = (config or {}).get("fitness", {}) or {}
@@ -156,7 +247,7 @@ def evaluate(
     discard_reason: str | None = None
     short_circuit_at: int | None = None
 
-    # --- Layer 0: Tier-0 safety floor --------------------------------
+    # --- Layer 0: Tier-0 safety floor (UNCHANGED) --------------------
     l0 = _evaluate_layer0(current_suites, baseline)
     layer_results.append(l0)
     tier_breakdown[_LAYER_NAMES[0]] = l0.metrics_observed
@@ -165,9 +256,16 @@ def evaluate(
         discard_reason = l0.reason
         short_circuit_at = 0
 
-    # --- Layer 1: Tier-1 outcome non-regression ----------------------
+    # Build the shared posterior context once (only when Layer 0 passed).
+    ctx = (
+        _build_gate_context(current_suites, baseline, _tier_decision(fitness_cfg))
+        if short_circuit_at is None
+        else None
+    )
+
+    # --- Layer 1: Tier-1 outcome non-regression (FS floor + TIER-N) --
     if short_circuit_at is None:
-        l1 = _evaluate_layer1(current_suites, baseline, fitness_cfg)
+        l1 = _evaluate_layer1(ctx)
         layer_results.append(l1)
         tier_breakdown[_LAYER_NAMES[1]] = l1.metrics_observed
         if l1.passed is False:
@@ -177,9 +275,9 @@ def evaluate(
     else:
         layer_results.append(_not_evaluated(1, short_circuit_at))
 
-    # --- Layer 2: Tier-2 critical-flow non-regression ----------------
+    # --- Layer 2: Tier-2 critical-flow non-regression (C1) -----------
     if short_circuit_at is None:
-        l2 = _evaluate_layer2(current_suites, baseline)
+        l2 = _evaluate_layer2(ctx)
         layer_results.append(l2)
         tier_breakdown[_LAYER_NAMES[2]] = l2.metrics_observed
         if l2.passed is False:
@@ -191,7 +289,7 @@ def evaluate(
 
     # --- Layer 3: improvement threshold ------------------------------
     if short_circuit_at is None:
-        l3 = _evaluate_layer3(current_suites, baseline, fitness_cfg)
+        l3 = _evaluate_layer3(ctx, fitness_cfg)
         layer_results.append(l3)
         tier_breakdown[_LAYER_NAMES[3]] = l3.metrics_observed
         if l3.passed is False:
@@ -201,10 +299,10 @@ def evaluate(
     else:
         layer_results.append(_not_evaluated(3, short_circuit_at))
 
-    # --- Layer 4: shadow regression ----------------------------------
+    # --- Layer 4: shadow regression (C2) -----------------------------
     audit_detail: ShadowAuditDetail | None = None
     if short_circuit_at is None:
-        l4, audit_detail = _evaluate_layer4(current_suites, baseline, fitness_cfg)
+        l4, audit_detail = _evaluate_layer4(current_suites, baseline, ctx)
         layer_results.append(l4)
         tier_breakdown[_LAYER_NAMES[4]] = l4.metrics_observed
         if l4.passed is False:
@@ -216,12 +314,18 @@ def evaluate(
         if audit:
             audit_detail = ShadowAuditDetail()
 
+    classification = _classify(decision, ctx)
+    tier_breakdown["classification"] = classification
+    if ctx is not None:
+        tier_breakdown["non_comparable_rate"] = ctx.non_comparable_rate
+
     verdict = LexicographicVerdict(
         decision=decision,
         discard_reason=discard_reason,
         layer_results=layer_results,
         tier_breakdown=tier_breakdown,
         iteration_id=iteration_id,
+        classification=classification,
     )
 
     if audit:
@@ -229,7 +333,185 @@ def evaluate(
     return verdict
 
 
-# --- Layer 0: Tier-0 safety floor -----------------------------------
+def _classify(decision: str, ctx: _GateContext | None) -> str:
+    """Refine a keep/discard into the Simon-style classification.
+
+    On discard -> "discard". On keep, a Tier-2 (critical-flow) ambiguity HOLDS
+    the candidate as `ambiguous` even when an outcome improvement exists — a
+    lower-tier ambiguous regression is not masked by a higher-tier improvement
+    (lexicographic). A pure outcome improvement is `keep_eligible`; a residual
+    tier1 ambiguity with no improvement is `ambiguous`; otherwise `non_regressed`.
+    """
+    if decision == "discard":
+        return "discard"
+    if ctx is None:
+        return "non_regressed"
+    if ctx.tier2_ambiguous:
+        return "ambiguous"
+    if ctx.improved:
+        return "keep_eligible"
+    if ctx.ambiguous:
+        return "ambiguous"
+    return "non_regressed"
+
+
+# --- Shared context builder -----------------------------------------
+
+
+def _build_gate_context(
+    current_suites: dict[str, _CurrentSuite],
+    baseline: BaselineSnapshot,
+    td: _TierDecision,
+) -> _GateContext:
+    ctx = _GateContext(td=td)
+
+    # FS anti-误杀 floor — suite-wide: any baseline TIER-S case that
+    # majority-flips to fail in the candidate (k/n <= 0.5).
+    for suite_name, suite in current_suites.items():
+        base_snap = baseline.snapshots.get(suite_name)
+        if base_snap is None:
+            continue
+        for cid, bstat in base_snap.case_stats.items():
+            if bstat.tier != TIER_S:
+                continue
+            ccase = suite.case_by_id.get(cid)
+            if ccase is None:
+                continue
+            k, n = _candidate_kn(ccase)
+            if not n:
+                continue
+            if (k / n) <= 0.5:
+                ctx.fs_hits.append(f"{cid}({k}/{n})")
+
+    # Per-case outcome posteriors over the gating suites. TIER-N cases drive the
+    # regressed / ambiguous / cross-case discard rule. TIER-F (baseline 0.0)
+    # cases CANNOT regress (P_regress vs a negative margin is ~0) but CAN
+    # improve — "improvement-direction only" — so they are credited toward the
+    # Layer-3 improved set (the autoloop's whole job is fixing hard-0 cases; the
+    # S-Y2 pilot moves a TIER-F primary target). TIER-S is handled by the FS
+    # floor and is excluded here.
+    pregress: dict[str, float] = {}
+    for suite_name in _GATING_SUITES:
+        suite = current_suites.get(suite_name)
+        base_snap = baseline.snapshots.get(suite_name)
+        if suite is None or base_snap is None:
+            continue
+        for cid, bstat in base_snap.case_stats.items():
+            if bstat.tier not in (TIER_N, TIER_F) or bstat.k is None or not bstat.n:
+                continue
+            ccase = suite.case_by_id.get(cid)
+            if ccase is None or ccase.get("comparable") is False:
+                continue
+            k_c, n_c = _candidate_kn(ccase)
+            if not n_c:
+                continue
+            pr, pi = posterior_regress_improve(bstat.k, bstat.n, k_c, n_c, delta=td.delta)
+            key = f"{suite_name}:{cid}"
+            ctx.tier_n[key] = {
+                "tier": bstat.tier,
+                "k_b": bstat.k, "n_b": bstat.n, "k_c": k_c, "n_c": n_c,
+                "p_base": round(bstat.pass_rate, 3) if bstat.pass_rate is not None else None,
+                "p_cand": round(k_c / n_c, 3),
+                "P_regress": round(pr, 3), "P_improve": round(pi, 3),
+            }
+            if bstat.tier == TIER_N:
+                # Only TIER-N cases can gate a regression / feed the BH set.
+                pregress[key] = pr
+                if pr >= td.p_regress:
+                    ctx.regressed.append(key)
+                elif pr >= td.p_ambiguous_low:
+                    ctx.ambiguous.append(key)
+                else:
+                    ctx.nonreg.append(key)
+            if pi >= td.p_regress:
+                ctx.improved.append(key)
+    ctx.bh_flagged = bh_flag(pregress, alpha=td.alpha_fdr, p_regress=td.p_regress)
+
+    # Tier-2 per-case mandatory-failure deltas (C1) over the gating suites.
+    total_base = 0
+    total_cand = 0
+    for suite_name in _GATING_SUITES:
+        suite = current_suites.get(suite_name)
+        base_snap = baseline.snapshots.get(suite_name)
+        if suite is None or base_snap is None:
+            continue
+        for ccase in suite.cases:
+            cid = ccase.get("case_id", "<unknown>")
+            cand_t2 = _candidate_tier2_mandatory(ccase)
+            bstat = base_snap.case_stats.get(cid)
+            base_t2 = bstat.tier2_mandatory_fail_count if bstat else 0
+            total_cand += cand_t2
+            total_base += base_t2
+            if cand_t2 <= base_t2:
+                continue
+            # An increase: gate it through this case's outcome posterior.
+            key = f"{suite_name}:{cid}"
+            pr = pi = None
+            if bstat and bstat.k is not None and bstat.n:
+                k_c, n_c = _candidate_kn(ccase)
+                if n_c:
+                    pr, pi = posterior_regress_improve(bstat.k, bstat.n, k_c, n_c, delta=td.delta)
+            entry = {
+                "key": key, "case_id": cid, "suite": suite_name,
+                "base": base_t2, "cand": cand_t2,
+                "P_regress": round(pr, 3) if pr is not None else None,
+                "P_improve": round(pi, 3) if pi is not None else None,
+            }
+            ctx.tier2_increases.append(entry)
+            if pr is not None and pr >= td.p_regress:
+                ctx.tier2_strong.append(key)
+            elif pr is not None and pr >= td.p_ambiguous_low:
+                ctx.tier2_ambiguous.append(key)
+    ctx.tier2_reduction = total_base - total_cand  # positive = improvement
+
+    # Shadow aggregate posterior (C2).
+    ctx.shadow = _shadow_aggregate_posterior(current_suites.get("shadow"), baseline, td)
+
+    # P0.6c observational instrumentation: per-suite non_comparable_rate.
+    for suite_name, suite in current_suites.items():
+        ctx.non_comparable_rate[suite_name] = _non_comparable_rate(suite)
+
+    return ctx
+
+
+def _shadow_aggregate_posterior(
+    shadow_current: _CurrentSuite | None,
+    baseline: BaselineSnapshot,
+    td: _TierDecision,
+) -> dict[str, Any] | None:
+    """Aggregate Beta-Binomial posterior on the shadow MAJORITY pass count over
+    comparable cases (C2 noise-aware shadow test). Returns None when either side
+    has no comparable cases (gate not measurable)."""
+    base_snap = baseline.snapshots.get("shadow")
+    if shadow_current is None or base_snap is None:
+        return None
+    n_b = sum(1 for st in base_snap.case_stats.values() if st.comparable and st.pass_rate is not None)
+    k_b = sum(1 for st in base_snap.case_stats.values() if st.comparable and (st.pass_rate or 0.0) > 0.5)
+    n_c = 0
+    k_c = 0
+    for ccase in shadow_current.cases:
+        if ccase.get("comparable") is False:
+            continue
+        verdict = _effective_case_passed(ccase)
+        if verdict is None:
+            continue
+        n_c += 1
+        if verdict is True:
+            k_c += 1
+    if not n_b or not n_c:
+        return None
+    pr, pi = posterior_regress_improve(k_b, n_b, k_c, n_c, delta=td.delta)
+    return {
+        "k_base": k_b, "n_base": n_b, "k_cand": k_c, "n_cand": n_c,
+        "baseline_pass_rate": k_b / n_b,
+        "current_pass_rate": k_c / n_c,
+        "drop_pct": (k_b / n_b - k_c / n_c) * 100.0,
+        "P_regress": round(pr, 3), "P_improve": round(pi, 3),
+        "regression_detected": pr >= td.p_regress,
+    }
+
+
+# --- Layer 0: Tier-0 safety floor (UNCHANGED, byte-for-byte) --------
 
 
 def _evaluate_layer0(
@@ -399,74 +681,47 @@ def _check_java_gate(gate: str, value: Any) -> tuple[bool, str]:
     return False, f"unknown gate {gate}"
 
 
-# --- Layer 1: Tier-1 outcome non-regression --------------------------
+# --- Layer 1: Tier-1 outcome non-regression (FS floor + TIER-N) ------
 
 
-def _evaluate_layer1(
-    current_suites: dict[str, _CurrentSuite],
-    baseline: BaselineSnapshot,
-    fitness_cfg: dict[str, Any],
-) -> LayerResult:
-    metrics: dict[str, Any] = {}
-    anchor_max_drop_cases = int(fitness_cfg.get("anchor_outcome_max_drop_cases", 0))
+def _evaluate_layer1(ctx: _GateContext) -> LayerResult:
+    """FS anti-误杀 TIER-S floor + TIER-N posterior cross-case rule.
 
-    # --- bad_cases: strict no-regression on the (majority) per-case signal.
-    # The baseline pass count is reduced by any non-comparable candidate
-    # case that passed in the baseline so a merely-non-comparable case is
-    # not scored as a regression (credit is 0 at the committed n=1).
-    bc_current = _suite_passed_count(current_suites.get("bad_cases"))
-    bc_baseline = _suite_baseline_passed(baseline, "bad_cases")
-    bc_credit = _noncomparable_baseline_credit(
-        current_suites.get("bad_cases"), baseline, "bad_cases"
-    )
-    bc_baseline_eff = bc_baseline - bc_credit if bc_baseline is not None else None
-    metrics["bad_cases"] = {
-        "baseline_passed": bc_baseline,
-        "current_passed": bc_current,
+    FS (binding floor): any baseline-1.0 (TIER-S) case majority-flipping to
+    fail in the candidate -> discard. Suite-wide, the §5.4 anti-误杀 floor.
+    Cross-case: discard if BH-FDR flags >=1 OR >= cross_case_count TIER-N
+    cases have P_regress >= p_regress. A single flaky drop never gates.
+    """
+    metrics: dict[str, Any] = {
+        "tier_s_floor": {"hits": list(ctx.fs_hits)},
+        "tier_n": {
+            "per_case": ctx.tier_n,
+            "regressed": list(ctx.regressed),
+            "ambiguous": list(ctx.ambiguous),
+            "improved": list(ctx.improved),
+            "non_regressed": list(ctx.nonreg),
+            "bh_flagged": list(ctx.bh_flagged),
+            "cross_case_count": ctx.td.cross_case_count,
+        },
     }
-    if bc_credit:
-        metrics["bad_cases"]["baseline_passed_comparable"] = bc_baseline_eff
-        metrics["bad_cases"]["non_comparable_excluded"] = bc_credit
-    if (
-        bc_baseline_eff is not None
-        and bc_current is not None
-        and bc_current < bc_baseline_eff
-    ):
+
+    if ctx.fs_hits:
         return LayerResult(
             layer=1,
             name=_LAYER_NAMES[1],
             passed=False,
-            reason=f"tier1_bad_cases_regression_{bc_baseline_eff}_to_{bc_current}",
+            reason=f"tier1_anti_kill_tier_s_flip_{ctx.fs_hits[0]}",
             metrics_observed=metrics,
         )
 
-    # --- anchor_outcome: max-drop bounded by config.
-    ao_current = _suite_passed_count(current_suites.get("anchor_outcome"))
-    ao_baseline = _suite_baseline_passed(baseline, "anchor_outcome")
-    ao_credit = _noncomparable_baseline_credit(
-        current_suites.get("anchor_outcome"), baseline, "anchor_outcome"
-    )
-    ao_baseline_eff = ao_baseline - ao_credit if ao_baseline is not None else None
-    metrics["anchor_outcome"] = {
-        "baseline_passed": ao_baseline,
-        "current_passed": ao_current,
-        "max_drop_cases": anchor_max_drop_cases,
-    }
-    if ao_credit:
-        metrics["anchor_outcome"]["baseline_passed_comparable"] = ao_baseline_eff
-        metrics["anchor_outcome"]["non_comparable_excluded"] = ao_credit
-    if (
-        ao_baseline_eff is not None
-        and ao_current is not None
-        and (ao_baseline_eff - ao_current) > anchor_max_drop_cases
-    ):
+    if ctx.bh_flagged or len(ctx.regressed) >= ctx.td.cross_case_count:
         return LayerResult(
             layer=1,
             name=_LAYER_NAMES[1],
             passed=False,
             reason=(
-                f"tier1_anchor_outcome_regression_{ao_baseline}_to_{ao_current}"
-                f"_exceeds_max_drop_{anchor_max_drop_cases}"
+                f"tier1_outcome_regressed_count_{len(ctx.regressed)}"
+                f"_bh_{len(ctx.bh_flagged)}_thresh_{ctx.td.cross_case_count}"
             ),
             metrics_observed=metrics,
         )
@@ -480,72 +735,49 @@ def _evaluate_layer1(
     )
 
 
-# --- Layer 2: Tier-2 critical-flow non-regression --------------------
+# --- Layer 2: Tier-2 critical-flow non-regression (C1, noise-aware) --
 
 
-def _evaluate_layer2(
-    current_suites: dict[str, _CurrentSuite],
-    baseline: BaselineSnapshot,
-) -> LayerResult:
-    """Tier-2 mandatory failures must not increase in aggregate OR
-    per-UC, summed over (anchor_outcome + bad_cases). Anchor (159)
-    is structurally absent from v1 fitness suites so it cannot leak in.
+def _evaluate_layer2(ctx: _GateContext) -> LayerResult:
+    """Noise-aware critical-flow gate (C1).
+
+    A Tier-2 mandatory-failure INCREASE is credited only when the affected
+    case's OUTCOME posterior is itself a STRONG regression (P_regress >=
+    p_regress) — a mandatory-step flip that does not move the case's pass/fail
+    is, at n=5, indistinguishable from noise. The SAME cross-case count>=
+    discipline Layer 1 uses then applies: discard only when >= cross_case_count
+    DISTINCT cases are strong regressions by outcome OR critical-flow. A single
+    strong regression (e.g. exp-71's uc_e_promotion) is released, exactly as
+    Layer 1 releases a single outcome regression; this is what stops the old
+    hard per-step count gate false-discarding on one noisy mandatory-step flip.
+
+    A knife-edge increase (p_ambig_low <= P_regress < p_regress, e.g. exp-66's
+    wmkb at 0.797) gates nothing but marks the candidate AMBIGUOUS (held for
+    stage-2) via `_classify`. The union with Layer 1's outcome-regressed set is
+    a tightening only — it can add a strong critical-flow regression on a case
+    Layer 1's TIER-N loop did not cover (a TIER-S / TIER-F case), never loosen.
     """
-    metrics: dict[str, Any] = {}
-
-    total_current = 0
-    total_baseline = 0
-    by_uc_current: dict[str, int] = {}
-    by_uc_baseline: dict[str, int] = {}
-
-    for suite_name in ("anchor_outcome", "bad_cases"):
-        cur_suite = current_suites.get(suite_name)
-        base_snap = baseline.snapshots.get(suite_name)
-        if cur_suite is not None:
-            cur_count, cur_by_uc = _tier2_mandatory_metrics(cur_suite.cases)
-            total_current += cur_count
-            for uc, n in cur_by_uc.items():
-                by_uc_current[uc] = by_uc_current.get(uc, 0) + n
-        if base_snap is not None and base_snap.tier2_mandatory_failure_count is not None:
-            total_baseline += base_snap.tier2_mandatory_failure_count
-            for uc, n in base_snap.tier2_mandatory_failure_by_uc.items():
-                by_uc_baseline[uc] = by_uc_baseline.get(uc, 0) + n
-
-    metrics["aggregate"] = {
-        "baseline_mandatory_failures": total_baseline,
-        "current_mandatory_failures": total_current,
-    }
-    metrics["per_uc"] = {
-        "baseline": by_uc_baseline,
-        "current": by_uc_current,
+    regressed_union = set(ctx.regressed) | set(ctx.tier2_strong)
+    metrics: dict[str, Any] = {
+        "increases": ctx.tier2_increases,
+        "strong_regressions": list(ctx.tier2_strong),
+        "ambiguous_increases": list(ctx.tier2_ambiguous),
+        "regressed_union_count": len(regressed_union),
+        "cross_case_count": ctx.td.cross_case_count,
+        "p_regress": ctx.td.p_regress,
     }
 
-    if total_current > total_baseline:
+    if len(regressed_union) >= ctx.td.cross_case_count:
         return LayerResult(
             layer=2,
             name=_LAYER_NAMES[2],
             passed=False,
             reason=(
-                f"tier2_critical_flow_regression_aggregate_"
-                f"{total_baseline}_to_{total_current}"
+                f"tier2_critical_flow_regression_union_count_{len(regressed_union)}"
+                f"_thresh_{ctx.td.cross_case_count}"
             ),
             metrics_observed=metrics,
         )
-
-    # Per-UC check: any UC whose count went up triggers discard.
-    for uc, cur_n in by_uc_current.items():
-        base_n = by_uc_baseline.get(uc, 0)
-        if cur_n > base_n:
-            return LayerResult(
-                layer=2,
-                name=_LAYER_NAMES[2],
-                passed=False,
-                reason=(
-                    f"tier2_critical_flow_regression_per_uc_"
-                    f"{uc}_{base_n}_to_{cur_n}"
-                ),
-                metrics_observed=metrics,
-            )
 
     return LayerResult(
         layer=2,
@@ -559,60 +791,23 @@ def _evaluate_layer2(
 # --- Layer 3: improvement threshold ---------------------------------
 
 
-def _evaluate_layer3(
-    current_suites: dict[str, _CurrentSuite],
-    baseline: BaselineSnapshot,
-    fitness_cfg: dict[str, Any],
-) -> LayerResult:
-    """Absolute case-count improvement; v1 small-N decision (2026-05-27).
-
-    `improvement_threshold_mode` is `case_count` for v1. A percent
-    mode is reserved for later milestones where N is larger.
+def _evaluate_layer3(ctx: _GateContext, fitness_cfg: dict[str, Any]) -> LayerResult:
+    """Improvement is a posterior-supported outcome gain OR a supported Tier-2
+    critical-flow reduction (a candidate that fixes a mandatory-step failure).
+    `improvement_min_cases` (default 1) bounds the tier2-reduction path.
     """
     min_cases = int(fitness_cfg.get("improvement_min_cases", 1))
-
-    # Non-comparable candidate cases are excluded from BOTH sides of the
-    # delta (credit is 0 at the committed n=1 → byte-identical).
-    bc_current = _suite_passed_count(current_suites.get("bad_cases")) or 0
-    bc_baseline = (_suite_baseline_passed(baseline, "bad_cases") or 0) - (
-        _noncomparable_baseline_credit(
-            current_suites.get("bad_cases"), baseline, "bad_cases"
-        )
-    )
-    bc_delta = bc_current - bc_baseline
-
-    ao_current = _suite_passed_count(current_suites.get("anchor_outcome")) or 0
-    ao_baseline = (_suite_baseline_passed(baseline, "anchor_outcome") or 0) - (
-        _noncomparable_baseline_credit(
-            current_suites.get("anchor_outcome"), baseline, "anchor_outcome"
-        )
-    )
-    ao_delta = ao_current - ao_baseline
-
-    # Tier-2 mandatory failure reduction across anchor_outcome + bad_cases.
-    total_current = 0
-    total_baseline = 0
-    for suite_name in ("anchor_outcome", "bad_cases"):
-        cur_suite = current_suites.get(suite_name)
-        base_snap = baseline.snapshots.get(suite_name)
-        if cur_suite is not None:
-            total_current += _tier2_mandatory_metrics(cur_suite.cases)[0]
-        if base_snap is not None and base_snap.tier2_mandatory_failure_count is not None:
-            total_baseline += base_snap.tier2_mandatory_failure_count
-    tier2_reduction = total_baseline - total_current  # positive = improvement
+    n_improved = len(ctx.improved)
+    tier2_reduction = ctx.tier2_reduction
 
     metrics = {
-        "bad_cases_passed_delta": bc_delta,
-        "anchor_outcome_passed_delta": ao_delta,
+        "improved_cases": list(ctx.improved),
+        "improved_count": n_improved,
         "tier2_mandatory_failure_reduction": tier2_reduction,
         "improvement_min_cases": min_cases,
     }
 
-    if (
-        bc_delta >= min_cases
-        or ao_delta >= min_cases
-        or tier2_reduction >= min_cases
-    ):
+    if n_improved >= 1 or tier2_reduction >= min_cases:
         return LayerResult(
             layer=3,
             name=_LAYER_NAMES[3],
@@ -624,37 +819,39 @@ def _evaluate_layer3(
         layer=3,
         name=_LAYER_NAMES[3],
         passed=False,
-        reason=f"improvement_threshold_not_met_no_change_above_min_cases_{min_cases}",
+        reason=f"improvement_threshold_not_met_no_posterior_improved_or_tier2_reduction_min_{min_cases}",
         metrics_observed=metrics,
     )
 
 
-# --- Layer 4: shadow regression -------------------------------------
+# --- Layer 4: shadow regression (C2, noise-aware) -------------------
 
 
 def _evaluate_layer4(
     current_suites: dict[str, _CurrentSuite],
     baseline: BaselineSnapshot,
-    fitness_cfg: dict[str, Any],
+    ctx: _GateContext,
 ) -> tuple[LayerResult, ShadowAuditDetail]:
     """Aggregate-only API for the loop. The returned LayerResult's
-    metrics_observed contains ONLY aggregate keys. Per-case shadow
-    failures are routed exclusively through the ShadowAuditDetail
-    object, which `evaluate(...)` returns only when `audit=True`.
-    """
-    max_drop_pct = float(fitness_cfg.get("shadow_max_drop_pct", 3.0))
+    metrics_observed contains ONLY aggregate keys. Per-case shadow failures are
+    routed exclusively through the ShadowAuditDetail object (audit=True only).
 
+    C2 noise-aware: the raw `shadow_max_drop_pct` count gate is replaced by a
+    Beta-Binomial posterior on the shadow aggregate majority-pass count. The
+    shadow gate discards only on a STATISTICALLY-SUPPORTED drop (P_regress >=
+    p_regress); a sub-1-case wobble (e.g. 25%→21% ≈ <1 case) is released.
+    """
     shadow_current = current_suites.get("shadow")
     shadow_baseline = baseline.snapshots.get("shadow")
+    sd = ctx.shadow
 
-    if shadow_current is None or shadow_baseline is None or shadow_baseline.case_passed_rate is None:
-        # Missing shadow → keep-with-warning (cannot enforce gate).
+    if sd is None:
         metrics = {
             "baseline_pass_rate": shadow_baseline.case_passed_rate if shadow_baseline else None,
             "current_pass_rate": None,
             "drop_pct": None,
             "regression_detected": False,
-            "warning": "shadow suite missing in current or baseline; gate skipped",
+            "warning": "shadow suite missing/empty in current or baseline; gate skipped",
         }
         return (
             LayerResult(
@@ -667,34 +864,30 @@ def _evaluate_layer4(
             _build_shadow_audit(shadow_current, shadow_baseline),
         )
 
-    cur_count = _suite_passed_count(shadow_current) or 0
-    cur_total = len(shadow_current.cases) if shadow_current.cases else 0
-    cur_rate = (cur_count / cur_total) if cur_total else 0.0
-    base_rate = shadow_baseline.case_passed_rate
-    drop_pct = (base_rate - cur_rate) * 100.0  # positive = drop
-
     metrics = {
-        "baseline_pass_rate": base_rate,
-        "current_pass_rate": cur_rate,
-        "drop_pct": drop_pct,
-        "regression_detected": drop_pct > max_drop_pct,
-        "max_drop_pct": max_drop_pct,
+        "baseline_pass_rate": sd["baseline_pass_rate"],
+        "current_pass_rate": sd["current_pass_rate"],
+        "drop_pct": sd["drop_pct"],
+        "P_regress": sd["P_regress"],
+        "P_improve": sd["P_improve"],
+        "regression_detected": sd["regression_detected"],
+        "p_regress": ctx.td.p_regress,
     }
 
     audit = _build_shadow_audit(shadow_current, shadow_baseline)
-    audit.baseline_pass_rate = base_rate
-    audit.current_pass_rate = cur_rate
-    audit.drop_pct = drop_pct
+    audit.baseline_pass_rate = sd["baseline_pass_rate"]
+    audit.current_pass_rate = sd["current_pass_rate"]
+    audit.drop_pct = sd["drop_pct"]
 
-    if drop_pct > max_drop_pct:
+    if sd["regression_detected"]:
         return (
             LayerResult(
                 layer=4,
                 name=_LAYER_NAMES[4],
                 passed=False,
                 reason=(
-                    f"shadow_regression_drop_{drop_pct:.2f}pct_"
-                    f"exceeds_{max_drop_pct:.2f}pct"
+                    f"shadow_regression_supported_drop_{sd['drop_pct']:.2f}pct_"
+                    f"P_regress_{sd['P_regress']:.2f}"
                 ),
                 metrics_observed=metrics,
             ),
@@ -706,7 +899,7 @@ def _evaluate_layer4(
             layer=4,
             name=_LAYER_NAMES[4],
             passed=True,
-            reason="shadow_no_regression",
+            reason="shadow_no_supported_regression",
             metrics_observed=metrics,
         ),
         audit,
@@ -744,6 +937,66 @@ class _CurrentSuite:
     suite_name: str
     cases: list[dict[str, Any]]
     raw_results: dict[str, Any] | None = None
+    _case_index: dict[str, dict[str, Any]] | None = None
+
+    @property
+    def case_by_id(self) -> dict[str, dict[str, Any]]:
+        if self._case_index is None:
+            self._case_index = {c.get("case_id", "<unknown>"): c for c in self.cases}
+        return self._case_index
+
+
+def _candidate_kn(case: dict[str, Any]) -> tuple[int, int]:
+    """Candidate (k, n) = (valid passing attempts, valid attempts).
+
+    Derived from the per-attempt records (matching the calibrate.py reference);
+    falls back to the aggregated `pass_rate * valid_attempts`, then to a
+    single-draw `majority_passed` / `case_passed` as n=1. A non-comparable case
+    with no usable count returns (0, 0) (excluded by `if not n` guards).
+    """
+    atts = case.get("attempts")
+    if isinstance(atts, list) and atts:
+        valid = [a for a in atts if a.get("valid") is True]
+        n = len(valid)
+        k = sum(1 for a in valid if a.get("case_passed") is True)
+        return k, n
+    pr = case.get("pass_rate")
+    va = case.get("valid_attempts")
+    if pr is not None and va:
+        return round(pr * va), int(va)
+    if "majority_passed" in case:
+        mp = case.get("majority_passed")
+        if mp is None:
+            return 0, 0
+        return (1, 1) if mp else (0, 1)
+    cp = case.get("case_passed")
+    if cp is None:
+        return 0, 0
+    return (1, 1) if cp else (0, 1)
+
+
+def _candidate_tier2_mandatory(case: dict[str, Any]) -> int:
+    """Per-case majority-collapsed Tier-2 mandatory-failure count (the C1 driver
+    signal). Prefers `tier2_result_majority`; falls back to single-draw
+    `tier2_result` (byte-identical at n=1)."""
+    tier2 = case.get("tier2_result_majority") or case.get("tier2_result") or {}
+    per_step = tier2.get("per_step") or []
+    return sum(
+        1 for s in per_step
+        if s.get("severity") == "mandatory" and s.get("outcome") == "FAIL"
+    )
+
+
+def _non_comparable_rate(suite: _CurrentSuite | None) -> float:
+    """P0.6c instrumentation (observational): fraction of cases in a candidate
+    suite that are non-comparable (insufficient provider-comparable attempts —
+    TIMEOUT / infra / provider-mixed exhausted retries route here, NOT to
+    failed). High rates (>20%) flag a degraded measurement substrate."""
+    if suite is None or not suite.cases:
+        return 0.0
+    n = len(suite.cases)
+    nc = sum(1 for c in suite.cases if _is_non_comparable(c))
+    return nc / n if n else 0.0
 
 
 def _load_current(
@@ -809,15 +1062,13 @@ def _safe_read_json(path: Path) -> dict[str, Any] | None:
 
 
 def _effective_case_passed(case: dict[str, Any]) -> bool | None:
-    """The per-case pass signal the layers gate on.
+    """The per-case pass signal the shadow aggregate gates on.
 
     S-Auto-16 majority awareness: when the case carries an aggregated
     `majority_passed` (n>1), that majority verdict is authoritative — a
     `comparable=False` (non-comparable) case returns None and is EXCLUDED
-    from gating (neither improvement nor regression). When no aggregation
-    fields are present (the committed `samples_per_case=1` single-pass
-    path), this returns the single-draw `case_passed` verbatim, so every
-    layer's behaviour is byte-identical to the pre-sprint evaluator.
+    from gating. When no aggregation fields are present (the committed single-
+    pass path), this returns the single-draw `case_passed` verbatim.
     """
     if "majority_passed" in case:
         if case.get("comparable") is True:
@@ -836,84 +1087,16 @@ def _suite_passed_count(suite: _CurrentSuite | None) -> int | None:
     return sum(1 for c in suite.cases if _effective_case_passed(c) is True)
 
 
-def _baseline_case_pass_map(
-    baseline: BaselineSnapshot, suite_name: str
-) -> dict[str, bool]:
-    """Per-case pass map from the baseline snapshot.
-
-    Used only to give non-comparable candidate cases the benefit of the
-    doubt: a candidate case that is non-comparable this run is excluded
-    from BOTH the candidate count and the baseline count so it cannot
-    masquerade as a regression.
-
-    S-Auto-17 symmetry: when the baseline is a re-blessed aggregated
-    artifact each case carries `majority_passed`; the map keys on that
-    MAJORITY verdict so the baseline side matches the candidate's majority
-    side. The legacy single-draw baseline carries only `case_passed`, used
-    verbatim (byte-identical to the pre-sprint behaviour).
-    """
-    out: dict[str, bool] = {}
-    snap = baseline.snapshots.get(suite_name)
-    rj = getattr(snap, "raw_results_json", None) if snap is not None else None
-    if not rj:
-        return out
-    rj = Path(rj)
-    if not rj.exists():
-        return out
-    try:
-        data = json.loads(rj.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return out
-    for c in data.get("case_results") or []:
-        if "majority_passed" in c:
-            out[c.get("case_id", "<unknown>")] = c.get("majority_passed") is True
-        else:
-            out[c.get("case_id", "<unknown>")] = c.get("case_passed") is True
-    return out
-
-
-def _noncomparable_baseline_credit(
-    suite: _CurrentSuite | None,
-    baseline: BaselineSnapshot,
-    suite_name: str,
-) -> int:
-    """Count of non-comparable candidate cases that PASSED in the baseline.
-
-    Subtracted from the baseline pass count so a case that merely became
-    non-comparable this run is not counted as a regression. Returns 0 when
-    there are no non-comparable cases (i.e. always at the committed n=1).
-    """
-    if suite is None:
-        return 0
-    noncomp = [c.get("case_id", "<unknown>") for c in suite.cases if _is_non_comparable(c)]
-    if not noncomp:
-        return 0
-    bmap = _baseline_case_pass_map(baseline, suite_name)
-    return sum(1 for cid in noncomp if bmap.get(cid) is True)
-
-
-def _suite_baseline_passed(baseline: BaselineSnapshot, suite_name: str) -> int | None:
-    snap = baseline.snapshots.get(suite_name)
-    if snap is None:
-        return None
-    return snap.case_passed_count
-
-
 def _tier2_mandatory_metrics(
     cases: list[dict[str, Any]]
 ) -> tuple[int, dict[str, int]]:
+    """Aggregate Tier-2 mandatory-failure count + per-UC breakdown over a
+    candidate suite. Retained for the eval_runner contract + audit surfaces;
+    the Layer-2 gate now consumes per-case deltas via `_GateContext`."""
     total = 0
     by_uc: dict[str, int] = {}
     for c in cases:
-        # S-Auto-16: prefer the majority-collapsed tier2 (a mandatory step
-        # counts only if it FAILs in the majority of valid attempts). Absent
-        # at n=1 → falls back to the single-draw tier2_result (byte-identical).
-        tier2 = c.get("tier2_result_majority") or c.get("tier2_result") or {}
-        per_step = tier2.get("per_step") or []
-        n_fails = sum(
-            1 for s in per_step
-            if s.get("severity") == "mandatory" and s.get("outcome") == "FAIL"
-        )
+        n_fails = _candidate_tier2_mandatory(c)
         if n_fails:
             total += n_fails
             uc = c.get("primary_uc") or "unknown"

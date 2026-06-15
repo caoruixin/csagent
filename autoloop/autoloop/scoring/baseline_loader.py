@@ -36,6 +36,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .aggregate import classify_stability, classify_tier
+
 
 # --- Exceptions ------------------------------------------------------
 
@@ -46,6 +48,28 @@ class BaselineLoadError(Exception):
 
 
 # --- Dataclasses -----------------------------------------------------
+
+
+@dataclass
+class CaseBaselineStat:
+    """Per-case baseline statistic the noise-aware fitness gate consumes
+    (S-Y1.7). `k` / `n` are the majority pass count and valid-attempt count
+    (k = round(pass_rate * valid_attempts)); `tier` is the
+    `aggregate.classify_tier` routing label; `tier2_mandatory_fail_count` is
+    the per-case majority-collapsed mandatory-failure count (the Layer-2 C1
+    per-case driver). For a legacy single-draw baseline these degrade to
+    n=1 (k = 1 if the single draw passed else 0).
+    """
+
+    case_id: str
+    k: int | None
+    n: int | None
+    pass_rate: float | None
+    comparable: bool
+    stability_class: str
+    tier: str
+    tier2_mandatory_fail_count: int = 0
+    primary_uc: str | None = None
 
 
 @dataclass
@@ -60,6 +84,11 @@ class SuiteSnapshot:
     stability classification. For the legacy single-draw baseline
     (`<suite>/results.json`), `is_aggregated` is False and the maps are
     empty (byte-identical to the pre-sprint snapshot).
+
+    S-Y1.7: `case_stats` exposes the per-case `(k, n, pass_rate, comparable,
+    stability_class, tier, tier2_mandatory_fail_count)` the noise-aware gate
+    needs. Populated on BOTH the aggregated and single-draw paths so the
+    tier_evaluator's Layer-1/2 posteriors have a uniform input.
     """
 
     suite_name: str
@@ -73,6 +102,7 @@ class SuiteSnapshot:
     is_aggregated: bool = False
     stability_by_case: dict[str, str] = field(default_factory=dict)
     pass_rate_by_case: dict[str, float | None] = field(default_factory=dict)
+    case_stats: dict[str, CaseBaselineStat] = field(default_factory=dict)
 
 
 @dataclass
@@ -230,6 +260,7 @@ def _summarize_aggregated(
     by_uc: dict[str, int] = {}
     stability_by_case: dict[str, str] = {}
     pass_rate_by_case: dict[str, float | None] = {}
+    case_stats: dict[str, CaseBaselineStat] = {}
     for c in cases:
         cid = c.get("case_id", "<unknown>")
         stability_by_case[cid] = c.get("stability_class") or "unknown"
@@ -243,10 +274,21 @@ def _summarize_aggregated(
             s for s in per_step
             if s.get("severity") == "mandatory" and s.get("outcome") == "FAIL"
         ]
+        case_mandatory = len(mandatory_fails)
         if mandatory_fails:
-            mandatory_fail_count += len(mandatory_fails)
+            mandatory_fail_count += case_mandatory
             uc = c.get("primary_uc") or "unknown"
-            by_uc[uc] = by_uc.get(uc, 0) + len(mandatory_fails)
+            by_uc[uc] = by_uc.get(uc, 0) + case_mandatory
+        case_stats[cid] = _build_case_stat(
+            cid,
+            pass_rate=c.get("pass_rate"),
+            valid_attempts=c.get("valid_attempts"),
+            comparable=c.get("comparable") if c.get("comparable") is not None
+            else (c.get("majority_passed") is not None),
+            stability_class=c.get("stability_class") or "unknown",
+            tier2_mandatory_fail_count=case_mandatory,
+            primary_uc=c.get("primary_uc"),
+        )
 
     return SuiteSnapshot(
         suite_name=suite_name,
@@ -259,6 +301,7 @@ def _summarize_aggregated(
         is_aggregated=True,
         stability_by_case=stability_by_case,
         pass_rate_by_case=pass_rate_by_case,
+        case_stats=case_stats,
     )
 
 
@@ -282,6 +325,38 @@ def _summarize_from_flat(
     return snap
 
 
+def _build_case_stat(
+    case_id: str,
+    *,
+    pass_rate: float | None,
+    valid_attempts: int | None,
+    comparable: bool,
+    stability_class: str,
+    tier2_mandatory_fail_count: int,
+    primary_uc: str | None,
+) -> CaseBaselineStat:
+    """Assemble one `CaseBaselineStat`. `k = round(pass_rate * valid_attempts)`
+    matches the reference `calibrate.py` baseline derivation; a None pass_rate
+    (non-comparable) yields k=None and tier `EXCL`.
+    """
+    n = valid_attempts
+    if pass_rate is not None and n:
+        k: int | None = round(pass_rate * n)
+    else:
+        k = None
+    return CaseBaselineStat(
+        case_id=case_id,
+        k=k,
+        n=n,
+        pass_rate=pass_rate,
+        comparable=comparable,
+        stability_class=stability_class,
+        tier=classify_tier(pass_rate, comparable),
+        tier2_mandatory_fail_count=tier2_mandatory_fail_count,
+        primary_uc=primary_uc,
+    )
+
+
 def _aggregate_cases(
     suite_name: str, cases: list[dict[str, Any]], json_path: Path
 ) -> SuiteSnapshot:
@@ -300,17 +375,34 @@ def _aggregate_cases(
 
     mandatory_fail_count = 0
     by_uc: dict[str, int] = {}
+    case_stats: dict[str, CaseBaselineStat] = {}
     for c in cases:
+        cid = c.get("case_id", "<unknown>")
         tier2 = c.get("tier2_result") or {}
         per_step = tier2.get("per_step") or []
         mandatory_fails = [
             s for s in per_step
             if s.get("severity") == "mandatory" and s.get("outcome") == "FAIL"
         ]
+        case_mandatory = len(mandatory_fails)
         if mandatory_fails:
-            mandatory_fail_count += len(mandatory_fails)
+            mandatory_fail_count += case_mandatory
             uc = c.get("primary_uc") or "unknown"
-            by_uc[uc] = by_uc.get(uc, 0) + len(mandatory_fails)
+            by_uc[uc] = by_uc.get(uc, 0) + case_mandatory
+        # Legacy single-draw: a draw is a hard 1/1 or 0/1. pass_rate is the
+        # boolean lifted to {0.0, 1.0}; this makes every single-draw baseline
+        # case a TIER-S anchor (passed) or TIER-F (failed) under classify_tier
+        # — there are no TIER-N cases at n=1, which is the correct degenerate.
+        single_pass = c.get("case_passed") is True
+        case_stats[cid] = _build_case_stat(
+            cid,
+            pass_rate=1.0 if single_pass else 0.0,
+            valid_attempts=1,
+            comparable=True,
+            stability_class=classify_stability(1.0 if single_pass else 0.0),
+            tier2_mandatory_fail_count=case_mandatory,
+            primary_uc=c.get("primary_uc"),
+        )
 
     return SuiteSnapshot(
         suite_name=suite_name,
@@ -320,4 +412,5 @@ def _aggregate_cases(
         tier2_mandatory_failure_by_uc=by_uc,
         raw_results_json=json_path,
         total_cases=total,
+        case_stats=case_stats,
     )
