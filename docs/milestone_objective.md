@@ -4,7 +4,7 @@ doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
-last_reviewed: 2026-06-09
+last_reviewed: 2026-06-16
 review_cadence: per milestone
 supersedes: []
 superseded_by: null
@@ -43,6 +43,20 @@ notes: >
   APPROVE_S_Y1_5 / blocking_count=0); the S-Y2 CORE-GATE contract is
   promoted to docs/sprint_objective.md (Sprint 088) + dev prompt
   compact/sprint-088-dev-prompt.md; Part C HELD pending human go-ahead.
+  2026-06-16 UPDATE — INSERTED sub-sprint S-Y1.7 (Sprint 091 / S-Auto-37,
+  "Autoloop fitness-measurement reliability") between S-Y1.5 and the S-Y2 CORE
+  GATE, after the S-Y2 run-1/2/3 tranches produced 0/14 keeps and the zero-LLM
+  P0.7 retrospective calibration root-caused it as a ~92–95% false-discard rate
+  under the n=3–5 majority-flip fitness gate. Per §5.8 (framework-defect
+  priority) S-Y1.7 PREEMPTS S-Y2 Part C: the gate is replaced with a
+  stability-tiered noise-aware rule (V3) before the pilot burns more real-LLM
+  tranches. Resumes the PAUSED M-Auto-4 scope as an M-Auto-7 sub-sprint (human
+  decision: insert, not formally pause M-Auto-7). S-Y2 / Sprint 088 contract
+  HELD verbatim at compact/sprint-088-objective-HELD.md; re-promoted to
+  docs/sprint_objective.md on S-Y1.7 close. S-Y1.7 contract is LIVE at
+  docs/sprint_objective.md + compact/sprint-091-dev-prompt.md; acceptance
+  evidence docs/solutions/p07-calibration/. NO re-bless (autoloop/** +
+  config.yaml only). Estimated +2–4 d to the §9 duration.
 ---
 
 # Milestone M-Auto-7
@@ -55,6 +69,7 @@ notes: >
 | S-X (CS3) | Blocker | infra + prompt_projection | REQUIRED | defer → milestone close |
 | S-Y1 (CS4 readiness: Part A+B) | Blocker | prompt_projection (A) + eval_spec (B) | REQUIRED | defer → milestone close; Part B gated by §5.6 human tiering |
 | **S-Y1.5 (autoloop substrate patch)** | Blocker (pre-pilot) | infra (autoloop meta-agent) | REQUIRED | **REQUIRED** — new `pilot` config steering surface near the §1.7 line (§4.3 trigger #3) |
+| **S-Y1.7 (autoloop fitness-measurement reliability)** | Blocker (pre-pilot) | infra (autoloop fitness gate / scoring) | REQUIRED | **REQUIRED** — new statistical decision surface on the fitness gate near the §1.7 / §5.4 line (§4.3 trigger #3) |
 | **S-Y2 (CS4 pilot: Part C+D)** | **CORE GATE** | semantic_planner (autoloop-authored) + eval_spec/governance | REQUIRED | **REQUIRED** — autoloop output is the §1.7 binding gate (§4.3 trigger #2) |
 | S-B (CS2-original) | Back-half (non-blocking, optional) | prompt_projection + thin soft cue | REQUIRED | via milestone-shared close |
 
@@ -91,7 +106,8 @@ end-to-end** — not finishing every bad-case semantic fix.
 | 2 | Blocker | **S-X (CS3)** Sprint 085 / S-Auto-30 | `R-discover-null-turn-counter-anti误杀` | Structural provenance flag (`ParsedAction.userMessageSynthesised`) set by `ActionParser.java:70-72`; the R2.a counter at `AgentRunLoopImpl.java:455` excludes synthesised placeholders; add one §1.3-soft DISCOVER cue + a `user_message_synthesised` trace diagnostic. (Proposal Option C3.A is trace-confirmed inert.) | S-A dev close (Java-test verified) |
 | 3 | Blocker | **S-Y1 (CS4 readiness)** Sprint 086 / S-Auto-31 | `R-uc-a-entity-context-verify-procedure-via-autoloop` (readiness scope) | Part A: human projection infra (`moderation_reason_available` boolean + candidate-UC names + soft_signal_via_projection wiring). Part B: author appendix §2-§8 CaseSpecs (5 NEW + 2 EXTEND), reconcile placeholders to real fixtures, §5.6 tiering. NO procedure-text change (that is the pilot). | S-X dev close (Java-test verified) |
 | 4 | Blocker (pre-pilot) | **S-Y1.5 (autoloop substrate patch)** Sprint 087 / S-Auto-32 | `R-autoloop-feedback-loop-thinness` | Fix P0-A (tier_breakdown passthrough) + P0-B (candidate-results passthrough w/ shadow-firewall extension) + P0-C (`pilot` block target-steering) + P1 (lessons opt-out) + per-exp pilot snapshot + 4-layer hit-rate audit, in the autoloop meta-agent prompt builder + config. Pure autoloop infra; no scoring/gate/sandbox/mutable-surface touch → NO re-bless. | S-Y1 close + S-Y2 run-1 audit |
-| 5 | **CORE GATE** | **S-Y2 (CS4 pilot)** Sprint 088 / S-Auto-33 | `R-uc-a-entity-context-verify-procedure-via-autoloop` (pilot scope) | Part C: baseline run (targets fail / negative-control passes) → autoloop authors skill-yaml procedure candidate(s) → human §4.1 review → merge accepted candidate → re-run. Part D: mini re-bless + per-sub-sprint Codex + close. Fallback (§3.4) only if no candidate is acceptable. | S-Y1.5 close |
+| 4.5 | Blocker (pre-pilot) | **S-Y1.7 (autoloop fitness-measurement reliability)** Sprint 091 / S-Auto-37 — **dev+Codex CLOSED 2026-06-16** (commit `758503b6`; oracle 22-pass; autoloop pytest 348→390; Codex `pass`/0; archives `docs/sprints/sprint-091-{objective,handoff,codex-review}.md`) | `R-autoloop-fitness-measurement-reliability` (resumed M-Auto-4 scope) | Replace the fitness gate's zero-tolerance majority-flip rule (`anchor_outcome_max_drop_cases:0` + raw tier2/shadow count gates) with a stability-tiered noise-aware statistical rule (V3: tier0 floor unchanged + TIER-S majority-flip anti-误杀 floor + TIER-N Beta-Binomial/δ/BH-count + noise-aware tier2/shadow), preserving the §5.4 anti-误杀 + §1.4 tier0 floors. Inserted per §5.8 (preempts S-Y2 Part C). Acceptance = zero-LLM oracle replay of exp-66..79 (P0.7). `autoloop/**` + `config.yaml` only → NO re-bless. | S-Y2 run-1/2/3 tranches (0/14 keeps) + P0.7 calibration |
+| 5 | **CORE GATE** | **S-Y2 (CS4 pilot)** Sprint 088 / S-Auto-33 — **RE-PROMOTED 2026-06-16 (active again after S-Y1.7 close); runs under the new S-Y1.7 fitness gate** | `R-uc-a-entity-context-verify-procedure-via-autoloop` (pilot scope) | Part C: baseline run (targets fail / negative-control passes) → autoloop authors skill-yaml procedure candidate(s) → human §4.1 review → merge accepted candidate → re-run. Part D: mini re-bless + per-sub-sprint Codex + close. Fallback (§3.4) only if no candidate is acceptable. **Runs under the new S-Y1.7 fitness gate** (also the F5 knob-confirmation run). | S-Y1.7 close ✅ MET 2026-06-16 |
 | 6 | Back-half (optional, non-blocking) | **S-B (CS2-original)** Sprint 089 / S-Auto-34 | `R-user-role-projection-slot-from-listing-ownership` | Data-derived `user_role` slot (`ad_owner \| unknown`) from form-email↔listing-`posted_by` match; one-sentence soft cue into discover_triage + resolve_faq. Reuses S-Y1 candidate-UC-name infra. | S-Y2 close (additive) |
 
 ## 4. Non-goals (explicit)
@@ -216,6 +232,12 @@ unknown` only (no `third_party_buyer` in v1); do NOT expose raw
   2026-06-09 from the autoloop mechanism audit; pre-pilot meta-agent
   feedback-loop patch P0-A/B/C + P1; NEEDS an `action_bank.md` §5 row
   added at the close bundle)
+- `R-autoloop-fitness-measurement-reliability` (S-Y1.7 — surfaced +
+  consumed 2026-06-16 after the S-Y2 run-1/2/3 tranches produced 0/14 keeps
+  and the zero-LLM P0.7 retrospective calibration root-caused it as a
+  ~92–95% false-discard rate under the n=3–5 majority-flip gate; resumes the
+  PAUSED M-Auto-4 "Autoloop Fitness Measurement Reliability" scope as an
+  inserted M-Auto-7 pre-pilot blocker per §5.8)
 - `R-user-role-projection-slot-from-listing-ownership` (S-B,
   non-blocking back-half)
 
