@@ -254,7 +254,14 @@ fitness:
   # coinflip cases (p≈0.5) still get ~0 variance reduction from a larger n and
   # are surfaced for eval_spec/semantic triage rather than force-stabilized
   # (OQ-S72.2; stability_thresholds below unchanged).
-  samples_per_case: 5
+  #
+  # S-Y1.7 PILOT-THROUGHPUT TUNE (2026-06-16): reduced 5→3 after the first live
+  # S-Y2 Part C run showed ~5h/experiment (broad n=5 over ~29 cases at suite
+  # parallelism 1-2 ⇒ -n 6 ≈ 1.5 days). The 2 primary targets stay at n=11
+  # (pilot.primary_targets_samples) — the asymmetric allocation P0.4 calls for
+  # ("spend attempts where lift is expected"). Throughput-only: the V3 gate
+  # logic + the P0.7 oracle (archived-data replay) are unaffected by the live n.
+  samples_per_case: 3
 
   # S-Y1.7 (P0.4) — primary-target oversampling. The active S-Y2 pilot's
   # primary_targets (named in the TOP-LEVEL `pilot:` block) are the cases the
