@@ -90,7 +90,13 @@ meta_agent:
   #       base_url=os.environ.get("AUTOLOOP_META_LLM_BASE_URL"),
   #   )
   provider: anthropic                   # SDK: `anthropic` Python package; Anthropic-compatible API
-  model: claude-opus-4-7                # best-reasoning default for meta-agent; downgrade to claude-sonnet-4-6 for cost/latency if needed
+  # DEFAULT model. 2026-06-16 (M-Auto-7 S-Y2 Part C): changed claude-opus-4-7 →
+  # claude-sonnet-4-6 for proposer latency/reliability after opus-4-7 hit an
+  # APITimeoutError through the AICodeWith gateway at the 120s request timeout
+  # (exp-80). sonnet-4-6 is faster + more reliable; opus-4-7 (higher reasoning)
+  # stays selectable by setting AUTOLOOP_META_LLM_MODEL in autoloop/.env.local.
+  model: claude-sonnet-4-6
+  model_env: AUTOLOOP_META_LLM_MODEL    # if set (autoloop/.env.local) OVERRIDES `model` above
   temperature: 0.3                       # low for reproducibility of propose / analyze
   max_tokens: 4096
   api_key_env: AUTOLOOP_META_LLM_API_KEY
