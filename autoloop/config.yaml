@@ -118,13 +118,13 @@ fitness:
   suites:
     - name: bad_cases
       path: eval_interactive/case_specs/bad_cases/
-      parallel: 1                    # bad-case session-establishment flakiness mitigation per M5-close R-item
+      parallel: 4                    # 2026-06-16 sweep (warm-backend, 17 cases): 1->4 = 3.0x faster (401s->134s), 0 timeout/give-up/infra, 0 estab-fail at 2&4 (the lone estab-fail was at parallel=1). Was 1 for M5 session-establishment flakiness; sweep did not reproduce it under concurrency. Watch non_comparable_rate (V3 tolerates a thinned primary case).
     - name: anchor_outcome
       path: eval_interactive/case_specs/anchor_outcome/
-      parallel: 2                    # OQ-S65.8 mitigation: reduced from 4 to lower concurrent LLM load (give-up degradation)
+      parallel: 4                    # 2026-06-16 sweep (warm-backend, 12 anchor cases): 2->4 = 2.1x faster (107s->51s), 0 timeout/give-up/infra; OQ-S65.8 give-up degradation did NOT reproduce at 4 or 6, and 6 saturates (no gain over 4). Restored toward the pre-OQ-S65.8 value.
     - name: shadow
       path: eval_interactive/case_specs_shadow/
-      parallel: 2                    # OQ-S65.8 mitigation: reduced from 4 to lower concurrent LLM load (give-up degradation)
+      parallel: 4                    # 2026-06-16 sweep (warm-backend, 12 anchor cases): 2->4 = 2.1x faster (107s->51s), 0 timeout/give-up/infra; OQ-S65.8 give-up degradation did NOT reproduce at 4 or 6, and 6 saturates (no gain over 4). Restored toward the pre-OQ-S65.8 value.
 
   # Layer 3 improvement-threshold mode. 'case_count' is the v1 choice
   # (2026-05-27 human-locked); a 'percent' mode is reserved for
