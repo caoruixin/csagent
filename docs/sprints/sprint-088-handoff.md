@@ -173,6 +173,39 @@ discard — but they are real and need n=11 power to adjudicate (OQ-A).
   regression are the over-elicitation signature the Run-2 handoff warned the
   DISCOVER surface would carry.
 
+## ⚠️ UPDATE 2026-06-17 — exp-82 targeted re-eval at n=13 OVERTURNS the "preferred seed" conclusion
+
+After wiring `primary_targets_samples` (OQ-A), exp-82's **identical candidate**
+was re-evaluated through the real pipeline (proposer pinned to exp-82's stored
+hypothesis; apply → eval → V3 gate; `iteration_id=exp82-reval`, ~46 min). The
+primaries now draw **n=13** (3 uniform + 2 retry + 8 oversample). Result:
+
+| metric | original exp-82 (06-16) | **re-eval at n=13 (06-17)** |
+|---|---|---|
+| `cs_uc_a_no_ad_id_ad_specific` | 1/4 = 0.25, **P_improve 0.768** | **0/13 = 0.0, stable_fail, P_improve 0.059 / P_regress 0.084** |
+| `cs_uc_a_loaded_listing` | 0/5 = 0.0 | **0/13 = 0.0, stable_fail, P_improve 0.022 / P_regress 0.397** |
+| `cs_uc_a_generic_policy_question` (⛨, n=5) | 1.00 HELD | **0.75 flaky_pass** (not oversampled; soft erosion in flake band) |
+| `anchor_uc_e_promotion` (▷, n=5) | 0.60 (Preg 0.773) | **0.60 flaky_pass** — regression reproduces |
+| timeout / non-comparable | — | **0 timeouts; 0 non-comparable in bad_cases/anchor; 3 in shadow; 20/51 flaky** |
+
+**Conclusion — exp-82's apparent primary lift was small-sample noise.** At n=4
+the `no_ad_id` "lift" scored `P_improve=0.768`; at n=13 it collapses to **0.059**
+(0/13). `loaded_listing` is `P_improve=0.022` with a mild regression lean
+(0.091→0.0, P_regress 0.397, below the 0.8 gate). **Neither primary moves at
+proper power.** The §4.1-era "preferred candidate / refinement seed" status —
+which leaned on the 0→0.25 `no_ad_id` lift — **does not survive n=13 and is
+withdrawn.** The RESOLVE-FAQ *surface* may still be correct, but exp-82's
+*specific edit* does not move the targets; a refinement must find a genuinely
+different edit, not graft onto exp-82's.
+
+**Verdict instability (separate, important):** the re-eval **discarded at tier-0**
+(`escalation_compliance@cs11s01_uc_d` + `cs40s02_uc_k`, neither in the
+baseline-ignore list) — yet the **same candidate was a KEEP in its original
+run**. These tier-0 escalation cases are **run-to-run flaky** (stable within a
+run, variable across runs), so the zero-tolerance tier-0 delta gate flips
+keep↔discard on the same candidate. This is the dominant measurement-stability
+risk surfaced by this investigation (see OQ-E).
+
 ## Open questions (Run-3)
 
 - **OQ-A — `primary_targets_samples=11` wiring: FIXED (re-run pending).** Root
@@ -190,15 +223,46 @@ discard — but they are real and need n=11 power to adjudicate (OQ-A).
   draws carry `source_suite=bad_cases` and are scored on the SAME
   human-judgment path as the base draws (commensurable). Validated: 3 new unit
   tests (lift-only-primaries + 2 no-op guards) + full autoloop suite **393
-  passed**. **Re-run HELD pending human go-ahead (instruction #6)** — not
-  triggered.
+  passed**. **Live-validated 2026-06-17**: smoke `-n 1` (exp-85) and the
+  exp82-reval re-eval both drove the two primaries to **n=13 comparable draws**
+  (5 base + 8 oversample), mini-suite built + symlinked correctly, no crash.
+  Committed `192e1ae4` (substrate). **Full pilot tranche still HELD** per the
+  human's instruction — only the wiring smoke + the single targeted exp-82
+  re-eval were run.
 - **OQ-B — the V3 gate under-protects the anti-误杀 control at n=3.** exp-83's
   control erosion 1.0→0.6 did **not** trip the TIER-S floor because 3/5 is still
   a majority-pass; at n=3 a 1.0→0.6 drop sits inside the noise band the
   majority-flip rule tolerates. `primary_targets_samples` oversamples
   **primaries only** — `anti_kill_control` stays at n=3 and remains
   under-protected even after OQ-A is wired. Candidate follow-up: oversample (or
-  apply a stricter floor to) `pilot.anti_kill_control` too.
+  apply a stricter floor to) `pilot.anti_kill_control` too. (The exp-82 re-eval
+  corroborates: control read 0.75 flaky_pass at n=5 — too few draws to judge.)
+- **OQ-C — tier-0 discard short-circuits the tier-1 verdict breakdown.** When a
+  candidate fails the tier-0 gate, `tier_evaluator` never runs the tier-1
+  posterior stage, so `verdict.tier_breakdown.tier1_outcome.tier_n.per_case` is
+  **empty even though the raw eval results (incl. the n≥11 primary draws) exist
+  on disk**. Both exp-85 (smoke) and exp82-reval hit this — the per-case
+  posteriors had to be recomputed manually from the raw `results.json` +
+  baseline via `tier_evaluator.posterior_regress_improve`. Follow-up: persist
+  the tier-1 per-case table even on a tier-0 discard (observation-only), so a
+  reviewer gets the full picture without a manual recompute.
+- **OQ-D — primary oversampling runs BEFORE the tier-0 reject is known →
+  wasted eval.** The 8 primary-only oversample passes execute during the eval
+  phase, but the tier-0 gate (which can discard the candidate outright) is only
+  evaluated afterward. exp82-reval spent the full ~46 min — including the 8
+  oversample passes — on a candidate that tier-0 then discarded. Follow-up:
+  gate-order or short-circuit so the expensive primary oversampling is skipped
+  (or deferred) when a cheap tier-0 pre-check already condemns the candidate.
+- **OQ-E — tier-0 escalation_compliance cases are run-to-run FLAKY and flip the
+  keep/discard verdict.** exp-82 was a KEEP in its original run and a DISCARD on
+  re-eval of the **identical** candidate, solely because
+  `escalation_compliance@cs11s01_uc_d` (and `cs40s02_uc_k`) failed tier-0 this
+  run but not the original — and neither is in the baseline-ignore list. With a
+  zero-tolerance tier-0 delta gate, a single such across-run flake decides
+  keep↔discard regardless of the candidate's actual merit. This is the dominant
+  measurement-stability risk for the whole pilot; it likely needs the same
+  noise-aware treatment (sampling + posterior floor) the tier-1 gate already has,
+  or a stability re-bless of the cs11s01 / cs40s02 escalation cases.
 
 ## Hard-fence + firewall compliance (Run-3)
 
