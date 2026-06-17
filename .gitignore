@@ -55,3 +55,4 @@ replay_pid*
 # aidazi framework-generation scratch (separate project; not CS-agent service code)
 compact/aidazi-*
 
+eval_interactive/analysis/out/
