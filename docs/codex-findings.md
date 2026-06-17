@@ -1,3 +1,18 @@
+## Sub-sprint Review Decision — S-Auto-38 (Sprint 092, escalation_compliance tier-0 split)
+decision: pass
+blocking_count: 0
+summary: Kernel verdict `approve`: WP-A removes the implicit eval-internal escalation-reason-family-to-tier-0 binding while preserving the deterministic escalation behaviour floor, and WP-B adds a narrow, explicit, human-reviewable override schema without adding active registry entries or changing runtime/tool surfaces.
+
+Reviewed: WP-A `57cd93c5` (gate split) + WP-B `8ed65cc6` (override schema), against the zero-LLM replay evidence (`analysis/out/replay_s_auto_38_output.txt`). Prompt: `compact/sprint-092-codex-review-prompt.md`. Read-only `codex exec` (model_reasoning_effort=high); verdict recorded verbatim below.
+
+Kernel verdict: `approve`.
+
+Justification: WP-A keeps `escalation_compliance` as Part-1 in `_TIER0_PY_FAMILY`, moves Part-2 to `escalation_reason_family_match` with advisory default severity, and the replay evidence shows 43/43 tier-0 flips are exactly `PART2_DEMOTION`, with 0 regressions and the high-risk should-escalate negative control still discarded. WP-B’s override path is scoped to eval scoring, requires `accepted_reasons` XOR `accepted_families`, restricts enforcement levels, and rejects tier-0 re-elevation unless approved, safety-critical, and cited. No prompt if-else, visible-eval phrase pin, runtime tool-schema change, PII-floor weakening, or grounding-floor weakening found.
+
+Per-question concerns: none blocking. The only semantic enum/allow-list surface is the explicit eval override schema, not a runtime hardcode; currently there are zero approved escalation bindings in the active registry.
+
+---
+
 ## Sub-sprint Review Decision — S-Y1.7
 decision: pass
 blocking_count: 0
