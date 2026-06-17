@@ -334,6 +334,64 @@ sub-question for human/Codex: is `faq_miss_threshold_exceeded` even the right
 expected trigger for a UC-D "two-emails-one-account" case, or is the CaseSpec
 expected-trigger itself mis-specified — an `eval_spec` fix.)
 
+## Expected-trigger verification vs source contract (2026-06-18, read-only)
+
+Verified the §6 open sub-question against the source contracts (tool-spec enum,
+foundational Escalation Matrix, runtime skill policy, override pipeline) — not
+just model outputs. **The hypothesis splits by case.**
+
+**Contract chain:**
+- **Tool spec** (`customer_service_tool_spec_v0_3.md`): `escalation_reason` is a
+  flat 23-value canonical enum (incl. `user_requested`,
+  `faq_miss_threshold_exceeded`, `account_compliance`, `intake_complete_for_uc_k`).
+  **No UC→reason binding at the Runtime layer** — the "family" grouping is an
+  eval-side construct (`hard_checks._ESCALATION_REASON_FAMILY`), not a tool
+  contract.
+- **Foundational Escalation Matrix** (`phase2_domain_realization_spec.md §2.4`):
+  `user_requests_human → user_requested` for **ALL UCs, immediately**;
+  `faq_miss_ge_2 → faq_miss_threshold_exceeded` for `allow_bot_resolution=true`
+  UCs **including UC-D**. Both paths are contract-valid for a UC-D FAQ case.
+- **Runtime skill policy** (`resolve_faq_grounded_answer.yaml` escalation_policy):
+  user-requests-human → `user_requested` is **priority 1**, ahead of faq_miss.
+
+**cs11s01 — expected_trigger is INTERNALLY INCONSISTENT (eval_spec defect).** The
+persona sets `will_request_human_if: bot cannot resolve after 2 attempts`, which
+drives the **priority-1 `user_requested`** path, yet `expected_trigger` hard-codes
+`faq_miss_threshold_exceeded`. When the bot honours the priority-1 user-request
+rule (contract-correct) the eval scores it a cross-family FAIL. Baseline draws are
+heavily `user_requested`, confirming the bot follows the priority-1 path. **No L3
+override** in `case_spec_overrides.yaml` → the authored trigger is unreviewed.
+Hypothesis CONFIRMED for cs11s01.
+
+**cs40s02 — expected_trigger is CORRECT and consistent.** `will_request_human_if:
+''` (no user-request path), `search_knowledge` + `resolve_article` are
+`forbidden_tools`, baseline is 11/11 on `intake_complete_for_uc_k`. Hypothesis
+REFUTED — the flake is genuine candidate-induced reason-drift amplified by shadow
+n=5 + the zero-tolerance gate, not a mis-spec.
+
+**Layering note:** `escalation_compliance` is GLOBALLY injected
+(`hard_checks.py` HIGH-5 fix) to enforce **escalate-vs-don't** (Part-1); the
+Part-2 reason-family match rides along as a global zero-tolerance tier-0 gate as a
+side-effect, never the stated motivation. Neither case lists
+`escalation_compliance` in its own `scoring.hard_checks` (they declare the soft
+`escalation_triggered` outcome check instead).
+
+**Recommendation (pre-implementation; nothing changed):**
+1. **Primary — the §6 (OQ-E) gate fix is the dominant lever.** Demote the Part-2
+   reason-family match out of zero-tolerance tier-0 to a noise-aware
+   tier-1/observation signal. It addresses BOTH cases (cs40s02's correct-spec
+   flake AND cs11s01's). Keep Part-1 (escalate-vs-don't on high/critical risk) in
+   tier-0.
+2. **Secondary — cs11s01 eval_spec correction (cs40s02 needs none).** Resolve the
+   internal inconsistency: either (i) accept `{faq_miss_threshold_exceeded,
+   user_requested}` for this dual-path case, (ii) realign `expected_trigger` to the
+   priority-1 `user_requested` path, or (iii) drop `will_request_human_if` if
+   faq_miss is the intended single path. This is an `eval_spec` (§3) fix, gated by
+   the §5.4 "fix the CaseSpec, not the bot" rule + a §5.6/override-pipeline review.
+3. **Framing (per human):** neither fix makes exp-82 keep-worthy. Removing a flaky
+   tier-0 rejection only changes exp-82's discard *reason*; its n=13 primaries show
+   no improvement (P_improve 0.059 / 0.022), so exp-82 stays WITHDRAWN.
+
 ## Hard-fence + firewall compliance (Run-3)
 
 - Both candidates edited exactly one allowed `$.procedure` field on an allowed
