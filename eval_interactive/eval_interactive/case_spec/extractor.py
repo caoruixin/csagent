@@ -472,6 +472,24 @@ _CASE_OVERRIDE_CLASSIFICATION_FIELDS: frozenset[str] = frozenset({
     "secondary_ucs",
 })
 
+# S-Auto-38 (Sprint 092, WP-B): the unified ``escalation:`` override block.
+# Carries an explicit, human-reviewed escalation-reason binding for one case.
+# ``status`` / ``reviewer`` live at the ENTRY level (reused); the block itself
+# carries the reason allow-list + enforcement level + safety justification.
+_CASE_OVERRIDE_ESCALATION_FIELDS: frozenset[str] = frozenset({
+    "accepted_reasons",
+    "accepted_families",
+    "enforcement_level",
+    "safety_critical",
+    "citation",
+    "rationale",
+})
+_ESCALATION_ENFORCEMENT_LEVELS: frozenset[str] = frozenset({
+    "observation",
+    "tier1_confirmed",
+    "tier0",
+})
+
 
 @dataclass(frozen=True)
 class OverrideEntry:
@@ -490,6 +508,11 @@ class OverrideEntry:
     classification: dict[str, Any] | None = None
     expected: dict[str, Any] | None = None
     persona: dict[str, Any] | None = None
+    # S-Auto-38 (Sprint 092, WP-B): normalised unified ``escalation:`` block, or
+    # None. Consumed at SCORING time by
+    # ``scoring.escalation_reason_match.resolve_approved_escalation_override``
+    # (only when the entry is ``status: approved``).
+    escalation: dict[str, Any] | None = None
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -660,6 +683,108 @@ def _normalise_persona_block(
     return out or None
 
 
+def _normalise_escalation_block(
+    block: dict[str, Any] | None,
+    *,
+    session_id: str,
+    status: str,
+) -> dict[str, Any] | None:
+    """Validate + normalise the unified ``escalation:`` block (S-Auto-38 WP-B).
+
+    Hard rules (plan §6 / objective WP-B):
+
+    * ``accepted_reasons`` and ``accepted_families`` are MUTUALLY EXCLUSIVE.
+    * ``enforcement_level`` ∈ {observation, tier1_confirmed, tier0}; defaults to
+      ``observation`` when absent (matches the WP-A scoring default).
+    * ``enforcement_level: tier0`` is the re-elevation to the zero-tolerance
+      floor and is rejected unless the ENTRY is ``status: approved`` AND the
+      block sets ``safety_critical: true`` AND a non-empty ``citation``. This
+      forbids an implicit / unreviewed tier-0 reason binding.
+
+    The evaluator-internal family map alone never produces a binding; only an
+    approved override block does. Returns the normalised dict (or None when the
+    block is absent).
+    """
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`escalation` must be a mapping, got {type(block).__name__}"
+        )
+    unknown = sorted(set(block) - _CASE_OVERRIDE_ESCALATION_FIELDS)
+    if unknown:
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`escalation` block has unknown fields: {unknown}. "
+            f"Allowed: {sorted(_CASE_OVERRIDE_ESCALATION_FIELDS)}."
+        )
+
+    out: dict[str, Any] = {}
+
+    has_reasons = "accepted_reasons" in block and block["accepted_reasons"]
+    has_families = "accepted_families" in block and block["accepted_families"]
+    if has_reasons and has_families:
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: `escalation` block "
+            f"sets BOTH `accepted_reasons` and `accepted_families`; they are "
+            f"mutually exclusive — declare exactly one."
+        )
+    for key in ("accepted_reasons", "accepted_families"):
+        if key in block:
+            val = block[key] or []
+            if not isinstance(val, list) or not all(isinstance(x, str) and x.strip() for x in val):
+                raise ValueError(
+                    f"Override for source_session_id={session_id!r}: "
+                    f"`escalation.{key}` must be a list of non-empty strings"
+                )
+            cleaned = [x.strip() for x in val]
+            if cleaned:
+                out[key] = cleaned
+
+    level = str(block.get("enforcement_level", "observation")).strip() or "observation"
+    if level not in _ESCALATION_ENFORCEMENT_LEVELS:
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`escalation.enforcement_level`={level!r} is not one of "
+            f"{sorted(_ESCALATION_ENFORCEMENT_LEVELS)}."
+        )
+    out["enforcement_level"] = level
+
+    safety_critical = block.get("safety_critical", False)
+    if not isinstance(safety_critical, bool):
+        raise ValueError(
+            f"Override for source_session_id={session_id!r}: "
+            f"`escalation.safety_critical` must be a boolean"
+        )
+    out["safety_critical"] = safety_critical
+    citation = str(block.get("citation", "") or "").strip()
+    if citation:
+        out["citation"] = citation
+    rationale = str(block.get("rationale", "") or "").strip()
+    if rationale:
+        out["rationale"] = rationale
+
+    # tier0 re-elevation guard — the one explicit safety-critical path.
+    if level == "tier0":
+        missing: list[str] = []
+        if status != "approved":
+            missing.append("status: approved")
+        if not safety_critical:
+            missing.append("safety_critical: true")
+        if not citation:
+            missing.append("citation")
+        if missing:
+            raise ValueError(
+                f"Override for source_session_id={session_id!r}: "
+                f"`escalation.enforcement_level: tier0` requires {missing} "
+                f"(zero-tolerance floor re-elevation must be approved + "
+                f"safety-critical + cited)."
+            )
+
+    return out or None
+
+
 def _load_case_spec_overrides(
     path: str | Path = DEFAULT_CASE_SPEC_OVERRIDES_PATH,
 ) -> OverrideRegistry:
@@ -780,6 +905,11 @@ def _load_case_spec_overrides(
             entry.get("persona"),
             session_id=sid,
         )
+        escalation_block = _normalise_escalation_block(
+            entry.get("escalation"),
+            session_id=sid,
+            status=status,
+        )
 
         oe = OverrideEntry(
             source_session_id=sid,
@@ -795,6 +925,7 @@ def _load_case_spec_overrides(
             classification=classification,
             expected=expected_block,
             persona=persona_block,
+            escalation=escalation_block,
             raw=dict(entry),
         )
         if status == "approved":

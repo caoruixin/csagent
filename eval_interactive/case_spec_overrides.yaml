@@ -2,12 +2,31 @@ version: 2
 
 # Wave A6.6 unified override registry (schema v2).
 # - Lookup is by `source_session_id` only.
-# - Each entry may declare zero or more of three blocks:
+# - Each entry may declare zero or more of four blocks:
 #     classification (primary_uc, secondary_ucs)  [pre-policy]
 #     expected       (subset of expected.* fields except primary/secondary_ucs) [post-L1]
 #     persona        (seed_messages, user_goal_summary, hidden_facts) [post-L2]
+#     escalation     (S-Auto-38 WP-B: explicit escalation-reason binding) [scoring-time]
 # - approved entries require reviewer/date/rationale/confidence/source.
 # - supporting_turn_numbers may be empty ONLY when migrated_from_legacy: true.
+#
+# `escalation:` block (S-Auto-38 / Sprint 092, WP-B) — OPTIONAL. Re-elevates the
+# observation-only Part-2 escalation_reason family match for ONE case. Consumed
+# at scoring time only when the ENTRY is `status: approved`:
+#     escalation:
+#       accepted_reasons:  [<canonical enum values>]   # explicit reason allow-list, OR
+#       accepted_families: [<family names>]            # family allow-list (mutually exclusive)
+#       enforcement_level: observation | tier1_confirmed | tier0   # default: observation
+#       safety_critical:   true | false                # MUST be true for tier0
+#       citation:          "<product-contract reference>"   # required for tier0
+#       rationale:         "<why these reasons / this level>"
+#   Hard rules: accepted_reasons XOR accepted_families; `tier0` is rejected by
+#   the loader unless status=approved AND safety_critical:true AND citation set
+#   (no implicit / unreviewed tier-0 reason binding). Default (no block) =
+#   observation. The cs11s01 draft (status: pending_review, observation) is a
+#   COMPANION RECORD in docs/solutions/2026-06-18-cs11s01-expected-trigger-
+#   override-decision.md §4 and is intentionally NOT entered here (product-owner
+#   approval pending).
 
 overrides:
 
