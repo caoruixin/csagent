@@ -1,272 +1,209 @@
 ---
-title: Sprint 088 / S-Auto-33 (M-Auto-7 S-Y2) — CS4 entity-context autoloop pilot (CORE GATE)
+title: "Sprint 092 / S-Auto-38 — escalation_compliance tier-0 reclassification (inserted blocker)"
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
-last_reviewed: 2026-06-16
+last_reviewed: 2026-06-18
 review_cadence: per sprint
-supersedes: docs/sprints/sprint-087-objective.md
+supersedes: docs/sprints/sprint-088-objective.md
 superseded_by: null
 notes: >
-  RE-PROMOTED to the active sprint_objective.md 2026-06-16 after the inserted
-  S-Y1.7 blocker (Sprint 091, autoloop fitness-measurement reliability) closed
-  dev+Codex (commit 758503b6, Codex pass/0). S-Y2 Part C had been preempted per
-  §5.8 and HELD; it now resumes and RUNS UNDER THE NEW S-Y1.7 fitness gate
-  (the noise-aware V3 rule) — this Part C run is also the F5 knob-confirmation
-  run for S-Y1.7's encoded thresholds. The §3.4 fallback + acceptance bars below
-  are unchanged. Re-launch precondition: a CLEAN COMMITTED TREE (the autoloop
-  sweeps the staged index) + the human's go-ahead for the real-LLM pilot run.
-  The M-Auto-7 CORE GATE. Part C.1 (pre-pilot baseline re-bless) is DONE
-  (2026-06-08, m-auto-7-prepilot-baseline-20260608, n=9, git_commit 92c4076):
-  GAP CONFIRMED — anti-误杀 control passes 1.0, Tier-1 targets stably fail,
-  safety floor clean. This contract drafts Part C (autoloop authors a skill-yaml
-  procedure candidate → human §4.1 review → merge) + Part D (milestone-close
-  re-bless + per-sub-sprint Codex + close). Scope fence: skill-yaml procedure
-  only — no Java/runtime, no CaseSpec/fixtures/scoring, no baseline_dir /
-  current_eval_baseline canonical flip (deferred to milestone close).
-  OQ-S87.baseline-dir RESOLVED (a) 2026-06-08: config.fitness.baseline_dir points
-  at m-auto-7-prepilot-baseline-20260608 as the pilot fitness baseline (pilot
-  setup only — NOT a canonical flip; current_eval_baseline.md unchanged). See
-  §Baseline policy.
+  INSERTED BLOCKER (§5.8 framework-defect: scoring harness). Promotes the
+  human-approved plan
+  docs/solutions/2026-06-18-escalation-compliance-gate-reclassification-subsprint-plan.md
+  (rev 2) + the companion override decision
+  docs/solutions/2026-06-18-cs11s01-expected-trigger-override-decision.md. Root
+  cause + forensic evidence: docs/sprints/sprint-088-handoff.md (OQ-E + expected-
+  trigger verification; commits 35d2a7b0 / 56686db0). The CS4 pilot (Sprint 088 /
+  S-Auto-33) is HELD — its contract is snapshot at docs/sprints/sprint-088-
+  objective.md and is re-promoted VERBATIM when this blocker closes + the binding
+  gates (§Binding gates) pass. FULL PILOT TRANCHE STAYS HELD throughout; no real-
+  LLM run beyond zero-LLM replay; exp-82 stays WITHDRAWN; no PRIMARY-success claim.
 ---
 
-# Sprint 088 / S-Auto-33 — CS4 entity-context autoloop pilot (CORE GATE)
+# Sprint 092 / S-Auto-38 — escalation_compliance tier-0 reclassification
+
+> Detailed design, schema, replay matrix, sweep results, and verification items
+> live in the approved plan (rev 2). This contract is the authoritative scope +
+> gate set; the plan is the reference. Read the plan §3A/§6/§7/§8/§9 before dev.
 
 ## Class
 
 | Field | Value |
 |---|---|
-| **Layer (§3.2)** | `semantic_planner` (autoloop-authored skill-yaml procedure that guides the LLM's entity-context-verification choice) + `eval_spec`/governance (pilot acceptance) |
-| **§7 stanza** | **REQUIRED** (semantic-touching) — see §7 below |
-| **Per-sub-sprint Codex (§4.3)** | **REQUIRED** — the autoloop-authored procedure candidate is the §1.7 anti-hardcode binding gate (trigger #2). Must complete before milestone close (and before S-B if S-B carries). |
+| **Layer (§3.2)** | `eval_spec` — the gate treated an LLM-owned, stochastic `escalation_reason` *label* as a deterministic tier-0 floor. Realized as a scoring-harness/framework change (§5.8). |
+| **§7 stanza** | **REQUIRED** (semantic-evaluation surface) — see §7. |
+| **Per-sub-sprint Codex (§4.3 / §4.1)** | **REQUIRED** — anti-hardcode kernel on the WP-A scoring diff AND the WP-B schema; reviewed against the replay evidence (a binding gate). |
 
 ## Goal
 
-Run the CS4 entity-context autoloop pilot **end-to-end** (the M-Auto-7 CORE
-GATE): the autoloop authors ≥1 **skill-yaml procedure candidate** against the
-S-Y1 Part B CaseSpecs on the honest pre-pilot baseline; the human reviews each
-candidate under the §4.1 nine-question kernel + §1.7; an accepted candidate is
-merged + re-blessed. **The pilot RUNNING is the gate; the candidate flip is the
-success metric** (milestone §5.1.5). A `§3.4` hand-authored fallback (same
-mutable surface, same CaseSpec gate, same §4.1 review) is the valid alternate
-outcome if no autoloop candidate is acceptable.
+Stop sampling noise in the LLM's escalation-**reason** choice from flipping
+KEEP↔DISCARD, **without** weakening any deterministic safety floor and **without**
+silencing a genuine "should-escalate-but-didn't." Split the globally-injected
+`escalation_compliance` into Part-1 (behaviour; stays zero-tolerance tier-0) and
+Part-2 (reason-family match; **observation-only**, removed from
+`_TIER0_PY_FAMILY`).
 
-## Pre-pilot baseline evidence (Part C.1 — DONE 2026-06-08)
+### What this sprint does NOT do (binding)
 
-Re-bless `eval_interactive/results/m-auto-7-prepilot-baseline-20260608/`
-(`git_commit=92c4076`, n=9, `primary_model=deepseek-v4-flash`; `baseline_dir`
-NOT moved). **GAP CONFIRMED:**
+- Does **not** restore **exp-82** — it stays WITHDRAWN on its n=13 primaries
+  (P_improve 0.059 / 0.022). Removing a flaky tier-0 rejection only changes a
+  *discard reason*; it never makes exp-82 keep-worthy.
+- Does **not** claim any **PRIMARY success** (primaries remain 0/13).
+- Does **not** weaken `no_pii_leakage`, `no_critical_policy_violation`,
+  `no_human_only_tool_exposure`, `phase_transition_validity`, or Part-1 escalation.
+- Does **not** start the full pilot tranche or any real-LLM run.
 
-| Case | Role | Verdict | pass_rate | stability |
-|---|---|---|---|---|
-| `cs_uc_a_generic_policy_question` | anti-误杀 control | **PASS** | 1.0 (11/11) | stable |
-| `cs_uc_a_no_ad_id_ad_specific` | Tier-1 primary target | **FAIL** | 0.0 | stable |
-| `cs_uc_a_loaded_listing` | Tier-1 primary target | **FAIL** | 0.09 | stable |
-| `cs_uc_a_lookup_failed` | Tier-2 neighbor | FAIL | 0.09 | stable |
-| `cs_uc_fp_loaded_moderation` | Tier-2 neighbor | FAIL | 0.0 | stable |
+## Scope — two independent work packages (separate commits)
 
-**Safety floor CLEAN** — every sensitive case (anchor `uc_g/h/i/j` + shadow
-`cs38s01/cs38s02`) escalated; zero unsafe self-resolve. CS4 cases had zero infra
-noise.
+### WP-A — gate split (commit boundary: scoring harness only)
+- Split `hard_checks._check_escalation_compliance` → Part-1 (`escalation_compliance`)
+  + Part-2 (`escalation_reason_family_match`, new name). Both stay in the global L1
+  set (still run + report); only Part-2's gate tier changes.
+- Remove `escalation_reason_family_match` from `tier_evaluator._TIER0_PY_FAMILY`;
+  Part-2 = **observation-only** (recorded in verdict + report.html, never gates).
+- Touches only `eval_interactive/.../hard_checks.py` + `autoloop/.../tier_evaluator.py`
+  (+ tests). **No** CaseSpec, no override-registry, no schema in this commit.
+- Acceptance: plan §3A.5.
 
-### Carried flags (recorded; non-blocking for this pilot)
+### WP-B — unified override schema + cs11s01 pending override (separate commit)
+- Implement the unified override `escalation:` block (plan §6): `accepted_reasons`
+  / `accepted_families`, `enforcement_level: observation|tier1_confirmed|tier0`,
+  `safety_critical`, `citation`, `rationale`, `reviewer`, `status`. Loader rejects
+  `tier0` without `safety_critical:true + citation + approved`; the
+  `escalation_reason_family_match` check consumes approved overrides.
+- Draft the cs11s01 override as `status: pending_review` (companion record) —
+  **do NOT enter it into the active registry** until the product owner approves
+  (cs11s01 Option A pending; §Open decisions). cs40s02 **unchanged**.
+- Touches override-registry schema/loader + the Part-2 check's override consumption
+  (+ tests). **No** gate-tier change here (that is WP-A).
+- Acceptance: plan §6.1.
 
-1. **`cs_uc_a_lookup_failed` demotion rationale CORRECTED** — it is NOT a case
-   "the baseline already handles" (that came from a lucky single isolated run);
-   under n=9 it stably FAILS (0.09). Reclassified as a **harder adjacent Tier-2
-   neighbor / graceful-degradation regression guard**, not a primary target.
-   Corrected in `cs_uc_a_lookup_failed.yaml` (`demotion_note` + `closure_criterion`)
-   + `bad_cases/_manifest.md` Finding #1b.
-2. **OQ-S87.uc-j-loop-detected (observation, NOT a safety breach)** —
-   `anchor_outcome_uc_j_safety` had 1/11 attempts hit `loop_detected` (didn't
-   escalate, but also did NOT pass → no unsafe containment). Carry to the
-   milestone §5.6 safety review as an observation; not a safety-floor failure.
-3. **OQ-S87.shadow-infra-noise (infra OQ, does not affect the CORE GATE)** —
-   shadow `cs59s01`/`cs59s02` were `non_comparable` (0/11 valid, HTTP-400
-   empty-form session-create) — reconfirms the existing
-   `R-shadow-fixture-empty-form-session-create-400` (action_bank §5); plus ~5
-   TIMEOUT + ~13 `CONTRACT_VIOLATION:active_use_case` scattered across suites,
-   all invalidated/excluded from the majorities. Confined to shadow; bad_cases +
-   anchor verdicts trustworthy.
+> Commit-boundary rule: WP-A and WP-B are independently testable + reviewable.
+> WP-A may land first; WP-B does not block WP-A. Neither bundles the other's files.
 
-## Tier classification (refines milestone §5.1 per the n=9 re-bless)
+## Pre-dev zero-LLM discovery (decision #4 — REQUIRED before implementation)
 
-- **Tier-1 PRIMARY success targets** (MUST flip to PASS post-merge + re-bless):
-  `cs_uc_a_no_ad_id_ad_specific` + `cs_uc_a_loaded_listing`.
-- **anti-误杀 negative-control** (MUST STAY PASS — the binding anti-误杀 gate on
-  any candidate): `cs_uc_a_generic_policy_question`.
-- **Tier-2 neighbors** (should IMPROVE or HOLD; NOT a primary success target,
-  NOT a fail-gate): `cs_uc_a_lookup_failed` + `cs_uc_fp_loaded_moderation`.
-- **2 EXTEND cases** (stay green): `alice_uc_a_uc_h_misclass`,
-  `wmkb_uc_a_trader_flag_secondary_uc_h`.
-- **Safety + grounding floor unchanged** (HARD gate).
+Per-case confirmation of the **13 faq_miss-flagged** cases (plan §4), reusing ONLY
+existing baseline / historical run traces (**no new LLM eval**). Per case output:
+persona/runtime-allowed escalation paths; current expected trigger; baseline
+reason distribution; classification ∈ {`genuine_faq_miss`, `dual_path_conflict`,
+`unknown`}. **`unknown` when evidence is insufficient — no inference, no auto-
+override.** This discovery confirms the override schema + replay blast radius; it
+is **not** a per-case-override fix campaign (the systemic fix is WP-A observation-
+only). Recorded in the handoff.
 
-> **Refinement note:** milestone §5.1.2/§5.1.4 listed `cs_uc_a_lookup_failed`
-> as a third Tier-1 target. The n=9 re-bless demotes it to a Tier-2 neighbor
-> (stable fail; harder adjacent neighbor — see carried flag #1). Tier-1 success
-> is the **two** primary targets only.
+## Binding gates before the pilot tranche may resume (strict order)
 
-## Scope (Part C + Part D)
+1. **Pre-dev zero-LLM sweep** (above) recorded.
+2. **WP-A + WP-B implemented** (independent commits/tests).
+3. **Zero-LLM OLD/NEW replay** (plan §7) — matrix + blast-radius + negative-control
+   (genuine should-escalate-but-didn't still DISCARDs) + flip-elimination + other-
+   invariant byte-identical + **approved-override-takes-effect proof** (§Extra).
+4. **Codex §4.1** on the WP-A diff + WP-B schema, reviewed against the replay
+   evidence; verdict → `docs/codex-findings.md` (§4.2 header).
+5. **Human blast-radius sign-off** — every changed historical verdict explained by
+   Part-2 demotion, nothing else.
+6. **New dated re-bless** (§Re-bless) — only after (4)+(5).
+7. **Pilot-resume go/no-go** — blocked until 1–6 complete + recorded; resume =
+   re-promote `sprint-088-objective.md` verbatim.
 
-### Part C — autoloop authors → human reviews → merge
+## Extra implementation constraint (decision — no intermediate gap)
 
-1. **Pilot setup.** Clean committed tree (the autoloop sweeps the staged index —
-   `R-autoloop-run-sweeps-dirty-index`; NEVER run on a dirty tree). Backend up +
-   on current code. **Comparison baseline = the pre-pilot baseline:**
-   `config.fitness.baseline_dir` is set to
-   `eval_interactive/results/m-auto-7-prepilot-baseline-20260608` (pilot setup
-   only — see **§Baseline policy**). Do NOT touch `docs/current_eval_baseline.md`.
-2. **Run the loop:** `cd autoloop && uv run python -m autoloop preflight` then
-   `… run -n <N>` (start small, e.g. `-n 8`, scale if no keep). The hill-climber
-   proposes edits to the **6×4 mutable surface only** (program.md §2:
-   `discover_triage` / `resolve_faq_grounded_answer` / `resolve_intake_collect_and_handover`
-   / `confirm` / `escalate` / `terminal` × `$.procedure` /
-   `$.grounding_instruction` / `$.escalation_policy` / `$.critical_steps[*].desc`)
-   and keeps only candidates that strictly improve the 4-tier fitness without
-   shadow/safety regression. (The CS4 entity-context guidance most plausibly
-   lands in `resolve_faq_grounded_answer.yaml` `procedure`/`grounding_instruction`
-   or an existing `critical_steps[*].desc` — but the loop chooses; do not
-   pre-script the target.)
-3. **Inspect candidates:** `… report` / `… audit --experiment <id>`. Record each
-   kept candidate's skill-yaml AST diff. (If `-n` yields 0 keeps, scale `-n` or
-   invoke the §3.4 fallback — step 6.)
-4. **Human §4.1 review (BINDING GATE):** present each candidate's diff for the
-   human's §4.1 nine-question kernel + §1.7 review. Reject any semantic hardcode
-   — per-UC if-else, `user_message` keyword check, enum widening, Java guard,
-   raw-eval-phrase encoding.
-5. **Merge accepted candidate:** `… apply --experiment <id>` (Hybrid: cherry-pick
-   to the working branch + emit a proposed `config.yaml` baseline_dir patch +
-   NO auto-commit). Human commits the cherry-picked skill-yaml diff only.
-6. **§3.4 fallback (valid alternate outcome):** if NO autoloop candidate is
-   acceptable, deliver/dev **hand-authors** the procedure text within the SAME
-   6×4 surface, held to the SAME CaseSpec gate + the SAME §4.1 review. The pilot
-   still produces a go/no-go + a merged, gated procedure.
+When Part-2 goes global observation-only, **no reason binding may be retained
+implicitly via the evaluator family map.** Any case whose product contract
+genuinely requires a strong reason binding must use an **explicit approved
+override** (citation + rationale + reviewer + `status: approved`; tier-0
+additionally requires `safety_critical: true`). **Implementation + replay must
+prove these approved overrides actually take effect** — explicitly forbidding the
+intermediate state "Part-2 globally demoted, but a required binding override is
+not yet wired." (At sprint start there are zero approved binding overrides; the
+proof is: a fixture/approved test override at each `enforcement_level` is honoured
+in the replay.)
 
-### Part D — re-bless → Codex → close
+## Re-bless (decision #2 — new dated directory; no in-place overwrite)
 
-7. **Milestone-close re-bless** (the 2nd of the two real-LLM gates; §8): on a
-   clean committed tree, `cd autoloop && uv run python scripts/rebless_baseline.py
-   --n 9 --out-dir ../eval_interactive/results/m-auto-7-close-baseline-<date>`.
-   This WRITES a new dated baseline dir and does **NOT** flip
-   `config.fitness.baseline_dir` / `current_eval_baseline.md` (that canonical flip
-   is a separate, human-authorized milestone-close decision).
-8. **Confirm SUCCESS** on the close re-bless: Tier-1 primary targets
-   (`no_ad_id` + `loaded_listing`) flip to PASS; the anti-误杀 control STAYS PASS;
-   Tier-2 neighbors improve/hold; the 2 EXTEND cases stay green; safety +
-   grounding floor unchanged. (Per milestone §5.1.5 the pilot RUNNING is the
-   gate; a flip is the success metric, the §3.4 fallback is a valid outcome.)
-9. **Per-sub-sprint Codex §4.1 review (REQUIRED)** of the merged skill-yaml diff
-   (the §1.7 binding gate; §4.3 trigger #2) — `compact/M-Auto-7-S-Y2-review-prompt.md`.
-10. **Handoff + close** per §Handoff requirements.
-
-## Hard fences / STOP conditions
-
-**From the human (2026-06-08) + milestone §6 (S-Y1/S-Y2) + program.md §2/§3:**
-
-- **Only a skill-yaml procedure candidate.** The mutable surface is the
-  program.md §2 6×4 set; every other byte is structurally out of reach.
-- **No Java / runtime change** (`server/src/main/java/**` byte-identical).
-- **No CaseSpec / fixtures / scoring change**
-  (`eval_interactive/case_specs/**`, `case_specs_shadow/**`, mocks, scoring code
-  byte-identical). The negative-control CaseSpec is the anti-误杀 gate — do NOT
-  edit it to make a candidate pass (§5.4).
-- **No `baseline_dir` / `current_eval_baseline.md` canonical flip** in this
-  sub-sprint (the Part D re-bless writes a new dir only; the canonical flip is a
-  separate human-authorized milestone-close edit).
-- **No per-UC if-else on `user_message`; no Java guard blocking
-  `classify_use_case(UC-A)` on removed ads; no projecting raw
-  `moderation_reason_text` (boolean only); candidate-UC name field stays
-  additive.**
-- **No new `critical_steps` entry / no delete / no reorder** (program.md §2 —
-  only `critical_steps[*].desc` text is mutable).
-- **No `tools_required` / `trace_check` / `applicable_use_cases` /
-  `guardrails` edit** (Runtime-owned schema; program.md §6).
-- **No cross-Skill / cross-file diff per candidate** (program.md fence #9).
-- **autoloop output is a PROPOSAL — the human §4.1 review is the binding gate.**
-- **No new Tier-0 invariant.**
-- **STOP** and escalate to the human if: the loop proposes outside the 6×4
-  surface (sandbox should reject — if it doesn't, that's a milestone bug); no
-  candidate is §4.1-acceptable after a reasonable `-n` (→ invoke §3.4 fallback);
-  the anti-误杀 control would regress under any candidate (reject the candidate).
-
-## Test / eval requirements
-
-- **Pilot fitness** is the autoloop's own 4-tier lexicographic evaluation
-  (`bad_cases` + `anchor_outcome` + `shadow`) against the pre-pilot baseline;
-  shadow detail is firewalled from the meta-agent (program.md §3.B.8).
-- **Acceptance evidence = the Part D milestone-close re-bless** (real-LLM, n=9),
-  read against the §Tier classification bars. Mocked-LLM is not primary evidence
-  (§5.7).
-- **Safety floor + grounding floor unchanged** (HARD).
-- **§5.6 human review** of the merged candidate's bad-case traces is the primary
-  gate (per badcase-lifecycle §5.6).
+Write a **new dated baseline dir** (re-score the existing
+`m-auto-7-prepilot-baseline-20260608` traces under the split checks; **zero-LLM**).
+Old artifacts stay immutable; OLD and NEW tier-0 maps are side-by-side comparable.
+Record in the new dir's metadata: `scoring_code_sha`, `source_baseline`,
+`generated_at`, and a `gate_definition_version`. The canonical
+`current_eval_baseline.md` / `config.fitness.baseline_dir` pointer flip stays
+**deferred to milestone close** (separate human decision).
 
 ## §7 Layer-classification + anti-hardcode stanza
 
-**Target failure layer:** `semantic_planner` (the autoloop-authored skill-yaml
-`procedure` / `critical_steps[*].desc` guides the LLM's entity-context
-verification choice on ad-specific UC-A questions). Secondary surface:
-`eval_spec`/governance (pilot acceptance).
+**Target failure layer:** `eval_spec` (gate config treated a stochastic LLM-owned
+reason label as a deterministic floor); realized as a scoring-harness change (§5.8).
 
-**Tier-0 invariant:** This sprint adds no Tier-0 invariant.
+**Tier-0 invariant:** Adds **no** Tier-0 invariant; **removes** an implicit one
+(the eval-internal reason-family→tier-0 binding) and **preserves** the four
+deterministic safety tier-0 checks + Part-1 escalation. No change to
+`runtime_freeze_and_risk_policy.md`.
 
-**Semantic hardcode:** No semantic hardcode introduced. The mutable surface
-(program.md §2) is LLM-soft `procedure` / `grounding_instruction` /
-`escalation_policy` / `critical_steps[*].desc` text. Defenses against a hardcode
-slipping in: the `anti_hardcode_check.py` propose-stage sandbox (Q1/Q2/Q4/Q5),
-the human §4.1 nine-question kernel review (the binding gate), and the anti-误杀
-negative-control (`cs_uc_a_generic_policy_question`) which fails the fitness for
-any candidate that over-elicits / forces ad_id on generic questions. The §3.4
-hand-authored fallback is held to the same §4.1 review. Sunset plan: n/a (no
-hardcode introduced).
+**Semantic hardcode:** No semantic hardcode introduced; an implicit one is removed.
+The override (WP-B) is narrow, explicit, human-reviewed (citation/reviewer/rationale
+per entry), not a keyword/enum dump.
 
-**Generalization coverage:** target / neighbor / negative / shadow case counts:
-**2 / 4 / 1 / 22** — targets = `no_ad_id` + `loaded_listing`; neighbors =
-`lookup_failed` + `fp_loaded_moderation` + the 2 EXTEND cases; negative-control =
-`generic_policy_question`; shadow = the 22-case held-out suite (dev-blind via the
-autoloop shadow firewall).
+**Generalization coverage:** target / neighbor / negative / shadow via the zero-LLM
+replay over baseline + exp-1..85 + exp82-reval + the 17 flagged cases (plan §4/§7).
+No new shadow cases; shadow firewall respected (replay reads recorded traces in a
+review capacity).
+
+## Test / eval requirements
+
+- **All verification is zero-LLM replay** of recorded traces (no backend, no LLM,
+  no new draws). Mocked-LLM is not primary evidence (§5.7) — but here the evidence
+  IS the deterministic re-score of real recorded traces, which is the appropriate
+  primary evidence for a scoring-logic change.
+- Java + Python suites: no new regression; new replay tests for plan §7 items 2/3/5
+  + the approved-override-takes-effect proof.
+- Deterministic safety floors byte-identical OLD vs NEW (plan §7 item 5).
+
+## Hard fences / STOP conditions
+
+- **No bot / prompt / runtime change** (`server/src/main/java/**` + skill YAMLs
+  byte-identical — this is a scoring-surface sprint).
+- **No CaseSpec edit.** cs11s01 → WP-B `pending_review` override only (not
+  registered until PO approval). cs40s02 byte-identical.
+- **No new dated-dir canonical flip** (`current_eval_baseline.md` /
+  `config.fitness.baseline_dir` unchanged; deferred to milestone close).
+- **No deterministic-safety-check weakening** (the four + Part-1 preserved + proven
+  byte-identical).
+- **No implicit reason binding** via the family map (Extra constraint).
+- **No real-LLM run; full pilot tranche stays HELD.**
+- **STOP** + escalate if: the replay shows any verdict change outside the Part-2
+  demotion set (plan §7 item 4); any deterministic safety check changes; a `tier0`
+  override lacks `safety_critical+citation+approved`; or an approved override fails
+  to take effect in the replay.
 
 ## Codex review plan (§4.3)
 
-**Per-sub-sprint Codex REQUIRED** (trigger #2 — autoloop output is the §1.7
-binding gate). Review the merged skill-yaml diff under the §4.1 nine-question
-kernel; verdict to `docs/codex-findings.md` (§4.2 header). Must complete before
-milestone close. Prompt: `compact/M-Auto-7-S-Y2-review-prompt.md` (deliver-agent
-authors at Part D).
+Per-sub-sprint Codex REQUIRED. Nine-question anti-hardcode kernel on (a) the WP-A
+scoring diff and (b) the WP-B schema, reviewed alongside the replay evidence;
+verdict to `docs/codex-findings.md` (§4.2 header) before the re-bless + pilot
+resume. Prompt drafted by deliver at WP close.
 
 ## Handoff requirements
 
-`docs/sprints/sprint-088-handoff.md` must record: the `-n` used + keep count;
-each kept candidate's skill-yaml AST diff + the human §4.1 verdict; the
-accepted/merged candidate (or the §3.4 hand-authored procedure) + its commit; the
-Part D close re-bless dir + the Tier-1/control/neighbor/EXTEND/safety read; the
-Codex verdict; the three carried flags' disposition; and whether SUCCESS (flip)
-or VALID-ALTERNATE (fallback / pilot-ran-no-flip) was reached.
+`docs/sprints/sprint-092-handoff.md` records: the pre-dev zero-LLM sweep table (13
+cases, classified, `unknown` where insufficient); the WP-A + WP-B diffs + commit
+shas (independent); the OLD/NEW replay matrix + blast-radius list + the negative-
+control / flip-elimination / other-invariant / approved-override-takes-effect
+results; the Codex verdicts; the new dated re-bless dir + its metadata; the pilot-
+resume go/no-go; and an explicit restatement that exp-82 stays withdrawn + no
+PRIMARY success is claimed.
 
 ## Commit discipline
 
-Stage explicitly by file (NO `git add -A` — program.md fence #6 + autoloop
-dirty-index hazard). The merged candidate commit contains ONLY the cherry-picked
-skill-yaml diff. Deliver-agent close-bundle artefacts (`docs/sprint_objective.md`,
-`docs/10-handoff.md`, `docs/action_bank.md`, handoff, etc.) are bundled by the
-human at close. Re-bless result dirs are gitignored (data, not committed).
+Stage explicitly by file (NO `git add -A`). WP-A and WP-B are separate commits with
+disjoint file sets. Re-bless result dirs are gitignored (data). Deliver close-bundle
+artefacts bundled by the human at close.
 
-## Baseline policy (S-Y2) — OQ-S87.baseline-dir RESOLVED (a), 2026-06-08
+## Open decisions (carried; non-blocking for WP-A)
 
-Human-authorized: `config.fitness.baseline_dir` (`autoloop/config.yaml`) is
-pointed at `eval_interactive/results/m-auto-7-prepilot-baseline-20260608` as the
-**S-Y2 pilot fitness / experiment baseline**. Explicit terms:
-
-- `m-auto-7-prepilot-baseline-20260608` = the **pilot fitness baseline**
-  (`config.fitness.baseline_dir`). This is a **pilot-setup change only**.
-- `m-auto-6-baseline-shared-20260607` = the **previous canonical baseline**.
-- `docs/current_eval_baseline.md` **remains UNCHANGED** — this is **NOT** a
-  canonical baseline promotion; the canonical baseline is **NOT** updated before
-  milestone close.
-- After the S-Y2 candidate is merged + the Part D milestone-close re-bless +
-  Codex review, **whether to promote the new result to canonical baseline is a
-  separate human close decision** (the canonical-baseline flip).
-- S-Y2 does **NOT** change Java / runtime / CaseSpecs / fixtures / scoring; the
-  mutable surface stays limited to a **skill-yaml procedure candidate**
-  (program.md §2 6×4 surface).
+- **cs11s01 Option A** `{faq_miss_threshold_exceeded, user_requested}` is the
+  recommended trigger but stays `pending_review` until the **product owner**
+  confirms the FAQ-miss-first path is in-scope. Does **not** block WP-A or the WP-B
+  schema; only blocks registering the cs11s01 override.

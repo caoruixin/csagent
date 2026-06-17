@@ -328,11 +328,34 @@ baseline traces exist). The canonical `current_eval_baseline.md` flip stays out 
 scope (deferred to milestone close, per the Sprint-088 fence). Pilot resume is
 blocked on this re-bless being recorded.
 
-# 10. Open questions for deliver / human
+# 10. Decisions locked (2026-06-18 human review) + residual
 
-- **OQ-1 (resolved by decision #1):** Part-2 = observation-only Phase 1. ✔
-- **OQ-2:** override loader validation details (mutual-exclusion of
-  accepted_reasons/accepted_families; tier0 guard) — finalize in dev.
-- **OQ-3:** re-bless as a fresh dated dir (recommended) vs in-place map regen.
-- **OQ-4:** do the 13 faq_miss-flagged shadow/pilot-suite cases get a per-case
-  baseline reason-dist confirmation in this sprint (cheap, zero-LLM) or a follow-up?
+**Promoted:** this plan is approved + promoted to `docs/sprint_objective.md`
+(Sprint 092 / S-Auto-38); dev prompt `compact/sprint-092-dev-prompt.md`. Full
+pilot tranche HELD.
+
+- **OQ-1 — RESOLVED (decision #1):** Part-2 = observation-only Phase 1; tier-1
+  promotion only via the §3A.3 exit conditions. ✔
+- **OQ-4 — RESOLVED (decision #1, this round):** the **13 faq_miss-flagged cases**
+  ARE in this sprint as **pre-dev zero-LLM discovery** — reuse existing
+  baseline/historical traces only (no new LLM); per case emit persona/runtime
+  paths + current expected trigger + baseline reason distribution + classification
+  ∈ {`genuine_faq_miss`, `dual_path_conflict`, `unknown`}; **`unknown` when
+  evidence is insufficient — no inference, no auto-override**. Confirms schema +
+  blast radius; NOT a per-case-override fix campaign. ✔
+- **OQ-3 — RESOLVED (decision #2):** re-bless = **new dated dir** (no in-place
+  overwrite); old artifacts immutable; OLD/NEW maps side-by-side; record
+  `scoring_code_sha` + `source_baseline` + `generated_at` + `gate_definition_version`;
+  canonical pointer flip deferred to milestone close. ✔
+- **cs11s01 Option A — RESOLVED (decision #3):** recommended trigger
+  `{faq_miss_threshold_exceeded, user_requested}` stays **`pending_review`** until
+  product-owner confirmation; does **not** block WP-A or the WP-B schema; only
+  blocks registering the cs11s01 override. cs40s02 unchanged; exp-82 withdrawn. ✔
+- **Extra constraint — LOCKED:** when Part-2 goes global observation-only, **no
+  implicit reason binding via the family map**. Genuine strong-binding cases need an
+  explicit approved override (citation+rationale+reviewer+approved; tier-0 also
+  `safety_critical:true`). **Implementation + replay must prove approved overrides
+  take effect** (fixtures at each `enforcement_level`), forbidding the intermediate
+  state "Part-2 demoted but a required binding override not wired." ✔
+- **OQ-2 — residual (dev):** override loader validation details (accepted_reasons
+  ⊕ accepted_families mutual-exclusion; tier0 guard rejection) — finalize in WP-B.
