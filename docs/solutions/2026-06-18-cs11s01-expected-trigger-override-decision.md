@@ -118,9 +118,12 @@ case, not a primary target.
 
 ## 4. Draft override entry (NOT applied — for review only)
 
-Proposed `case_spec_overrides.yaml` (schema v2) entry for the reviewer to approve
-through the pipeline. Recorded here only; **do not write it to the registry until
-approved**, and only alongside the check/affordance that consumes an accepted-set.
+This override is **WP-B** of S-Auto-38 (decision #3): it uses the **unified
+override schema** (gate-plan rev 2 §6), not the ad-hoc `expected.escalation_trigger`
+list from rev 1. It is an **`observation`-level, non-safety-critical** accepted-set
+entry — it does **not** re-elevate Part-2 to any gate. Recorded here only; **do not
+write it to the registry until approved**, and only alongside the WP-B schema +
+check affordance that consume it.
 
 ```yaml
   - source_session_id: synthetic-sprint20-cs011-shadow-01
@@ -131,29 +134,41 @@ approved**, and only alongside the check/affordance that consumes an accepted-se
     date: <TBD>
     confidence: high
     supporting_turn_numbers: []   # synthetic/case_family_authored; cite persona instead
-    rationale: >-
-      Persona will_request_human_if drives the priority-1 user_requested path
-      (resolve_faq escalation_policy), while the FAQ-resolution-miss path yields
-      faq_miss_threshold_exceeded (phase2 §2.4, UC-D allow_bot_resolution=true).
-      Both are contract-valid for this dual-path scenario; accept either.
-    expected:
-      escalation_trigger: [faq_miss_threshold_exceeded, user_requested]   # accepted SET
+    escalation:                   # unified schema (S-Auto-38 WP-B §6)
+      accepted_reasons: [faq_miss_threshold_exceeded, user_requested]
+      enforcement_level: observation        # NOT a gate; matches WP-A Phase-1 default
+      safety_critical: false
+      citation: "phase2 §2.4 (user_requests_human->user_requested, all UCs; faq_miss_ge_2->faq_miss for UC-D allow_bot_resolution=true) + resolve_faq escalation_policy priority-1"
+      rationale: >-
+        Persona will_request_human_if drives the priority-1 user_requested path,
+        while the FAQ-resolution-miss path yields faq_miss_threshold_exceeded. Both
+        are contract-valid for this dual-path scenario; accept either. Observation
+        only — no safety-critical justification to gate.
 ```
 
-> Affordance note: the registry/`expected.escalation_trigger` field and the
-> `escalation_reason_family_match` check currently assume a single value. Accepting
-> a set is a small affordance to be designed **inside** the gate sprint (or a
-> parallel eval_spec sprint), under §5.4 review. Until then this entry stays
-> `pending_review` and unapplied.
+> Note: with WP-A demoting Part-2 to observation-only by default, cs11s01 stops
+> flipping keep/discard **regardless** of this entry. The entry's value is to make
+> the recorded observation signal **correct** (no standing false-positive) by
+> accepting either valid reason. It is the multi-valid counterpart of the §6
+> unique-reason opt-in; both keep reason bindings **explicit + human-reviewed**.
 
 ## 5. Open questions
 
 - **OQ-1:** confirm Option A over B with the product owner — is the FAQ-miss-first
   path in-scope for this case, or is the case intended purely as a user-request
   test? (If purely user-request, Option B becomes defensible.)
-- **OQ-2:** schema for an accepted-set trigger (list vs a new `accepted_triggers`
-  field) — decide with the gate sprint's §3.4 override affordance so there is one
-  mechanism, not two.
-- **OQ-3:** sweep — are there sibling `cs011_uc_d_*` / other `will_request_human_if`
-  cases with the same single-value-vs-dual-path inconsistency? A short read-only
-  audit before approving avoids a one-off patch.
+- **OQ-2 (resolved):** schema = the unified S-Auto-38 WP-B `escalation` block (§6
+  of the gate plan), one mechanism for both unique-reason and accepted-set. ✔
+- **OQ-3 (sweep done — see gate plan §4):** cs11s01 is **1 of 17** flagged cases
+  with the dual-path-vs-single-expected pattern (13 `faq_miss`, 3 `out_of_scope`,
+  1 `intake_complete_for_uc_h`; `cs11s02_uc_d` already pre-existing-baseline-
+  failing). So this is **systemic** — handled primarily by WP-A's observation-only
+  default; per-case WP-B overrides (starting with cs11s01) are authored only as
+  needed, under review, after the cheap per-case baseline reason-dist confirmation.
+
+## 6. Framing (per human decision #4)
+
+This override does **not** restore exp-82 and does **not** claim any PRIMARY
+success. exp-82 stays **WITHDRAWN** on its n=13 primaries (P_improve 0.059 /
+0.022); cs11s01 is a held-out shadow case, never a primary target. The override
+only corrects a held-out observation signal's accuracy.

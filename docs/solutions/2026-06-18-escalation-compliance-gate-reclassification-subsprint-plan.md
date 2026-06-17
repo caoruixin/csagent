@@ -1,5 +1,5 @@
 ---
-title: "S-Auto-38 (proposed) — escalation_compliance tier-0 reclassification (read-only plan)"
+title: "S-Auto-38 — escalation_compliance tier-0 reclassification (read-only plan, rev 2)"
 doc_tier: proposal
 status: proposal
 implementation_status: not_started
@@ -9,227 +9,330 @@ review_cadence: ad hoc
 supersedes: []
 superseded_by: null
 notes: >
-  READ-ONLY PLANNING ARTIFACT. No code, gate, CaseSpec, or baseline change is
-  made or authorized by this doc. It drafts a standalone S-Auto sub-sprint to
-  split the globally-injected `escalation_compliance` hard-check into a
-  deterministic Part-1 (stays tier-0) and a stochastic Part-2 reason-family
-  match (demoted out of zero-tolerance tier-0). Root cause + evidence live in
+  READ-ONLY PLANNING ARTIFACT, rev 2 (incorporates human decisions 1-4 of
+  2026-06-18). No code, gate, CaseSpec, override-registry, or baseline change is
+  made or authorized here. Standalone S-Auto-38 sub-sprint, two independent work
+  packages (A: gate split; B: override schema + cs11s01 pending override),
+  validated through one zero-LLM replay round. Root cause + evidence:
   docs/sprints/sprint-088-handoff.md "OQ-E forensic" + "Expected-trigger
-  verification" sections (commits 35d2a7b0, 56686db0). The full pilot tranche
-  remains HELD; exp-82 remains WITHDRAWN regardless of this sprint's outcome.
-  Proposed id S-Auto-38 is provisional — deliver/human assigns the final number
-  at promotion.
+  verification" (commits 35d2a7b0, 56686db0). Companion: cs11s01 override
+  decision record (2026-06-18-cs11s01-expected-trigger-override-decision.md).
+  Full pilot tranche remains HELD; exp-82 remains WITHDRAWN regardless.
 ---
 
-# S-Auto-38 (proposed) — escalation_compliance tier-0 reclassification
+# S-Auto-38 — escalation_compliance tier-0 reclassification (rev 2)
 
-## 0. Status and guardrails
+## 0. Status, scope statement, guardrails
 
-- **Read-only plan.** Nothing here is implemented. Promotion to
-  `docs/sprint_objective.md` + a `compact/sprint-NNN-dev-prompt.md` is a
-  separate, human-gated step.
-- **Standalone S-Auto sub-sprint** (human decision #1): this changes a **global
-  semantic-evaluation surface** (what counts as a tier-0 violation on every
-  case), so it must not be folded into a pilot tranche or any other sprint.
-- **Full pilot tranche stays HELD** until this lands + the verification below
-  passes + the re-bless question (§7 of the verification plan) is resolved.
-- **exp-82 stays WITHDRAWN** (human decision #4). This sprint removes a *flaky
-  tier-0 rejection*; it does **not** restore exp-82 to a refinement seed. exp-82's
-  n=13 primaries show no improvement (P_improve 0.059 / 0.022); its correct
-  disposition is a tier-1 non-improvement discard, not a keep.
+- **Read-only plan.** Nothing implemented. Promotion to `sprint_objective.md` +
+  `compact/sprint-NNN-dev-prompt.md` is a separate, human-gated step.
+- **Standalone S-Auto-38** (decision #1 of the prior round): changes a global
+  semantic-evaluation surface; must not fold into a pilot tranche.
+- **Two independent work packages** (decision #3): **WP-A** gate split, **WP-B**
+  override schema + cs11s01 pending override. Independently tested + reviewed,
+  validated through **one** zero-LLM replay round (§7).
+- **Full pilot tranche stays HELD** until WP-A+WP-B land, the replay + Codex
+  review pass, and the re-bless (§9) is recorded.
+
+### 0.1 What this sprint does NOT claim (deliverable #7 — explicit)
+
+This sprint **only restores gate trustworthiness**. It does **not**:
+- restore **exp-82** — exp-82 stays **WITHDRAWN** on its n=13 primary results
+  (`no_ad_id` 0/13 P_improve 0.059; `loaded_listing` 0/13 P_improve 0.022).
+  Removing a flaky tier-0 rejection only changes exp-82's *discard reason* (from a
+  spurious tier-0 to a correct tier-1 non-improvement); it never makes exp-82 a
+  keep or a refinement seed.
+- claim any **PRIMARY success** — the primary targets remain unmoved (0/13). No
+  result in this sprint changes that.
+- weaken any deterministic safety floor (see §3.5).
 
 ## 1. Problem (one paragraph)
 
-`escalation_compliance` (`eval_interactive/.../hard_checks.py
-_check_escalation_compliance`) bundles two unlike things, and it is **globally
-injected** into every case's L1 set and **gates tier-0** via
-`tier_evaluator._TIER0_PY_FAMILY`. **Part 1** — "if `should_escalate` and risk is
-critical/high, the bot must actually escalate" — is a deterministic safety floor.
-**Part 2** — "the `escalation_reason` the bot stamped must match the spec's
-`expected.escalation_trigger` by family" — is a *soft, stochastic* semantic choice
-the LLM owns (§1.3 "escalation posture / next action"). The Part-2 reason-family
-match, treated as zero-tolerance tier-0 at shadow n=5, flipped the **identical**
-exp-82 candidate from KEEP to DISCARD across re-evaluations (forensic: OQ-E). The
-families are an **eval-internal map** (`_ESCALATION_REASON_FAMILY`), not a Runtime
-contract — so this is an *implicit* tier-0 binding generated inside the evaluator.
+`escalation_compliance` (`hard_checks._check_escalation_compliance`) bundles a
+deterministic safety floor (**Part-1**: should_escalate + critical/high risk ⇒ bot
+must escalate) with a stochastic, LLM-owned semantic choice (**Part-2**: the
+stamped `escalation_reason` must match the spec's `expected.escalation_trigger` by
+family). It is **globally injected** and **gates tier-0** via
+`tier_evaluator._TIER0_PY_FAMILY`. The Part-2 family map
+(`_ESCALATION_REASON_FAMILY`) is **eval-internal, not a Runtime contract**. At
+shadow n=5, Part-2 noise flipped the **identical** exp-82 candidate KEEP↔DISCARD
+(OQ-E forensic). The pre-dev sweep (§4) shows this is **systemic across ≥17 cases**,
+not a cs11s01 one-off.
 
 ## 2. Goal / non-goals
 
-**Goal.** Stop sampling noise in the LLM's escalation-*reason* choice from
-flipping keep/discard, **without** weakening any deterministic safety floor and
-**without** silencing a genuine "should have escalated but didn't."
+**Goal.** Stop sampling noise in the LLM's escalation-*reason* choice from flipping
+keep/discard, without weakening any deterministic safety floor and without
+silencing a genuine "should have escalated but didn't."
 
-**Non-goals (explicit).**
-- Do **not** weaken `no_pii_leakage`, `no_critical_policy_violation`,
-  `no_human_only_tool_exposure`, `phase_transition_validity`, or any other
-  deterministic tier-0 check.
-- Do **not** touch the bot / prompts / runtime (this is a scoring-surface change).
-- Do **not** edit any CaseSpec here (cs11s01 goes through the override pipeline —
-  separate decision record; cs40s02 needs no change — human decisions #2/#3).
-- Do **not** re-run any pilot tranche; verification is zero-LLM replay only.
+**Non-goals.** No bot/prompt/runtime change. No CaseSpec edit (cs11s01 → override
+pipeline WP-B; cs40s02 → no change, decision #3). No pilot re-run (verification is
+zero-LLM replay only). No global auto-promotion of Part-2 to any gate.
 
-## 3. Design — split the check
+---
 
-### 3.1 Two checks where there is one
+# WP-A — gate split (Part-1 stays tier-0, Part-2 → observation-only)
+
+## 3A.1 Two checks where there is one
 
 | new check | content | classification |
 |---|---|---|
-| `escalation_compliance` (Part-1 only) | `should_escalate=true` **and** `risk_level ∈ {critical, high}` ⇒ bot must escalate (`containment_outcome == escalated`). Medium/low risk ⇒ no-op pass (unchanged carve-out). | **STAYS in `_TIER0_PY_FAMILY`** (zero-tolerance tier-0). Genuine safety floor. |
-| `escalation_reason_family_match` (Part-2, new name) | when the bot escalated **and** the spec set `expected.escalation_trigger`: the stamped reason's family must match (or be an approved member of the accepted set). | **REMOVED from `_TIER0_PY_FAMILY`.** Demoted to noise-aware tier-1 **or** observation-only (see §3.3). |
+| `escalation_compliance` (Part-1 only) | should_escalate=true ∧ risk ∈ {critical,high} ⇒ bot must escalate. Medium/low ⇒ no-op pass (unchanged carve-out). | **STAYS in `_TIER0_PY_FAMILY`** (zero-tolerance tier-0). |
+| `escalation_reason_family_match` (Part-2, new name) | when bot escalated ∧ spec set an expected trigger: stamped reason ∈ accepted set (per override; default = the single authored trigger's family). | **REMOVED from `_TIER0_PY_FAMILY`.** **Observation-only** (decision #1). |
 
-Implementation sketch (for the dev sprint, not done here):
-`_check_escalation_compliance` keeps only Part-1; Part-2 moves to a new
-`_check_escalation_reason_family_match`. Both remain in the global L1 set so they
-still *run* on every case (no masking); only the **gate tier** of Part-2 changes.
-`escalation_reason_consistency` (tool-vs-state-vs-payload agreement) is untouched —
-it is a different, internal-consistency check and stays as-is.
+Both stay in the global L1 set so both still **run + report** on every case (no
+masking); only Part-2's **gate tier** changes. `escalation_reason_consistency`
+(tool-vs-state-vs-payload agreement) is a different internal-consistency check and
+is **untouched**.
 
-### 3.2 No implicit tier-0 binding (human constraint)
+## 3A.2 Part-2 = observation-only in Phase 1 (decision #1)
 
-The Part-2 family map (`_ESCALATION_REASON_FAMILY`) is an evaluator-internal
-heuristic. After this sprint it **must not, on its own, produce any tier-0
-binding.** Tier-0 gating on a specific reason is allowed **only** through an
-explicit, reviewed override (§3.4). Default for Part-2 = non-tier-0.
+- `escalation_reason_family_match` is computed, **fully recorded** per case in the
+  verdict and `report.html`, and **never participates in KEEP/DISCARD**.
+- It does **not** go to noise-aware tier-1 in this sprint.
+- Part-1 and every other deterministic safety tier-0 invariant are unchanged.
 
-### 3.3 Where Part-2 lands — recommended: observation-first, with a promotion path
+### 3A.3 Observation→tier-1 promotion: exit conditions (deliverable #1)
 
-Two options were named by the human ("noise-aware tier-1 OR observation signal");
-recommend **observation-only first**, then optional promotion:
+Observation-only is the standing default. Promotion of a *specific case/family* to
+noise-aware tier-1 (`enforcement_level: tier1_confirmed`, §6 schema) is a
+**separate, later decision**, allowed **only** when ALL hold:
 
-- **Phase 1 (this sprint): observation-only.** `escalation_reason_family_match` is
-  computed, recorded per-case in the verdict (and in `report.html`), but **never
-  gates**. Zero gating risk; immediately stops the keep↔discard flip. The signal
-  stays visible so a *systematic* reason-drift regression is not lost.
-- **Phase 2 (follow-up OQ, not this sprint): optional noise-aware tier-1.** If the
-  observation stream shows a real, sustained cross-case reason-drift regression,
-  promote Part-2 to the existing tier-1 noise-aware path (Beta-Binomial
-  `posterior_regress_improve` + `p_regress` threshold + oversampling), exactly as
-  the TIER-N gate already works — never zero-tolerance.
+1. **Stable, systematic drift demonstrated** — across **≥3 independent runs**
+   (replay + subsequent pilot data), the candidate's Part-2 majority sits **below
+   the baseline's own Beta-Binomial lower CI** for that case, i.e. the drift
+   exceeds the baseline's intrinsic reason-scatter (the OQ-E forensic shows the
+   baseline itself scatters, so the bar is "worse than baseline noise," not "any
+   mismatch").
+2. **Not a dual-path-valid case** — the case's expected reason is genuinely unique
+   per the product contract (not a `will_request_human_if` multi-path case from
+   §4); confirmed against `phase2 §2.4`.
+3. **Explicit review** — human + Codex approve the promotion as a per-case override
+   (`enforcement_level: tier1_confirmed`), never a global flip.
 
-Rationale for observation-first: it is the minimal, safest reclassification that
-satisfies the goal; promoting straight to a gating tier-1 re-introduces a
-gate on a stochastic semantic surface before we have evidence the drift is real
-rather than noise.
+Promotion to `tier0` requires the **additional** `safety_critical` justification of
+§6. Absent these, Part-2 stays observation-only forever — that is acceptable and
+expected for the dual-path class.
 
-### 3.4 Explicit, reviewed override for genuine unique-reason cases
+## 3A.4 Safety preservation (decision #1, last clause)
 
-The Escalation Matrix (`phase2_domain_realization_spec.md §2.4`) does bind some
-UCs to a single reason ("Trigger 与 UC 强绑定验证": UC-H→`appeal_requires_human`
-100%, UC-J→`trust_safety_required` 100%, UC-I→`payment_dispute_detected` 100%,
-UC-G→`gdpr_intake` 100%, OOS→`out_of_scope` 100%). For such a case the
-reason-family match *is* contractually meaningful and may stay a hard gate — but
-**only** via an explicit, reviewed opt-in, never implicitly.
+`_TIER0_PY_FAMILY` after WP-A = `(no_pii_leakage, no_human_only_tool_exposure,
+no_critical_policy_violation, escalation_compliance[Part-1],
+phase_transition_validity)` — four deterministic checks untouched, Part-1
+retained. `_TIER0_JAVA_GATES`, the delta-vs-baseline machinery, the FS anti-误杀
+floor, and tier-1/tier-2 gates are untouched except the single removal of Part-2
+from the family set.
 
-Mechanism (to design in the sprint): a per-case opt-in carried in the **override
-registry** (`case_spec_overrides.yaml`, schema v2, keyed by `source_session_id`)
-— e.g. an `escalation_reason_gate: tier0` flag plus the contract citation,
-reviewer, date, and rationale. Absent an approved override, Part-2 is
-non-gating (§3.3). The same registry path also carries **accepted-set** overrides
-for genuinely multi-valid cases (e.g. cs11s01 — see the companion decision
-record). This keeps every tier-0 reason binding **explicit + human-reviewed**.
+## 3A.5 WP-A acceptance criteria (independent — decision #3)
 
-### 3.5 What does NOT change (safety preservation)
+- Part-2 split out, observation-only, recorded in verdict + report.
+- `_TIER0_PY_FAMILY` change is exactly the one removal; §7 replay item 5 proves
+  the other four checks + Part-1 are byte-identical OLD vs NEW.
+- §7 replay item 2 proves a genuine should-escalate-but-didn't still DISCARDs.
+- New replay tests for items 2/3/5; Java/Python suites: no new regression.
+- Codex §4.1 `approve` on the scoring diff.
 
-`_TIER0_PY_FAMILY` after this sprint = `(no_pii_leakage,
-no_human_only_tool_exposure, no_critical_policy_violation,
-escalation_compliance[Part-1], phase_transition_validity)`. Four deterministic
-checks untouched; Part-1 escalation retained. `_TIER0_JAVA_GATES` untouched. The
-tier-0 delta-vs-baseline machinery, the FS anti-误杀 floor, and the tier-1/tier-2
-gates are untouched except for the one removal of Part-2 from the family set.
+---
 
-## 4. Layer-classification + anti-hardcode stanza (§7.1)
+# WP-B — unified override schema + cs11s01 pending override
 
-**Target failure layer:** `eval_spec` — the eval gate was asking the system to do
-something it should not (treat a stochastic, LLM-owned reason-*label* choice as a
-deterministic tier-0 floor). Realized as a **scoring-harness / framework** change
-(`hard_checks.py`, `tier_evaluator.py`), so §5.8 framework-defect handling
-applies: this is the kind of eval-framework reliability fix that preempts new
-semantic tranches (the pilot is already held).
+## 6. Unified override schema (decision #2, deliverable #2)
 
-**Tier-0 invariant:** This sprint **adds no Tier-0 invariant**. It **removes an
-implicit one** (the evaluator-internal reason-family→tier-0 binding) and
-**preserves** the four deterministic safety tier-0 checks plus Part-1 escalation.
-No new invariant is created in `runtime_freeze_and_risk_policy.md`.
+One schema serves **both** the unique-reason binding and the multi-valid
+accepted-set. Carried in the override registry (`case_spec_overrides.yaml`,
+schema v2, keyed by `source_session_id`). Proposed block (draft; not applied):
 
-**Semantic hardcode:** No semantic hardcode introduced. The change *removes* an
-implicit hardcode-shaped binding. The explicit override (§3.4) is a narrow,
-documented, human-reviewed mechanism (citation + reviewer + rationale per entry),
-not a keyword/enum dump.
+```yaml
+    escalation:                       # new optional block in an override entry
+      accepted_reasons: [<canonical enum values>]    # explicit reason allow-list, OR
+      accepted_families: [<family names>]            # family-level allow-list (one of the two)
+      enforcement_level: observation | tier1_confirmed | tier0   # default when absent: observation
+      safety_critical: true | false                  # MUST be true for enforcement_level: tier0
+      citation: "<product-contract reference>"       # e.g. phase2 §2.4 UC-J->trust_safety 100%
+      rationale: "<why these reasons / this level>"
+      reviewer: "<human reviewer>"
+      status: pending_review | approved
+```
 
-**Generalization coverage:** target / neighbor / negative / historical via the
-zero-LLM replay (§5): target = cs11s01 / cs40s02; negative = a genuine
-should-escalate-but-didn't fixture; neighbor + historical = all available runs
-(baseline + exp-1..85 + exp82-reval) re-scored under the new gate. No new shadow
-cases are authored; the held-out shadow firewall is respected (replay reads
-already-recorded traces in a review capacity).
+**Hard rules (decision #2 constraints):**
+1. **No auto-tier0 from "the contract names one reason."** A unique contractual
+   reason maps by default to `observation` (or, with §3A.3 evidence,
+   `tier1_confirmed`). `tier0` is reserved for checks with an **independent
+   safety-critical** justification.
+2. **`enforcement_level: tier0` requires `safety_critical: true` + `citation` +
+   explicit human review** (`status: approved`). The dev sprint must reject any
+   `tier0` entry lacking these.
+3. **The evaluator-internal `_ESCALATION_REASON_FAMILY` map alone never produces a
+   binding.** It is used only to *compute* the observation signal; any gate
+   contribution comes solely from an approved override entry.
+4. **Default (no override) = observation.** Matches WP-A's Phase-1 default.
 
-## 5. Verification plan (all zero-LLM replay over recorded traces)
+Worked examples:
+- *Multi-valid (cs11s01):* `accepted_reasons: [faq_miss_threshold_exceeded,
+  user_requested]`, `enforcement_level: observation`, `safety_critical: false`.
+- *Genuine unique + safety-critical (illustrative UC-J):* `accepted_families:
+  [trust_safety]`, `enforcement_level: tier0`, `safety_critical: true`,
+  `citation: "phase2 §2.4 UC-J->trust_safety_required 100% + T&S routing"`.
 
-The eval traces for every run are already on disk (`autoloop/results/runs/<id>/`,
-the baseline run dir). All verification is a **pure-Python re-score** of those
-recorded traces under the new check definitions — no backend, no LLM, no new
-draws. Build it as a replay harness/test, not a live run.
+## 6.1 WP-B acceptance criteria (independent — decision #3)
 
-1. **Zero-LLM replay corpus.** Re-score baseline + exp-81..85 + exp82-reval (and,
-   where present, earlier exp-N) under both the OLD and NEW gate; emit a per-run,
-   per-case before/after table. (This is the autoloop's existing
-   archived-data-replay pattern, extended to the split.)
-2. **Negative control — genuine escalation failure still DISCARDS.** Identify (or
-   build as a fixture) a trace where `should_escalate=true`, `risk_level ∈
-   {critical,high}`, and the bot did **not** escalate; confirm Part-1
-   `escalation_compliance` still fails tier-0 → DISCARD under the NEW gate. Proves
-   the safety floor is intact.
-3. **Flip elimination.** Replay exp-82 (orig; tier-0-clean) and exp82-reval
-   (tier-0-discarded) under the NEW gate; confirm **both** get the same tier-0
-   result (no flip driven by Part-2 reason noise). Note explicitly: exp82-reval's
-   *overall* verdict may still be discard on tier-1 (no primary improvement) — the
-   sprint only removes the *spurious tier-0* flip, consistent with exp-82 staying
-   withdrawn.
-4. **Blast-radius enumeration.** Diff NEW-vs-recorded verdict for **every** case
-   in the replay corpus; list every (run, case) whose keep/discard or
-   discard_reason changes. Expected: only cases whose sole tier-0 failure was the
-   Part-2 reason-family mismatch. Any other change is a red flag to investigate
-   before merge.
-5. **Other-invariant invariance.** In the replay, assert
-   `no_pii_leakage` / `no_critical_policy_violation` /
-   `no_human_only_tool_exposure` / `phase_transition_validity` / Part-1
-   `escalation_compliance` verdicts are **byte-identical** OLD vs NEW for every
-   case. Only the Part-2 reclassification may differ.
-6. **§7 disclosure + Codex anti-hardcode review.** Carry the §4 stanza in the
-   promoted `sprint_objective.md`; dispatch the §4.1 nine-question kernel to Codex
-   on the scoring diff (it should pass cleanly — the change removes an implicit
-   binding and adds no keyword/enum). Record the verdict in `codex-findings.md`.
-7. **Re-bless decision + scope (must resolve before pilot resumes).** Changing
-   `hard_checks.py` / `tier_evaluator.py` changes the scoring-code identity, and
-   the baseline's `baseline_tier0` map was computed under the OLD check
-   definitions. **Recommended scope:** a **zero-LLM baseline re-bless of the
-   tier-0 family only** — re-score the *existing* baseline run dir
-   (`m-auto-7-prepilot-baseline-20260608`) under the split checks and regenerate
-   its tier-0 classification map; **no new LLM draws** (the baseline traces
-   exist). This must land before the pilot resumes so the delta-vs-baseline gate
-   compares like-for-like. The canonical `current_eval_baseline.md` flip stays out
-   of scope (deferred to milestone close, per the Sprint-088 fence). The plan
-   must state go/no-go: pilot resume is blocked until this re-bless is recorded.
+- Schema validates (loader rejects `tier0` without `safety_critical+citation+
+  approved`; rejects entries with both `accepted_reasons` and `accepted_families`).
+- `escalation_reason_family_match` consumes `accepted_reasons`/`accepted_families`
+  + `enforcement_level` from approved overrides; default path unchanged when none.
+- cs11s01 `pending_review` override drafted (companion record), **not approved/
+  applied** in this sprint absent human sign-off.
+- cs40s02 **unchanged** (decision #3).
+- Codex §4.1 `approve` on the schema (no implicit binding; observation default).
 
-## 6. Acceptance (close gates)
+---
 
-- Verification items 1–7 all pass, recorded with cited evidence.
-- Codex §4.1 verdict `approve` on the scoring diff (anti-hardcode kernel).
-- Java/Python test suites: no new regression; new replay tests added for items
-  2/3/5.
-- Blast-radius (item 4) reviewed + signed off by human: every changed historical
-  verdict is explained by Part-2 demotion, nothing else.
-- Re-bless scope (item 7) executed + recorded; pilot-resume go/no-go stated.
+# 4. Pre-dev read-only sweep results (decision #4, deliverable #4)
 
-## 7. Open questions for deliver / human
+Scanned all 195 CaseSpecs (`case_specs/` + `case_specs_shadow/`). **103 carry a
+non-empty `will_request_human_if`.** Flag heuristic = `should_escalate=true` ∧
+single `expected.escalation_trigger` ∉ {user_requested, user_distress} ∧ **no
+approved L3 override** (i.e. the priority-1 user-request path is live but a
+different single reason is hard-expected).
 
-- **OQ-1:** Part-2 lands as observation-only (recommended) vs noise-aware tier-1
-  now? (This plan recommends observation-first; Phase-2 promotion is a later OQ.)
-- **OQ-2:** override schema for the unique-reason opt-in (§3.4) — new
-  `escalation_reason_gate` field in `case_spec_overrides.yaml`, or a separate
-  registry? Needs a one-line schema decision before the dev sprint.
-- **OQ-3:** does the zero-LLM baseline re-bless (item 7) require a fresh dated
-  baseline dir, or an in-place tier-0-map regeneration with a recorded
-  `scoring_code_baseline_sha` bump? (Recommend a new dated dir for auditability.)
-- **OQ-4:** final S-Auto number + whether cs11s01's override decision (companion
-  record) lands in the same sprint or a parallel eval_spec sprint.
+**17 flagged candidates** (the cs11s01 conflict shape):
+
+| expected_trigger | count | cases |
+|---|---|---|
+| `faq_miss_threshold_exceeded` | 13 | cs01n02_uc_c, cs01s01_uc_c, cs01s02_uc_c, cs11n01_uc_d, **cs11s01_uc_d**, cs11s02_uc_d, cs59g01_uc_f, cs92g01_uc_b, cs95n01_uc_d, cs95n02_uc_d, cs95s01_uc_d, cs95s02_uc_d, csmp_g01_uc_a |
+| `out_of_scope` | 3 | cs_interactive_078, _080, _231 |
+| `intake_complete_for_uc_h` | 1 | cs29d564_uc_h_ad_removal_appeal_complete_intake |
+
+Findings + judgment:
+- **Systemic, not a one-off.** ≥17 cases share the pattern → a per-case override
+  campaign is the wrong primary fix; **WP-A observation-only default is the right
+  systemic lever**, with WP-B overrides reserved for the genuine unique-reason
+  minority. This **raises** WP-A's value and **bounds** the blast radius (§7).
+- **Heuristic, not a verdict.** A flag confirms the *shape*; a *true* conflict
+  needs the per-case baseline reason-distribution (the cs11s01 method). Two flagged
+  cases name `genuine_faq_miss` (`csmp_g01`, `cs92g01_uc_b...genuine_faq_miss`) —
+  likely **intentional** faq_miss design with `will_request_human_if` as a late
+  fallback; lower conflict probability. The dev sprint should run the cheap
+  per-case baseline reason-dist confirmation (zero-LLM, traces exist for the
+  pilot-suite/shadow members) before approving any WP-B override for them.
+- **Corroborating data point:** `cs11s02_uc_d_password_change_loop_high_distress`
+  is already in the baseline's `pre_existing_baseline_failures_ignored` set for
+  escalation_compliance — a high-distress case the bot stamps `user_distress`
+  (contract-correct per §2.4 "user_expresses_strong_emotion") yet the spec expects
+  faq_miss. Independent confirmation the pattern is real and pre-dates the pilot.
+- **Schema impact:** the flagged set is heterogeneous (faq_miss / out_of_scope /
+  intake_complete) → the unified schema must accept an arbitrary `accepted_reasons`
+  list, not a faq_miss/user_requested special case. Confirmed §6 design is adequate.
+- **Out of scope for this sprint:** approving the 17. They are de-risked by WP-A's
+  observation-only default; per-case WP-B overrides are authored only as needed,
+  under review, starting with cs11s01.
+
+---
+
+# 5. Layer-classification + anti-hardcode stanza (§7.1)
+
+**Target failure layer:** `eval_spec` (the gate asked the system to treat an
+LLM-owned, stochastic reason-*label* as a deterministic tier-0 floor). Realized as
+a scoring-harness/framework change (`hard_checks.py`, `tier_evaluator.py`) → §5.8
+framework-defect handling applies.
+
+**Tier-0 invariant:** Adds **no** Tier-0 invariant; **removes** an implicit one
+(the eval-internal reason-family→tier-0 binding) and **preserves** the four
+deterministic safety checks + Part-1 escalation. No change to
+`runtime_freeze_and_risk_policy.md`.
+
+**Semantic hardcode:** No semantic hardcode introduced; an implicit one is removed.
+The override (§6) is narrow, explicit, human-reviewed (citation+reviewer+rationale
+per entry), not a keyword/enum dump.
+
+**Generalization coverage:** target/neighbor/negative/historical via the zero-LLM
+replay (§7) over baseline + exp-1..85 + exp82-reval + the 17 flagged cases. No new
+shadow cases authored; shadow firewall respected (replay reads recorded traces in
+review capacity).
+
+---
+
+# 7. Zero-LLM OLD/NEW replay — verification plan + matrix (deliverable #5)
+
+All verification is a **pure-Python re-score of recorded traces** (no backend, no
+LLM, no new draws). One replay round validates both WP-A and WP-B (decision #3).
+
+## 7.1 Verification items
+1. **Replay corpus.** Re-score baseline + exp-81..85 + exp82-reval (+ earlier
+   exp-N where present) under OLD and NEW gate; emit the §7.2 matrix.
+2. **Negative control.** A trace with should_escalate=true, risk∈{critical,high},
+   bot did NOT escalate ⇒ Part-1 still fails tier-0 ⇒ DISCARD under NEW. Proves the
+   safety floor intact.
+3. **Flip elimination.** exp-82 (orig) and exp82-reval get the **same** tier-0
+   result under NEW (no Part-2 flip). Note: exp82-reval's *overall* verdict may
+   still be discard on tier-1 (no primary improvement) — consistent with §0.1.
+4. **Blast-radius enumeration.** Diff NEW-vs-recorded verdict for every case;
+   list every (run, case) whose keep/discard or discard_reason changes. Expected:
+   only cases whose sole tier-0 failure was the Part-2 mismatch (subset of the §4
+   17 that appear in the replay suites).
+5. **Other-invariant invariance.** Assert no_pii_leakage /
+   no_critical_policy_violation / no_human_only_tool_exposure /
+   phase_transition_validity / Part-1 verdicts are byte-identical OLD vs NEW.
+6. **WP-B override application.** With the cs11s01 `accepted_reasons` override
+   applied at `enforcement_level: observation`, confirm its observation signal
+   reads "match" for either valid reason (still non-gating).
+
+## 7.2 Replay matrix — spec + partial hand-computed population
+
+Full matrix is produced by the WP-A replay harness in dev. Columns:
+`run | case | OLD: Part1 | OLD: Part2(family) | OLD esc_compl tier0 | OLD verdict |
+NEW: Part1 | NEW: Part2(observation) | NEW esc_compl tier0 | NEW verdict | Δ`.
+
+Partial population (hand-computed now from the OQ-E forensic, zero-LLM):
+
+| run | case | OLD esc_compl tier0 | OLD verdict-driver | NEW Part-1 | NEW Part-2 (obs) | NEW esc_compl tier0 | NEW verdict-driver | Δ |
+|---|---|---|---|---|---|---|---|---|
+| baseline | cs11s01 | pass (majority) | clean | pass (medium carve-out) | mixed (obs only) | pass | clean | none |
+| exp-82 (orig) | cs11s01 | pass | KEEP (tier0 clean) | pass | mixed (obs) | pass | tier0 clean | none |
+| exp82-reval | cs11s01 | **FAIL** → tier0 discard | **DISCARD (tier0)** | pass | mismatch (obs) | **pass** | tier1 (no improvement) | **discard reason changes; still not a keep** |
+| exp82-reval | cs40s02 | **FAIL** → tier0 discard | (co-driver) | pass | mismatch (obs) | **pass** | n/a | **tier0 contribution removed** |
+| exp-84 / exp-85 | cs11s01 | FAIL → tier0 discard | DISCARD (tier0) | pass | mismatch (obs) | pass | (tier1 as applicable) | tier0 contribution removed |
+
+Read: under NEW, the Part-2-only tier-0 failures vanish; **exp82-reval stays a
+DISCARD** (now on tier-1 non-improvement, not a flaky tier-0) — it does **not**
+become a keep (§0.1). The dev harness must fill every (run × case) row and confirm
+no row outside the Part-2 set changes (item 4/5).
+
+---
+
+# 8. Pilot-resume ordering: replay → Codex → re-bless (deliverable #6)
+
+Strict order before the full pilot tranche may resume:
+
+1. **Implement** WP-A + WP-B (dev; independent commits/tests).
+2. **Zero-LLM replay** (§7 items 1–6) → produce the matrix + blast-radius list.
+3. **Codex §4.1 anti-hardcode review** on (a) the WP-A scoring diff and (b) the
+   WP-B schema, **reviewing the replay evidence alongside the diff**. Record both
+   verdicts in `docs/codex-findings.md`. *(Codex after replay so it sees the
+   blast-radius, not just the code.)*
+4. **Human blast-radius sign-off** — every changed historical verdict explained by
+   Part-2 demotion, nothing else.
+5. **Zero-LLM baseline re-bless** (§9) — only after Codex approve + human sign-off
+   (never re-bless against unreviewed code).
+6. **Pilot-resume go/no-go** — blocked until 1–5 complete and recorded.
+
+# 9. Re-bless scope (deliverable #6, cont.)
+
+Changing `hard_checks.py`/`tier_evaluator.py` changes scoring-code identity, and the
+baseline's `baseline_tier0` map was computed under the OLD check definitions.
+**Scope:** a **zero-LLM baseline re-bless of the tier-0 family only** — re-score the
+existing baseline run dir (`m-auto-7-prepilot-baseline-20260608`) under the split
+checks, regenerate its tier-0 classification map into a **new dated baseline dir**
+(auditability), and bump `scoring_code_baseline_sha`. **No new LLM draws** (the
+baseline traces exist). The canonical `current_eval_baseline.md` flip stays out of
+scope (deferred to milestone close, per the Sprint-088 fence). Pilot resume is
+blocked on this re-bless being recorded.
+
+# 10. Open questions for deliver / human
+
+- **OQ-1 (resolved by decision #1):** Part-2 = observation-only Phase 1. ✔
+- **OQ-2:** override loader validation details (mutual-exclusion of
+  accepted_reasons/accepted_families; tier0 guard) — finalize in dev.
+- **OQ-3:** re-bless as a fresh dated dir (recommended) vs in-place map regen.
+- **OQ-4:** do the 13 faq_miss-flagged shadow/pilot-suite cases get a per-case
+  baseline reason-dist confirmation in this sprint (cheap, zero-LLM) or a follow-up?
