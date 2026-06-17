@@ -435,6 +435,27 @@ def _run_majority_passes(
         _run_one_attempt(n + extra)
         extra += 1
 
+    # S-Y1.7 P0.4 — primary-target oversampling. After the uniform passes,
+    # spend ADDITIONAL attempts ONLY on the active pilot's `primary_targets`
+    # so the posterior on the cases the candidate is trying to MOVE is tight
+    # enough to credit a real lift over noise (n=`primary_targets_samples`),
+    # while every other case stays at `samples_per_case`. No-op when no pilot
+    # primary_targets are configured (the pre-pilot general-hill-climber path)
+    # or when the target does not exceed `n`. The extra draws are appended to
+    # the owning suite's per-case records; aggregation already supports a
+    # variable per-case attempt count.
+    _run_primary_target_oversample(
+        config=config,
+        specs=specs,
+        n=n,
+        retry_cap=retry_cap,
+        attempts_root=attempts_root,
+        timeout=timeout,
+        primary_model=primary_model,
+        per_suite_records=per_suite_records,
+        per_suite_attempts=per_suite_attempts,
+    )
+
     results: dict[str, SuiteRunResult] = {}
     for spec in specs:
         results[spec.name] = _aggregate_and_stage_suite(
@@ -445,6 +466,128 @@ def _run_majority_passes(
             min_valid=min_valid,
         )
     return results
+
+
+# --- S-Y1.7 P0.4: primary-target oversampling -----------------------
+
+
+def _resolve_primary_oversample_plan(
+    config: dict[str, Any], specs: list[SuiteRunSpec]
+) -> tuple[dict[str, list[tuple[str, Path]]], int]:
+    """Map the active pilot's `primary_targets` to the configured suites
+    that own them, and return that plan plus the target sample count.
+
+    Source of the two knobs (the existing config schema):
+      * `pilot.primary_targets`            — TOP-LEVEL `pilot:` block.
+      * `fitness.pilot.primary_targets_samples` — under `fitness:`.
+
+    A primary is matched to a suite by the repo-wide filename convention
+    (the case_spec file basename equals its `case_id`): the first
+    configured suite whose `--path` directory contains `<case_id>.yaml`
+    (or `.yml`) owns it. A primary that resolves to no configured suite
+    is skipped (logged by the caller) rather than aborting the pilot.
+
+    Returns `({}, target)` — a no-op plan — when no pilot primary_targets
+    are configured (the pre-pilot general-hill-climber path).
+    """
+    pilot = (config or {}).get("pilot") or {}
+    primaries = [c for c in (pilot.get("primary_targets") or []) if isinstance(c, str)]
+    fitness_cfg = (config or {}).get("fitness", {}) or {}
+    fpilot = fitness_cfg.get("pilot") or {}
+    try:
+        target = int(fpilot.get("primary_targets_samples", 0))
+    except (TypeError, ValueError):
+        target = 0
+    if not primaries or target <= 0:
+        return {}, target
+
+    plan: dict[str, list[tuple[str, Path]]] = {}
+    assigned: set[str] = set()
+    for spec in specs:
+        suite_dir = spec.path if spec.path.is_absolute() else (_REPO_ROOT / spec.path)
+        for cid in primaries:
+            if cid in assigned:
+                continue
+            for ext in (".yaml", ".yml"):
+                candidate = suite_dir / f"{cid}{ext}"
+                if candidate.exists():
+                    plan.setdefault(spec.name, []).append((cid, candidate.resolve()))
+                    assigned.add(cid)
+                    break
+    return plan, target
+
+
+def _run_primary_target_oversample(
+    *,
+    config: dict[str, Any],
+    specs: list[SuiteRunSpec],
+    n: int,
+    retry_cap: int,
+    attempts_root: Path,
+    timeout: int,
+    primary_model: str | None,
+    per_suite_records: dict[str, list[dict[str, AttemptRecord]]],
+    per_suite_attempts: dict[str, list[SuiteRunResult]],
+) -> None:
+    """Run `primary_targets_samples - n` EXTRA passes that exercise ONLY the
+    pilot's primary_targets, appending their per-case draws to the owning
+    suite's records so the primaries reach the oversample n while every other
+    case stays at `samples_per_case`.
+
+    Fence-clean: the extra passes use the EXISTING `eval-interactive run
+    --path` flag (which accepts a directory) — no new CLI flag. The mini-suite
+    is a scratch directory NAMED after the owning suite that symlinks the real
+    primary case_spec files; naming it after the suite makes the loaded
+    CaseSpecs carry `source_suite=<suite>` so a human-judgment suite
+    (`bad_cases` / `anchor_outcome`, per eval_interactive `_OPT_IN_SETS`) is
+    scored on the SAME path as the base draws — the oversampled draws are
+    commensurable with them.
+    """
+    plan, target = _resolve_primary_oversample_plan(config, specs)
+    if not plan:
+        return
+    extra = target - int(n)
+    if extra <= 0:
+        return
+
+    suite_parallel = {s.name: s.parallel for s in specs}
+    mini_parent = Path(attempts_root) / "_primary_oversample"
+    for suite_name, items in plan.items():
+        if suite_name not in per_suite_records:
+            # A primary resolved to a suite that is not in the run set; skip
+            # rather than fabricate a suite bucket.
+            continue
+        primary_ids = {cid for cid, _ in items}
+        mini_dir = mini_parent / suite_name
+        mini_dir.mkdir(parents=True, exist_ok=True)
+        for _cid, src in items:
+            link = mini_dir / src.name
+            if not link.exists():
+                os.symlink(src, link)
+        spec = SuiteRunSpec(
+            name=f"{suite_name}__primary_oversample",
+            path=mini_dir,
+            parallel=int(suite_parallel.get(suite_name, 4)),
+        )
+        for j in range(extra):
+            # Offset the attempt index past the retry-loop band (n..n+retry_cap)
+            # so AttemptRecord.attempt_index stays unique across the run.
+            attempt_index = n + retry_cap + j
+            attempt_root = mini_parent / f"{suite_name}_a{j}"
+            attempt_root.mkdir(parents=True, exist_ok=True)
+            sr = run_suite(
+                spec,
+                results_root=attempt_root,
+                config=config,
+                timeout_seconds=timeout,
+            )
+            per_suite_attempts[suite_name].append(sr)
+            recs = _attempt_records_for_suite(sr, attempt_index, primary_model)
+            # Defensive: keep only the primaries (the mini-suite already
+            # contains only them, but never let an unexpected case_id leak
+            # into another case's vote).
+            recs = {cid: rec for cid, rec in recs.items() if cid in primary_ids}
+            per_suite_records[suite_name].append(recs)
 
 
 def _configured_primary_model(config: dict[str, Any]) -> str | None:
