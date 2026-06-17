@@ -1,22 +1,23 @@
+<!--
+  HELD CONTRACT (not closed). This is the verbatim S-Y2 / Sprint 088 CORE-GATE
+  sprint_objective.md as it stood on 2026-06-16, snapshotted when the inserted
+  S-Y1.7 (Sprint 091, autoloop fitness-measurement reliability) blocker was
+  promoted into docs/sprint_objective.md per §5.8 (framework-defect priority
+  preempts the semantic pilot). S-Y2 Part C never ran. Re-promote this file
+  back into docs/sprint_objective.md when S-Y1.7 closes. Its self-contained
+  executable view also lives at compact/sprint-088-dev-prompt.md.
+-->
 ---
-title: Sprint 088 / S-Auto-33 (M-Auto-7 S-Y2) — CS4 entity-context autoloop pilot (CORE GATE)
+title: Sprint 088 / S-Auto-33 (M-Auto-7 S-Y2) — CS4 entity-context autoloop pilot (CORE GATE) [HELD — preempted by S-Y1.7]
 doc_tier: current-runtime
-status: current
+status: deferred
 implementation_status: not_started
-source_of_truth: this file
+source_of_truth: this file (HELD; re-promote on S-Y1.7 close)
 last_reviewed: 2026-06-16
 review_cadence: per sprint
 supersedes: docs/sprints/sprint-087-objective.md
 superseded_by: null
 notes: >
-  RE-PROMOTED to the active sprint_objective.md 2026-06-16 after the inserted
-  S-Y1.7 blocker (Sprint 091, autoloop fitness-measurement reliability) closed
-  dev+Codex (commit 758503b6, Codex pass/0). S-Y2 Part C had been preempted per
-  §5.8 and HELD; it now resumes and RUNS UNDER THE NEW S-Y1.7 fitness gate
-  (the noise-aware V3 rule) — this Part C run is also the F5 knob-confirmation
-  run for S-Y1.7's encoded thresholds. The §3.4 fallback + acceptance bars below
-  are unchanged. Re-launch precondition: a CLEAN COMMITTED TREE (the autoloop
-  sweeps the staged index) + the human's go-ahead for the real-LLM pilot run.
   The M-Auto-7 CORE GATE. Part C.1 (pre-pilot baseline re-bless) is DONE
   (2026-06-08, m-auto-7-prepilot-baseline-20260608, n=9, git_commit 92c4076):
   GAP CONFIRMED — anti-误杀 control passes 1.0, Tier-1 targets stably fail,

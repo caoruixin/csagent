@@ -90,7 +90,13 @@ meta_agent:
   #       base_url=os.environ.get("AUTOLOOP_META_LLM_BASE_URL"),
   #   )
   provider: anthropic                   # SDK: `anthropic` Python package; Anthropic-compatible API
-  model: claude-opus-4-7                # best-reasoning default for meta-agent; downgrade to claude-sonnet-4-6 for cost/latency if needed
+  # DEFAULT model. 2026-06-16 (M-Auto-7 S-Y2 Part C): changed claude-opus-4-7 →
+  # claude-sonnet-4-6 for proposer latency/reliability after opus-4-7 hit an
+  # APITimeoutError through the AICodeWith gateway at the 120s request timeout
+  # (exp-80). sonnet-4-6 is faster + more reliable; opus-4-7 (higher reasoning)
+  # stays selectable by setting AUTOLOOP_META_LLM_MODEL in autoloop/.env.local.
+  model: claude-sonnet-4-6
+  model_env: AUTOLOOP_META_LLM_MODEL    # if set (autoloop/.env.local) OVERRIDES `model` above
   temperature: 0.3                       # low for reproducibility of propose / analyze
   max_tokens: 4096
   api_key_env: AUTOLOOP_META_LLM_API_KEY
@@ -112,13 +118,13 @@ fitness:
   suites:
     - name: bad_cases
       path: eval_interactive/case_specs/bad_cases/
-      parallel: 1                    # bad-case session-establishment flakiness mitigation per M5-close R-item
+      parallel: 4                    # 2026-06-16 sweep (warm-backend, 17 cases): 1->4 = 3.0x faster (401s->134s), 0 timeout/give-up/infra, 0 estab-fail at 2&4 (the lone estab-fail was at parallel=1). Was 1 for M5 session-establishment flakiness; sweep did not reproduce it under concurrency. Watch non_comparable_rate (V3 tolerates a thinned primary case).
     - name: anchor_outcome
       path: eval_interactive/case_specs/anchor_outcome/
-      parallel: 2                    # OQ-S65.8 mitigation: reduced from 4 to lower concurrent LLM load (give-up degradation)
+      parallel: 4                    # 2026-06-16 sweep (warm-backend, 12 anchor cases): 2->4 = 2.1x faster (107s->51s), 0 timeout/give-up/infra; OQ-S65.8 give-up degradation did NOT reproduce at 4 or 6, and 6 saturates (no gain over 4). Restored toward the pre-OQ-S65.8 value.
     - name: shadow
       path: eval_interactive/case_specs_shadow/
-      parallel: 2                    # OQ-S65.8 mitigation: reduced from 4 to lower concurrent LLM load (give-up degradation)
+      parallel: 4                    # 2026-06-16 sweep (warm-backend, 12 anchor cases): 2->4 = 2.1x faster (107s->51s), 0 timeout/give-up/infra; OQ-S65.8 give-up degradation did NOT reproduce at 4 or 6, and 6 saturates (no gain over 4). Restored toward the pre-OQ-S65.8 value.
 
   # Layer 3 improvement-threshold mode. 'case_count' is the v1 choice
   # (2026-05-27 human-locked); a 'percent' mode is reserved for
@@ -127,13 +133,38 @@ fitness:
   improvement_threshold_mode: case_count
   improvement_min_cases: 1
 
-  # Layer 4 shadow gate. 3% drop tolerance is the proposal §3.3 v1
-  # threshold; tightening / loosening is a future-milestone decision.
-  shadow_max_drop_pct: 3.0
-
-  # Layer 1 anchor_outcome strictness. 0 = no programmatic-pass case
-  # may flip down between baseline and current.
-  anchor_outcome_max_drop_cases: 0
+  # S-Y1.7 (M-Auto-7) — NOISE-AWARE fitness gate (V3 rule). The TIER-N
+  # statistic + floors + cross-case rule that REPLACE the old zero-tolerance
+  # gates. Encoded per docs/solutions/p07-calibration/ (calibrate.py reference
+  # + p07-findings.md F1-F5). These knobs are evidence-backed defaults, NOT
+  # certifiable at n=5 (F5 power ceiling) — they are confirmed on the first
+  # S-Y2 pilot run under this gate, not by the zero-LLM oracle.
+  #
+  # The OLD knobs this block replaces:
+  #   - shadow_max_drop_pct: 3.0           (Layer 4 raw 3pp count gate; C2:
+  #     replaced by a Beta-Binomial posterior on the shadow aggregate pass
+  #     count, reusing delta/p_regress below — a sub-1-case wobble no longer
+  #     gates, e.g. exp-72's 25%→21.1% releases).
+  #   - anchor_outcome_max_drop_cases: 0   (Layer 1 zero-tolerance max-drop;
+  #     replaced by the TIER-N posterior + cross_case_count below — a single
+  #     flaky anchor drop no longer gates, e.g. exp-71/79 release).
+  tier_decision:
+    # TOST equivalence margin: a candidate within +/- delta of baseline is
+    # behaviour-neutral. P_regress = P(p_cand < p_base - delta) on Jeffreys
+    # Beta-Binomial posteriors; symmetric P_improve = P(p_cand > p_base + delta).
+    delta: 0.10
+    # Per-case decision thresholds: P_regress >= p_regress -> regressed;
+    # p_ambiguous_low <= P_regress < p_regress -> ambiguous (held, not gated);
+    # symmetric on P_improve for "improved" (Layer 3).
+    p_regress: 0.80
+    p_ambiguous_low: 0.50
+    # Cross-case discard: BH-FDR at alpha_fdr flags >=1 (joint with the
+    # per-case p_regress floor), OR >= cross_case_count cases at
+    # P_regress >= p_regress. count>=2 is the discriminator that separates
+    # genuine multi-case harm (exp-69, 3 cases) from single-case noise
+    # (exp-71/79, 1 case). Human decision 2026-06-16: cross-case stays count>=2.
+    alpha_fdr: 0.10
+    cross_case_count: 2
 
   # Explicit baseline pointer (no auto-latest heuristic). Blessed at
   # S-Auto-7 close (2026-05-29) per docs/sprints/sprint-060-handoff.md
@@ -218,10 +249,35 @@ fitness:
   # majority_passed) are symmetric. Each live iteration runs every suite 3×
   # and collapses per-case pass/fail to a strict majority over provider-
   # comparable (configured-primary) draws; a single noisy flip no longer
-  # gates. n=5 is NOT pulled forward (near-coinflip cases get ~0 variance
-  # reduction from a larger n — surfaced for eval_spec/semantic triage instead;
-  # OQ-S72.2). Provider comparability anchors on provider_policy.primary_model.
+  # gates. Provider comparability anchors on provider_policy.primary_model.
+  #
+  # S-Y1.7 (2026-06-16, M-Auto-7) FLIPPED 3→5 (P0.4): the noise-aware V3 gate
+  # (tier_decision above) needs the higher default n so the TIER-N posteriors
+  # are not dominated by 0/3-vs-3/3 swings. The P0.7 retrospective calibration
+  # found the prior gate false-discarded behaviour-neutral candidates ~92-95%
+  # of the time at n=3-5; n=5 default + n=11 primary-target oversampling
+  # (fitness.pilot below) is the resampling the calibration calls for. Near-
+  # coinflip cases (p≈0.5) still get ~0 variance reduction from a larger n and
+  # are surfaced for eval_spec/semantic triage rather than force-stabilized
+  # (OQ-S72.2; stability_thresholds below unchanged).
+  #
+  # S-Y1.7 PILOT-THROUGHPUT TUNE (2026-06-16): reduced 5→3 after the first live
+  # S-Y2 Part C run showed ~5h/experiment (broad n=5 over ~29 cases at suite
+  # parallelism 1-2 ⇒ -n 6 ≈ 1.5 days). The 2 primary targets stay at n=11
+  # (pilot.primary_targets_samples) — the asymmetric allocation P0.4 calls for
+  # ("spend attempts where lift is expected"). Throughput-only: the V3 gate
+  # logic + the P0.7 oracle (archived-data replay) are unaffected by the live n.
   samples_per_case: 3
+
+  # S-Y1.7 (P0.4) — primary-target oversampling. The active S-Y2 pilot's
+  # primary_targets (named in the TOP-LEVEL `pilot:` block) are the cases the
+  # candidate is trying to MOVE; they are sampled at this higher n so the
+  # posterior on the moved case is tight enough to credit a real improvement
+  # over noise. Consumed by the eval_runner n-loop at pilot-run time; all other
+  # cases use `samples_per_case`. Evidence-backed default, NOT certifiable at
+  # n=5 (F5) — confirmed on the first S-Y2 pilot run under the new gate.
+  pilot:
+    primary_targets_samples: 11
   aggregation:
     method: majority
     # Floor of provider-comparable attempts for a gating verdict. Below
@@ -337,7 +393,20 @@ fitness:
   # _compute_scoring_code_sha; print(_compute_scoring_code_sha())"` at
   # S-Auto-17 HEAD must reproduce the value below. Pre-S-Auto-17 value:
   # bb3ced3d37b9d39dd527a0f5be4dcbb0bfea41370ecfccb0b0d317b5c6a26e8d.
-  scoring_code_baseline_sha: "0d86b08fc0309196d9fc49f4924fe446b36d6c04301c4bcb406ca12337dd149e"
+  # S-Y1.7 (2026-06-16, M-Auto-7): rebaselined after the noise-aware V3 fitness
+  # gate landed — `posterior.py` (NEW: Beta-Binomial / TOST / BH-FDR kernel)
+  # joined the hash set (five -> six files); `tier_evaluator.py` (rewrote
+  # Layers 1/2/3/4 to the noise-aware rule + classification + non_comparable
+  # instrumentation), `baseline_loader.py` (per-case CaseBaselineStat plumbing),
+  # `aggregate.py` (classify_tier), and `gaming.py` (widened set) were edited.
+  # `eval_runner.py` is byte-identical. NO re-bless: the acceptance oracle is
+  # the archived candidate replay (docs/solutions/p07-calibration/), not a new
+  # real-LLM baseline; baseline_dir + current_eval_baseline.md are UNCHANGED.
+  # Recompute: `uv run --directory autoloop python -c "from autoloop.scoring.gaming
+  # import _compute_scoring_code_sha; print(_compute_scoring_code_sha())"` at
+  # S-Y1.7 HEAD must reproduce the value below. Pre-S-Y1.7 value:
+  # 0d86b08fc0309196d9fc49f4924fe446b36d6c04301c4bcb406ca12337dd149e.
+  scoring_code_baseline_sha: "f2f983cc86e7d29e18d4659da3a317131eecd624df14a78ce26286f30d590d79"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the

@@ -11,9 +11,11 @@ loop orchestrator. New names go through this `__init__.py` so the
 import surface stays stable across sub-sprints.
 """
 
+from .aggregate import classify_stability, classify_tier
 from .baseline_loader import (
     BaselineLoadError,
     BaselineSnapshot,
+    CaseBaselineStat,
     SuiteSnapshot,
     load,
 )
@@ -36,7 +38,10 @@ from .tier_evaluator import (
 __all__ = [
     "BaselineLoadError",
     "BaselineSnapshot",
+    "CaseBaselineStat",
     "EvalRunnerConfigError",
+    "classify_stability",
+    "classify_tier",
     "EvalRunnerTimeoutError",
     "GamingFlag",
     "LayerResult",

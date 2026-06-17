@@ -64,6 +64,40 @@ DEFAULT_STABILITY_THRESHOLDS: dict[str, float] = {
 }
 
 
+# --- S-Y1.7: per-case baseline STABILITY-TIER classification ---------
+#
+# A second cardinality policy over the baseline majority pass_rate, used by the
+# noise-aware fitness gate (tier_evaluator Layer 1) to route each baseline case
+# to its rule: a baseline-1.0 case is a hard anti-误杀 anchor (TIER-S floor), a
+# baseline-0.0 case can only improve (TIER-F), and an intermediate case gets the
+# Beta-Binomial posterior (TIER-N). This is distinct from `classify_stability`
+# (which measures reproducibility for the re-bless report); TIER classification
+# decides which gate rule applies. NOT over case content -> no semantic
+# hardcode (§1.7-clean). Ported from `docs/solutions/p07-calibration/calibrate.py`.
+TIER_S = "TIER-S"   # baseline pass_rate == 1.0 -> anti-误杀 majority-flip floor
+TIER_F = "TIER-F"   # baseline pass_rate == 0.0 -> improvement-direction only
+TIER_N = "TIER-N"   # 0 < pass_rate < 1.0 -> Beta-Binomial posterior
+TIER_EXCL = "EXCL"  # non-comparable / unknown pass_rate -> excluded from gating
+
+
+def classify_tier(pass_rate: float | None, comparable: bool = True) -> str:
+    """Classify a baseline case into its gate tier from its majority pass_rate.
+
+    Returns one of `TIER-S` / `TIER-F` / `TIER-N` / `EXCL`. A non-comparable or
+    unknown-pass_rate case is `EXCL` (does not gate). The 0.999 / 0.001 cutoffs
+    (rather than exact 1.0 / 0.0) absorb float round-trip noise from
+    `pass_rate = passes / valid_attempts`. Pure threshold on a rate; never reads
+    case content (§1.7-clean).
+    """
+    if pass_rate is None or not comparable:
+        return TIER_EXCL
+    if pass_rate >= 0.999:
+        return TIER_S
+    if pass_rate <= 0.001:
+        return TIER_F
+    return TIER_N
+
+
 def classify_stability(
     pass_rate: float | None,
     thresholds: dict[str, float] | None = None,

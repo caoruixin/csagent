@@ -55,17 +55,23 @@ class LLMClient:
     def __init__(self, config: dict[str, Any]):
         self.config = config or {}
         self.provider = str(self.config.get("provider", "anthropic")).lower()
-        self.model = str(self.config.get("model", "claude-opus-4-7"))
+        self.model = str(self.config.get("model", "claude-sonnet-4-6"))
         self.temperature = float(self.config.get("temperature", 0.3))
         self.max_tokens = int(self.config.get("max_tokens", 4096))
         self.timeout_seconds = int(self.config.get("request_timeout_seconds", 120))
 
         api_key_env = self.config.get("api_key_env", "AUTOLOOP_META_LLM_API_KEY")
         base_url_env = self.config.get("base_url_env", "AUTOLOOP_META_LLM_BASE_URL")
+        model_env = self.config.get("model_env", "AUTOLOOP_META_LLM_MODEL")
 
         _load_env_local()
         self.api_key: Optional[str] = os.environ.get(api_key_env) or None
         self.base_url: Optional[str] = os.environ.get(base_url_env) or None
+        # Env override: AUTOLOOP_META_LLM_MODEL (loaded from autoloop/.env.local by
+        # the CLI at startup, cli.py:62) wins over the config.yaml `model` default.
+        _env_model = os.environ.get(model_env)
+        if _env_model:
+            self.model = _env_model
 
     def is_configured(self) -> bool:
         """True if the API key env var is set.

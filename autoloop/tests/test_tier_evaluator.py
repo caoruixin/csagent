@@ -39,8 +39,16 @@ DEFAULT_CONFIG = {
         ],
         "improvement_threshold_mode": "case_count",
         "improvement_min_cases": 1,
-        "shadow_max_drop_pct": 3.0,
-        "anchor_outcome_max_drop_cases": 0,
+        # S-Y1.7 noise-aware V3 knobs (calibrate.py reference values). Absent
+        # -> tier_evaluator falls back to the posterior-module defaults, which
+        # are these same values.
+        "tier_decision": {
+            "delta": 0.10,
+            "p_regress": 0.80,
+            "p_ambiguous_low": 0.50,
+            "alpha_fdr": 0.10,
+            "cross_case_count": 2,
+        },
     }
 }
 
@@ -142,6 +150,120 @@ def _current_dir(tmp_path: Path, *, suites: dict[str, list[dict]]) -> Path:
     return cur_dir
 
 
+# --- S-Y1.7 noise-aware (V3) fixtures --------------------------------
+#
+# The V3 gate operates on per-case (k, n) Beta-Binomial posteriors, so V3
+# fixtures carry realistic attempt counts (n>=5 by default) — a single
+# 0/1-vs-1/1 draw produces no decisive posterior. `_kn_cand_case` builds an
+# aggregated CANDIDATE case with explicit (k, n); `_kn_base_case` builds the
+# matching aggregated.json BASELINE case (pass_rate=k/n + valid_attempts=n) so
+# baseline_loader classifies its tier and exposes (k, n) to the gate.
+
+
+def _attempts(k: int, n: int) -> list[dict]:
+    """n valid attempts, k of which passed (the rest fail). Drives
+    `_candidate_kn` exactly as the calibrate.py reference reads attempts."""
+    out = []
+    for i in range(n):
+        out.append({
+            "attempt_index": i,
+            "case_passed": i < k,
+            "valid": True,
+            "invalid_reason": None,
+        })
+    return out
+
+
+def _kn_cand_case(
+    case_id: str,
+    k: int,
+    n: int,
+    *,
+    primary_uc: str = "UC-A",
+    tier2_mandatory: int = 0,
+    comparable: bool = True,
+    tier0_majority: dict | None = None,
+) -> dict:
+    """A CANDIDATE results.json case carrying attempts + aggregated fields for
+    a (k, n) majority over valid draws."""
+    majority = (k / n) > 0.5 if n else None
+    per_step = [
+        {"step_id": f"s{i}", "severity": "mandatory", "outcome": "FAIL"}
+        for i in range(tier2_mandatory)
+    ]
+    return {
+        "case_id": case_id,
+        "primary_uc": primary_uc,
+        "case_passed": bool(majority),
+        "majority_passed": (majority if comparable else None),
+        "pass_rate": (k / n if (comparable and n) else None),
+        "valid_attempts": n,
+        "total_attempts": n,
+        "comparable": comparable,
+        "attempts": _attempts(k, n),
+        "tier0_majority": tier0_majority or {cn: True for cn in (
+            "no_pii_leakage", "no_critical_policy_violation",
+            "escalation_compliance", "phase_transition_validity",
+            "no_human_only_tool_exposure",
+        )},
+        "tier2_result_majority": {"per_step": per_step},
+        "failure_tags": [],
+    }
+
+
+def _kn_base_case(
+    case_id: str,
+    k: int,
+    n: int,
+    *,
+    primary_uc: str = "UC-A",
+    tier2_mandatory: int = 0,
+) -> dict:
+    """An aggregated.json BASELINE case with pass_rate=k/n + valid_attempts=n,
+    so baseline_loader builds a CaseBaselineStat with (k, n, tier)."""
+    pr = k / n if n else None
+    per_step = [
+        {"step_id": f"s{i}", "severity": "mandatory", "outcome": "FAIL"}
+        for i in range(tier2_mandatory)
+    ]
+    return {
+        "case_id": case_id,
+        "primary_uc": primary_uc,
+        "majority_passed": (pr > 0.5) if pr is not None else None,
+        "pass_rate": pr,
+        "valid_attempts": n,
+        "comparable": True,
+        "stability_class": "stable",
+        "l1_results": [
+            {"check": "no_pii_leakage", "passed": True, "detail": ""},
+            {"check": "no_critical_policy_violation", "passed": True, "detail": ""},
+            {"check": "escalation_compliance", "passed": True, "detail": ""},
+            {"check": "phase_transition_validity", "passed": True, "detail": ""},
+            {"check": "no_human_only_tool_exposure", "passed": True, "detail": ""},
+        ],
+        "tier2_result_majority": {"per_step": per_step},
+    }
+
+
+def _kn_baseline(tmp_path: Path, *, suites: dict[str, list[dict]]) -> BaselineSnapshot:
+    """Build a BaselineSnapshot from a re-blessed `aggregated.json` layout of
+    (k, n) baseline cases."""
+    from autoloop.scoring import load
+    base_dir = tmp_path / "kn_baseline"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    for suite_name, cases in suites.items():
+        suite_dir = base_dir / suite_name
+        suite_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema": "autoloop.baseline.aggregated.v1",
+            "suite": suite_name,
+            "n": 11,
+            "case_results": cases,
+        }
+        (suite_dir / "aggregated.json").write_text(json.dumps(payload), encoding="utf-8")
+    return load(base_dir, config=DEFAULT_CONFIG)
+
+
 # --- Layer 0 fixtures ------------------------------------------------
 
 
@@ -212,44 +334,90 @@ def test_layer0_java_replay_critical_policy_violation_discard(tmp_path: Path):
 # --- Layer 1 fixtures ------------------------------------------------
 
 
-def test_layer1_bad_cases_regression_discard(tmp_path: Path):
-    """bad_cases passed 5/12 → 4/12 must discard at Layer 1."""
-    bc_baseline = [_make_case(f"bc{i:02d}", case_passed=(i < 5)) for i in range(12)]
-    bc_current = [_make_case(f"bc{i:02d}", case_passed=(i < 4)) for i in range(12)]
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": bc_baseline,
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+def test_layer1_fs_floor_tier_s_majority_flip_discards(tmp_path: Path):
+    """FS anti-误杀 floor: a baseline-1.0 (TIER-S) case that MAJORITY-flips to
+    fail in the candidate (1/5) discards at Layer 1, naming the flipped case."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("anti_kill_ctrl", 11, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": bc_current,
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("anti_kill_ctrl", 1, 5)],  # 1/5 majority-flip
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "discard"
     assert v.layer_results[1].passed is False
-    assert "tier1_bad_cases_regression_5_to_4" in v.discard_reason
+    assert "tier1_anti_kill_tier_s_flip" in v.discard_reason
+    assert "anti_kill_ctrl" in v.discard_reason
 
 
-def test_layer1_anchor_outcome_regression_discard(tmp_path: Path):
-    """anchor_outcome 10/12 → 9/12 discards (max_drop=0 default)."""
-    ao_baseline = [_make_case(f"ao{i:02d}", case_passed=(i < 10)) for i in range(12)]
-    ao_current = [_make_case(f"ao{i:02d}", case_passed=(i < 9)) for i in range(12)]
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01")],
-        "anchor_outcome": ao_baseline,
-        "shadow": [_make_case("sh01")],
+def test_layer1_fs_floor_tier_s_flaky_4_of_5_does_not_discard(tmp_path: Path):
+    """The headline noise-aware correction: a TIER-S case showing a single
+    flaky 4/5 (majority STILL passes) does NOT trip the FS floor — any-fail
+    would have false-discarded it ~20-25% of the time at n=5 (F1)."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("anti_kill_ctrl", 11, 11),
+                      _kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_make_case("bc01")],
-        "anchor_outcome": ao_current,
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("anti_kill_ctrl", 4, 5),  # flaky, majority-pass
+                      _kn_cand_case("bc_improver", 5, 5)],     # improvement to reach keep
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.layer_results[1].passed is True
+    assert v.decision == "keep"
+
+
+def test_layer1_single_tier_n_regression_does_not_discard(tmp_path: Path):
+    """A SINGLE strong TIER-N outcome regression is released (count<2) — the
+    noise-aware replacement for the old zero-tolerance max_drop=0 gate."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao_reg", 8, 11),
+                           _kn_base_case("ao_stable", 7, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_kn_cand_case("bc_improver", 5, 5)],   # improvement
+        "anchor_outcome": [_kn_cand_case("ao_reg", 1, 5),    # 1 strong regression
+                           _kn_cand_case("ao_stable", 4, 5)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    # A single strong regression (count 1 < 2) that BH-FDR does not flag is
+    # released — the noise-aware replacement for max_drop=0.
+    assert v.layer_results[1].passed is True
+    assert v.decision == "keep"
+    l1 = v.tier_breakdown["tier1_outcome"]["tier_n"]
+    assert len(l1["regressed"]) == 1 and l1["bh_flagged"] == []
+
+
+def test_layer1_two_tier_n_regressions_cross_case_discards(tmp_path: Path):
+    """>= cross_case_count (2) strong TIER-N regressions → discard at Layer 1
+    (genuine multi-case harm, the exp-69 shape)."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc01", 7, 11)],
+        "anchor_outcome": [_kn_base_case("ao_reg1", 9, 11),
+                           _kn_base_case("ao_reg2", 10, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
+    })
+    cur = _current_dir(tmp_path, suites={
+        "bad_cases": [_kn_cand_case("bc01", 7, 11)],
+        "anchor_outcome": [_kn_cand_case("ao_reg1", 0, 5),
+                           _kn_cand_case("ao_reg2", 0, 5)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "discard"
     assert v.layer_results[1].passed is False
-    assert "tier1_anchor_outcome_regression_10_to_9" in v.discard_reason
+    assert "tier1_outcome_regressed" in v.discard_reason
 
 
 def test_layer1_clean_pass_proceeds_to_higher_layers(tmp_path: Path):
@@ -271,51 +439,57 @@ def test_layer1_clean_pass_proceeds_to_higher_layers(tmp_path: Path):
 # --- Layer 2 fixtures ------------------------------------------------
 
 
-def test_layer2_aggregate_increase_discard(tmp_path: Path):
-    """Tier-2 mandatory failure count rising in aggregate discards."""
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01")],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+def test_layer2_single_tier2_increase_noise_aware_keeps(tmp_path: Path):
+    """C1 headline: a single case gaining a mandatory-step failure where the
+    case OUTCOME does not strongly regress (knife-edge / noise) does NOT gate —
+    the old hard per-step count gate discarded on exactly this single noisy
+    flip. Here the only tier2 increase is on a case at P_regress<0.80."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_t2", 8, 11),
+                      _kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        # NEW mandatory failure introduced → aggregate goes 0 → 1.
-        "bad_cases": [_make_case("bc01", tier2_mandatory_failures=["s1"])],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+        # bc_t2: outcome 2/5 (P_regress ~ ambiguous, < 0.80) + a NEW mandatory
+        # step failure. bc_improver improves so we reach a keep.
+        "bad_cases": [_kn_cand_case("bc_t2", 2, 5, tier2_mandatory=1),
+                      _kn_cand_case("bc_improver", 5, 5)],
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
+    })
+    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
+    assert v.decision == "keep"
+    assert v.layer_results[2].passed is True
+    # The knife-edge tier2 increase holds it AMBIGUOUS, not a clean keep.
+    assert v.classification == "ambiguous"
+    assert any("bc_t2" in a for a in v.tier_breakdown["tier2_critical_flow"]["ambiguous_increases"])
+
+
+def test_layer2_union_count_two_strong_critical_flow_discards(tmp_path: Path):
+    """Layer-2 defense-in-depth: >= cross_case_count distinct cases that are
+    STRONG critical-flow regressions (mandatory-step increase AND a strong
+    outcome posterior) on TIER-S cases that did NOT majority-flip (so FS / the
+    Layer-1 TIER-N loop did not cover them) → discard at Layer 2."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_s1", 11, 11),
+                      _kn_base_case("bc_s2", 11, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
+    })
+    cur = _current_dir(tmp_path, suites={
+        # Both TIER-S cases drop to 3/5 (NOT a majority-flip, so FS is silent;
+        # TIER-S so Layer-1's TIER-N loop skips them) but with a strong outcome
+        # posterior vs baseline-1.0 AND a new mandatory step failure.
+        "bad_cases": [_kn_cand_case("bc_s1", 3, 5, tier2_mandatory=1),
+                      _kn_cand_case("bc_s2", 3, 5, tier2_mandatory=1)],
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "discard"
     assert v.layer_results[2].passed is False
-    assert "tier2_critical_flow_regression_aggregate" in v.discard_reason
-
-
-def test_layer2_per_uc_increase_discard(tmp_path: Path):
-    """Aggregate stays flat but UC-H goes 1 → 2 → discards."""
-    baseline = _baseline_from_dir(tmp_path, current={
-        # 1 mandatory failure in UC-H and 1 in UC-A (aggregate=2).
-        "bad_cases": [
-            _make_case("bc01", primary_uc="UC-H", tier2_mandatory_failures=["s1"]),
-            _make_case("bc02", primary_uc="UC-A", tier2_mandatory_failures=["s2"]),
-        ],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
-    })
-    cur = _current_dir(tmp_path, suites={
-        # 2 mandatory failures in UC-H, 0 in UC-A (aggregate still 2;
-        # UC-H rose 1→2).
-        "bad_cases": [
-            _make_case("bc01", primary_uc="UC-H", tier2_mandatory_failures=["s1", "s3"]),
-            _make_case("bc02", primary_uc="UC-A"),
-        ],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
-    })
-    v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
-    assert v.decision == "discard"
-    assert v.layer_results[2].passed is False
-    assert "tier2_critical_flow_regression" in v.discard_reason
-    assert "UC-H" in v.discard_reason
+    assert "tier2_critical_flow_regression_union_count" in v.discard_reason
 
 
 def test_layer2_clean_pass_proceeds(tmp_path: Path):
@@ -337,49 +511,43 @@ def test_layer2_clean_pass_proceeds(tmp_path: Path):
 # --- Layer 3 fixtures ------------------------------------------------
 
 
-def test_layer3_bad_cases_improvement_keeps(tmp_path: Path):
-    """bad_cases +1 → keep."""
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [
-            _make_case("bc01", case_passed=False),
-            _make_case("bc02", case_passed=False),
-        ],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+def test_layer3_posterior_improvement_keeps(tmp_path: Path):
+    """A TIER-N case with a strong posterior improvement (P_improve >= 0.80)
+    satisfies Layer 3 → keep."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_improver", 1, 11)],  # ~0.09 baseline
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [
-            _make_case("bc01", case_passed=True),  # +1 improvement
-            _make_case("bc02", case_passed=False),
-        ],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("bc_improver", 5, 5)],   # 1.00 candidate
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "keep"
     assert v.layer_results[3].passed is True
+    assert v.tier_breakdown["improvement_threshold"]["improved_count"] >= 1
 
 
-def test_layer3_anchor_outcome_improvement_keeps(tmp_path: Path):
-    """anchor_outcome +1 → keep."""
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01")],
-        "anchor_outcome": [
-            _make_case("ao01", case_passed=False),
-            _make_case("ao02", case_passed=True),
-        ],
-        "shadow": [_make_case("sh01")],
+def test_layer3_weak_improvement_no_posterior_support_discards(tmp_path: Path):
+    """A within-noise wobble (no P_improve >= 0.80, no tier2 reduction) does
+    NOT satisfy Layer 3 → discard. A pass-rate bump that the posterior cannot
+    distinguish from noise is not an improvement."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc01", 6, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_make_case("bc01")],
-        "anchor_outcome": [
-            _make_case("ao01", case_passed=True),  # +1
-            _make_case("ao02", case_passed=True),
-        ],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("bc01", 3, 5)],   # ~0.6, within delta of 0.545
+        "anchor_outcome": [_kn_cand_case("ao01", 3, 5)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
-    assert v.decision == "keep"
+    assert v.decision == "discard"
+    assert v.layer_results[3].passed is False
+    assert "improvement_threshold_not_met" in v.discard_reason
 
 
 def test_layer3_tier2_mandatory_reduction_keeps(tmp_path: Path):
@@ -423,62 +591,67 @@ def test_layer3_no_improvement_discards(tmp_path: Path):
 # --- Layer 4 fixtures ------------------------------------------------
 
 
-def test_layer4_shadow_regression_above_threshold_discard(tmp_path: Path):
-    """Shadow drops 5% (> 3% threshold) → discard at Layer 4."""
-    sh_baseline = [_make_case(f"sh{i:02d}", case_passed=True) for i in range(20)]
-    # 19/20 = 95% baseline; 18/20 = 90% current → drop 5%
-    sh_baseline[0]["case_passed"] = False  # baseline 19/20
-    sh_current = [_make_case(f"sh{i:02d}", case_passed=True) for i in range(20)]
-    sh_current[0]["case_passed"] = False
-    sh_current[1]["case_passed"] = False  # current 18/20
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01", case_passed=False)],
-        "anchor_outcome": [_make_case("ao01")],
+def test_layer4_shadow_supported_drop_discards(tmp_path: Path):
+    """C2 noise-aware shadow: a LARGE, statistically-supported drop
+    (100% → 40%, P_regress >= 0.80) → discard at Layer 4."""
+    # Baseline shadow cases are TIER-N (8/11, majority-pass) NOT TIER-S, so the
+    # suite-wide FS floor stays silent and the drop is judged by the Layer-4
+    # aggregate posterior (the unit under test).
+    sh_baseline = [_kn_base_case(f"sh{i:02d}", 8, 11) for i in range(20)]   # all majority-pass
+    # 8 pass / 12 fail = 40% aggregate (a supported ~60pp drop).
+    sh_current = [_kn_cand_case(f"sh{i:02d}", 5, 5) for i in range(8)] + \
+                 [_kn_cand_case(f"sh{i:02d}", 0, 5) for i in range(8, 20)]
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
         "shadow": sh_baseline,
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_make_case("bc01", case_passed=True)],  # improve so we reach L4
-        "anchor_outcome": [_make_case("ao01")],
+        "bad_cases": [_kn_cand_case("bc_improver", 5, 5)],  # improve to reach L4
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
         "shadow": sh_current,
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "discard"
     assert v.layer_results[4].passed is False
-    assert "shadow_regression_drop" in v.discard_reason
+    assert "shadow_regression_supported_drop" in v.discard_reason
 
 
-def test_layer4_shadow_within_threshold_keeps(tmp_path: Path):
-    """Shadow drops 2% (< 3% threshold) → keep."""
-    # baseline: 50/50 = 100%; current: 49/50 = 98% → drop 2%
-    sh_baseline = [_make_case(f"sh{i:02d}", case_passed=True) for i in range(50)]
-    sh_current = [_make_case(f"sh{i:02d}", case_passed=True) for i in range(50)]
-    sh_current[0]["case_passed"] = False
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01", case_passed=False)],
-        "anchor_outcome": [_make_case("ao01")],
+def test_layer4_shadow_sub_one_case_wobble_keeps(tmp_path: Path):
+    """C2 headline: a sub-1-case shadow wobble (the exp-72 shape ≈ <1 case) is
+    NOT a supported regression → released, where the old raw 3pp count gate
+    discarded it."""
+    sh_baseline = [_kn_base_case(f"sh{i:02d}", 8, 11) for i in range(20)]  # all majority-pass
+    # 19/20 aggregate (a ~5pp drop, < 1 case of statistical support).
+    sh_current = [_kn_cand_case(f"sh{i:02d}", 5, 5) for i in range(19)] + \
+                 [_kn_cand_case("sh19", 0, 5)]
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
         "shadow": sh_baseline,
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_make_case("bc01", case_passed=True)],
-        "anchor_outcome": [_make_case("ao01")],
+        "bad_cases": [_kn_cand_case("bc_improver", 5, 5)],
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
         "shadow": sh_current,
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "keep"
     assert v.layer_results[4].passed is True
+    assert v.tier_breakdown["shadow_regression"]["regression_detected"] is False
 
 
 def test_layer4_shadow_missing_keeps_with_warning(tmp_path: Path):
     """When shadow data is missing entirely, Layer 4 is skipped (warning recorded)."""
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01", case_passed=False)],
-        "anchor_outcome": [_make_case("ao01")],
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
         # no shadow in baseline
     })
     cur_dir = tmp_path / "current"
     cur_dir.mkdir()
-    _write_suite(cur_dir / "bad_cases", [_make_case("bc01", case_passed=True)])
-    _write_suite(cur_dir / "anchor_outcome", [_make_case("ao01")])
+    _write_suite(cur_dir / "bad_cases", [_kn_cand_case("bc_improver", 5, 5)])
+    _write_suite(cur_dir / "anchor_outcome", [_kn_cand_case("ao01", 6, 11)])
     # no shadow in current
     v = evaluate(cur_dir, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "keep"
@@ -491,30 +664,25 @@ def test_layer4_shadow_missing_keeps_with_warning(tmp_path: Path):
 
 
 def test_lexicographic_correctness_layer2_blocks_layer3_improvement(tmp_path: Path):
-    """Constitution §1.6 invariant — improving bad_cases (Layer 3 signal)
-    MUST NOT compensate for a Tier-2 (Layer 2) regression. The
-    verdict MUST discard at Layer 2 even though Layer 3 would
-    otherwise have been satisfied.
+    """Constitution §1.6 invariant — a Layer-3 improvement MUST NOT compensate
+    for a Layer-2 critical-flow regression. Two TIER-S cases each strongly
+    regress (3/5, no majority-flip) with NEW mandatory-step failures (union
+    >= cross_case_count → Layer 2 discard), while an unrelated case improves;
+    the verdict MUST discard at Layer 2 with Layer 3 not evaluated.
     """
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [
-            _make_case("bc01", case_passed=False),  # baseline 0 passed
-        ],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_s1", 11, 11),
+                      _kn_base_case("bc_s2", 11, 11),
+                      _kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [
-            # bc01 now passes (Layer 3 IMPROVEMENT) but also introduces
-            # a NEW mandatory Tier-2 failure (Layer 2 REGRESSION).
-            _make_case(
-                "bc01",
-                case_passed=True,
-                tier2_mandatory_failures=["new_step_failure"],
-            ),
-        ],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("bc_s1", 3, 5, tier2_mandatory=1),
+                      _kn_cand_case("bc_s2", 3, 5, tier2_mandatory=1),
+                      _kn_cand_case("bc_improver", 5, 5)],   # Layer-3 improvement
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "discard"
@@ -533,55 +701,63 @@ def test_shadow_firewall_default_api_no_per_case_data(tmp_path: Path):
     contains ONLY aggregate keys; per-case shadow data NEVER leaks.
     The tier_breakdown surface likewise carries only aggregate keys.
     """
-    sh_baseline = [_make_case(f"sh{i:02d}", case_passed=True) for i in range(10)]
-    sh_current = [_make_case(f"sh{i:02d}", case_passed=True) for i in range(10)]
-    sh_current[0]["case_passed"] = False
-    sh_current[0]["case_id"] = "shadow_secret_case_id"
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01", case_passed=False)],
-        "anchor_outcome": [_make_case("ao01")],
+    # Baseline shadow TIER-N (not TIER-S) so FS stays silent and Layer 4 is
+    # genuinely evaluated; bad_cases improves so layers 0-3 pass.
+    sh_baseline = [_kn_base_case(f"sh{i:02d}", 6, 11) for i in range(10)]
+    sh_current = [_kn_cand_case(f"sh{i:02d}", 4, 5) for i in range(9)]
+    secret = _kn_cand_case("shadow_secret_case_id", 0, 5)  # a per-case shadow fail
+    sh_current.append(secret)
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
         "shadow": sh_baseline,
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_make_case("bc01", case_passed=True)],
-        "anchor_outcome": [_make_case("ao01")],
+        "bad_cases": [_kn_cand_case("bc_improver", 5, 5)],
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
         "shadow": sh_current,
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert isinstance(v, LexicographicVerdict)
     l4 = v.layer_results[4]
+    # Layer 4 was genuinely evaluated (not short-circuited) and carries ONLY
+    # aggregate keys — never per-case shadow detail.
+    assert l4.passed is not None
     aggregate_only_keys = {
         "baseline_pass_rate",
         "current_pass_rate",
         "drop_pct",
+        "P_regress",
+        "P_improve",
         "regression_detected",
-        "max_drop_pct",
+        "p_regress",
         "warning",
     }
     observed_keys = set(l4.metrics_observed.keys())
     extra = observed_keys - aggregate_only_keys
     assert not extra, f"L4 leaked non-aggregate keys: {extra}"
-    # No per-case case_id leakage anywhere in the verdict.
+    # No per-case shadow case_id leakage anywhere in the loop-facing verdict.
     rendered = json.dumps(_to_dict(v))
     assert "shadow_secret_case_id" not in rendered
 
 
 def test_shadow_firewall_audit_api_returns_per_case_detail(tmp_path: Path):
-    """Audit API (audit=True) — returns (verdict, ShadowAuditDetail);
-    the AuditDetail object carries per-case shadow info.
-    """
-    sh_baseline = [_make_case(f"sh{i:02d}", case_passed=True) for i in range(10)]
-    sh_current = [_make_case(f"sh{i:02d}", case_passed=True) for i in range(10)]
-    sh_current[0]["case_passed"] = False
-    sh_current[0]["case_id"] = "shadow_audit_marker_case"
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01", case_passed=False)],
-        "anchor_outcome": [_make_case("ao01")],
+    """Audit API (audit=True) — returns (verdict, ShadowAuditDetail); the
+    AuditDetail object carries per-case shadow info. Baseline shadow cases are
+    TIER-N (not TIER-S) so the FS floor stays silent and the verdict reaches
+    Layer 4, where the per-case detail is built."""
+    sh_baseline = [_kn_base_case(f"sh{i:02d}", 6, 11) for i in range(10)]  # TIER-N
+    sh_current = [_kn_cand_case(f"sh{i:02d}", 4, 5) for i in range(9)]
+    marker = _kn_cand_case("shadow_audit_marker_case", 0, 5)  # a per-case fail
+    sh_current.append(marker)
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc_improver", 0, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
         "shadow": sh_baseline,
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_make_case("bc01", case_passed=True)],
-        "anchor_outcome": [_make_case("ao01")],
+        "bad_cases": [_kn_cand_case("bc_improver", 5, 5)],  # improve to reach L4
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
         "shadow": sh_current,
     })
     result = evaluate(cur, baseline, config=DEFAULT_CONFIG, audit=True)
@@ -696,27 +872,29 @@ def test_majority_l1_flaky_minority_fail_does_not_gate(tmp_path: Path):
 
 
 def test_majority_l1_stable_majority_fail_gates(tmp_path: Path):
-    """A bad_case that passed in baseline and whose candidate MAJORITY
-    fails (stable reproduction) DOES regress Layer 1."""
+    """A baseline-1.0 (TIER-S) bad_case whose candidate MAJORITY fails (stable
+    reproduction, not a single flaky draw) trips the FS anti-误杀 floor."""
     baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01", case_passed=True)],
+        "bad_cases": [_make_case("bc01", case_passed=True)],  # single-draw -> TIER-S
         "anchor_outcome": [_make_case("ao01")],
         "shadow": [_make_case("sh01")],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_agg_case("bc01", majority_passed=False)],  # 2/3 fail
+        "bad_cases": [_agg_case("bc01", majority_passed=False)],  # majority fail
         "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
         "shadow": [_make_case("sh01")],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "discard"
     assert v.layer_results[1].passed is False
-    assert "tier1_bad_cases_regression" in v.discard_reason
+    assert "tier1_anti_kill_tier_s_flip" in v.discard_reason
+    assert "bc01" in v.discard_reason
 
 
 def test_majority_l1_non_comparable_does_not_gate(tmp_path: Path):
     """A baseline-passing bad_case that becomes non-comparable this run is
-    excluded from BOTH counts, so it is not scored as a regression."""
+    EXCLUDED from the gate (no usable k/n), so it is not scored as a regression;
+    its non-comparability is surfaced observationally (P0.6c)."""
     baseline = _baseline_from_dir(tmp_path, current={
         "bad_cases": [_make_case("bc01", case_passed=True),
                       _make_case("bc02", case_passed=True)],
@@ -730,9 +908,10 @@ def test_majority_l1_non_comparable_does_not_gate(tmp_path: Path):
         "shadow": [_make_case("sh01")],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
-    # bc02 non-comparable → baseline credit 1 → effective baseline 1 == current 1.
+    # bc02 non-comparable → excluded from the FS floor (skipped) → no regression.
     assert v.layer_results[1].passed is True
-    assert v.tier_breakdown["tier1_outcome"]["bad_cases"]["non_comparable_excluded"] == 1
+    # P0.6c observational instrumentation: bad_cases non_comparable_rate = 1/2.
+    assert v.tier_breakdown["non_comparable_rate"]["bad_cases"] == 0.5
 
 
 def test_majority_l0_minority_violation_does_not_discard(tmp_path: Path):
@@ -776,20 +955,23 @@ def test_majority_l0_majority_violation_discards(tmp_path: Path):
 
 
 def test_majority_l3_improvement_uses_majority(tmp_path: Path):
-    """Layer 3 improvement counts the candidate MAJORITY pass."""
-    baseline = _baseline_from_dir(tmp_path, current={
-        "bad_cases": [_make_case("bc01", case_passed=False)],
-        "anchor_outcome": [_make_case("ao01")],
-        "shadow": [_make_case("sh01")],
+    """Layer 3 improvement reads the candidate MAJORITY (k/n over valid draws):
+    a TIER-N baseline case the candidate majority-improves (posterior
+    P_improve >= 0.80) satisfies Layer 3 → keep."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc01", 1, 11)],   # TIER-N, ~0.09
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_agg_case("bc01", majority_passed=True)],  # majority improvement
-        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("bc01", 5, 5)],    # majority improvement to 1.00
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.layer_results[3].passed is True
     assert v.decision == "keep"
+    assert v.tier_breakdown["improvement_threshold"]["improved_count"] >= 1
 
 
 def test_n1_unanimous_majority_reproduces_single_draw_verdict(tmp_path: Path):
@@ -883,80 +1065,82 @@ def _aggregated_baseline(tmp_path: Path, *, suites: dict[str, list[dict]]) -> Ba
     return load(base_dir, config=DEFAULT_CONFIG)
 
 
-def test_symmetry_candidate_majority_vs_baseline_majority_keep(tmp_path: Path):
-    """Both sides majority at n=3: baseline majority-pass + candidate
-    majority-pass (a single noisy minority flip) → Layer 1 does NOT gate."""
-    baseline = _aggregated_baseline(tmp_path, suites={
-        "bad_cases": [_agg_baseline_case("bc01", majority_passed=True)],
-        "anchor_outcome": [_agg_baseline_case("ao01", majority_passed=True)],
-        "shadow": [_agg_baseline_case("sh01", majority_passed=True)],
+def test_symmetry_candidate_flaky_vs_baseline_majority_keep(tmp_path: Path):
+    """The baseline (k, n) is read from the aggregated artifact: a baseline
+    TIER-N case (8/11) whose candidate shows a flaky 4/5 (within the TOST
+    band) is NOT a regression → Layer 1 keeps, and the per-case posterior
+    reflects the baseline majority pass_rate."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc01", 8, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_agg_case("bc01", majority_passed=True)],  # 2/3 pass
-        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("bc01", 4, 5)],
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.layer_results[1].passed is True
-    assert v.tier_breakdown["tier1_outcome"]["bad_cases"]["baseline_passed"] == 1
+    per_case = v.tier_breakdown["tier1_outcome"]["tier_n"]["per_case"]
+    assert per_case["bad_cases:bc01"]["p_base"] == round(8 / 11, 3)
 
 
-def test_symmetry_stable_candidate_regression_vs_baseline_majority_gates(tmp_path: Path):
-    """The discriminator: baseline blessed bc01 as a MAJORITY pass; a stable
-    candidate majority-FAIL regresses Layer 1. This gates ONLY if the
-    baseline side reads `majority_passed` (=1). If it read the absent
-    single-draw `case_passed` (=0) the regression would be masked."""
-    baseline = _aggregated_baseline(tmp_path, suites={
-        "bad_cases": [_agg_baseline_case("bc01", majority_passed=True)],
-        "anchor_outcome": [_agg_baseline_case("ao01", majority_passed=True)],
-        "shadow": [_agg_baseline_case("sh01", majority_passed=True)],
+def test_symmetry_stable_candidate_flip_vs_baseline_majority_gates(tmp_path: Path):
+    """The discriminator: baseline blessed bc01 as a MAJORITY pass (pass_rate
+    1.0, NO `case_passed` field) → TIER-S. A stable candidate majority-FLIP
+    trips the FS floor. This fires ONLY if the baseline side reads the
+    aggregated `pass_rate`/`valid_attempts`; a single-draw read of the absent
+    `case_passed` would misclassify the tier and mask the flip."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc01", 11, 11)],   # majority pass -> TIER-S
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_agg_case("bc01", majority_passed=False)],  # 2/3 fail
-        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("bc01", 1, 5)],     # majority flip
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.decision == "discard"
     assert v.layer_results[1].passed is False
-    assert "tier1_bad_cases_regression" in v.discard_reason
+    assert "tier1_anti_kill_tier_s_flip" in v.discard_reason
 
 
 def test_symmetry_baseline_majority_fail_no_new_regression(tmp_path: Path):
-    """When the re-bless blessed bc01 as a MAJORITY fail (baseline pass
-    count 0), a candidate that also majority-fails is NOT a new regression."""
-    baseline = _aggregated_baseline(tmp_path, suites={
-        "bad_cases": [_agg_baseline_case("bc01", majority_passed=False)],
-        "anchor_outcome": [_agg_baseline_case("ao01", majority_passed=True)],
-        "shadow": [_agg_baseline_case("sh01", majority_passed=True)],
+    """When the re-bless blessed bc01 as a MAJORITY fail (TIER-F, pass_rate
+    0.0), a candidate that also majority-fails is NOT a new regression — a
+    TIER-F case can only improve, never gate a discard."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc01", 0, 11)],    # majority fail -> TIER-F
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_agg_case("bc01", majority_passed=False)],
-        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("bc01", 0, 5)],     # also majority-fail
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.layer_results[1].passed is True
-    assert v.tier_breakdown["tier1_outcome"]["bad_cases"]["baseline_passed"] == 0
 
 
-def test_symmetry_noncomparable_credit_uses_baseline_majority(tmp_path: Path):
-    """`_baseline_case_pass_map` symmetry: a candidate case that became
-    non-comparable is credited against the baseline MAJORITY pass. bc02 is
-    non-comparable this run and was a baseline majority-pass → credited, so
-    no false regression."""
-    baseline = _aggregated_baseline(tmp_path, suites={
-        "bad_cases": [_agg_baseline_case("bc01", majority_passed=True),
-                      _agg_baseline_case("bc02", majority_passed=True)],
-        "anchor_outcome": [_agg_baseline_case("ao01", majority_passed=True)],
-        "shadow": [_agg_baseline_case("sh01", majority_passed=True)],
+def test_symmetry_noncomparable_candidate_excluded_no_false_regression(tmp_path: Path):
+    """A candidate case that became non-comparable this run is EXCLUDED from
+    the gate (no usable k/n) — even when it was a baseline TIER-S anchor — so
+    it never manufactures a false regression."""
+    baseline = _kn_baseline(tmp_path, suites={
+        "bad_cases": [_kn_base_case("bc01", 11, 11),
+                      _kn_base_case("bc02", 11, 11)],
+        "anchor_outcome": [_kn_base_case("ao01", 6, 11)],
+        "shadow": [_kn_base_case("sh01", 6, 11)],
     })
     cur = _current_dir(tmp_path, suites={
-        "bad_cases": [_agg_case("bc01", majority_passed=True),
-                      _agg_case("bc02", majority_passed=None, comparable=False)],
-        "anchor_outcome": [_agg_case("ao01", majority_passed=True)],
-        "shadow": [_make_case("sh01")],
+        "bad_cases": [_kn_cand_case("bc01", 5, 5),
+                      _kn_cand_case("bc02", 0, 0, comparable=False)],  # non-comparable
+        "anchor_outcome": [_kn_cand_case("ao01", 6, 11)],
+        "shadow": [_kn_cand_case("sh01", 6, 11)],
     })
     v = evaluate(cur, baseline, config=DEFAULT_CONFIG)
     assert v.layer_results[1].passed is True
-    assert v.tier_breakdown["tier1_outcome"]["bad_cases"]["non_comparable_excluded"] == 1

@@ -799,3 +799,78 @@ def test_unset_primary_model_n1_single_pass_unaffected(tmp_path: Path):
     with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
         results = run_v1_fitness_suite(results_root=tmp_path, config=cfg)
     assert results["bad_cases"].exit_code == 0
+
+
+# --- S-Y1.7 P0.4: primary-target oversampling ------------------------
+
+# A real bad_cases case_spec (filename == case_id) so the plan resolver
+# finds it on disk via the repo-wide naming convention.
+_REAL_PRIMARY = "cs_uc_a_no_ad_id_ad_specific"
+
+
+def test_primary_target_oversample_lifts_only_primaries(tmp_path: Path):
+    """`fitness.pilot.primary_targets_samples` drives EXTRA primary-ONLY
+    passes: the primary reaches the oversample n (5) while every other case
+    stays at `samples_per_case` (2). Regression guard for the S-Y1.7 P0.4
+    unwired-knob gap (the knob was previously read nowhere in eval_runner).
+    """
+    # min_valid=2 so the 2 base passes satisfy the floor and the retry loop
+    # does NOT fire (it would otherwise confound the attempt count).
+    cfg = _single_suite_config(2, min_valid=2)
+    cfg["pilot"] = {"primary_targets": [_REAL_PRIMARY]}
+    cfg["fitness"]["pilot"] = {"primary_targets_samples": 5}
+    scripts = {
+        "bad_cases": [
+            [_mk_case(_REAL_PRIMARY, False), _mk_case("other_case", True)],
+            [_mk_case(_REAL_PRIMARY, False), _mk_case("other_case", True)],
+        ],
+        # The oversample pass exercises ONLY the primary (mini-suite of 1).
+        "bad_cases__primary_oversample": [
+            [_mk_case(_REAL_PRIMARY, True)],
+            [_mk_case(_REAL_PRIMARY, True)],
+            [_mk_case(_REAL_PRIMARY, True)],
+        ],
+    }
+    fake, counters = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    # 2 base passes + (5 - 2) = 3 oversample passes.
+    assert counters["bad_cases"] == 2
+    assert counters["bad_cases__primary_oversample"] == 3
+    agg = {c["case_id"]: c for c in _read_aggregated(tmp_path)["case_results"]}
+    assert len(agg[_REAL_PRIMARY]["attempts"]) == 5  # oversampled to n=5
+    assert len(agg["other_case"]["attempts"]) == 2  # untouched at n=2
+
+
+def test_primary_target_oversample_noop_without_pilot_targets(tmp_path: Path):
+    """No pilot.primary_targets → the pre-pilot general-hill-climber path:
+    NO oversample passes are run (back-compat)."""
+    cfg = _single_suite_config(2, min_valid=2)
+    # fitness.pilot.primary_targets_samples present but no pilot block → no-op.
+    cfg["fitness"]["pilot"] = {"primary_targets_samples": 5}
+    scripts = {"bad_cases": [[_mk_case("c1", True)], [_mk_case("c1", True)]]}
+    fake, counters = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    assert counters["bad_cases"] == 2
+    assert "bad_cases__primary_oversample" not in counters
+
+
+def test_primary_target_oversample_noop_when_target_not_above_n(tmp_path: Path):
+    """`primary_targets_samples <= samples_per_case` → no extra passes (the
+    primary already gets at least that many from the uniform passes)."""
+    cfg = _single_suite_config(3, min_valid=3)
+    cfg["pilot"] = {"primary_targets": [_REAL_PRIMARY]}
+    cfg["fitness"]["pilot"] = {"primary_targets_samples": 3}  # == n
+    scripts = {
+        "bad_cases": [
+            [_mk_case(_REAL_PRIMARY, True)],
+            [_mk_case(_REAL_PRIMARY, True)],
+            [_mk_case(_REAL_PRIMARY, True)],
+        ],
+    }
+    fake, counters = _fake_run_suite_factory(scripts)
+    with patch("autoloop.scoring.eval_runner.run_suite", side_effect=fake):
+        run_v1_fitness_suite(results_root=tmp_path, config=cfg)
+    assert counters["bad_cases"] == 3
+    assert "bad_cases__primary_oversample" not in counters
