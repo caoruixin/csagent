@@ -402,6 +402,9 @@ class TestRunChecksFiltering:
     GLOBAL_L1 = {
         "no_human_only_tool_exposure",
         "escalation_compliance",
+        # S-Auto-38 (Sprint 092): Part-2 reason-family match is also global
+        # (observation-only / advisory; not in _TIER0_PY_FAMILY).
+        "escalation_reason_family_match",
         "required_escalation",
         "escalation_reason_consistency",
         "user_requested_escalation",

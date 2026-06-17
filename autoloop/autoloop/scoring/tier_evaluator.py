@@ -122,6 +122,16 @@ _LAYER_NAMES = [
 ]
 
 
+# The Python hard_check Tier-0 family — the zero-tolerance deterministic floor.
+# S-Auto-38 (Sprint 092): ``escalation_compliance`` here is Part-1 ONLY (the
+# escalate-vs-don't behaviour floor) after the bundled check was split. Part-2
+# (the stochastic escalation_reason FAMILY match) is the SEPARATE check
+# ``escalation_reason_family_match`` and is DELIBERATELY NOT a member: it is an
+# LLM-owned reason label (Constitution §1.3) whose n=5 sampling noise flipped
+# the identical exp-82 candidate KEEP↔DISCARD (sprint-088 OQ-E). It is
+# observation-only; a reason binding re-enters this floor ONLY via an APPROVED
+# ``tier0`` per-case override, which routes through Part-1 (``escalation_
+# compliance``) — never by adding ``escalation_reason_family_match`` here.
 _TIER0_PY_FAMILY = (
     "no_pii_leakage",
     "no_human_only_tool_exposure",

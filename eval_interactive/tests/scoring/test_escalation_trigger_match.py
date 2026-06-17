@@ -1,8 +1,12 @@
 """Wave B1.3 -- escalation_trigger consumption tests.
 
-Verifies that the L1 ``escalation_compliance`` check now consumes the
-``Expected.escalation_trigger`` field from the case spec and fails when the
-bot's ``request_handover.escalation_reason`` doesn't match.
+S-Auto-38 (Sprint 092) split the bundled ``escalation_compliance`` check into
+Part-1 (``escalation_compliance`` -- escalate-vs-don't behaviour, stays a
+tier-0 floor) and Part-2 (``escalation_reason_family_match`` -- the
+``escalation_reason`` family match, observation-only / advisory severity).
+These tests verify the Part-2 reason-family match now lives on the new check
+name and that a cross-family mismatch is OBSERVATION-ONLY (advisory) while
+Part-1 still PASSES when the bot escalated correctly.
 """
 
 from __future__ import annotations
@@ -141,8 +145,17 @@ def _handover_call(reason: str, *, key: str = "arguments") -> dict:
 # ---------------------------------------------------------------------------
 
 
+def _family_match(results):
+    return next(r for r in results if r.check_name == "escalation_reason_family_match")
+
+
+def _compliance(results):
+    return next(r for r in results if r.check_name == "escalation_compliance")
+
+
 def test_trigger_match_passes() -> None:
-    """spec=intake_complete_for_uc_k, trace=intake_complete_for_uc_k -> pass."""
+    """spec=intake_complete_for_uc_k, trace=intake_complete_for_uc_k -> Part-2
+    family-match passes (advisory) and Part-1 passes."""
     checker = HardChecker()
     case = _make_case_spec(
         should_escalate=True,
@@ -153,12 +166,18 @@ def test_trigger_match_passes() -> None:
         containment_outcome="escalated",
     )
     results = checker.run_checks(case, trace)
-    compliance = next(r for r in results if r.check_name == "escalation_compliance")
-    assert compliance.passed is True, compliance.detail
+    fm = _family_match(results)
+    assert fm.passed is True, fm.detail
+    # Part-2 is OBSERVATION-ONLY (advisory severity) by default.
+    assert fm.severity == "advisory"
+    # Part-1 behaviour floor passes too (bot escalated at high risk).
+    assert _compliance(results).passed is True
 
 
 def test_trigger_mismatch_fails() -> None:
-    """spec=intake_complete_for_uc_k, trace=user_distress -> fail with detail."""
+    """spec=intake_complete_for_uc_k, trace=user_distress -> Part-2 family
+    match FAILS (advisory observation), but Part-1 still PASSES (the bot did
+    escalate at high risk) -- the S-Auto-38 demotion."""
     checker = HardChecker()
     case = _make_case_spec(
         should_escalate=True,
@@ -169,12 +188,15 @@ def test_trigger_mismatch_fails() -> None:
         containment_outcome="escalated",
     )
     results = checker.run_checks(case, trace)
-    compliance = next(r for r in results if r.check_name == "escalation_compliance")
-    assert compliance.passed is False
-    assert "intake_complete_for_uc_k" in compliance.detail
-    assert "user_distress" in compliance.detail
-    assert "expected" in compliance.detail.lower()
-    assert "actual" in compliance.detail.lower()
+    fm = _family_match(results)
+    assert fm.passed is False
+    assert fm.severity == "advisory"  # observation-only: does NOT gate
+    assert "intake_complete_for_uc_k" in fm.detail
+    assert "user_distress" in fm.detail
+    assert "expected" in fm.detail.lower()
+    assert "actual" in fm.detail.lower()
+    # Part-1 (the tier-0 behaviour floor) is unaffected by a reason mismatch.
+    assert _compliance(results).passed is True
 
 
 def test_no_escalation_expected_or_done_passes() -> None:
@@ -241,8 +263,9 @@ def test_multiple_handovers_match_first() -> None:
         containment_outcome="escalated",
     )
     results = checker.run_checks(case, trace)
-    compliance = next(r for r in results if r.check_name == "escalation_compliance")
-    assert compliance.passed is True, compliance.detail
+    fm = _family_match(results)
+    assert fm.passed is True, fm.detail
+    assert _compliance(results).passed is True
 
 
 # ---------------------------------------------------------------------------
@@ -265,5 +288,5 @@ def test_each_canonical_trigger_round_trips(trigger: str) -> None:
         containment_outcome="escalated",
     )
     results = checker.run_checks(case, trace)
-    compliance = next(r for r in results if r.check_name == "escalation_compliance")
-    assert compliance.passed is True, f"{trigger}: {compliance.detail}"
+    fm = _family_match(results)
+    assert fm.passed is True, f"{trigger}: {fm.detail}"

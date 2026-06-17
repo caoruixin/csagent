@@ -25,6 +25,24 @@ from autoloop.scoring import (
     SuiteSnapshot,
     evaluate,
 )
+from autoloop.scoring.tier_evaluator import _TIER0_PY_FAMILY
+
+
+def test_tier0_family_excludes_reason_family_match() -> None:
+    """S-Auto-38 (Sprint 092): Part-1 ``escalation_compliance`` STAYS a tier-0
+    floor member; the split-out Part-2 ``escalation_reason_family_match`` is
+    OBSERVATION-ONLY and must never be a member (its sampling noise must not
+    gate the zero-tolerance floor). Also asserts the floor is exactly the four
+    deterministic safety checks + Part-1 — no silent additions/removals."""
+    assert "escalation_compliance" in _TIER0_PY_FAMILY
+    assert "escalation_reason_family_match" not in _TIER0_PY_FAMILY
+    assert set(_TIER0_PY_FAMILY) == {
+        "no_pii_leakage",
+        "no_human_only_tool_exposure",
+        "no_critical_policy_violation",
+        "escalation_compliance",
+        "phase_transition_validity",
+    }
 
 
 # --- Default fitness config used by every test -----------------------
