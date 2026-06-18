@@ -7,6 +7,7 @@ import com.gumtree.csagent.service.guardrails.ScriptLibraryService;
 import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
 import com.gumtree.csagent.service.observability.EventEmitter;
 import com.gumtree.csagent.service.runtime.skill.Skill;
+import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
 import com.gumtree.csagent.service.runtime.skill.SkillRegistry;
 import com.gumtree.csagent.service.runtime.skill.SkillStateBus;
 import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
@@ -588,9 +589,19 @@ public class PhaseEvaluator {
 
         String fromPhase = plan == null ? null : plan.phase();
 
+        // Sprint 093 / S-Auto-39 — structural precondition for the
+        // RESOLVE→CONFIRM promotion: a grounded FINAL_ANSWER was delivered on
+        // a prior turn that stayed in RESOLVE. The kernel derives this from
+        // the persisted turn history (via priorGroundedResolveAnswerDelivered)
+        // and stashes it on the session transient before this call; no
+        // user-message content is inspected.
+        boolean priorGroundedResolveAnswer = session != null
+                && Boolean.TRUE.equals(session.getPriorGroundedResolveAnswer());
+
         switch (outcome) {
             case FINAL_ANSWER:
-                return mapFinalAnswer(plan, result, session, fromPhase, isIntakePlan);
+                return mapFinalAnswer(plan, result, session, fromPhase, isIntakePlan,
+                        priorGroundedResolveAnswer);
             case CLARIFICATION_NEEDED:
                 // Stay in current phase for clarification (RESOLVE for legacy callers
                 // when plan is null).
@@ -746,6 +757,59 @@ public class PhaseEvaluator {
     }
 
     /**
+     * Sprint 093 / S-Auto-39 — true when the agent run attempted
+     * {@code record_outcome}, none succeeded, AND every failed attempt was
+     * rejected by the premature-resolve guard
+     * ({@code progressive_resolve_record_outcome_premature}). This isolates a
+     * STRUCTURAL guard rejection — which can never succeed while the phase is
+     * RESOLVE, so retrying in RESOLVE loops forever — from a GENUINE /
+     * transient {@code record_outcome} failure (e.g. a persistence error),
+     * which the Sprint 9 §O1 {@code record_outcome_failed_retry} path must
+     * still keep in RESOLVE. Returns false when no {@code record_outcome} was
+     * attempted, when one succeeded, or when any failure carried a
+     * non-premature error message.
+     */
+    static boolean recordOutcomeRejectedOnlyByPrematureGuard(AgentRunResult result) {
+        if (result == null || result.toolEvents() == null) return false;
+        boolean attempted = false;
+        for (ToolEvent te : result.toolEvents()) {
+            if (!"record_outcome".equals(te.toolName())) continue;
+            attempted = true;
+            if (te.success()) return false;
+            if (!SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON
+                    .equals(te.errorMessage())) {
+                return false;
+            }
+        }
+        return attempted;
+    }
+
+    /**
+     * Sprint 093 / S-Auto-39 — true when a grounded FINAL_ANSWER was delivered
+     * on a PRIOR turn that stayed in RESOLVE. Structural signal derived purely
+     * from the durable turn record: a persisted {@link BotTurn} with
+     * {@code phase_after == RESOLVE} and non-empty {@code source_ids} is a
+     * grounded RESOLVE answer that did not (yet) advance the phase. The
+     * {@code phase_after == RESOLVE} filter excludes DISCOVER turns that merely
+     * ran {@code search_knowledge} while clarifying (those persist
+     * {@code phase_after == DISCOVER}), so prior RETRIEVAL alone does not
+     * satisfy the precondition — only a prior delivered grounded ANSWER does.
+     * No user-message content is inspected.
+     */
+    static boolean priorGroundedResolveAnswerDelivered(List<BotTurn> history) {
+        if (history == null) return false;
+        for (BotTurn t : history) {
+            if (t == null) continue;
+            if (!"RESOLVE".equalsIgnoreCase(t.getPhaseAfter())) continue;
+            String[] sids = t.getSourceIds();
+            if (sids != null && sids.length > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Phase-aware mapping for {@link TerminalOutcome#FINAL_ANSWER}. RESOLVE/FAQ
      * → CONFIRM, RESOLVE/INTAKE → stay in RESOLVE (clarification), DISCOVER →
      * RESOLVE if a UC has been committed (otherwise stay in DISCOVER), CONFIRM
@@ -755,7 +819,8 @@ public class PhaseEvaluator {
                                                     AgentRunResult result,
                                                     BotSession session,
                                                     String fromPhase,
-                                                    boolean isIntakePlan) {
+                                                    boolean isIntakePlan,
+                                                    boolean priorGroundedResolveAnswer) {
         // Legacy callers (plan == null) fall back to the pre-D16.D contract:
         // RESOLVE → CONFIRM with answer_provided.
         if (fromPhase == null) {
@@ -791,7 +856,25 @@ public class PhaseEvaluator {
                 // record_outcome call within the next user turn rather
                 // than silently marking the session as resolved while
                 // the session_outcomes row was never written.
-                if (recordOutcomeAttemptedAndFailed(result)) {
+                //
+                // Sprint 093 / S-Auto-39 — break the RESOLVE→CONFIRM
+                // deadlock. A record_outcome(resolve) rejected ONLY by the
+                // premature-resolve guard is NOT a transient failure:
+                // retrying in RESOLVE hits the same guard forever
+                // (READY_TO_CONFIRM requires a SUCCESSFUL record_outcome,
+                // which the guard forbids outside CONFIRM/CLOSE). When a
+                // grounded answer was ALREADY delivered on a prior RESOLVE
+                // turn (priorGroundedResolveAnswer — i.e. a subsequent user
+                // turn has now occurred), exclude that case from the retry
+                // gate and let the structural promotion below route the bot
+                // into CONFIRM, where record_outcome is already permitted.
+                // First-grounded-answer turns (no prior grounding) and
+                // GENUINE record_outcome failures keep the unchanged retry
+                // behaviour. The premature guard itself is PRESERVED.
+                boolean prematureGuardOnlyRejection =
+                        recordOutcomeRejectedOnlyByPrematureGuard(result);
+                if (recordOutcomeAttemptedAndFailed(result)
+                        && !(prematureGuardOnlyRejection && priorGroundedResolveAnswer)) {
                     return new PhaseTransitionDecision("RESOLVE",
                             result.finalUserMessage(),
                             null, "record_outcome_failed_retry");
@@ -819,8 +902,27 @@ public class PhaseEvaluator {
                 }
                 PhaseTransitionDecision dispositionDecision = switch (disposition) {
                     case ASKED_FOR_SLOT,
-                         ANSWERED_SUBTASK,
                          CONTINUE_RESOLVE -> new PhaseTransitionDecision("RESOLVE",
+                                result.finalUserMessage(),
+                                null, "progressive_resolve_stay");
+                    // Sprint 093 / S-Auto-39 — PRIMARY structural repair. A
+                    // confident grounded non-slot answer (ANSWERED_SUBTASK)
+                    // delivered on a SUBSEQUENT user turn after a grounded
+                    // FINAL_ANSWER already formed on a prior RESOLVE turn is
+                    // confirmable: enter CONFIRM so the CONFIRM Skill can
+                    // record the outcome (record_outcome is permitted there).
+                    // The trigger is purely structural (prior grounded
+                    // RESOLVE answer + this turn's disposition) — no
+                    // user-message content heuristic — and the premature
+                    // guard is untouched: record_outcome still cannot land
+                    // until phase == CONFIRM. The FIRST grounded answer turn
+                    // (no prior grounding) stays in RESOLVE so the original
+                    // premature-collapse protection holds.
+                    case ANSWERED_SUBTASK -> priorGroundedResolveAnswer
+                            ? new PhaseTransitionDecision("CONFIRM",
+                                result.finalUserMessage(),
+                                null, "progressive_resolve_confirmable")
+                            : new PhaseTransitionDecision("RESOLVE",
                                 result.finalUserMessage(),
                                 null, "progressive_resolve_stay");
                     case ESCALATE -> new PhaseTransitionDecision("ESCALATE",

@@ -449,6 +449,16 @@ public class ControlKernel {
                     }
                 }
 
+                // Sprint 093 / S-Auto-39 — stash the structural precondition for
+                // the RESOLVE→CONFIRM promotion on the session before the
+                // evaluator runs: true when a grounded FINAL_ANSWER was
+                // delivered on a prior RESOLVE turn. Derived from the persisted
+                // history (prior turns only — the current turn is recorded later
+                // in recordRunResult). Threaded via a transient field rather
+                // than the interpretRunResult signature so existing
+                // mock-based callers are unaffected.
+                session.setPriorGroundedResolveAnswer(
+                        PhaseEvaluator.priorGroundedResolveAnswerDelivered(history));
                 PhaseTransitionDecision decision =
                         phaseEvaluator.interpretRunResult(plan, runResult, session);
 

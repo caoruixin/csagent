@@ -313,6 +313,20 @@ public class BotSession {
     private String resolveDisposition;
 
     /**
+     * Sprint 093 / S-Auto-39 — structural precondition for the RESOLVE→CONFIRM
+     * promotion. Set by {@code ControlKernel} from the persisted turn history
+     * (prior turns only) immediately before
+     * {@code PhaseEvaluator.interpretRunResult}: {@code true} when a grounded
+     * FINAL_ANSWER was delivered on a PRIOR RESOLVE turn (a persisted
+     * {@link com.gumtree.csagent.model.BotTurn} with {@code phase_after ==
+     * RESOLVE} and non-empty {@code source_ids}). {@code null}/{@code false}
+     * means no such prior answer. Transient: a kernel→evaluator per-turn
+     * signal, never persisted.
+     */
+    @Transient
+    private Boolean priorGroundedResolveAnswer;
+
+    /**
      * Sprint 12 §N0 — terminal evidence summary for the current turn's
      * agent run. Populated by
      * {@link com.gumtree.csagent.service.runtime.AgentRunLoopImpl} after
