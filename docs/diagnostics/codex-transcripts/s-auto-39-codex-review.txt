@@ -1,0 +1,2973 @@
+OpenAI Codex v0.134.0
+--------
+workdir: /Users/caoruixin/projects/csagent-latest
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 019eda71-8c4a-7593-a642-8b02ee2531c7
+--------
+user
+You are the review agent (Codex) performing the per-sub-sprint anti-hardcode review for Sprint 093 / S-Auto-39. READ-ONLY; do not edit files.
+
+Apply the nine-question anti-hardcode kernel in docs/current/anti-hardcode-review-kernel.md to the runtime diff in commit 033abaee plus the new test file.
+
+Read these first:
+- docs/current/anti-hardcode-review-kernel.md (the 9 questions + 4 verdicts)
+- git show 033abaee  (the runtime diff: PhaseEvaluator.java, ControlKernel.java, BotSession.java, Sprint93ResolveConfirmDeadlockTest.java)
+- docs/sprints/sprint-093-handoff.md (context: Step-0 attribution, §4 bounded-run, §5 cross-check)
+- docs/diagnostics/failure-briefs/sprint-093-resolve-confirm-deadlock.md
+
+The change: a STRUCTURAL RESOLVE->CONFIRM phase-transition promotion in PhaseEvaluator.mapFinalAnswer — when a grounded FINAL_ANSWER was delivered on a PRIOR RESOLVE turn (persisted BotTurn with phase_after==RESOLVE + non-empty source_ids) AND this subsequent user turn re-delivers a confident grounded non-slot answer (ANSWERED_SUBTASK), promote to CONFIRM so record_outcome can land there.
+
+Focus your scrutiny on:
+1. Is the trigger STRUCTURAL (turn record: phase_after + source_ids) or a disguised user-message keyword/content heuristic? (must be structural)
+2. Does it RELAX the premature-resolve guard (shouldRejectPrematureResolveOutcome) or lower record_outcome? (must NOT)
+3. Is there any per-UC / per-case / eval-phrase hardcode, enum expansion, or regex on user content? (must be none)
+4. Is the Sprint 9 §O1 record_outcome_failed_retry exclusion correctly narrowed to ONLY premature-guard rejections WITH prior grounding (genuine failures still retry)?
+5. Anti-误杀: could this force-confirm a session that should stay RESOLVE (slot-request) or should escalate (distress)?
+
+Output EXACTLY this, nothing appended after:
+
+## Sprint Review Decision
+decision: pass | fix_required | out_of_scope_review
+blocking_count: <number>
+summary: <one paragraph>
+
+Then a short per-question (Q1..Q9) one-line table and the §4.1 per-PR verdict (approve | approve with downgrade-to-signal follow-up | reject as semantic hardcode | needs human architecture decision).
+
+codex
+I’ll inspect the required governance kernel, sprint context, failure brief, and the target commit diff read-only, then apply the nine review questions directly to the changed runtime paths.
+exec
+/bin/zsh -lc "sed -n '1,240p' docs/current/anti-hardcode-review-kernel.md" in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+---
+title: Anti-Hardcode Review Kernel (canonical copy)
+doc_tier: current-runtime
+status: current
+source_of_truth: this file
+last_reviewed: 2026-05-25
+notes: >
+  Extracted from iteration_governance.md §4.1 for size governance.
+  This is the single canonical copy of the nine-question anti-hardcode
+  review prompt. Compact review prompts should reference this file
+  rather than duplicating the kernel.
+---
+
+# Anti-Hardcode Review Kernel
+
+```text
+You are the Anti-Hardcode Review Agent. The PR below proposes a change
+to this repo. Your job is to decide whether the change introduces a
+semantic hardcode — a keyword / regex / if-else / enum / per-UC matrix
+that encodes a decision the LLM is supposed to own under
+docs/current/iteration_governance.md §1.3 — and to issue a verdict.
+
+Scope exemption: pure infra, docs-only, config-governance, and
+characterization-test PRs are not subject to this review. If the PR
+is purely one of those, return `approve` with a one-line note naming
+the exemption.
+
+For every other PR, walk these nine questions in order. For each
+"yes" or each concern, paste the diff snippet and the reasoning.
+
+1. Does the PR add a keyword / regex / if-else / enum / per-UC matrix
+   for a semantic decision (drift detection, escalation, UC
+   selection, risk classification, follow-up, intake routing)?
+2. If yes to (1), is the change justified as protecting a current
+   Tier-0 invariant named in docs/runtime_freeze_and_risk_policy.md
+   §1 / §2?
+3. Could the same outcome be achieved by projecting a soft signal to
+   the LLM (an additional projected slot, a candidate list, a
+   diagnostic flag) instead of a hard branch in Java or the prompt?
+4. Does the change encode visible-eval case text, trace-specific
+   phrasing, or a CaseSpec id into runtime, prompt, or judge config?
+5. Does the change move semantic ownership from the LLM to Java —
+   that is, shrink what docs/current/iteration_governance.md §1.3
+   says the LLM owns?
+6. Does the change add an if-else block to the prompt instead of
+   principle-level or observable-state guidance?
+7. Does the change preserve tool schema, capability / permission
+   boundary, PII / safety floor, and grounding floor?
+8. Does the PR ship generalization eval coverage — target, neighbor,
+   negative, and shadow cases — and not only the target case?
+9. If the change is temporary, does it carry an explicit rollback or
+   sunset plan (downgrade-to-signal trigger, retirement sprint id)?
+
+Return exactly one verdict:
+
+- `approve` — the change is not a semantic hardcode, or is justified
+  as protecting a current Tier-0 invariant with adequate generalization
+  coverage and a clear rollback if temporary.
+- `approve with downgrade-to-signal follow-up` — the change is
+  acceptable as an interim measure, but a follow-up sprint must
+  convert it into a soft signal projected to the LLM. Name the
+  trigger that should fire the conversion.
+- `reject as semantic hardcode` — the change encodes a soft semantic
+  decision the LLM should own; questions 1 and 2 fail, or questions
+  5 / 6 fail, with no Tier-0 claim and no sunset plan.
+- `needs human architecture decision` — the change crosses an
+  unresolved governance question (new escalation reason enum value,
+  new Tier-0 candidate, LLM-vs-Java boundary shift, new tool surface)
+  and a human reviewer must decide before merge.
+
+Do not rewrite the PR. Do not propose a code fix beyond naming the
+layer in docs/current/iteration_governance.md §3 that the fix should
+target.
+```
+
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/diagnostics/failure-briefs/sprint-093-resolve-confirm-deadlock.md" in /Users/caoruixin/projects/csagent-latest
+exec
+/bin/zsh -lc "sed -n '1,260p' docs/sprints/sprint-093-handoff.md" in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+# Failure Brief — Sprint 093 / S-Auto-39: RESOLVE→CONFIRM/CLOSE deadlock
+
+> **Source:** exp-86 deep per-turn traces + `m-auto-7-prepilot-baseline-20260608`
+> (Step-0 attribution: `docs/diagnostics/sprint-093-step0-escalation-attribution.md`).
+> **Trace IDs (examples):** `alice_uc_a_uc_h_misclass` a0 session
+> `a7d128e3-…`; `cs_uc_a_no_ad_id_ad_specific` oversample a4.
+> **CaseSpec:** UC-A bad-cases, `expected_outcome: resolve`.
+> **Run:** exp-86 bad-cases (13 deep runs) + baseline-20260608.
+> **Filed:** 2026-06-18 by dev agent (human labels expected behaviour;
+> dev agent labels §3 layer + do-not-do list — `iteration_governance.md` §2).
+> **Related:** [[project-faq-overescalate-maxsteps-misstamp]] ·
+> [[manual-probe-2026-05-24-uc-a-faq-refutation-overescalate]] ·
+> [[project-uc-a-entity-verification-product-contract]].
+
+## What happened?
+
+On a grounded UC-A RESOLVE session, the bot retrieves
+(`search_knowledge` hit) and grounds an answer (`resolve_article`),
+then calls `record_outcome(outcome_class=resolve)`. The runtime
+correctly rejects it as `progressive_resolve_record_outcome_premature`
+(phase is RESOLVE, not CONFIRM/CLOSE). The session **cannot leave
+RESOLVE**: `ResolveDispositionEvaluator.evaluate()` returns
+`READY_TO_CONFIRM` only when a `record_outcome` already *succeeded*
+this run — which can never happen in RESOLVE because the guard rejects
+it there. So a grounded answer maps to `ANSWERED_SUBTASK` →
+`progressive_resolve_stay`, and the bot loops: re-answering the same
+grounded content across 4–7 turns, retrying `record_outcome` (rejected
+1–4×), until it `request_handover`s. The handover stamps
+`containment=escalated`, **overwriting an earlier transient `resolved`
+stamp**, and surfaces a mis-attributed reason (`user_requested` even
+when the user never asked for a human; or `faq_miss_threshold_exceeded`
+/ `turn_budget_exhausted` from the MAX_STEPS heuristic). Net: blank/stale
+containment, turn-budget exhaustion, or mis-attributed escalation on a
+session the bot actually resolved. (Step-0: 13/46 deep PRIMARY draws
+deadlock-attributable; ≥6 more "pass" only by luckily hitting
+`max_turns` with the `isResolvedSuccessTerminal` stamp.)
+
+## What should a good CS agent have done?
+
+Deliver the grounded answer (correct), and on the **subsequent user
+turn** be able to enter CONFIRM so the resolution can be recorded:
+either `record_outcome(resolve)` lands (now permitted in CONFIRM) or
+the session reaches a product-contract-allowed resolved terminal. The
+bot resolved the issue; the runtime must let that resolution be
+confirmed and recorded instead of forcing the conversation into a
+handover loop.
+
+## Why does this matter?
+
+Wrong-containment / over-escalation of a genuinely resolved FAQ-path
+issue, plus a mis-attributed escalation reason — violates the §5.1
+acceptance bars (wrong-containment, over-escalation) and the §1.4
+trace-contract (the recorded outcome contradicts what the bot did).
+The escalation reason is also semantically false (`user_requested`
+with no user request), reinforcing the documented runtime
+reason-mislabel pattern.
+
+## Is this a one-off or a pattern?
+
+**Pattern.** 13 deadlock-attributable draws across 3 UC-A cases in
+exp-86 deep traces; 16 deadlock-shape escalations in the baseline-20260608
+PRIMARY draws. Systematic for any UC-A session the simulator persona
+keeps engaging past the first grounded answer.
+
+## Which layer is likely responsible?
+
+**`skill_state`** (§3.2 Q4) — a multi-turn phase-machine state defect:
+the RESOLVE→CONFIRM transition is unreachable for a grounded answer, so
+the flow loses the ability to progress to the phase where the outcome
+can be recorded. Not `java_guard` (no Tier-0 is broken; the premature
+guard is correct and must be PRESERVED). Not `semantic_planner` (the
+LLM's choices — grounded answer, then `record_outcome(resolve)` — are
+correct; the runtime blocks the transition). Not `eval_spec` (the
+CaseSpec correctly expects `resolve`; widening it to accept the
+escalation would mask a real bot/runtime failure — forbidden by §1.7 /
+§5.4). Confirmed `skill_state`; no §STOP trigger
+(the minimal fix is a phase-transition repair that does NOT relax the
+premature guard, weaken a Tier-0/frozen invariant, add a user-message
+content heuristic, add a UC/case exception, or fake a stamp).
+
+## What should NOT be done?
+
+- Do **not** relax `shouldRejectPrematureResolveOutcome` to permit
+  `record_outcome(resolve)` in RESOLVE — that deletes the premature
+  guard (§1.7; explicit hard fence). The fix must route the bot INTO
+  CONFIRM where the guard already permits the call.
+- Do **not** add a user-message keyword/content heuristic (e.g. detect
+  "that helps" / "thanks") to trigger CONFIRM. The trigger must be
+  structural (grounded FINAL_ANSWER on a prior turn + a subsequent user
+  turn).
+- Do **not** bump `max_turns`, fake a `resolved` stamp, or stack
+  another local `isResolvedSuccessTerminal` patch as the primary fix
+  (SECONDARY only, and only if PRIMARY is proven not minimally
+  fixable).
+- Do **not** add a per-UC / per-case exception or widen the CaseSpec.
+- Do **not** force-convert the ESC_NO_GUARD_HIT shape (genuine
+  clarification-budget / user-request / faq_miss escalations) — anti-误杀
+  boundary; those must still escalate.
+
+ succeeded in 0ms:
+---
+title: Sprint 093 / S-Auto-39 handoff — RESOLVE→CONFIRM/CLOSE deadlock corrective
+doc_tier: sprint-archive
+status: current
+implementation_status: implemented
+source_of_truth: server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java (mapFinalAnswer RESOLVE branch + priorGroundedResolveAnswerDelivered); ControlKernel.java (signal stash); commit 033abaee
+last_reviewed: 2026-06-18
+review_cadence: per sub-sprint
+supersedes: []
+superseded_by: null
+notes: >
+  Sub-sprint of M-Auto-7. PRIMARY structural phase-transition repair so a
+  grounded UC-A RESOLVE answer can reach CONFIRM. Bounded real-LLM run
+  shows the structural deadlock is repaired (CONFIRM reachable) but
+  end-to-end resolve-RECORDING remains capped by a downstream CONFIRM-phase
+  issue (record_outcome non-landing + reason mislabel) → new OQ. No CS4
+  success claimed; pilot HELD; exp-82 WITHDRAWN.
+---
+
+# Sprint 093 / S-Auto-39 handoff
+
+**Goal:** break the RESOLVE→CONFIRM/CLOSE deadlock so a completed grounded
+resolve answer can reach a confirmable/recordable state and
+`record_outcome(resolve)` lands — without relaxing the premature-resolve
+guard.
+
+**Layer (§3.2):** `skill_state`. **§7 stanza:** in `sprint_objective.md`.
+**Per-sub-sprint Codex:** see §Codex below.
+
+---
+
+## §1 Step-0 separation list (read-only, NO LLM)
+
+Full artifact: `docs/diagnostics/sprint-093-step0-escalation-attribution.md`.
+
+Over exp-86 deep PRIMARY UC-A traces (46 draws across 5 attempts + 8
+oversample + representative) classified per draw by phase sequence,
+`record_outcome` premature-guard hits, grounding, containment, reason,
+and L2 `correct_outcome`:
+
+| class | count | meaning |
+|---|---|---|
+| **DEADLOCK_DOWNSTREAM_MISSTAMP** | 12 | grounded + premature-guard hit + escalated + `co=0.0` → mis-attributed reason |
+| **DEADLOCK_STALL_NO_RECORD** | 1 | grounded + premature + blank containment, no record |
+| OUTCOME_CREDITED | 24 | resolved/accepted-escalation; ≥6 only "lucky" via `max_turns` `isResolvedSuccessTerminal` despite premature hits |
+| ESC_NO_GUARD_HIT | 5 | escalated, grounded, never tripped guard — **anti-误杀 boundary, NOT to be force-converted** |
+| INFRA_TIMEOUT | 3 | `stop=timeout`/`turns=0` |
+| OTHER | 1 | grounded, blank, no guard hit |
+
+**13/46 deadlock-attributable.** baseline-20260608 shallow corroborates
+(8 `user_requested` + 5 `faq_miss` + 2 `clarification_budget` + 1
+`turn_budget` = 16 deadlock-shape PRIMARY escalations). Example evidence:
+`alice_uc_a_uc_h_misclass` stamped `user_requested` with **no user request
+in the transcript** (pure runtime mis-stamp downstream of the deadlock).
+
+---
+
+## §2 Failure Brief + §3 classification
+
+`docs/diagnostics/failure-briefs/sprint-093-resolve-confirm-deadlock.md`.
+Layer **`skill_state`** (§3.2 Q4 — multi-turn phase machine loses the
+ability to progress to the phase where the outcome can be recorded). No
+§STOP trigger: the minimal fix repairs the phase transition WITHOUT
+relaxing the premature guard, weakening a Tier-0/frozen invariant, adding
+a user-message content heuristic, adding a UC/case exception, or faking a
+stamp.
+
+---
+
+## §3 Runtime diff + commit
+
+**Commit `033abaee`** — `M-Auto-7 S-Auto-39 — break RESOLVE→CONFIRM/CLOSE
+deadlock (structural promotion)`.
+
+Root cause: `ResolveDispositionEvaluator.evaluate()` returns
+`READY_TO_CONFIRM` only when a `record_outcome` **succeeded** this run, but
+`shouldRejectPrematureResolveOutcome` rejects `record_outcome(resolve)`
+outside CONFIRM/CLOSE — a circular deadlock. A grounded answer maps to
+`ANSWERED_SUBTASK`/RESOLVE, the loop re-answers and eventually
+`request_handover`s, overwriting an earlier transient `resolved` stamp
+with `escalated` + a mis-attributed reason.
+
+**PRIMARY fix** (`PhaseEvaluator.mapFinalAnswer`, RESOLVE/FAQ branch):
+when a grounded FINAL_ANSWER was delivered on a **prior RESOLVE turn** (a
+persisted `BotTurn` with `phase_after == RESOLVE` and non-empty
+`source_ids` — `priorGroundedResolveAnswerDelivered`) AND this subsequent
+user turn again produces a confident grounded non-slot answer
+(`ANSWERED_SUBTASK`), promote RESOLVE→CONFIRM
+(`progressive_resolve_confirmable`). A `record_outcome` rejected **only**
+by the premature guard is excluded from the Sprint 9 §O1
+`record_outcome_failed_retry` loop **only** when prior grounding exists.
+Trigger is purely structural (turn record); **no user-message content
+heuristic**. Structural signal derived in `ControlKernel` from persisted
+history and threaded via a `@Transient BotSession` field (no
+`interpretRunResult` signature change → existing mock callers unaffected).
+
+PRESERVED: the premature guard, the `READY_TO_CONFIRM` path,
+genuine-failure retry, slot-request stay, and first-answer
+premature-collapse protection (first grounded answer with no prior
+grounding stays in RESOLVE). No SECONDARY terminal-stamp extension was
+needed (PRIMARY was minimally fixable).
+
+Files: `PhaseEvaluator.java`, `ControlKernel.java`, `BotSession.java`
+(transient field), `Sprint93ResolveConfirmDeadlockTest.java`.
+
+---
+
+## §4 Java characterization tests
+
+`Sprint93ResolveConfirmDeadlockTest` (11 tests, all green):
+
+- deadlock shape (prior grounded answer + premature-rejected record OR
+  bare re-answer) → **CONFIRM** `progressive_resolve_confirmable`;
+- first grounded answer / DISCOVER-search-only prior turn → stays RESOLVE
+  (premature-collapse protection);
+- premature guard intact: `record_outcome(resolve)` still rejected in
+  RESOLVE, permitted in CONFIRM/CLOSE;
+- slot-request answer with prior grounding stays RESOLVE;
+- genuine (non-premature) record failure still retries in RESOLVE;
+- successful record keeps the unchanged `READY_TO_CONFIRM` → `answer_provided`;
+- promotion targets CONFIRM never CLOSE (no early-close); helper truth-tables.
+
+**Full Java suite: 1394 run, 1 failure, 0 errors, 2 skipped → 0 NEW
+regressions.** Sole failure = pre-existing
+`SystemPromptUserRequestedTiebreakerTest.systemPrompt_marksActiveUcTiebreakerExplicitly`
+(OQ-S41.5), **reproduced identically on a clean tree** (stash verified) —
+a system-prompt anchor assertion, out of scope (this diff touches no
+prompt resource). §5.5 Java-suite hard gate: **PASS.**
+
+---
+
+## §5 Step-4 bounded real-LLM validation run
+
+**Pre-flight (§5.9): GO** — backend fresh-booted with the fix on the
+classpath (`Started CsAgentApplication`); Flyway V17 applied
+(`success=t`, matches highest migration file); no proxy env; CaseSpecs
+self-contained; smoke (n=1 over the 6 target cases) confirmed the fix
+**fires** (`cs_uc_a_loaded_listing`: T1 RESOLVE 1st answer → T2 **CONFIRM**
+promotion → `resolved`). No NO-GO anomalies (A1–A11): `search_knowledge`
+hits non-empty, no `(temp)` leakage, Java baseline matches
+`1394/1/0/2`-shape sole-inherited-failure.
+
+**Run:** `eval_interactive run --path <subset>` repeated (PRIMARY ×11,
+others ×5) under `caffeinate`, backend `localhost:8080`, bot=deepseek-v4-flash,
+simulator=moonshot, temp 0.0. **42 draws.** Per-draw data:
+`/tmp/s39_matrix_manifest.txt` → `eval_interactive/results/*` (gitignored).
+
+### Qualifying-draw metric (power floor: ≥3 → not INCONCLUSIVE)
+
+PRIMARY qualifying draws = **22** (≥3 → conclusive). Qualifying =
+entered RESOLVE + grounded FINAL_ANSWER + ≥2 turns (subsequent user turn).
+
+| case | role | draws | qual | resolved(co=1.0) | reached CONFIRM | escalated |
+|---|---|---|---|---|---|---|
+| `cs_uc_a_loaded_listing` | PRIMARY | 11 | 11 | 3 | 5 | 6 |
+| `cs_uc_a_no_ad_id_ad_specific` | PRIMARY | 11 | 11 | 4 | 6 | 7 |
+| `cs_uc_a_generic_policy_question` | neg-ctrl | 5 | 5 | 3 | 0 | **0** |
+| `cs_uc_a_lookup_failed` | neighbor | 5 | 5 | 5 | 4 | 3 |
+| `cs_uc_fp_loaded_moderation` | neighbor | 5 | 5 | 2 | 1 | 3 |
+| `cs11g02_uc_d_explicit_distress` | genuine-esc | 5 | (3) | — | 0 | **5 (co=1.0)** |
+
+### What the fix ACHIEVED (proven)
+
+1. **Permanent RESOLVE-stuck deadlock broken.** 11/22 PRIMARY qualifying
+   draws now reach CONFIRM (0 in the deadlocked baseline shape). The
+   structural transition fires exactly as designed (smoke + characterization
+   tests + per-turn traces, e.g. `loaded_listing` T0/T1 RESOLVE → T2 CONFIRM).
+2. **Blank/stale containment dropped**; sessions no longer loop in RESOLVE
+   re-answering the same grounded content until turn exhaustion.
+3. **Anti-误杀 INTACT.** Genuine-escalation control `cs11g02_uc_d_explicit_distress`:
+   **5/5 escalated, 5/5 `co=1.0`** (correct escalate). Neg-control
+   `cs_uc_a_generic_policy_question`: **0 escalations** (no over-correction
+   into escalation; no new false positives). UC-FP / `lookup_failed`
+   neighbors: no escalation regression vs the deadlock baseline.
+
+### What the fix did NOT achieve (honest shortfall → OQ)
+
+1. **`record_outcome(resolve)` lands in 0/42 draws.** Even in CONFIRM the
+   bot does not successfully call `record_outcome`. Acceptance criterion
+   (2) is met ONLY via the alternative "product-contract-allowed resolved
+   terminal" (the `isResolvedSuccessTerminal` grounding stamp), NOT via a
+   landed `record_outcome`. The resolved PRIMARY draws split:
+   `loaded_listing` reaches resolved via CONFIRM→terminal stamp (fix path);
+   `no_ad_id` resolved draws reach it via `max_turns` stamp in RESOLVE with
+   `conf=0` (the OLD lucky path — the bot keeps ASKING for the ad id
+   (`ASKED_FOR_SLOT`), so the promotion legitimately does not fire and the
+   premature loop persists, up to `prem=7`).
+2. **PRIMARY resolved-rate 7/22 (32%)** — not a majority flip (none
+   required per the prompt). 13/22 PRIMARY draws still escalate. Of those
+   13: ~2 are CLEARLY genuine (the bot exhausted grounded help, OFFERED to
+   escalate, and the user explicitly accepted — "Yes, please. I'd
+   appreciate speaking to someone"; escalation is the CORRECT outcome the
+   CaseSpec scores `co=0.0`); the other ~11 are the bot escalating after the
+   bad-case persona restated a genuinely-hard problem (ad active-but-not-showing
+   / no-views-despite-all-tips) — defensible CS behaviour on an
+   unresolvable bad-case, but carrying a **mislabeled `user_requested`
+   reason** (the documented runtime reason-mislabel pattern,
+   `[[project_faq_overescalate_maxsteps_misstamp]]`).
+
+### Verdict
+
+The **structural deadlock (RESOLVE→CONFIRM transition unreachable) is
+repaired and validated** (conditions 1/3/4 substantially met; CONFIRM now
+reachable; deadlock loops + blank containment gone; anti-误杀 intact). The
+fix is **necessary-but-not-sufficient** for end-to-end resolve-RECORDING
+on these PRIMARY bad-cases: condition (2) `record_outcome(resolve)` does
+not land in any draw, capped by a **downstream CONFIRM-phase issue**
+(the bot escalates / terminal-stamps instead of recording, and the
+escalation reason is mislabeled). **No CS4 success claimed; no PRIMARY
+majority flip claimed (none required); pilot HELD; exp-82 WITHDRAWN.**
+
+**→ OQ-S93.1 (new, follow-up):** in CONFIRM, a grounded UC-A session that
+the persona keeps engaging neither lands `record_outcome(resolve)` nor is
+credited via a clean confirm — it escalates with a mislabeled
+`user_requested` reason. The deadlock had a SECOND layer beyond the phase
+transition. Candidate layers: `semantic_planner` (CONFIRM-phase
+record-vs-handover decision) and `infra`/reason-resolver (the
+`user_requested` mislabel). Route via research before any encoding.
+
+---
+
+## §5b Step-5 zero-LLM cross-check (evidence boundary)
+
+1. **Evaluator/CaseSpec semantics unchanged (5.1 + 5.3).** This sub-sprint
+   touches ONLY server-side runtime Java + docs + one Java test; it edits
+   no `eval_interactive/` evaluator code and no CaseSpec. `git diff
+   a428aa18..HEAD` over `eval_interactive/` + the 6 CaseSpec paths is
+   **empty** → the evaluator + CaseSpecs are **byte-identical** between the
+   exp-86-era OLD commit and the validation HEAD; a separate OLD-trace
+   replay is moot because the scorer is a different process/language the
+   runtime change cannot reach. (NOTE: `baseline-20260608` @ `92c40761`
+   used OLDER scoring — diff non-empty — so it is **forensic-only**, not the
+   byte-identity reference.)
+2. **NEW-trace attribution (5.2).** For each newly-CONFIRM-reaching draw,
+   the per-turn trace shows the success path: prior RESOLVE grounded turn →
+   this turn's grounded `ANSWERED_SUBTASK` → `phase_after=CONFIRM`
+   (`progressive_resolve_confirmable`) → CONFIRM-phase terminal. The
+   deadlock-lift is attributable to the phase transition, not an evaluator
+   change.
+3. **Pinned hashes (5.3).**
+   - CaseSpec sha256 (validation == OLD, unchanged):
+     - `cs_uc_a_no_ad_id_ad_specific.yaml` `6e602566…`
+     - `cs_uc_a_loaded_listing.yaml` `544b8816…`
+     - `cs_uc_a_generic_policy_question.yaml` `2373ee0d…`
+     - `cs_uc_fp_loaded_moderation.yaml` `de55e126…`
+     - `cs_uc_a_lookup_failed.yaml` `e25860d2…`
+     - `cs11g02_uc_d_explicit_distress.yaml` `fe77aeab…`
+   - eval_interactive evaluator sha256 (validation == OLD `a428aa18`):
+     `composite.py` `79b21361…`, `outcome_checks.py` `f101eb5c…`,
+     `hard_checks.py` `3d93b1a2…`, `skill_procedure_check.py` `06bd7cd3…`,
+     `escalation_reason_match.py` `f8390315…`.
+   - Recorded autoloop `scoring_code_baseline_sha` (config.yaml main):
+     `f2f983cc…` (5-file set; not edited by this sub-sprint).
+
+---
+
+## §6 Self-check / fences
+
+- [x] Step 0 attribution produced (read-only, no LLM) before any code.
+- [x] PRIMARY phase-transition fix attempted first; SECONDARY not needed.
+
+exec
+/bin/zsh -lc 'git show --stat --oneline --decorate --find-renames 033abaee' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-hMXhSifq' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-fjnew2lR' (errno=Operation not permitted)
+033abaee M-Auto-7 S-Auto-39 — break RESOLVE→CONFIRM/CLOSE deadlock (structural promotion)
+ .../sprint-093-resolve-confirm-deadlock.md         |  98 ++++++
+ .../sprint-093-step0-escalation-attribution.md     | 107 ++++++
+ .../java/com/gumtree/csagent/model/BotSession.java |  14 +
+ .../csagent/service/runtime/ControlKernel.java     |  10 +
+ .../csagent/service/runtime/PhaseEvaluator.java    | 110 ++++++-
+ .../Sprint93ResolveConfirmDeadlockTest.java        | 365 +++++++++++++++++++++
+ 6 files changed, 700 insertions(+), 4 deletions(-)
+
+codex
+The sprint handoff frames this as a `skill_state` transition repair with an explicit fence against weakening the premature guard or adding user-content triggers. I’m now checking the actual diff and nearby current code to verify those claims rather than relying on the handoff.
+exec
+/bin/zsh -lc 'git show --find-renames --unified=80 -- server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java server/src/main/java/com/gumtree/csagent/model/BotSession.java 033abaee' in /Users/caoruixin/projects/csagent-latest
+exec
+/bin/zsh -lc 'git show --find-renames --unified=120 -- server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java 033abaee' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-cFOALC0z' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-JICVeRFF' (errno=Operation not permitted)
+
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-DKXK56d9' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-POZfDhPW' (errno=Operation not permitted)
+
+exec
+/bin/zsh -lc 'git show --find-renames --unified=80 -- server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java 033abaee' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-9IAegp17' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-woicj8qn' (errno=Operation not permitted)
+
+codex
+The first path-limited `git show` invocation was malformed, so it only returned Git’s sandbox warnings. I’m rerunning it with the commit before the `--` separator.
+exec
+/bin/zsh -lc 'git show --find-renames --unified=120 033abaee -- server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-eFoHeH2w' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-pGqyw1FA' (errno=Operation not permitted)
+commit 033abaeef074a914e2db41448fbfd7612409fdf5
+Author: Rex1028 <caoruixin@163.com>
+Date:   Thu Jun 18 18:47:58 2026 +0800
+
+    M-Auto-7 S-Auto-39 — break RESOLVE→CONFIRM/CLOSE deadlock (structural promotion)
+    
+    Sprint 093 / S-Auto-39. PRIMARY phase-transition repair so a grounded UC-A
+    RESOLVE answer can reach CONFIRM and record_outcome(resolve) can land —
+    WITHOUT relaxing the premature-resolve guard.
+    
+    Root cause (Step-0, read-only): ResolveDispositionEvaluator.evaluate() returns
+    READY_TO_CONFIRM only when a record_outcome already SUCCEEDED this run, but the
+    premature guard rejects record_outcome(resolve) outside CONFIRM/CLOSE — a
+    circular deadlock. A grounded answer stays ANSWERED_SUBTASK/RESOLVE, the loop
+    re-answers and eventually request_handover's, overwriting an earlier transient
+    "resolved" stamp with "escalated" + a mis-attributed reason (user_requested /
+    faq_miss_threshold_exceeded / turn_budget_exhausted). 13/46 deep PRIMARY draws
+    deadlock-attributable (docs/diagnostics/sprint-093-step0-escalation-attribution.md).
+    
+    Fix (PhaseEvaluator.mapFinalAnswer, RESOLVE/FAQ branch): when a grounded
+    FINAL_ANSWER was delivered on a PRIOR RESOLVE turn (persisted BotTurn with
+    phase_after==RESOLVE + non-empty source_ids) AND this subsequent user turn
+    again produces a confident grounded non-slot answer (ANSWERED_SUBTASK), promote
+    RESOLVE→CONFIRM ("progressive_resolve_confirmable") so the CONFIRM Skill can
+    record the outcome. A record_outcome rejected ONLY by the premature guard is
+    excluded from the Sprint 9 §O1 record_outcome_failed_retry loop ONLY when prior
+    grounding exists. Trigger is purely structural (turn record), no user-message
+    content heuristic. The premature guard, READY_TO_CONFIRM path, genuine-failure
+    retry, slot-request stay, and first-answer premature-collapse protection are all
+    PRESERVED. Structural signal derived in ControlKernel from persisted history and
+    threaded via a @Transient BotSession field (no interpretRunResult signature
+    change → existing mock callers unaffected).
+    
+    §3 layer: skill_state. Tier-0: none added; premature guard + §1.4 trace-contract
+    preserved. Semantic hardcode: none.
+    
+    Tests: Sprint93ResolveConfirmDeadlockTest (11) — deadlock reaches CONFIRM;
+    first answer / DISCOVER-search-only stay RESOLVE; guard still rejects in RESOLVE
+    + permits in CONFIRM/CLOSE; genuine failure retries; slot-request stays;
+    successful record keeps READY_TO_CONFIRM; helper truth-tables. Full suite
+    1394 run, 0 new regressions (1 pre-existing SystemPrompt anchor failure,
+    reproduced on clean tree, out of scope).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+diff --git a/server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java b/server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java
+index 342792bb..aca7e8d9 100644
+--- a/server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java
++++ b/server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java
+@@ -1,129 +1,130 @@
+ package com.gumtree.csagent.service.runtime;
+ 
+ import com.fasterxml.jackson.databind.JsonNode;
+ import com.fasterxml.jackson.databind.ObjectMapper;
+ import com.gumtree.csagent.model.*;
+ import com.gumtree.csagent.service.guardrails.ScriptLibraryService;
+ import com.gumtree.csagent.service.knowledge.KnowledgeSearchService;
+ import com.gumtree.csagent.service.observability.EventEmitter;
+ import com.gumtree.csagent.service.runtime.skill.Skill;
++import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
+ import com.gumtree.csagent.service.runtime.skill.SkillRegistry;
+ import com.gumtree.csagent.service.runtime.skill.SkillStateBus;
+ import com.gumtree.csagent.service.tools.CreateCaseControlledTool;
+ import com.gumtree.csagent.service.tools.ToolDispatcher;
+ import com.gumtree.csagent.service.tools.ToolResult;
+ import lombok.extern.slf4j.Slf4j;
+ import org.springframework.stereotype.Service;
+ 
+ import java.util.*;
+ import java.util.stream.Collectors;
+ 
+ /**
+  * Per-phase logic evaluator. Determines what action to take based on
+  * the current session phase and state.
+  *
+  * <p>Task #10: control-flow decisions are now derived from {@link ParsedAction#getToolCalls()}
+  * and {@link ParsedAction#getUserMessage()} (single-layer tool-use contract — see phase0 §0.6
+  * and phase3 §3.3.3). The legacy 5-action switch has been removed.
+  */
+ @Slf4j
+ @Service
+ public class PhaseEvaluator {
+ 
+     /** Intake-only UCs that should never invoke knowledge search. */
+     private static final Set<String> INTAKE_UCS = Set.of("UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
+ 
+     /**
+      * Canonical 23-value escalation_reason enum (mirrors
+      * {@code eval_interactive/eval_interactive/case_spec/schema.py:43-66}).
+      * Anything emitted by this evaluator that is NOT in this set must be
+      * mapped to {@code "service_degraded"} via {@link #canonicalize(String)}
+      * to keep the L1 trace contract green.
+      */
+     private static final Set<String> CANONICAL_ESCALATION_REASONS = Set.of(
+             "user_requested",
+             "faq_miss_threshold_exceeded",
+             "clarification_budget_exhausted",
+             "intake_complete_for_uc_g",
+             "intake_complete_for_uc_h",
+             "intake_complete_for_uc_i",
+             "intake_complete_for_uc_j",
+             "intake_complete_for_uc_k",
+             "incomplete_intake",
+             "payment_dispute_detected",
+             "appeal_requires_human",
+             "user_distress",
+             "imminent_harm",
+             "incorrect_deletion_appeal",
+             "trust_safety_required",
+             "account_compliance",
+             "gdpr_intake",
+             "identity_verification_required",
+             "out_of_scope",
+             "service_degraded",
+             "turn_budget_exhausted",
+             "tool_scope_blocked",
+             "runtime_error_threshold"
+     );
+ 
+     /**
+      * Map a possibly-non-canonical escalation reason to a canonical value.
+      * Returns {@code reason} when it is already canonical, otherwise
+      * maps the well-known legacy literals onto their canonical
+      * equivalents (kept in lockstep with
+      * {@link EscalationReasonResolver#canonicalize(String)} so the LLM
+      * path and the resolver path always pick the same value), and
+      * falls back to {@code "service_degraded"} for anything else.
+      */
+     private String canonicalize(String reason) {
+         if (reason != null && CANONICAL_ESCALATION_REASONS.contains(reason)) {
+             return reason;
+         }
+         if (reason != null) {
+             String lower = reason.trim().toLowerCase(Locale.ENGLISH);
+             // Sprint §B0: keep the legacy LLM literal -> canonical mapping
+             // identical to EscalationReasonResolver so tool-call, session,
+             // and handover payload converge on the same enum value.
+             if ("user_requested_escalation".equals(lower)
+                     || "user_request".equals(lower)
+                     || "human_requested".equals(lower)
+                     || "callback_requested".equals(lower)) {
+                 return "user_requested";
+             }
+         }
+         return "service_degraded";
+     }
+ 
+     /** Map from intake UC ID to its script template prefix. */
+     private static final Map<String, String> INTAKE_TEMPLATE_PREFIX = Map.of(
+             "UC-G", "g",
+             "UC-H", "h",
+             "UC-I", "i",
+             "UC-J", "j",
+             "UC-K", "k"
+     );
+ 
+     /** Opening template keys per intake UC (first available is used). */
+     private static final Map<String, List<String>> INTAKE_OPENING_TEMPLATES = Map.of(
+             "UC-G", List.of("g_process_explanation"),
+             "UC-H", List.of("h_empathy"),
+             "UC-I", List.of("i_disclaimer"),
+             "UC-J", List.of("j_acknowledgment"),
+             "UC-K", List.of("k_basic_troubleshoot")
+     );
+ 
+     /** Map from intake UC ID to the human-readable team name for template variable substitution. */
+     private static final Map<String, String> UC_TEAM_NAME = Map.of(
+             "UC-G", "Data Protection",
+             "UC-H", "Ad Support",
+             "UC-I", "Payments",
+             "UC-J", "Trust & Safety",
+             "UC-K", "Technical Support"
+     );
+ 
+     /** Default SLA hours used in template variable substitution. */
+     private static final String DEFAULT_SLA_HOURS = "24-48";
+ 
+     /**
+      * Map from intake UC ID to its canonical request_handover.escalation_reason
+      * enum value (per docs/customer_service_tool_spec_v0_2.yaml lines 433-457).
+@@ -471,475 +472,576 @@ public class PhaseEvaluator {
+                 .maxToolSteps(maxToolSteps)
+                 .allowInterimMessage(skill.allowInterimMessage())
+                 .validTerminalOutcomes(outcomes)
+                 .systemInstruction(substitutePlaceholders(skill.procedure(), activeUc))
+                 .groundingInstruction(substitutePlaceholders(skill.groundingInstruction(), activeUc))
+                 .escalationPolicy(substitutePlaceholders(skill.escalationPolicy(), activeUc))
+                 .build();
+     }
+ 
+     /**
+      * Substitute Sprint 39 RESOLVE-Skill template placeholders per Sprint 37
+      * freeze §6.2.5 / §6.2.6. Six placeholders, each filled by a SINGLE
+      * registry / map lookup keyed by the active UC; no per-UC-pair branch
+      * logic per §1.7 + M2 §6 #1. Skills that do not contain a placeholder
+      * pass their text through unchanged.
+      *
+      * <ul>
+      *   <li>{@code {uc_name}} — display name from {@link UseCaseRegistryService}.</li>
+      *   <li>{@code {uc_id}} — the active UC itself.</li>
+      *   <li>{@code {team_name}} — {@link #UC_TEAM_NAME} map (defaults to
+      *       {@code "specialist"}).</li>
+      *   <li>{@code {intake_complete_trigger}} — canonical
+      *       {@code intake_complete_for_uc_X} via {@link #intakeCompleteTrigger(String)}.</li>
+      *   <li>{@code {case_creation_note}} — case-creation appendix for UC-H/J/K
+      *       (M1 {@code ControlKernel.createCaseIfNeeded} runtime side effect),
+      *       empty for UC-G/I and non-intake UCs.</li>
+      *   <li>{@code {intake_required_fields}} —
+      *       {@link IntakeFieldsRegistry#requiredFieldsFor(String)} list rendered
+      *       via Java {@code List.toString()}. Sixth placeholder (beyond the
+      *       five named in Sprint 39 contract §2.2 D-c) preserves byte-for-byte
+      *       equivalence with the legacy
+      *       {@code buildIntakeSystemInstruction(...)} output; flagged in
+      *       handoff §7 OQ for deliver-agent + human review at Sprint 39 close.</li>
+      * </ul>
+      */
+     private String substitutePlaceholders(String text, String activeUc) {
+         if (text == null) return null;
+         if (activeUc == null || activeUc.isBlank()) return text;
+ 
+         String ucName = activeUc;
+         try {
+             UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
+             if (ucDef != null && ucDef.name() != null) {
+                 ucName = ucDef.name();
+             }
+         } catch (Exception ex) {
+             // Defensive: fall back to the raw UC id if the registry rejects.
+         }
+         String teamName = UC_TEAM_NAME.getOrDefault(activeUc, "specialist");
+         String trigger = intakeCompleteTrigger(activeUc);
+         boolean needsCase = Set.of("UC-H", "UC-J", "UC-K").contains(activeUc);
+         String caseNote = needsCase
+                 ? "A tracking case will be created automatically by the runtime when you escalate; "
+                         + "you do not need to call any case-creation tool yourself."
+                 : "";
+         String requiredFields = IntakeFieldsRegistry.requiredFieldsFor(activeUc).toString();
+ 
+         return text
+                 .replace("{uc_name}", ucName)
+                 .replace("{uc_id}", activeUc)
+                 .replace("{team_name}", teamName)
+                 .replace("{intake_complete_trigger}", trigger)
+                 .replace("{case_creation_note}", caseNote)
+                 .replace("{intake_required_fields}", requiredFields);
+     }
+ 
+     /**
+      * D16 post-loop interpreter. Given a {@link PhasePlan} and the
+      * {@link AgentRunResult} produced by the {@code AgentRunLoop}, decides
+      * what phase transition (if any) to apply and what response text to send
+      * back to the user.
+      *
+      * <p>D16.D extends the mapping to be phase-aware so DISCOVER, CONFIRM,
+      * CLOSE, and ESCALATE produce the right downstream transitions instead
+      * of always assuming RESOLVE→CONFIRM.
+      */
+     public PhaseTransitionDecision interpretRunResult(PhasePlan plan,
+                                                        AgentRunResult result,
+                                                        BotSession session) {
+         if (result == null) {
+             return new PhaseTransitionDecision("ESCALATE",
+                     "I'm experiencing a technical issue. Let me connect you with a specialist.",
+                     "service_degraded", "agent_error");
+         }
+         TerminalOutcome outcome = result.terminalOutcome();
+         if (outcome == null) {
+             return new PhaseTransitionDecision("ESCALATE",
+                     "I'm experiencing a technical issue. Let me connect you with a specialist.",
+                     "service_degraded", "agent_error");
+         }
+         // Step 3b: reset the per-session runtime error counter on any non-ERROR
+         // outcome so the retry threshold (≥2) only applies to *consecutive*
+         // errors within the same phase, not errors interleaved with success.
+         if (session != null && outcome != TerminalOutcome.ERROR
+                 && session.getRuntimeErrorCount() != null
+                 && session.getRuntimeErrorCount() > 0) {
+             session.setRuntimeErrorCount(0);
+         }
+         // Sprint 24 Track A: same shape, applied to the cross-turn slow-LLM
+         // placeholder loop. The DEADLINE_EXCEEDED branch's distinct
+         // honest-next-step message fires only on the *second* consecutive
+         // DEADLINE_EXCEEDED outcome; any non-deadline outcome (FINAL_ANSWER /
+         // CLARIFICATION_NEEDED / etc.) resets the counter so a later isolated
+         // deadline still gets the existing placeholder rather than the
+         // honest-next-step text.
+         if (session != null && outcome != TerminalOutcome.DEADLINE_EXCEEDED
+                 && session.getConsecutiveDeadlineCount() != null
+                 && session.getConsecutiveDeadlineCount() > 0) {
+             session.setConsecutiveDeadlineCount(0);
+         }
+         // For INTAKE plans, FINAL_ANSWER means the LLM produced a no-tool-call
+         // user_message — which in intake mode is a clarification question, not
+         // a customer-facing final answer. Keep the session in RESOLVE so the
+         // user can supply the missing details. INTAKE plans terminate via
+         // ESCALATE only.
+         boolean isIntakePlan = plan != null && plan.useCase() != null
+                 && INTAKE_UCS.contains(plan.useCase());
+ 
+         String fromPhase = plan == null ? null : plan.phase();
+ 
++        // Sprint 093 / S-Auto-39 — structural precondition for the
++        // RESOLVE→CONFIRM promotion: a grounded FINAL_ANSWER was delivered on
++        // a prior turn that stayed in RESOLVE. The kernel derives this from
++        // the persisted turn history (via priorGroundedResolveAnswerDelivered)
++        // and stashes it on the session transient before this call; no
++        // user-message content is inspected.
++        boolean priorGroundedResolveAnswer = session != null
++                && Boolean.TRUE.equals(session.getPriorGroundedResolveAnswer());
++
+         switch (outcome) {
+             case FINAL_ANSWER:
+-                return mapFinalAnswer(plan, result, session, fromPhase, isIntakePlan);
++                return mapFinalAnswer(plan, result, session, fromPhase, isIntakePlan,
++                        priorGroundedResolveAnswer);
+             case CLARIFICATION_NEEDED:
+                 // Stay in current phase for clarification (RESOLVE for legacy callers
+                 // when plan is null).
+                 String stayPhase = fromPhase != null ? fromPhase : "RESOLVE";
+                 return new PhaseTransitionDecision(stayPhase,
+                         result.finalUserMessage(),
+                         null, "clarification_asked");
+             case ESCALATE: {
+                 String msg = result.finalUserMessage() != null
+                         ? result.finalUserMessage()
+                         : "Let me connect you with a specialist.";
+                 String reason = canonicalize(
+                         result.escalationReason().orElse("service_degraded"));
+                 return new PhaseTransitionDecision("ESCALATE", msg, reason, "agent_escalated");
+             }
+             case MAX_STEPS: {
+                 // Codex 1.9: ``turn_budget_exhausted`` masks the more specific
+                 // semantic reason. When the agent loop ran out of steps it is
+                 // almost always one of:
+                 //   - FAQ plans where retrieval did not return a usable answer
+                 //     after multiple search_knowledge attempts → faq_miss_threshold_exceeded
+                 //   - DISCOVER / RESOLVE plans where the agent kept asking the
+                 //     user clarifying questions but never converged → clarification_budget_exhausted
+                 //   - INTAKE plans where required fields could not be collected
+                 //     → incomplete_intake
+                 // Fall back to ``turn_budget_exhausted`` only when none of the
+                 // above apply.
+                 String maxStepsReason = resolveMaxStepsReason(plan, result, session);
+                 return new PhaseTransitionDecision("ESCALATE",
+                         "I'm having difficulty resolving this. Let me connect you with a specialist.",
+                         maxStepsReason,
+                         "max_steps_exceeded");
+             }
+             case ERROR: {
+                 // Step 3b: tolerate transient runtime errors. Only escalate on
+                 // the *second* consecutive ERROR within the same phase; the
+                 // first one stays in the current phase with a brief retry
+                 // message so the next user turn re-runs the agent loop. The
+                 // counter is reset above on any non-ERROR outcome.
+                 int errCount = (session != null && session.getRuntimeErrorCount() != null)
+                         ? session.getRuntimeErrorCount() : 0;
+                 errCount += 1;
+                 if (session != null) {
+                     session.setRuntimeErrorCount(errCount);
+                 }
+                 if (errCount < 2) {
+                     String retryPhase = fromPhase != null ? fromPhase : "RESOLVE";
+                     String retryMsg = result.finalUserMessage() != null
+                             ? result.finalUserMessage()
+                             : "Let me try that again.";
+                     return new PhaseTransitionDecision(retryPhase, retryMsg, null,
+                             "agent_error_retry");
+                 }
+                 return new PhaseTransitionDecision("ESCALATE",
+                         "I'm experiencing repeated technical issues. Let me connect you with a specialist.",
+                         "runtime_error_threshold",
+                         "agent_error");
+             }
+             case DEADLINE_EXCEEDED: {
+                 // Sprint 8.1 §M2: an honest slow response. We do NOT escalate
+                 // — escalation here would be a fake business handover that
+                 // hides the real infra failure. The session stays in the
+                 // current phase with shouldEndChat=false so the user can
+                 // retry on their next message. The K0 fallback gate detects
+                 // this terminal outcome too and refuses to stamp a synthetic
+                 // UC.
+                 //
+                 // Sprint 24 Track A: cross-turn placeholder coalesce. Two
+                 // consecutive DEADLINE_EXCEEDED outcomes used to emit
+                 // byte-identical placeholder text on every deadline turn,
+                 // which reads as a stuck loop and which the runtime
+                 // loop-detector flags. Mirror the V12 runtime_error_count
+                 // shape: increment a per-session counter (reset above on any
+                 // non-deadline outcome); on the first consecutive deadline
+                 // emit the existing placeholder; on the second emit a
+                 // distinct honest next-step message naming the slowness and
+                 // offering an actionable next step. Trigger is the
+                 // event-shape (count of consecutive DEADLINE_EXCEEDED
+                 // outcomes), NOT anything in the user's content. The
+                 // transition tag remains agent_deadline_exceeded for both
+                 // branches; the bot does NOT auto-call request_handover.
+                 int deadlineCount = (session != null
+                         && session.getConsecutiveDeadlineCount() != null)
+                         ? session.getConsecutiveDeadlineCount() : 0;
+                 deadlineCount += 1;
+                 if (session != null) {
+                     session.setConsecutiveDeadlineCount(deadlineCount);
+                 }
+                 String slowStayPhase = fromPhase != null ? fromPhase : "DISCOVER";
+                 String deadlineMsg = (deadlineCount < 2)
+                         ? "Sorry, I'm a bit slow right now. Please try sending that again in a moment."
+                         : "I'm still having trouble responding in time. "
+                                 + "If you'd like, I can connect you with a specialist, "
+                                 + "or you can try again in a few minutes.";
+                 return new PhaseTransitionDecision(slowStayPhase, deadlineMsg, null,
+                         "agent_deadline_exceeded");
+             }
+             case LLM_UNAVAILABLE: {
+                 // Sprint 8.1 §M2: an honest unavailable response. Same
+                 // posture as DEADLINE_EXCEEDED above (no fake handover, stay
+                 // in current phase). Sprint 24 Track A is scoped to
+                 // DEADLINE_EXCEEDED only; LLM_UNAVAILABLE is intentionally
+                 // left unchanged (a possible future coalesce here belongs in
+                 // its own R-item).
+                 String slowStayPhase = fromPhase != null ? fromPhase : "DISCOVER";
+                 String userMsg = "Sorry, I'm having trouble reaching the assistant right now. "
+                         + "Please try again in a moment.";
+                 return new PhaseTransitionDecision(slowStayPhase, userMsg, null,
+                         "agent_llm_unavailable");
+             }
+             case USE_CASE_IDENTIFIED: {
+                 // Sprint 8.1 §M3: deterministic DISCOVER → RESOLVE phase
+                 // boundary. The AgentRunLoop returned this outcome
+                 // immediately after a successful classify_use_case call
+                 // committed session.activeUseCase. There is no escalation
+                 // reason and no synthetic request_handover; the same-turn
+                 // RESOLVE replan in {@link ControlKernel} owns the actual
+                 // user-facing reply. We surface a transitional placeholder
+                 // here purely as a defensive default — ControlKernel
+                 // discards this text once the RESOLVE replan runs.
+                 return new PhaseTransitionDecision("RESOLVE",
+                         "I'm looking into this for you.",
+                         null, "uc_identified");
+             }
+             default:
+                 throw new IllegalStateException("Unknown terminal outcome: " + outcome);
+         }
+     }
+ 
+     /**
+      * Sprint 9 §O1 — terminal-state honesty: true when the agent run
+      * attempted at least one {@code record_outcome} dispatch and EVERY
+      * such attempt failed (no successful one). Used by
+      * {@link #mapFinalAnswer} to keep the session in RESOLVE so the LLM
+      * can retry on the next user turn. Returns false when no
+      * {@code record_outcome} attempt was made (the LLM may have answered
+      * directly without persisting an outcome — that path is unchanged).
+      */
+     static boolean recordOutcomeAttemptedAndFailed(AgentRunResult result) {
+         if (result == null || result.toolEvents() == null) return false;
+         boolean attempted = false;
+         boolean anySuccess = false;
+         for (ToolEvent te : result.toolEvents()) {
+             if ("record_outcome".equals(te.toolName())) {
+                 attempted = true;
+                 if (te.success()) {
+                     anySuccess = true;
+                     break;
+                 }
+             }
+         }
+         return attempted && !anySuccess;
+     }
+ 
++    /**
++     * Sprint 093 / S-Auto-39 — true when the agent run attempted
++     * {@code record_outcome}, none succeeded, AND every failed attempt was
++     * rejected by the premature-resolve guard
++     * ({@code progressive_resolve_record_outcome_premature}). This isolates a
++     * STRUCTURAL guard rejection — which can never succeed while the phase is
++     * RESOLVE, so retrying in RESOLVE loops forever — from a GENUINE /
++     * transient {@code record_outcome} failure (e.g. a persistence error),
++     * which the Sprint 9 §O1 {@code record_outcome_failed_retry} path must
++     * still keep in RESOLVE. Returns false when no {@code record_outcome} was
++     * attempted, when one succeeded, or when any failure carried a
++     * non-premature error message.
++     */
++    static boolean recordOutcomeRejectedOnlyByPrematureGuard(AgentRunResult result) {
++        if (result == null || result.toolEvents() == null) return false;
++        boolean attempted = false;
++        for (ToolEvent te : result.toolEvents()) {
++            if (!"record_outcome".equals(te.toolName())) continue;
++            attempted = true;
++            if (te.success()) return false;
++            if (!SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON
++                    .equals(te.errorMessage())) {
++                return false;
++            }
++        }
++        return attempted;
++    }
++
++    /**
++     * Sprint 093 / S-Auto-39 — true when a grounded FINAL_ANSWER was delivered
++     * on a PRIOR turn that stayed in RESOLVE. Structural signal derived purely
++     * from the durable turn record: a persisted {@link BotTurn} with
++     * {@code phase_after == RESOLVE} and non-empty {@code source_ids} is a
++     * grounded RESOLVE answer that did not (yet) advance the phase. The
++     * {@code phase_after == RESOLVE} filter excludes DISCOVER turns that merely
++     * ran {@code search_knowledge} while clarifying (those persist
++     * {@code phase_after == DISCOVER}), so prior RETRIEVAL alone does not
++     * satisfy the precondition — only a prior delivered grounded ANSWER does.
++     * No user-message content is inspected.
++     */
++    static boolean priorGroundedResolveAnswerDelivered(List<BotTurn> history) {
++        if (history == null) return false;
++        for (BotTurn t : history) {
++            if (t == null) continue;
++            if (!"RESOLVE".equalsIgnoreCase(t.getPhaseAfter())) continue;
++            String[] sids = t.getSourceIds();
++            if (sids != null && sids.length > 0) {
++                return true;
++            }
++        }
++        return false;
++    }
++
+     /**
+      * Phase-aware mapping for {@link TerminalOutcome#FINAL_ANSWER}. RESOLVE/FAQ
+      * → CONFIRM, RESOLVE/INTAKE → stay in RESOLVE (clarification), DISCOVER →
+      * RESOLVE if a UC has been committed (otherwise stay in DISCOVER), CONFIRM
+      * → CLOSE (user satisfied), CLOSE → CLOSE, ESCALATE → ESCALATE.
+      */
+     private PhaseTransitionDecision mapFinalAnswer(PhasePlan plan,
+                                                     AgentRunResult result,
+                                                     BotSession session,
+                                                     String fromPhase,
+-                                                    boolean isIntakePlan) {
++                                                    boolean isIntakePlan,
++                                                    boolean priorGroundedResolveAnswer) {
+         // Legacy callers (plan == null) fall back to the pre-D16.D contract:
+         // RESOLVE → CONFIRM with answer_provided.
+         if (fromPhase == null) {
+             return new PhaseTransitionDecision("CONFIRM",
+                     result.finalUserMessage(),
+                     null, "answer_provided");
+         }
+ 
+         switch (fromPhase) {
+             case "DISCOVER": {
+                 String activeUc = session == null ? null : session.getActiveUseCase();
+                 if (activeUc != null && !activeUc.isBlank()) {
+                     return new PhaseTransitionDecision("RESOLVE",
+                             result.finalUserMessage(),
+                             null, "uc_identified");
+                 }
+                 // No UC yet — stay in DISCOVER as clarification.
+                 return new PhaseTransitionDecision("DISCOVER",
+                         result.finalUserMessage(),
+                         null, "clarification_asked");
+             }
+             case "RESOLVE": {
+                 if (isIntakePlan) {
+                     return new PhaseTransitionDecision("RESOLVE",
+                             result.finalUserMessage(),
+                             null, "clarification_asked");
+                 }
+                 // Sprint 9 §O1 — terminal-state honesty. Do not advance
+                 // RESOLVE → CONFIRM when the only record_outcome
+                 // dispatch attempted in this run failed. CONFIRM signals
+                 // "the user accepted the answer and the outcome was
+                 // recorded"; staying in RESOLVE lets the LLM retry the
+                 // record_outcome call within the next user turn rather
+                 // than silently marking the session as resolved while
+                 // the session_outcomes row was never written.
+-                if (recordOutcomeAttemptedAndFailed(result)) {
++                //
++                // Sprint 093 / S-Auto-39 — break the RESOLVE→CONFIRM
++                // deadlock. A record_outcome(resolve) rejected ONLY by the
++                // premature-resolve guard is NOT a transient failure:
++                // retrying in RESOLVE hits the same guard forever
++                // (READY_TO_CONFIRM requires a SUCCESSFUL record_outcome,
++                // which the guard forbids outside CONFIRM/CLOSE). When a
++                // grounded answer was ALREADY delivered on a prior RESOLVE
++                // turn (priorGroundedResolveAnswer — i.e. a subsequent user
++                // turn has now occurred), exclude that case from the retry
++                // gate and let the structural promotion below route the bot
++                // into CONFIRM, where record_outcome is already permitted.
++                // First-grounded-answer turns (no prior grounding) and
++                // GENUINE record_outcome failures keep the unchanged retry
++                // behaviour. The premature guard itself is PRESERVED.
++                boolean prematureGuardOnlyRejection =
++                        recordOutcomeRejectedOnlyByPrematureGuard(result);
++                if (recordOutcomeAttemptedAndFailed(result)
++                        && !(prematureGuardOnlyRejection && priorGroundedResolveAnswer)) {
+                     return new PhaseTransitionDecision("RESOLVE",
+                             result.finalUserMessage(),
+                             null, "record_outcome_failed_retry");
+                 }
+                 // Sprint 11 §M1 — ResolveDisposition guard. A single
+                 // grounded answer that asks for a slot or delivers a
+                 // soft next step ("here is how to find your ad; send the
+                 // advert ID if you want me to check it") must remain in
+                 // RESOLVE. Only a deterministic terminal condition
+                 // (successful record_outcome dispatch on this turn)
+                 // earns the RESOLVE → CONFIRM transition. The bot's
+                 // own clarifying-question heuristics already gate
+                 // CLARIFICATION_NEEDED upstream; this branch handles the
+                 // FINAL_ANSWER case where the bot text shape implies a
+                 // follow-up is expected.
+                 com.gumtree.csagent.model.ResolveDisposition disposition =
+                         ResolveDispositionEvaluator.evaluate(plan, result);
+                 if (session != null) {
+                     session.setTaskStatus(disposition.toTaskStatusToken());
+                     // Sprint 12 §N0 — stamp the canonical
+                     // resolve_disposition token so the projection / trace
+                     // events can surface the disposition independently of
+                     // task_status (which is the Sprint 11 §M0 alias).
+                     session.setResolveDisposition(disposition.name());
+                 }
+                 PhaseTransitionDecision dispositionDecision = switch (disposition) {
+                     case ASKED_FOR_SLOT,
+-                         ANSWERED_SUBTASK,
+                          CONTINUE_RESOLVE -> new PhaseTransitionDecision("RESOLVE",
+                                 result.finalUserMessage(),
+                                 null, "progressive_resolve_stay");
++                    // Sprint 093 / S-Auto-39 — PRIMARY structural repair. A
++                    // confident grounded non-slot answer (ANSWERED_SUBTASK)
++                    // delivered on a SUBSEQUENT user turn after a grounded
++                    // FINAL_ANSWER already formed on a prior RESOLVE turn is
++                    // confirmable: enter CONFIRM so the CONFIRM Skill can
++                    // record the outcome (record_outcome is permitted there).
++                    // The trigger is purely structural (prior grounded
++                    // RESOLVE answer + this turn's disposition) — no
++                    // user-message content heuristic — and the premature
++                    // guard is untouched: record_outcome still cannot land
++                    // until phase == CONFIRM. The FIRST grounded answer turn
++                    // (no prior grounding) stays in RESOLVE so the original
++                    // premature-collapse protection holds.
++                    case ANSWERED_SUBTASK -> priorGroundedResolveAnswer
++                            ? new PhaseTransitionDecision("CONFIRM",
++                                result.finalUserMessage(),
++                                null, "progressive_resolve_confirmable")
++                            : new PhaseTransitionDecision("RESOLVE",
++                                result.finalUserMessage(),
++                                null, "progressive_resolve_stay");
+                     case ESCALATE -> new PhaseTransitionDecision("ESCALATE",
+                                 result.finalUserMessage(),
+                                 "service_degraded", "agent_escalated");
+                     case READY_TO_CONFIRM -> new PhaseTransitionDecision("CONFIRM",
+                                 result.finalUserMessage(),
+                                 null, "answer_provided");
+                 };
+                 if (session != null) {
+                     session.setPhaseTransitionReason(dispositionDecision.transitionReason());
+                 }
+                 return dispositionDecision;
+             }
+             case "CONFIRM":
+                 // FINAL_ANSWER from CONFIRM means the user is satisfied; the LLM
+                 // should already have called record_outcome.
+                 return new PhaseTransitionDecision("CLOSE",
+                         result.finalUserMessage(),
+                         null, "user_satisfied");
+             case "CLOSE":
+                 return new PhaseTransitionDecision("CLOSE",
+                         result.finalUserMessage(),
+                         null, "session_closed");
+             case "ESCALATE":
+                 return new PhaseTransitionDecision("ESCALATE",
+                         result.finalUserMessage(),
+                         null, "handover_completed");
+             default:
+                 return new PhaseTransitionDecision(fromPhase,
+                         result.finalUserMessage(),
+                         null, "answer_provided");
+         }
+     }
+ 
+     private PhaseResult evaluateDiscover(BotSession session, String userMessage,
+                                           List<BotTurn> conversationHistory) {
+         String activeUc = session.getActiveUseCase();
+ 
+         // If UC already identified, move to RESOLVE
+         if (activeUc != null && !activeUc.isBlank()) {
+             UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
+             if (ucDef != null) {
+                 log.info("Session {}: UC {} identified, transitioning to RESOLVE", session.getSessionId(), activeUc);
+                 return PhaseResult.transition(session, "RESOLVE", null, "use_case_identified");
+             }
+         }
+ 
+         // UC not yet identified — use LLM to ask clarifying question
+         String projection = contextProjection.buildProjection(session, conversationHistory, null, userMessage);
+         LlmResponse llmResponse = llmInvocation.invokeChat(projection, userMessage,
+                     session.getSessionId(), session.getTotalBotTurns());
+         ParsedAction action = actionParser.parse(llmResponse.getContent());
+ 
+         // Track clarification: empty tool_calls + clarifying user_message
+         if (isClarificationTurn(action)) {
+             session.setClarificationCount(session.getClarificationCount() + 1);
+             eventEmitter.emitClarificationAsked(session.getSessionId(), session.getTotalBotTurns(),
+                     session.getClarificationCount());
+         }
+ 
+         // If LLM determined escalation (e.g. safe fallback during API failure), escalate immediately
+         if (hasHandover(action)) {
+             return PhaseResult.escalate(session, action.getUserMessage(),
+                 "llm_determined_escalation");
+         }
+ 
+         return PhaseResult.respond(session, action, llmResponse, null);
+     }
+ 
+     private PhaseResult evaluateResolve(BotSession session, String userMessage,
+                                          List<BotTurn> conversationHistory) {
+         String activeUc = session.getActiveUseCase();
+         UseCaseRegistryService.UseCaseDefinition ucDef = useCaseRegistry.getUseCase(activeUc);
+ 
+         if (ucDef == null) {
+             return PhaseResult.escalate(session,
+                     "I'm having trouble identifying how to help you. Let me connect you with a human agent.",
+                     "unknown_use_case");
+         }
+ 
+         // Intake UCs (UC-G/H/I/J/K) must NEVER invoke knowledge search —
+         // they use fixed script templates + clarifying questions for intake field collection.
+         if ("INTAKE".equals(ucDef.path()) || INTAKE_UCS.contains(activeUc)) {
+             return resolveIntake(session, userMessage, conversationHistory, ucDef);
+         }
+ 
+         // FAQ UCs proceed with knowledge search
+         return resolveFaq(session, userMessage, conversationHistory, ucDef);
+     }
+ 
+     private PhaseResult resolveFaq(BotSession session, String userMessage,
+                                     List<BotTurn> conversationHistory,
+                                     UseCaseRegistryService.UseCaseDefinition ucDef) {
+         // Step 1: Search knowledge base via ToolDispatcher for policy enforcement
+         List<String> ucTags = List.of(ucDef.ucId());
+         KnowledgeSearchResult searchResult;
+ 
+         String enrichedQuery = enrichQueryWithFormContext(userMessage, session, conversationHistory);
+         ToolResult toolResult = toolDispatcher.dispatch("search_knowledge", session,
+                 Map.of("query", enrichedQuery, "uc_tags", ucTags));
+ 
+         if (!toolResult.isSuccess()) {
+             log.warn("Session {}: search_knowledge blocked or failed: {}",
+                     session.getSessionId(), toolResult.getErrorMessage());
+             return PhaseResult.escalate(session,
+                     "I need to connect you with a specialist who can help with this.",
+                     "tool_scope_blocked");
+         }
+ 
+         searchResult = reconstructSearchResult(toolResult.getData());
+ 
+         // Emit RETRIEVAL_EXECUTED event
+         eventEmitter.emitRetrievalExecuted(session.getSessionId(), session.getTotalBotTurns(),
+                 enrichedQuery, searchResult.isFaqMiss(),
+                 searchResult.getHits() != null ? searchResult.getHits().size() : 0);
+ 
+         // Step 2: Check for FAQ miss
+         if (searchResult.isFaqMiss()) {
+             session.setFaqMissCount(session.getFaqMissCount() + 1);
+             log.info("Session {}: FAQ miss #{}", session.getSessionId(), session.getFaqMissCount());
+ 
+
+exec
+/bin/zsh -lc 'git show --find-renames --unified=80 033abaee -- server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java server/src/main/java/com/gumtree/csagent/model/BotSession.java' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-XzX4yFMU' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-AzPO8I5C' (errno=Operation not permitted)
+commit 033abaeef074a914e2db41448fbfd7612409fdf5
+Author: Rex1028 <caoruixin@163.com>
+Date:   Thu Jun 18 18:47:58 2026 +0800
+
+    M-Auto-7 S-Auto-39 — break RESOLVE→CONFIRM/CLOSE deadlock (structural promotion)
+    
+    Sprint 093 / S-Auto-39. PRIMARY phase-transition repair so a grounded UC-A
+    RESOLVE answer can reach CONFIRM and record_outcome(resolve) can land —
+    WITHOUT relaxing the premature-resolve guard.
+    
+    Root cause (Step-0, read-only): ResolveDispositionEvaluator.evaluate() returns
+    READY_TO_CONFIRM only when a record_outcome already SUCCEEDED this run, but the
+    premature guard rejects record_outcome(resolve) outside CONFIRM/CLOSE — a
+    circular deadlock. A grounded answer stays ANSWERED_SUBTASK/RESOLVE, the loop
+    re-answers and eventually request_handover's, overwriting an earlier transient
+    "resolved" stamp with "escalated" + a mis-attributed reason (user_requested /
+    faq_miss_threshold_exceeded / turn_budget_exhausted). 13/46 deep PRIMARY draws
+    deadlock-attributable (docs/diagnostics/sprint-093-step0-escalation-attribution.md).
+    
+    Fix (PhaseEvaluator.mapFinalAnswer, RESOLVE/FAQ branch): when a grounded
+    FINAL_ANSWER was delivered on a PRIOR RESOLVE turn (persisted BotTurn with
+    phase_after==RESOLVE + non-empty source_ids) AND this subsequent user turn
+    again produces a confident grounded non-slot answer (ANSWERED_SUBTASK), promote
+    RESOLVE→CONFIRM ("progressive_resolve_confirmable") so the CONFIRM Skill can
+    record the outcome. A record_outcome rejected ONLY by the premature guard is
+    excluded from the Sprint 9 §O1 record_outcome_failed_retry loop ONLY when prior
+    grounding exists. Trigger is purely structural (turn record), no user-message
+    content heuristic. The premature guard, READY_TO_CONFIRM path, genuine-failure
+    retry, slot-request stay, and first-answer premature-collapse protection are all
+    PRESERVED. Structural signal derived in ControlKernel from persisted history and
+    threaded via a @Transient BotSession field (no interpretRunResult signature
+    change → existing mock callers unaffected).
+    
+    §3 layer: skill_state. Tier-0: none added; premature guard + §1.4 trace-contract
+    preserved. Semantic hardcode: none.
+    
+    Tests: Sprint93ResolveConfirmDeadlockTest (11) — deadlock reaches CONFIRM;
+    first answer / DISCOVER-search-only stay RESOLVE; guard still rejects in RESOLVE
+    + permits in CONFIRM/CLOSE; genuine failure retries; slot-request stays;
+    successful record keeps READY_TO_CONFIRM; helper truth-tables. Full suite
+    1394 run, 0 new regressions (1 pre-existing SystemPrompt anchor failure,
+    reproduced on clean tree, out of scope).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+diff --git a/server/src/main/java/com/gumtree/csagent/model/BotSession.java b/server/src/main/java/com/gumtree/csagent/model/BotSession.java
+index 51d05745..46c4b833 100644
+--- a/server/src/main/java/com/gumtree/csagent/model/BotSession.java
++++ b/server/src/main/java/com/gumtree/csagent/model/BotSession.java
+@@ -235,160 +235,174 @@ public class BotSession {
+     private String primaryEntityType;
+ 
+     @Transient
+     private String primaryEntityValue;
+ 
+     @Transient
+     @Builder.Default
+     private String issueStatusSummary = "open";
+ 
+     /**
+      * Sprint 11 §M0 — minimal same-UC task state for progressive resolve
+      * (transient). Populated each turn by {@code ControlKernel.applyRerouteDecision}
+      * from the latest {@link com.gumtree.csagent.model.ResolveDisposition}.
+      *
+      * <p>Stable token reflecting where the current task sits in the
+      * progressive-resolve lifecycle. One of:
+      * <ul>
+      *   <li>{@code in_progress} — task started, no terminal signal yet</li>
+      *   <li>{@code asked_for_slot} — bot asked the user for a missing slot
+      *       such as {@code ad_id}</li>
+      *   <li>{@code answered_subtask} — bot delivered a soft / partial answer
+      *       and is awaiting confirmation or follow-up</li>
+      *   <li>{@code ready_to_confirm} — deterministic terminal condition met</li>
+      *   <li>{@code escalate} — task should escalate</li>
+      * </ul>
+      */
+     @Transient
+     private String taskStatus;
+ 
+     /**
+      * Sprint 11 §M0 — optional pointer to the last known entity context
+      * reference (e.g. {@code listing_context_ad_id}, {@code session.ad_id}).
+      * Surfaced in the projection so the LLM avoids re-asking known
+      * information across same-UC follow-up turns.
+      */
+     @Transient
+     private String lastEntityContextRef;
+ 
+     /**
+      * Sprint 12 §N0 — runtime alignment observability slots (transient).
+      *
+      * <p>Populated each turn so the projection / trace evidence captures
+      * the latest reroute + progressive-resolve decision. They are
+      * back-compat additions: existing fields are preserved verbatim, and
+      * downstream code that ignores these slots continues to work.
+      *
+      * <p>The slots answer the audit questions enumerated in the Sprint 12
+      * objective (why did the bot stay in current UC / soft-shift /
+      * risk-shift / stay RESOLVE / allow or reject record_outcome).
+      */
+     /** Latest classifier {@code predicted_use_case}. */
+     @Transient
+     private String predictedUseCase;
+ 
+     /** Latest classifier {@code IntentRelation} token (string form). */
+     @Transient
+     private String intentRelation;
+ 
+     /** Latest decider {@code RerouteAction} token (string form). */
+     @Transient
+     private String rerouteAction;
+ 
+     /**
+      * Latest {@code transition_reason} stamped during the turn — set by
+      * {@link com.gumtree.csagent.service.runtime.ControlKernel} on a reroute
+      * decision and updated by {@code PhaseEvaluator.interpretRunResult}
+      * when the phase transitions. Surfaces the canonical reason a
+      * reviewer reads to answer "why did this turn end here".
+      */
+     @Transient
+     private String phaseTransitionReason;
+ 
+     /**
+      * Latest {@link ResolveDisposition} token (string form) — set by
+      * {@code ResolveDispositionEvaluator} via
+      * {@code PhaseEvaluator.mapFinalAnswer} on RESOLVE / FAQ plans.
+      */
+     @Transient
+     private String resolveDisposition;
+ 
++    /**
++     * Sprint 093 / S-Auto-39 — structural precondition for the RESOLVE→CONFIRM
++     * promotion. Set by {@code ControlKernel} from the persisted turn history
++     * (prior turns only) immediately before
++     * {@code PhaseEvaluator.interpretRunResult}: {@code true} when a grounded
++     * FINAL_ANSWER was delivered on a PRIOR RESOLVE turn (a persisted
++     * {@link com.gumtree.csagent.model.BotTurn} with {@code phase_after ==
++     * RESOLVE} and non-empty {@code source_ids}). {@code null}/{@code false}
++     * means no such prior answer. Transient: a kernel→evaluator per-turn
++     * signal, never persisted.
++     */
++    @Transient
++    private Boolean priorGroundedResolveAnswer;
++
+     /**
+      * Sprint 12 §N0 — terminal evidence summary for the current turn's
+      * agent run. Populated by
+      * {@link com.gumtree.csagent.service.runtime.AgentRunLoopImpl} after
+      * the loop completes. {@code true / false / null} flags answer the
+      * "why did the bot stay RESOLVE instead of CONFIRM" audit question
+      * in one place.
+      */
+     @Transient
+     private Boolean recordOutcomeAttempted;
+ 
+     @Transient
+     private Boolean recordOutcomeSucceeded;
+ 
+     /**
+      * Sprint 12 §N0 — record-outcome guard outcome for the current turn.
+      * One of {@code none / allowed / rejected:<reason>}. Populated by
+      * {@link com.gumtree.csagent.service.runtime.AgentRunLoopImpl} when
+      * the §M1 guard runs.
+      */
+     @Transient
+     private String recordOutcomeGuardResult;
+ 
+     /**
+      * Sprint 14 §L1 — turn-level source evidence lineage (transient).
+      *
+      * <p>Splits the historically-overloaded {@code sourceIds} concept into
+      * three observably-distinct slots:
+      *
+      * <ul>
+      *   <li>{@link #retrievedSourceIds} — IDs returned by every successful
+      *       {@code search_knowledge} call this turn.</li>
+      *   <li>{@link #resolvedSourceIds} — IDs that successfully passed
+      *       through {@code resolve_article} (and survived the §L0
+      *       published-safety guard).</li>
+      *   <li>{@link #citedSourceIds} — IDs detected in the customer-visible
+      *       reply by the passive {@code CitationExtractor}.</li>
+      * </ul>
+      *
+      * <p>Populated by {@code ControlKernel.recordRunResult}. Sprint 14 §L1
+      * explicitly does NOT use these fields to gate the response — they
+      * are observability material consumed by trace surfaces and the §L2
+      * grounding diagnostics.
+      */
+     @Transient
+     private String[] retrievedSourceIds;
+ 
+     @Transient
+     private String[] resolvedSourceIds;
+ 
+     @Transient
+     private String[] citedSourceIds;
+ 
+     @Transient
+     private String[] citedCanonicalUrls;
+ 
+     /**
+      * Sprint 14 §L2 — soft FAQ grounding diagnostics (transient).
+      *
+      * <p>{@link #faqGroundingState} carries a coarse-grained string token
+      * describing the grounding state of the current turn (one of
+      * {@code factual_grounded}, {@code factual_uncited},
+      * {@code factual_unresolved}, {@code factual_unretrieved},
+      * {@code non_factual}, {@code unknown}).
+      *
+      * <p>The remaining boolean slots are independently observable: a
+      * reviewer can answer "did the bot cite anything", "did the cited
+      * source come from the resolved set", "did the bot drift from the
+      * retrieved evidence", "are there resolved-but-uncited articles", and
+      * "are there retrieved-but-unresolved articles" without re-deriving
+      * any of them from the others.
+      *
+      * <p>All five fields are observability-only — Sprint 14 §L2 does not
+      * gate the response on any of them.
+      */
+     @Transient
+     private String faqGroundingState;
+ 
+     @Transient
+     private Boolean citationPresent;
+diff --git a/server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java b/server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java
+index c48833e3..22cbf6a6 100644
+--- a/server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java
++++ b/server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java
+@@ -372,160 +372,170 @@ public class ControlKernel {
+             PhasePlan plan = phaseEvaluator.plan(session, userMessage, history);
+             if (plan != null) {
+                 log.info("Session {}: routing turn through AgentRunLoop (route={}, uc={})",
+                         session.getSessionId(), routeKey, session.getActiveUseCase());
+                 AgentRunResult runResult = agentRunLoop.run(plan, session, userMessage, history);
+ 
+                 // Sprint 8.1 §M3: deterministic DISCOVER → RESOLVE phase
+                 // boundary. When the AgentRunLoop returns USE_CASE_IDENTIFIED
+                 // (classify_use_case successfully committed activeUseCase on
+                 // a DISCOVER plan), perform exactly one bounded same-turn
+                 // replan into RESOLVE. Both runs share the SAME thread-local
+                 // {@link LlmCallContext} budget, so the combined wall-clock
+                 // and HTTP-attempt budget is preserved. If the remaining
+                 // budget cannot fit a RESOLVE attempt, leave the session in
+                 // RESOLVE and return a non-terminal "looking into it"
+                 // response — the next user turn will run RESOLVE fresh.
+                 AgentRunResult discoverDiscovery = null;
+                 String effectivePhaseBefore = phaseBefore;
+                 if (runResult.terminalOutcome() == TerminalOutcome.USE_CASE_IDENTIFIED
+                         && plan.phase() != null
+                         && "DISCOVER".equalsIgnoreCase(plan.phase())) {
+                     discoverDiscovery = runResult;
+                     String committedUc = session.getActiveUseCase();
+                     log.info("Session {}: §M3 same-turn DISCOVER->RESOLVE replan candidate "
+                                     + "(committedUc={})",
+                             session.getSessionId(), committedUc);
+                     // Apply the deterministic DISCOVER -> RESOLVE transition
+                     // BEFORE the second plan() call so the new plan reflects
+                     // the new phase. {@link #applyTransition} would also
+                     // refuse to step over RESOLVE (DISCOVER -> CONFIRM is
+                     // not a legal direct transition); promoting
+                     // {@code effectivePhaseBefore} to RESOLVE keeps the
+                     // post-replan transition (e.g. RESOLVE -> CONFIRM on a
+                     // FAQ FINAL_ANSWER) inside the policy.
+                     if (controlPolicy.isValidTransition(phaseBefore, "RESOLVE")) {
+                         session.setCurrentPhase("RESOLVE");
+                         effectivePhaseBefore = "RESOLVE";
+                     }
+                     // Budget gate: a RESOLVE attempt typically needs ~3 s
+                     // connect + 12 s read + tiny buffer. Sprint 8.1 closure
+                     // follow-up (2026-05-07): only the wall-clock budget
+                     // bounds whether the same-turn replan can fit. The
+                     // per-invocation HTTP-attempt budget is re-armed at
+                     // {@link FallbackLlmClient#chat} entry, so two
+                     // successful DISCOVER calls (search_knowledge +
+                     // classify_use_case) no longer poison the RESOLVE
+                     // replan's first attempt; they only consume wall-clock.
+                     // If the remaining wall-clock cannot fit one full
+                     // attempt, skip the replan and let the user retry next
+                     // turn.
+                     Long remaining = LlmCallContext.remainingMillis();
+                     boolean budgetOk = (remaining == null
+                             || remaining >= MIN_RESOLVE_REPLAN_BUDGET_MS);
+                     if (!budgetOk) {
+                         log.info("Session {}: §M3 insufficient wall-clock budget for same-turn "
+                                         + "RESOLVE replan (remaining_ms={}, min_required_ms={}); "
+                                         + "staying in RESOLVE and returning transitional response",
+                                 session.getSessionId(), remaining,
+                                 MIN_RESOLVE_REPLAN_BUDGET_MS);
+                     } else {
+                         PhasePlan resolvePlan = phaseEvaluator.plan(session, userMessage, history);
+                         if (resolvePlan != null) {
+                             log.info("Session {}: §M3 running same-turn RESOLVE replan with plan.useCase={}",
+                                     session.getSessionId(), resolvePlan.useCase());
+                             AgentRunResult resolveRunResult =
+                                     agentRunLoop.run(resolvePlan, session, userMessage, history);
+                             // Combine tool / llm events from BOTH runs so the
+                             // persisted bot turn captures the DISCOVER tool
+                             // chain (search_knowledge, classify_use_case)
+                             // alongside the RESOLVE tool chain.
+                             runResult = mergeAgentRunResults(discoverDiscovery, resolveRunResult);
+                             plan = resolvePlan;
+                         } else {
+                             log.warn("Session {}: §M3 RESOLVE plan was null; falling back to "
+                                             + "USE_CASE_IDENTIFIED transitional response",
+                                     session.getSessionId());
+                         }
+                     }
+                 }
+ 
++                // Sprint 093 / S-Auto-39 — stash the structural precondition for
++                // the RESOLVE→CONFIRM promotion on the session before the
++                // evaluator runs: true when a grounded FINAL_ANSWER was
++                // delivered on a prior RESOLVE turn. Derived from the persisted
++                // history (prior turns only — the current turn is recorded later
++                // in recordRunResult). Threaded via a transient field rather
++                // than the interpretRunResult signature so existing
++                // mock-based callers are unaffected.
++                session.setPriorGroundedResolveAnswer(
++                        PhaseEvaluator.priorGroundedResolveAnswerDelivered(history));
+                 PhaseTransitionDecision decision =
+                         phaseEvaluator.interpretRunResult(plan, runResult, session);
+ 
+                 String phaseAfter = applyTransition(session, effectivePhaseBefore, decision);
+                 String responseText = decision.responseText();
+                 if (responseText == null) {
+                     responseText = "I'm looking into this for you. One moment please.";
+                 }
+ 
+                 // Sprint 12 §N0 — emit RESOLVE_DISPOSITION and
+                 // RECORD_OUTCOME_GUARD trace events so a reviewer can audit
+                 // why the bot stayed RESOLVE instead of CONFIRM and why
+                 // record_outcome(resolve) was allowed or rejected. Both
+                 // events are backward-compatible additions; existing
+                 // event stream consumers ignore unknown event types.
+                 emitResolveDispositionEvent(session, plan, runResult, decision,
+                         effectivePhaseBefore, phaseAfter);
+                 emitRecordOutcomeGuardEvent(session, plan, runResult);
+ 
+                 // Update lastAction for budget/loop-detection tracking. We
+                 // synthesize a key from the loop's tool events so the existing
+                 // repeated-action checks remain meaningful when the agent path
+                 // is active. (For FAQ flows this is informational only;
+                 // INTAKE flows under D16.C will rely on it for the
+                 // opening-template guard.)
+                 trackRepeatedAction(session, deriveRunResultKey(runResult));
+ 
+                 // Emit ESCALATION_REQUESTED + create runtime case BEFORE
+                 // recordRunResult so the persisted tool_calls trace can
+                 // surface create_case_controlled in the right order
+                 // (Codex 1.2 / 1.3 / phase2 §2.10.4). The legacy
+                 // PhaseEvaluator.evaluateIntake path already creates the
+                 // case before its own recordTurn; the AgentRunLoop path
+                 // used to short-circuit on request_handover without ever
+                 // creating the case, which left case_id missing from the
+                 // handover payload (cs_038 / cs_040 L2:case_id_present
+                 // failures).
+                 boolean shouldEscalate = "ESCALATE".equals(decision.nextPhase());
+                 ToolResult runtimeCaseResult = null;
+                 if (shouldEscalate) {
+                     // Sprint §A1: route the agent loop's decision through the
+                     // resolver so the budget-close fallback ``service_degraded``
+                     // never overwrites an earlier-stamped semantic reason. The
+                     // canonical winner becomes the single source of truth
+                     // surfaced to the tool call, session state, and handover
+                     // payload.
+                     String candidate = decision.escalationReason() != null
+                             ? decision.escalationReason() : "service_degraded";
+                     applyEscalationReason(session, candidate);
+                     session.setHandlingState("QUEUE_TO_HUMAN");
+                     session.setContainmentOutcome("escalated");
+                     // Sprint 8 §K0: when the AgentRunLoop ESCALATE branch fires
+                     // before any classify_use_case has committed
+                     // ``activeUseCase`` (cs_interactive_259 r2 shape: empty
+                     // form / UNKNOWN topic, FAQ-miss handover after two
+                     // search_knowledge calls returned no viable hits, no
+                     // classify call), apply the same deterministic fallback
+                     // that ``forceEscalate`` uses so the trace contract is
+                     // satisfied. The semantic escalation reason has already
+                     // been settled above; this only fills in the missing UC
+                     // slot. No-op when an UC is already committed.
+                     //
+                     // §K0 narrowing (2026-05-06): gate the fallback on
+                     // evidence that the LLM actually reasoned about the user's
+                     // problem this turn. When the loop returned ERROR (LLM
+                     // call threw / timed out / parser failure) OR produced
+                     // ZERO {@code llmEvents} AND ZERO {@code toolEvents}, the
+                     // bot did not think about the user's request — applying a
+                     // deterministic UC stamp here would silently mask an
+                     // upstream regression (Kimi timeout, network blip,
+                     // mis-configured chat budget) and let the eval trace
+                     // contract pass with a UC the agent never reasoned about.
+                     // In that case we DELIBERATELY leave {@code activeUseCase}
+                     // null so the next user turn or the trace contract
+                     // validator surfaces {@code service_degraded} /
+                     // {@code CONTRACT_VIOLATION:active_use_case} loudly. The
+                     // legacy {@link #forceEscalate} path is unaffected — it
+                     // still always applies the §B3 fallback, since
+                     // {@code forceEscalate} fires for budget / drift /
+                     // explicit-OOS escalations where there is no
+
+exec
+/bin/zsh -lc 'git show --find-renames --unified=80 033abaee -- server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-zDi1w0Nx' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-0Pojc0e6' (errno=Operation not permitted)
+commit 033abaeef074a914e2db41448fbfd7612409fdf5
+Author: Rex1028 <caoruixin@163.com>
+Date:   Thu Jun 18 18:47:58 2026 +0800
+
+    M-Auto-7 S-Auto-39 — break RESOLVE→CONFIRM/CLOSE deadlock (structural promotion)
+    
+    Sprint 093 / S-Auto-39. PRIMARY phase-transition repair so a grounded UC-A
+    RESOLVE answer can reach CONFIRM and record_outcome(resolve) can land —
+    WITHOUT relaxing the premature-resolve guard.
+    
+    Root cause (Step-0, read-only): ResolveDispositionEvaluator.evaluate() returns
+    READY_TO_CONFIRM only when a record_outcome already SUCCEEDED this run, but the
+    premature guard rejects record_outcome(resolve) outside CONFIRM/CLOSE — a
+    circular deadlock. A grounded answer stays ANSWERED_SUBTASK/RESOLVE, the loop
+    re-answers and eventually request_handover's, overwriting an earlier transient
+    "resolved" stamp with "escalated" + a mis-attributed reason (user_requested /
+    faq_miss_threshold_exceeded / turn_budget_exhausted). 13/46 deep PRIMARY draws
+    deadlock-attributable (docs/diagnostics/sprint-093-step0-escalation-attribution.md).
+    
+    Fix (PhaseEvaluator.mapFinalAnswer, RESOLVE/FAQ branch): when a grounded
+    FINAL_ANSWER was delivered on a PRIOR RESOLVE turn (persisted BotTurn with
+    phase_after==RESOLVE + non-empty source_ids) AND this subsequent user turn
+    again produces a confident grounded non-slot answer (ANSWERED_SUBTASK), promote
+    RESOLVE→CONFIRM ("progressive_resolve_confirmable") so the CONFIRM Skill can
+    record the outcome. A record_outcome rejected ONLY by the premature guard is
+    excluded from the Sprint 9 §O1 record_outcome_failed_retry loop ONLY when prior
+    grounding exists. Trigger is purely structural (turn record), no user-message
+    content heuristic. The premature guard, READY_TO_CONFIRM path, genuine-failure
+    retry, slot-request stay, and first-answer premature-collapse protection are all
+    PRESERVED. Structural signal derived in ControlKernel from persisted history and
+    threaded via a @Transient BotSession field (no interpretRunResult signature
+    change → existing mock callers unaffected).
+    
+    §3 layer: skill_state. Tier-0: none added; premature guard + §1.4 trace-contract
+    preserved. Semantic hardcode: none.
+    
+    Tests: Sprint93ResolveConfirmDeadlockTest (11) — deadlock reaches CONFIRM;
+    first answer / DISCOVER-search-only stay RESOLVE; guard still rejects in RESOLVE
+    + permits in CONFIRM/CLOSE; genuine failure retries; slot-request stays;
+    successful record keeps READY_TO_CONFIRM; helper truth-tables. Full suite
+    1394 run, 0 new regressions (1 pre-existing SystemPrompt anchor failure,
+    reproduced on clean tree, out of scope).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+diff --git a/server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java b/server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java
+new file mode 100644
+index 00000000..62fb3d95
+--- /dev/null
++++ b/server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java
+@@ -0,0 +1,365 @@
++package com.gumtree.csagent.service.runtime;
++
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.gumtree.csagent.model.AgentRunResult;
++import com.gumtree.csagent.model.BotSession;
++import com.gumtree.csagent.model.BotTurn;
++import com.gumtree.csagent.model.PhasePlan;
++import com.gumtree.csagent.model.PhaseTransitionDecision;
++import com.gumtree.csagent.model.ResolveDisposition;
++import com.gumtree.csagent.model.TerminalOutcome;
++import com.gumtree.csagent.model.ToolEvent;
++import com.gumtree.csagent.service.runtime.skill.SkillGuardrailDispatcher;
++import com.gumtree.csagent.service.runtime.skill.SkillTestFixtures;
++import org.junit.jupiter.api.Test;
++
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertNotEquals;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++/**
++ * Sprint 093 / S-Auto-39 — RESOLVE→CONFIRM deadlock characterization suite.
++ *
++ * <p>Root cause (Step-0 attribution): a grounded UC-A RESOLVE answer maps to
++ * {@link ResolveDisposition#ANSWERED_SUBTASK} and stays in RESOLVE, while
++ * {@code record_outcome(resolve)} is correctly rejected outside CONFIRM/CLOSE
++ * by the premature-resolve guard — so the session can never legitimately reach
++ * CONFIRM and the loop eventually escalates with a mis-attributed reason.
++ *
++ * <p>The PRIMARY fix is a STRUCTURAL RESOLVE→CONFIRM transition: when a
++ * grounded FINAL_ANSWER was delivered on a PRIOR RESOLVE turn (a persisted
++ * {@link BotTurn} with {@code phase_after == RESOLVE} and non-empty
++ * {@code source_ids}) AND a subsequent user turn produces another confident
++ * grounded non-slot answer, the runtime enters CONFIRM so the CONFIRM Skill
++ * can record the outcome. The premature guard is PRESERVED; no user-message
++ * content is inspected.
++ *
++ * <p>This suite pins:
++ * <ol>
++ *   <li>deadlock shape now reaches CONFIRM (records become possible);</li>
++ *   <li>a genuinely premature record (RESOLVE, NO prior grounded answer /
++ *       no subsequent user turn) still stays in RESOLVE and is still rejected
++ *       by the guard;</li>
++ *   <li>no early-CLOSE (promotion targets CONFIRM, never CLOSE), genuine
++ *       record_outcome failures still retry, slot-requests still stay, and a
++ *       successful record still earns the unchanged READY_TO_CONFIRM path.</li>
++ * </ol>
++ */
++class Sprint93ResolveConfirmDeadlockTest {
++
++    private final ObjectMapper objectMapper = new ObjectMapper();
++
++    // ── fixtures ──────────────────────────────────────────────────
++
++    private PhaseEvaluator realEvaluator() {
++        return new PhaseEvaluator(
++                org.mockito.Mockito.mock(UseCaseRegistryService.class),
++                org.mockito.Mockito.mock(com.gumtree.csagent.service.knowledge.KnowledgeSearchService.class),
++                org.mockito.Mockito.mock(com.gumtree.csagent.service.guardrails.ScriptLibraryService.class),
++                org.mockito.Mockito.mock(LlmInvocationService.class),
++                org.mockito.Mockito.mock(ContextProjectionBuilder.class),
++                org.mockito.Mockito.mock(ActionParser.class),
++                objectMapper,
++                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.CreateCaseControlledTool.class),
++                org.mockito.Mockito.mock(com.gumtree.csagent.service.observability.EventEmitter.class),
++                org.mockito.Mockito.mock(com.gumtree.csagent.service.tools.ToolDispatcher.class),
++                SkillTestFixtures.productionRegistry(), null);
++    }
++
++    private static PhasePlan faqResolvePlan() {
++        return PhasePlan.builder()
++                .phase("RESOLVE")
++                .useCase("UC-A")
++                .objective("test")
++                .allowedTools(List.of(
++                        "search_knowledge", "resolve_article",
++                        "record_outcome", "request_handover"))
++                .maxToolSteps(4)
++                .validTerminalOutcomes(Set.of(
++                        TerminalOutcome.FINAL_ANSWER,
++                        TerminalOutcome.CLARIFICATION_NEEDED,
++                        TerminalOutcome.ESCALATE))
++                .build();
++    }
++
++    private static BotSession resolveSession() {
++        BotSession s = new BotSession();
++        s.setSessionId("sess-deadlock");
++        s.setCurrentPhase("RESOLVE");
++        s.setActiveUseCase("UC-A");
++        s.setFormTopicSubject("Ad Support");
++        s.setFormContext("{\"description\":\"can't find my ad\"}");
++        return s;
++    }
++
++    /** A persisted prior turn that delivered a grounded answer and stayed in RESOLVE. */
++    private static BotTurn priorGroundedResolveTurn() {
++        return BotTurn.builder()
++                .turnId("t-prior")
++                .sessionId("sess-deadlock")
++                .turnIndex(0)
++                .userMessage("I can't see my advert anymore.")
++                .botResponse("Your advert was removed for a policy violation; check your email.")
++                .sourceIds(new String[]{"ka44J000000gKv5QAE"})
++                .phaseBefore("RESOLVE")
++                .phaseAfter("RESOLVE")
++                .activeUseCase("UC-A")
++                .build();
++    }
++
++    /** A prior DISCOVER turn that ran search_knowledge while clarifying (NOT an answer). */
++    private static BotTurn priorDiscoverSearchTurn() {
++        return BotTurn.builder()
++                .turnId("t-discover")
++                .sessionId("sess-deadlock")
++                .turnIndex(0)
++                .userMessage("hi I can't find my advert")
++                .botResponse("Could you tell me a bit more about your ad?")
++                .sourceIds(new String[]{"ka44J000000gKv5QAE"})
++                .phaseBefore("DISCOVER")
++                .phaseAfter("DISCOVER")
++                .activeUseCase("UC-A")
++                .build();
++    }
++
++    private static AgentRunResult groundedAnswer(String text, List<ToolEvent> toolEvents) {
++        return AgentRunResult.finalAnswer(text, List.of(), toolEvents, null, null);
++    }
++
++    /**
++     * Mirror the kernel wiring: derive the structural precondition from the
++     * persisted history via the real static helper, stash it on the session
++     * transient, then invoke the 3-arg evaluator entry point.
++     */
++    private static PhaseTransitionDecision interpret(PhaseEvaluator evaluator,
++                                                     PhasePlan plan,
++                                                     AgentRunResult result,
++                                                     BotSession session,
++                                                     List<BotTurn> history) {
++        session.setPriorGroundedResolveAnswer(
++                PhaseEvaluator.priorGroundedResolveAnswerDelivered(history));
++        return evaluator.interpretRunResult(plan, result, session);
++    }
++
++    private static ToolEvent prematureRejectedRecordOutcome() {
++        return new ToolEvent(0, 0, "record_outcome",
++                Map.of("outcome_class", "resolve"),
++                false, null,
++                SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON, 0L);
++    }
++
++    private static final String GROUNDED_TEXT =
++            "Your advert was removed for a policy violation. "
++                    + "Check your email and spam folder for the notification.";
++
++    // ── 1. Deadlock recovers ──────────────────────────────────────
++
++    @Test
++    void deadlockShape_priorGroundedAnswer_plusPrematureRejectedRecord_reachesConfirm() {
++        // The canonical deadlock turn: a grounded answer was delivered on a
++        // prior RESOLVE turn, the user has come back, the bot re-delivers a
++        // grounded non-slot answer AND its record_outcome(resolve) is rejected
++        // ONLY by the premature guard. The runtime must now enter CONFIRM so
++        // the record can land on the CONFIRM turn.
++        PhaseEvaluator evaluator = realEvaluator();
++        AgentRunResult result = groundedAnswer(GROUNDED_TEXT,
++                List.of(prematureRejectedRecordOutcome()));
++
++        PhaseTransitionDecision decision = interpret(
++                evaluator, faqResolvePlan(), result, resolveSession(), List.of(priorGroundedResolveTurn()));
++
++        assertEquals("CONFIRM", decision.nextPhase(),
++                "A grounded answer re-delivered after a prior grounded RESOLVE turn must "
++                        + "promote RESOLVE -> CONFIRM so record_outcome can land.");
++        assertEquals("progressive_resolve_confirmable", decision.transitionReason());
++        assertNotEquals("CLOSE", decision.nextPhase(),
++                "The structural promotion must target CONFIRM, never CLOSE (no early-close).");
++    }
++
++    @Test
++    void deadlockShape_priorGroundedAnswer_groundedAnswerWithoutRecordAttempt_reachesConfirm() {
++        // Same structural precondition but the bot did NOT retry record_outcome
++        // this turn (it simply re-answered). The promotion is independent of
++        // whether record_outcome was attempted.
++        PhaseEvaluator evaluator = realEvaluator();
++        AgentRunResult result = groundedAnswer(GROUNDED_TEXT, List.of());
++
++        PhaseTransitionDecision decision = interpret(
++                evaluator, faqResolvePlan(), result, resolveSession(), List.of(priorGroundedResolveTurn()));
++
++        assertEquals("CONFIRM", decision.nextPhase());
++        assertEquals("progressive_resolve_confirmable", decision.transitionReason());
++    }
++
++    // ── 2. Premature record / first answer still protected ────────
++
++    @Test
++    void firstGroundedAnswer_noPriorGroundedTurn_withRecordAttempt_staysResolve() {
++        // The FIRST grounded answer turn (empty history = no subsequent user
++        // turn yet) that also attempts record_outcome must still stay in
++        // RESOLVE via the unchanged Sprint 9 §O1 retry path. This is the
++        // premature-collapse protection: a grounded answer cannot reach
++        // CONFIRM on the same turn it first forms.
++        PhaseEvaluator evaluator = realEvaluator();
++        AgentRunResult result = groundedAnswer(GROUNDED_TEXT,
++                List.of(prematureRejectedRecordOutcome()));
++
++        PhaseTransitionDecision decision = interpret(
++                evaluator, faqResolvePlan(), result, resolveSession(), List.of());
++
++        assertEquals("RESOLVE", decision.nextPhase(),
++                "A grounded answer with no prior grounded RESOLVE turn must NOT reach CONFIRM.");
++        assertEquals("record_outcome_failed_retry", decision.transitionReason());
++    }
++
++    @Test
++    void firstGroundedAnswer_noPriorGroundedTurn_noRecordAttempt_staysResolveProgressive() {
++        // First grounded answer, no record_outcome attempt, empty history.
++        // Unchanged ANSWERED_SUBTASK -> progressive_resolve_stay.
++        PhaseEvaluator evaluator = realEvaluator();
++        AgentRunResult result = groundedAnswer(GROUNDED_TEXT, List.of());
++
++        PhaseTransitionDecision decision = interpret(
++                evaluator, faqResolvePlan(), result, resolveSession(), List.of());
++
++        assertEquals("RESOLVE", decision.nextPhase());
++        assertEquals("progressive_resolve_stay", decision.transitionReason());
++    }
++
++    @Test
++    void priorDiscoverSearchTurn_doesNotCountAsPriorGroundedAnswer_staysResolve() {
++        // A prior DISCOVER turn that merely ran search_knowledge while
++        // clarifying (phase_after == DISCOVER) is NOT a delivered grounded
++        // answer, so the first RESOLVE answer must still stay in RESOLVE.
++        PhaseEvaluator evaluator = realEvaluator();
++        AgentRunResult result = groundedAnswer(GROUNDED_TEXT, List.of());
++
++        PhaseTransitionDecision decision = interpret(
++                evaluator, faqResolvePlan(), result, resolveSession(), List.of(priorDiscoverSearchTurn()));
++
++        assertEquals("RESOLVE", decision.nextPhase(),
++                "Prior retrieval alone (DISCOVER search) must not satisfy the "
++                        + "prior-grounded-answer precondition.");
++        assertEquals("progressive_resolve_stay", decision.transitionReason());
++    }
++
++    @Test
++    void prematureGuard_intact_rejectsResolveInResolve_allowsInConfirm() {
++        // The premature-resolve guard itself is UNTOUCHED: record_outcome(resolve)
++        // is still rejected in RESOLVE and still permitted in CONFIRM/CLOSE.
++        PhasePlan plan = faqResolvePlan();
++        assertTrue(ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
++                        plan, "RESOLVE", "resolve"),
++                "record_outcome(resolve) in RESOLVE must still be rejected.");
++        assertFalse(ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
++                        plan, "CONFIRM", "resolve"),
++                "record_outcome(resolve) in CONFIRM must still be permitted.");
++        assertFalse(ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
++                        plan, "CLOSE", "resolve"),
++                "record_outcome(resolve) in CLOSE must still be permitted.");
++    }
++
++    // ── 3. Anti-误杀 / no-collateral cases ─────────────────────────
++
++    @Test
++    void slotRequestAnswer_withPriorGroundedTurn_staysResolve() {
++        // Even with a prior grounded answer, a turn where the bot ASKS for the
++        // advert ID (ASKED_FOR_SLOT) must NOT be promoted to CONFIRM — the bot
++        // is still working the issue, not confirming a resolution.
++        PhaseEvaluator evaluator = realEvaluator();
++        AgentRunResult slotRequest = groundedAnswer(
++                "Here is how to find your ad. Send the advert ID if you want me to check it.",
++                List.of());
++
++        PhaseTransitionDecision decision = interpret(
++                evaluator, faqResolvePlan(), slotRequest, resolveSession(), List.of(priorGroundedResolveTurn()));
++
++        assertEquals("RESOLVE", decision.nextPhase(),
++                "A slot-request answer must stay in RESOLVE even with prior grounding.");
++        assertEquals("progressive_resolve_stay", decision.transitionReason());
++    }
++
++    @Test
++    void genuineRecordOutcomeFailure_withPriorGroundedTurn_stillRetriesInResolve() {
++        // A GENUINE (non-premature) record_outcome failure — e.g. a persistence
++        // error — must still route to the unchanged Sprint 9 §O1
++        // record_outcome_failed_retry path, NOT the structural promotion. The
++        // promotion is reserved for premature-guard rejections.
++        PhaseEvaluator evaluator = realEvaluator();
++        ToolEvent genuineFailure = new ToolEvent(0, 0, "record_outcome",
++                Map.of("outcome_class", "resolve"),
++                false, null, "record_outcome_persistence_error", 0L);
++        AgentRunResult result = groundedAnswer(GROUNDED_TEXT, List.of(genuineFailure));
++
++        PhaseTransitionDecision decision = interpret(
++                evaluator, faqResolvePlan(), result, resolveSession(), List.of(priorGroundedResolveTurn()));
++
++        assertEquals("RESOLVE", decision.nextPhase(),
++                "A genuine record_outcome failure must keep the Sprint 9 §O1 retry behaviour.");
++        assertEquals("record_outcome_failed_retry", decision.transitionReason());
++    }
++
++    @Test
++    void successfulRecordOutcome_unchangedReadyToConfirmPath() {
++        // A SUCCESSFUL record_outcome on this run still earns the original
++        // READY_TO_CONFIRM -> CONFIRM "answer_provided" path (not the new
++        // structural-promotion reason). No double-path / double-record.
++        PhaseEvaluator evaluator = realEvaluator();
++        ToolEvent successfulRecord = new ToolEvent(0, 0, "record_outcome",
++                Map.of("outcome_class", "resolve"),
++                true, Map.of("ok", true), null, 5L);
++        AgentRunResult result = groundedAnswer("All set. Glad I could help.",
++                List.of(successfulRecord));
++
++        PhaseTransitionDecision decision = interpret(
++                evaluator, faqResolvePlan(), result, resolveSession(), List.of(priorGroundedResolveTurn()));
++
++        assertEquals("CONFIRM", decision.nextPhase());
++        assertEquals("answer_provided", decision.transitionReason(),
++                "A successful record must keep the READY_TO_CONFIRM path, not the "
++                        + "structural promotion reason.");
++    }
++
++    // ── 4. Helper unit coverage ───────────────────────────────────
++
++    @Test
++    void recordOutcomeRejectedOnlyByPrematureGuard_truthTable() {
++        assertTrue(PhaseEvaluator.recordOutcomeRejectedOnlyByPrematureGuard(
++                        groundedAnswer(GROUNDED_TEXT, List.of(prematureRejectedRecordOutcome()))),
++                "premature-only rejection -> true");
++        assertFalse(PhaseEvaluator.recordOutcomeRejectedOnlyByPrematureGuard(
++                        groundedAnswer(GROUNDED_TEXT, List.of(new ToolEvent(0, 0, "record_outcome",
++                                Map.of("outcome_class", "resolve"), false, null,
++                                "some_other_error", 0L)))),
++                "non-premature failure -> false");
++        assertFalse(PhaseEvaluator.recordOutcomeRejectedOnlyByPrematureGuard(
++                        groundedAnswer(GROUNDED_TEXT, List.of(new ToolEvent(0, 0, "record_outcome",
++                                Map.of("outcome_class", "resolve"), true, Map.of("ok", true), null, 0L)))),
++                "successful record -> false");
++        assertFalse(PhaseEvaluator.recordOutcomeRejectedOnlyByPrematureGuard(
++                        groundedAnswer(GROUNDED_TEXT, List.of())),
++                "no record_outcome attempt -> false");
++    }
++
++    @Test
++    void priorGroundedResolveAnswerDelivered_truthTable() {
++        assertTrue(PhaseEvaluator.priorGroundedResolveAnswerDelivered(
++                        List.of(priorGroundedResolveTurn())),
++                "RESOLVE turn with source_ids -> true");
++        assertFalse(PhaseEvaluator.priorGroundedResolveAnswerDelivered(
++                        List.of(priorDiscoverSearchTurn())),
++                "DISCOVER search turn -> false");
++        assertFalse(PhaseEvaluator.priorGroundedResolveAnswerDelivered(List.of()),
++                "empty history -> false");
++        // RESOLVE turn but no grounding (sourceIds null) -> false
++        BotTurn ungrounded = BotTurn.builder().turnId("t").sessionId("s").turnIndex(0)
++                .phaseAfter("RESOLVE").build();
++        assertFalse(PhaseEvaluator.priorGroundedResolveAnswerDelivered(List.of(ungrounded)),
++                "RESOLVE turn without source_ids -> false");
++    }
++}
+
+codex
+The diff adds the promotion in `PhaseEvaluator`, a transient session flag, and tests. I’m checking the disposition evaluator and guard constant now because the promotion depends on `ANSWERED_SUBTASK` and the exact premature-rejection reason.
+exec
+/bin/zsh -lc "nl -ba server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java | sed -n '620,820p'" in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+   620	            case MAX_STEPS: {
+   621	                // Codex 1.9: ``turn_budget_exhausted`` masks the more specific
+   622	                // semantic reason. When the agent loop ran out of steps it is
+   623	                // almost always one of:
+   624	                //   - FAQ plans where retrieval did not return a usable answer
+   625	                //     after multiple search_knowledge attempts → faq_miss_threshold_exceeded
+   626	                //   - DISCOVER / RESOLVE plans where the agent kept asking the
+   627	                //     user clarifying questions but never converged → clarification_budget_exhausted
+   628	                //   - INTAKE plans where required fields could not be collected
+   629	                //     → incomplete_intake
+   630	                // Fall back to ``turn_budget_exhausted`` only when none of the
+   631	                // above apply.
+   632	                String maxStepsReason = resolveMaxStepsReason(plan, result, session);
+   633	                return new PhaseTransitionDecision("ESCALATE",
+   634	                        "I'm having difficulty resolving this. Let me connect you with a specialist.",
+   635	                        maxStepsReason,
+   636	                        "max_steps_exceeded");
+   637	            }
+   638	            case ERROR: {
+   639	                // Step 3b: tolerate transient runtime errors. Only escalate on
+   640	                // the *second* consecutive ERROR within the same phase; the
+   641	                // first one stays in the current phase with a brief retry
+   642	                // message so the next user turn re-runs the agent loop. The
+   643	                // counter is reset above on any non-ERROR outcome.
+   644	                int errCount = (session != null && session.getRuntimeErrorCount() != null)
+   645	                        ? session.getRuntimeErrorCount() : 0;
+   646	                errCount += 1;
+   647	                if (session != null) {
+   648	                    session.setRuntimeErrorCount(errCount);
+   649	                }
+   650	                if (errCount < 2) {
+   651	                    String retryPhase = fromPhase != null ? fromPhase : "RESOLVE";
+   652	                    String retryMsg = result.finalUserMessage() != null
+   653	                            ? result.finalUserMessage()
+   654	                            : "Let me try that again.";
+   655	                    return new PhaseTransitionDecision(retryPhase, retryMsg, null,
+   656	                            "agent_error_retry");
+   657	                }
+   658	                return new PhaseTransitionDecision("ESCALATE",
+   659	                        "I'm experiencing repeated technical issues. Let me connect you with a specialist.",
+   660	                        "runtime_error_threshold",
+   661	                        "agent_error");
+   662	            }
+   663	            case DEADLINE_EXCEEDED: {
+   664	                // Sprint 8.1 §M2: an honest slow response. We do NOT escalate
+   665	                // — escalation here would be a fake business handover that
+   666	                // hides the real infra failure. The session stays in the
+   667	                // current phase with shouldEndChat=false so the user can
+   668	                // retry on their next message. The K0 fallback gate detects
+   669	                // this terminal outcome too and refuses to stamp a synthetic
+   670	                // UC.
+   671	                //
+   672	                // Sprint 24 Track A: cross-turn placeholder coalesce. Two
+   673	                // consecutive DEADLINE_EXCEEDED outcomes used to emit
+   674	                // byte-identical placeholder text on every deadline turn,
+   675	                // which reads as a stuck loop and which the runtime
+   676	                // loop-detector flags. Mirror the V12 runtime_error_count
+   677	                // shape: increment a per-session counter (reset above on any
+   678	                // non-deadline outcome); on the first consecutive deadline
+   679	                // emit the existing placeholder; on the second emit a
+   680	                // distinct honest next-step message naming the slowness and
+   681	                // offering an actionable next step. Trigger is the
+   682	                // event-shape (count of consecutive DEADLINE_EXCEEDED
+   683	                // outcomes), NOT anything in the user's content. The
+   684	                // transition tag remains agent_deadline_exceeded for both
+   685	                // branches; the bot does NOT auto-call request_handover.
+   686	                int deadlineCount = (session != null
+   687	                        && session.getConsecutiveDeadlineCount() != null)
+   688	                        ? session.getConsecutiveDeadlineCount() : 0;
+   689	                deadlineCount += 1;
+   690	                if (session != null) {
+   691	                    session.setConsecutiveDeadlineCount(deadlineCount);
+   692	                }
+   693	                String slowStayPhase = fromPhase != null ? fromPhase : "DISCOVER";
+   694	                String deadlineMsg = (deadlineCount < 2)
+   695	                        ? "Sorry, I'm a bit slow right now. Please try sending that again in a moment."
+   696	                        : "I'm still having trouble responding in time. "
+   697	                                + "If you'd like, I can connect you with a specialist, "
+   698	                                + "or you can try again in a few minutes.";
+   699	                return new PhaseTransitionDecision(slowStayPhase, deadlineMsg, null,
+   700	                        "agent_deadline_exceeded");
+   701	            }
+   702	            case LLM_UNAVAILABLE: {
+   703	                // Sprint 8.1 §M2: an honest unavailable response. Same
+   704	                // posture as DEADLINE_EXCEEDED above (no fake handover, stay
+   705	                // in current phase). Sprint 24 Track A is scoped to
+   706	                // DEADLINE_EXCEEDED only; LLM_UNAVAILABLE is intentionally
+   707	                // left unchanged (a possible future coalesce here belongs in
+   708	                // its own R-item).
+   709	                String slowStayPhase = fromPhase != null ? fromPhase : "DISCOVER";
+   710	                String userMsg = "Sorry, I'm having trouble reaching the assistant right now. "
+   711	                        + "Please try again in a moment.";
+   712	                return new PhaseTransitionDecision(slowStayPhase, userMsg, null,
+   713	                        "agent_llm_unavailable");
+   714	            }
+   715	            case USE_CASE_IDENTIFIED: {
+   716	                // Sprint 8.1 §M3: deterministic DISCOVER → RESOLVE phase
+   717	                // boundary. The AgentRunLoop returned this outcome
+   718	                // immediately after a successful classify_use_case call
+   719	                // committed session.activeUseCase. There is no escalation
+   720	                // reason and no synthetic request_handover; the same-turn
+   721	                // RESOLVE replan in {@link ControlKernel} owns the actual
+   722	                // user-facing reply. We surface a transitional placeholder
+   723	                // here purely as a defensive default — ControlKernel
+   724	                // discards this text once the RESOLVE replan runs.
+   725	                return new PhaseTransitionDecision("RESOLVE",
+   726	                        "I'm looking into this for you.",
+   727	                        null, "uc_identified");
+   728	            }
+   729	            default:
+   730	                throw new IllegalStateException("Unknown terminal outcome: " + outcome);
+   731	        }
+   732	    }
+   733	
+   734	    /**
+   735	     * Sprint 9 §O1 — terminal-state honesty: true when the agent run
+   736	     * attempted at least one {@code record_outcome} dispatch and EVERY
+   737	     * such attempt failed (no successful one). Used by
+   738	     * {@link #mapFinalAnswer} to keep the session in RESOLVE so the LLM
+   739	     * can retry on the next user turn. Returns false when no
+   740	     * {@code record_outcome} attempt was made (the LLM may have answered
+   741	     * directly without persisting an outcome — that path is unchanged).
+   742	     */
+   743	    static boolean recordOutcomeAttemptedAndFailed(AgentRunResult result) {
+   744	        if (result == null || result.toolEvents() == null) return false;
+   745	        boolean attempted = false;
+   746	        boolean anySuccess = false;
+   747	        for (ToolEvent te : result.toolEvents()) {
+   748	            if ("record_outcome".equals(te.toolName())) {
+   749	                attempted = true;
+   750	                if (te.success()) {
+   751	                    anySuccess = true;
+   752	                    break;
+   753	                }
+   754	            }
+   755	        }
+   756	        return attempted && !anySuccess;
+   757	    }
+   758	
+   759	    /**
+   760	     * Sprint 093 / S-Auto-39 — true when the agent run attempted
+   761	     * {@code record_outcome}, none succeeded, AND every failed attempt was
+   762	     * rejected by the premature-resolve guard
+   763	     * ({@code progressive_resolve_record_outcome_premature}). This isolates a
+   764	     * STRUCTURAL guard rejection — which can never succeed while the phase is
+   765	     * RESOLVE, so retrying in RESOLVE loops forever — from a GENUINE /
+   766	     * transient {@code record_outcome} failure (e.g. a persistence error),
+   767	     * which the Sprint 9 §O1 {@code record_outcome_failed_retry} path must
+   768	     * still keep in RESOLVE. Returns false when no {@code record_outcome} was
+   769	     * attempted, when one succeeded, or when any failure carried a
+   770	     * non-premature error message.
+   771	     */
+   772	    static boolean recordOutcomeRejectedOnlyByPrematureGuard(AgentRunResult result) {
+   773	        if (result == null || result.toolEvents() == null) return false;
+   774	        boolean attempted = false;
+   775	        for (ToolEvent te : result.toolEvents()) {
+   776	            if (!"record_outcome".equals(te.toolName())) continue;
+   777	            attempted = true;
+   778	            if (te.success()) return false;
+   779	            if (!SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON
+   780	                    .equals(te.errorMessage())) {
+   781	                return false;
+   782	            }
+   783	        }
+   784	        return attempted;
+   785	    }
+   786	
+   787	    /**
+   788	     * Sprint 093 / S-Auto-39 — true when a grounded FINAL_ANSWER was delivered
+   789	     * on a PRIOR turn that stayed in RESOLVE. Structural signal derived purely
+   790	     * from the durable turn record: a persisted {@link BotTurn} with
+   791	     * {@code phase_after == RESOLVE} and non-empty {@code source_ids} is a
+   792	     * grounded RESOLVE answer that did not (yet) advance the phase. The
+   793	     * {@code phase_after == RESOLVE} filter excludes DISCOVER turns that merely
+   794	     * ran {@code search_knowledge} while clarifying (those persist
+   795	     * {@code phase_after == DISCOVER}), so prior RETRIEVAL alone does not
+   796	     * satisfy the precondition — only a prior delivered grounded ANSWER does.
+   797	     * No user-message content is inspected.
+   798	     */
+   799	    static boolean priorGroundedResolveAnswerDelivered(List<BotTurn> history) {
+   800	        if (history == null) return false;
+   801	        for (BotTurn t : history) {
+   802	            if (t == null) continue;
+   803	            if (!"RESOLVE".equalsIgnoreCase(t.getPhaseAfter())) continue;
+   804	            String[] sids = t.getSourceIds();
+   805	            if (sids != null && sids.length > 0) {
+   806	                return true;
+   807	            }
+   808	        }
+   809	        return false;
+   810	    }
+   811	
+   812	    /**
+   813	     * Phase-aware mapping for {@link TerminalOutcome#FINAL_ANSWER}. RESOLVE/FAQ
+   814	     * → CONFIRM, RESOLVE/INTAKE → stay in RESOLVE (clarification), DISCOVER →
+   815	     * RESOLVE if a UC has been committed (otherwise stay in DISCOVER), CONFIRM
+   816	     * → CLOSE (user satisfied), CLOSE → CLOSE, ESCALATE → ESCALATE.
+   817	     */
+   818	    private PhaseTransitionDecision mapFinalAnswer(PhasePlan plan,
+   819	                                                    AgentRunResult result,
+   820	                                                    BotSession session,
+
+exec
+/bin/zsh -lc "nl -ba server/src/main/java/com/gumtree/csagent/service/runtime/ResolveDispositionEvaluator.java | sed -n '1,260p'" in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+     1	package com.gumtree.csagent.service.runtime;
+     2	
+     3	import com.gumtree.csagent.model.AgentRunResult;
+     4	import com.gumtree.csagent.model.PhasePlan;
+     5	import com.gumtree.csagent.model.ResolveDisposition;
+     6	import com.gumtree.csagent.model.TerminalOutcome;
+     7	import com.gumtree.csagent.model.ToolEvent;
+     8	
+     9	import java.util.Locale;
+    10	import java.util.regex.Pattern;
+    11	
+    12	/**
+    13	 * Sprint 11 §M1 — translate an {@link AgentRunResult} on a RESOLVE/FAQ
+    14	 * plan into a {@link ResolveDisposition} so the kernel does not collapse
+    15	 * every grounded answer into {@code RESOLVE → CONFIRM → record_outcome}
+    16	 * on the same turn.
+    17	 *
+    18	 * <p>The evaluator is deterministic and tolerant: nullable / blank
+    19	 * inputs default to {@link ResolveDisposition#CONTINUE_RESOLVE}.
+    20	 *
+    21	 * <p>Decision order (RESOLVE / FAQ plan only):
+    22	 * <ol>
+    23	 *   <li>{@code TerminalOutcome.ESCALATE} → {@link ResolveDisposition#ESCALATE}.</li>
+    24	 *   <li>{@code TerminalOutcome.CLARIFICATION_NEEDED} → {@link ResolveDisposition#ASKED_FOR_SLOT}.</li>
+    25	 *   <li>{@code TerminalOutcome.FINAL_ANSWER} —
+    26	 *     <ul>
+    27	 *       <li>If the bot text is a clarifying question or a soft next-step
+    28	 *           shape ("send the advert ID", "if you can share", "share the
+    29	 *           ad id"), the bot ASKED for a slot — return
+    30	 *           {@link ResolveDisposition#ASKED_FOR_SLOT}.</li>
+    31	 *       <li>If deterministic terminal evidence exists — a successful
+    32	 *           {@code record_outcome} call on this run — return
+    33	 *           {@link ResolveDisposition#READY_TO_CONFIRM}.</li>
+    34	 *       <li>Otherwise (a non-question / non-slot-request grounded
+    35	 *           answer such as "Your advert is active for 30 days from
+    36	 *           posting"), the bot answered a same-UC subtask but has not
+    37	 *           earned a hard CONFIRM — return
+    38	 *           {@link ResolveDisposition#ANSWERED_SUBTASK} so the session
+    39	 *           stays in RESOLVE.</li>
+    40	 *     </ul>
+    41	 *   </li>
+    42	 *   <li>Anything else (MAX_STEPS, ERROR, USE_CASE_IDENTIFIED, etc.) →
+    43	 *       {@link ResolveDisposition#CONTINUE_RESOLVE}.</li>
+    44	 * </ol>
+    45	 *
+    46	 * <p>Sprint 11.1 closure — the previous iteration defaulted any
+    47	 * non-slot FINAL_ANSWER to {@link ResolveDisposition#READY_TO_CONFIRM},
+    48	 * which let UC-A same-UC follow-up answers (listing expiry / status,
+    49	 * messaging diagnostics) collapse RESOLVE → CONFIRM without a
+    50	 * deterministic terminal marker. The current contract requires
+    51	 * deterministic terminal evidence — successful {@code record_outcome}
+    52	 * dispatch on this turn — before READY_TO_CONFIRM is returned.
+    53	 */
+    54	public final class ResolveDispositionEvaluator {
+    55	
+    56	    /**
+    57	     * Soft next-step / asked-for-slot phrases used in FAQ-grounded bot
+    58	     * answers when the bot wants the user to share an entity (e.g.
+    59	     * {@code ad_id}) but is not yet ready to confirm resolution.
+    60	     * Matched case-insensitively.
+    61	     */
+    62	    private static final Pattern SOFT_NEXT_STEP_PATTERN = Pattern.compile(
+    63	            "\\b("
+    64	                    + "send\\s+(?:me\\s+)?(?:the\\s+|your\\s+)?(?:ad(?:vert)?[-\\s]?id|advert\\s+id|ad\\s+id|listing\\s+id)"
+    65	                    + "|share\\s+(?:the\\s+|your\\s+)?(?:ad(?:vert)?[-\\s]?id|advert\\s+id|ad\\s+id|listing\\s+id)"
+    66	                    + "|provide\\s+(?:the\\s+|your\\s+)?(?:ad(?:vert)?[-\\s]?id|advert\\s+id|ad\\s+id|listing\\s+id)"
+    67	                    + "|let\\s+me\\s+know\\s+(?:the\\s+|your\\s+)?(?:ad(?:vert)?[-\\s]?id|advert\\s+id|ad\\s+id|listing\\s+id)"
+    68	                    + "|if\\s+you\\s+(?:can|could|want)\\s+(?:me\\s+to\\s+)?(?:check|look|share)"
+    69	                    + "|would\\s+you\\s+like\\s+me\\s+to"
+    70	                    + "|do\\s+you\\s+want\\s+me\\s+to\\s+check"
+    71	                    + "|let\\s+me\\s+know\\s+if"
+    72	                    + ")\\b",
+    73	            Pattern.CASE_INSENSITIVE);
+    74	
+    75	    /** Question shapes treated as clarification / slot-request follow-ups. */
+    76	    private static final Pattern CLARIFYING_QUESTION_PATTERN = Pattern.compile(
+    77	            "\\b("
+    78	                    + "could\\s+you|can\\s+you\\s+tell|what\\s+is|which\\s+|do\\s+you\\s+have"
+    79	                    + "|please\\s+share|please\\s+send|please\\s+provide"
+    80	                    + ")\\b",
+    81	            Pattern.CASE_INSENSITIVE);
+    82	
+    83	    private ResolveDispositionEvaluator() {
+    84	        // static-only helper
+    85	    }
+    86	
+    87	    /**
+    88	     * Pin the disposition for a RESOLVE / FAQ plan turn.
+    89	     *
+    90	     * <p>The evaluator only fires on RESOLVE plans for FAQ-class UCs.
+    91	     * INTAKE plans, DISCOVER, CONFIRM, and CLOSE keep their existing
+    92	     * mappings; passing them in returns {@link ResolveDisposition#CONTINUE_RESOLVE}
+    93	     * defensively.
+    94	     */
+    95	    public static ResolveDisposition evaluate(PhasePlan plan, AgentRunResult result) {
+    96	        if (result == null) {
+    97	            return ResolveDisposition.CONTINUE_RESOLVE;
+    98	        }
+    99	        if (!isResolveFaqPlan(plan)) {
+   100	            return ResolveDisposition.CONTINUE_RESOLVE;
+   101	        }
+   102	        TerminalOutcome outcome = result.terminalOutcome();
+   103	        if (outcome == null) {
+   104	            return ResolveDisposition.CONTINUE_RESOLVE;
+   105	        }
+   106	        switch (outcome) {
+   107	            case ESCALATE:
+   108	                return ResolveDisposition.ESCALATE;
+   109	            case CLARIFICATION_NEEDED:
+   110	                return ResolveDisposition.ASKED_FOR_SLOT;
+   111	            case FINAL_ANSWER: {
+   112	                String text = safeLower(result.finalUserMessage());
+   113	                boolean asksForSlot = text != null
+   114	                        && (text.trim().endsWith("?")
+   115	                                || CLARIFYING_QUESTION_PATTERN.matcher(text).find()
+   116	                                || SOFT_NEXT_STEP_PATTERN.matcher(text).find());
+   117	                if (asksForSlot) {
+   118	                    return ResolveDisposition.ASKED_FOR_SLOT;
+   119	                }
+   120	                // Sprint 11.1 — require deterministic terminal evidence
+   121	                // before READY_TO_CONFIRM. A non-question, non-slot
+   122	                // FAQ-grounded final answer (e.g. "Your advert is active
+   123	                // for 30 days from posting.") is a same-UC subtask
+   124	                // answer, NOT a hard close: it does not by itself prove
+   125	                // the user accepted the answer or that the session
+   126	                // outcome was recorded. Only a successful
+   127	                // {@code record_outcome} dispatch on this run earns the
+   128	                // RESOLVE → CONFIRM transition. The Sprint 9 §O1
+   129	                // record-outcome failure-retry path is upstream of this
+   130	                // evaluator and continues to keep failed-record_outcome
+   131	                // turns in RESOLVE via
+   132	                // {@code PhaseEvaluator#recordOutcomeAttemptedAndFailed}.
+   133	                if (recordOutcomeSucceededThisRun(result)) {
+   134	                    return ResolveDisposition.READY_TO_CONFIRM;
+   135	                }
+   136	                return ResolveDisposition.ANSWERED_SUBTASK;
+   137	            }
+   138	            default:
+   139	                return ResolveDisposition.CONTINUE_RESOLVE;
+   140	        }
+   141	    }
+   142	
+   143	    /**
+   144	     * Sprint 11 §M1 — record-outcome guard. Returns true when the LLM
+   145	     * asks to {@code record_outcome(outcome_class=resolve)} during
+   146	     * RESOLVE / FAQ but the deterministic terminal condition is not
+   147	     * satisfied:
+   148	     *
+   149	     * <ul>
+   150	     *   <li>The current phase is not CONFIRM or CLOSE; AND</li>
+   151	     *   <li>This run has not yet emitted any tool that earns the
+   152	     *       outcome (no successful {@code record_outcome} prior to this
+   153	     *       call) — i.e. this is a "single factual answer" attempt.</li>
+   154	     * </ul>
+   155	     *
+   156	     * <p>The bot is still allowed to call {@code record_outcome} with
+   157	     * other outcome classes (escalate / abandon) and on CONFIRM / CLOSE
+   158	     * plans. Other resolve-outcome paths are not intercepted.
+   159	     */
+   160	    public static boolean shouldRejectPrematureResolveOutcome(PhasePlan plan,
+   161	                                                              String currentPhase,
+   162	                                                              String outcomeClassArg) {
+   163	        if (plan == null) return false;
+   164	        if (!isResolveFaqPlan(plan)) return false;
+   165	        if (outcomeClassArg == null) return false;
+   166	        String normalized = outcomeClassArg.trim().toLowerCase(Locale.ROOT);
+   167	        if (!"resolve".equals(normalized) && !"resolved".equals(normalized)) {
+   168	            return false;
+   169	        }
+   170	        // Allow CONFIRM / CLOSE phases (the planner already validated the
+   171	        // user accepted the answer or the close phase fired).
+   172	        if ("CONFIRM".equalsIgnoreCase(currentPhase)
+   173	                || "CLOSE".equalsIgnoreCase(currentPhase)) {
+   174	            return false;
+   175	        }
+   176	        return true;
+   177	    }
+   178	
+   179	    static boolean isResolveFaqPlan(PhasePlan plan) {
+   180	        if (plan == null) return false;
+   181	        if (!"RESOLVE".equalsIgnoreCase(plan.phase())) return false;
+   182	        String uc = plan.useCase();
+   183	        if (uc == null || uc.isBlank()) return false;
+   184	        // INTAKE UCs route through their own flow; they never produce
+   185	        // FAQ-grounded final answers in the same way.
+   186	        return !INTAKE_UCS.contains(uc);
+   187	    }
+   188	
+   189	    private static final java.util.Set<String> INTAKE_UCS = java.util.Set.of(
+   190	            "UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
+   191	
+   192	    private static boolean recordOutcomeSucceededThisRun(AgentRunResult result) {
+   193	        if (result == null || result.toolEvents() == null) return false;
+   194	        for (ToolEvent te : result.toolEvents()) {
+   195	            if ("record_outcome".equals(te.toolName()) && te.success()) {
+   196	                return true;
+   197	            }
+   198	        }
+   199	        return false;
+   200	    }
+   201	
+   202	    private static String safeLower(String s) {
+   203	        return s == null ? null : s.toLowerCase(Locale.ROOT);
+   204	    }
+   205	}
+
+exec
+/bin/zsh -lc 'rg -n "PROGRESSIVE_RESOLVE_REJECT_REASON|shouldRejectPrematureResolveOutcome|recordOutcomeRejectedOnlyByPrematureGuard|priorGroundedResolveAnswer|priorGroundedResolveAnswerDelivered|progressive_resolve_confirmable|record_outcome_failed_retry|ANSWERED_SUBTASK" server/src/main/java server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:29: * {@link ResolveDisposition#ANSWERED_SUBTASK} and stays in RESOLVE, while
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:145:                PhaseEvaluator.priorGroundedResolveAnswerDelivered(history));
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:153:                SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON, 0L);
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:179:        assertEquals("progressive_resolve_confirmable", decision.transitionReason());
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:196:        assertEquals("progressive_resolve_confirmable", decision.transitionReason());
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:217:        assertEquals("record_outcome_failed_retry", decision.transitionReason());
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:223:        // Unchanged ANSWERED_SUBTASK -> progressive_resolve_stay.
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:256:        assertTrue(ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:259:        assertFalse(ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:262:        assertFalse(ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:291:        // record_outcome_failed_retry path, NOT the structural promotion. The
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:304:        assertEquals("record_outcome_failed_retry", decision.transitionReason());
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:331:    void recordOutcomeRejectedOnlyByPrematureGuard_truthTable() {
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:332:        assertTrue(PhaseEvaluator.recordOutcomeRejectedOnlyByPrematureGuard(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:335:        assertFalse(PhaseEvaluator.recordOutcomeRejectedOnlyByPrematureGuard(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:340:        assertFalse(PhaseEvaluator.recordOutcomeRejectedOnlyByPrematureGuard(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:344:        assertFalse(PhaseEvaluator.recordOutcomeRejectedOnlyByPrematureGuard(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:350:    void priorGroundedResolveAnswerDelivered_truthTable() {
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:351:        assertTrue(PhaseEvaluator.priorGroundedResolveAnswerDelivered(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:354:        assertFalse(PhaseEvaluator.priorGroundedResolveAnswerDelivered(
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:357:        assertFalse(PhaseEvaluator.priorGroundedResolveAnswerDelivered(List.of()),
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java:362:        assertFalse(PhaseEvaluator.priorGroundedResolveAnswerDelivered(List.of(ungrounded)),
+server/src/main/java/com/gumtree/csagent/service/runtime/ResolveDispositionEvaluator.java:38: *           {@link ResolveDisposition#ANSWERED_SUBTASK} so the session
+server/src/main/java/com/gumtree/csagent/service/runtime/ResolveDispositionEvaluator.java:136:                return ResolveDisposition.ANSWERED_SUBTASK;
+server/src/main/java/com/gumtree/csagent/service/runtime/ResolveDispositionEvaluator.java:160:    public static boolean shouldRejectPrematureResolveOutcome(PhasePlan plan,
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:595:        // the persisted turn history (via priorGroundedResolveAnswerDelivered)
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:598:        boolean priorGroundedResolveAnswer = session != null
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:604:                        priorGroundedResolveAnswer);
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:767:     * which the Sprint 9 §O1 {@code record_outcome_failed_retry} path must
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:772:    static boolean recordOutcomeRejectedOnlyByPrematureGuard(AgentRunResult result) {
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:779:            if (!SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:799:    static boolean priorGroundedResolveAnswerDelivered(List<BotTurn> history) {
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:823:                                                    boolean priorGroundedResolveAnswer) {
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:867:                // turn (priorGroundedResolveAnswer — i.e. a subsequent user
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:875:                        recordOutcomeRejectedOnlyByPrematureGuard(result);
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:877:                        && !(prematureGuardOnlyRejection && priorGroundedResolveAnswer)) {
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:880:                            null, "record_outcome_failed_retry");
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:909:                    // confident grounded non-slot answer (ANSWERED_SUBTASK)
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:921:                    case ANSWERED_SUBTASK -> priorGroundedResolveAnswer
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java:924:                                null, "progressive_resolve_confirmable")
+server/src/main/java/com/gumtree/csagent/model/ResolveDisposition.java:19: *   <li>{@link #ANSWERED_SUBTASK} — bot delivered a grounded answer or a
+server/src/main/java/com/gumtree/csagent/model/ResolveDisposition.java:34:    ANSWERED_SUBTASK,
+server/src/main/java/com/gumtree/csagent/model/ResolveDisposition.java:46:            case ANSWERED_SUBTASK -> "answered_subtask";
+server/src/main/java/com/gumtree/csagent/service/runtime/skill/SkillGuardrailDispatcher.java:91:    public static final String PROGRESSIVE_RESOLVE_REJECT_REASON =
+server/src/main/java/com/gumtree/csagent/service/runtime/skill/SkillGuardrailDispatcher.java:326:        if (!ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
+server/src/main/java/com/gumtree/csagent/service/runtime/skill/SkillGuardrailDispatcher.java:331:        trace.put("predicate_name", PROGRESSIVE_RESOLVE_REJECT_REASON);
+server/src/main/java/com/gumtree/csagent/service/runtime/skill/SkillGuardrailDispatcher.java:334:        trace.put("reject_reason_label", PROGRESSIVE_RESOLVE_REJECT_REASON);
+server/src/main/java/com/gumtree/csagent/service/runtime/skill/SkillGuardrailDispatcher.java:338:                PROGRESSIVE_RESOLVE_REJECT_REASON,
+server/src/main/java/com/gumtree/csagent/model/BotSession.java:327:    private Boolean priorGroundedResolveAnswer;
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:461:                        PhaseEvaluator.priorGroundedResolveAnswerDelivered(history));
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:612:                    // ANSWERED_SUBTASK + non-empty articlesShown) WITHOUT yet
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:617:                    // disposition stays ANSWERED_SUBTASK) — leaving 0 resolved
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:1419:     *       OR {@code ANSWERED_SUBTASK} — the answer resolved the issue.
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:1422:     *       the disposition at terminal is {@code ANSWERED_SUBTASK} (a non-
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:1458:        // accept ANSWERED_SUBTASK. RATIONALE: on the simulator-preempted
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:1465:        // disposition at that terminal is ANSWERED_SUBTASK
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java:1486:                        || com.gumtree.csagent.model.ResolveDisposition.ANSWERED_SUBTASK.name().equals(disposition);
+
+codex
+The new code itself does not add user-message parsing; it uses an existing disposition classifier, which already has text-shape checks for slot requests. I’m checking the precise branch ordering to decide whether that dependency is acceptable or a blocking semantic hardcode for this sub-sprint.
+exec
+/bin/zsh -lc "nl -ba server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java | sed -n '818,950p'" in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+   818	    private PhaseTransitionDecision mapFinalAnswer(PhasePlan plan,
+   819	                                                    AgentRunResult result,
+   820	                                                    BotSession session,
+   821	                                                    String fromPhase,
+   822	                                                    boolean isIntakePlan,
+   823	                                                    boolean priorGroundedResolveAnswer) {
+   824	        // Legacy callers (plan == null) fall back to the pre-D16.D contract:
+   825	        // RESOLVE → CONFIRM with answer_provided.
+   826	        if (fromPhase == null) {
+   827	            return new PhaseTransitionDecision("CONFIRM",
+   828	                    result.finalUserMessage(),
+   829	                    null, "answer_provided");
+   830	        }
+   831	
+   832	        switch (fromPhase) {
+   833	            case "DISCOVER": {
+   834	                String activeUc = session == null ? null : session.getActiveUseCase();
+   835	                if (activeUc != null && !activeUc.isBlank()) {
+   836	                    return new PhaseTransitionDecision("RESOLVE",
+   837	                            result.finalUserMessage(),
+   838	                            null, "uc_identified");
+   839	                }
+   840	                // No UC yet — stay in DISCOVER as clarification.
+   841	                return new PhaseTransitionDecision("DISCOVER",
+   842	                        result.finalUserMessage(),
+   843	                        null, "clarification_asked");
+   844	            }
+   845	            case "RESOLVE": {
+   846	                if (isIntakePlan) {
+   847	                    return new PhaseTransitionDecision("RESOLVE",
+   848	                            result.finalUserMessage(),
+   849	                            null, "clarification_asked");
+   850	                }
+   851	                // Sprint 9 §O1 — terminal-state honesty. Do not advance
+   852	                // RESOLVE → CONFIRM when the only record_outcome
+   853	                // dispatch attempted in this run failed. CONFIRM signals
+   854	                // "the user accepted the answer and the outcome was
+   855	                // recorded"; staying in RESOLVE lets the LLM retry the
+   856	                // record_outcome call within the next user turn rather
+   857	                // than silently marking the session as resolved while
+   858	                // the session_outcomes row was never written.
+   859	                //
+   860	                // Sprint 093 / S-Auto-39 — break the RESOLVE→CONFIRM
+   861	                // deadlock. A record_outcome(resolve) rejected ONLY by the
+   862	                // premature-resolve guard is NOT a transient failure:
+   863	                // retrying in RESOLVE hits the same guard forever
+   864	                // (READY_TO_CONFIRM requires a SUCCESSFUL record_outcome,
+   865	                // which the guard forbids outside CONFIRM/CLOSE). When a
+   866	                // grounded answer was ALREADY delivered on a prior RESOLVE
+   867	                // turn (priorGroundedResolveAnswer — i.e. a subsequent user
+   868	                // turn has now occurred), exclude that case from the retry
+   869	                // gate and let the structural promotion below route the bot
+   870	                // into CONFIRM, where record_outcome is already permitted.
+   871	                // First-grounded-answer turns (no prior grounding) and
+   872	                // GENUINE record_outcome failures keep the unchanged retry
+   873	                // behaviour. The premature guard itself is PRESERVED.
+   874	                boolean prematureGuardOnlyRejection =
+   875	                        recordOutcomeRejectedOnlyByPrematureGuard(result);
+   876	                if (recordOutcomeAttemptedAndFailed(result)
+   877	                        && !(prematureGuardOnlyRejection && priorGroundedResolveAnswer)) {
+   878	                    return new PhaseTransitionDecision("RESOLVE",
+   879	                            result.finalUserMessage(),
+   880	                            null, "record_outcome_failed_retry");
+   881	                }
+   882	                // Sprint 11 §M1 — ResolveDisposition guard. A single
+   883	                // grounded answer that asks for a slot or delivers a
+   884	                // soft next step ("here is how to find your ad; send the
+   885	                // advert ID if you want me to check it") must remain in
+   886	                // RESOLVE. Only a deterministic terminal condition
+   887	                // (successful record_outcome dispatch on this turn)
+   888	                // earns the RESOLVE → CONFIRM transition. The bot's
+   889	                // own clarifying-question heuristics already gate
+   890	                // CLARIFICATION_NEEDED upstream; this branch handles the
+   891	                // FINAL_ANSWER case where the bot text shape implies a
+   892	                // follow-up is expected.
+   893	                com.gumtree.csagent.model.ResolveDisposition disposition =
+   894	                        ResolveDispositionEvaluator.evaluate(plan, result);
+   895	                if (session != null) {
+   896	                    session.setTaskStatus(disposition.toTaskStatusToken());
+   897	                    // Sprint 12 §N0 — stamp the canonical
+   898	                    // resolve_disposition token so the projection / trace
+   899	                    // events can surface the disposition independently of
+   900	                    // task_status (which is the Sprint 11 §M0 alias).
+   901	                    session.setResolveDisposition(disposition.name());
+   902	                }
+   903	                PhaseTransitionDecision dispositionDecision = switch (disposition) {
+   904	                    case ASKED_FOR_SLOT,
+   905	                         CONTINUE_RESOLVE -> new PhaseTransitionDecision("RESOLVE",
+   906	                                result.finalUserMessage(),
+   907	                                null, "progressive_resolve_stay");
+   908	                    // Sprint 093 / S-Auto-39 — PRIMARY structural repair. A
+   909	                    // confident grounded non-slot answer (ANSWERED_SUBTASK)
+   910	                    // delivered on a SUBSEQUENT user turn after a grounded
+   911	                    // FINAL_ANSWER already formed on a prior RESOLVE turn is
+   912	                    // confirmable: enter CONFIRM so the CONFIRM Skill can
+   913	                    // record the outcome (record_outcome is permitted there).
+   914	                    // The trigger is purely structural (prior grounded
+   915	                    // RESOLVE answer + this turn's disposition) — no
+   916	                    // user-message content heuristic — and the premature
+   917	                    // guard is untouched: record_outcome still cannot land
+   918	                    // until phase == CONFIRM. The FIRST grounded answer turn
+   919	                    // (no prior grounding) stays in RESOLVE so the original
+   920	                    // premature-collapse protection holds.
+   921	                    case ANSWERED_SUBTASK -> priorGroundedResolveAnswer
+   922	                            ? new PhaseTransitionDecision("CONFIRM",
+   923	                                result.finalUserMessage(),
+   924	                                null, "progressive_resolve_confirmable")
+   925	                            : new PhaseTransitionDecision("RESOLVE",
+   926	                                result.finalUserMessage(),
+   927	                                null, "progressive_resolve_stay");
+   928	                    case ESCALATE -> new PhaseTransitionDecision("ESCALATE",
+   929	                                result.finalUserMessage(),
+   930	                                "service_degraded", "agent_escalated");
+   931	                    case READY_TO_CONFIRM -> new PhaseTransitionDecision("CONFIRM",
+   932	                                result.finalUserMessage(),
+   933	                                null, "answer_provided");
+   934	                };
+   935	                if (session != null) {
+   936	                    session.setPhaseTransitionReason(dispositionDecision.transitionReason());
+   937	                }
+   938	                return dispositionDecision;
+   939	            }
+   940	            case "CONFIRM":
+   941	                // FINAL_ANSWER from CONFIRM means the user is satisfied; the LLM
+   942	                // should already have called record_outcome.
+   943	                return new PhaseTransitionDecision("CLOSE",
+   944	                        result.finalUserMessage(),
+   945	                        null, "user_satisfied");
+   946	            case "CLOSE":
+   947	                return new PhaseTransitionDecision("CLOSE",
+   948	                        result.finalUserMessage(),
+   949	                        null, "session_closed");
+   950	            case "ESCALATE":
+
+exec
+/bin/zsh -lc "nl -ba server/src/main/java/com/gumtree/csagent/service/runtime/skill/SkillGuardrailDispatcher.java | sed -n '80,110p;310,345p'" in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+    80	    static final String TYPE_PREMATURE_RESOLVE_OUTCOME_GUARD = "premature_resolve_outcome_guard";
+    81	    static final String TYPE_MUST_CITE_SOURCE = "must_cite_source";
+    82	
+    83	    // --- predicate names / reject reason labels (preserved from Sprint 6/7/11) ---
+    84	    /** Sprint 6 §G2 — preserved from {@code AgentRunLoopImpl.S1_GUARD_REJECT_REASON}. */
+    85	    public static final String FAQ_MISS_REJECT_REASON =
+    86	            "s1_resolve_required_before_faq_miss_handover";
+    87	    /** Sprint 7 §I2 — preserved from {@code AgentRunLoopImpl.INTAKE_COMPLETE_GUARD_REJECT_REASON}. */
+    88	    public static final String INTAKE_INCOMPLETE_REJECT_REASON =
+    89	            "intake_required_fields_missing_for_intake_complete";
+    90	    /** Sprint 11 §M1 — preserved from {@code AgentRunLoopImpl.PROGRESSIVE_RESOLVE_GUARD_REJECT_REASON}. */
+    91	    public static final String PROGRESSIVE_RESOLVE_REJECT_REASON =
+    92	            "progressive_resolve_record_outcome_premature";
+    93	    /** Sprint 39 NEW S1 — per design doc §9.4. */
+    94	    public static final String S1_CITATION_PRESENCE_REQUIRED =
+    95	            "s1_citation_presence_required";
+    96	
+    97	    // --- R5 structural cite-token shapes accepted by must_cite_source ---
+    98	    /** Any http(s) URL anywhere in the reply (the source_url citation shape). */
+    99	    private static final Pattern USER_FACING_URL_PATTERN =
+   100	            Pattern.compile("https?://\\S+");
+   101	    /**
+   102	     * Salesforce-style article_id shape derived from the real KB corpus
+   103	     * ({@code data/knowledge/knowledge_base_articles.json}): all 218 ids are a
+   104	     * lowercase {@code ka} prefix + 16 alphanumerics = 18 chars. The exact
+   105	     * length keeps plain-English words ("kangaroo") from matching.
+   106	     */
+   107	    private static final Pattern ARTICLE_ID_PATTERN =
+   108	            Pattern.compile("\\bka[A-Za-z0-9]{16}\\b");
+   109	
+   110	    private static final String HANDOVER_TOOL = "request_handover";
+   310	                "Ask the user for the missing intake fields above, then call "
+   311	                        + "request_handover with arguments.intake_fields populated.",
+   312	                trace));
+   313	    }
+   314	
+   315	    /**
+   316	     * Sprint 11 §M1 migration (design doc §8.2.3). Delegates to the
+   317	     * <strong>untouched</strong> {@link ResolveDispositionEvaluator}
+   318	     * frozen surface per {@code runtime_freeze_and_risk_policy.md} §1.1 #3.
+   319	     * Only the invocation site moves from {@code AgentRunLoopImpl} to this
+   320	     * dispatcher; the predicate logic itself is unchanged.
+   321	     */
+   322	    private Optional<RejectVerdict> handlePrematureResolveOutcomeGuard(
+   323	            Skill skill, Guardrail g, String outcomeClass, DispatchContext ctx) {
+   324	        PhasePlan plan = ctx.plan();
+   325	        String currentPhase = ctx.session() == null ? null : ctx.session().getCurrentPhase();
+   326	        if (!ResolveDispositionEvaluator.shouldRejectPrematureResolveOutcome(
+   327	                plan, currentPhase, outcomeClass)) {
+   328	            return Optional.empty();
+   329	        }
+   330	        Map<String, Object> trace = new LinkedHashMap<>();
+   331	        trace.put("predicate_name", PROGRESSIVE_RESOLVE_REJECT_REASON);
+   332	        trace.put("decision_outcome", "rejected");
+   333	        trace.put("skill_name", skill.name());
+   334	        trace.put("reject_reason_label", PROGRESSIVE_RESOLVE_REJECT_REASON);
+   335	        trace.put("outcome_class_requested", outcomeClass);
+   336	        trace.put("current_phase", currentPhase);
+   337	        return Optional.of(new RejectVerdict(
+   338	                PROGRESSIVE_RESOLVE_REJECT_REASON,
+   339	                "Stay in RESOLVE and wait for the user to confirm the answer or "
+   340	                        + "supply more detail before recording a resolve outcome.",
+   341	                trace));
+   342	    }
+   343	
+   344	    /**
+   345	     * Sprint 39 NEW S1 (design doc §8.2.4); R5 structural-shape rewrite.
+
+exec
+/bin/zsh -lc 'git diff 033abaee''^ 033abaee -- server/src/main/java/com/gumtree/csagent/service/runtime/ResolveDispositionEvaluator.java server/src/main/java/com/gumtree/csagent/model/ResolveDisposition.java server/src/main/java/com/gumtree/csagent/service/runtime/skill/SkillGuardrailDispatcher.java' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-3UqnkJmk' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-dYoAOiWc' (errno=Operation not permitted)
+
+codex
+The guard predicate and reject label are unchanged, and the new branch only special-cases failures whose error message is the existing premature-guard label. I’m doing one final scan of the commit scope for prompt/schema/eval changes or hidden UC/case IDs before writing the verdict.
+exec
+/bin/zsh -lc 'git show --name-only --format=%H%n%s 033abaee' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-aPCqYJOh' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-JUIIQPUh' (errno=Operation not permitted)
+033abaeef074a914e2db41448fbfd7612409fdf5
+M-Auto-7 S-Auto-39 — break RESOLVE→CONFIRM/CLOSE deadlock (structural promotion)
+
+docs/diagnostics/failure-briefs/sprint-093-resolve-confirm-deadlock.md
+docs/diagnostics/sprint-093-step0-escalation-attribution.md
+server/src/main/java/com/gumtree/csagent/model/BotSession.java
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java
+
+exec
+/bin/zsh -lc 'git diff --name-only 033abaee''^ 033abaee' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-E8ZSGMIa' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-gryKrggl' (errno=Operation not permitted)
+docs/diagnostics/failure-briefs/sprint-093-resolve-confirm-deadlock.md
+docs/diagnostics/sprint-093-step0-escalation-attribution.md
+server/src/main/java/com/gumtree/csagent/model/BotSession.java
+server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java
+server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java
+server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java
+
+exec
+/bin/zsh -lc 'git diff --unified=0 033abaee''^ 033abaee -- server/src/test/java/com/gumtree/csagent/service/runtime/Sprint93ResolveConfirmDeadlockTest.java | rg -n "UC-|cs_|CaseSpec|Pattern|regex|matches|contains|userMessage|finalUserMessage|progressive_resolve_confirmable|record_outcome_failed_retry|user_requested|distress|slot|premature|sourceIds|phaseAfter"' in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-5QZatgPD' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-JBID80aA' (errno=Operation not permitted)
+34:+ * <p>Root cause (Step-0 attribution): a grounded UC-A RESOLVE answer maps to
+37:+ * by the premature-resolve guard — so the session can never legitimately reach
+44:+ * grounded non-slot answer, the runtime enters CONFIRM so the CONFIRM Skill
+45:+ * can record the outcome. The premature guard is PRESERVED; no user-message
+51:+ *   <li>a genuinely premature record (RESOLVE, NO prior grounded answer /
+55:+ *       record_outcome failures still retry, slot-requests still stay, and a
+83:+                .useCase("UC-A")
+100:+        s.setActiveUseCase("UC-A");
+112:+                .userMessage("I can't see my advert anymore.")
+114:+                .sourceIds(new String[]{"ka44J000000gKv5QAE"})
+116:+                .phaseAfter("RESOLVE")
+117:+                .activeUseCase("UC-A")
+127:+                .userMessage("hi I can't find my advert")
+129:+                .sourceIds(new String[]{"ka44J000000gKv5QAE"})
+131:+                .phaseAfter("DISCOVER")
+132:+                .activeUseCase("UC-A")
+155:+    private static ToolEvent prematureRejectedRecordOutcome() {
+172:+        // grounded non-slot answer AND its record_outcome(resolve) is rejected
+173:+        // ONLY by the premature guard. The runtime must now enter CONFIRM so
+177:+                List.of(prematureRejectedRecordOutcome()));
+185:+        assertEquals("progressive_resolve_confirmable", decision.transitionReason());
+202:+        assertEquals("progressive_resolve_confirmable", decision.transitionReason());
+212:+        // premature-collapse protection: a grounded answer cannot reach
+216:+                List.of(prematureRejectedRecordOutcome()));
+223:+        assertEquals("record_outcome_failed_retry", decision.transitionReason());
+258:+    void prematureGuard_intact_rejectsResolveInResolve_allowsInConfirm() {
+259:+        // The premature-resolve guard itself is UNTOUCHED: record_outcome(resolve)
+276:+    void slotRequestAnswer_withPriorGroundedTurn_staysResolve() {
+281:+        AgentRunResult slotRequest = groundedAnswer(
+286:+                evaluator, faqResolvePlan(), slotRequest, resolveSession(), List.of(priorGroundedResolveTurn()));
+289:+                "A slot-request answer must stay in RESOLVE even with prior grounding.");
+295:+        // A GENUINE (non-premature) record_outcome failure — e.g. a persistence
+297:+        // record_outcome_failed_retry path, NOT the structural promotion. The
+298:+        // promotion is reserved for premature-guard rejections.
+310:+        assertEquals("record_outcome_failed_retry", decision.transitionReason());
+339:+                        groundedAnswer(GROUNDED_TEXT, List.of(prematureRejectedRecordOutcome()))),
+340:+                "premature-only rejection -> true");
+345:+                "non-premature failure -> false");
+365:+        // RESOLVE turn but no grounding (sourceIds null) -> false
+367:+                .phaseAfter("RESOLVE").build();
+
+exec
+/bin/zsh -lc 'git diff --unified=0 033abaee''^ 033abaee -- server/src/main/java/com/gumtree/csagent/service/runtime/PhaseEvaluator.java server/src/main/java/com/gumtree/csagent/service/runtime/ControlKernel.java server/src/main/java/com/gumtree/csagent/model/BotSession.java | rg -n "'"\\+.*(UC-|cs_|CaseSpec|Pattern|regex|matches|contains|userMessage|finalUserMessage|record_outcome_failed_retry|progressive_resolve_confirmable|priorGrounded|sourceIds|source_ids|phaseAfter|phase_after|PROGRESSIVE_RESOLVE_REJECT_REASON|shouldRejectPrematureResolveOutcome)\"" in /Users/caoruixin/projects/csagent-latest
+ succeeded in 0ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-jh4TxnhV' (errno=Operation not permitted)
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-nbPcOvE4' (errno=Operation not permitted)
+12:+     * {@link com.gumtree.csagent.model.BotTurn} with {@code phase_after ==
+13:+     * RESOLVE} and non-empty {@code source_ids}). {@code null}/{@code false}
+18:+    private Boolean priorGroundedResolveAnswer;
+34:+                        PhaseEvaluator.priorGroundedResolveAnswerDelivered(history));
+45:+        // the persisted turn history (via priorGroundedResolveAnswerDelivered)
+48:+        boolean priorGroundedResolveAnswer = session != null
+54:+                        priorGroundedResolveAnswer);
+64:+     * which the Sprint 9 §O1 {@code record_outcome_failed_retry} path must
+76:+            if (!SkillGuardrailDispatcher.PROGRESSIVE_RESOLVE_REJECT_REASON
+88:+     * {@code phase_after == RESOLVE} and non-empty {@code source_ids} is a
+90:+     * {@code phase_after == RESOLVE} filter excludes DISCOVER turns that merely
+92:+     * {@code phase_after == DISCOVER}), so prior RETRIEVAL alone does not
+96:+    static boolean priorGroundedResolveAnswerDelivered(List<BotTurn> history) {
+112:+                                                    boolean priorGroundedResolveAnswer) {
+123:+                // turn (priorGroundedResolveAnswer — i.e. a subsequent user
+133:+                        && !(prematureGuardOnlyRejection && priorGroundedResolveAnswer)) {
+150:+                    case ANSWERED_SUBTASK -> priorGroundedResolveAnswer
+152:+                                result.finalUserMessage(),
+153:+                                null, "progressive_resolve_confirmable")
+155:+                                result.finalUserMessage(),
+
+codex
+## Sprint Review Decision
+decision: pass
+blocking_count: 0
+summary: Commit 033abaee implements the RESOLVE→CONFIRM repair as a structural `skill_state` transition keyed on prior persisted turn evidence (`phase_after == RESOLVE` plus non-empty `source_ids`) and the existing `ANSWERED_SUBTASK` disposition; it does not inspect the new user message, add per-case/runtime UC exceptions, expand enums, weaken `shouldRejectPrematureResolveOutcome`, or lower `record_outcome`. The Sprint 9 §O1 retry exclusion is narrowly limited to premature-guard-only `record_outcome` rejection with prior grounding, while genuine record failures, slot-request turns, first grounded answers, and explicit escalation/distress paths remain outside the promotion.
+
+| Q | Result |
+|---|---|
+| Q1 | Pass: no new keyword/regex/per-UC semantic decision; the new branch is structural phase/history state plus existing disposition. |
+| Q2 | N/A: no Tier-0 exception is needed; the change preserves the premature guard and trace-contract intent. |
+| Q3 | Pass: projecting a soft signal would not repair the Java phase-machine deadlock; this belongs in `skill_state`. |
+| Q4 | Pass: no visible eval phrase, CaseSpec id, or trace-specific text is encoded into runtime. |
+| Q5 | Pass: LLM ownership is not shrunk; Java only permits a confirmable phase after a prior grounded RESOLVE answer. |
+| Q6 | Pass: no prompt if-else or prompt change is introduced. |
+| Q7 | Pass: tool schema, grounding floor, and premature guard are preserved; genuine `record_outcome` failures still retry. |
+| Q8 | Pass: tests cover target deadlock, first-answer negative, DISCOVER-search negative, slot-request anti-误杀, genuine failure retry, guard truth table, and handoff reports neighbor/genuine-escalation validation. |
+| Q9 | Pass: not framed as temporary; no rollback/sunset required. |
+
+§4.1 per-PR verdict: approve
+tokens used
+71,821
+## Sprint Review Decision
+decision: pass
+blocking_count: 0
+summary: Commit 033abaee implements the RESOLVE→CONFIRM repair as a structural `skill_state` transition keyed on prior persisted turn evidence (`phase_after == RESOLVE` plus non-empty `source_ids`) and the existing `ANSWERED_SUBTASK` disposition; it does not inspect the new user message, add per-case/runtime UC exceptions, expand enums, weaken `shouldRejectPrematureResolveOutcome`, or lower `record_outcome`. The Sprint 9 §O1 retry exclusion is narrowly limited to premature-guard-only `record_outcome` rejection with prior grounding, while genuine record failures, slot-request turns, first grounded answers, and explicit escalation/distress paths remain outside the promotion.
+
+| Q | Result |
+|---|---|
+| Q1 | Pass: no new keyword/regex/per-UC semantic decision; the new branch is structural phase/history state plus existing disposition. |
+| Q2 | N/A: no Tier-0 exception is needed; the change preserves the premature guard and trace-contract intent. |
+| Q3 | Pass: projecting a soft signal would not repair the Java phase-machine deadlock; this belongs in `skill_state`. |
+| Q4 | Pass: no visible eval phrase, CaseSpec id, or trace-specific text is encoded into runtime. |
+| Q5 | Pass: LLM ownership is not shrunk; Java only permits a confirmable phase after a prior grounded RESOLVE answer. |
+| Q6 | Pass: no prompt if-else or prompt change is introduced. |
+| Q7 | Pass: tool schema, grounding floor, and premature guard are preserved; genuine `record_outcome` failures still retry. |
+| Q8 | Pass: tests cover target deadlock, first-answer negative, DISCOVER-search negative, slot-request anti-误杀, genuine failure retry, guard truth table, and handoff reports neighbor/genuine-escalation validation. |
+| Q9 | Pass: not framed as temporary; no rollback/sunset required. |
+
+§4.1 per-PR verdict: approve

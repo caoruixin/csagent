@@ -268,8 +268,10 @@ record-vs-handover decision) and `infra`/reason-resolver (the
 - [x] §5 OLD-byte-identity vs NEW-attribution split; hashes pinned.
 - [x] Genuine-escalation control still escalates (5/5 co=1.0);
       over-escalation neg-control no regression (0 new escalations).
-- [ ] Codex `pass` — see §Codex (pending dispatch). No pilot-resume talk
-      until `pass`.
+- [x] Codex **`pass`** (blocking_count 0; §4.1 `approve`; all 9 questions
+      Pass/N-A) — recorded verbatim in `docs/codex-findings.md`. The binding
+      per-sub-sprint gate is satisfied. Pilot still HELD (human/deliver
+      decision; OQ-S93.1 open).
 
 **Restatement:** no PRIMARY-majority flip is required and none is claimed;
 no CS4 success claimed; the structural deadlock is repaired and validated
