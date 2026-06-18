@@ -111,3 +111,45 @@ changes False→True, 0 draw/case regressions.
 Working tree clean at `7dc5a0d4` (the Option-R harness+tests `2f5c5e9` and the
 pilot override `7dc5a0d` are committed; the baseline artifact dir is gitignored
 under `eval_interactive/results/*` and regenerable from the committed harness).
+
+## 7. exp-86 `-n 1` real-LLM smoke outcome (2026-06-18)
+
+Command: `cd autoloop && caffeinate -i uv run python -m autoloop run --config
+config.pilot-s-auto-38.yaml -n 1` (log `autoloop/results/smoke-s-auto-38-n1-20260618.log`,
+gitignored). Exit 0, elapsed 3977s (~66 min). **Gate-trust acceptance: PASS.
+No STOP condition.**
+
+| item | value |
+|------|-------|
+| run dir / experiment | `exp-86` (`autoloop/results/runs/exp-86/`) |
+| proposer model | `claude-sonnet-4-6` (proposed a UC-A grounding skill edit for `loaded_listing` / `no_ad_id`) |
+| baseline loaded | `m-auto-7-prepilot-baseline-20260618-s_auto_38_split_full` (3 suites, 0 warnings) under pin `7df8173c…` |
+| in-run preflight | ok=6 warn=0 fail=0 |
+| gate verdict | **keep**, `discard_reason=null` |
+
+Per-suite (all `exit=0`): bad_cases 17c/101 draws/100 valid/0 mixed/7 timeout
+(attempts_run=13, PRIMARY oversample); anchor_outcome 12c/60/59/0/0 (run 5);
+shadow 22c/110/98/0/13 timeout (run 5), non_comparable 9.1%.
+
+Gate basis: tier0_safety 51 checked, `failing_cases=[]`, `stable_reproduction=true`;
+tier1 TIER-S floor hits `[]`; tier2 one increase (`iwzx_uc_k_advert_on_hold_restore`,
+below the 2-case cross-case gate); improvement +1 (`anchor_outcome_uc_g_gdpr`) ≥ min 1;
+shadow 0.40→0.35 `regression_detected=false`.
+
+**Escalation split behaved as designed (live):** enforced tier-0 family includes
+`escalation_compliance` (Part-1), excludes `escalation_reason_family_match`
+(Part-2). 8 cases had Part-2 mismatch — all with Part-1=True; 5 still
+composite-pass (cs001, cs011, cs01s02, cs11s01, cs11s02), 3 fail for non-Part-2
+reasons. 0 genuine Part-1 failures → no escalation tier-0 discard, none from
+Part-2. **Part-2 recorded but non-gating, confirmed live.**
+
+Gaming flags: **1 WARN** `suspect_baseline_manipulation.git_lookup_failed`
+("git log produced no commits for autoloop/config.yaml") — benign cwd/override
+artifact (run launched from `autoloop/` with the `--config` override); **no
+`scoring_code_drift`**. git status clean.
+
+**Not a PRIMARY success:** both declared PRIMARY targets (`cs_uc_a_loaded_listing`,
+`cs_uc_a_no_ad_id_ad_specific`) stayed `0/13` after PRIMARY oversampling; the KEEP
+rode a peripheral (gdpr) improvement. exp-82 stays WITHDRAWN; full pilot tranche
+stays HELD. Follow-up (M-Auto-7): target-alignment KEEP semantics + primary-first
+staged eval (drafted post-smoke; not yet implemented).
