@@ -293,6 +293,27 @@ def test_stale_adjudication_closure_version_mismatch_stays_conditional():
     assert _v(cs, tr, stale) == CONDITIONAL_ELIGIBLE
 
 
+def test_reject_escalation_verdict_does_not_flip_to_pass():
+    # A human `reject_escalation` adjudication is an auditable record only — it
+    # must NOT flip the trace to PASS (only `accept_escalation` does). The trace
+    # stays CONDITIONAL_ELIGIBLE. (S-Auto-40 Phase-2: all 4 real traces REJECTED.)
+    cs = _case_spec()
+    tr = _trace(
+        outcome="escalated",
+        turns=[_turn(1, grounded=True)],
+        signals=[_sig(1, "unresolved_after_help")],
+    )
+    reject = {
+        "sess-X": {
+            "trace_id": "sess-X", "case_id": cs.case_id,
+            "closure_criterion_version": closure_criterion_version(cs),
+            "verdict": "reject_escalation", "reviewer": "test",
+            "rationale": "closure not met", "timestamp": "2026-06-19T00:00:00Z",
+        }
+    }
+    assert _v(cs, tr, reject) == CONDITIONAL_ELIGIBLE
+
+
 def test_adjudication_for_other_trace_does_not_apply():
     cs = _case_spec()
     tr = _trace(

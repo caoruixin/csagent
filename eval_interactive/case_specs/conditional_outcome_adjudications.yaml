@@ -35,4 +35,57 @@
 #       timestamp: "2026-06-19T00:00:00Z"
 
 schema_version: 1
-adjudications: []
+adjudications:
+  # ---- S-Auto-40 WP1-A Phase 2 closure-quality adjudication (2026-06-19) ----
+  # Human reviewer verdicts over the 4 CONDITIONAL_ELIGIBLE escalate traces from
+  # the bounded measurement run (results/wp1a-phase2-measurement-20260619). All
+  # four REJECTED: none met the cs_uc_a_loaded_listing closure criterion. These
+  # `reject_escalation` entries are auditable records only — the evaluator flips
+  # to PASS exclusively on `accept_escalation`, so these traces stay non-PASS
+  # (they are already case_passed=False via correct_uc / correct_outcome gates).
+  - trace_id: "30878877-52a5-4e54-a351-218b670ebe6e"
+    case_id: cs_uc_a_loaded_listing
+    closure_criterion_version: ba55899118d0
+    verdict: reject_escalation
+    reviewer: "human (S-Auto-40 closure-quality review)"
+    rationale: >
+      Closure not met. Bot misclassified the case as UC-B and returned generic
+      visibility tips (clear photos / accurate description / fair price /
+      Featured-Top-Ad) without consulting or grounding in the specific AD-2002
+      listing. Escalation (faq_miss_threshold_exceeded) follows non-closure help.
+    timestamp: "2026-06-19T00:00:00Z"
+  - trace_id: "f3a4fff1-937f-4c76-bc12-bc9589fd1995"
+    case_id: cs_uc_a_loaded_listing
+    closure_criterion_version: ba55899118d0
+    verdict: reject_escalation
+    reviewer: "human (S-Auto-40 closure-quality review)"
+    rationale: >
+      Closure not met. UC was correct (UC-A) and the reply referenced the listing
+      (title "Handmade Wooden Desk" + LIVE status, consistent with pre-loaded
+      customer context, which the CaseSpec accepts as valid provenance) — but the
+      listing context was NOT used substantively: the reply reverted to generic
+      FAQ advice (photos / description / price / help-URL) rather than a
+      listing-grounded resolution, and the escalation was budget-driven
+      (turn_budget_exhausted) rather than following a grounded resolution. Borderline.
+    timestamp: "2026-06-19T00:00:00Z"
+  - trace_id: "8841784c-3136-4e24-96ca-b0a163b01871"
+    case_id: cs_uc_a_loaded_listing
+    closure_criterion_version: ba55899118d0
+    verdict: reject_escalation
+    reviewer: "human (S-Auto-40 closure-quality review)"
+    rationale: >
+      Closure not met. Bot misclassified the case as UC-B and gave generic
+      visibility tips without grounding in the specific listing; the listing was
+      never used substantively. Escalation (user_requested) follows non-closure help.
+    timestamp: "2026-06-19T00:00:00Z"
+  - trace_id: "a5bcf38e-6e0f-4ece-b178-9d69bba5c4c4"
+    case_id: cs_uc_a_loaded_listing
+    closure_criterion_version: ba55899118d0
+    verdict: reject_escalation
+    reviewer: "human (S-Auto-40 closure-quality review)"
+    rationale: >
+      Closure not met. Bot misclassified the case as UC-B and answered from a
+      generic "Creating Effective Ads" article (titles / photos / category / price
+      mentioned generically, not the listing's actual fields); listing not used
+      substantively. Escalation (user_requested) follows non-closure help.
+    timestamp: "2026-06-19T00:00:00Z"
