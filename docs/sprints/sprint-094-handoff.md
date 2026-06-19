@@ -36,7 +36,7 @@ HEAD at sprint start: `ab9ca077`.
 | Phase 2 — bounded real-LLM validation | `infra` | **PENDING (env-gated)** | backend down at session; §5.7 forbids mocked certification. Not INCONCLUSIVE — simply not yet run. |
 | Phase 3 — declarative three-state acceptance | `eval_spec` | **DONE + zero-LLM-tested** | 19 §3.3 replay tests, all green. |
 | Baseline migration | — | **DECIDED + specified** (execution waits on Phase 2) | see §6. |
-| Codex per-sub-sprint review | — | **PENDING** | dispatch after commit per close memo. |
+| Codex per-sub-sprint review | — | **PASS (`approve`)** | §4.1 nine-question kernel, read-only `codex exec` (high); verdict verbatim in `docs/codex-findings.md`. |
 
 Full suite: **620 passed**, 6 pre-existing failures (1 stale anchor-count +
 5 baseline-rescore `KeyError: form_context`), **proven pre-existing** by a
@@ -275,7 +275,8 @@ PASS, but no UNRESOLVED branch is reachable). Decision:
 - [x] 2 PRIMARY only; neighbors read-only; generic-policy resolve-only.
 - [x] Python no new regression (620 passed; 6 failures proven pre-existing).
       Java suite untouched (no Java changed).
-- [ ] **Codex `pass` — PENDING** per-sub-sprint review (dispatch after commit).
+- [x] **Codex `pass`** — §4.1 nine-question kernel `approve`, recorded verbatim
+      in `docs/codex-findings.md` (read-only `codex exec`, high effort).
 - [x] Pilot / annotation / WP1-B / WP2 HELD; exp-82 WITHDRAWN; canonical
       pointer unchanged; no bot/runtime/prompt/reason/handover change.
 

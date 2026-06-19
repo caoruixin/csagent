@@ -1,3 +1,25 @@
+## Sub-sprint Review Decision — S-Auto-40 (Sprint 094, WP1-A measurement contract → conditional outcome acceptance)
+decision: pass
+blocking_count: 0
+summary: Commits ab9ca077..8f569511 land Phase 1 (same-call simulator `user_state` measurement signal, infra) + Phase 3 (declarative three-state conditional-outcome evaluator, eval_spec) + the two PRIMARY UC-A CaseSpec `conditional_outcome_acceptance` blocks. Codex applied the §4.1 nine-question kernel read-only (`codex exec --sandbox read-only`, model_reasoning_effort=high) over `git diff ab9ca077 8f569511`, `scoring/conditional_outcome.py`, the §3.3 battery `tests/test_conditional_outcome.py`, and the handoff. Kernel verdict: `approve` — the conditional acceptance is a §5.4 product-authorized eval_spec read driven by a structured same-call signal + declarative CaseSpec block, NOT a semantic hardcode and NOT an unconditional resolve-OR-escalate widen; the §3.3 battery keeps early/lazy/over-escalation, escalation-after-satisfaction, false-resolve, unknown/neutral, stale-adjudication, and neighbor-without-block paths non-PASS. Phase 2 live real-LLM evidence remains separately gated; pilot/WP1-B/WP2 HELD.
+
+Reviewed: `git diff ab9ca077 8f569511` (Phase 1 + Phase 3 + 2 CaseSpec yaml), `eval_interactive/eval_interactive/scoring/conditional_outcome.py`, `tests/test_conditional_outcome.py`, and `docs/sprints/sprint-094-handoff.md`. Read-only `codex exec` (model_reasoning_effort=high); verdict recorded verbatim below.
+
+Kernel verdict: `approve`.
+
+Per-question (§4.1 nine-question kernel):
+- Q1. No runtime semantic hardcode: the if/else logic is confined to `eval_spec` scoring and activates only from a declarative CaseSpec block plus structured `user_state`.
+- Q2. No Tier-0 claim is needed because this is not a `java_guard`; the declared layers are `infra` instrumentation and `eval_spec`.
+- Q3. The soft signal path is already used: simulator emits same-call `user_state`; no Java or bot prompt branch is added.
+- Q4. No case text/free-text keyword drives acceptance; `case_id` appears only as defensive per-trace adjudication scoping, with an empty registry.
+- Q5. LLM runtime ownership is unchanged: no bot/runtime/prompt/reason/handover decision logic moved out of the LLM.
+- Q6. No prompt if/else was added to the bot; the only prompt change is simulator measurement wording.
+- Q7. Tool schema, permissions, safety/PII, and grounding boundaries are preserved; closure is a trace precondition, not proof of resolution.
+- Q8. Coverage is adequate for WP1-A: the §3.3 battery keeps early/lazy/over-escalation, escalation-after-satisfaction, false-resolve, unknown/neutral, stale adjudication, and neighbor-without-block paths non-PASS.
+- Q9. Not temporary in the hardcode sense; unresolved escalations remain `CONDITIONAL_ELIGIBLE` until per-trace human adjudication, with Phase 2 live evidence still gated separately.
+
+---
+
 ## Sub-sprint Review Decision — S-Auto-39 (Sprint 093, RESOLVE→CONFIRM/CLOSE deadlock corrective)
 decision: pass
 blocking_count: 0
