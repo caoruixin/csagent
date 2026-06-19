@@ -47,6 +47,21 @@ closure_criterion: |
   clarification_budget_exhausted within 4 turns when the
   user is cooperatively providing the ad_id on request.
 
+# S-Auto-40 (WP1-A): declarative, condition-bound outcome acceptance.
+# The product decision (§5.4-authorized): a resolve is correct when the
+# customer is SATISFIED; an escalate after closure-qualified grounded help
+# is acceptable ONLY when the customer remains positively UNRESOLVED — and
+# even then it is CONDITIONAL_ELIGIBLE / REVIEW_REQUIRED, never auto-PASS,
+# until a per-trace adjudication artifact accepts it. This is NOT an
+# unconditional resolve-OR-escalate widen: early / lazy / over-escalation
+# (clarification_budget_exhausted, faq_miss_threshold_exceeded with no
+# post-help UNRESOLVED signal) still FAILs.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
+
 form_context:
   first_name: Sam
   email: sam.no.ad.id@example.com

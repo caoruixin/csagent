@@ -55,6 +55,20 @@ closure_criterion: |
   even on a PASS, because it tracks the RUNTIME_ONLY lookup_listing_or_ad tool
   the agent cannot call — see tool_visibility_note.
 
+# S-Auto-40 (WP1-A): declarative, condition-bound outcome acceptance.
+# The product decision (§5.4-authorized): a resolve is correct when the
+# customer is SATISFIED; an escalate after closure-qualified grounded help
+# is acceptable ONLY when the customer remains positively UNRESOLVED — and
+# even then it is CONDITIONAL_ELIGIBLE / REVIEW_REQUIRED, never auto-PASS,
+# until a per-trace adjudication artifact accepts it. This is NOT an
+# unconditional resolve-OR-escalate widen: early / lazy / over-escalation
+# with no post-help UNRESOLVED signal still FAILs.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
+
 form_context:
   first_name: Riley
   email: carol.blocked@example.com
