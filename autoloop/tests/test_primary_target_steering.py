@@ -90,12 +90,16 @@ def test_disabled_is_noop_on_target():
 def _parsed(**kw):
     base = dict(
         target_skill_file=_RESOLVE,
-        target_field_path="$.procedure",
+        target_field_path="$.grounding_instruction",
         before_value="a",
         after_value="b",
         rationale="r",
         causal_hypothesis="UC-A listing grounding",
         expected_trace_change="listing fields shown",
+        surface_rationale="grounding_instruction is escalation-free, narrower than procedure",
+        blast_radius="resolve_faq FAQ UCs only; cannot reach UC-J intake",
+        escalation_preservation="did not touch escalation_policy; precedence unchanged",
+        no_benchmark_encoding="generic CS prose; no case names or ad IDs",
     )
     base.update(kw)
     return base
@@ -105,18 +109,27 @@ def _build(parsed, require_causal):
     return _validate_and_build(
         parsed,
         allowed_files=[_RESOLVE],
-        allowed_paths=["$.procedure"],
+        allowed_paths=["$.procedure", "$.grounding_instruction"],
         attempts_used=1,
         raw_response="{}",
         require_causal=require_causal,
     )
 
 
-def test_causal_fields_required_when_steering_on():
-    with pytest.raises(ValueError, match="missing_field_causal_hypothesis"):
-        _build(_parsed(causal_hypothesis=""), require_causal=True)
-    with pytest.raises(ValueError, match="missing_field_expected_trace_change"):
-        _build(_parsed(expected_trace_change=""), require_causal=True)
+@pytest.mark.parametrize(
+    "field",
+    [
+        "causal_hypothesis",
+        "expected_trace_change",
+        "surface_rationale",
+        "blast_radius",
+        "escalation_preservation",
+        "no_benchmark_encoding",
+    ],
+)
+def test_six_disclosures_required_when_steering_on(field):
+    with pytest.raises(ValueError, match=f"missing_field_{field}"):
+        _build(_parsed(**{field: ""}), require_causal=True)
 
 
 def test_causal_fields_optional_when_steering_off():

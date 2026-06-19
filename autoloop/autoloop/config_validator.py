@@ -220,13 +220,22 @@ def render_primary_target_steering_block(steering: dict[str, Any]) -> list[str]:
         "instruction": (
             "You are steering toward the PRIMARY targets below. Your edit MUST "
             "be causally connected to one of the observed failure mechanisms. "
-            "Output `causal_hypothesis` (how this edit changes the failure "
-            "mechanism) and `expected_trace_change` (what a passing trace would "
-            "now show) — both REQUIRED. Treat tool-returned AND pre-loaded "
-            "customer context as equally valid provenance; require SUBSTANTIVE "
-            "use of listing-specific information rather than any specific tool "
-            "call."
+            "Treat tool-returned AND pre-loaded customer context as equally "
+            "valid provenance; require SUBSTANTIVE use of listing-specific "
+            "information rather than any specific tool call. REQUIRED disclosures "
+            "(all six): `causal_hypothesis` (target mechanism), `surface_rationale` "
+            "(WHY the chosen edit surface is narrower than the shared "
+            "`$.procedure` — justify your surface choice, do not assume one), "
+            "`blast_radius` (which other UCs the edit reaches), "
+            "`escalation_preservation` (explicit rule that trust-and-safety / scam "
+            "escalation precedence is unchanged — do not edit `$.escalation_policy` "
+            "or escalation language for a grounding fix), `expected_trace_change` "
+            "(what a passing PRIMARY trace would now show), and "
+            "`no_benchmark_encoding` (confirm the edit encodes no benchmark case "
+            "names, fixed ad IDs, or test-specific answers — generic durable CS "
+            "prose only)."
         ),
+        "surface_preference": steering.get("surface_preference"),
         "primary_targets": steering.get("targets") or [],
         "observed_failure_clusters": steering.get("failure_clusters") or [],
         "primary_relevant_skills": steering.get("primary_relevant_skills") or [],

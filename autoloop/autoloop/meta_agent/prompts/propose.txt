@@ -160,7 +160,11 @@ Return a single JSON object exactly matching this schema:
   "after_value": "<the proposed new text>",
   "rationale": "<one to three sentences explaining why this edit should improve fitness — refer to the analyzer's failure shape, not to specific case_ids>",
   "causal_hypothesis": "<the causal chain: how THIS edit changes the targeted failure MECHANISM. REQUIRED when PRIMARY_TARGET_STEERING is present — connect the edit to one of the observed failure clusters>",
-  "expected_trace_change": "<the trace-level behaviour change if the edit works: what a passing trace would now show. REQUIRED when PRIMARY_TARGET_STEERING is present>"
+  "surface_rationale": "<WHY the chosen edit surface is narrower than the shared $.procedure. Justify your surface choice; do not assume one. REQUIRED when PRIMARY_TARGET_STEERING is present>",
+  "blast_radius": "<which other use-cases this edit reaches at runtime, and why it cannot reach the trust-and-safety/scam escalation path. REQUIRED when steering>",
+  "escalation_preservation": "<explicit rule that trust-and-safety / scam escalation precedence is unchanged — you did NOT edit $.escalation_policy or escalation language for a grounding fix. REQUIRED when steering>",
+  "expected_trace_change": "<the trace-level behaviour change if the edit works: what a passing PRIMARY trace would now show. REQUIRED when PRIMARY_TARGET_STEERING is present>",
+  "no_benchmark_encoding": "<confirm the edit encodes NO benchmark case names, fixed ad IDs, or test-specific answers — generic durable CS prose only. REQUIRED when steering>"
 }
 ```
 
@@ -170,7 +174,11 @@ misclassification; listing context ignored or used only superficially;
 budget-driven escalation before a grounded resolution). Treat tool-returned
 AND pre-loaded customer context as equally valid provenance — do NOT prescribe
 a specific tool call; require the answer to make SUBSTANTIVE use of
-listing-specific information. `causal_hypothesis` and `expected_trace_change`
+listing-specific information. Prefer the narrowest surface (see
+`surface_preference`) and PRESERVE escalation precedence (do not edit
+`$.escalation_policy` or escalation language for a grounding fix). All six
+disclosures (`causal_hypothesis`, `surface_rationale`, `blast_radius`,
+`escalation_preservation`, `expected_trace_change`, `no_benchmark_encoding`)
 are REQUIRED in that case; a proposal that does not target a PRIMARY-relevant
 skill and reference a target mechanism is rejected before evaluation.
 

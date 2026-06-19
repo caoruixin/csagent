@@ -88,6 +88,16 @@ class Hypothesis:
     #     the edit works (what a passing trace would now show).
     causal_hypothesis: str = ""
     expected_trace_change: str = ""
+    # S-Auto-41 dry-run disclosures (required only when steering enabled). The
+    # proposer must JUSTIFY its surface choice (not hard-coded): why the edit
+    # surface is narrower than the shared `$.procedure`; the cross-UC blast
+    # radius; an explicit trust-and-safety / scam escalation-precedence
+    # preservation rule; and confirmation the edit encodes no benchmark case
+    # names / fixed ad IDs / test-specific answers.
+    surface_rationale: str = ""
+    blast_radius: str = ""
+    escalation_preservation: str = ""
+    no_benchmark_encoding: str = ""
     fingerprint: str = ""
     attempts_used: int = 1
     raw_llm_response: str = field(default="", repr=False)
@@ -338,11 +348,21 @@ def _validate_and_build(
 
     causal_hypothesis = str(parsed.get("causal_hypothesis", "") or "").strip()
     expected_trace_change = str(parsed.get("expected_trace_change", "") or "").strip()
+    surface_rationale = str(parsed.get("surface_rationale", "") or "").strip()
+    blast_radius = str(parsed.get("blast_radius", "") or "").strip()
+    escalation_preservation = str(parsed.get("escalation_preservation", "") or "").strip()
+    no_benchmark_encoding = str(parsed.get("no_benchmark_encoding", "") or "").strip()
     if require_causal:
-        if not causal_hypothesis:
-            raise ValueError("missing_field_causal_hypothesis")
-        if not expected_trace_change:
-            raise ValueError("missing_field_expected_trace_change")
+        for _name, _val in (
+            ("causal_hypothesis", causal_hypothesis),
+            ("expected_trace_change", expected_trace_change),
+            ("surface_rationale", surface_rationale),
+            ("blast_radius", blast_radius),
+            ("escalation_preservation", escalation_preservation),
+            ("no_benchmark_encoding", no_benchmark_encoding),
+        ):
+            if not _val:
+                raise ValueError(f"missing_field_{_name}")
 
     target_skill = parsed["target_skill_file"].strip()
     target_field = parsed["target_field_path"].strip()
@@ -371,6 +391,10 @@ def _validate_and_build(
         rationale=rationale,
         causal_hypothesis=causal_hypothesis,
         expected_trace_change=expected_trace_change,
+        surface_rationale=surface_rationale,
+        blast_radius=blast_radius,
+        escalation_preservation=escalation_preservation,
+        no_benchmark_encoding=no_benchmark_encoding,
         attempts_used=attempts_used,
         raw_llm_response=raw_response,
     )
