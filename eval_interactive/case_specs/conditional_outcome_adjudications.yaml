@@ -1,0 +1,38 @@
+# Conditional-outcome adjudication registry (S-Auto-40 WP1-A).
+#
+# The ONLY artifact that can flip a `CONDITIONAL_ELIGIBLE` /
+# `REVIEW_REQUIRED` escalate-after-genuine-help trace to a final PASS. Each
+# entry is a versioned, auditable, per-trace human adjudication. The
+# conditional-outcome evaluator (scoring/conditional_outcome.py) only READS
+# this file — it never calls human judgment at runtime.
+#
+# An entry applies only when ALL of the following match the trace under
+# scoring:
+#   - `trace_id`                    == trace.session_state.session_id
+#   - `verdict`                     == "accept_escalation"
+#   - `case_id`                     == the CaseSpec case_id (defensive)
+#   - `closure_criterion_version`   == sha256(closure_criterion)[:12] of the
+#                                      CURRENT CaseSpec (a closure-criterion
+#                                      edit invalidates stale adjudications,
+#                                      dropping the trace back to
+#                                      REVIEW_REQUIRED).
+#
+# Because `trace_id` is the per-run session id, an adjudication applies to
+# exactly one historical trace. A fresh real-LLM run produces new session
+# ids with no adjudication, so every new eligible escalation is
+# REVIEW_REQUIRED by default — never auto-accepted. This is the anti-误杀 /
+# anti-widen property: acceptance is per-trace and human-reviewed, never a
+# blanket "escalate is fine for this case".
+#
+# Entry template (remove this comment when adding real entries):
+#   adjudications:
+#     - trace_id: "<session_id from results.json>"
+#       case_id: "cs_uc_a_no_ad_id_ad_specific"
+#       closure_criterion_version: "<sha256(closure_criterion)[:12]>"
+#       verdict: accept_escalation        # accept_escalation | reject_escalation
+#       reviewer: "<human name / role>"
+#       rationale: "<why this specific escalation-after-help is acceptable>"
+#       timestamp: "2026-06-19T00:00:00Z"
+
+schema_version: 1
+adjudications: []

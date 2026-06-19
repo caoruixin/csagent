@@ -254,6 +254,15 @@ class CaseSpec:
     # expected-bot-behaviour block. Backward-compatible: None on every existing
     # smoke / anchor / case-family fixture.
     closure_criterion: Optional[str] = None
+    # S-Auto-40 (WP1-A): declarative, condition-bound outcome acceptance.
+    # When present, the conditional-outcome evaluator
+    # (``scoring/conditional_outcome.py``) governs the ``correct_outcome``
+    # verdict for this case: resolve when the customer is SATISFIED, and
+    # escalate only CONDITIONAL_ELIGIBLE (never auto-PASS) when the customer
+    # is positively UNRESOLVED after closure-qualified grounded help. Stored
+    # as the raw dict (parsed in the scoring layer) to keep ``schema`` free of
+    # a scoring-module import. None on every case that does not opt in.
+    conditional_outcome_acceptance: Optional[dict] = None
     # S-Cleanup-2 (M4-Eval-Cleanup): name of the suite directory the
     # CaseSpec was loaded from (e.g., "bad_cases", "anchor_outcome",
     # "anchor"). Populated by ``load_case_spec`` / ``load_case_specs``

@@ -221,7 +221,27 @@ class OutcomeChecker:
 
         Falls back to the strict ``outcome_class`` match when
         ``acceptable_outcomes`` is empty, preserving legacy behaviour.
+
+        S-Auto-40 (WP1-A): when the CaseSpec carries a declarative
+        ``conditional_outcome_acceptance`` block, the verdict is delegated to
+        the generic conditional-outcome evaluator instead. That evaluator
+        reads the Phase-1 ``user_state`` signal and a closure-quality marker
+        and returns PASS only for a SATISFIED→resolve path or an
+        adjudicated UNRESOLVED→escalate path; a positively-UNRESOLVED
+        escalation without an adjudication artifact scores 0.0
+        (``CONDITIONAL_ELIGIBLE`` / ``REVIEW_REQUIRED``), so it never
+        auto-passes the mandatory gate. This is a §5.4 product-authorized
+        ``eval_spec`` acceptance, NOT an unconditional ``resolve OR escalate``
+        widen.
         """
+        if getattr(case_spec, "conditional_outcome_acceptance", None):
+            from eval_interactive.scoring.conditional_outcome import (
+                evaluate_conditional_outcome,
+            )
+
+            cr = evaluate_conditional_outcome(case_spec, trace)
+            return OutcomeCheckResult("correct_outcome", cr.score, cr.detail)
+
         expected = case_spec.expected.outcome_class.lower()
         raw_outcome = trace.session_state.containment_outcome.lower()
         actual = _OUTCOME_MAP.get(raw_outcome, raw_outcome)

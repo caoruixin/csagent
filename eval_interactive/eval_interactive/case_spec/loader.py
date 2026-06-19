@@ -100,6 +100,9 @@ def _parse_case_spec(raw: dict, source_suite: str | None = None) -> CaseSpec:
         scoring=scoring,
         closure_criterion=raw.get("closure_criterion"),
         source_suite=source_suite,
+        # S-Auto-40 (WP1-A): pass the declarative conditional-acceptance
+        # block through verbatim (None when the case does not opt in).
+        conditional_outcome_acceptance=raw.get("conditional_outcome_acceptance"),
     )
 
 
