@@ -917,6 +917,43 @@ baseline frozen). exp-86 + exp-87 were both OFF_TARGET → the blocking issue is
   WP1-B / WP2 / objective-alignment annotation / `R-conditional-adjudication-auto-triage`
   remain HELD.
 
+  **exp-88 + exp-89 result (2026-06-19, 2 bounded real iterations, both DISCARD —
+  ACCEPTED):** the steering FIXED the targeting problem. Precise diagnosis:
+  1. **Semantic target steering is now working** — both proposals were `on_target`
+     (pre-check) and addressed the intended PRIMARY failure mechanisms (listing-
+     context grounding + ask-for-ad-reference), a clean contrast to the OFF_TARGET
+     exp-86/exp-87.
+  2. **The remaining problem is mutation-surface scoping, not targeting** — both
+     candidates edited the SHARED `resolve_faq_grounded_answer.$.procedure`, which
+     causes cross-UC bleed: both independently produced a **real, stable,
+     candidate-induced tier0 regression** (`escalation_compliance@cs38s01_uc_j_scam_seller_full_narrative`;
+     `delta_mode=True`, `stable_reproduction=True`, `pre_existing_ignored=[]`) —
+     i.e. the broadened "answer / ground in the listing" prose suppressed a
+     REQUIRED trust-and-safety escalation. The tier0 safety floor correctly killed
+     both.
+  3. **No PRIMARY-improvement claim** — both runs short-circuited at Layer 0, so the
+     proposed grounding changes are **NOT** shown to improve the PRIMARY; that
+     remains UNPROVEN (k_c=0 observed, but moot pre-tier1).
+  Contract integrity held (signals present, 0 improper PASS, no scoring_code_drift
+  [sha `7df8173c`], baseline frozen, canonical pointer unchanged). No candidate
+  merged; no gate / baseline / re-bless change. **Real iterations STOPPED** — a
+  repeated, stable tier0 regression is sufficient evidence that further candidates
+  on the broad shared-procedure surface are not justified.
+
+  **Next narrow step (read-only first; HELD for human review before any real
+  iteration):** a read-only mutation-surface analysis — compare the 4 mutable
+  registry fields (`$.procedure` / `$.grounding_instruction` / `$.escalation_policy`
+  / `$.critical_steps[*].desc`) and their runtime consumers across the 6 skills,
+  and identify the NARROWEST legitimate surface for the UC-A entity-context /
+  listing-grounding behavior that cannot suppress escalation. A UC-A-conditioned
+  `critical_steps[*].desc` MAY be considered but must NOT be assumed in advance.
+  The next dry-run proposal must state: (1) exact PRIMARY mechanism targeted; (2)
+  why the edit surface is narrower than the shared procedure; (3) expected
+  cross-UC blast radius; (4) an explicit trust-and-safety/scam escalation-
+  precedence preservation rule; (5) expected PRIMARY trace-level changes; (6)
+  confirmation it encodes no benchmark case names / fixed ad IDs / test-specific
+  answers. Surface the scoping analysis + dry-run proposal for review.
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact
