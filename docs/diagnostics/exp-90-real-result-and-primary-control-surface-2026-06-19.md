@@ -24,6 +24,35 @@ notes: >
 
 # exp-90 real result + PRIMARY capability-to-mutation-surface analysis
 
+## 0. Closure verdict (2026-06-19, human-authorized)
+
+**CLOSED — NO KEEP: registry-only control-surface limit reached for the current
+PRIMARY objective.**
+
+The M-Auto-7 registry-only autoloop pilot is closed with no KEEP. **No exp-91**
+and **no run of the remaining `discover_triage.$.procedure` lever now**: although
+that surface may improve the `loaded_listing` UC-A→UC-B misclassification, it
+**cannot overcome the shared runtime closure / `record_outcome` blocker that
+independently gates BOTH PRIMARY cases**, so it cannot make the current objective
+keep-eligible.
+
+**Precise grounding conclusion (do not overstate):** exp-90 shows the **reviewed**
+`$.grounding_instruction` hypothesis was **insufficient and harmful elsewhere**;
+it does **not** prove that every possible registry wording is impossible. The
+stopping decision is justified **because the runtime closure blocker already makes
+further registry-only search unable to deliver the end-to-end PRIMARY
+objective** — not because the registry wording space has been exhausted.
+
+**Follow-ups (recorded, not started):** OQ-S93.1 runtime/orchestration closure
+**design milestone opened** —
+[`../proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md`](../proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md).
+The `discover_triage.$.procedure` classification lever is recorded **DEFERRED**
+(revisit only after the shared closure path is fixed). `source_ids` trace
+projection is recorded as a **separate non-blocking observability item**. No
+WP1-B / WP2 / objective-alignment annotation / posterior-resampling /
+mutable-surface expansion / re-bless / baseline movement is started as part of
+this closure.
+
 ## 1. Acceptance record (human-authorized 2026-06-19)
 
 - **exp-90 = DISCARD, ACCEPTED; isolated experiment CLOSED.** One real iteration,
