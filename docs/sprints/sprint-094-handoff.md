@@ -33,7 +33,8 @@ HEAD at sprint start: `ab9ca077`.
 |---|---|---|---|
 | Step 0 — measurement gate | — | **RE-CONFIRMED INSUFFICIENT** | structural: simulator per-turn `goal_status` discarded; no `user_state`; escalation `bot_ended` break precedes `generate_next`. |
 | Phase 1 — trace-only measurement contract | `infra` | **DONE + unit-tested** | 50 tests (sim parse + session-runner signal series). |
-| Phase 2 — bounded real-LLM validation | `infra` | **PENDING (env-gated)** | backend down at session; §5.7 forbids mocked certification. Not INCONCLUSIVE — simply not yet run. |
+| Phase 2 — bounded real-LLM validation | `infra` | **DONE — evidence floor MET** | run `results/wp1a-phase2-measurement-20260619` (42/42 draws, 0 err); SATISFIED=6, post-help UNRESOLVED=19; provenance/alignment 0 violations. |
+| Closure-quality adjudication | `eval_spec` | **DONE — 4/4 REJECTED** | human verdicts recorded in `conditional_outcome_adjudications.yaml`; no trace flipped to PASS. |
 | Phase 3 — declarative three-state acceptance | `eval_spec` | **DONE + zero-LLM-tested** | 19 §3.3 replay tests, all green. |
 | Baseline migration | — | **DECIDED + specified** (execution waits on Phase 2) | see §6. |
 | Codex per-sub-sprint review | — | **PASS (`approve`)** | §4.1 nine-question kernel, read-only `codex exec` (high); verdict verbatim in `docs/codex-findings.md`. |
@@ -191,40 +192,67 @@ closure + adjudication:
 | **composite**: UC-misclass + adjudicated escalate | case_passed False (correct_uc gate) |
 | neighbor w/o block | legacy resolve-only (escalate → 0.0) |
 
-## §5 Phase 2 — bounded real-LLM validation (PENDING, env-gated)
+## §5 Phase 2 — bounded real-LLM validation (DONE — evidence floor MET)
 
-Not executed: the backend was unreachable at this session
-(`GET /actuator/health` empty) and §5.7 forbids certifying a measurement /
-prompt change on mocked-LLM evidence. This is **not** an INCONCLUSIVE stop
-under the contract (the STOP conditions — no same-call signal possible, floor
-unmet on a *run*, baseline not combinable, free-text-only branch — did not
-trigger). It is simply the remaining live-evidence gate, and pilot/WP1-B/WP2
-are already HELD on it.
+**Run:** `eval_interactive/results/wp1a-phase2-measurement-20260619/draws/`
+(gitignored). HEAD `b6329041`; backend SHA = HEAD (no Java changed); simulator
+signal schema_version 1; bot=deepseek-v4-flash, sim=moonshot-v1-32k, temp 0.0;
+backend `localhost:8080` under `caffeinate`. Provenance hashes pinned
+(`conditional_outcome.py 7e3609d0…`, the 2 CaseSpecs, adjudication registry).
 
-**To run** (human-launched, or dev on a clean committed tree):
-1. §5.9 pre-flight GO/no-go on a sample (see §5.1 below).
-2. `caffeinate` the Mac (multi-hour real-LLM; a sleep-spanned run is
-   uncertifiable — kill + re-run fresh).
-3. Small bounded run: 2 PRIMARY + controls/neighbors (no pilot, no candidate
-   search). One existing stable satisfiable control MAY be added only to
-   validate the measurement contract (not WP2).
-4. **Evidence floor** (else INCONCLUSIVE → stop, no re-bless, no pilot):
-   ≥1 `SATISFIED`; **≥3 positive post-help `UNRESOLVED`**; `UNKNOWN`/neutral
-   samples; handover before/after timing; no outcome leakage.
+**§5.9 pre-flight GO:** fresh boot (`Started CsAgentApplication`, Flyway
+connected), health UP, Postgres+Redis up, no proxy env; n=1 smoke proved the
+instrumentation live (3 provenance-complete signals; evaluator
+`CONDITIONAL_ELIGIBLE [closure_marker_turn=2, adjudicated=False]`).
 
-### §5.1 §5.9 pre-flight checks for this run (read-only)
+**Bounded set (Sprint 093 precedent):** 2 PRIMARY ×11 + `generic_policy` (neg-
+control) ×5 + `lookup_failed` / `fp_loaded_moderation` (neighbors) ×5 +
+`cs11g02_uc_d_explicit_distress` (genuine-escalation control) ×5 = **42 draws,
+42 valid, 0 errors, 0 timeouts**.
 
-- backend `/actuator/health` == UP; simulator LLM gateway reachable
-  (`llm.base_url`/model set).
-- a 1-case dry run emits `user_state_signals` in `case_results[]` (field
-  present + non-empty on a multi-turn draw) — i.e. the instrumentation is live,
-  not a stale backend (cf. restart-backend memo).
-- **turn alignment check**: confirm a signal's `turn_id` lines up with the
-  bot-side `TraceData.turns[*].turn_index` numbering (both number the first
-  user→bot exchange as turn 1). An off-by-one here would mis-align the
-  closure-marker precondition — validate on the first real decidable trace
-  before trusting the UNRESOLVED branch.
-- no proxy/localhost breakage for the simulator client (macOS httpx memo).
+**Evidence floor — MET:**
+
+| criterion | required | observed |
+|---|---|---|
+| SATISFIED | ≥1 | **6** |
+| post-help UNRESOLVED | ≥3 | **19** |
+| UNKNOWN / neutral samples | present | working=30 signals; UNKNOWN-terminal=6 (14.3%) |
+| handover/bot_ended retain state | not all-lost | **6/6** |
+| same-call provenance violations | 0 | **0** (80/80 signals tagged) |
+| turn-alignment violations | 0 | **0** |
+| no back-inference / leakage | — | user_state varies independently of outcome/reason (UNRESOLVED appears under resolved, user_requested, faq_miss, turn_budget alike) |
+
+**Zero-LLM anti-widen replay over the 22 real PRIMARY traces:** 15 false-resolve
+→ FAIL · 4 escalate+UNRESOLVED → CONDITIONAL_ELIGIBLE (not PASS) · 1
+SATISFIED+resolve → PASS · 1 UNKNOWN+resolve → PASS · 1 blank-outcome → FAIL.
+**No improper PASS into the accepted branch; no PRIMARY escalate draw
+`case_passed=True` (registry empty).** Analyzer: `eval_interactive/analyze_wp1a_phase2.py`.
+
+### §5a Closure-quality adjudication (4/4 REJECTED)
+
+The 4 `CONDITIONAL_ELIGIBLE` escalate traces (all `cs_uc_a_loaded_listing`) were
+reviewed against the closure criterion (version `ba55899118d0`) and **human-
+REJECTED**, recorded in `eval_interactive/case_specs/conditional_outcome_adjudications.yaml`
+(`verdict: reject_escalation`):
+
+- `30878877…` — UC-B misclass + generic tips (faq_miss escalation).
+- `f3a4fff1…` — UC-A correct, references listing (title+LIVE, pre-loaded context
+  is valid provenance) but **listing context not used substantively** (reverts to
+  generic FAQ) + **budget-driven escalation** (turn_budget_exhausted). Borderline.
+- `8841784c…` — UC-B misclass + generic tips (user_requested).
+- `a5bcf38e…` — UC-B misclass + generic "Creating Effective Ads" article.
+
+`reject_escalation` is an auditable record only — the evaluator flips to PASS
+solely on `accept_escalation`, so all 4 stay non-PASS (already `case_passed=False`
+independently). Unit test `test_reject_escalation_verdict_does_not_flip_to_pass`
+locks this. **No conditional baseline formed; no re-bless; canonical pointer
+unchanged; pilot HELD.**
+
+Three failure clusters surfaced (bot-behaviour, measurement-only — not a WP1-A
+fix): UC-A→UC-B misclass; listing context ignored/superficial; budget-driven
+escalation before grounded resolution →
+`docs/diagnostics/failure-clusters-uc-a-listing-2026-06-19.md`. Auto-adjudication
+follow-up → `R-conditional-adjudication-auto-triage` (`docs/action_bank.md` §5).
 
 ## §6 Baseline migration decision (blocking) — DECIDED
 
@@ -265,8 +293,10 @@ PASS, but no UNRESOLVED branch is reachable). Decision:
 - [x] Step 0 re-confirmed; measurement-first.
 - [x] Phase-1 signal is same-call, provenance-tagged, post-help-alignable;
       missing→UNKNOWN; no back-inference / carry-forward / post-hoc LLM.
-- [ ] **Phase-2 evidence floor — PENDING (env-gated real-LLM run).** Not
-      certifying on mocked evidence (§5.7).
+- [x] **Phase-2 evidence floor MET** — 42/42 draws; SATISFIED=6, post-help
+      UNRESOLVED=19, UNKNOWN/neutral present, handover 6/6 retains state, 0
+      provenance/alignment violations, no leakage. 4/4 CONDITIONAL_ELIGIBLE
+      human-REJECTED (no PASS flip).
 - [x] Phase-3 declarative, no case-id/free-text; three-state matrix + §3.3
       battery all hold on zero-LLM replay.
 - [x] CONDITIONAL_ELIGIBLE never auto-PASS; adjudication artifact

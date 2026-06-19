@@ -847,6 +847,39 @@ required); pilot HELD; exp-82 WITHDRAWN.
   small defensible tail — record only, NO CaseSpec/bar change); ~11 carry the
   mislabeled `user_requested` reason (`project_faq_overescalate_maxsteps_misstamp`).
 
+### Sprint 094 / S-Auto-40 WP1-A Phase 2 surfaced R-item (2026-06-19)
+
+WP1-A measurement contract → conditional outcome acceptance landed + validated
+(Phase-2 bounded real-LLM run `results/wp1a-phase2-measurement-20260619`,
+42/42 draws, evidence floor MET; all 4 `CONDITIONAL_ELIGIBLE` escalate traces
+human-REJECTED on closure-quality review and recorded in
+`eval_interactive/case_specs/conditional_outcome_adjudications.yaml`). Archives:
+`docs/sprints/sprint-094-{objective,handoff}.md`; Codex `pass` in
+`docs/codex-findings.md`.
+
+- **R-conditional-adjudication-auto-triage** — prevent per-trace human closure
+  adjudication from becoming a recurring auto-loop bottleneck. The
+  `CONDITIONAL_ELIGIBLE` → human-verdict step must NOT block the loop when it
+  cannot change an already-`case_passed=False` state. Design a declarative
+  auto-adjudication pre-filter so human review is reserved for genuinely
+  borderline semantic cases:
+  1. **Auto-reject** clear cases — wrong UC, generic FAQ answer without
+     context provenance, or any explicit CaseSpec FAIL condition — without a
+     human turn.
+  2. Treat **both tool-returned and pre-loaded** customer context as valid
+     entity-context provenance (do not require a `get_customer_context` tool
+     call when the CaseSpec accepts pre-loaded `customer_context`).
+  3. Require **substantive use of listing-specific fields**, not merely
+     mentioning the title/status, to count an answer as closure-grounded.
+  4. Reserve human review for the **genuinely borderline** semantic cases only.
+  5. **Do not block** the whole auto-loop on conditional reviews that cannot
+     flip an already-false `case_passed`.
+  Layer: `eval_spec` (declarative adjudication pre-filter) + `infra` (auto-loop
+  gating). Source: S-Auto-40 WP1-A Phase 2 closure-quality review (2026-06-19).
+  Status: **open / M-Auto-7 candidate** (WP1-B / WP2 + pilot remain HELD).
+  Failure clusters seeded for this work: see
+  `docs/diagnostics/failure-clusters-uc-a-listing-2026-06-19.md`.
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact
