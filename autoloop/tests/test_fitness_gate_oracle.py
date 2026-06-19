@@ -36,11 +36,22 @@ _RUNS = _REPO_ROOT / "autoloop" / "results" / "runs"
 
 # Re-pinned V3 matrix (contract §Scope #9). `decision` is the binding pin;
 # `mechanism` is a substring the discard_reason must contain.
+#
+# S-Auto-42 reroute (2026-06-19): exp-67/68/73/74 were historically pinned to the
+# tier0 floor on `cs11s01_uc_d_two_emails_one_account` — a BASELINE-FLAGGED FLAKY
+# shadow case. The bool-only INCONCLUSIVE_FLAKY defer rule DEFERS a flaky tier0
+# violation instead of auto-attributing it as a candidate regression, so the
+# discard DECISION is preserved (no KEEP-widening) but the MECHANISM reroutes:
+#   67/73 -> the real later-layer regression the tier0 short-circuit had masked
+#            (FS anti-误杀 flip / cross-case count);
+#   68/74 -> HOLD_INCONCLUSIVE_FLAKY (otherwise keep-eligible; the deferred flaky
+#            tier0 check holds it; never KEEP).
+# All four remain `discard` (test_oracle_decision_matches_pinned_matrix unchanged).
 _DISCARDS = {
-    67: ("tier0", "tier0_escalation_compliance", "cs11s01"),
-    68: ("tier0", "tier0_escalation_compliance", "cs11s01"),
-    73: ("tier0", "tier0_escalation_compliance", "cs11s01"),
-    74: ("tier0", "tier0_escalation_compliance", "cs11s01"),
+    67: ("FS_tier_s", "tier1_anti_kill_tier_s_flip", "cs_uc_a_generic_policy_question"),
+    68: ("hold_flaky", "hold_inconclusive_flaky", "cs11s01"),
+    73: ("cross_case", "tier1_outcome_regressed", None),
+    74: ("hold_flaky", "hold_inconclusive_flaky", "cs11s01"),
     78: ("FS_tier_s", "tier1_anti_kill_tier_s_flip", "cs_uc_a_generic_policy_question"),
     69: ("cross_case", "tier1_outcome_regressed", None),
 }

@@ -480,7 +480,12 @@ fitness:
   # import _compute_scoring_code_sha; print(_compute_scoring_code_sha())"` at
   # S-Y1.7 HEAD must reproduce the value below. Pre-S-Y1.7 value:
   # 0d86b08fc0309196d9fc49f4924fe446b36d6c04301c4bcb406ca12337dd149e.
-  scoring_code_baseline_sha: "7df8173cd4ef35741ec613038dc8cf29151d5b9880b585fac53442371fafebc0"
+  # S-Auto-42 re-pin (2026-06-19): tier_evaluator.py gained the bool-only
+  # INCONCLUSIVE_FLAKY tier0 defer rule. Only the COMPARISON logic changed —
+  # baseline DATA is untouched (no re-score, no re-bless, canonical pointer
+  # frozen); this is a scoring-SHA re-pin under the Sprint-091 precedent
+  # (offline replay is primary evidence; §5.7 N/A). Prior pin: 7df8173c.
+  scoring_code_baseline_sha: "c35913067d4d11e0b3a42b522243570822ff70fb50d03ee40bd2bbf06ed502c1"
 
 content_validator:
   # S-Auto-4 — structural integrity checker that runs BEFORE the

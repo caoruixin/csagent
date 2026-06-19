@@ -325,6 +325,24 @@ def evaluate(
             audit_detail = ShadowAuditDetail()
 
     classification = _classify(decision, ctx)
+
+    # S-Auto-42: HOLD_INCONCLUSIVE_FLAKY. If the candidate is OTHERWISE
+    # keep-eligible but a baseline-flagged flaky Tier-0 check was DEFERRED, the
+    # candidate must NEVER KEEP. It is held: decision flips to non-keep with a
+    # distinct, auditable classification + reason, and the deferred evidence is
+    # preserved for the later bounded-confirmation step. A real regression /
+    # later-layer failure already discarded above takes precedence (only `keep`
+    # is held; deterministic + non-flaky tier0 floors are untouched).
+    deferred_flaky = (
+        (l0.metrics_observed.get("python_tier0_family") or {}).get("deferred_flaky")
+        or []
+    )
+    if decision == "keep" and deferred_flaky:
+        decision = "discard"
+        _held = ", ".join(f"{e['check']}@{e['case_id']}" for e in deferred_flaky)
+        discard_reason = f"hold_inconclusive_flaky:{_held}"
+        classification = "hold_inconclusive_flaky"
+
     tier_breakdown["classification"] = classification
     if ctx is not None:
         tier_breakdown["non_comparable_rate"] = ctx.non_comparable_rate
@@ -553,6 +571,15 @@ def _evaluate_layer0(
 
     # Baseline Tier-0-family per-case map for the delta: {(suite, case_id, check): passed}.
     baseline_tier0: dict[tuple[str, str, str], bool] = {}
+    # S-Auto-42: baseline per-case FLAKY flag (bool-only defer rule). A Tier-0
+    # violation on a baseline-flagged flaky case is DEFERRED (HOLD, never KEEP,
+    # never auto-discard) pending a later bounded-confirmation step, rather than
+    # being auto-attributed as a candidate regression on a bare majority flip.
+    # Per-check (k,n) for a posterior is NOT reliably persisted (tier0_majority
+    # is bool-only; failure_tags undercount; the frozen baseline carries no
+    # counts) — see docs/diagnostics/autoloop-tier0-flaky-posterior-data-blocker-2026-06-19.md
+    # — so this first pass uses the persisted bool signals only.
+    baseline_flaky: dict[tuple[str, str], bool] = {}
     for suite_name, snap in (baseline.snapshots or {}).items():
         rj = getattr(snap, "raw_results_json", None)
         if not rj:
@@ -566,10 +593,14 @@ def _evaluate_layer0(
             continue
         for bcase in bdata.get("case_results") or []:
             bcid = bcase.get("case_id", "<unknown>")
+            baseline_flaky[(suite_name, bcid)] = bool(bcase.get("flaky"))
             for bcheck in bcase.get("l1_results") or []:
                 cn = bcheck.get("check")
                 if cn in _TIER0_PY_FAMILY:
                     baseline_tier0[(suite_name, bcid, cn)] = bcheck.get("passed") is True
+
+    # S-Auto-42 defer accumulator (bool-only).
+    deferred_flaky: list[dict[str, Any]] = []
 
     # Java replay 11 hard gates — read from tier_breakdown if present.
     for gate in _TIER0_JAVA_GATES:
@@ -624,17 +655,34 @@ def _evaluate_layer0(
                 if baseline_passed is False:
                     # Pre-existing baseline failure — NOT caused by this candidate. Ignore.
                     py_pre_existing_ignored.append(f"{check_name}@{case_id}")
-                else:
-                    # baseline passed (True) OR unknown/missing -> newly-introduced
-                    # violation (safety floor: conservative, do not mask).
+                elif not baseline_flaky.get((suite_name, case_id), False):
+                    # baseline passed (True) OR unknown/missing, NON-flaky case ->
+                    # newly-introduced violation (safety floor: conservative, do
+                    # not mask). UNCHANGED immediate-DISCARD behaviour.
                     py_fail_cases.append(f"{check_name}@{case_id}")
                     failures.append(f"tier0_{check_name}_failed_on_{case_id}")
+                else:
+                    # S-Auto-42: baseline-flagged FLAKY case. DEFER (do NOT fail
+                    # tier0, do NOT auto-clear). An otherwise keep-eligible
+                    # candidate with a deferred flaky tier0 check is HELD (never
+                    # KEEP) by `evaluate`; resolution waits for the later bounded-
+                    # confirmation step. Bool-only evidence (no reliable per-check
+                    # counts; see the data-blocker diagnostic).
+                    deferred_flaky.append({
+                        "case_id": case_id, "suite": suite_name,
+                        "check": check_name,
+                        "baseline_flaky": True,
+                        "candidate_majority_failed": True,
+                        "reason": "flaky_baseline_tier0_violation_deferred",
+                    })
     metrics["python_tier0_family"] = {
         "total_cases_checked": py_total_cases,
         "failing_cases": py_fail_cases,
         "pre_existing_baseline_failures_ignored": py_pre_existing_ignored,
         "delta_mode": True,
         "stable_reproduction": stable_reproduction,
+        # S-Auto-42: flaky tier0 violations deferred (bool-only defer rule).
+        "deferred_flaky": deferred_flaky,
     }
 
     if failures:
