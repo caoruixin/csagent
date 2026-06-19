@@ -888,6 +888,35 @@ pilot evidence shows them blocking.
   Failure clusters seeded for this work: see
   `docs/diagnostics/failure-clusters-uc-a-listing-2026-06-19.md`.
 
+### M-Auto-7 pilot resume + S-Auto-41 proposer steering (2026-06-19)
+
+Pilot resumed from the unchanged pre-pilot fitness baseline using the WP1-A
+measurement contract. **exp-87 ACCEPTED as a successful validation iteration**
+(decision=discard; measurement contract, conditional acceptance, V3 gate,
+rollback, and non-blocking adjudication all operated correctly): tier0 safety
+CLEAN; discarded at the tier1 TIER-S anti-误杀 floor (candidate regressed
+`cs01s01` 1/5 + others); both PRIMARY stayed 0 (no_ad_id 0/13, loaded_listing
+0/12); contract integrity verified live (user_state signals + provenance present,
+false-resolves correctly FAILed, **0 improper PASS**, no scoring_code_drift,
+baseline frozen). exp-86 + exp-87 were both OFF_TARGET → the blocking issue is
+**proposer steering, not evaluation correctness**.
+
+- **S-Auto-41 (R-autoloop-feedback-loop-thinness follow-up — narrowly scoped,
+  proposer-input only)** — enrich the proposer feedback with (1) target PRIMARY
+  + baseline evidence, (2) the 3 observed failure clusters, (3) a REQUIRED
+  causal hypothesis, (4) a REQUIRED expected trace-level change, and (5) a
+  lightweight OFF_TARGET pre-check before the expensive fitness eval. Tool-
+  returned AND pre-loaded customer context treated as equally valid; substantive
+  use of listing-specific info required (NO hard-coded `get_customer_context`).
+  Touches `proposer.py` / `config_validator.py` / `propose.txt` / `loop.py` +
+  the `primary_target_steering` block in `config.pilot-s-auto-38.yaml`. **Does
+  NOT change the keep gate, conditional rules, baseline, or canonical pointer;
+  none of the 6 scoring-SHA files touched (sha still `7df8173c…`, no drift).**
+  Layer: `infra` (autoloop meta-agent steering). Validation = 9 zero-LLM unit
+  tests + dry-run proposal-only inspection, then ≤2 bounded real iterations.
+  WP1-B / WP2 / objective-alignment annotation / `R-conditional-adjudication-auto-triage`
+  remain HELD.
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact

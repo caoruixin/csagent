@@ -77,6 +77,17 @@ class Hypothesis:
     before_value: str
     after_value: str
     rationale: str
+    # S-Auto-41 (R-autoloop-feedback-loop-thinness follow-up): proposer-
+    # steering fields. REQUIRED only when `primary_target_steering.enabled`
+    # (the active PRIMARY-target pilot); empty + unvalidated otherwise so
+    # legacy / pre-pilot runs are byte-for-byte unchanged.
+    #   causal_hypothesis — the causal chain connecting THIS edit to a target
+    #     PRIMARY failure mechanism (e.g. UC-A→UC-B misclass / superficial
+    #     listing use / budget escalation before grounded resolution).
+    #   expected_trace_change — the expected trace-level behaviour change if
+    #     the edit works (what a passing trace would now show).
+    causal_hypothesis: str = ""
+    expected_trace_change: str = ""
     fingerprint: str = ""
     attempts_used: int = 1
     raw_llm_response: str = field(default="", repr=False)
@@ -117,6 +128,12 @@ def propose(
     lessons_enabled = bool(lessons_cfg.get("enabled", True))
     effective_lessons = lessons if lessons_enabled else _LESSONS_DISABLED_PLACEHOLDER
 
+    # S-Auto-41: PRIMARY-target proposer steering. When enabled, inject the
+    # target baseline evidence + observed failure clusters into the prompt and
+    # require a causal hypothesis + expected trace change.
+    steering = (config or {}).get("primary_target_steering") or {}
+    require_causal = bool(steering.get("enabled"))
+
     system = _PROMPT_PATH.read_text(encoding="utf-8")
     base_user = _build_user_input(
         taxonomy,
@@ -125,6 +142,7 @@ def propose(
         allowed_files,
         pilot=pilot or {},
         skill_phase_usecase_map=skill_phase_usecase_map or {},
+        steering=steering,
     )
 
     last_text = ""
@@ -155,6 +173,7 @@ def propose(
                 allowed_paths=allowed_paths,
                 attempts_used=attempt,
                 raw_response=last_text,
+                require_causal=require_causal,
             )
         except ValueError as e:
             last_error = str(e)
@@ -192,6 +211,7 @@ def _build_user_input(
     *,
     pilot: dict[str, Any] | None = None,
     skill_phase_usecase_map: dict[str, dict[str, list[str]]] | None = None,
+    steering: dict[str, Any] | None = None,
 ) -> str:
     """Bundle the taxonomy + lessons + recent iters + current YAML.
 
@@ -247,6 +267,12 @@ def _build_user_input(
             pilot or {}, skill_phase_usecase_map or {}
         )
     )
+    # S-Auto-41: PRIMARY-target steering block (baseline evidence + observed
+    # failure clusters + the causal-hypothesis requirement). Rendered only
+    # when the steering config is present, so non-pilot prompts are unchanged.
+    parts.extend(
+        _config_validator.render_primary_target_steering_block(steering or {})
+    )
     parts.extend(
         [
             "TARGET_SKILL_FILES_CONTENT:",
@@ -286,8 +312,14 @@ def _validate_and_build(
     allowed_paths: list[str],
     attempts_used: int,
     raw_response: str,
+    require_causal: bool = False,
 ) -> Hypothesis:
-    """Structural validation of the LLM JSON output."""
+    """Structural validation of the LLM JSON output.
+
+    ``require_causal`` (S-Auto-41) enforces the steering fields
+    ``causal_hypothesis`` + ``expected_trace_change`` when the active
+    PRIMARY-target pilot is on; otherwise they are optional pass-throughs.
+    """
     if not isinstance(parsed, dict):
         raise ValueError("output_is_not_an_object")
 
@@ -303,6 +335,14 @@ def _validate_and_build(
             raise ValueError(f"missing_field_{k}")
         if not isinstance(parsed[k], str):
             raise ValueError(f"field_{k}_must_be_string")
+
+    causal_hypothesis = str(parsed.get("causal_hypothesis", "") or "").strip()
+    expected_trace_change = str(parsed.get("expected_trace_change", "") or "").strip()
+    if require_causal:
+        if not causal_hypothesis:
+            raise ValueError("missing_field_causal_hypothesis")
+        if not expected_trace_change:
+            raise ValueError("missing_field_expected_trace_change")
 
     target_skill = parsed["target_skill_file"].strip()
     target_field = parsed["target_field_path"].strip()
@@ -329,6 +369,8 @@ def _validate_and_build(
         before_value=before_value,
         after_value=after_value,
         rationale=rationale,
+        causal_hypothesis=causal_hypothesis,
+        expected_trace_change=expected_trace_change,
         attempts_used=attempts_used,
         raw_llm_response=raw_response,
     )

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -185,6 +186,97 @@ def render_pilot_input_blocks(
         blocks.append(json.dumps(skill_map, indent=2, default=str))
         blocks.append("")
     return blocks
+
+
+# --- S-Auto-41 PRIMARY-target proposer steering -----------------------
+#
+# Narrowly-scoped follow-up under R-autoloop-feedback-loop-thinness: enrich
+# the proposer's INPUT only (target baseline evidence + observed failure
+# clusters + a required causal hypothesis), and add a lightweight OFF_TARGET
+# pre-check before the expensive fitness eval. Does NOT touch the keep gate,
+# conditional rules, baseline, or canonical pointer. Proposer-side only.
+
+
+@dataclass
+class OffTargetVerdict:
+    """Result of the lightweight pre-eval steering check."""
+
+    on_target: bool
+    reason: str
+
+
+def render_primary_target_steering_block(steering: dict[str, Any]) -> list[str]:
+    """Render the ``PRIMARY_TARGET_STEERING`` prompt block.
+
+    Rendered only when ``steering.enabled`` is truthy, so a non-pilot run's
+    prompt is byte-identical to the legacy path. Carries (1) the target
+    PRIMARY cases + their current baseline evidence + closure intent, (2) the
+    observed failure clusters, and tells the proposer (3) a causal hypothesis
+    and (4) an expected trace-level change are REQUIRED.
+    """
+    if not (steering or {}).get("enabled"):
+        return []
+    ctx = {
+        "instruction": (
+            "You are steering toward the PRIMARY targets below. Your edit MUST "
+            "be causally connected to one of the observed failure mechanisms. "
+            "Output `causal_hypothesis` (how this edit changes the failure "
+            "mechanism) and `expected_trace_change` (what a passing trace would "
+            "now show) — both REQUIRED. Treat tool-returned AND pre-loaded "
+            "customer context as equally valid provenance; require SUBSTANTIVE "
+            "use of listing-specific information rather than any specific tool "
+            "call."
+        ),
+        "primary_targets": steering.get("targets") or [],
+        "observed_failure_clusters": steering.get("failure_clusters") or [],
+        "primary_relevant_skills": steering.get("primary_relevant_skills") or [],
+    }
+    return [
+        "PRIMARY_TARGET_STEERING:",
+        json.dumps(ctx, indent=2, default=str),
+        "",
+    ]
+
+
+def off_target_precheck(
+    hypothesis: Any, steering: dict[str, Any]
+) -> OffTargetVerdict:
+    """Lightweight, LLM-free pre-eval steering check.
+
+    A proposal is ON_TARGET only when BOTH hold:
+      (a) it edits a PRIMARY-relevant skill file (declared in the steering
+          config), AND
+      (b) its causal hypothesis (or rationale) references at least one of the
+          declared on-target keywords (target case ids / UC tokens / failure-
+          mechanism terms — config-driven, not hard-coded in code).
+
+    Anything else is OFF_TARGET → the orchestrator discards it cheaply,
+    before the expensive apply + fitness eval. When steering is disabled this
+    is a no-op (always ON_TARGET), preserving legacy behaviour.
+    """
+    if not (steering or {}).get("enabled"):
+        return OffTargetVerdict(True, "steering_disabled")
+
+    relevant = set(steering.get("primary_relevant_skills") or [])
+    keywords = [str(k).lower() for k in (steering.get("on_target_keywords") or [])]
+    target_skill = (getattr(hypothesis, "target_skill_file", "") or "").strip()
+    if relevant and target_skill not in relevant:
+        return OffTargetVerdict(
+            False, f"skill_not_primary_relevant:{target_skill}"
+        )
+
+    haystack = " ".join(
+        [
+            getattr(hypothesis, "causal_hypothesis", "") or "",
+            getattr(hypothesis, "expected_trace_change", "") or "",
+            getattr(hypothesis, "rationale", "") or "",
+        ]
+    ).lower()
+    if keywords and not any(kw in haystack for kw in keywords):
+        return OffTargetVerdict(
+            False, "causal_hypothesis_misses_all_on_target_keywords"
+        )
+    return OffTargetVerdict(True, "on_target")
 
 
 # --- 4-layer hit-rate audit (forensic / observation-only) ------------

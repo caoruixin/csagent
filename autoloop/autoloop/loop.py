@@ -132,6 +132,12 @@ class IterationResult:
     # never has to reconstruct which target card was live. Observation-only.
     pilot_snapshot: dict[str, Any] | None = None
     lessons_enabled: bool = True
+    # S-Auto-41 (R-autoloop-feedback-loop-thinness follow-up): the lightweight
+    # PRIMARY-target steering pre-check verdict ({on_target, reason}). Computed
+    # after anti-hardcode, before the expensive apply+eval. In a real run an
+    # OFF_TARGET proposal is discarded here (reason `off_target_precheck:*`)
+    # without paying for eval; in a dry run it is recorded for inspection only.
+    off_target_verdict: dict[str, Any] | None = None
 
 
 def run_one_iteration(
@@ -269,6 +275,24 @@ def run_one_iteration(
             # Observation-only: continue the iteration; surface the
             # flag for Codex / human review via the iteration record.
             result.anti_hardcode_flag_for_codex = True
+
+        # --- 4.6. OFF_TARGET pre-check (S-Auto-41 steering; pre-eval, cheap).
+        # When PRIMARY-target steering is enabled, a proposal that is not
+        # causally targeted at a PRIMARY failure mechanism is discarded BEFORE
+        # the expensive apply + fitness eval. The verdict is always recorded
+        # (incl. dry-run) for inspection; it only short-circuits a real run.
+        ot_verdict = _config_validator.off_target_precheck(
+            hypothesis, (config or {}).get("primary_target_steering") or {}
+        )
+        result.off_target_verdict = {
+            "on_target": ot_verdict.on_target,
+            "reason": ot_verdict.reason,
+        }
+        if not dry_run and not ot_verdict.on_target:
+            result.decision = "discard"
+            result.discard_reason = f"off_target_precheck:{ot_verdict.reason}"
+            _persist_iteration(result, config, root, dry_run=dry_run, applied=None)
+            return _finalize(result, started)
 
         # --- 5. Dry-run short circuit.
         if dry_run:
@@ -609,6 +633,8 @@ def _build_record_dict(
         "content_validator_verdict": _safe_asdict(result.content_validator_verdict),
         "anti_hardcode_verdict": _safe_asdict(result.anti_hardcode_verdict),
         "anti_hardcode_flag_for_codex": result.anti_hardcode_flag_for_codex,
+        # S-Auto-41: PRIMARY-target steering pre-check verdict.
+        "off_target_verdict": result.off_target_verdict,
         "applied": _serialize_applied(applied),
         "verdict": _serialize_verdict(result.verdict),
         "gaming_flags": list(result.gaming_flags or []),

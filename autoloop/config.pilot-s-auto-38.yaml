@@ -71,6 +71,59 @@ pilot:
   phase_hint: [DISCOVER, RESOLVE]
   use_case_hint: [UC-A]
 
+# === S-Auto-41 PRIMARY-target proposer steering ===
+# Narrowly-scoped follow-up under R-autoloop-feedback-loop-thinness, inserted
+# after exp-86 + exp-87 were both OFF_TARGET (PRIMARY 0/13). Enriches the
+# proposer INPUT only — target baseline evidence + observed failure clusters +
+# a required causal hypothesis — and adds a lightweight OFF_TARGET pre-check
+# before the expensive fitness eval. Does NOT change the keep gate, conditional
+# acceptance, baseline, or canonical pointer. Tool-returned AND pre-loaded
+# customer context are equally valid; substantive use of listing-specific
+# information is required (NO hard-coded get_customer_context requirement).
+primary_target_steering:
+  enabled: true
+  # Skills on the UC-A DISCOVER→RESOLVE path where the entity-context /
+  # listing-grounding fix would land. A proposal editing any other skill is
+  # OFF_TARGET for this pilot.
+  primary_relevant_skills:
+    - server/src/main/resources/skills/resolve_faq_grounded_answer.yaml
+    - server/src/main/resources/skills/discover_triage.yaml
+  targets:
+    - case_id: cs_uc_a_no_ad_id_ad_specific
+      baseline_evidence: "0/11 pass (p=0.00) at pre-pilot baseline; 0/13 at exp-87"
+      closure_intent: >
+        Recognise within turn 1 that an ad-specific question cannot be answered
+        without the ad reference; ask for it (ad_id / title / URL) BEFORE
+        emitting a generic FAQ answer, then ground the answer in the specific
+        listing once available.
+    - case_id: cs_uc_a_loaded_listing
+      baseline_evidence: "1/11 pass (p=0.09) at pre-pilot baseline; 0/12 at exp-87"
+      closure_intent: >
+        Consult the specific listing (via tool-returned OR pre-loaded customer
+        context — both valid) and make SUBSTANTIVE use of its fields (status /
+        category / price / location / posted_date) in the grounded answer,
+        rather than reverting to generic visibility tips.
+  failure_clusters:
+    - "UC-A misclassified as UC-B (ad-performance / visibility question routed to the wrong UC, so the listing-grounded resolve path is never entered)"
+    - "listing context ignored or used only superficially (generic FAQ tips, or a one-off title/status mention then generic advice, instead of substantive listing-grounded resolution; tool-returned AND pre-loaded context both valid)"
+    - "budget-driven escalation before grounded resolution (turn_budget_exhausted / faq_miss_threshold_exceeded fired before a listing-grounded answer was delivered)"
+  # OFF_TARGET pre-check keyword set (config-driven, not hard-coded in code).
+  # A proposal whose causal_hypothesis / expected_trace_change / rationale
+  # references none of these is OFF_TARGET → discarded before eval.
+  on_target_keywords:
+    - cs_uc_a_no_ad_id_ad_specific
+    - cs_uc_a_loaded_listing
+    - "UC-A"
+    - "UC-B"
+    - listing
+    - "entity context"
+    - "ad reference"
+    - "ad id"
+    - classification
+    - "classify"
+    - grounded
+    - "customer context"
+
 lessons:
   # K — every K iterations the lessons LLM produces a compacted lessons
   # block per `program.md` and the proposal §3.4 (three-layer memory).
