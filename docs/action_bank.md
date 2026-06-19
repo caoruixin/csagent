@@ -965,6 +965,27 @@ baseline frozen). exp-86 + exp-87 were both OFF_TARGET → the blocking issue is
   confirmation it encodes no benchmark case names / fixed ad IDs / test-specific
   answers. Surface the scoping analysis + dry-run proposal for review.
 
+  **Artifacts produced 2026-06-19 (surfaced for review; NO real iteration):**
+  (1) Read-only surface analysis →
+  `docs/diagnostics/autoloop-mutation-surface-scoping-2026-06-19.md` — narrowest
+  legitimate surface is `$.grounding_instruction` (escalation-free, grounding-
+  dedicated); `critical_steps[*].desc` gives **no runtime UC-scoping** (projection
+  ignores `mandatory_for`) and a new UC-A step is outside the mutable surface.
+  (2) Steering increment: 6 required dry-run disclosures + a justified
+  `surface_preference` hint (not hard-coded) — `7f54b543`, 14 unit tests, scoring-
+  SHA `7df8173c` unchanged. (3) Proposal-only **dry-run exp-90** (NOT applied, NOT
+  evaluated): proposer chose `$.grounding_instruction`, JUSTIFIED the choice,
+  supplied all 6 disclosures incl. an explicit escalation-preservation rule
+  (`$.escalation_policy` byte-identical), `on_target` + anti-hardcode PASS +
+  sandbox ACCEPT, after_value generic prose with no leakage. (4) Read-only tier0
+  flake-sensitivity scope →
+  `docs/diagnostics/autoloop-tier0-flake-sensitivity-2026-06-19.md` — `cs38s01` is
+  stochastic shadow evidence not a deterministic floor; the candidate-vs-baseline
+  attribution is statistically inconclusive (no significance test); proposes (does
+  not implement) an `INCONCLUSIVE_FLAKY` confirmation path under
+  `R-autoloop-fitness-measurement-reliability`. **HELD for human review before any
+  further real iteration.**
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact
