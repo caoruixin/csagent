@@ -1,27 +1,48 @@
 ---
-title: "Runtime closure (record_outcome / RESOLVE→CONFIRM) design milestone — OQ-S93.1"
+title: "M-Auto-9 — Runtime closure design milestone (record_outcome / RESOLVE→CONFIRM, OQ-S93.1)"
 doc_tier: proposal
 status: proposal
 implementation_status: not_started
 source_of_truth: this file (design charter); runtime code paths cited inline
 last_reviewed: 2026-06-19
-review_cadence: ad hoc
+review_cadence: per milestone
 supersedes: []
 superseded_by: null
 notes: >
-  Charter for a separate, narrowly-scoped runtime/orchestration DESIGN milestone
-  opened when the M-Auto-7 registry-only autoloop pilot was closed NO-KEEP
-  (control-surface limit reached for the current PRIMARY objective; see
+  Charter for M-Auto-9, a separate, narrowly-scoped runtime/orchestration DESIGN
+  milestone opened (and formally numbered) when the M-Auto-7 registry-only
+  autoloop pilot was closed NO-KEEP (control-surface limit reached for the
+  current PRIMARY objective; see
   docs/diagnostics/exp-90-real-result-and-primary-control-surface-2026-06-19.md).
-  This is a DESIGN charter only — it scopes the design work and its required
-  coverage; it authorizes NO runtime/eval/prompt/baseline change. Builds on the
-  existing OQ-S93.1 research (action_bank R-oq-s93.1-confirm-record-vs-handover +
-  docs/diagnostics/failure-briefs/oq-s93.1-confirm-record-vs-handover.md); it
-  does not redo it. The formal milestone id is for the deliver-agent + human to
-  assign at promotion.
+  This is a DESIGN charter only — it scopes the design work + required coverage;
+  it authorizes NO runtime/eval/prompt/baseline change, and design review/approval
+  is the gate before any implementation sub-sprint. Builds on the existing
+  OQ-S93.1 research (action_bank R-oq-s93.1-confirm-record-vs-handover +
+  docs/diagnostics/failure-briefs/oq-s93.1-confirm-record-vs-handover.md); it does
+  not redo it. ID assignment: M-Auto-8 is already the human-confirmed (2026-06-18)
+  "primary-first staged eval + adaptive sampling" milestone, so this milestone
+  takes the next unambiguous id, M-Auto-9.
 ---
 
-# Runtime closure design milestone — OQ-S93.1 (`record_outcome` / RESOLVE→CONFIRM)
+# M-Auto-9 — Runtime closure design milestone (`record_outcome` / RESOLVE→CONFIRM, OQ-S93.1)
+
+## Milestone identity & ID-conflict resolution
+
+- **Formal id: M-Auto-9.** Assigned under the existing M-Auto-N numbering
+  discipline (latest live milestone is M-Auto-7; M-Auto-8 is reserved).
+- **ID-conflict resolved:** `M-Auto-8` is **already associated** with the
+  "primary-first staged eval + adaptive sampling" theme — human-confirmed on
+  2026-06-18 (`docs/10-handoff.md` §0; `docs/milestone_objective.md` notes; the
+  staged-eval proposal `docs/proposals/m_auto_7_objective_alignment_and_staged_eval.md`).
+  An earlier (2026-06-08) solution note
+  (`docs/solutions/2026-06-08-record-outcome-guardrail-deadlock.md`) had
+  *tentatively* floated "M-Auto-8 (Phase-advance contract honesty)" for this
+  record_outcome/phase-advance work, but that was superseded by the 2026-06-18
+  human boundary. To avoid the collision, this runtime-closure milestone takes
+  **M-Auto-9** (no prior M-Auto-9 reference exists anywhere in the live docs).
+- **Status: PROPOSED — awaiting design review/approval.** This charter is the
+  successor-milestone north star; it is not launched. No implementation begins as
+  part of the documentation fold (next action = design review/approval).
 
 ## Why this milestone exists
 

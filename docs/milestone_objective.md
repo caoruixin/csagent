@@ -4,7 +4,7 @@ doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
-last_reviewed: 2026-06-16
+last_reviewed: 2026-06-19
 review_cadence: per milestone
 supersedes: []
 superseded_by: null
@@ -69,9 +69,60 @@ notes: >
   readiness item (NOT implemented until Sprint 093 closes); primary-first staged
   eval + adaptive sampling → new milestone M-Auto-8 (out of scope here). Full pilot
   tranche HELD; exp-82 WITHDRAWN.
+  2026-06-19 CLOSURE — the S-Y2 registry-only autoloop pilot (the Phase-2 CORE
+  GATE) is CLOSED — NO KEEP: registry-only control-surface limit reached for the
+  current PRIMARY objective. Arc after the 2026-06-18 update: S-Auto-40 WP1-A
+  CLOSED (measurement/conditional-acceptance infra only) → S-Auto-41 proposer
+  steering + read-only mutation-surface scoping → S-Auto-42 bool-only flaky-tier0
+  defer VALIDATED on first real evidence → exp-90 (byte-identical frozen
+  $.grounding_instruction) real DISCARD. exp-90 established that the shared runtime
+  closure / record_outcome blocker (OQ-S93.1) independently gates BOTH PRIMARY, so
+  no registry-only edit can make the objective keep-eligible. The CS4
+  entity-context PRIMARY objective + the runtime/orchestration closure continue
+  under the formal successor milestone **M-Auto-9** (charter
+  docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md;
+  PROPOSED, awaiting design review/approval — implementation NOT started).
+  discover_triage.$.procedure classify lever DEFERRED; source_ids =
+  non-blocking observability. Holds intact (no exp-91 / WP1-B / WP2 /
+  objective-alignment annotation / posterior-resampling / surface expansion /
+  re-bless / baseline move / canonical-pointer change). See the §0 status banner.
 ---
 
 # Milestone M-Auto-7
+
+## 0. STATUS — registry-only pilot CLOSED, NO KEEP (2026-06-19)
+
+> **The S-Y2 registry-only autoloop pilot (the Phase-2 CORE GATE below) is CLOSED
+> — NO KEEP: registry-only control-surface limit reached for the current PRIMARY
+> objective.** This is the milestone's autoloop-readiness *finding* — the
+> registry-only soft-field control surface was exercised end-to-end and is
+> insufficient to deliver the CS4 entity-context PRIMARY objective, because the
+> shared runtime closure / `record_outcome` blocker (OQ-S93.1) independently gates
+> both PRIMARY cases (`cs_uc_a_no_ad_id_ad_specific`, `cs_uc_a_loaded_listing`).
+> Precise grounding conclusion: exp-90 shows the *reviewed* `$.grounding_instruction`
+> hypothesis was insufficient + harmful elsewhere — NOT that every registry wording
+> is impossible; the stop is justified by the runtime closure blocker, not by
+> exhausting the wording space.
+>
+> **Successor: M-Auto-9** — runtime/orchestration closure DESIGN milestone
+> (`docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md`),
+> PROPOSED and awaiting design review/approval; it carries the CS4 PRIMARY
+> objective forward. **Next action = M-Auto-9 design review/approval**
+> (implementation NOT started as part of this fold).
+>
+> **Per-blocker routing (do not collapse):** `loaded_listing` UC-A→UC-B
+> misclassification = registry-addressable (`discover_triage.$.procedure`, **DEFERRED**
+> — cannot overcome the shared closure blocker, so revisit only after closure is
+> fixed); the closure / `record_outcome` blocker + substantive-grounding salience =
+> **runtime/orchestration** (M-Auto-9); `source_ids` trace projection =
+> **non-blocking eval/observability** debt (separate).
+>
+> **Holds intact:** no exp-91, WP1-B, WP2, objective-alignment annotation,
+> posterior/bounded-resampling, mutable-surface expansion, re-bless, baseline
+> movement, or canonical-pointer change. exp-82 stays WITHDRAWN. Full analysis:
+> `docs/diagnostics/exp-90-real-result-and-primary-control-surface-2026-06-19.md`;
+> closure ledger `docs/action_bank.md` §5. The §1 table + body below are retained
+> as the **historical** M-Auto-7 record (do not read as the active contract).
 
 ## 1. Milestone class
 
