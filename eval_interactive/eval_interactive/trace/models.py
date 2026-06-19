@@ -78,3 +78,11 @@ class TraceData:
     events: list[EventEntry]
     handover: HandoverData | None
     contract_warnings: list[str] = field(default_factory=list)
+    # Phase-1 measurement contract (S-Auto-40 WP1-A). The simulator-side
+    # per-turn ``user_state`` signal series produced in-band by
+    # ``UserSimulator.generate_next`` (see ``SessionResult.user_state_signals``).
+    # Populated by the batch executor after backend-trace collection so the
+    # conditional-outcome evaluator can read the customer's own resolution
+    # stance alongside the bot-side trace. Empty for any run captured before
+    # the instrumentation landed (→ uniformly UNKNOWN downstream).
+    user_state_signals: list[dict] = field(default_factory=list)

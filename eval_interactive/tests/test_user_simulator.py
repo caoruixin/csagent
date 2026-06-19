@@ -94,10 +94,13 @@ class TestTryParseSimulatorResponse:
     """Strict parse returns None on failure so the caller can retry."""
 
     def test_valid_returns_dict(self):
+        # Phase-1 (S-Auto-40 WP1-A): the parsed dict now also carries the
+        # ``user_state`` key (None when the model omitted it).
         raw = '{"message": "Hi", "goal_status": "achieved"}'
         assert _try_parse_simulator_response(raw) == {
             "message": "Hi",
             "goal_status": "achieved",
+            "user_state": None,
         }
 
     def test_invalid_json_returns_none(self):
@@ -113,7 +116,56 @@ class TestTryParseSimulatorResponse:
 
     def test_bad_goal_status_coerced(self):
         out = _try_parse_simulator_response('{"message": "x", "goal_status": "nope"}')
-        assert out == {"message": "x", "goal_status": "in_progress"}
+        assert out == {"message": "x", "goal_status": "in_progress", "user_state": None}
+
+
+class TestUserStateSignal:
+    """Phase-1 (S-Auto-40 WP1-A) ``user_state`` parse contract.
+
+    The simulator emits a positive structured ``user_state`` IN THE SAME
+    call that produces the customer turn. Parsing passes valid values
+    through verbatim and maps absent / out-of-vocabulary values to None
+    (UNKNOWN downstream — never back-inferred).
+    """
+
+    @pytest.mark.parametrize(
+        "value",
+        ["satisfied", "unresolved_after_help", "working", "new_request"],
+    )
+    def test_valid_user_state_passthrough(self, value):
+        raw = (
+            '{"message": "x", "goal_status": "in_progress", '
+            f'"user_state": "{value}"}}'
+        )
+        assert _try_parse_simulator_response(raw)["user_state"] == value
+
+    def test_missing_user_state_is_none(self):
+        raw = '{"message": "x", "goal_status": "in_progress"}'
+        assert _try_parse_simulator_response(raw)["user_state"] is None
+
+    def test_out_of_vocab_user_state_is_none(self):
+        # An invented state must NOT leak through as a structured signal.
+        raw = (
+            '{"message": "x", "goal_status": "in_progress", '
+            '"user_state": "totally_fed_up"}'
+        )
+        assert _try_parse_simulator_response(raw)["user_state"] is None
+
+    def test_unresolved_independent_of_goal_status(self):
+        # ``unresolved_after_help`` is a positive emission distinct from the
+        # ``goal_status`` axis: the model can assert it while goal_status is
+        # still "in_progress" (no back-inference either direction).
+        raw = (
+            '{"message": "still stuck", "goal_status": "in_progress", '
+            '"user_state": "unresolved_after_help"}'
+        )
+        out = _try_parse_simulator_response(raw)
+        assert out["goal_status"] == "in_progress"
+        assert out["user_state"] == "unresolved_after_help"
+
+    def test_lenient_fallback_user_state_none(self):
+        # Unparseable prose → raw-text fallback with no inferred user_state.
+        assert _parse_simulator_response("not json at all")["user_state"] is None
 
 
 class _FakeCompletions:
@@ -160,7 +212,11 @@ class TestCallLlmRetry:
             '{"message": "recovered", "goal_status": "achieved"}',
         ])
         out = sim._call_llm([{"role": "user", "content": "go"}])
-        assert out == {"message": "recovered", "goal_status": "achieved"}
+        assert out == {
+            "message": "recovered",
+            "goal_status": "achieved",
+            "user_state": None,
+        }
         # Three attempts were made (parse failures retried with a reminder).
         completions = sim._client.chat.completions
         assert len(completions.calls) == _MAX_SIMULATOR_ATTEMPTS

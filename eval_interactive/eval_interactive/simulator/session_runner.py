@@ -14,7 +14,11 @@ from dataclasses import dataclass, field
 from eval_interactive.case_spec.schema import CaseSpec
 from eval_interactive.scoring.stall_detector import StallDetector
 from eval_interactive.simulator.agent_client import AgentClient
-from eval_interactive.simulator.user_simulator import UserSimulator
+from eval_interactive.simulator.user_simulator import (
+    USER_STATE_SCHEMA_VERSION,
+    USER_STATE_SIGNAL_SOURCE,
+    UserSimulator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +37,17 @@ class SessionResult:
     total_turns: int = 0
     elapsed_ms: int = 0
     bot_greeting: str = ""
+    # Phase-1 measurement contract (S-Auto-40 WP1-A). One entry per
+    # ``generate_next`` call that actually ran, recorded in the SAME call
+    # that produced the customer turn — never from a post-``bot_ended`` LLM
+    # call. Each entry:
+    #   {turn_id, produced_user_turn, user_state, goal_status,
+    #    signal_source, schema_version}
+    # ``turn_id`` is the latest BOT turn the customer was reacting to, so a
+    # downstream consumer can align the signal against the closure-qualified
+    # grounded-help structural marker (which bot turn it is). A signal is
+    # never carried forward across turns; each is independently stamped.
+    user_state_signals: list[dict] = field(default_factory=list)
     creation_error: str | None = None
     # Set when create_session raises. Carries the original exception repr
     # so the executor can short-circuit trace collection and surface the
@@ -219,6 +234,27 @@ class SessionRunner:
             )
 
             goal_status = sim_result.get("goal_status", "in_progress")
+
+            # Phase-1 (S-Auto-40 WP1-A): persist the positive structured
+            # user-state signal produced by THIS ``generate_next`` call,
+            # immediately, tagged with provenance. ``turn_id`` is the bot turn
+            # the customer is reacting to (the just-received ``turn``); the
+            # message this call produces lands at ``turn + 1``. Recorded for
+            # every state (including None / "working") so the downstream
+            # evaluator sees the full per-turn series and can decide
+            # SATISFIED / UNRESOLVED / UNKNOWN without back-inference. No
+            # signal is emitted after ``bot_ended`` because ``generate_next``
+            # is not called past the break above — that is intentional (no
+            # post-terminal LLM call); such draws carry no terminal signal and
+            # read as UNKNOWN downstream.
+            result.user_state_signals.append({
+                "turn_id": turn,
+                "produced_user_turn": turn + 1,
+                "user_state": sim_result.get("user_state"),
+                "goal_status": goal_status,
+                "signal_source": USER_STATE_SIGNAL_SOURCE,
+                "schema_version": USER_STATE_SCHEMA_VERSION,
+            })
 
             if goal_status == "achieved":
                 result.stop_reason = "goal_achieved"

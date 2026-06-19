@@ -45,6 +45,19 @@ Rules:
 - If the bot is clearly unable to help after multiple attempts, say "can I speak to someone?"
 - Keep responses concise (1-3 sentences).
 
+In addition to your reply, report your CURRENT resolution state for THIS turn
+in the ``user_state`` field, judged ONLY from your own point of view as the
+customer (never from the bot's wording):
+- "satisfied": the bot's latest help actually solved YOUR specific problem.
+- "unresolved_after_help": the bot already gave you an answer / advice / help,
+  but it did NOT solve your specific problem and you still need help. Only use
+  this AFTER the bot has actually tried to help you.
+- "working": you are still working through the issue and have not yet decided
+  whether it is solved (no judgement yet).
+- "new_request": you are now raising a different / new request.
+Report what is true for you this turn; do not infer it from whether the bot
+offered a human or ended the chat.
+
 Forbidden -- you are the customer, NEVER the support agent. As the customer you:
 - do NOT apologize to or for the agent (no "I apologize", "I'm sorry to hear", "thanks for your patience", "thanks for the details");
 - do NOT offer to help, check, look into, connect, or escalate ("let me check", "let me look into it", "let me connect you", "let me escalate");
@@ -54,8 +67,32 @@ Forbidden -- you are the customer, NEVER the support agent. As the customer you:
 - do NOT repeat the bot's previous turn verbatim;
 - do NOT emit the meta-instruction "Based on the conversation above, generate your next customer response as JSON.".
 
-Respond with JSON: {"message": "your response", "goal_status": "in_progress|achieved|impossible"}\
+Respond with JSON: {"message": "your response", "goal_status": "in_progress|achieved|impossible", "user_state": "satisfied|unresolved_after_help|working|new_request"}\
 """)
+
+
+# --- Phase-1 measurement contract (S-Auto-40 WP1-A) ---------------------
+#
+# ``user_state`` is a POSITIVE, structured, per-turn customer resolution
+# signal emitted by the simulator IN THE SAME ``generate_next`` call that
+# produces the customer turn. It disambiguates the otherwise-overloaded
+# ``goal_status="in_progress"`` bucket into a positively-asserted
+# "unresolved after the bot already helped" state, distinct from neutral
+# "working" and from a "new_request". It is recorded to the trace as-is;
+# the downstream conditional-outcome evaluator (scoring/conditional_outcome)
+# never back-infers it from outcome / handover / reason / absence-of-signal.
+#
+# Provenance constants written alongside every persisted signal so a
+# consumer can prove the signal came from the legitimate same-call source
+# and reject anything else.
+USER_STATE_SCHEMA_VERSION = 1
+USER_STATE_SIGNAL_SOURCE = "simulator_generate_next"
+_USER_STATE_VALUES: tuple[str, ...] = (
+    "satisfied",
+    "unresolved_after_help",
+    "working",
+    "new_request",
+)
 
 
 # Maximum simulator LLM attempts per turn. A parse failure (the model
@@ -71,7 +108,8 @@ _PARSE_RETRY_INSTRUCTION = (
     "Respond with EXACTLY this JSON object and nothing else (no prose, "
     "no markdown fence): "
     '{"message": "<your reply as the customer>", '
-    '"goal_status": "in_progress" | "achieved" | "impossible"}'
+    '"goal_status": "in_progress" | "achieved" | "impossible", '
+    '"user_state": "satisfied" | "unresolved_after_help" | "working" | "new_request"}'
 )
 
 # --- Customer-voice drift guard (S-Auto-21) -----------------------------
@@ -223,7 +261,17 @@ def _try_parse_simulator_response(raw_text: str) -> dict | None:
     goal_status = parsed.get("goal_status", "in_progress")
     if goal_status not in ("in_progress", "achieved", "impossible"):
         goal_status = "in_progress"
-    return {"message": message, "goal_status": goal_status}
+    # Phase-1 (S-Auto-40 WP1-A): pass the model's own ``user_state`` through
+    # verbatim. An absent or out-of-vocabulary value becomes ``None`` (the
+    # signal was not produced) rather than being coerced to a default —
+    # downstream this reads as UNKNOWN, never as a back-inferred state.
+    raw_user_state = parsed.get("user_state")
+    user_state = raw_user_state if raw_user_state in _USER_STATE_VALUES else None
+    return {
+        "message": message,
+        "goal_status": goal_status,
+        "user_state": user_state,
+    }
 
 
 def _parse_simulator_response(raw_text: str) -> dict:
@@ -236,7 +284,13 @@ def _parse_simulator_response(raw_text: str) -> dict:
     if parsed is not None:
         return parsed
     logger.warning("Failed to parse simulator JSON, using raw text as message")
-    return {"message": raw_text.strip(), "goal_status": "in_progress"}
+    # Lenient fallback: no structured ``user_state`` was recoverable, so it
+    # stays None (UNKNOWN downstream) — never back-inferred from the prose.
+    return {
+        "message": raw_text.strip(),
+        "goal_status": "in_progress",
+        "user_state": None,
+    }
 
 
 class UserSimulator:
@@ -458,4 +512,5 @@ class UserSimulator:
         return {
             "message": "I'm still waiting for help with my issue.",
             "goal_status": "in_progress",
+            "user_state": None,
         }

@@ -325,6 +325,15 @@ class BatchExecutor:
             trace_collector = TraceCollector(agent_client)
             trace_data = trace_collector.collect(session_result.session_id)
 
+            # Phase-1 (S-Auto-40 WP1-A): attach the simulator-side per-turn
+            # ``user_state`` signal series (produced in-band by
+            # ``generate_next``) onto the trace so the conditional-outcome
+            # evaluator can read the customer's own resolution stance. This is
+            # eval-framework instrumentation only — no bot / runtime call.
+            trace_data.user_state_signals = list(
+                session_result.user_state_signals
+            )
+
             # 3. Build turn_traces list for stall detector
             turn_traces = [
                 {
@@ -603,6 +612,11 @@ class BatchExecutor:
             "session_id": session_result.session_id,
             "total_turns": session_result.total_turns,
             "stop_reason": session_result.stop_reason,
+            # Phase-1 (S-Auto-40 WP1-A): serialize the per-turn user-state
+            # signal series so it is auditable in results.json and available
+            # to the §5.6 manual review + the conditional-outcome adjudication
+            # workflow. Empty for runs captured before the instrumentation.
+            "user_state_signals": list(session_result.user_state_signals),
             "elapsed_ms": session_result.elapsed_ms,
             "case_passed": composite_score.case_passed,
             "composite_score": composite_score.composite,
