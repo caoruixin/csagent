@@ -923,14 +923,25 @@ baseline frozen). exp-86 + exp-87 were both OFF_TARGET → the blocking issue is
      (pre-check) and addressed the intended PRIMARY failure mechanisms (listing-
      context grounding + ask-for-ad-reference), a clean contrast to the OFF_TARGET
      exp-86/exp-87.
-  2. **The remaining problem is mutation-surface scoping, not targeting** — both
-     candidates edited the SHARED `resolve_faq_grounded_answer.$.procedure`, which
-     causes cross-UC bleed: both independently produced a **real, stable,
-     candidate-induced tier0 regression** (`escalation_compliance@cs38s01_uc_j_scam_seller_full_narrative`;
-     `delta_mode=True`, `stable_reproduction=True`, `pre_existing_ignored=[]`) —
-     i.e. the broadened "answer / ground in the listing" prose suppressed a
-     REQUIRED trust-and-safety escalation. The tier0 safety floor correctly killed
-     both.
+  2. **Both discarded at tier0 — but the attribution is NOT a proven causal
+     regression (CORRECTED).** Both candidates edited the shared
+     `resolve_faq_grounded_answer.$.procedure` and were discarded at tier0 on
+     `escalation_compliance@cs38s01_uc_j_scam_seller_full_narrative`. However the
+     read-only surface analysis shows this is most plausibly **flakiness / tier0
+     mis-attribution, not cross-UC bleed**: (i) `cs38s01` is a **near-coinflip
+     flaky shadow case** (baseline `pass_rate=0.545`, `flaky=True`, with **0/11
+     escalation_compliance fails** at baseline); (ii) it is **UC-J (intake path)**,
+     which a `resolve_faq` edit **cannot structurally reach** — the runtime
+     projects only the active skill selected by `(phase, useCase)`
+     (`ContextProjectionBuilder` ~L1071), so a RESOLVE-FAQ-skill edit never enters
+     a UC-J intake/escalate session; (iii) across the 4 resolve_faq-editing
+     candidates cs38s01 tier0 flipped clean/clean/fail/fail (exp-86/87/88/89).
+     tier0 is zero-tolerance, so a single flaky escalation fail on a near-coinflip
+     shadow case discards the candidate. ⇒ the real blockers are (a) mutation-
+     surface scoping (structural: `$.procedure` is the broadest surface) AND (b)
+     **tier0 flake-sensitivity on near-coinflip shadow cases** (overlaps
+     `R-autoloop-fitness-measurement-reliability`), NOT a demonstrated escalation
+     regression from the grounding edit.
   3. **No PRIMARY-improvement claim** — both runs short-circuited at Layer 0, so the
      proposed grounding changes are **NOT** shown to improve the PRIMARY; that
      remains UNPROVEN (k_c=0 observed, but moot pre-tier1).
