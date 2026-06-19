@@ -70,6 +70,13 @@ matrix. exp-67/73/74 changed mechanism (still discard) but exp-68 widened KEEP.
    posterior path as specified.
 
 ## Disposition
-No code shipped (reverted; tree clean, oracle + tier_evaluator green). exp-90
-proposal frozen. No gate/baseline/re-bless/canonical-pointer change, no real
-iteration. HELD for human direction on the (k,n) data-availability decision.
+**RESOLVED via Option 1 (bool-only defer rule), 2026-06-19.** The per-check
+posterior is NOT used (data unavailable). Instead a baseline-flagged flaky tier0
+violation is DEFERRED → HOLD (never KEEP, never auto-discard); deterministic +
+non-flaky tier0 unchanged. Shipped at commit `ef100e73`; oracle decisions
+preserved (no KEEP-widening), 155 autoloop tests green, scoring-SHA re-pinned
+`7df8173c`→`c3591306` (re-pin only, no re-bless, canonical pointer frozen). The
+**posterior-confirmation path remains deferred** until the eval pipeline persists
+per-check `(k,n)` on BOTH candidate and a counts-carrying baseline (Options 1/2
+above) — together with the bounded confirmation re-sampling step. exp-90 frozen;
+no real iteration.
