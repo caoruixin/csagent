@@ -2,18 +2,20 @@
 title: "Sprint 094 / S-Auto-40 (M-Auto-7) — WP1-A handoff: measurement contract → conditional outcome acceptance"
 doc_tier: sprint-archive
 status: current
-implementation_status: partial
+implementation_status: implemented
 source_of_truth: this file (dev handoff); code under eval_interactive/
 last_reviewed: 2026-06-19
 review_cadence: per sprint
 supersedes: []
 superseded_by: null
 notes: >
-  WP1-A only. Phase 1 (infra) + Phase 3 (eval_spec) landed and validated by
-  unit + zero-LLM §3.3 replay. Phase 2 (bounded real-LLM validation) is PENDING
-  a live backend + human-launched run — the §5.7 mocked-LLM evidence gate forbids
-  certifying the measurement contract on mocked evidence. Pilot / WP1-B / WP2 /
-  objective-alignment annotation remain HELD; exp-82 WITHDRAWN; canonical baseline
+  WP1-A CLOSED 2026-06-19 at clean HEAD 052cc73b (human-accepted). Scope:
+  validates measurement + acceptance INFRASTRUCTURE only — it does NOT establish
+  a conditional baseline and does NOT demonstrate improved bot behaviour. Phase 1
+  (infra) + Phase 3 (eval_spec) landed; Codex §4.1 approve; Phase 2 bounded
+  real-LLM run evidence floor MET (42/42 draws); 4/4 CONDITIONAL_ELIGIBLE traces
+  human-REJECTED. Pilot / WP1-B / WP2 / objective-alignment annotation /
+  auto-triage follow-up remain HELD; exp-82 WITHDRAWN; canonical baseline
   pointer UNCHANGED. No bot/runtime/prompt/reason-enum/handover change.
 ---
 
@@ -320,3 +322,53 @@ Separable commits, staged explicitly by file (no `git add -A`):
    `conditional_outcome_adjudications.yaml` + `test_conditional_outcome.py`.
 3. CaseSpec — the two PRIMARY `*.yaml` declarative blocks.
 4. Handoff (this file).
+5. Codex verdict record (`codex-findings.md`).
+6. Phase-2 adjudication + reject test + analyzer/driver tooling.
+7. Phase-2 docs (handoff update, action_bank follow-up, failure clusters).
+
+## §10 Close — WP1-A CLOSED 2026-06-19 at HEAD `052cc73b` (human-accepted)
+
+### Scope boundary (binding)
+
+WP1-A validates **measurement + acceptance infrastructure**: same-call
+`user_state` capture, the declarative three-state conditional acceptance,
+anti-hardcode (Codex `approve`), the bounded real-LLM measurement run, the
+zero-LLM anti-widen replay, and auditable rejection adjudication. **WP1-A does
+NOT establish a conditional baseline and does NOT demonstrate improved bot
+behaviour.** The bot-behaviour failures it *measured* (UC-A→UC-B misclass,
+non-substantive listing use, budget-driven escalation) are recorded as held
+evidence for the M-Auto-7 entity-context work, not fixed here.
+
+### Pre-existing full-suite failures (6) — identified, linked, NOT introduced by WP1-A
+
+All six are identical on the clean pre-WP1-A tree (verified this session by
+stash-and-rerun); neither test file was touched by any WP1-A commit
+(`git diff f64ad4b2^ 052cc73b` excludes both).
+
+| stable node id | kind | cause | prior evidence |
+|---|---|---|---|
+| `tests/test_s_eval_1_schema_and_scoring.py::TestBackwardCompatLoad::test_alice_bad_case_loads_unchanged` | FAILED | frozen S-Eval-4 (Sprint 45) anchor asserts `bad_cases == 12`; suite has since grown to **17** (later sprints added `cs_uc_a_*` / `cs_uc_fp_*`). Stale inventory anchor. | The "1 pre-existing unrelated CaseSpec-inventory failure" recorded at Sprint 092 close (`docs/10-handoff.md` §0). Test added Sprint 077 (`330f9b1e`). |
+| `tests/test_rescore_s_auto_38_full_baseline.py::test_composite_delta_is_the_five_gate_cases` | ERROR | module `materialized` fixture: `analysis/rescore_s_auto_38_full_baseline.py:run_rescore` → `_parse_case_spec` `KeyError: 'form_context'` re-scoring the S-Auto-38 June-8 baseline scratch. Harness/fixture-data condition. | Harness added Sprint 092 / S-Auto-38 (`2f5c5e9e`). |
+| `tests/test_rescore_s_auto_38_full_baseline.py::test_soundness_no_regressions` | ERROR | same `materialized` fixture setup error. | same. |
+| `tests/test_rescore_s_auto_38_full_baseline.py::test_reconciliation_layer0_vs_composite` | ERROR | same. | same. |
+| `tests/test_rescore_s_auto_38_full_baseline.py::test_old_reconstruction_unchanged_cases_reproduce_june8` | ERROR | same. | same. |
+| `tests/test_rescore_s_auto_38_full_baseline.py::test_native_baseline_loader_clean` | ERROR | same. | same. |
+
+WP1-A delta to the suite: **+1 pass** (`test_reject_escalation_verdict_does_not_flip_to_pass`) and the Phase-1/3 test additions → **621 passed**, same 6 failures.
+
+### Pilot-resume readiness (M-Auto-7) — PREP only, not launched
+
+Preconditions in place to resume the M-Auto-7 pilot **from the unchanged
+canonical baseline** using the new measurement contract:
+
+- ✅ Same-call `user_state` instrumentation live + provenance-clean (Phase 2).
+- ✅ Declarative conditional acceptance + adjudication registry in place;
+  evaluator reads it (no runtime human call).
+- ✅ Canonical baseline pointer **unchanged** (`autoloop/config.yaml:baseline_dir`
+  still the M-Auto-7 pre-pilot baseline) — **no re-bless**.
+- ✅ Backend boots clean at HEAD (no Java changed); §5.9 pre-flight pattern proven.
+
+Held until pilot evidence shows them blocking: **exp-82 stays WITHDRAWN** (do not
+revive); **no re-bless**; **WP1-B, WP2, objective-alignment annotation, and the
+`R-conditional-adjudication-auto-triage` auto-triage follow-up remain HELD**. The
+pilot launch itself is a deliver/human-gated action — not performed here.

@@ -849,13 +849,21 @@ required); pilot HELD; exp-82 WITHDRAWN.
 
 ### Sprint 094 / S-Auto-40 WP1-A Phase 2 surfaced R-item (2026-06-19)
 
-WP1-A measurement contract → conditional outcome acceptance landed + validated
-(Phase-2 bounded real-LLM run `results/wp1a-phase2-measurement-20260619`,
-42/42 draws, evidence floor MET; all 4 `CONDITIONAL_ELIGIBLE` escalate traces
-human-REJECTED on closure-quality review and recorded in
-`eval_interactive/case_specs/conditional_outcome_adjudications.yaml`). Archives:
-`docs/sprints/sprint-094-{objective,handoff}.md`; Codex `pass` in
-`docs/codex-findings.md`.
+WP1-A measurement contract → conditional outcome acceptance **CLOSED 2026-06-19
+at HEAD `052cc73b`** (human-accepted). Phase-2 bounded real-LLM run
+`results/wp1a-phase2-measurement-20260619` (42/42 draws, evidence floor MET); all
+4 `CONDITIONAL_ELIGIBLE` escalate traces human-REJECTED on closure-quality review
+and recorded in `eval_interactive/case_specs/conditional_outcome_adjudications.yaml`.
+**Scope boundary:** validates measurement + acceptance INFRASTRUCTURE only — does
+NOT establish a conditional baseline and does NOT demonstrate improved bot
+behaviour. Archives: `docs/sprints/sprint-094-{objective,handoff}.md` (§10 close);
+Codex `pass` in `docs/codex-findings.md`.
+
+**Next: M-Auto-7 pilot-resume PREP** (not launched) — resume from the **unchanged
+canonical baseline** (`autoloop/config.yaml:baseline_dir`) using the new
+measurement contract. exp-82 stays WITHDRAWN; **no re-bless**; WP1-B / WP2 /
+objective-alignment annotation / the auto-triage R-item below remain HELD unless
+pilot evidence shows them blocking.
 
 - **R-conditional-adjudication-auto-triage** — prevent per-trace human closure
   adjudication from becoming a recurring auto-loop bottleneck. The
