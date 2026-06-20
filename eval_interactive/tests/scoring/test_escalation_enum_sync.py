@@ -1,15 +1,16 @@
 """Codex 2026-05-04 round 6 §R-9 — automated cross-source enum sync test.
 
-Walks the three sources of truth for the canonical 23-value
+Walks the three sources of truth for the canonical 24-value
 ``request_handover.escalation_reason`` enum and asserts they are
 identical (order-independent):
 
 1. ``docs/current/customer_service_tool_spec_v0_3.md`` — the markdown
    tool spec that production schema is derived from. The canonical
    enum is embedded as a backtick-quoted comma-separated list inside
-   the ``**Canonical `escalation_reason` enum (23 values)**:`` bullet
+   the ``**Canonical `escalation_reason` enum (24 values)**:`` bullet
    under ``### `request_handover```. (S-Cleanup-1 / Sprint 47
-   migration from deleted ``customer_service_tool_spec_v0_2.yaml``.)
+   migration from deleted ``customer_service_tool_spec_v0_2.yaml``;
+   Sprint 096 / S-Auto-44 added ``agent_unable_to_resolve`` → 24.)
 2. ``eval_interactive.case_spec.schema.ESCALATION_TRIGGER_VALUES`` —
    the eval-side typed enum used in CaseSpec validation.
 3. ``server/src/main/java/.../PhaseEvaluator.java`` —
@@ -51,7 +52,7 @@ PHASE_EVALUATOR_JAVA = (
 def _load_spec_enum() -> set[str]:
     text = TOOL_SPEC_MD.read_text(encoding="utf-8")
     match = re.search(
-        r"\*\*Canonical\s+`escalation_reason`\s+enum\s+\(23\s+values\)\*\*:\s*"
+        r"\*\*Canonical\s+`escalation_reason`\s+enum\s+\(24\s+values\)\*\*:\s*"
         r"(.*?)\.\s*The same set",
         text,
         re.DOTALL,

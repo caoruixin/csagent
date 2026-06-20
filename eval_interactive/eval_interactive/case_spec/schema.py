@@ -37,13 +37,20 @@ _log = logging.getLogger(__name__)
 #
 # NOTE(policy-review): Wave A1.1 brief asked for "17 values" (per
 # phase5_evaluation_design.md §4.1 line 316), but the canonical
-# ``request_handover.escalation_reason`` enum currently lists 23 values
+# ``request_handover.escalation_reason`` enum currently lists 24 values
 # (the five ``intake_complete_for_uc_<g|h|i|j|k>`` values are spelled out
 # individually, and ``service_degraded`` / ``turn_budget_exhausted`` /
 # ``tool_scope_blocked`` / ``runtime_error_threshold`` are present even
 # though §2.4 marks them as infrastructure / guardrail-only). We use the
-# canonical 23 here; the scoring layer can decide which subset is
+# canonical 24 here; the scoring layer can decide which subset is
 # exercised by the eval suite.
+#
+# Sprint 096 / S-Auto-44 (M-Auto-9 WP1): ``agent_unable_to_resolve`` is the
+# 24th value — the lowest-priority *semantic* (LLM-owned) reason for a
+# bot-initiated, in-scope, exhausted-resolution, unresolved handover. It is
+# a vocabulary member only (the eval side never *requires* it of any case);
+# its scoring family lives in
+# ``scoring.escalation_reason_match._ESCALATION_REASON_FAMILY``.
 EscalationTrigger = Literal[
     "user_requested",
     "faq_miss_threshold_exceeded",
@@ -68,6 +75,7 @@ EscalationTrigger = Literal[
     "turn_budget_exhausted",
     "tool_scope_blocked",
     "runtime_error_threshold",
+    "agent_unable_to_resolve",
 ]
 
 ESCALATION_TRIGGER_VALUES: tuple[str, ...] = get_args(EscalationTrigger)

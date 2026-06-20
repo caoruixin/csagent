@@ -39,15 +39,15 @@ import java.util.regex.Pattern;
  * </ol>
  *
  * <p>All values returned by the resolver are members of the canonical
- * 23-value enum defined in
- * {@code customer_service_tool_spec_v0_2.yaml} and mirrored by
+ * 24-value enum defined in
+ * {@code docs/current/customer_service_tool_spec_v0_3.md} and mirrored by
  * {@code eval_interactive.case_spec.schema.ESCALATION_TRIGGER_VALUES}.
  */
 @Slf4j
 @Service
 public class EscalationReasonResolver {
 
-    /** Canonical 23-value enum — kept in lockstep with PhaseEvaluator. */
+    /** Canonical 24-value enum — kept in lockstep with PhaseEvaluator. */
     static final Set<String> CANONICAL_REASONS = Set.of(
             "user_requested",
             "user_distress",
@@ -71,7 +71,8 @@ public class EscalationReasonResolver {
             "runtime_error_threshold",
             "clarification_budget_exhausted",
             "faq_miss_threshold_exceeded",
-            "turn_budget_exhausted"
+            "turn_budget_exhausted",
+            "agent_unable_to_resolve"
     );
 
     /**
@@ -109,7 +110,16 @@ public class EscalationReasonResolver {
             // Tier 4 — budget / capacity (terminal-close family).
             Map.entry("clarification_budget_exhausted", 40),
             Map.entry("faq_miss_threshold_exceeded", 41),
-            Map.entry("turn_budget_exhausted", 42)
+            Map.entry("turn_budget_exhausted", 42),
+            // Tier 5 — semantic last-resort (Sprint 096 / S-Auto-44,
+            // M-Auto-9 WP1). A bot-initiated, in-scope, exhausted-resolution,
+            // unresolved handover. Deliberately the LOWEST priority of any
+            // reason so it never displaces a genuinely-present reason —
+            // including a real budget close-out (40-42). It surfaces only
+            // when nothing genuinely-higher applies. It is a SEMANTIC reason
+            // (LLM-owned), NOT a terminal-close, so it is intentionally absent
+            // from TERMINAL_CLOSE_REASONS below.
+            Map.entry("agent_unable_to_resolve", 50)
     );
 
     /** Reasons that classify as a <i>terminal close</i> rather than a

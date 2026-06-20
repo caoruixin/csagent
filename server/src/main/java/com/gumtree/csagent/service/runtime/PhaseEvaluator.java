@@ -35,11 +35,18 @@ public class PhaseEvaluator {
     private static final Set<String> INTAKE_UCS = Set.of("UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
 
     /**
-     * Canonical 23-value escalation_reason enum (mirrors
-     * {@code eval_interactive/eval_interactive/case_spec/schema.py:43-66}).
+     * Canonical 24-value escalation_reason enum (mirrors
+     * {@code eval_interactive/eval_interactive/case_spec/schema.py}).
      * Anything emitted by this evaluator that is NOT in this set must be
      * mapped to {@code "service_degraded"} via {@link #canonicalize(String)}
      * to keep the L1 trace contract green.
+     *
+     * <p>Sprint 096 / S-Auto-44 (M-Auto-9 WP1): added
+     * {@code "agent_unable_to_resolve"} — the lowest-priority semantic
+     * reason the LLM selects for a bot-initiated, in-scope,
+     * exhausted-resolution, unresolved handover. It is never auto-stamped
+     * by the runtime (this evaluator does not emit it; unknown values
+     * still coerce to {@code service_degraded}).
      */
     private static final Set<String> CANONICAL_ESCALATION_REASONS = Set.of(
             "user_requested",
@@ -64,7 +71,8 @@ public class PhaseEvaluator {
             "service_degraded",
             "turn_budget_exhausted",
             "tool_scope_blocked",
-            "runtime_error_threshold"
+            "runtime_error_threshold",
+            "agent_unable_to_resolve"
     );
 
     /**

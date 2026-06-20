@@ -21,7 +21,7 @@ import java.util.Set;
 public class ToolDispatcher {
 
     /**
-     * Canonical 23-value {@code escalation_reason} enum — must mirror
+     * Canonical 24-value {@code escalation_reason} enum — must mirror
      * {@code PhaseEvaluator.CANONICAL_ESCALATION_REASONS} and the enum surfaced
      * by {@code ContextProjectionBuilder.buildRequestHandoverArgsSchema()}.
      *
@@ -31,6 +31,12 @@ public class ToolDispatcher {
      * value emitted on a {@code request_handover} call is logged WARN and
      * coerced to {@code "service_degraded"} (the catch-all for
      * infrastructure/agent fallbacks).
+     *
+     * <p>Sprint 096 / S-Auto-44 (M-Auto-9 WP1): {@code "agent_unable_to_resolve"}
+     * is a CANONICAL member, so an LLM that selects it on a
+     * {@code request_handover} call flows through unchanged (it is NOT coerced
+     * to {@code service_degraded}). This is the structural reason the value
+     * must live here in lockstep with the other enum sources.
      */
     private static final Set<String> CANONICAL_ESCALATION_REASONS = Set.of(
             "user_requested",
@@ -55,7 +61,8 @@ public class ToolDispatcher {
             "service_degraded",
             "turn_budget_exhausted",
             "tool_scope_blocked",
-            "runtime_error_threshold");
+            "runtime_error_threshold",
+            "agent_unable_to_resolve");
 
     private final ToolPolicyEnforcer policyEnforcer;
     private final ProgressPlaceholderService placeholderService;

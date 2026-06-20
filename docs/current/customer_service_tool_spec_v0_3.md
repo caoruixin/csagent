@@ -130,7 +130,7 @@ There is no `HUMAN_ONLY` type in current config; see
 - **Schema (projected)**: `escalation_reason: string` (required;
   enum below), `summary: string` (optional). Source:
   `ContextProjectionBuilder.buildRequestHandoverArgsSchema`.
-- **Canonical `escalation_reason` enum (23 values)**: `user_requested`,
+- **Canonical `escalation_reason` enum (24 values)**: `user_requested`,
   `user_distress`, `faq_miss_threshold_exceeded`,
   `clarification_budget_exhausted`, `incomplete_intake`,
   `intake_complete_for_uc_g`, `intake_complete_for_uc_h`,
@@ -141,11 +141,27 @@ There is no `HUMAN_ONLY` type in current config; see
   `account_compliance`, `gdpr_intake`,
   `identity_verification_required`, `out_of_scope`,
   `service_degraded`, `turn_budget_exhausted`, `tool_scope_blocked`,
-  `runtime_error_threshold`. The same set is mirrored in
-  `PhaseEvaluator.CANONICAL_ESCALATION_REASONS` and
+  `runtime_error_threshold`, `agent_unable_to_resolve`. The same set
+  is mirrored in `PhaseEvaluator.CANONICAL_ESCALATION_REASONS` and
   `ToolDispatcher.CANONICAL_ESCALATION_REASONS`. A non-canonical
   value is logged WARN and coerced to `service_degraded` before the
   tool runs.
+- **`agent_unable_to_resolve` (Sprint 096 / S-Auto-44, M-Auto-9 WP1
+  reason-honesty)**: the lowest-priority *semantic* reason — selected by
+  the LLM for a **bot-initiated** handover when (1) the user did **not**
+  request a human, (2) the issue is **in scope** (a V1 UC the bot
+  engaged), (3) **no** higher-priority reason applies (not
+  safety/scam, payment, GDPR/compliance, identity, appeal,
+  intake-complete, out-of-scope, actual service degradation, or runtime
+  error), (4) the bot made a reasonable supported attempt or exhausted
+  its grounded resolution path, and (5) the issue remains **unresolved**
+  so the bot hands over for human continuation. It is distinct from
+  `service_degraded` (no system-degradation claim), `out_of_scope` (the
+  issue is in scope), and the budget family (not a turn/clarification
+  cap). It is **not** a generic fallback: the runtime never auto-stamps
+  it (unknown values still coerce to `service_degraded`) and it sits at
+  the lowest `EscalationReasonResolver` priority so any genuinely-present
+  reason wins over it.
 - **Arguments accepted by tool**: `escalation_reason` (required),
   `summary` (optional — derived by
   `RequestHandoverTool.deriveFallbackSummary` from session state +
