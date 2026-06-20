@@ -17,7 +17,7 @@ valid_terminal_outcomes:
   - CLARIFICATION_NEEDED
   - ESCALATE
 objective: "Determine whether the user is satisfied with the prior answer"
-procedure: "You are in the CONFIRM phase. Interpret whether the user is satisfied with the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., 'no', 'still not working', 'I need more help'), call request_handover with reason 'user_dissatisfied' OR transition back to RESOLVE if appropriate."
+procedure: "You are in the CONFIRM phase. Interpret whether the user is satisfied with the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., 'no', 'still not working', 'I need more help'): if there is a viable retry path, transition back to RESOLVE; otherwise, if the user did not ask for a human and no higher-priority reason applies, call request_handover with reason 'agent_unable_to_resolve' (the honest bot-initiated unresolved-handover reason). If the user explicitly asks for a human, use 'user_requested' instead."
 grounding_instruction: "Read the user's response carefully. Sentiment matters more than literal words. When unclear, ask a single yes/no clarification."
 escalation_policy: "Escalate if user clearly expresses dissatisfaction or requests a human."
 guardrails: []

@@ -247,6 +247,17 @@ public class ContextProjectionBuilder {
         ObjectNode props = objectMapper.createObjectNode();
         ObjectNode reasonProp = objectMapper.createObjectNode();
         reasonProp.put("type", "string");
+        reasonProp.put("description",
+                "Pick the canonical reason per the system-prompt decision tree. "
+                        + "Reserve `user_requested` for an ACTUAL user request for a "
+                        + "human. For a handover YOU initiate on an in-scope issue you "
+                        + "could not resolve (you tried / exhausted your grounded "
+                        + "resolution, the issue is unresolved, the user did not ask "
+                        + "for a human, and no higher-priority reason applies), use "
+                        + "`agent_unable_to_resolve` — not `user_requested`, "
+                        + "`service_degraded`, `out_of_scope`, or a budget reason. "
+                        + "`agent_unable_to_resolve` is the lowest-priority reason and "
+                        + "is never a generic catch-all.");
         ArrayNode enumValues = objectMapper.createArrayNode();
         // Sprint 9 §O0: expose `summary` as a recommended field on the
         // handover schema so the LLM is nudged to provide a one-line
@@ -262,11 +273,12 @@ public class ContextProjectionBuilder {
                         + "agent. If omitted, the runtime derives a safe "
                         + "fallback summary from session state.");
         props.set("summary", summaryProp);
-        // Canonical 23-value escalation_reason enum. Mirrors
-        // eval_interactive/eval_interactive/case_spec/schema.py:43-66
+        // Canonical 24-value escalation_reason enum. Mirrors
+        // eval_interactive/eval_interactive/case_spec/schema.py
         // (EscalationTrigger Literal). Keep these two lists in lockstep.
         // Grouped by source: user-driven, FAQ/clarification budget, intake-
-        // complete (UC-G..K), policy/safety, system/guardrail.
+        // complete (UC-G..K), policy/safety, system/guardrail, semantic
+        // last-resort.
         // User-driven
         enumValues.add("user_requested");
         enumValues.add("user_distress");
@@ -295,6 +307,10 @@ public class ContextProjectionBuilder {
         enumValues.add("turn_budget_exhausted");
         enumValues.add("tool_scope_blocked");
         enumValues.add("runtime_error_threshold");
+        // Semantic last-resort (Sprint 096 / S-Auto-44, M-Auto-9 WP1):
+        // bot-initiated, in-scope, exhausted-resolution, unresolved handover.
+        // Lowest-priority reason; LLM-selected only, never auto-stamped.
+        enumValues.add("agent_unable_to_resolve");
         reasonProp.set("enum", enumValues);
         props.set("escalation_reason", reasonProp);
         // R1.a #1 — declare the intake_fields slot the validator

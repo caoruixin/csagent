@@ -203,9 +203,12 @@ class PhaseEvaluatorSkillIntegrationTest {
             "You are in the CONFIRM phase. Interpret whether the user is satisfied with "
                     + "the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), "
                     + "call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., "
-                    + "'no', 'still not working', 'I need more help'), call request_handover "
-                    + "with reason 'user_dissatisfied' OR transition back to RESOLVE if "
-                    + "appropriate.";
+                    + "'no', 'still not working', 'I need more help'): if there is a viable "
+                    + "retry path, transition back to RESOLVE; otherwise, if the user did not "
+                    + "ask for a human and no higher-priority reason applies, call "
+                    + "request_handover with reason 'agent_unable_to_resolve' (the honest "
+                    + "bot-initiated unresolved-handover reason). If the user explicitly asks "
+                    + "for a human, use 'user_requested' instead.";
 
     private static final String CONFIRM_GROUNDING_INSTRUCTION =
             "Read the user's response carefully. Sentiment matters more than literal words. "

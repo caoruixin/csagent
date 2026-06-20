@@ -376,6 +376,9 @@ public class HandoverPayloadAssembler {
                     reasonHint = "Knowledge search did not return a usable answer; bot could not resolve";
             case "turn_budget_exhausted" ->
                     reasonHint = "Turn budget reached before the bot reached a resolution";
+            case "agent_unable_to_resolve" ->
+                    reasonHint = "Bot engaged this in-scope issue and exhausted its grounded "
+                            + "resolution but could not resolve it; handing over for human continuation";
             default ->
                     reasonHint = "Bot could not resolve and handed over";
         }
