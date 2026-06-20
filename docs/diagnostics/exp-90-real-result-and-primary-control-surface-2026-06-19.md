@@ -140,10 +140,19 @@ existing `…desc` is allowed (mutation-surface-scoping-2026-06-19 §3).
 ### 3.3 Cross-cutting
 
 - **Trace `source_ids` not projected** despite `resolve_article` running
-  (observability debt). Does **not** gate these cases (loaded_listing PASS
-  condition (b) reads the bot's `user_message` text; `correct_outcome` reads
-  `containment_outcome`; no grounding-floor failure tag fired). →
-  **eval/observability-addressable**, minor, non-gating.
+  (observability debt). Does **not** gate these cases *for the eval score*
+  (loaded_listing PASS condition (b) reads the bot's `user_message` text;
+  `correct_outcome` reads `containment_outcome`; no grounding-floor failure tag
+  fired). → **eval/observability-addressable**, minor, non-gating *for scoring*.
+  **[ANNOTATED 2026-06-20 — reclassification]** The "non-gating" conclusion holds
+  only for the eval *score*. The same `BotTurn.getSourceIds()` field also gates the
+  **runtime** Sprint-093 RESOLVE→CONFIRM promotion (via
+  `priorGroundedResolveAnswerDelivered`), and only `search_knowledge` feeds it
+  (`get_customer_context` / `resolve_article` do not). So `source_ids` is **not
+  unconditionally non-blocking**; it is a confirmed LATENT runtime coupling, HELD as
+  M-Auto-9 WP0. It was NOT the operative `no_ad_id` blocker here (the representative
+  draw had a `search_knowledge` HIT). See
+  [`m-auto-9-design-review-and-promotion-coupling-investigation-2026-06-20.md`](m-auto-9-design-review-and-promotion-coupling-investigation-2026-06-20.md).
 - **WP1-A conditional-adjudication auto-triage** (HELD) would only matter if the
   target terminal became *escalate-after-genuine-help*. For these
   cooperative-persona `resolve`-expected `tier_1_target` cases the target is
