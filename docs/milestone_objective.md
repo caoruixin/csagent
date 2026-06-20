@@ -89,9 +89,10 @@ notes: >
   2026-06-20 MILESTONE SYNC — the active, approved milestone is now M-Auto-9
   (runtime/orchestration closure; design FINAL verdict APPROVE 2026-06-20; north-star
   charter docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md).
-  Its first dev sub-sprint is Sprint 095 / S-Auto-43 (WP1 — user_requested
-  escalation-reason honesty), SCOPED 2026-06-20 (docs/sprint_objective.md);
-  implementation NOT started; WP0/WP2 HELD under charter §6. This is a MINIMAL
+  Its first dev sub-sprint, Sprint 095 / S-Auto-43 (WP1 — user_requested
+  escalation-reason honesty), was launched + CLOSED BLOCKED 2026-06-20 (no honest
+  existing escalation_reason; no code shipped; honest fix = the triggered
+  D-new-escalation-reason-enum migration); WP0/WP2 HELD under charter §6. This is a MINIMAL
   active-milestone pointer sync only: the entire M-Auto-7 body + outcome below
   (registry-only pilot CLOSED — NO KEEP) is PRESERVED unchanged as the delivered
   historical record; no milestone history is rewritten and no WP1 scope is expanded
@@ -107,11 +108,14 @@ notes: >
 > (carries the full required design coverage + the WP0/WP1/WP2 decomposition).
 >
 > **First dev sub-sprint: Sprint 095 / S-Auto-43 — WP1 `user_requested` escalation-reason
-> honesty** (`prompt_projection`/`semantic_planner`; reserve `user_requested` for an
-> actual user request, use an accurate bot-initiated reason from the existing approved
-> enum on self-initiated handover). **SCOPED 2026-06-20, NOT launched**
-> (`docs/sprint_objective.md` + `compact/sprint-095-dev-prompt.md`); implementation not
-> started. **WP1 is reason-label honesty only and does NOT solve the PRIMARY closure /
+> honesty** (`prompt_projection`/`semantic_planner`). Launched + **CLOSED BLOCKED
+> 2026-06-20** at the §6 existing-reason honesty gate: no member of the canonical
+> 23-value `escalation_reason` enum honestly labels the bot-initiated "exhausted-resolution
+> / unresolved / needs-human" handover, and the contract forbade shipping a
+> knowingly-inaccurate catch-all → **no code shipped; the mislabel is not fixed.** The
+> honest fix is the deferred `D-new-escalation-reason-enum` migration (its own objective,
+> now triggered; not yet scoped). Archives `docs/sprints/sprint-095-{objective,handoff}.md`.
+> **WP1 is reason-label honesty only and does NOT solve the PRIMARY closure /
 > product-contract question. WP0 (source_ids/promotion) and WP2 (CONFIRM
 > record-vs-handover on satisfiable flows) remain HELD** under charter §6.
 >

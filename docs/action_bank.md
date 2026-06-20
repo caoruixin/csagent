@@ -59,7 +59,7 @@ this file (§4 onward); each open row carries its id, layer
 | D-full-issue-ledger-light | thin push/pop session-side stack of `(prior_uc, prior_phase, prior_skill_state_snapshot)` on UC switch + restore on UC return (lighter than `D-full-issue-ledger`) | deferred-pending-research | none | NEW 2026-06-08 (CS3/CS4 doc §10.4); trigger = M-Auto-7 close + multi-issue trace survey (Path α: Phase 1 quantify → Phase 2 design → Phase 3 bundle-or-defer). Complementary to landed `prior_use_case_carry` soft signal; NOT folded into any M-Auto-7 sub-sprint; heavier sibling `D-full-issue-ledger` stays deferred/avoid above |
 | D-skill-runtime-framework | full skill runtime framework + handover payload rewrite | **skill runtime framework SHIPPED (M2 CLOSED Sprint 41); handover payload rewrite remains separately deferred per M3-B `D-single-handover-orchestrator`** | runtime | NEW M2 (Skill Registry Abstraction) consumed the original Sprint 11/12/13-era deferral. prior landed history: `docs/milestones/M2_objective.md` + `docs/sprints/sprint-037-handoff.md`, `sprint-038-handoff.md`, `sprint-039-handoff.md`, `sprint-040-handoff.md`, `sprint-041-handoff.md` |
 | D-prompt-risk-signal-handling | narrow "Risk signal handling" block in `system_prompt.txt` | deferred — Eval Governance trigger | prompt / Eval Governance | exact wording + 5 focused golden prompt tests pre-specified in `docs/runtime_freeze_and_risk_policy.md` §6.2; reopen on first real-traffic case demonstrating a refund / liability / appeal promise OR a credentials request |
-| D-new-escalation-reason-enum | adding / renaming a value in the canonical 23-value `escalation_reason` enum (e.g. dedicated `risk_observed_continue`) | deferred / avoid | none | cross-cuts the eval-side `ESCALATION_TRIGGER_VALUES` set; needs a coordinated migration via a new objective doc |
+| D-new-escalation-reason-enum | adding / renaming a value in the canonical 23-value `escalation_reason` enum (e.g. dedicated `risk_observed_continue`; **or the bot-initiated "exhausted-resolution / needs-human" reason the Sprint 095 WP1 BLOCK requires** — candidate spellings `exhausted_resolution` / `agent_unable_to_resolve` are illustrative, naming is the migration's job) | **deferred → TRIGGERED 2026-06-20** (recommended next objective; previously a §4 avoid-item) | none | cross-cuts the eval-side `ESCALATION_TRIGGER_VALUES` set; needs a coordinated migration via a new objective doc. **Trigger met (real bad-case evidence):** Sprint 095 / S-Auto-43 (M-Auto-9 WP1) CLOSED **BLOCKED** — the bot-initiated `user_requested` mislabel cannot be honestly corrected with any existing canonical reason (`docs/sprints/sprint-095-handoff.md` §3 walks all 23 and finds 0 honest; `out_of_scope` is bound 100% to non-V1 intent, `service_degraded` is the §6-forbidden catch-all; the pre-existing `confirm.yaml:20 user_dissatisfied → service_degraded` path corroborates the gap predates WP1). **Migration scope (handoff §4):** add the value + a Tier-3/low PRIORITY slot to `EscalationReasonResolver.CANONICAL_REASONS` + `ContextProjectionBuilder` enum + eval-side `EscalationTrigger` (`eval_interactive/.../case_spec/schema.py`) + the `escalation_reason_family_match` scoring + `confirm.yaml` (replace the non-canonical `user_dissatisfied`) + projection teaching reserving `user_requested` for genuine requests — all in lockstep. Anti-误杀: the new value is low-priority so it cannot displace safety/dispute reasons (pri 0-16). **NOT yet scoped/launched** — deliver-agent scopes (with §7 stanza + precedence guards) only on human go-ahead. |
 | D-hard-citation-gate | hard runtime citation gate (refuse / rewrite / loop on missing citation) | deferred / avoid — **general gate REMAINS DEFERRED** for any generic / cross-FAQ-path / content-quality / `class=escalate` extension (reopen only on real-traffic P0/P1 evidence); the narrow M2 §6 #4 bounded inversion (S1 RESOLVE_FAQ `must_cite_source` presence-only check) SHIPPED Sprint 39 in `SkillGuardrailDispatcher.handleMustCiteSource` | none | Sprint 14 §L2 carve-out; observability via `citationPresent` / `citationMatch` / `citationDrift` / `resolvedButUncited` in place. prior landed history: `docs/sprints/sprint-039-handoff.md`, `docs/sprints/sprint-037-codex-review.md` (bounded-inversion design freeze + scope verification) |
 | D-faq-grounded-resolve-bypass | refuse / replan a FINAL_ANSWER shape that paraphrases a `retrieved_but_unresolved` hit on a FAQ-path UC | deferred — Sprint 16 §S1 candidate | runtime / S1 | observable today as `retrieved_but_unresolved=true` on a `factual_answer` turn; current §G2 guard handles the dominant `request_handover(faq_miss_threshold_exceeded)` shape, not the FINAL_ANSWER shape |
 | D-cited-but-unresolved | hallucination signal candidate when `citation_drift=true` with a cited source_id never retrieved/resolved | deferred — diagnostics-only | runtime / S1 | needs reproducible cases before any runtime hardening; watch the §L2 diagnostics surface |
@@ -1054,12 +1054,13 @@ current PRIMARY objective.** (human-authorized 2026-06-19.)
   `docs/sprint_objective.md` / `docs/milestone_objective.md` / `docs/10-handoff.md`
   §0 and assign the formal successor-milestone id at the next planning step.
 
-### M-Auto-9 WP1 SCOPED — Sprint 095 / S-Auto-43 (2026-06-20)
+### M-Auto-9 WP1 SCOPED → CLOSED BLOCKED — Sprint 095 / S-Auto-43 (2026-06-20)
 
 The M-Auto-9 charter design is `APPROVE`d (2026-06-20); the deliver agent scoped the
 **first M-Auto-9 dev sub-sprint — WP1 `user_requested` escalation-reason honesty** —
-charter §6 WP1. **SCOPED, NOT LAUNCHED** (dev agent not spawned; launch = human pastes
-`compact/sprint-095-dev-prompt.md`).
+charter §6 WP1. It was launched and **CLOSED BLOCKED** the same day at the §6
+existing-reason honesty gate (see the CLOSE bullet at the end of this note). The scoping
+detail below is retained as the record of the contract that was run.
 
 - **Sprint-ID assignment (history-checked):** last archived dev sub-sprint = Sprint 094
   / S-Auto-40. The pilot-closure steps **S-Auto-41** (proposer steering +
@@ -1095,6 +1096,23 @@ charter §6 WP1. **SCOPED, NOT LAUNCHED** (dev agent not spawned; launch = human
   the vocabulary gap under `D-new-escalation-reason-enum` (§4) and closes **BLOCKED, not
   complete** — it must NOT add a new enum and must NOT ship a knowingly-inaccurate
   catch-all (e.g. `service_degraded`) to replace `user_requested`.
+- **CLOSE — WP1 BLOCKED (2026-06-20).** The gate fired. The dev verified the defect
+  read-only (LLM supplies `user_requested` verbatim in `request_handover`,
+  `RequestHandoverTool.java:60`; priority-1/Tier-0 in `EscalationReasonResolver` so it
+  sticks), did the three-class attribution (genuine user-requested / bot-initiated
+  mislabel / runtime budget-family), and walked all 23 canonical reasons — **0 honestly
+  label** the bot-initiated "exhausted-resolution / unresolved / needs-human" semantic
+  (`out_of_scope` bound 100% to non-V1 intent `phase2…:564,582`; `service_degraded`
+  §6-forbidden catch-all; gap corroborated by the pre-existing `confirm.yaml:20`
+  non-canonical `user_dissatisfied → service_degraded`). Per the binding rule, **no code
+  shipped** (tree byte-clean at baseline `1394/1/0/2`); WP1 NOT declared done; the
+  mislabel is NOT fixed. §4.1 Codex N/A (no semantic surface shipped); no eval rerun (no
+  behaviour change). `R-oq-s93.1-confirm-record-vs-handover` WP1 portion = **BLOCKED on
+  the vocabulary gap**; WP0/WP2 still HELD. Archives `docs/sprints/sprint-095-{objective,
+  handoff}.md`; spent prompt `compact/sprint-095-dev-prompt.md`. **Honest fix → the §4
+  `D-new-escalation-reason-enum` migration, now TRIGGERED** (recommended next objective;
+  not yet scoped/launched — human decides). The dev's memory note
+  [[project_resolve_confirm_deadlock_two_layers]] records the finding.
 
 ## 6. Closed index (relocated)
 
