@@ -1054,6 +1054,41 @@ current PRIMARY objective.** (human-authorized 2026-06-19.)
   `docs/sprint_objective.md` / `docs/milestone_objective.md` / `docs/10-handoff.md`
   §0 and assign the formal successor-milestone id at the next planning step.
 
+### M-Auto-9 WP1 SCOPED — Sprint 095 / S-Auto-43 (2026-06-20)
+
+The M-Auto-9 charter design is `APPROVE`d (2026-06-20); the deliver agent scoped the
+**first M-Auto-9 dev sub-sprint — WP1 `user_requested` escalation-reason honesty** —
+charter §6 WP1. **SCOPED, NOT LAUNCHED** (dev agent not spawned; launch = human pastes
+`compact/sprint-095-dev-prompt.md`).
+
+- **Sprint-ID assignment (history-checked):** last archived dev sub-sprint = Sprint 094
+  / S-Auto-40. The pilot-closure steps **S-Auto-41** (proposer steering +
+  mutation-surface scoping) and **S-Auto-42** (bool-only flaky-tier0 defer) ran WITHOUT
+  `Sprint NNN` numbers (recorded in this §5 only, no `sprint-NNN` archive). Next free
+  pair = **Sprint 095 / S-Auto-43** (no `sprint-095`/`096` archive, no `compact/
+  sprint-095*`, no `S-Auto-43+` reference exists anywhere — unambiguous; the
+  094→095 / S-Auto-40→43 pairing gap is expected).
+- **`R-oq-s93.1-confirm-record-vs-handover` — WP1 portion now SCOPED** as Sprint 095 /
+  S-Auto-43 (`prompt_projection`/`semantic_planner`: reserve `user_requested` for an
+  actual user request; the bot uses an accurate bot-initiated reason from the existing
+  approved 23-value enum on self-initiated handover). **Reason-label honesty only** —
+  no change to whether/when handover occurs, no phase/outcome change, no frozen runtime
+  surface, **no new `escalation_reason` enum value** (the deferred
+  `D-new-escalation-reason-enum` §4 item — STOP-and-surface if a new value seems
+  needed), no user-message heuristic. Evidence gate = three-class defect characterization
+  + Java characterization tests + re-measured no-new-regression Java run + a zero-LLM
+  attribution replay over exp-90 (+ the OQ-S93.1 brief §3.3 documented Sprint-093
+  classification) + §4.1 Codex; **no real-LLM run required** unless implementation
+  reveals behaviour beyond reason-label projection (charter §6 + §5.7).
+- **WP1 does NOT solve the M-Auto-9 PRIMARY closure / product-contract question.**
+  **WP0** (source_ids / promotion-evidence) and **WP2** (CONFIRM record-vs-handover on
+  satisfiable flows) **remain HELD** under charter §6. Holds above stay in force.
+- Contract bundle: `docs/sprint_objective.md` (Sprint 095) + `compact/sprint-095-dev-prompt.md`.
+  Parent milestone north-star = the M-Auto-9 charter proposal doc; a formal
+  `docs/milestone_objective.md` promotion to M-Auto-9 is a recommended follow-up (not
+  done in the WP1-scoping session — `milestone_objective.md` stays the M-Auto-7 record
+  with its §0 banner pointing forward).
+
 ## 6. Closed index (relocated)
 
 Closed sprints, milestones, and R-items are archived as a compact
