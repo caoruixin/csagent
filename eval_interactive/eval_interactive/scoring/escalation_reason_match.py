@@ -57,6 +57,16 @@ _ESCALATION_REASON_FAMILY: dict[str, str] = {
     "faq_miss_threshold_exceeded": "bot_limit",
     "turn_budget_exhausted": "bot_limit",
     "incomplete_intake": "bot_limit",
+    # Sprint 096 / S-Auto-44 (M-Auto-9 WP1): the bot-initiated, in-scope,
+    # exhausted-resolution, unresolved handover. It is the semantic
+    # "inability to resolve" reason and routes to the same general
+    # human-continuation destination as the budget close-outs, so it shares
+    # the ``bot_limit`` destination-queue family. This map is EVAL-SIDE +
+    # observation-only (advisory severity unless an APPROVED override
+    # re-elevates it; the registry has zero such bindings), so adding this
+    # entry cannot change any gated outcome and the value never appears in
+    # historical traces.
+    "agent_unable_to_resolve": "bot_limit",
     # intake-complete reasons inherit the destination-queue family of the UC
     # that emitted them (codex round 4 §"Reinterpreting"):
     #   UC-G -> GDPR/identity, UC-H -> appeal/moderation review,
