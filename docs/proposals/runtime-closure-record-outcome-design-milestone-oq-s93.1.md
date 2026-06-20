@@ -22,8 +22,10 @@ notes: >
   not redo it. ID assignment: M-Auto-8 is already the human-confirmed (2026-06-18)
   "primary-first staged eval + adaptive sampling" milestone, so this milestone
   takes the next unambiguous id, M-Auto-9.
-  2026-06-20 DESIGN REVIEW — verdict APPROVE_WITH_REQUIRED_CHANGES; implementation
-  NOT approved. Returned to bounded design revision. A read-only confirmation
+  2026-06-20 DESIGN REVIEW — initial verdict APPROVE_WITH_REQUIRED_CHANGES;
+  required changes folded into the bounded revision; the revised charter received
+  FINAL verdict APPROVE (design complete; implementation NOT started; WP1 sub-sprint
+  scoping unblocked; WP0/WP2 remain HELD). A read-only confirmation
   investigation over a single coherent trace set (exp-90, n=13/PRIMARY;
   docs/diagnostics/m-auto-9-design-review-and-promotion-coupling-investigation-2026-06-20.md)
   DOWNGRADED the review's pre-CONFIRM source_ids hypothesis: the
@@ -55,16 +57,26 @@ notes: >
   record_outcome/phase-advance work, but that was superseded by the 2026-06-18
   human boundary. To avoid the collision, this runtime-closure milestone takes
   **M-Auto-9** (no prior M-Auto-9 reference exists anywhere in the live docs).
-- **Status: PROPOSED — design-reviewed 2026-06-20 (`APPROVE_WITH_REQUIRED_CHANGES`);
-  in bounded design revision.** This charter is the successor-milestone north star;
-  it is not launched. No implementation begins as part of the documentation fold.
-  **Next action = complete this bounded revision, then human review/approval of the
-  revised charter before any dev sub-sprint is scoped.**
+- **Status: APPROVED (design) 2026-06-20 — `APPROVE`. Design complete;
+  implementation NOT started.** The initial design review (2026-06-20) returned
+  `APPROVE_WITH_REQUIRED_CHANGES`; all required changes were folded into the bounded
+  revision and the revised charter received FINAL verdict `APPROVE`. This charter is
+  the approved successor-milestone north star; it is design-complete but not
+  launched. **Next action = deliver-agent scopes the first WP1 dev sub-sprint
+  (scoping only, not implementation). WP0 and WP2 remain HELD under the §6
+  conditions.**
 
 ## Design-review status (2026-06-20)
 
-- **Verdict: `APPROVE_WITH_REQUIRED_CHANGES`. Implementation NOT approved.** Review
-  + the read-only confirmation investigation are recorded in
+- **FINAL verdict: `APPROVE` (2026-06-20). Charter design complete; implementation
+  NOT started.** The initial design review returned `APPROVE_WITH_REQUIRED_CHANGES`;
+  all required changes were folded into the bounded charter revision, and the final
+  human-approval review of the revised charter (review commit `c71e620b`) confirmed
+  all six assessment criteria and issued `APPROVE`. **WP1 sub-sprint scoping is now
+  unblocked (scoping only, not implementation); WP0 and WP2 remain HELD under the §6
+  conditions.**
+- **Initial verdict (superseded by the `APPROVE` above): `APPROVE_WITH_REQUIRED_CHANGES`.**
+  Review + the read-only confirmation investigation are recorded in
   [`../diagnostics/m-auto-9-design-review-and-promotion-coupling-investigation-2026-06-20.md`](../diagnostics/m-auto-9-design-review-and-promotion-coupling-investigation-2026-06-20.md).
 - **Key revision driver:** the review's high-confidence hypothesis — that `no_ad_id`
   is blocked *before* CONFIRM because listing-state grounding does not populate
@@ -87,15 +99,22 @@ notes: >
 
 The M-Auto-7 registry-only pilot is CLOSED NO-KEEP. exp-90 (the byte-identical
 frozen `$.grounding_instruction` proposal, run through the real pipeline)
-established that the **shared runtime closure blocker independently gates both
-PRIMARY cases**: neither `cs_uc_a_no_ad_id_ad_specific` nor
-`cs_uc_a_loaded_listing` can reach a recorded SATISFIED+resolve terminal even
-when grounding is correct, so no registry-only edit can make the objective
-keep-eligible. The grounding rejection is of the *reviewed* hypothesis, not a
-proof that all registry wordings are impossible — but the closure blocker makes
-further registry search moot for the end-to-end objective.
+established that **neither `cs_uc_a_no_ad_id_ad_specific` nor
+`cs_uc_a_loaded_listing` reaches a recorded SATISFIED+resolve terminal even when
+grounding is correct**, so no registry-only edit can make the objective
+keep-eligible. Per the 2026-06-20 read-only confirmation investigation, the
+observed outcomes are **dominated by the unsatisfiable-persona / product-contract
+question** — the simulator persona declares `goal_status=impossible` after a
+reasonable grounded answer, and the correct terminal (resolve vs
+escalate-after-help vs whether `resolved+goal_impossible` should hard-fail) is an
+open product / `eval_spec` decision — **not a proven shared phase-machine closure
+defect**. The `source_ids → promotion` coupling is a confirmed *latent* code defect
+but was not the operative blocker on exp-90 (§2). The grounding rejection is of the
+*reviewed* hypothesis, not a proof that all registry wordings are impossible — but
+because neither PRIMARY reaches a recorded resolve, further registry search is moot
+for the end-to-end objective.
 
-This blocker is already partly characterised: Sprint 093 / S-Auto-39 repaired the
+This closure question is already partly characterised: Sprint 093 / S-Auto-39 repaired the
 *structural* RESOLVE→CONFIRM phase transition (`R-resolve-confirm-transition-deadlock`,
 CLOSED), and the OQ-S93.1 read-only research (`R-oq-s93.1-confirm-record-vs-handover`;
 `docs/diagnostics/failure-briefs/oq-s93.1-confirm-record-vs-handover.md`) found
