@@ -256,6 +256,26 @@ class TestStrictModeFailures:
         assert exc_info.value.field == "escalation_reason"
         assert "enum_violation" in exc_info.value.reason
 
+    def test_request_handover_agent_unable_to_resolve_is_accepted(self) -> None:
+        # Sprint 096 / S-Auto-44 (M-Auto-9 WP1): the new canonical value is a
+        # member of ESCALATION_TRIGGER_VALUES, so strict-mode collection must
+        # NOT raise an enum_violation for it (the collector derives its enum
+        # check from the single schema source).
+        turn = _well_formed_turn()
+        turn["tool_calls"] = [
+            {
+                "tool_name": "request_handover",
+                "arguments": {"escalation_reason": "agent_unable_to_resolve"},
+            },
+        ]
+        client = _StubAgentClient(
+            session=_well_formed_session(),
+            trace=[turn],
+        )
+        # Must complete without raising on the escalation_reason field.
+        trace = TraceCollector(client, contract_mode="strict").collect("s")
+        assert trace is not None
+
     def test_record_outcome_missing_outcome_class_raises(self) -> None:
         turn = _well_formed_turn()
         turn["tool_calls"] = [

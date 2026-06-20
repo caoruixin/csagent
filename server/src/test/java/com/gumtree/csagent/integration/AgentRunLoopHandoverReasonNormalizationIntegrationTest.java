@@ -257,4 +257,61 @@ class AgentRunLoopHandoverReasonNormalizationIntegrationTest {
                 "Persisted tool_call must carry canonical user_requested, "
                         + "not the legacy literal user_requested_escalation.");
     }
+
+    @Test
+    void llmEmitsAgentUnableToResolve_botInitiated_flowsThroughUnchanged() throws Exception {
+        // Sprint 096 / S-Auto-44 (M-Auto-9 WP1) §2-class characterization:
+        // a BOT-INITIATED handover on an in-scope issue the bot could not
+        // resolve. The user did NOT ask for a human and no higher-priority
+        // reason is on the session, so the LLM-selected honest reason
+        // `agent_unable_to_resolve` (now canonical) survives both
+        // canonicalize() and resolve() and reaches the persisted trace
+        // unchanged — it is NOT coerced to service_degraded and NOT
+        // relabelled user_requested.
+        BotSession session = buildFaqSession();
+        // No prior session reason and no user-request cue -> the bot's own
+        // selected reason is the only signal.
+        mockCommonStubs();
+
+        LlmResponse turnResp = LlmResponse.builder()
+                .content("{\"user_message\":\"I've tried what I can; a colleague will continue.\","
+                        + "\"tool_calls\":[{\"name\":\"request_handover\","
+                        + "\"arguments\":{\"escalation_reason\":\"agent_unable_to_resolve\"}}]}")
+                .promptTokens(50).completionTokens(20).build();
+        when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
+                .thenReturn(turnResp);
+        when(actionParser.parse(turnResp.getContent())).thenReturn(ParsedAction.builder()
+                .toolCalls(List.of(ToolCall.builder()
+                        .name("request_handover")
+                        .arguments(Map.of("escalation_reason", "agent_unable_to_resolve"))
+                        .build()))
+                .userMessage("I've tried what I can; a colleague will continue.")
+                .build());
+        when(toolDispatcher.validateAgainstPlan(any(), eq("request_handover")))
+                .thenReturn(ToolResult.ok(null));
+        when(toolDispatcher.dispatch(eq("request_handover"), any(), any()))
+                .thenReturn(ToolResult.ok(Map.of("status", "queued")));
+
+        controlKernel.processMessage(session, "I still can't see the messages, what now?");
+
+        assertEquals("agent_unable_to_resolve", session.getEscalationReason(),
+                "Session reason must be the honest bot-initiated value, not "
+                        + "user_requested or service_degraded.");
+
+        ArgumentCaptor<BotTurn> turnCaptor = ArgumentCaptor.forClass(BotTurn.class);
+        verify(turnRepository, times(1)).save(turnCaptor.capture());
+        BotTurn savedTurn = turnCaptor.getValue();
+        JsonNode toolCalls = objectMapper.readTree(savedTurn.getToolCalls());
+        JsonNode handover = null;
+        for (JsonNode entry : toolCalls) {
+            if ("request_handover".equals(entry.path("tool_name").asText())) {
+                handover = entry;
+                break;
+            }
+        }
+        assertNotNull(handover);
+        assertEquals("agent_unable_to_resolve",
+                handover.path("arguments").path("escalation_reason").asText(),
+                "Persisted tool_call must carry agent_unable_to_resolve unchanged.");
+    }
 }

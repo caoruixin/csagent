@@ -1,6 +1,8 @@
 package com.gumtree.csagent.service.runtime;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -334,5 +336,89 @@ class EscalationReasonResolverTest {
                 resolver.resolve("user_distress", "user_requested"));
         assertEquals("user_requested",
                 resolver.resolve("user_requested", "user_distress"));
+    }
+
+    // ---------------- Sprint 096 / S-Auto-44 (M-Auto-9 WP1) ----------------
+    // agent_unable_to_resolve: the bot-initiated, in-scope,
+    // exhausted-resolution, unresolved-handover reason. It is the
+    // LOWEST-priority reason (priority 50), so EVERY other genuinely-present
+    // canonical reason wins over it in resolve(), in BOTH orders. It is a
+    // SEMANTIC reason, not a terminal-close.
+
+    /** §3 / §7 — canonical identity: returns as-is, not coerced. */
+    @Test
+    void agentUnableToResolve_isCanonical() {
+        assertEquals("agent_unable_to_resolve",
+                resolver.canonicalize("agent_unable_to_resolve"));
+        assertTrue(EscalationReasonResolver.CANONICAL_REASONS.contains("agent_unable_to_resolve"));
+    }
+
+    /** §2-class characterization: when nothing higher is present, the
+     *  LLM-selected bot-initiated reason survives resolve() unchanged. */
+    @Test
+    void agentUnableToResolve_survivesWhenNothingHigherPresent() {
+        assertEquals("agent_unable_to_resolve",
+                resolver.resolve(null, "agent_unable_to_resolve"));
+        assertEquals("agent_unable_to_resolve",
+                resolver.resolve("agent_unable_to_resolve", "agent_unable_to_resolve"));
+    }
+
+    /** §6 — it is a SEMANTIC reason, NOT a terminal-close, despite its
+     *  numerically-low priority sitting past the budget family. */
+    @Test
+    void agentUnableToResolve_isNotTerminalClose() {
+        assertFalse(resolver.isTerminalCloseReason("agent_unable_to_resolve"));
+    }
+
+    /** §6 — it is the strictly lowest-priority reason (highest number). */
+    @Test
+    void agentUnableToResolve_hasLowestPriority() {
+        int p = EscalationReasonResolver.priorityOf("agent_unable_to_resolve");
+        assertEquals(50, p);
+        for (String other : EscalationReasonResolver.CANONICAL_REASONS) {
+            if (other.equals("agent_unable_to_resolve")) {
+                continue;
+            }
+            assertTrue(EscalationReasonResolver.priorityOf(other) < p,
+                    other + " (priority " + EscalationReasonResolver.priorityOf(other)
+                            + ") must outrank agent_unable_to_resolve (50)");
+        }
+    }
+
+    /**
+     * §6 precedence proof — every higher-priority reason WINS over
+     * agent_unable_to_resolve in BOTH orders (existing session reason vs
+     * incoming candidate). Covers genuine user signal, safety/dispute/
+     * compliance, intake/scope, infra, and the budget family. The new
+     * value can never displace any of them.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+            // Tier 0 — genuine user signal
+            "imminent_harm", "user_requested", "user_distress",
+            // Tier 1 — safety / dispute / compliance
+            "trust_safety_required", "payment_dispute_detected",
+            "appeal_requires_human", "incorrect_deletion_appeal",
+            "gdpr_intake", "identity_verification_required", "account_compliance",
+            // Tier 2 — intake / scope
+            "intake_complete_for_uc_g", "intake_complete_for_uc_h",
+            "intake_complete_for_uc_i", "intake_complete_for_uc_j",
+            "intake_complete_for_uc_k", "incomplete_intake",
+            "out_of_scope", "tool_scope_blocked",
+            // Tier 3 — infra
+            "service_degraded", "runtime_error_threshold",
+            // Tier 4 — budget / terminal-close
+            "clarification_budget_exhausted", "faq_miss_threshold_exceeded",
+            "turn_budget_exhausted"
+    })
+    void everyOtherReasonBeatsAgentUnableToResolve_bothOrders(String higher) {
+        // candidate = higher, existing = new value -> higher upgrades.
+        assertEquals(higher,
+                resolver.resolve("agent_unable_to_resolve", higher),
+                higher + " must beat agent_unable_to_resolve (candidate order)");
+        // existing = higher, candidate = new value -> higher is kept.
+        assertEquals(higher,
+                resolver.resolve(higher, "agent_unable_to_resolve"),
+                higher + " must beat agent_unable_to_resolve (existing order)");
     }
 }

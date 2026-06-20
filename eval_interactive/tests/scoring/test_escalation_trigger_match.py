@@ -199,6 +199,49 @@ def test_trigger_mismatch_fails() -> None:
     assert _compliance(results).passed is True
 
 
+def test_agent_unable_to_resolve_is_valid_trigger_and_self_matches() -> None:
+    """Sprint 096 / S-Auto-44 (M-Auto-9 WP1): agent_unable_to_resolve is a
+    valid expected trigger (the schema post-init validator accepts it) and a
+    trace stamping the same value family-matches (advisory observation)."""
+    checker = HardChecker()
+    case = _make_case_spec(
+        should_escalate=True,
+        escalation_trigger="agent_unable_to_resolve",
+    )
+    trace = _make_trace(
+        turns=[_make_turn(tool_calls=[_handover_call("agent_unable_to_resolve")])],
+        containment_outcome="escalated",
+    )
+    results = checker.run_checks(case, trace)
+    fm = _family_match(results)
+    assert fm.passed is True, fm.detail
+    assert fm.severity == "advisory"  # observation-only: never gates
+    assert _compliance(results).passed is True
+
+
+def test_agent_unable_to_resolve_shares_bot_limit_family() -> None:
+    """The new value sits in the ``bot_limit`` destination-queue family, so a
+    spec expecting a budget reason family-matches a trace stamping the new
+    value -- still OBSERVATION-ONLY (advisory), so it cannot widen any PASS."""
+    from eval_interactive.scoring.escalation_reason_match import reason_family
+
+    assert reason_family("agent_unable_to_resolve") == "bot_limit"
+
+    checker = HardChecker()
+    case = _make_case_spec(
+        should_escalate=True,
+        escalation_trigger="turn_budget_exhausted",
+    )
+    trace = _make_trace(
+        turns=[_make_turn(tool_calls=[_handover_call("agent_unable_to_resolve")])],
+        containment_outcome="escalated",
+    )
+    results = checker.run_checks(case, trace)
+    fm = _family_match(results)
+    assert fm.passed is True, fm.detail
+    assert fm.severity == "advisory"
+
+
 def test_no_escalation_expected_or_done_passes() -> None:
     """spec.escalation_trigger=None, should_escalate=False, no handover -> pass."""
     checker = HardChecker()
