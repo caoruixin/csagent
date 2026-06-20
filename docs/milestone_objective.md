@@ -91,8 +91,9 @@ notes: >
   charter docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md).
   Its first dev sub-sprint, Sprint 095 / S-Auto-43 (WP1 — user_requested
   escalation-reason honesty), was launched + CLOSED BLOCKED 2026-06-20 (no honest
-  existing escalation_reason; no code shipped; honest fix = the triggered
-  D-new-escalation-reason-enum migration); WP0/WP2 HELD under charter §6. This is a MINIMAL
+  existing escalation_reason; no code shipped); the honest fix = the
+  D-new-escalation-reason-enum migration, now SCOPED as Sprint 096 / S-Auto-44 (not
+  launched); WP0/WP2 HELD under charter §6. This is a MINIMAL
   active-milestone pointer sync only: the entire M-Auto-7 body + outcome below
   (registry-only pilot CLOSED — NO KEEP) is PRESERVED unchanged as the delivered
   historical record; no milestone history is rewritten and no WP1 scope is expanded
@@ -113,8 +114,9 @@ notes: >
 > 23-value `escalation_reason` enum honestly labels the bot-initiated "exhausted-resolution
 > / unresolved / needs-human" handover, and the contract forbade shipping a
 > knowingly-inaccurate catch-all → **no code shipped; the mislabel is not fixed.** The
-> honest fix is the deferred `D-new-escalation-reason-enum` migration (its own objective,
-> now triggered; not yet scoped). Archives `docs/sprints/sprint-095-{objective,handoff}.md`.
+> honest fix is the `D-new-escalation-reason-enum` migration, now **SCOPED as Sprint 096 /
+> S-Auto-44** (SCOPED, NOT LAUNCHED; `docs/sprint_objective.md` + `compact/sprint-096-dev-prompt.md`).
+> Archives `docs/sprints/sprint-095-{objective,handoff}.md`.
 > **WP1 is reason-label honesty only and does NOT solve the PRIMARY closure /
 > product-contract question. WP0 (source_ids/promotion) and WP2 (CONFIRM
 > record-vs-handover on satisfiable flows) remain HELD** under charter §6.
