@@ -1,3 +1,29 @@
+## Sub-sprint Review Decision — S-Auto-44 (Sprint 096, M-Auto-9 WP1: D-new-escalation-reason-enum → agent_unable_to_resolve)
+decision: pass
+blocking_count: 0
+summary: Commits ad2191b5..f800618c (+ 87bc331e handoff) add exactly one new canonical escalation_reason `agent_unable_to_resolve` (the human-blessed name for the bot-initiated, in-scope, exhausted-resolution, unresolved handover) wired atomically across the doc enum + PhaseEvaluator/ToolDispatcher/EscalationReasonResolver runtime sets + resolver PRIORITY(50) + ContextProjectionBuilder projection + system_prompt teaching + confirm.yaml + eval schema EscalationTrigger + scoring family + tests. Codex applied the §4.1 nine-question kernel read-only (`codex exec --sandbox read-only`, model=gpt-5.5, model_reasoning_effort=high) over `git diff ad2191b5^..HEAD`, the objective, and the handoff. Per-PR verdict: `approve` — a human-authorized Runtime §1.4 vocabulary completion (action_bank §4 D-new-escalation-reason-enum), NOT a semantic hardcode: LLM owns *when* to select it via principle-level projection teaching with no keyword/regex/content heuristic; not a generic fallback (no runtime auto-stamp, unknowns incl. `user_dissatisfied` still coerce to `service_degraded`, no `canonicalize` remap, no default); resolver priority 50 is strictly lowest and the §6 precedence tests prove every higher reason wins in both orders so all safety/user/intake/scope/infra/budget floors are preserved (no Tier-0 added); eval family entry is additive advisory/observation-only with no PASS widening; no CaseSpec expected reason/outcome or frozen baseline pointer changed; no frozen surface touched. Generalization coverage present (precedence both-orders ×23, enum-sync, contract-accept, family-advisory, integration flow-through, + bounded real-LLM no-over-use). Full verdict transcript: codex session 019ee56f (read-only, gpt-5.5/high), recorded verbatim below.
+
+Per-PR §4.1 verdict: `approve`. Read-only `codex exec` (model=gpt-5.5, model_reasoning_effort=high) over `git diff ad2191b5^..HEAD`, `docs/sprint_objective.md`, `docs/sprints/sprint-096-handoff.md`, `docs/current/anti-hardcode-review-kernel.md`. Nine-question kernel (verbatim):
+
+1. Yes — adds an enum value for escalation semantics, but under the authorized enum-expansion path (Sprint 096 D-new-escalation-reason-enum Runtime §1.4 vocabulary completion for a human-blessed canonical value); no keyword/regex/user-message heuristic or Java branch deciding when to select it.
+2. No Tier-0 invariant claim needed; not a Tier-0 hard branch — a human-authorized vocabulary/schema completion; the precedence floor still protects Tier-0/user/safety reasons.
+3. Yes, and the PR uses the soft-signal route: the runtime exposes the value + `description`; the LLM owns when to choose it.
+4. No — no CaseSpec id, fixed eval utterance, ad id, or visible-eval phrase encoded into runtime/prompt/judge config.
+5. No — ownership stays with the LLM (LLM-selected only, never auto-stamped).
+6. No blocking concern — the prompt adds principle/observable-state guidance, not case-text branching.
+7. Yes, preserved — unknown/default still maps away from the new value (`service_degraded`); no runtime auto-stamp, no `user_dissatisfied` remap, no default to the new value; tool schema boundary updated consistently.
+8. Yes — coverage includes target flow-through, enum sync, contract validation, family/advisory scoring, full precedence (`everyOtherReasonBeatsAgentUnableToResolve_bothOrders` over all 23 reasons both orders); handoff records bounded real-LLM targets/controls/guards with no over-use.
+9. Not temporary — no downgrade/sunset plan required.
+
+Objective confirmations: value is authorized Runtime §1.4 vocabulary, not semantic hardcode; not a generic fallback; priority 50 strictly lowest + precedence-tested; eval family entry advisory/observation-only; no CaseSpec expected reason/outcome or frozen baseline pointer changed.
+
+## Sprint Review Decision
+decision: pass
+blocking_count: 0
+summary: The PR adds `agent_unable_to_resolve` as a human-authorized canonical vocabulary completion, with LLM-owned selection via projection teaching and no keyword/regex/content heuristic or runtime auto-stamp. Unknown values still coerce to `service_degraded`; resolver priority 50 preserves every higher-priority safety/user/intake/scope/infra/budget reason; eval scoring is additive advisory-only with no PASS widening; frozen behavior surfaces remain untouched except the explicitly authorized enum/resolver membership update.
+
+---
+
 ## Sub-sprint Review Decision — S-Auto-40 (Sprint 094, WP1-A measurement contract → conditional outcome acceptance)
 decision: pass
 blocking_count: 0

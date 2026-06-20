@@ -2,31 +2,33 @@
 title: "Sprint 096 / S-Auto-44 (M-Auto-9 WP1) — handoff: D-new-escalation-reason-enum migration (agent_unable_to_resolve)"
 doc_tier: sprint-archive
 status: current
-implementation_status: partial
+implementation_status: implemented
 source_of_truth: this file (dev handoff); runtime + eval code cited inline
 last_reviewed: 2026-06-20
 review_cadence: per sprint
 supersedes: []
 superseded_by: null
 notes: >
-  Code-complete + deterministic gates GREEN; the one REQUIRED gate that did
-  not run is the bounded real-LLM validation (§7.6), which is §5.9 pre-flight
-  NO-GO in this session (backend down + LLM provider unconfigured in the dev
-  shell). The migration adds exactly one new canonical escalation_reason,
-  `agent_unable_to_resolve` (human-blessed name), wired atomically across all
-  11 producer/consumer surfaces in 4 separable commits. Gates 1-5 + 7 pass
-  with cited evidence: enum-sync green at 24; §6 precedence proven (the new
-  value is strictly lowest-priority and never displaces any reason, both
+  COMPLETE. The migration adds exactly one new canonical escalation_reason,
+  `agent_unable_to_resolve` (human-blessed name), for the bot-initiated,
+  in-scope, exhausted-resolution, unresolved handover — wired atomically
+  across all producer/consumer surfaces in 4 separable commits (ad2191b5..
+  f800618c) + handoff (87bc331e). All gates met: enum-sync green at 24; §6
+  precedence proven (strictly lowest priority 50; every reason wins both
   orders); backward-compat clean (new value absent from all historical
-  artifacts; no past evidence rewritten); zero-LLM scoring replay shows no
-  gated-outcome change (the family map is purely additive + observation-only);
-  Java 1422/1/0/2 (+28 new tests, sole failure = inherited OQ-S41.5);
-  eval_interactive 620p (failed/error set byte-identical to baseline);
-  autoloop 412p; scoring-SHA recorded with a no-re-bless decision (additive +
-  observation-only + no scored-outcome change → §5.7 N/A). REMAINING before a
-  COMPLETE close: (1) bounded real-LLM no-over-use run (§7.6, env-gated) and
-  (2) per-sub-sprint Codex §4.1 `pass`. Delivers WP1 reason-honesty intent
-  only; does NOT solve the M-Auto-9 PRIMARY closure question; WP0/WP2 HELD.
+  artifacts; no past evidence rewritten); zero-LLM scoring replay no
+  gated-outcome change (family map additive + observation-only); Java
+  1422/1/0/2 (+28 tests, sole failure inherited OQ-S41.5); eval_interactive
+  620p (failed/error set byte-identical to baseline); autoloop 412p;
+  scoring-SHA recorded, no re-bless (§5.7 N/A); §7.6 bounded real-LLM PASS —
+  the model uses the new reason for the §2-class (uc_c_messaging 3/5,
+  uc_d_login 1/5, all transcript-verified honest) with ZERO bleed onto the
+  genuine-request control / GDPR / payment / safety guards; §4.1 Codex
+  `approve` / `pass` (blocking_count 0). Env (Postgres/Redis/backend) was
+  brought up via the project Makefile path and the backend rebuilt from
+  Sprint 096 final; served projection verified at 24 values. Delivers WP1
+  reason-honesty intent only; does NOT solve the M-Auto-9 PRIMARY closure
+  question; WP0/WP2 remain HELD.
 ---
 
 # Sprint 096 / S-Auto-44 (M-Auto-9 WP1) — handoff
@@ -37,11 +39,13 @@ exhausted-resolution, unresolved handover (the honest fix the Sprint 095 WP1
 BLOCK identified), wired atomically across every authoritative producer +
 consumer so the bot stops mislabeling these handovers `user_requested`.
 
-**Terminal status: NOT YET CLOSED.** Code-complete; deterministic gates green;
-the COMPLETE gates are **not** claimed because (a) the **§7.6 bounded real-LLM
-validation** is **§5.9 pre-flight NO-GO** in this session (see §7.6), and (b)
-the **§4.1 per-sub-sprint Codex review** has not yet returned `pass`. Both are
-REQUIRED for COMPLETE (objective §11 / §14).
+**Terminal status: COMPLETE.** All COMPLETE gates met: §3 atomic migration
+(enum-sync green at 24); §5 name human-blessed; §6 precedence proven; §7.1-§7.7
+gates all met (incl. the **§7.6 bounded real-LLM PASS — no over-use**); and the
+**§4.1 per-sub-sprint Codex review returned `approve` / `pass`** (blocking_count
+0; verdict verbatim in `docs/codex-findings.md`). Delivers WP1's reason-honesty
+intent only; does **not** solve the M-Auto-9 PRIMARY closure question; WP0/WP2
+remain HELD.
 
 HEAD at sprint start: clean tree on `auto-loop-branch` at `567f018c`, baseline
 Java `1394 / 1 / 0 / 2` (sole failure = inherited, provably-uncoupled
@@ -60,9 +64,9 @@ OQ-S41.5).
 | §7.3 backward-compat replay | **DONE** | new value absent from 12 historical artifacts; family-map purely additive; no past evidence rewritten. §5 here. |
 | §7.4 zero-LLM scoring replay | **DONE** | observation-only family-match; zero family drift on all 23 historical values; no gated-outcome change. §6 here. |
 | §7.5 Java + Python suites | **DONE** | Java 1422/1/0/2 (+28); eval_interactive 620p/6f/5e (set byte-identical to baseline); autoloop 412p. §7 here. |
-| §7.6 bounded real-LLM | **NOT RUN — §5.9 NO-GO** | backend down + LLM provider unconfigured in the dev shell. §8 here. |
+| §7.6 bounded real-LLM | **DONE — PASS (no over-use)** | env brought up; 5×10 live run; §2-class uses the new reason, controls/guards clean (0 bleed). §8 here. |
 | §7.7 scoring-SHA + baseline-compat | **DONE** | HEAD `f800618c`; scoring blob `4ac4a698`; no re-bless (§5.7 N/A). §9 here. |
-| §4.1 per-sub-sprint Codex | **PENDING** | committed range ready for review; verdict → `docs/codex-findings.md`. |
+| §4.1 per-sub-sprint Codex | **DONE — `approve` / pass** | read-only `codex exec` (gpt-5.5, high) over `ad2191b5^..HEAD`; verdict verbatim in `docs/codex-findings.md`. |
 
 ## §1 Name decision + rationale (§5)
 
@@ -252,31 +256,77 @@ Re-measured at clean-tree start, then after edits, deltas attributed:
 precedence pairings) + 1 integration flow-through. No new regression in any
 suite.
 
-## §8 Bounded real-LLM validation (§7.6) — §5.9 pre-flight NO-GO
+## §8 Bounded real-LLM validation (§7.6) — PASS (no over-use)
 
-**This REQUIRED gate did not run.** §5.9 pre-flight is **NO-GO** in this
-session:
-- the Spring backend is **down** (no process; `localhost:8080/actuator/health`
-  fails) — and the system-prompt + confirm.yaml changes require a rebuilt,
-  restarted backend before the model sees the new vocabulary;
-- the LLM provider is **unconfigured in the dev shell**: `DEEPSEEK_API_KEY` is
-  set but `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL` are unset, `KIMI_*` /
-  `DASHSCOPE_*` unset, `SPRING_PROFILES_ACTIVE` unset — so a started backend
-  could not make valid LLM calls.
+**Environment** (brought up via the project's established `Makefile` path):
+Postgres@17 + Redis already running; backend **rebuilt from Sprint 096 final
+(`87bc331e`)** via `mvn spring-boot:run -Dspring-boot.run.profiles=local` under
+`caffeinate -dimsu`, with `.env.local` exported (DeepSeek bot LLM + Kimi/
+`moonshot-v1-32k` simulator). Health UP (db/redis/ping). **Served-code verified**:
+`javap` shows the new value in the constant pool of `EscalationReasonResolver`,
+`ContextProjectionBuilder`, `PhaseEvaluator`, `ToolDispatcher`; the **live
+projected `request_handover` schema captured in a trace lists all 24 values +
+the new teaching `description`** (definitive served-projection confirmation).
 
-What the gate must show (unchanged target for when it runs): on a bounded
-NON-pilot run (§2-class bot-initiated cases + genuine-`user_requested` controls
-+ the §8 precedence/standing guards; `caffeinate`), the model **uses
-`agent_unable_to_resolve` for the §2 class** and **does NOT over-use it** (no
-bleed onto `user_requested` / `out_of_scope` / `service_degraded` / budget),
-decided under the S-Y1.7 V3 noise-aware rule + a zero-LLM attribution
-cross-check. STOP-and-surface if it shows over-use (do not ship; rework the
-projection teaching).
+**§5.9 pre-flight: GO** — 1-case pipeline validated end-to-end (backend →
+simulator LLM → trace → `escalation_reason` captured).
 
-**Disposition:** code + deterministic gates are sound; this is an
-environment/pre-flight blocker, not a §8 STOP condition on the migration's
-correctness. The COMPLETE gates are **not** claimed until this run returns a GO
-result (objective §11).
+**Run:** 5 passes × the 10-case subset = **50 live sessions** (run dirs
+`20260620-140854 … 142148`), `parallel=1`, `caffeinate`. Subset: 4 §2-class
+targets + 1 genuine-request control + 5 precedence/standing guards.
+
+**Per-case `escalation_reason` distribution (5 attempts):**
+
+| class | case | distribution | read |
+|---|---|---|---|
+| TARGET | `anchor_outcome_uc_c_messaging` | **`agent_unable_to_resolve` 3**, `turn_budget_exhausted` 1, none 1 | correct §2-class use (was `user_requested` in exp-90) |
+| TARGET | `anchor_outcome_uc_d_login` | `user_distress` 3, `user_requested` 1, **`agent_unable_to_resolve` 1** | distress correctly wins; new reason used once |
+| TARGET | `anchor_outcome_uc_a_visibility` | none 4, `user_requested` 1 | mostly resolves |
+| TARGET | `cs001_uc_c_mechanical_template_escalate` | none 5 (4 resolved) | bot resolved |
+| CONTROL | `cs029_uc_d_account_locked_callback` | **`user_requested` 3**, none 2, **new 0** | genuine request stays `user_requested` ✅ |
+| GUARD | `anchor_outcome_uc_g_gdpr` | `intake_complete_for_uc_g` 5, **new 0** | ✅ |
+| GUARD | `anchor_outcome_uc_i_payment` | `intake_complete_for_uc_i` 4, `incomplete_intake` 1, **new 0** | ✅ |
+| GUARD | `anchor_outcome_uc_j_safety` | `intake_complete_for_uc_j` 1, none 4, **new 0** | ✅ |
+| GUARD | `cs095_uc_d_email_recovery_misroute` | none 5 (resolved), **new 0** | ✅ |
+| GUARD | `anchor_outcome_uc_fp_removed` | **`agent_unable_to_resolve` 1**, `clarification_budget_exhausted` 1, none 3 | see adjudication |
+
+**No-over-use verdict (V3 noise-aware + transcript):** the new reason **does
+not bleed** onto the genuine-request control or any high-priority guard (GDPR /
+payment / safety / `service_degraded` 0 everywhere / `out_of_scope` 0). The one
+non-target appearance — `anchor_outcome_uc_fp_removed` 1/5 — was **inspected by
+transcript** and is a **legitimate §2-class use, not displacement**: on that
+attempt the bot classified the ambiguous "what happened to my ad / I can't see
+it" as **UC-A** (in-scope visibility), looked it up, the account/ad was not
+found, the user never asked for a human, and no appeal/safety/payment/GDPR
+framing applied → it honestly stamped `agent_unable_to_resolve` (summary:
+"…account was not found… Needs human investigation"). No genuinely-higher reason
+was displaced, so this is correct, not over-use.
+
+**Correct-use evidence (transcripts):**
+- `uc_c_messaging`: FAQ answer given → user still not receiving notifications
+  after a friend's test → handover `agent_unable_to_resolve` "…despite correct
+  email and test message… Needs account-level investigation." (the exact WP1
+  Class-B case, formerly `user_requested`.)
+- `uc_d_login`: reset steps given → "still can't log in, can you help me?" →
+  handover `agent_unable_to_resolve` "…cannot log in after password reset. Needs
+  account-level investigation."
+
+**Precedence holds in live LLM behavior:** `user_distress` (uc_d 3/5),
+`intake_complete_*` (GDPR/payment/safety), `user_requested` (control 3/5), and
+the budget family all correctly win where genuinely present — the §6 floor is
+preserved by the model, not just the resolver.
+
+**Zero-LLM attribution cross-check:** the scoring code is unchanged (gates
+1-5/7), so `escalation_reason` is the bot's raw LLM choice. The observed change
+vs the pre-change WP1 exp-90 baseline (uc_c_messaging `user_requested` 3/5) is a
+clean move onto `agent_unable_to_resolve` 3/5 — attributable **solely** to the
+projection/prompt teaching (the only behavioral change), with no higher-priority
+reason displaced.
+
+**Disposition: §7.6 PASS.** The model uses the new reason for the §2-class and
+does not over-use it. No §8 STOP condition fires. The bounded run is a
+**validation run, not a re-bless** — no baseline/canonical movement (per §9).
+No run artifacts committed.
 
 ## §9 Scoring-SHA + baseline-compat (§7.7)
 
@@ -333,11 +383,11 @@ real-LLM no-over-use pending) / shadow held-out no regression (§7.4).
 
 ## §13 Acceptance-gate disposition (objective §11)
 
-COMPLETE is **not** claimed. Met: §3 atomic (enum-sync green at 24); §5 name
+**COMPLETE — all gates met.** §3 atomic (enum-sync green at 24); §5 name
 reviewed + human-blessed; §6 precedence proven; §7.1-§7.5 + §7.7 gates met;
 backward-compat clean; no PASS widening; suites green; scoring-SHA/baseline-compat
-resolved without a re-bless. **Outstanding for COMPLETE:** §7.6 bounded
-real-LLM no-over-use run (§5.9 NO-GO this session) and §4.1 Codex `pass`.
+resolved without a re-bless; **§7.6 bounded real-LLM PASS (no over-use)**; **§4.1
+Codex `approve` / `pass`** (blocking_count 0). No §8 STOP condition fired.
 
 ## §14 Evidence / closeout artifacts
 
