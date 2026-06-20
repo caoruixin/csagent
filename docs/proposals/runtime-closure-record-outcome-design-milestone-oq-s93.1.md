@@ -290,6 +290,24 @@ plus a recorded product/`eval_spec` decision, with NO phase-machine change.**
   resolvable and that `resolve` is the correct expected outcome), and **visibility
   status** (shadow vs visible) so the dev agent cannot consume a shadow companion
   during development.
+  - **Recommended design direction (not an approved WP2 implementation or final
+    ground truth).** Prefer a **cooperative companion variant of the same UC-A
+    entity-context flow**, so it exercises the same sequence — request the ad
+    reference if needed → load listing context (`get_customer_context`) → provide
+    substantively listing-grounded help → record RESOLVE → CONFIRM/CLOSE. The
+    companion should differ **primarily on the persona acceptance contract** (the
+    user may accept a genuinely correct answer), rather than introducing an
+    unrelated easy case, so it stays a clean control for the two PRIMARY. The
+    persona must **not** be unconditionally satisfied: it accepts **only** when the
+    human-blessed resolution criteria are met; generic, superficial, or ungrounded
+    answers must remain **unresolved**. Do **not** widen or modify the two existing
+    PRIMARY CaseSpecs or their expected outcomes. The three red lines stand:
+    human-blessed resolvability / ground truth, an explicit shadow-vs-visible
+    status, and **no false-resolve authorization for dissatisfied users** (the
+    premature-resolve guard + escalate-after-help path protect the genuinely
+    unresolved user). **This note does NOT unhold WP2** — companion authoring,
+    blessing, visibility, and implementation each still require separate human
+    approval.
 - **Real-LLM (the eval gate, §5.7) + V3 noise-aware success rule.** A bounded
   NON-pilot run (2 PRIMARY ×11 + the satisfiable companion + the anti-误杀 control ×5
   + neighbors ×5; §5.9 pre-flight GO; `caffeinate`) showing the companion can reach a
