@@ -1,304 +1,301 @@
 ---
-title: "Sprint 096 / S-Auto-44 (M-Auto-9) — D-new-escalation-reason-enum migration (bot-initiated unresolved-handover reason)"
+title: "Sprint 097 / S-Auto-45 (M-Auto-9 WP2) — satisfiable UC-A entity-context companion (prove RESOLVE→CONFIRM→CLOSE can land)"
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
 source_of_truth: this file
-last_reviewed: 2026-06-20
+last_reviewed: 2026-06-21
 review_cadence: per sprint
 supersedes: []
 superseded_by: null
 notes: >
-  SCOPED, NOT LAUNCHED. The coordinated D-new-escalation-reason-enum migration that the
-  Sprint 095 / S-Auto-43 (WP1) BLOCK identified as the honest fix. It adds ONE new
-  canonical escalation_reason value for the narrow class "bot-initiated, in-scope,
-  unresolved, no higher-priority reason applies, handover for human continuation", wired
-  atomically across all authoritative producers + consumers (runtime enum + resolver +
-  handover tool + projection + confirm.yaml + eval EscalationTrigger + scoring +
-  serialization + backward-compat loading). This is a Runtime §1.4 capability/vocabulary
-  completion (human-authorized via the §4 D-new-escalation-reason-enum migration path),
-  NOT a semantic hardcode: the LLM still owns when to select it (§1.3); it MUST NOT become
-  a generic runtime fallback. Delivers WP1's reason-honesty intent only; it does NOT solve
-  the M-Auto-9 PRIMARY closure / product-contract question; WP0/WP2 remain HELD. Touches
-  the previously-frozen EscalationReasonResolver + canonical enum under explicit human
-  authorization; the phase machine / record_outcome / premature guard / source_ids /
-  CaseSpec PRIMARY expectations / canonical baseline pointer stay frozen. Requires a
-  bounded real-LLM validation (projected vocabulary + model-selected reason change) and a
-  scoring-SHA + baseline-compatibility plan; re-bless / canonical movement is NOT assumed —
-  decided only on compatibility evidence. The reason NAME is NOT pre-committed (review
-  naming conventions + consumers first). Dev prompt: compact/sprint-096-dev-prompt.md.
+  SCOPED, NOT LAUNCHED. WP2 of M-Auto-9 (charter
+  docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md §6).
+  Authors ONE cooperative, VISIBLE UC-A entity-context companion CaseSpec that
+  exercises the same flow as the two PRIMARY (request ad reference if needed →
+  load listing context → substantively grounded help → record RESOLVE →
+  CONFIRM/CLOSE) but differs PRIMARILY in the persona acceptance contract: the
+  persona becomes SATISFIED only when human-blessed resolution criteria are
+  actually met (genuinely correct, listing-grounded help), and stays UNRESOLVED
+  on generic / superficial / incomplete answers. Goal = demonstrate a recorded
+  SATISFIED+resolve terminal CAN land end-to-end, decided under the S-Y1.7 V3
+  noise-aware rule (not raw pass counts), while the two existing PRIMARY personas
+  (unsatisfiable by construction) stay UNCHANGED and correctly escalate-after-help.
+  This is eval_spec companion authoring; it intends NO runtime / phase-machine /
+  record_outcome / premature-guard / source_ids / prompt change. Builds on the
+  recorded product/eval decision docs/current/m-auto-9-escalate-after-help-product-decision.md.
+  WP0 stays HELD; the two PRIMARY CaseSpecs + expected terminals are NOT modified.
+  Dev prompt: compact/sprint-097-dev-prompt.md.
 ---
 
-# Sprint 096 / S-Auto-44 (M-Auto-9) — `D-new-escalation-reason-enum` migration
+# Sprint 097 / S-Auto-45 (M-Auto-9 WP2) — satisfiable UC-A entity-context companion
 
 ## 0. Status
 
-**SCOPED — awaiting human launch.** Deliver contract for the migration dev sub-sprint;
-the dev agent is **not** spawned until the human pastes
-`compact/sprint-096-dev-prompt.md`. `implementation_status: not_started`.
+**SCOPED — awaiting human launch + ground-truth bless.** Deliver contract for the
+WP2 sub-sprint; the dev agent is **not** spawned until the human (a) blesses the §3
+resolvability + acceptance criteria and (b) pastes `compact/sprint-097-dev-prompt.md`.
+`implementation_status: not_started`.
 
-- **Parent milestone:** M-Auto-9 (runtime/orchestration closure; design `APPROVE` 2026-06-20).
-- **Predecessor:** Sprint 095 / S-Auto-43 (WP1) CLOSED **BLOCKED** at the §6 existing-reason
-  honesty gate — no canonical reason honestly labels the bot-initiated unresolved handover
-  (`docs/sprints/sprint-095-handoff.md`). This migration is the human-authorized honest fix
-  (`action_bank.md` §4 `D-new-escalation-reason-enum`, TRIGGERED 2026-06-20).
-- **Sprint-ID (history-checked):** last archived dev sub-sprint = Sprint 095 / S-Auto-43
-  (`docs/sprints/sprint-095-{objective,handoff}.md`). Next free pair = **Sprint 096 /
-  S-Auto-44** (no `sprint-096` archive, no `compact/sprint-096*`, no `S-Auto-44+` reference
-  anywhere — unambiguous).
+- **Parent milestone:** M-Auto-9 (runtime/orchestration closure; design `APPROVE`
+  2026-06-20). Charter §6 WP2.
+- **Predecessor:** Sprint 096 / S-Auto-44 (M-Auto-9 WP1 — `agent_unable_to_resolve`
+  reason migration) CLOSED COMPLETE 2026-06-20.
+- **Gating product decision (recorded):**
+  `docs/current/m-auto-9-escalate-after-help-product-decision.md` (escalate-after-
+  genuine-help is a valid terminal; `goal_impossible` alone is not an auto-hard-fail;
+  false-resolve judged on authoritative `user_state` + closure evidence).
+- **Sprint-ID (history-checked):** last archived dev sub-sprint = Sprint 096 /
+  S-Auto-44. Next free pair = **Sprint 097 / S-Auto-45** (no `sprint-097` archive, no
+  `compact/sprint-097*`, no `S-Auto-45+` reference anywhere — unambiguous).
 
-## 1. Exact objective
+## 1. Class
 
-Add **exactly one** new canonical `escalation_reason` value that honestly labels a single
-narrow class of bot-initiated handover (§2), and wire it **atomically** across every
-authoritative producer and consumer (§3) so the enum stays internally consistent. After
-the migration, when the bot initiates handover for that class, it labels the handover with
-the new (honest) reason instead of the dishonest `user_requested` / `service_degraded`.
+- **Layer (§3.2):** `eval_spec` (companion CaseSpec/persona authoring + acceptance
+  contract + the conditional-adjudication artifact). **No runtime/prompt/phase-machine
+  change is intended** (if one proves necessary → §8 STOP).
+- **§7 stanza:** REQUIRED (eval_spec is a semantic surface). See §10.
+- **Per-sub-sprint Codex (§4.3):** **REQUIRED** — the companion is an eval-side
+  artifact on the §5.4 / §1.7 anti-hardcode surface (it must not be a benchmark-shaped
+  easy case the implementation can special-case). See §14.
 
-This **delivers WP1's reason-label honesty intent**. It is still **reason-label honesty
-only**: it must not change whether or when handover occurs, nor any phase transition or
-outcome. It **does not** solve the M-Auto-9 PRIMARY closure / product-contract question.
+## 2. Goal
 
-## 2. The narrow class the new reason names (binding)
+Prove that a **recorded SATISFIED → `record_outcome(resolve)` → CONFIRM → CLOSE**
+terminal **can land end-to-end** on a genuinely-satisfiable UC-A entity-context flow —
+closing the M-Auto-9 evidence gap that the two unsatisfiable PRIMARY personas left
+open — **without** any closure-forcing edit to the frozen phase machine, and while the
+two PRIMARY personas stay unchanged and correctly **escalate-after-help**.
 
-The new reason applies to a handover where **all** of the following hold:
+The deliverable is the **smallest legitimate** demonstration: a cooperative companion
++ the bounded real-LLM evidence + the zero-LLM cross-check, decided under the V3 rule.
+"No runtime change needed" is a **first-class valid outcome**; if resolve cannot land
+on a genuinely-satisfiable persona without a runtime change, that is a §8 STOP that
+surfaces a real closure defect for a separate sub-sprint (do not force it here).
 
-1. the user did **not** request a human;
-2. the issue remains **in scope** (a V1-covered use case the bot engaged);
-3. **no** safety, compliance, payment, service-failure, or other **higher-priority** reason
-   applies (not scam/trust-safety, payment dispute, GDPR/compliance, identity, appeal,
-   intake-complete, out-of-scope, actual service degradation, runtime error);
-4. the bot has made a **reasonable supported attempt** or **exhausted its available
-   resolution path**;
-5. the issue remains **unresolved** and the bot **initiates handover for human
-   continuation**.
+## 3. Scope — the satisfiable companion (human-blessed criteria)
 
-The new value exists to give the LLM an honest option for **this** class — nothing wider.
-It **must not become a generic fallback** (§4) for "anything else", for budget/turn
-exhaustion (those are the existing runtime terminal-close reasons), or for out-of-scope /
-service-degraded cases.
+### #1 — Author ONE cooperative, VISIBLE companion CaseSpec
 
-## 3. Allowed surfaces — the atomic migration (all in lockstep)
+A NEW bad-case CaseSpec under `eval_interactive/case_specs/bad_cases/` (flat layout;
+registered in `_manifest.md`), mirroring `cs_uc_a_loaded_listing.yaml`'s **flow**:
+`classify_use_case → get_customer_context → search_knowledge → resolve_article →
+record_outcome(resolve)` → CONFIRM → CLOSE. **Visibility = VISIBLE** (a development /
+contract anchor, **not** shadow). Proposed `case_id`: **`cs_uc_a_loaded_listing_cooperative`**
+(name not pre-committed; human-bless at review). It carries the standard
+`bad_case_metadata` + `closure_criterion` + a `conditional_outcome_acceptance` block
+(`satisfied_outcome: resolve`).
 
-The enum currently has **three synced sources of truth** plus the resolver, all guarded by
-`eval_interactive/tests/scoring/test_escalation_enum_sync.py` (it walks the three and
-asserts they match the "(23 values)" doc bullet). The migration makes it **24** and MUST
-update every site so that test (and the runtime/eval suites) pass:
+The companion differs from `cs_uc_a_loaded_listing` **primarily in the persona
+acceptance contract** — it is the same UC-A entity-context situation, not an unrelated
+easy case, so it stays a clean control for the two PRIMARY.
 
-| # | Surface | Path | Change |
-|---|---|---|---|
-| 1 | Canonical doc enum | `docs/current/customer_service_tool_spec_v0_3.md` (the **Canonical `escalation_reason` enum (23 values)** bullet) | add the value; update the count to 24 |
-| 2 | Runtime canonical set | `server/.../service/runtime/PhaseEvaluator.java` `CANONICAL_ESCALATION_REASONS` | add the value |
-| 3 | Resolver set + **precedence** | `server/.../service/runtime/EscalationReasonResolver.java` `CANONICAL_REASONS` + `PRIORITY` (and `canonicalize` if a legacy literal should map to it) | add the value at a **low-priority slot** per §6; decide the `user_dissatisfied` legacy mapping (record the decision) |
-| 4 | Handover-tool argument | `server/.../service/tools/RequestHandoverTool.java` | ensure the new value flows through (`escalation_reason` arg → payload/trace); review whether to add explicit canonical-set validation (optional; must not break existing flows) |
-| 5 | Projection vocabulary | `server/.../service/runtime/ContextProjectionBuilder.java` (+ any reason-vocabulary resource) | surface the new value in the per-turn reason vocabulary with teaching that reserves `user_requested` for an actual user request and uses the new reason **only** for the §2 class |
-| 6 | CONFIRM skill | `server/src/main/resources/skills/confirm.yaml` (the `:20` not-satisfied handover reason) | replace the non-canonical `user_dissatisfied` with the new canonical value |
-| 7 | Eval enum (consumer) | `eval_interactive/eval_interactive/case_spec/schema.py` `EscalationTrigger` Literal / `ESCALATION_TRIGGER_VALUES` + the post-init validator + comments | add the value |
-| 8 | Eval scoring | `eval_interactive/.../scoring/escalation_reason_match.py` (+ `hard_checks.py`, `case_spec/extractor.py`, `policy_table.py`, `case_outcome_resolver.py` as applicable) | place the new value in the correct family for `escalation_reason_family_match` (observation-only since S-Auto-38) + any policy table; **no gating PASS change** |
-| 9 | Enum-sync + trigger tests | `eval_interactive/tests/scoring/test_escalation_enum_sync.py` (the 23→24 regex + 3-source walk), `test_escalation_trigger_match.py`, `test_contract_validation.py` | update to expect 24 and the new value |
-| 10 | Serialization / trace | `trace/collector.py` + any trace serializer that enumerates reasons | accept + round-trip the new value |
-| 11 | Backward-compat loading | baseline/trace loaders (`baseline_loader.py` and any reason-enumerating loader) | old artifacts (23-value) load unchanged; **past evidence is not rewritten** |
+### #2 — Exact human-blessed resolvability + acceptance criteria (REQUIRED, §contract-element-1)
 
-New Java + Python characterization/precedence tests live under the respective `test`
-trees.
+The contract proposes the criteria below; **the human blesses them at launch**
+(the genuine resolvability + that `resolve` is the correct expected outcome):
 
-## 4. Frozen surfaces + anti-误杀 fences (do NOT touch / do NOT do)
+- **Resolvable ground truth (proposed):** a LIVE listing (e.g. AD-2002-class) whose
+  genuinely-correct resolution is *substantive, listing-grounded* visibility advice —
+  the bot consults `get_customer_context`, references ≥1 specific listing field
+  (status / category / price / location / posted_date), and gives category-specific
+  advice grounded in that listing (optionally + the canonical visibility-tips article).
+- **Persona becomes SATISFIED only when** all hold: (a) the bot used the specific
+  listing context (≥1 field, not a generic mention), (b) the advice is substantive +
+  relevant to the listing's category/state, (c) the bot did not re-ask for an ad_id
+  already in `form_context`. On that, the persona accepts (its `user_state` series →
+  SATISFIED) and the bot records resolve.
+- **Persona stays UNRESOLVED when** any of: generic FAQ advice, superficial listing
+  mention without using it, missing context use, incomplete resolution, or re-asking
+  for an already-present ad_id. **No unconditional satisfaction** — a wrong/shallow
+  answer must NOT be accepted.
 
-**Frozen runtime/eval surfaces** (unchanged):
-- phase-machine transitions; `PhaseEvaluator` post-loop interpretation (other than the
-  `CANONICAL_ESCALATION_REASONS` member add); `ResolveDispositionEvaluator`; the
-  premature-resolve guard; RESOLVE→CONFIRM promotion; `BotTurn.sourceIds`;
-  `record_outcome` semantics; `isResolvedSuccessTerminal`; max-turn behaviour.
-- **handover eligibility / escalation policy** — *who/when* may escalate is unchanged; the
-  migration changes only the *label vocabulary*.
-- `detectExplicitUserEscalation` and the runtime path that stamps `user_requested` for a
-  genuine user request (leave intact — genuine requests still get `user_requested`).
-- the existing runtime budget-family stamping (`resolveMaxStepsReason`) and the
-  `TERMINAL_CLOSE_REASONS` set — the new reason is **not** a terminal-close reason and must
-  not alter budget-family behaviour.
-- **CaseSpec / PRIMARY expectations**: no CaseSpec expected-outcome or expected-reason is
-  changed to *require* the new value, and no PASS condition is widened (the new value is
-  added to the *vocabulary*, not to any case's accept set). Any case that should newly
-  *expect* the new reason is a **separate** `eval_spec` decision, out of this migration.
-- **baseline / canonical pointer**: frozen until the §7.7 compatibility evidence is
-  reviewed; this session does not move them.
+### #3 — Persona authoring + review ownership (REQUIRED, §contract-element-2)
 
-**Anti-误杀 fences (the value must not become a generic fallback):**
-- **No runtime auto-stamp / generic catch-all.** Do NOT make `canonicalize` map arbitrary
-  unknowns to the new value (unknowns still → `service_degraded`); do NOT have the runtime
-  *default* to it. It is an **LLM-selected** reason (§1.3), surfaced via projection for the
-  §2 class only.
-- **No user-message keyword/regex/content heuristic** to detect the class (that is the
-  WP1-forbidden vector and would reintroduce a semantic hardcode).
-- **No CaseSpec ID / fixed utterance / ad ID / benchmark branch.**
-- **No widening** of any safety/grounding floor; no relaxation of the premature guard.
+- **Authoring path:** an eval **companion** (a new CaseSpec + persona), **NOT** a
+  CaseSpec widen of the two existing PRIMARY (`cs_uc_a_no_ad_id_ad_specific`,
+  `cs_uc_a_loaded_listing`) or their expected terminals.
+- **Review ownership:** deliver-agent + human jointly bless the resolvability/ground
+  truth at launch and the per-trace adjudication semantics; Codex §4.1 reviews the
+  companion for anti-hardcode / no-special-casing.
 
-## 5. Reason name — review-first, NOT pre-committed
+### #4 — Visible status + anti-hardcode protections (REQUIRED, §contract-element-3)
 
-Do **not** pre-commit a spelling. Before wiring, review (a) the naming convention of the
-existing 23 values (snake_case; mostly `<subject>_<state>` / `<category>_<action>` — e.g.
-`turn_budget_exhausted`, `appeal_requires_human`, `account_compliance`) and (b) every
-consumer in §3. Propose a name that:
-- names the **bot-initiated, exhausted-resolution, unresolved, needs-human** semantic
-  precisely (not a generic "other"/"misc"/"fallback");
-- is distinct from `service_degraded` (no system degradation claim), `out_of_scope` (the
-  issue is in scope), and the budget-family (not a turn/clarification cap);
-- reads as a **semantic** escalation reason (LLM-owned), not a terminal-close reason.
+VISIBLE. **Retain the held-out neighboring guards** so the implementation cannot
+special-case the companion: the two PRIMARY + the anti-误杀 negative control
+(`cs_uc_a_generic_policy_question`) + the Tier-2 neighbor (`cs_uc_fp_loaded_moderation`)
++ the held-out shadow suite stay in the run and must not regress. No case-id / fixed-
+utterance / per-UC / user-message-content branch may be used to make the companion pass.
 
-Illustrative-only candidates (do **not** adopt without review/bless):
-`agent_unable_to_resolve`, `resolution_exhausted`, `unresolved_needs_human`. The chosen
-name is a **Codex + human review gate** before the wiring is finalized.
+### #5 — Expected RESOLVE→CONFIRM→CLOSE trace contract (REQUIRED, §contract-element-4)
 
-## 6. Precedence (binding constraint + required tests)
+Specify the expected trace: tool sequence `classify_use_case → get_customer_context →
+search_knowledge → resolve_article → record_outcome(resolve)`; phase path reaches
+**CONFIRM then CLOSE**; the simulator `user_state` series shows **SATISFIED** at/after
+the grounded answer; `escalation_reason = none`; `correct_outcome: resolve`. Pin this
+as Java/integration characterization where feasible (a satisfiable grounded flow
+reaching record→CONFIRM via the existing Sprint-093 transition + WP1 reason honesty,
+**no premature-guard relax**).
 
-Place the new value at a **low-priority slot** such that, whenever genuinely present, **each
-of the following wins over it** (the new reason never displaces them):
-- genuine `user_requested` (and `user_distress` / `imminent_harm`);
-- `out_of_scope`;
-- actual `service_degraded` (and `runtime_error_threshold`);
-- safety/scam (`trust_safety_required`), payment (`payment_dispute_detected`),
-  GDPR/compliance (`gdpr_intake` / `account_compliance` / `identity_verification_required`),
-  dispute/appeal (`appeal_requires_human` / `incorrect_deletion_appeal`);
-- intake-specific (`intake_complete_for_uc_*` / `incomplete_intake` / `tool_scope_blocked`);
-- genuine budget/failure termination (`turn_budget_exhausted` /
-  `faq_miss_threshold_exceeded` / `clarification_budget_exhausted`).
+### #6 — V3 noise-aware success criteria, not raw pass counts (REQUIRED, §contract-element-5)
 
-Net: the new value is the **lowest-priority semantic reason** — it surfaces only when
-nothing genuinely-higher (including a real budget/failure termination) applies. The dev
-proposes the exact `PRIORITY` slot consistent with this and **proves it with precedence
-tests** (`EscalationReasonResolver.resolve(existing, candidate)` for each pairing above, in
-both orders), with a one-paragraph rationale. If the constraint cannot be satisfied without
-displacing some reason → STOP (§8).
+Acceptance is decided under the **S-Y1.7 V3 stability-tiered noise-aware rule**
+(tier0 floor + TIER-S majority-flip anti-误杀 floor + TIER-N Beta-Binomial / δ /
+BH-count), **not** a raw ×N pass-count (the small-n majority-flip gate had a ~92–95%
+false-discard rate). SUCCESS = the companion reaches a **recorded SATISFIED+resolve →
+CONFIRM/CLOSE** terminal at a rate that clears the V3 rule, **and** the two PRIMARY do
+**not** regress (they stay escalate-after-help, never forced resolve), **and** the §7
+standing guards hold green. A zero-LLM attribution cross-check must distinguish a
+**genuine** resolve from the `user_requested` mislabel and the budget family.
 
-## 7. Required validation gates
+### #7 — Standing safety + cross-UC regression guards (REQUIRED, §contract-element-6)
 
-All gates must be recorded in `docs/sprints/sprint-096-handoff.md`.
+Held green across the bounded run (the same suites the V3 gate reads —
+bad_cases / anchor_outcome / shadow): the three named exp-90 blast-radius guards
+**`anchor_uc_g_gdpr`**, **`anchor_uc_fp_removed`**, **`cs095_uc_d_email_recovery_misroute`**;
+plus safety UC-J (`cs38s01` scam), UC-I payment, UC-G GDPR must **not** be promoted
+into a forced/false resolve; the premature-resolve guard + `escalation_policy`
+precedence stay intact; safety + grounding floors held.
 
-1. **Producer/consumer schema-consistency tests** — `test_escalation_enum_sync.py` (3
-   sources + the doc count) passes at 24; the eval post-init validator accepts the value;
-   runtime `CANONICAL_ESCALATION_REASONS` + resolver `CANONICAL_REASONS` include it.
-2. **Genuine-user-request vs bot-initiated-handover characterization** — Java + Python
-   tests proving a genuine user request still resolves to `user_requested`, and a
-   bot-initiated §2-class handover resolves to the new value (not `user_requested` /
-   `service_degraded`). Plus the §6 precedence tests.
-3. **Historical trace / backward-compat replay without rewriting past evidence** — old
-   (23-value) traces + baselines load unchanged; no historical reason is rewritten; the new
-   value simply does not appear in old artifacts. Prove the loaders are unaffected.
-4. **Zero-LLM scoring replay — no improper outcome or PASS widening** — replay the recorded
-   bad_cases / anchor / shadow traces through the new scoring code; prove no case's gated
-   outcome changes and no PASS is widened (the new value is observation-only in
-   `escalation_reason_family_match`, non-gating). Name the §8-guard cases explicitly.
-5. **Java + Python regression suites** — no new regression vs the re-measured clean-tree
-   baselines (Java documented `1394/1/0/2`; Python `eval_interactive` + autoloop suites).
-   **Re-measure at start and attribute deltas** (your new tests add to the totals).
-6. **Bounded real-LLM validation (required, §5.7)** — because the projected vocabulary and
-   the model-selected reason behaviour change, a bounded NON-pilot real-LLM run (the §2-class
-   bot-initiated cases + genuine-user-request controls + the §8 precedence/standing guards;
-   §5.9 pre-flight GO; `caffeinate`) must show the model **uses the new reason for the §2
-   class** and **does NOT over-use it** (no bleed onto `user_requested` / `out_of_scope` /
-   `service_degraded` / budget cases). Decide under the S-Y1.7 V3 noise-aware rule (not a
-   raw count), with a zero-LLM attribution cross-check.
-7. **Scoring-SHA + baseline-compatibility plan** — record the new scoring-code SHA and
-   analyze whether any existing canonical-baseline case's scored outcome changes. **Do NOT
-   assume re-bless or canonical-pointer movement is required.** If the evidence shows the
-   schema/scoring change is additive + observation-only with **no** scored-outcome change on
-   the existing baseline → no re-bless (record the §5.7 N/A reasoning). If it shows a scored
-   outcome would change → STOP and surface (human decides re-bless / baseline movement).
+## 4. Hard fences / frozen surfaces
 
-## 8. Stop-and-surface conditions
+- **Do NOT modify or widen** `cs_uc_a_no_ad_id_ad_specific.yaml` /
+  `cs_uc_a_loaded_listing.yaml` or any of their expected outcomes / reasons / bars.
+- **No phase-machine / runtime change** intended: `ResolveDispositionEvaluator`,
+  `isResolvedSuccessTerminal`, the premature-resolve guard, RESOLVE→CONFIRM promotion,
+  `BotTurn.sourceIds`, `record_outcome` semantics, max-turn, `EscalationReasonResolver`
+  precedence — all frozen. (If a runtime change proves necessary → §8 STOP.)
+- **WP0 stays HELD** — no `source_ids` / promotion-evidence change.
+- **No user_state manipulation / back-inference** — the simulator `user_state` is the
+  Phase-1 ground-truth signal; it is never derived from the chosen outcome / handover /
+  reason / absence of a signal (`conditional_outcome.py` constraint).
+- **No `goal_impossible`-based auto-hard-fail** and **no** re-introduction of one
+  (per the recorded product decision).
+- **No semantic hardcode** (§1.5 / §1.7): no keyword/regex/case-id/per-UC/content
+  heuristic to make the companion pass; no benchmark-shaped easy case.
+- **No re-bless / canonical-pointer move assumed** — the bounded run is a VALIDATION
+  run, not a re-bless. Adding a new visible companion does not change existing baseline
+  cases' scored outcomes; if the human later wants the companion in the canonical
+  baseline, that is a **separate** re-bless decision (§8 STOP-and-surface; do not
+  assume).
 
-STOP and surface (do not work around) if:
-- the new value can only be made to fire for the §2 class via a **generic fallback** /
-  runtime auto-stamp / user-message content heuristic (it would stop being honest/narrow);
-- the **real-LLM validation (§7.6) shows the model over-uses** the new reason as a catch-all
-  (bleed onto out_of_scope / service_degraded / budget / genuine user_requested) — do NOT
-  ship; the projection teaching needs rework;
-- a **precedence test (§6) cannot be satisfied** — the value would displace a
-  higher-priority reason at every viable slot;
-- **backward-compat loading** would require rewriting past evidence, or old baselines cannot
-  load alongside the 24-value schema;
-- the **§7.7 compatibility evidence indicates a re-bless / canonical-pointer move is
-  required** (that is a human decision, out of this scoping/dev session's authority);
-- any **§8 standing guard** or safety/grounding floor regresses;
-- the naming review (§5) cannot land a precise, non-generic name.
+## 5. Test / eval requirements
 
-## 9. Rollback requirements
+1. **Companion CaseSpec compiles** against `eval_interactive/eval_interactive/case_spec/schema.py`;
+   `_manifest.md` row added (tier proposed: a Tier-1 **companion/control**, visible);
+   the `conditional_outcome_acceptance` block parses.
+2. **Java/Python suites** — no new regression vs the re-measured clean-tree baselines
+   (Java `1422/1/0/2`; eval_interactive + autoloop). Re-measure at start; attribute deltas.
+3. **Bounded NON-pilot real-LLM run (the eval gate, §5.7 + §5.9 GO; `caffeinate`):**
+   companion ×11 + 2 PRIMARY ×11 + anti-误杀 control ×5 + Tier-2 neighbor ×5 + the §7
+   standing guards. Show the companion reaches a **recorded SATISFIED+resolve →
+   CONFIRM/CLOSE**, the 2 PRIMARY do **not** regress, the §7 guards hold; decide under
+   the V3 rule (§3 #6) + a zero-LLM attribution cross-check.
+4. **Zero-LLM attribution cross-check** — distinguish genuine resolve from the
+   `user_requested` mislabel + budget family; confirm `user_state`-driven acceptance,
+   not back-inference.
+5. **Anti-误杀 proof** — the held-out neighbors / negative control / shadow stay green;
+   no special-casing of the companion (Codex §4.1).
 
-- Single logical migration, but **separable commits** staged explicitly **by file** (no
-  `git add -A`): (a) the enum add across the 3 sources + resolver/priority; (b) projection +
-  `confirm.yaml` teaching; (c) eval schema + scoring; (d) tests. The tree must be green
-  (suites + enum-sync) at every commit boundary — because the enum-sync test spans sources,
-  the enum-add commit (a) must update all three sources + the test together to stay green.
-- Real-LLM steps run only on a clean committed tree (`caffeinate`; keep the Mac awake).
+## 6. Codex review plan
+
+Per-sub-sprint Codex **REQUIRED** (§4.3): the companion is an eval_spec artifact on the
+§5.4 / §1.7 surface. The §4.1 kernel must confirm: (1) the companion is a genuine
+control, **not** a benchmark-shaped easy case or a CaseSpec widen of the PRIMARY;
+(2) no special-casing / case-id / content heuristic makes it pass; (3) the acceptance
+is `user_state`-driven (not back-inferred); (4) no PRIMARY bar widened; (5) no frozen
+surface touched. Verdict verbatim → `docs/codex-findings.md` (§4.2). No COMPLETE close
+until `pass`.
+
+## 7. (reserved — see §3 #6/#7 for success + guards)
+
+## 8. Stop-and-surface conditions (BLOCKED, not COMPLETE)
+
+STOP and surface (do not work around) if the companion can be made to pass **only**
+through any of:
+- **phase forcing** / relaxing the premature-resolve guard / raising `max_turns` /
+  lowering the `record_outcome` requirement;
+- **CaseSpec widening** of the two PRIMARY or their expected terminals;
+- **`user_state` manipulation / back-inference** (deriving satisfaction from the
+  outcome/handover/reason rather than the simulator signal);
+- **benchmark-specific / case-id / per-UC / user-message-content** logic.
+
+Also STOP and surface if:
+- a **genuinely-satisfiable** companion **still cannot reach a recorded resolve**
+  without a runtime change (this reveals a real closure defect → a separate runtime
+  sub-sprint / re-examine WP0; do NOT force it here);
+- the companion cannot be made satisfiable without making it **trivially easy** (losing
+  its value as a clean control for the two PRIMARY);
+- the §7 standing guards or safety/grounding floors regress;
+- the compatibility evidence indicates a **re-bless / canonical-pointer move** is
+  required (human decision, out of this session's authority).
+
+## 9. Rollback / commit discipline
+
+- Eval-side change, staged explicitly **by file** (no `git add -A`): (a) the companion
+  CaseSpec + `_manifest.md` row; (b) any characterization tests; (c) the handoff. Tree
+  green (suites) at each commit boundary.
+- Real-LLM steps run only on a clean committed tree (`caffeinate`).
 - No data/artifact files committed (bounded-run artifacts gitignored).
-- If a STOP fires mid-migration, revert to the documented baseline (the partial enum-add
-  must not be left half-applied — it would red the enum-sync test).
 
 ## 10. Layer-classification + anti-hardcode stanza (§7.1)
 
-**Target failure layer:** `prompt_projection` + `semantic_planner` (the LLM selects the
-honest reason from the surfaced vocabulary; reason labeling is LLM-owned, §1.3). The enum
-addition itself is a **Runtime §1.4 capability/vocabulary** change (the canonical reason
-vocabulary is Runtime-owned), human-authorized via the `D-new-escalation-reason-enum`
-migration path — analogous to registering a new tool-capability (cf.
-[[feedback_capability_config_vs_semantic_fence]]): narrow schema edits in lockstep across
-the synced sources, with the golden enum-sync test updated.
+**Target failure layer:** `eval_spec` (author a satisfiable companion + its acceptance
+contract; demonstrate a resolve terminal can land). No runtime semantic change intended.
 
-**Tier-0 invariant:** adds no Tier-0 invariant. The resolver precedence **floor** is
-preserved (the new value is low-priority and cannot displace any safety/dispute/user-signal
-reason); the safety + grounding floors are unchanged.
+**Tier-0 invariant:** adds no Tier-0 invariant. The safety + grounding floors and the
+premature-resolve guard / `escalation_policy` precedence are preserved (standing §7
+guards held green; no forced/false resolve on any safety/dispute case).
 
-**Semantic hardcode:** No semantic hardcode introduced. The new enum value is a vocabulary
-completion that gives the LLM an honest option; the LLM owns *when* to use it. There is **no**
-keyword / regex / if-else / per-UC matrix / user-message content heuristic, and the value is
-**not** wired as a generic runtime fallback (no `canonicalize` auto-mapping, no default
-stamp). The one named risk — the value becoming a catch-all — is fenced by §4 and gated by
-the §7.6 real-LLM no-over-use check.
+**Semantic hardcode:** No semantic hardcode introduced. The companion is a generalizable
+control, not a benchmark-shaped easy case; acceptance is `user_state`-driven, not
+back-inferred; no keyword/regex/case-id/per-UC/content heuristic. The named risk — the
+companion being special-cased or trivially easy — is fenced by §4/§8 and the §3 #7
+held-out guards + Codex §4.1.
 
-**Generalization coverage:** target / neighbor / negative / shadow = `§2-class bot-initiated
-handovers (real-LLM + zero-LLM characterization)` / `other-UC bot-initiated escalations (no
-reason/handover regression)` / `genuine user_requested + out_of_scope + service_degraded +
-safety/payment/GDPR/dispute/intake + budget cases must NOT flip to the new reason (§6
-precedence + §7.4 zero-LLM replay + §7.6 real-LLM no-over-use)` / `held-out shadow suite no
-regression (§7.4)`.
+**Generalization coverage:** target / neighbor / negative / shadow =
+`the satisfiable companion (recorded SATISFIED+resolve→CONFIRM/CLOSE under the V3 rule)`
+/ `the two PRIMARY (unchanged — still escalate-after-help, no regression) +
+cs_uc_fp_loaded_moderation` / `cs_uc_a_generic_policy_question + the three exp-90
+blast-radius guards (anchor_uc_g_gdpr / anchor_uc_fp_removed /
+cs095_uc_d_email_recovery_misroute) + safety UC-J/I/G must NOT flip to a forced resolve`
+/ `held-out shadow suite no regression`.
 
 ## 11. Acceptance gates — two terminal outcomes
 
-WP closes **COMPLETE** only when: the value is wired atomically across §3 (enum-sync green
-at 24); §5 name reviewed + blessed; §6 precedence proven; §7 gates 1–7 all met (real-LLM
-shows correct use + no over-use; backward-compat clean; no PASS widening; suites green;
-scoring-SHA/baseline-compat resolved without an undecided re-bless); §4.1 Codex `pass`.
+WP2 closes **COMPLETE** only when: the companion is authored + human-blessed (§3);
+it compiles + registers (§5.1); the bounded real-LLM run shows a **recorded
+SATISFIED+resolve → CONFIRM/CLOSE** clearing the V3 rule with the 2 PRIMARY not
+regressed and the §7 guards green (§5.3); the zero-LLM cross-check confirms a genuine
+resolve (§5.4); suites green (§5.2); and §4.1 Codex `pass`.
 
-It closes **BLOCKED / STOPPED** (not COMPLETE) if any §8 condition fires — e.g. the model
-over-uses the reason, a precedence slot is impossible, or compatibility evidence forces a
-re-bless decision that is the human's to make. A BLOCKED close archives the contract +
+It closes **BLOCKED / STOPPED** (not COMPLETE) if any §8 condition fires — notably if
+a genuinely-satisfiable companion cannot reach a recorded resolve without a runtime
+change (surfacing a real closure defect), or if passing would require special-casing /
+PRIMARY widening / `user_state` manipulation. A BLOCKED close archives the contract +
 records the gate decision; the COMPLETE gates are explicitly not claimed.
 
 ## 12. Required explicit records (deliverable)
 
-- This migration **delivers WP1's reason-honesty intent only.** It does not change whether
-  or when handover occurs.
-- It **does not solve the M-Auto-9 PRIMARY closure / product-contract question** (the
-  unsatisfiable-persona problem; making `record_outcome(resolve)` land).
-- **WP0** (source_ids / promotion-evidence) and **WP2** (CONFIRM record-vs-handover on
-  satisfiable flows) **remain HELD** under charter §6.
+- WP2 **proves resolve can land on a satisfiable flow** (or surfaces a real closure
+  defect if it cannot). It does **not** modify the two PRIMARY personas / bars.
+- It is **eval_spec** companion work; it intends **no** runtime/phase-machine change.
+- **WP0** (source_ids / promotion-evidence) **remains HELD**; the canonical baseline +
+  pointer stay frozen.
 
 ## 13. Evidence and closeout artifacts
 
-- `docs/sprints/sprint-096-handoff.md` — dev handoff (name decision + rationale; the atomic
-  diff map across §3; §6 precedence proof; the §7.1–§7.7 gate evidence incl. the bounded
-  real-LLM run + zero-LLM cross-check; the scoring-SHA/baseline-compat decision; the §12
-  restatements).
+- `docs/sprints/sprint-097-handoff.md` — dev handoff (the companion CaseSpec + bless
+  record; the §5 gate evidence incl. the bounded real-LLM run + V3 decision + zero-LLM
+  cross-check; the §8 stop-condition check; the §12 restatements).
 - `docs/codex-findings.md` — §4.1 per-sub-sprint Codex verdict (REQUIRED).
-- On close, deliver-agent archives this file → `docs/sprints/sprint-096-objective.md`;
-  `compact/sprint-096-dev-prompt.md` stays as the historical executable view;
-  `action_bank.md` §4 `D-new-escalation-reason-enum` + §5 `R-oq-s93.1...` updated.
+- On close, deliver-agent archives this file → `docs/sprints/sprint-097-objective.md`;
+  `compact/sprint-097-dev-prompt.md` stays as the historical executable view;
+  `action_bank.md` §5 `R-oq-s93.1...` updated (WP2 outcome).
 
-## 14. Codex review plan
+## 14. Codex review plan (restated)
 
-Per-sub-sprint Codex **REQUIRED** (§4.3 trigger #2/#3 — a new `escalation_reason` enum value
-sits exactly on the §1.7 "enum expansion" line). The §4.1 kernel must confirm: (1) the value
-is a **human-authorized Runtime §1.4 vocabulary completion**, not a semantic hardcode; (2) it
-is **not** a generic fallback (no auto-stamp, no content heuristic); (3) the precedence slot
-preserves all floors; (4) no eval PASS widening. Verdict verbatim → `docs/codex-findings.md`
-(§4.2). No COMPLETE close until `pass`.
+Per-sub-sprint Codex **REQUIRED** (§4.3). The §4.1 kernel confirms the companion is a
+genuine, non-special-cased control with `user_state`-driven acceptance and no PRIMARY
+widening (§6). Verdict verbatim → `docs/codex-findings.md` (§4.2). No COMPLETE close
+until `pass`.

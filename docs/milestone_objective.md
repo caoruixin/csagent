@@ -2,9 +2,9 @@
 title: "Active milestone M-Auto-9 — Runtime closure (record_outcome / RESOLVE→CONFIRM); M-Auto-7 historical body retained below"
 doc_tier: current-runtime
 status: current
-implementation_status: not_started
+implementation_status: partial
 source_of_truth: this file (active-milestone pointer); design north-star = docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md
-last_reviewed: 2026-06-20
+last_reviewed: 2026-06-21
 review_cadence: per milestone
 supersedes: []
 superseded_by: null
@@ -98,6 +98,18 @@ notes: >
   (registry-only pilot CLOSED — NO KEEP) is PRESERVED unchanged as the delivered
   historical record; no milestone history is rewritten and no WP1 scope is expanded
   here. The M-Auto-9 active banner is the section immediately below the front matter.
+  2026-06-21 WP1 CLOSE — the M-Auto-9 WP1 honest-fix (D-new-escalation-reason-enum
+  migration) was DELIVERED by Sprint 096 / S-Auto-44 (dev+Codex CLOSED COMPLETE
+  2026-06-20): added the 24th canonical escalation_reason `agent_unable_to_resolve`
+  (resolver priority 50, strictly lowest; §6 precedence proven; §7.6 bounded real-LLM
+  PASS no-over-use; §4.1 Codex approve/pass/0; no re-bless §5.7 N/A). implementation_status
+  bumped not_started → partial (WP1 reason-honesty delivered; the PRIMARY closure /
+  record_outcome question + WP0 remain not_started/HELD). 2026-06-21 product/eval_spec
+  decision RECORDED (docs/current/m-auto-9-escalate-after-help-product-decision.md:
+  escalate-after-genuine-help valid; goal_impossible not an auto-hard-fail) + WP2 (satisfiable
+  UC-A entity-context companion) SCOPED as Sprint 097 / S-Auto-45 (SCOPED, NOT LAUNCHED;
+  docs/sprint_objective.md + compact/sprint-097-dev-prompt.md). WP0 HELD. Minimal pointer
+  sync only; no milestone history rewritten. Archives docs/sprints/sprint-096-{objective,handoff}.md.
 ---
 
 # Active milestone — M-Auto-9 (runtime/orchestration closure; design APPROVED 2026-06-20)
@@ -114,12 +126,22 @@ notes: >
 > 23-value `escalation_reason` enum honestly labels the bot-initiated "exhausted-resolution
 > / unresolved / needs-human" handover, and the contract forbade shipping a
 > knowingly-inaccurate catch-all → **no code shipped; the mislabel is not fixed.** The
-> honest fix is the `D-new-escalation-reason-enum` migration, now **SCOPED as Sprint 096 /
-> S-Auto-44** (SCOPED, NOT LAUNCHED; `docs/sprint_objective.md` + `compact/sprint-096-dev-prompt.md`).
-> Archives `docs/sprints/sprint-095-{objective,handoff}.md`.
-> **WP1 is reason-label honesty only and does NOT solve the PRIMARY closure /
-> product-contract question. WP0 (source_ids/promotion) and WP2 (CONFIRM
-> record-vs-handover on satisfiable flows) remain HELD** under charter §6.
+> honest fix — the `D-new-escalation-reason-enum` migration — was **DELIVERED by Sprint 096 /
+> S-Auto-44 (dev+Codex CLOSED COMPLETE 2026-06-20)**: it added the 24th canonical reason
+> **`agent_unable_to_resolve`** (resolver priority 50, strictly lowest; §6 precedence proven),
+> wired atomically across all producer/consumer surfaces, so the bot-initiated mislabel is
+> corrected at the vocabulary level. §7.6 bounded real-LLM PASS / no over-use; §4.1 Codex
+> `approve`/`pass`/0; no re-bless (§5.7 N/A). Archives `docs/sprints/sprint-09{5,6}-{objective,handoff}.md`.
+> **WP1 delivered reason-label honesty only — it does NOT solve the PRIMARY closure /
+> product-contract question.** The gating **product/eval_spec decision is now RECORDED**
+> ([`docs/current/m-auto-9-escalate-after-help-product-decision.md`](current/m-auto-9-escalate-after-help-product-decision.md):
+> escalate-after-genuine-help is a valid terminal under 4 conditions; `goal_impossible` alone is
+> not an auto-hard-fail; false-resolve judged on authoritative `user_state` + closure evidence —
+> resolving the `hard_checks.py:799` open question), and **WP2 (satisfiable UC-A entity-context
+> companion — prove a recorded RESOLVE→CONFIRM→CLOSE can land) is SCOPED as Sprint 097 /
+> S-Auto-45** (`docs/sprint_objective.md` + `compact/sprint-097-dev-prompt.md`; SCOPED, NOT
+> LAUNCHED — awaits the human's ground-truth bless + paste). **WP0 (source_ids/promotion) remains
+> HELD** under charter §6.
 >
 > **Everything below this banner is the M-Auto-7 historical record** (theme "Autoloop
 > readiness and CS4 entity-context pilot"; the registry-only pilot is CLOSED — NO KEEP,
