@@ -1,10 +1,10 @@
 ---
-title: Milestone M-Auto-7 — Autoloop readiness and CS4 entity-context pilot
+title: "Active milestone M-Auto-9 — Runtime closure (record_outcome / RESOLVE→CONFIRM); M-Auto-7 historical body retained below"
 doc_tier: current-runtime
 status: current
 implementation_status: not_started
-source_of_truth: this file
-last_reviewed: 2026-06-19
+source_of_truth: this file (active-milestone pointer); design north-star = docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md
+last_reviewed: 2026-06-20
 review_cadence: per milestone
 supersedes: []
 superseded_by: null
@@ -86,9 +86,45 @@ notes: >
   non-blocking observability. Holds intact (no exp-91 / WP1-B / WP2 /
   objective-alignment annotation / posterior-resampling / surface expansion /
   re-bless / baseline move / canonical-pointer change). See the §0 status banner.
+  2026-06-20 MILESTONE SYNC — the active, approved milestone is now M-Auto-9
+  (runtime/orchestration closure; design FINAL verdict APPROVE 2026-06-20; north-star
+  charter docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md).
+  Its first dev sub-sprint is Sprint 095 / S-Auto-43 (WP1 — user_requested
+  escalation-reason honesty), SCOPED 2026-06-20 (docs/sprint_objective.md);
+  implementation NOT started; WP0/WP2 HELD under charter §6. This is a MINIMAL
+  active-milestone pointer sync only: the entire M-Auto-7 body + outcome below
+  (registry-only pilot CLOSED — NO KEEP) is PRESERVED unchanged as the delivered
+  historical record; no milestone history is rewritten and no WP1 scope is expanded
+  here. The M-Auto-9 active banner is the section immediately below the front matter.
 ---
 
-# Milestone M-Auto-7
+# Active milestone — M-Auto-9 (runtime/orchestration closure; design APPROVED 2026-06-20)
+
+> **The active, approved milestone is M-Auto-9** — the runtime/orchestration closure
+> design milestone. Design FINAL verdict **`APPROVE`** (2026-06-20). North-star =
+> the charter
+> [`docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md`](proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md)
+> (carries the full required design coverage + the WP0/WP1/WP2 decomposition).
+>
+> **First dev sub-sprint: Sprint 095 / S-Auto-43 — WP1 `user_requested` escalation-reason
+> honesty** (`prompt_projection`/`semantic_planner`; reserve `user_requested` for an
+> actual user request, use an accurate bot-initiated reason from the existing approved
+> enum on self-initiated handover). **SCOPED 2026-06-20, NOT launched**
+> (`docs/sprint_objective.md` + `compact/sprint-095-dev-prompt.md`); implementation not
+> started. **WP1 is reason-label honesty only and does NOT solve the PRIMARY closure /
+> product-contract question. WP0 (source_ids/promotion) and WP2 (CONFIRM
+> record-vs-handover on satisfiable flows) remain HELD** under charter §6.
+>
+> **Everything below this banner is the M-Auto-7 historical record** (theme "Autoloop
+> readiness and CS4 entity-context pilot"; the registry-only pilot is CLOSED — NO KEEP,
+> 2026-06-19). It is preserved unchanged as the milestone's delivered outcome and is
+> **not** the active contract. M-Auto-7's residual CS4 entity-context PRIMARY objective
+> is carried forward by M-Auto-9. (This is a minimal active-milestone pointer sync; the
+> M-Auto-7 history is not rewritten.)
+
+---
+
+# Milestone M-Auto-7 (historical record — CLOSED, retained below)
 
 ## 0. STATUS — registry-only pilot CLOSED, NO KEEP (2026-06-19)
 

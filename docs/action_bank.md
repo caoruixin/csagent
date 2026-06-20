@@ -1084,10 +1084,17 @@ charter §6 WP1. **SCOPED, NOT LAUNCHED** (dev agent not spawned; launch = human
   **WP0** (source_ids / promotion-evidence) and **WP2** (CONFIRM record-vs-handover on
   satisfiable flows) **remain HELD** under charter §6. Holds above stay in force.
 - Contract bundle: `docs/sprint_objective.md` (Sprint 095) + `compact/sprint-095-dev-prompt.md`.
-  Parent milestone north-star = the M-Auto-9 charter proposal doc; a formal
-  `docs/milestone_objective.md` promotion to M-Auto-9 is a recommended follow-up (not
-  done in the WP1-scoping session — `milestone_objective.md` stays the M-Auto-7 record
-  with its §0 banner pointing forward).
+  Design north-star = the M-Auto-9 charter proposal doc. **Milestone-status synced
+  2026-06-20:** `docs/milestone_objective.md` now carries a top banner identifying
+  M-Auto-9 as the active approved milestone; the M-Auto-7 historical body + outcome
+  (registry pilot CLOSED — NO KEEP) are preserved unchanged below it (minimal pointer
+  sync; no history rewrite, no WP1 scope expansion).
+- **Existing-reason honesty gate (binding, recorded 2026-06-20 contract correction):**
+  WP1's bot-initiated reason must be an existing approved enum value that *accurately*
+  describes the handover. If no existing value is honest enough, WP1 STOPs + surfaces
+  the vocabulary gap under `D-new-escalation-reason-enum` (§4) and closes **BLOCKED, not
+  complete** — it must NOT add a new enum and must NOT ship a knowingly-inaccurate
+  catch-all (e.g. `service_degraded`) to replace `user_requested`.
 
 ## 6. Closed index (relocated)
 

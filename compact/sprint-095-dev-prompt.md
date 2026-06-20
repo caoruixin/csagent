@@ -102,11 +102,16 @@ no CaseSpec IDs, no fixed utterances, no ad IDs, no benchmark branch (§1.5/§1.
    projection are a semantic surface, §4.3). Verdict verbatim → `docs/codex-findings.md`
    (§4.2). No close until `pass`.
 
-## STOP-and-surface (ship safe in-scope part, surface real cause as OQ, don't expand scope)
-- No honest **existing** canonical reason fits the generic "bot exhausted help →
-  escalate" case and only a **new** enum value would → STOP; OQ → `D-new-escalation-
-  reason-enum`. The honesty floor (never `user_requested` on a bot-initiated handover)
-  must still ship without a new value; if even that is impossible, STOP entirely.
+## STOP-and-surface (surface real cause as OQ, don't expand scope)
+- **Existing-reason honesty gate (binding — the two ONLY acceptable outcomes):** if an
+  existing approved enum value **accurately describes** the bot-initiated handover →
+  use it, **complete WP1**. If **no** existing value is **semantically honest enough**
+  → **STOP and surface the vocabulary gap** under `D-new-escalation-reason-enum`
+  (`action_bank.md` §4); **WP1 is BLOCKED, not complete** (do not declare it done). Do
+  **not** add a new enum and do **not** ship a knowingly inaccurate catch-all (e.g.
+  `service_degraded`) just to replace `user_requested` — swapping one dishonest label
+  for another is not the fix. There is **no** "honesty floor" that justifies an
+  inaccurate label.
 - The honesty win can be shown **only** by the LLM changing its choice (not pinnable by
   wiring/zero-LLM/Java) → STOP (real-LLM territory).
 - Any **frozen** surface would have to move (e.g. a runtime stamp, not the LLM arg, is
@@ -118,10 +123,12 @@ no CaseSpec IDs, no fixed utterances, no ad IDs, no benchmark branch (§1.5/§1.
 UC-J scam/trust-safety precedence (`cs38s01`) · UC-I payment · UC-G GDPR ·
 explicit-human-request (genuine request still → `user_requested`) ·
 genuinely-unresolved escalate-after-help (escalation still happens; only the bot-
-initiated label changes). Core safety argument: the new bot default is a **low-priority**
-reason (e.g. `service_degraded`, priority 30) that **cannot** displace safety/dispute
-reasons (priorities 0–16); steering off `user_requested` (priority 1) can only *reduce*
-false Tier-0 reasons — verify this explicitly.
+initiated label changes). Core safety argument: any honest bot-initiated reason you'd
+use is **low-priority** (tier-3+, e.g. `service_degraded` is priority 30) and **cannot**
+displace safety/dispute reasons (priorities 0–16); steering off `user_requested`
+(priority 1) can only *reduce* false Tier-0 reasons — verify this explicitly. (Low
+priority is necessary, NOT sufficient — it does not make a value *honest*; that is the
+existing-reason honesty gate above.)
 
 ## §7 stanza
 Target layer `semantic_planner` (LLM escalation-reason choice, §1.3) + `prompt_projection`
@@ -155,6 +162,9 @@ before handing back.
 - [ ] Zero-LLM replay: mislabels corrected, genuine preserved, no outcome/phase/handover
       change.
 - [ ] No frozen surface touched; no new enum value; no user-message heuristic.
+- [ ] Existing-reason honesty gate resolved one of two ways: an existing reason is
+      accurate → COMPLETE; OR no honest value exists → WP1 **BLOCKED** + vocabulary-gap
+      OQ (not declared done). No knowingly-inaccurate catch-all shipped.
 - [ ] §4.1 Codex `pass` in `docs/codex-findings.md`.
 - [ ] Handoff records the chosen bot-initiated reason + why it is honest within the
       existing enum; WP1-only + WP0/WP2-HELD restatements present.

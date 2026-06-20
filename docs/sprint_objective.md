@@ -248,14 +248,21 @@ The dev agent must do all of the following, in order. Evidence goes in the hando
 
 STOP and surface (do not work around) if any of these arise:
 
-- **No honest existing reason fits.** If, for the generic "bot exhausted grounded
-  help and chose to escalate" case, no member of the existing canonical 23-value enum
-  is an honest label (the closest catch-all is `service_degraded`, which may be
-  semantically thin), and the only correct fix appears to be a **new** enum value →
-  STOP. Do not invent an enum value; surface it as an OQ pointing at the deferred
-  `D-new-escalation-reason-enum` (`action_bank.md` §4). The honesty *floor* — never
-  `user_requested` on a bot-initiated handover — must still be deliverable without a
-  new value; if even that is impossible, STOP entirely.
+- **Existing-reason honesty gate (binding — supersedes any "ship the floor anyway"
+  reading).** Resolve the bot-initiated reason as follows, and these are the *only*
+  two acceptable outcomes:
+  - **If an existing approved `escalation_reason`** (a member of the canonical
+    23-value enum) **accurately describes** the bot-initiated handover → use it and
+    **complete WP1**.
+  - **If no existing enum value is semantically honest enough** for the bot-initiated
+    handover → **STOP and surface the vocabulary gap** under the deferred new-reason
+    OQ (`D-new-escalation-reason-enum`, `action_bank.md` §4). In that case **WP1 is
+    BLOCKED, not complete — do not declare it done** (see §9 / §10).
+  - **WP1 must not add a new enum value**, and **must not ship a knowingly inaccurate
+    catch-all** (e.g. `service_degraded`) merely to replace `user_requested`. Swapping
+    one dishonest label for another dishonest label is **not** the honesty fix. There
+    is no "honesty floor" that justifies an inaccurate label: an honest existing reason
+    or a recorded BLOCK are the two — and only — acceptable results.
 - **The change cannot be certified without a real-LLM run** (§5.5 trigger): the
   honesty win depends solely on the LLM changing its choice and cannot be pinned by
   the wiring / zero-LLM replay / Java tests.
@@ -293,11 +300,13 @@ exists, surface the real cause as an OQ, and do not silently expand scope.
 - genuinely-unresolved escalate-after-help behaviour (the escalation still happens;
   only its label changes when the bot — not the user — initiated it)
 
-These are precedence/blast-radius guards: the new bot-initiated default reason is a
-**low-priority** value (e.g. `service_degraded`, priority 30) that **cannot** displace
-the high-priority safety/dispute reasons (priorities 0–16), so steering the LLM off
-`user_requested` (priority 1) can only *reduce* false Tier-0 reasons — verify this
-property explicitly, it is the core safety argument for WP1.
+These are precedence/blast-radius guards: any honest bot-initiated reason WP1 would use
+is a **low-priority** value (tier-3+, e.g. `service_degraded` is priority 30) that
+**cannot** displace the high-priority safety/dispute reasons (priorities 0–16), so
+steering the LLM off `user_requested` (priority 1) can only *reduce* false Tier-0
+reasons — verify this property explicitly, it is the core safety argument for WP1. (This
+precedence fact does **not** make any given value *honest* — honesty is judged by the §6
+existing-reason honesty gate; a value being low-priority is necessary, not sufficient.)
 
 ## 9. Acceptance gates (close checklist)
 
@@ -314,6 +323,13 @@ property explicitly, it is the core safety argument for WP1.
       the chosen bot-initiated reason + why it is honest within the existing enum,
       test list, re-measured baseline + delta attribution, zero-LLM replay matrix,
       Codex verdict, and the explicit restatements in §10.
+
+**Two terminal outcomes only.** WP1 closes as **COMPLETE** only when an existing
+approved reason honestly labels the bot-initiated handover and every gate above is met.
+If the §6 existing-reason honesty gate fires (no existing value is honest enough), WP1
+closes as **BLOCKED**: the deliver-agent archives this contract and records the
+vocabulary-gap OQ under `D-new-escalation-reason-enum`; the gates above are explicitly
+**not** claimed. A knowingly-inaccurate catch-all is never a valid COMPLETE.
 
 ## 10. Required explicit records (deliverable)
 
