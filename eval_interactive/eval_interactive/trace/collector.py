@@ -127,6 +127,19 @@ CONDITIONAL_SESSION_FIELDS: tuple[str, ...] = (
 # transitions (see ControlKernel.java).
 TERMINAL_PHASES: frozenset[str] = frozenset({"CLOSE", "ESCALATE"})
 
+# Phase values in which the session has NOT yet committed to a use case.
+# The server's UseCaseRouter sets active_use_case on *exit* from the
+# discovery/triage phase, and discovery can span several bot turns during
+# which active_use_case is legitimately empty -- the server documents this
+# directly (PhaseEvaluator.java: ".useCase(activeUc) // may be null in
+# DISCOVER while still discovering"). A session captured mid-DISCOVER
+# (e.g. a turn-1 latency/timeout or an early-terminated conversation) thus
+# has >=1 recorded turn but a telemetry-faithful empty active_use_case, and
+# must NOT raise a contract violation. Turn-count alone is the wrong proxy
+# for "routing has happened"; the phase is. Keep in sync with server-side
+# ControlKernel / PhaseEvaluator phase names.
+PRE_ROUTING_PHASES: frozenset[str] = frozenset({"INIT", "DISCOVER"})
+
 REQUIRED_TURN_FIELDS: tuple[str, ...] = (
     "phase_after",
 )
@@ -350,12 +363,17 @@ class TraceCollector:
         """Validate session-state fields whose requirement depends on
         whether the session has actually progressed.
 
-        - ``active_use_case`` is set during routing on the first user
-          message. A session that ended before any bot turn has no UC,
-          and that is not a contract violation. Out-of-scope escalations
-          (escalation_reason == "out_of_scope") legitimately have no UC
-          even when a synthetic handover-evidence turn was persisted by
-          the server's SessionManager hard-OOS path.
+        - ``active_use_case`` is set when the session routes, which happens
+          on *exit* from the pre-routing phases (``INIT`` / ``DISCOVER``).
+          Discovery can span several bot turns, so a session still in a
+          pre-routing phase legitimately has no UC even after one or more
+          turns (see ``PRE_ROUTING_PHASES``) -- turn-count alone is the
+          wrong proxy for "routing has happened". A session that ended
+          before routing therefore has no UC, and that is not a contract
+          violation. Out-of-scope escalations (escalation_reason ==
+          "out_of_scope") likewise legitimately have no UC even when a
+          synthetic handover-evidence turn was persisted by the server's
+          SessionManager hard-OOS path.
         - ``containment_outcome`` is set when the session terminates
           (CLOSE / ESCALATE) or a handover is recorded. Mid-conversation
           sessions legitimately have an empty value.
@@ -364,7 +382,20 @@ class TraceCollector:
             session_state.containment_outcome == "escalated"
             and session_state.escalation_reason == "out_of_scope"
         )
-        if turns and not session_state.active_use_case and not is_oos_escalation:
+        # active_use_case is only required once the session has progressed
+        # past the pre-routing phases. A session still in INIT/DISCOVER has
+        # legitimately not routed yet even after one or more bot turns
+        # (see PRE_ROUTING_PHASES), so an empty active_use_case there is
+        # telemetry-faithful, not a contract violation. The genuine contract
+        # is preserved for every routed phase (CONFIRM / RESOLVE / CLOSE /
+        # non-out-of-scope ESCALATE).
+        in_pre_routing_phase = session_state.current_phase in PRE_ROUTING_PHASES
+        if (
+            turns
+            and not session_state.active_use_case
+            and not is_oos_escalation
+            and not in_pre_routing_phase
+        ):
             self._violate(
                 field="active_use_case",
                 phase="session",

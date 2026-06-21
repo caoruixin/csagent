@@ -21,6 +21,7 @@ import pytest
 from eval_interactive.trace.collector import (
     CONDITIONAL_SESSION_FIELDS,
     CONTAINMENT_OUTCOME_VALUES,
+    PRE_ROUTING_PHASES,
     REQUIRED_SESSION_FIELDS,
     REQUIRED_TOOL_CALL_FIELDS,
     REQUIRED_TURN_FIELDS,
@@ -401,8 +402,9 @@ class TestConditionalContracts:
         assert exc_info.value.field == "containment_outcome"
 
     def test_turns_present_still_requires_active_use_case(self) -> None:
-        # If the bot took turns but never recorded a UC, that IS a real
-        # contract violation -- routing is supposed to happen on turn 1.
+        # A session that has progressed to a routed phase (RESOLVE) but
+        # recorded no UC IS a real contract violation: routing completes on
+        # exit from the pre-routing phases, so by RESOLVE a UC MUST exist.
         session = {
             "current_phase": "RESOLVE",
             "total_bot_turns": 1,
@@ -412,6 +414,114 @@ class TestConditionalContracts:
             TraceCollector(client, contract_mode="strict").collect("sess-noruc")
         assert exc_info.value.field == "active_use_case"
         assert exc_info.value.reason == "missing_after_turns"
+
+
+# ---------------------------------------------------------------------------
+# Pre-routing-phase carve-out (Sprint 098 / S-Auto-46, M-Auto-10 WP1).
+#
+# Regression guard for the eval-framework defect surfaced at the M-Auto-9
+# §5.6 close: a session captured mid-DISCOVER (>=1 recorded turn, empty
+# active_use_case at BOTH session and turn level) was wrongly flagged with a
+# spurious 0-turn CONTRACT_VIOLATION. The server documents that
+# active_use_case is legitimately null in DISCOVER while still discovering
+# (PhaseEvaluator.java). The fix requires active_use_case only once the
+# session has progressed past PRE_ROUTING_PHASES (INIT / DISCOVER).
+#
+# Fixtures use the REAL camelCase session-DTO shape returned by
+# GET /v1/chat/sessions/{id} (BotSession serialised directly), which is what
+# the brief mislabelled a snake/camel mismatch -- the collector already reads
+# both variants (g(raw, "activeUseCase", "active_use_case")), so casing was
+# never the cause.
+# ---------------------------------------------------------------------------
+
+
+def _discover_turn_camelcase() -> dict:
+    """A single mid-DISCOVER turn with a null per-turn active_use_case,
+    matching the recorded violating sessions (camelCase keys, as the live
+    BotSession/BotTurn trace endpoints emit)."""
+    return {
+        "turnIndex": 1,
+        "userMessage": "hi, something is wrong",
+        "botResponse": "Happy to help -- can you tell me a bit more?",
+        "phaseBefore": "INIT",
+        "phaseAfter": "DISCOVER",
+        "activeUseCase": None,
+        "toolCalls": [],
+    }
+
+
+class TestPreRoutingPhaseCarveOut:
+    """active_use_case is only required once the session leaves the
+    pre-routing phases; the genuine contract and the OOS carve-out hold."""
+
+    def test_pre_routing_phases_constant(self) -> None:
+        assert PRE_ROUTING_PHASES == frozenset({"INIT", "DISCOVER"})
+
+    def test_mid_discover_turn_no_uc_does_not_violate(self) -> None:
+        # (a) Reproduces the recorded false positive: DISCOVER phase, one
+        # recorded turn, active_use_case empty at session AND turn level.
+        # camelCase session DTO, exactly as the live endpoint returns it.
+        # Previously raised CONTRACT_VIOLATION:active_use_case; must NOT now.
+        session = {
+            "currentPhase": "DISCOVER",
+            "activeUseCase": "",
+            "containmentOutcome": "",
+            "escalationReason": "",
+            "totalBotTurns": 1,
+        }
+        client = _StubAgentClient(
+            session=session, trace=[_discover_turn_camelcase()]
+        )
+        # strict mode would raise on any violation -- collecting cleanly is
+        # the assertion.
+        trace = TraceCollector(client, contract_mode="strict").collect(
+            "sess-mid-discover"
+        )
+        assert trace.session_state.current_phase == "DISCOVER"
+        assert trace.session_state.active_use_case == ""
+        assert trace.contract_warnings == []
+
+    def test_routed_phase_no_uc_still_violates_negative_control(self) -> None:
+        # (b) Negative control -- the genuine contract is preserved: a
+        # session that has progressed to a routed phase (RESOLVE) with NO
+        # active_use_case (and not out-of-scope) MUST still violate, even
+        # with the camelCase DTO shape.
+        session = {
+            "currentPhase": "RESOLVE",
+            "activeUseCase": "",
+            "containmentOutcome": "",
+            "escalationReason": "",
+            "totalBotTurns": 1,
+        }
+        client = _StubAgentClient(
+            session=session, trace=[_discover_turn_camelcase()]
+        )
+        with pytest.raises(TraceContractError) as exc_info:
+            TraceCollector(client, contract_mode="strict").collect(
+                "sess-routed-no-uc"
+            )
+        assert exc_info.value.field == "active_use_case"
+        assert exc_info.value.reason == "missing_after_turns"
+
+    def test_out_of_scope_escalation_carve_out_intact(self) -> None:
+        # (c) Out-of-scope escalation legitimately has no UC at a terminal
+        # ESCALATE phase; the is_oos_escalation carve-out must remain
+        # non-violating and is unaffected by the pre-routing gate.
+        session = {
+            "currentPhase": "ESCALATE",
+            "activeUseCase": "",
+            "containmentOutcome": "escalated",
+            "escalationReason": "out_of_scope",
+            "totalBotTurns": 1,
+        }
+        client = _StubAgentClient(
+            session=session, trace=[_discover_turn_camelcase()]
+        )
+        trace = TraceCollector(client, contract_mode="strict").collect(
+            "sess-oos-esc"
+        )
+        assert trace.session_state.active_use_case == ""
+        assert trace.contract_warnings == []
 
 
 # ---------------------------------------------------------------------------
