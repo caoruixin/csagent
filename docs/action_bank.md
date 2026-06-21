@@ -804,8 +804,18 @@ exp-82 stays WITHDRAWN; no PRIMARY success; full pilot tranche HELD.
   (possibly `human_review_required` — frozen surface).
 - **OQ-C / OQ-D — NEW (S-Y2 Part C).** exp-82 nominated a "preferred seed"
   then overturned by the n=13 re-eval; refinement-seed semantics. Addressed by
-  the deferred objective-alignment annotation (proposal §4). Layer: `eval_spec`
-  / reporting. → milestone-shared Codex.
+  the objective-alignment annotation (proposal §4). Layer: `eval_spec`
+  / reporting. **2026-06-22: SCOPED as M-Auto-12 WP1 (Sprint 102 / S-Auto-50,
+  DRAFT pending human approval) — observation-only `objective_alignment` label
+  (FULL_SUCCESS/OBJECTIVE_KEEP/PERIPHERAL_ONLY/OFF_TARGET) computed from
+  `pilot_snapshot.primary_targets` + existing Tier-1 posteriors; record-now-wire-later
+  (merge/seed consumers NOT built); zero-LLM replay over exp-81…86. The proposal §7.1
+  gaming-git-lookup + §7.2 tier0 short-circuit reporting gaps are M-Auto-12 WP2
+  (Sprint 103 / S-Auto-51). Drafts `docs/milestone_objective.md` + `docs/sprint_objective.md`
+  + `compact/sprint-102-dev-prompt.md`. Strategic context: M-Auto-9/10/11 cleared the
+  substrate; the autoloop's objective-blindness (exp-86 peripheral KEEP) is the real
+  blocker to a useful KEEP. Proposal §5 (no_ad_id product decision) + §6 (primary-first
+  staged eval = reserved M-Auto-8) stay OUT of M-Auto-12.** → milestone-shared Codex.
 - **OQ-E — RESOLVED (2026-06-18) by S-Auto-38.** Tier-0 `escalation_compliance`
   reason-label flakiness; Part-2 demotion removes it.
 - **OQ-E.cs11s01 — OPEN (product-owner).** Is the FAQ-miss-first path in-scope
