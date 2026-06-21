@@ -9,9 +9,10 @@ review_cadence: per sprint
 supersedes: []
 superseded_by: null
 notes: >
-  SCOPED, NOT LAUNCHED. WP2 of M-Auto-9 (charter
+  SCOPED, ground-truth + name BLESSED 2026-06-21, NOT LAUNCHED. WP2 of M-Auto-9 (charter
   docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md §6).
-  Authors ONE cooperative, VISIBLE UC-A entity-context companion CaseSpec that
+  Authors ONE resolvable, VISIBLE UC-A entity-context companion CaseSpec
+  (`cs_uc_a_loaded_listing_resolvable`, human-blessed name) that
   exercises the same flow as the two PRIMARY (request ad reference if needed →
   load listing context → substantively grounded help → record RESOLVE →
   CONFIRM/CLOSE) but differs PRIMARILY in the persona acceptance contract: the
@@ -32,10 +33,11 @@ notes: >
 
 ## 0. Status
 
-**SCOPED — awaiting human launch + ground-truth bless.** Deliver contract for the
-WP2 sub-sprint; the dev agent is **not** spawned until the human (a) blesses the §3
-resolvability + acceptance criteria and (b) pastes `compact/sprint-097-dev-prompt.md`.
-`implementation_status: not_started`.
+**SCOPED + ground-truth BLESSED 2026-06-21 — awaiting human launch (paste).** Deliver
+contract for the WP2 sub-sprint. The §3 resolvability + acceptance criteria and the
+companion name (**`cs_uc_a_loaded_listing_resolvable`**) are **human-blessed (2026-06-21)**.
+The dev agent is **not** spawned until the human pastes `compact/sprint-097-dev-prompt.md`
+into a fresh dev session. `implementation_status: not_started`.
 
 - **Parent milestone:** M-Auto-9 (runtime/orchestration closure; design `APPROVE`
   2026-06-20). Charter §6 WP2.
@@ -67,7 +69,7 @@ closing the M-Auto-9 evidence gap that the two unsatisfiable PRIMARY personas le
 open — **without** any closure-forcing edit to the frozen phase machine, and while the
 two PRIMARY personas stay unchanged and correctly **escalate-after-help**.
 
-The deliverable is the **smallest legitimate** demonstration: a cooperative companion
+The deliverable is the **smallest legitimate** demonstration: a resolvable companion
 + the bounded real-LLM evidence + the zero-LLM cross-check, decided under the V3 rule.
 "No runtime change needed" is a **first-class valid outcome**; if resolve cannot land
 on a genuinely-satisfiable persona without a runtime change, that is a §8 STOP that
@@ -75,49 +77,55 @@ surfaces a real closure defect for a separate sub-sprint (do not force it here).
 
 ## 3. Scope — the satisfiable companion (human-blessed criteria)
 
-### #1 — Author ONE cooperative, VISIBLE companion CaseSpec
+### #1 — Author ONE resolvable, VISIBLE companion CaseSpec
 
 A NEW bad-case CaseSpec under `eval_interactive/case_specs/bad_cases/` (flat layout;
 registered in `_manifest.md`), mirroring `cs_uc_a_loaded_listing.yaml`'s **flow**:
 `classify_use_case → get_customer_context → search_knowledge → resolve_article →
 record_outcome(resolve)` → CONFIRM → CLOSE. **Visibility = VISIBLE** (a development /
-contract anchor, **not** shadow). Proposed `case_id`: **`cs_uc_a_loaded_listing_cooperative`**
-(name not pre-committed; human-bless at review). It carries the standard
-`bad_case_metadata` + `closure_criterion` + a `conditional_outcome_acceptance` block
-(`satisfied_outcome: resolve`).
+contract anchor, **not** shadow). **Blessed `case_id`: `cs_uc_a_loaded_listing_resolvable`**
+(human-blessed 2026-06-21 — `resolvable` describes the human-blessed ground truth without
+implying the persona is easy to satisfy or unconditionally cooperative). It carries the
+standard `bad_case_metadata` + `closure_criterion` + a `conditional_outcome_acceptance`
+block (`satisfied_outcome: resolve`).
 
 The companion differs from `cs_uc_a_loaded_listing` **primarily in the persona
 acceptance contract** — it is the same UC-A entity-context situation, not an unrelated
 easy case, so it stays a clean control for the two PRIMARY.
 
-### #2 — Exact human-blessed resolvability + acceptance criteria (REQUIRED, §contract-element-1)
+### #2 — Human-blessed resolvability + acceptance contract (BLESSED 2026-06-21, §contract-element-1)
 
-The contract proposes the criteria below; **the human blesses them at launch**
-(the genuine resolvability + that `resolve` is the correct expected outcome):
+The companion's ground truth + acceptance contract is **human-blessed (2026-06-21)** —
+authored by the dev exactly to these terms (do not weaken or widen):
 
-- **Resolvable ground truth (proposed):** a LIVE listing (e.g. AD-2002-class) whose
-  genuinely-correct resolution is *substantive, listing-grounded* visibility advice —
-  the bot consults `get_customer_context`, references ≥1 specific listing field
-  (status / category / price / location / posted_date), and gives category-specific
-  advice grounded in that listing (optionally + the canonical visibility-tips article).
-- **Persona becomes SATISFIED only when** all hold: (a) the bot used the specific
-  listing context (≥1 field, not a generic mention), (b) the advice is substantive +
-  relevant to the listing's category/state, (c) the bot did not re-ask for an ad_id
-  already in `form_context`. On that, the persona accepts (its `user_state` series →
-  SATISFIED) and the bot records resolve.
-- **Persona stays UNRESOLVED when** any of: generic FAQ advice, superficial listing
-  mention without using it, missing context use, incomplete resolution, or re-asking
-  for an already-present ad_id. **No unconditional satisfaction** — a wrong/shallow
-  answer must NOT be accepted.
+1. The issue is **objectively resolvable** within the available UC-A entity-context flow.
+2. The bot must **correctly retain / classify UC-A**.
+3. It must **use the already-available listing context** and **must not re-ask for an
+   ad ID already present**.
+4. The answer must **use listing-specific information substantively**: at least one
+   diagnosis, explanation, or recommended action must **materially depend on the actual
+   listing state or fields**.
+5. **Merely mentioning the listing title/status before reverting to generic FAQ advice
+   does NOT satisfy** the contract.
+6. **Generic ad-creation tips, unsupported claims, or unrelated promotional advice
+   remain `UNRESOLVED`.**
+7. The persona becomes **`SATISFIED` only after receiving a correct, sufficiently
+   grounded and actionable answer meeting the human-blessed criteria** above.
+8. Once satisfied, the expected trace is: **grounded answer → `record_outcome(RESOLVE)`
+   → CONFIRM → CLOSE**.
+9. The companion **must not authorize a false resolve for a still-dissatisfied user**
+   and **must not modify or widen either existing PRIMARY CaseSpec**.
+10. **No phase forcing, CaseSpec widening, `user_state` manipulation, case-ID
+    hardcoding, or benchmark-specific branch** is permitted.
 
 ### #3 — Persona authoring + review ownership (REQUIRED, §contract-element-2)
 
 - **Authoring path:** an eval **companion** (a new CaseSpec + persona), **NOT** a
   CaseSpec widen of the two existing PRIMARY (`cs_uc_a_no_ad_id_ad_specific`,
   `cs_uc_a_loaded_listing`) or their expected terminals.
-- **Review ownership:** deliver-agent + human jointly bless the resolvability/ground
-  truth at launch and the per-trace adjudication semantics; Codex §4.1 reviews the
-  companion for anti-hardcode / no-special-casing.
+- **Review ownership:** deliver-agent + human **BLESSED** the resolvability / ground
+  truth + name (2026-06-21; §3 #1/#2). The per-trace adjudication semantics + Codex §4.1
+  anti-hardcode / no-special-casing review remain at sub-sprint execution.
 
 ### #4 — Visible status + anti-hardcode protections (REQUIRED, §contract-element-3)
 

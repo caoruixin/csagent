@@ -1,7 +1,8 @@
 # Dev prompt — Sprint 097 / S-Auto-45 (M-Auto-9 WP2): satisfiable UC-A entity-context companion
 
 You are the **dev agent for Sprint 097 / S-Auto-45 (M-Auto-9 WP2)**. One-line goal: author
-**one** cooperative, **visible** UC-A entity-context companion CaseSpec and prove that a
+**one** resolvable, **visible** UC-A entity-context companion CaseSpec
+(**`cs_uc_a_loaded_listing_resolvable`**, human-blessed name) and prove that a
 **recorded SATISFIED → `record_outcome(resolve)` → CONFIRM → CLOSE** terminal **can land
 end-to-end** on a genuinely-satisfiable flow — closing M-Auto-9's evidence gap — **without**
 any closure-forcing edit to the frozen phase machine, and while the two existing PRIMARY
@@ -13,8 +14,9 @@ work; it intends **no** runtime/prompt/phase-machine change. **WP0 stays HELD.**
 `docs/current/m-auto-9-escalate-after-help-product-decision.md`. Code/CaseSpec anchors below are
 read-on-demand.
 
-**Launch precondition:** the human blesses the §"Acceptance criteria" resolvability/ground
-truth before you author the persona. If they are not yet blessed, STOP and request the bless.
+**Launch precondition (MET):** the human has **BLESSED** the §1 companion name + the §2
+acceptance contract (2026-06-21). Author the persona **exactly to those blessed terms** — do
+not weaken or widen them. (If for any reason they appear unblessed, STOP and request the bless.)
 
 ## Why this sub-sprint exists
 M-Auto-7's pilot closed NO-KEEP because neither PRIMARY (`cs_uc_a_no_ad_id_ad_specific`,
@@ -28,33 +30,43 @@ auto-hard-fail; false-resolve is judged on authoritative `user_state` + closure 
 
 ## What to build (Scope)
 
-### #1 — One cooperative, VISIBLE companion CaseSpec
+### #1 — One resolvable, VISIBLE companion CaseSpec
 NEW bad-case CaseSpec under `eval_interactive/case_specs/bad_cases/` (flat layout; add a row to
 `_manifest.md`), mirroring `cs_uc_a_loaded_listing.yaml`'s **flow** (`classify_use_case →
 get_customer_context → search_knowledge → resolve_article → record_outcome(resolve)` →
-CONFIRM → CLOSE). **VISIBLE** (development/contract anchor, NOT shadow). Proposed `case_id`:
-**`cs_uc_a_loaded_listing_cooperative`** (name not pre-committed; human-bless). Carries
-`bad_case_metadata` + `closure_criterion` + a `conditional_outcome_acceptance` block
+CONFIRM → CLOSE). **VISIBLE** (development/contract anchor, NOT shadow). **Blessed `case_id`:
+`cs_uc_a_loaded_listing_resolvable`** (human-blessed 2026-06-21 — `resolvable` names the
+human-blessed ground truth without implying an easy / unconditionally cooperative persona).
+Carries `bad_case_metadata` + `closure_criterion` + a `conditional_outcome_acceptance` block
 (`satisfied_outcome: resolve`). It differs from the PRIMARY **primarily in the persona
 acceptance contract** — same UC-A entity-context situation, NOT an unrelated easy case.
 
-### #2 — Acceptance criteria (human-blessed at launch)
-- **Resolvable ground truth (proposed):** a LIVE listing (AD-2002-class) whose genuinely-correct
-  resolution is *substantive, listing-grounded* visibility advice — the bot consults
-  `get_customer_context`, references ≥1 specific listing field (status/category/price/location/
-  posted_date), and gives category-specific advice grounded in that listing (optionally + the
-  canonical visibility-tips article).
-- **Persona becomes SATISFIED only when** all hold: (a) bot used the specific listing context
-  (≥1 field, not a generic mention), (b) advice is substantive + relevant to the listing's
-  category/state, (c) bot did not re-ask for an ad_id already in `form_context`. Then its
-  `user_state` series → SATISFIED and the bot records resolve.
-- **Persona stays UNRESOLVED when** any of: generic FAQ advice / superficial listing mention /
-  missing context use / incomplete resolution / re-asking an already-present ad_id. **No
-  unconditional satisfaction** — a wrong/shallow answer must NOT be accepted.
+### #2 — Human-blessed resolvability + acceptance contract (BLESSED 2026-06-21)
+Author the persona **exactly** to these blessed terms (do not weaken or widen):
+1. The issue is **objectively resolvable** within the available UC-A entity-context flow.
+2. The bot must **correctly retain / classify UC-A**.
+3. It must **use the already-available listing context** and **must not re-ask for an ad ID
+   already present**.
+4. The answer must **use listing-specific information substantively**: ≥1 diagnosis,
+   explanation, or recommended action must **materially depend on the actual listing state or
+   fields**.
+5. **Merely mentioning the listing title/status before reverting to generic FAQ advice does
+   NOT satisfy** the contract.
+6. **Generic ad-creation tips, unsupported claims, or unrelated promotional advice remain
+   `UNRESOLVED`.**
+7. The persona becomes **`SATISFIED` only after a correct, sufficiently grounded and actionable
+   answer meeting the human-blessed criteria** above.
+8. Once satisfied, the expected trace is: **grounded answer → `record_outcome(RESOLVE)` →
+   CONFIRM → CLOSE**.
+9. **No false resolve for a still-dissatisfied user**; **do not modify or widen either existing
+   PRIMARY CaseSpec**.
+10. **No phase forcing, CaseSpec widening, `user_state` manipulation, case-ID hardcoding, or
+    benchmark-specific branch** is permitted.
 
 ### #3 — Authoring path + ownership
 Eval **companion** (new CaseSpec + persona), **NOT** a CaseSpec widen of the two PRIMARY or
-their terminals. Deliver+human bless the resolvability; Codex §4.1 reviews anti-hardcode.
+their terminals. Deliver+human **BLESSED** the resolvability / ground truth + name (2026-06-21);
+Codex §4.1 reviews anti-hardcode / no-special-casing.
 
 ### #4 — Visible + anti-hardcode protections
 VISIBLE. **Retain held-out neighbors** so you cannot special-case the companion: the two PRIMARY
@@ -147,8 +159,8 @@ Eval-side, staged explicitly by file (no `git add -A`): (a) companion CaseSpec +
 committed tree (`caffeinate`). No data/artifact files committed.
 
 ## Self-check before declaring done
-- [ ] Companion authored (visible), compiles, `_manifest.md` row added; name human-blessed.
-- [ ] Acceptance criteria human-blessed; persona SATISFIED only on genuinely-correct grounded
+- [ ] Companion `cs_uc_a_loaded_listing_resolvable` authored (visible), compiles, `_manifest.md` row added (blessed name).
+- [ ] Persona authored exactly to the §2 blessed contract; SATISFIED only on genuinely-correct grounded
       help; shallow/generic/incomplete stays UNRESOLVED.
 - [ ] Two PRIMARY CaseSpecs + bars UNCHANGED; no frozen runtime surface touched; WP0 HELD.
 - [ ] Bounded real-LLM run: companion reaches recorded SATISFIED+resolve→CONFIRM/CLOSE under the

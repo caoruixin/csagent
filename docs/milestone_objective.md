@@ -107,7 +107,8 @@ notes: >
   record_outcome question + WP0 remain not_started/HELD). 2026-06-21 product/eval_spec
   decision RECORDED (docs/current/m-auto-9-escalate-after-help-product-decision.md:
   escalate-after-genuine-help valid; goal_impossible not an auto-hard-fail) + WP2 (satisfiable
-  UC-A entity-context companion) SCOPED as Sprint 097 / S-Auto-45 (SCOPED, NOT LAUNCHED;
+  UC-A entity-context companion cs_uc_a_loaded_listing_resolvable) SCOPED as Sprint 097 /
+  S-Auto-45 (companion name + 10-point acceptance contract human-BLESSED 2026-06-21; NOT LAUNCHED;
   docs/sprint_objective.md + compact/sprint-097-dev-prompt.md). WP0 HELD. Minimal pointer
   sync only; no milestone history rewritten. Archives docs/sprints/sprint-096-{objective,handoff}.md.
 ---
@@ -139,8 +140,9 @@ notes: >
 > not an auto-hard-fail; false-resolve judged on authoritative `user_state` + closure evidence —
 > resolving the `hard_checks.py:799` open question), and **WP2 (satisfiable UC-A entity-context
 > companion — prove a recorded RESOLVE→CONFIRM→CLOSE can land) is SCOPED as Sprint 097 /
-> S-Auto-45** (`docs/sprint_objective.md` + `compact/sprint-097-dev-prompt.md`; SCOPED, NOT
-> LAUNCHED — awaits the human's ground-truth bless + paste). **WP0 (source_ids/promotion) remains
+> S-Auto-45** (`docs/sprint_objective.md` + `compact/sprint-097-dev-prompt.md`; SCOPED; companion
+> **`cs_uc_a_loaded_listing_resolvable`** + the 10-point acceptance contract human-BLESSED
+> 2026-06-21; NOT LAUNCHED — awaits the human's paste). **WP0 (source_ids/promotion) remains
 > HELD** under charter §6.
 >
 > **Everything below this banner is the M-Auto-7 historical record** (theme "Autoloop
