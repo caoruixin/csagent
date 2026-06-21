@@ -381,9 +381,15 @@ class TestBackwardCompatLoad:
         # `cs_uc_a_loaded_listing_resolvable` → 18. (This anchor was stale at
         # 12 from the M-Auto-7 close, which did not update it; corrected to the
         # current count alongside the WP2 add.)
-        assert len(specs) == 18, (
-            f"bad_cases should carry exactly 18 cases (12 S-Eval-4 + 5 M-Auto-7 "
-            f"entity-context + 1 M-Auto-9 WP2 companion); found {len(specs)}"
+        # Sprint 101 / S-Auto-49 (M-Auto-11 WP1): +1 characterization instrument
+        # `cs_uc_a_viable_hit_loop_nonconvergence` (the viable-hit loop-
+        # nonconvergence TARGET) → 19. Count-anchor maintenance only; this
+        # characterization sub-sprint adds one bad case and changes no eval/
+        # scoring/simulator logic.
+        assert len(specs) == 19, (
+            f"bad_cases should carry exactly 19 cases (12 S-Eval-4 + 5 M-Auto-7 "
+            f"entity-context + 1 M-Auto-9 WP2 companion + 1 M-Auto-11 WP1 "
+            f"characterization instrument); found {len(specs)}"
         )
 
     def test_case_family_fixtures_load_unchanged(self):
