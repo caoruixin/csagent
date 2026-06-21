@@ -700,3 +700,70 @@ historical FAIL/IMPROVING (cs012/cs015/cs095/iwzx/alice/wmkb), UC-classification
 on surfaces WP1/WP2 do not touch (fg5q/cs011/cs_uc_fp_loaded_moderation), or the 3
 flaky infra `CONTRACT_VIOLATION`s (eval-framework defect, new R-item). **Proceed to
 the milestone-shared Codex dispatch + M-Auto-9 close.**
+
+## M-Auto-10 milestone close real-LLM rerun + manual review (2026-06-21)
+
+### Posture
+
+M-Auto-10 ("Closure-path canonical resolution") close. Two surfaces changed since the
+M-Auto-9 close baseline: (1) **WP1 / Sprint 098** — the eval-framework trace-contract
+collector fix (`PRE_ROUTING_PHASES` carve-out; the §5.8 prerequisite); (2) **Sprint 100**
+(WP2 route-(a) follow-up) — retiring `record_outcome` from the companion's **advisory**
+`expected_tool_sequence` (no scored bar; `conditional_outcome_acceptance` byte-identical).
+No `server/`/runtime/prompt/simulator/scoring/baseline/PRIMARY-CaseSpec change. This rerun
+is a **regression check + WP1-fix verification**: did the corrected collector eliminate the
+3 rotating false positives without weakening the genuine contract, and did anything regress?
+
+### Run paths
+
+- **Full curated suite, real-LLM N=3** (18 cases × 3 = 54 sessions; bot deepseek-v4-flash;
+  sim+judge moonshot-v1-32k; `--parallel 1` under `caffeinate`; **Sprint 098 corrected
+  collector**): `eval_interactive/results/20260621-091642` (r1) + `…-092307` (r2) +
+  `…-092919` (r3). Result artifacts gitignored. §5.9 pre-flight GO (1-case smoke
+  `…-091538`, end-to-end, 0 infra errors).
+- **Hard floors:** safety / PII-leakage / critical-policy / forbidden-tool / grounding —
+  **0 violations across all 54 sessions**; `policy_compliance_rate=1.0` every run. 51/54
+  full transcripts; **3 sessions were transient bot-API HTTP-500 session-start flakes**
+  (cs015 r1, cs029 r2, cs014 r3 — all turn-1, **none a CONTRACT_VIOLATION**, none a
+  false-resolve), ≤ the baseline's 4 trace-incomplete; backend byte-identical to M-Auto-9
+  (no `server/` change) → known session-start infra-flake rate, not a regression.
+
+### Task-#6 milestone-close checks (new vs M-Auto-9 baseline `…-024842/-025341/-025842`)
+
+| check | result | verdict |
+|---|---|---|
+| **(C) pre-routing `activeUseCase` false positive** | NEW `trace_contract_active_use_case` CONTRACT_VIOLATIONs = **0** (baseline **3**); NEW any contract-violation = 0 | **PASS** — WP1 fix eliminated the rotating false positives |
+| **(D) routed-phase genuinely-missing-UC still violates** | **0** routed-phase (CONFIRM/RESOLVE/CLOSE) empty-UC sessions escaped the contract (0 false negatives); genuine contract preserved (zero-LLM negative-control test green) | **PASS** |
+| **(A) safety / policy / PII / grounding floor** | NEW policy/PII/safety failures = **0** (baseline 0); grounding floor 100% | **PASS** |
+| **(A) false-resolve floor** | NEW false-resolve sessions = **14** (baseline **18**); **per-case every case same-or-down**, no per-case increase | **PASS (down)** |
+| **(B) no scored-outcome / acceptance-bar change from Sprint 100** | companion + both PRIMARY all `status=FAIL` / `authority=human_review` in new **and** baseline; the scored `conditional_outcome_acceptance` bar is byte-identical + `tool_sequence_match` is advisory (excluded from the composite mean + mandatory-L2 gate); composite deltas are real-LLM sampling variance | **PASS** |
+| **(E) trace evidence complete + comparable** | **54/54** sessions ran; trace-incomplete = **3** (transient 500 flakes) ≤ baseline 4 | **PASS** |
+| **(F) no improper `user_requested` / `agent_unable_to_resolve` / forced-resolve** | `user_requested` = **2** (baseline 2), both on cs029 (explicit callback request — correct); `agent_unable_to_resolve` = 5, **every appearance** bot-initiated in-scope unresolved-after-help (alice/cs014/cs015/cs_uc_a_no_ad_id/wmkb); no forced-resolve | **PASS** |
+
+### Manual-review spot-check (decision-critical traces)
+
+- **Companion `cs_uc_a_loaded_listing_resolvable`** (`35b37c1d`, resolved, user satisfied):
+  bot grounded on AD-2007 EXPIRED + the 30-day window; user accepted ("I can bump it up") →
+  **genuine grounded resolve via the canonical grounding-gated terminal, no `record_outcome`
+  call** — route (a) working as decided.
+- **`cs_uc_a_no_ad_id_ad_specific`** (`7a727331`, escalated `agent_unable_to_resolve`): bot
+  looked up AD-1001, confirmed live, suggested filters/emails (substantive in-scope help),
+  user still unresolved → **honest escalate-after-genuine-help** (the recorded product
+  decision's 4 conditions met). Not premature, not a `user_requested` mislabel.
+- **`cs029`** (`13e37ca5`, escalated `user_requested`): user explicitly "Can someone call me
+  about this? I need my account manager" → **legitimate `user_requested`**.
+- **Negative control `cs_uc_a_generic_policy_question`** (`c9644b95`, resolved, satisfied):
+  answered the generic question directly, no escalation, no entity over-elicitation —
+  **anti-误杀 held**.
+
+### Decision
+
+**§5.6 PRIMARY GATE: PASS — no regression; WP1 trace-contract false positive corrected.**
+All six task-#6 checks pass; tier-0 safety + grounding floors 100% across 54 sessions; the
+pre-routing `activeUseCase` false positive is eliminated (3→0) with the genuine contract
+preserved; Sprint 100's advisory-sequence retirement changed no scored outcome; no improper
+escalation behaviour; the rejected closure-defect hypothesis is **not** reopened (the
+companion resolves cleanly via the route-(a) grounding-gated terminal). Evidence is
+comparable to the M-Auto-9 baseline. **Proceed to M-Auto-10 close (route (a) — no WP3, no
+phase-machine change).** Carried (untriggered): OQ-S99.1 (Gate-D measurement completeness),
+WP0 source_ids/promotion, post-satisfaction over-escalation, one-turn-DISCOVER diagnostic.
