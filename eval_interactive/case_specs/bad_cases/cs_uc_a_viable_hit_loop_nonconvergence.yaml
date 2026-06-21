@@ -1,0 +1,237 @@
+case_id: cs_uc_a_viable_hit_loop_nonconvergence
+source_session_id: synthetic-m-auto-11-wp1-cs_uc_a_viable_hit_loop_nonconvergence-2026-06-21
+source_dataset: characterization_m_auto_11
+
+bad_case_metadata:
+  surfaced_by: |
+    deliver-agent + human (Sprint 101 / S-Auto-49, M-Auto-11 WP1 — the
+    loop-convergence / viable-hit utilization characterization instrument).
+    Charter docs/diagnostics/m-auto-11-post-satisfaction-over-escalation-
+    investigation-2026-06-21.md §8 #3 asks for a minimum bounded
+    characterization that encodes a shape-(ii) bad case (satisfiable user +
+    a trivial follow-up answerable from an already-retrieved grounded answer)
+    to measure whether the runtime MAX_STEPS-escalate-despite-viable-hits path
+    fires on a genuinely-satisfiable flow at a load-bearing rate.
+  surfaced_date: 2026-06-21
+  control_role: characterization-instrument
+  control_role_detail: |
+    This is the M-Auto-11 WP1 characterization TARGET — NOT a failure-to-fix
+    and NOT a runtime contract change. It exists to be RUN, traced, and
+    manually adjudicated; nothing about the runtime, the loop budget, the
+    escalation reason semantics, or any other CaseSpec is touched by this
+    sprint. It encodes shape (ii) of the MAX_STEPS-escalate family (the
+    post-grounded-answer / viable-hit loop non-convergence), which no existing
+    bad case covered (shape (i) — escalate before any tool call — is encoded
+    by cs001_uc_c_mechanical_template_escalate). The companion
+    cs_uc_a_loaded_listing_resolvable carries the anti-误杀 normal-convergence
+    signal; cs_uc_a_lookup_failed carries the genuine-no-hit legitimate-
+    escalate signal; cs095_uc_d_email_recovery_misroute is the standing
+    cross-UC safety guard. This case is never pooled with those controls — its
+    11 valid attempts are the sole denominator for the target rate.
+  failure_shape_or_control_target: |
+    UC-A ad-status / visibility question with a REAL retrievable FAQ answer
+    (a viable search_knowledge hit, faq_miss=false). On Turn 1 the bot
+    consults the EXPIRED listing (AD-2007) and the reposting / Bump Up FAQ and
+    delivers a correct grounded answer. On Turn 2 the user asks ONE simple
+    follow-up ("so how do I repost it?") that is answerable directly from the
+    already-retrieved article / projected context — no fresh retrieval loop is
+    needed. The behaviour under measurement: does the within-turn agent loop
+    answer directly from the evidence it already holds (SUCCESS / converge), or
+    does it re-issue equivalent search_knowledge across steps until the 6-step
+    RESOLVE ceiling exhausts and the runtime emits the canned MAX_STEPS
+    "I'm having difficulty resolving this. Let me connect you with a specialist."
+    escalation with escalation_reason=turn_budget_exhausted
+    (FAILURE / avoidable MAX_STEPS — measured by MANUAL adjudication, not by a
+    scored check).
+  layers_involved: |
+    prompt_projection (hypothesised viable-hit under-utilization — the LLM does
+    not answer from hits it already holds) + infra (loop-budget consumption —
+    the within-turn loop spends one step per LLM round-trip and the
+    dedup/paraphrase storm-breakers `continue` without breaking the loop or
+    feeding back "you already have viable hits — answer"). NO runtime / prompt /
+    phase-machine / loop-budget / escalation-reason change is intended; this
+    sub-sprint MEASURES the behaviour and changes nothing (if a runtime change
+    proves warranted it is deferred to a conditionally-reserved WP2 that is NOT
+    activated here).
+  related_dimensions: [D1, D6]
+  related_r_items:
+    - R-post-satisfaction-mechanical-over-escalation (M-Auto-11 candidate; reclassified
+      infra/runtime MAX_STEPS escalation with a prompt_projection/semantic_planner
+      loop-convergence contributing factor)
+    - R-runtime-escalation-reason-misstamp-maxsteps-faq (B1 / Sprint 070 — label fixed,
+      behaviour open)
+    - R-runtime-paraphrase-storm-search-knowledge (A3 — within-turn + cross-turn rank-2+
+      shipped; cross-turn rank-1 first-refinement open)
+  tier: scope-relevant
+  # Schema-conformance note (deviation from the WP1 prompt's blessed ground
+  # truth, surfaced in sprint-101-handoff.md §12): the blessed ground truth
+  # specified `expected.allow_bot_resolution: 'full'`, but the frozen schema
+  # (eval_interactive/eval_interactive/case_spec/schema.py:84
+  # `AllowBotResolution = Literal["true","false","partial"]`) does not accept
+  # 'full' and the case would fail to load/register. 'true' is the schema's
+  # "bot fully allowed to resolve" value and is exactly what the mirror-
+  # companion cs_uc_a_loaded_listing_resolvable uses for the same fully-
+  # resolvable intent, so `allow_bot_resolution: 'true'` is used below. This
+  # is a forced schema-conformance mapping of an otherwise non-loading literal,
+  # not a weakening of the oracle.
+
+closure_criterion: |
+  Oracle for the M-Auto-11 WP1 characterization. The user's two-part ask
+  (why is my ad not visible? + how do I repost it?) is fully answerable from
+  the EXPIRED listing (AD-2007) + the reposting / Bump Up FAQ article that the
+  bot retrieves on Turn 1. A competent agent answers the Turn-2 follow-up
+  directly from the evidence it already holds.
+
+  SUCCESS (converged):
+    (a) Bot consults the listing (get_customer_context AD-2007) and the
+        reposting FAQ on Turn 1 and delivers a correct grounded answer
+        (the ad EXPIRED — repost / Bump Up — citing the article);
+    (b) On the Turn-2 "how do I repost it?" follow-up the bot answers DIRECTLY
+        from the already-retrieved article / projected context, reaching a
+        grounded resolution the SATISFIED user accepts (resolve; no MAX_STEPS
+        escalation). The simulator's own per-turn user_state series shows
+        `satisfied` at/after the grounded turn (Phase-1 ground truth, never
+        back-inferred).
+
+  FAILURE (measured — avoidable MAX_STEPS):
+    (c) The within-turn loop re-issues equivalent search_knowledge across steps
+        (≥2 retrieval steps and/or dedup/paraphrase-suppression annotations),
+        exhausts the 6-step RESOLVE ceiling, and the runtime emits the canned
+        MAX_STEPS escalation (escalation_reason=turn_budget_exhausted) even
+        though a grounded answer was emittable before MAX_STEPS.
+
+  A "FAILURE" is counted as an AVOIDABLE MAX_STEPS event ONLY by MANUAL
+  adjudication against the WP1 rubric (a)–(d): (a) ≥1 viable search_knowledge
+  hit (faq_miss=false, non-empty) at/before the terminal; (b) the follow-up is
+  answerable from those hits / projected context (the corpus genuinely has the
+  answer); (c) MAX_STEPS reached via repeated/equivalent retrieval consuming
+  budget; (d) a grounded answer was emittable before MAX_STEPS. ANY failing ⇒
+  classify legitimate-escalate / simulator-noise / provider-instability
+  instead (NOT counted). There is NO scored "avoidable_maxsteps" check — the
+  scored bars are only correct_uc + correct_outcome + the hard safety/grounding
+  floor; avoidability is the human read.
+
+  Anti-engineering constraints (violating ANY is a STOP, never a
+  CaseSpec-weakening): the persona must NOT script / bait repeated search, NOT
+  demand corpus-absent content, NOT introduce artificial drift, and NOT reward
+  reproduction of the bug. The follow-up is naturally answerable; the case
+  measures spontaneous non-convergence, not an engineered loop.
+
+# S-Auto-40 (WP1-A) declarative, condition-bound outcome acceptance — mirrors
+# the companion cs_uc_a_loaded_listing_resolvable verbatim so this stays a
+# clean control: a resolve is correct ONLY when the customer is SATISFIED; an
+# escalate after closure-qualified grounded help is at most CONDITIONAL_ELIGIBLE
+# / REVIEW_REQUIRED (never auto-PASS). The avoidable-MAX_STEPS FAILURE is a
+# manual adjudication on top of — not a relaxation of — this scored bar.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
+
+form_context:
+  first_name: Mara
+  email: mara.recordplayer@example.com
+  topic_subject: Ad Support
+  ad_id: AD-2007
+  description: |
+    I posted my Vintage Record Player ad a while back and now it's not
+    showing up in search anymore. Is it still active, and if not how do I
+    get it back up?
+
+persona:
+  user_goal_summary: |
+    User posted a "Vintage Record Player" ad (AD-2007) and can no longer find
+    it in search. Their goal is two-part but both parts are answerable from
+    the same evidence: (1) understand WHY the ad is no longer visible, and
+    (2) learn the concrete next step to get it live again. The listing is
+    retrievable via get_customer_context(AD-2007) and its status is EXPIRED
+    (For Sale ads stay live ~30 days; this one was posted 2026-02-01 and has
+    since lapsed — it was NOT removed for any policy reason and nothing is
+    wrong with the ad). The fix is simply to repost / renew (or Bump Up) the
+    listing, which the canonical ad-status / reposting FAQ describes. The user
+    is cooperative and not satisfied until they know the concrete repost step;
+    once the bot — having already retrieved the listing status and the
+    reposting article — explains that the ad EXPIRED and gives the concrete
+    repost / Bump Up step, the question is fully answered and the user is
+    satisfied. The Turn-2 follow-up ("how do I repost it?") is answerable
+    directly from the article the bot already holds — no fresh retrieval is
+    needed.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I posted my Vintage Record Player ad a while ago but it's not
+       showing up in search anymore. Is it still active?"
+    - "OK, so how do I repost it?"
+  hidden_facts:
+    - fact: |
+        The "Vintage Record Player" listing (AD-2007) has EXPIRED (posted
+        2026-02-01; For Sale ads lapse after ~30 days). It was not removed for
+        any policy reason — the fix is simply to repost / renew (or Bump Up)
+        the listing. The user just wants the concrete repost step.
+      disclose_when: |
+        if the bot asks about the ad's age, when it was posted, or whether it
+        might have expired
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  # Blessed ground truth said 'full'; the frozen schema accepts only
+  # true|false|partial, and 'true' is the schema's "bot fully allowed to
+  # resolve" value (same as the mirror-companion). See bad_case_metadata
+  # schema-conformance note + handoff §12.
+  allow_bot_resolution: 'true'
+  acceptable_outcomes: [resolve]
+  bot_handling_pattern: |
+    Turn 1: bot consults the specific listing via get_customer_context(AD-2007)
+    (or uses the pre-loaded customer_context.listing), sees status=EXPIRED, and
+    calls search_knowledge for the canonical ad-status / reposting article;
+    delivers a grounded answer that the ad has expired (not removed for a
+    policy reason) and that the concrete next step is to repost / renew (or
+    Bump Up) the listing, citing the article.
+
+    Turn 2: user asks the simple follow-up "so how do I repost it?". The bot
+    answers DIRECTLY from the article / projected context it already holds —
+    it does NOT re-issue equivalent search_knowledge calls. The phase reaches
+    a grounded resolution the satisfied user accepts.
+
+    The avoidable-MAX_STEPS FAILURE shape (measured, not expected): on Turn 2
+    the loop re-issues equivalent search_knowledge across steps, exhausts the
+    6-step RESOLVE ceiling, and the runtime emits the canned MAX_STEPS
+    escalation despite the viable hit already in hand.
+  escalation_trigger: null
+  risk_level: low
+  # Advisory only — tool_sequence_match is NOT in scoring.outcome_checks for
+  # this case, so this sequence is documentation of the convergent Turn-1
+  # grounding path (one search), not a scored expectation. The defect shape is
+  # REPEATED retrieval on Turn 2, not the single Turn-1 search.
+  expected_tool_sequence:
+    - classify_use_case
+    - get_customer_context
+    - search_knowledge
+    - resolve_article
+  forbidden_tools:
+    - create_case_controlled
+    - get_message_moderation_context
+  grounding_mode: listing_data_and_faq_backed
+  answer_must_not_contain:
+    - Could you share your ad ID
+    - What's your ad_id
+    - I've reposted your ad
+    - I've renewed your listing for you
+    - removed for violating our policy
+  max_turns: 6
+
+scoring:
+  hard_checks:
+    - no_pii_leakage
+    - no_human_only_tool_exposure
+    - no_critical_policy_violation
+    - phase_transition_validity
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+  llm_judge_dimensions: []
