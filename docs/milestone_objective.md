@@ -60,8 +60,8 @@ evidence is load-bearing. WP3 is not pre-authorized at all.
 
 Establish, on **bounded real-LLM evidence**, whether the
 "reach-MAX_STEPS-despite-viable-hits" behaviour is **reproducible / load-bearing**,
-**intermittent-but-material**, or **isolated / non-actionable** — independently of any
-simulator-only state — and only then decide whether a narrow loop-convergence
+**intermittent / non-load-bearing**, or **`CHARACTERIZATION_NEGATIVE`** — independently of
+any simulator-only state — and only then decide whether a narrow loop-convergence
 intervention is warranted. Preserve the already-delivered **honest**
 `turn_budget_exhausted` labeling (B1 / S-Auto-14); this milestone is about the
 potentially-avoidable *behaviour* that reaches MAX_STEPS, not the *label* on it.
@@ -70,27 +70,36 @@ potentially-avoidable *behaviour* that reaches MAX_STEPS, not the *label* on it.
 
 ### WP1 — Sprint 101 / S-Auto-49 — bounded loop-convergence characterization (REQUIRED FIRST)
 
-Characterization only. Encodes **one** narrow human-blessed shape-(ii) CaseSpec (§5)
-plus reuses three existing controls, runs a **minimum bounded real-LLM V3-cadence
-sample**, and adjudicates per-attempt whether each MAX_STEPS/`turn_budget_exhausted`
-terminal was **avoidable** (viable hits present + answerable follow-up + a grounded
-answer was emittable before MAX_STEPS) vs **legitimate** (genuine no-hit, persona
-genuinely unresolved, or correct degradation) vs **noise** (simulator continuation
-variance / provider instability). Deliverable = a human-reviewable characterization
-verdict + attribution table. **Ships no runtime/eval/scoring/baseline/existing-CaseSpec/
-simulator change.** Full contract: `docs/sprint_objective.md`; dev prompt
-`compact/sprint-101-dev-prompt.md`.
+Characterization only. Encodes **one** narrow human-blessed shape-(ii) CaseSpec (the
+TARGET `cs_uc_a_viable_hit_loop_nonconvergence`, §5) plus reuses **three FROZEN existing
+cases** — the normal-convergence viable-hit control `cs_uc_a_loaded_listing_resolvable`,
+the genuine no-hit/unusable-hit control `cs_uc_a_lookup_failed`, and the standing
+safety/cross-UC guard `cs095_uc_d_email_recovery_misroute` (`tier: core`, UC-D) — runs a
+**bounded real-LLM V3-cadence sample** (4 cases × N=11 valid attempts = 44 valid sessions,
+`--parallel 1`), and adjudicates per-attempt whether each MAX_STEPS/`turn_budget_exhausted`
+terminal was **avoidable** (viable hits present + answerable follow-up + repeated retrieval
+consuming the budget + a grounded answer emittable before MAX_STEPS) vs **legitimate**
+(genuine no-hit, persona genuinely unresolved, or correct degradation) vs **noise**
+(simulator continuation variance / provider instability). The Jeffreys posterior and `k`
+are computed from the **TARGET's 11 valid attempts only** (controls are diagnostic, never
+pooled). Deliverable = a human-reviewable characterization verdict + attribution table.
+**Ships no runtime/eval/scoring/baseline/existing-CaseSpec/simulator change.** Full
+contract: `docs/sprint_objective.md` (frozen IDs §4.1; oracle §4.3; valid-attempt rule
+§6.2; conjunctive gate §6.3); dev prompt `compact/sprint-101-dev-prompt.md`.
 
 ### WP2 — Sprint 102 / S-Auto-50 — design review (CONDITIONAL; reserved id; NOT pre-committed)
 
-Launched **only if** WP1 ⇒ load-bearing AND causally coherent. Read-only design review
-of the **narrowest** loop-convergence intervention, weighing (without pre-committing to
-any one): (a) projecting the already-available viable-hit evidence more clearly into the
-next loop step (`prompt_projection`); (b) a soft loop-break permitting an answer from
-existing evidence before hard MAX_STEPS (`infra`); (c) suppressed-duplicate-step counter
-semantics. Verdict routes to (a) ship a WP3 charter, or (b) close NO-KEEP (the behaviour
-is acceptable / not narrowly fixable without violating a fence). Design-only; STOPS at
-the verdict; Codex design-review + human sign-off.
+Launched **only if** WP1 ⇒ the §sprint-§6.3 **conjunctive** load-bearing gate is met
+(every counted event satisfies the full avoidable rubric; target `k ≥ 2/11`; Jeffreys
+`P(p>0.10) ≥ 0.80`; no defeating provider/simulator/no-hit/control/engineering
+explanation). Read-only design review of the **narrowest** loop-convergence intervention,
+weighing (without pre-committing to any one): (a) projecting the already-available
+viable-hit evidence more clearly into the next loop step (`prompt_projection`); (b) a soft
+loop-break permitting an answer from existing evidence before hard MAX_STEPS (`infra`);
+(c) suppressed-duplicate-step counter semantics. Verdict routes to (a) ship a WP3 charter,
+or (b) **no WP3 — design-negative** (the behaviour is acceptable / not narrowly fixable
+without violating a fence). Design-only; STOPS at the verdict; Codex design-review + human
+sign-off.
 
 ### WP3 — runtime loop-convergence change (CONDITIONAL; NOT pre-authorized; no reserved scope)
 
@@ -116,20 +125,23 @@ YAML.
 
 ## 6. Milestone acceptance bar (characterization-anchored)
 
-1. **WP1 (hard):** a human-reviewable characterization verdict classifying the
+1. **WP1 (hard):** a human-reviewable characterization verdict classifying the TARGET's
    reach-MAX_STEPS-despite-viable-hits behaviour as **load-bearing / intermittent /
-   isolated**, with a per-attempt attribution table on the bounded V3-cadence sample, the
-   convergent-resolve and legitimate-escalate controls behaving as expected (the
-   convergent control does NOT reach MAX_STEPS at a load-bearing rate; the
-   legitimate-escalate control's MAX_STEPS is NOT misclassified as avoidable), the
-   anti-误杀 negative control not regressing, and safety/grounding hard floors green on
-   every draw. WP1 ships no behaviour.
-2. **Decision gate (hard):** WP2 is scoped **only if** WP1 is load-bearing AND causally
-   coherent (the avoidable terminals are explained by repeated/equivalent retrieval
-   consuming the step budget with viable hits already present — not by no-hit, genuine
-   unresolution, simulator continuation noise, or provider instability). If WP1 is
-   isolated/non-actionable, the milestone **closes NO-KEEP** and the item is folded as an
-   observation (no WP2/WP3).
+   `CHARACTERIZATION_NEGATIVE`** (`k` from the target's 11 valid attempts only; controls
+   not pooled), with a per-attempt attribution table on the bounded V3-cadence sample; the
+   normal-convergence control (`cs_uc_a_loaded_listing_resolvable`) and the
+   no-hit/unusable-hit control (`cs_uc_a_lookup_failed`) behaving as expected (the
+   convergent control does NOT reach avoidable-MAX_STEPS at a load-bearing rate; the
+   no-hit control's MAX_STEPS is NOT misclassified as avoidable); the standing cross-UC
+   guard (`cs095_uc_d_email_recovery_misroute`) not regressing; and safety/grounding hard
+   floors green on every valid draw. WP1 ships no behaviour.
+2. **Decision gate (hard):** WP2 is scoped **only if** the §sprint-§6.3 **conjunctive**
+   gate holds (every counted event satisfies the full avoidable rubric; target `k ≥ 2/11`;
+   Jeffreys `P(p>0.10) ≥ 0.80`; no defeating provider-instability / simulator-noise /
+   no-hit-unusable-hit / control-case / CaseSpec-engineering explanation). If `k = 1/11`
+   the result is **intermittent / non-load-bearing** (no automatic WP2). If `k = 0/11` or
+   no causally valid events, the milestone closes **`CHARACTERIZATION_NEGATIVE — NO WP2`**
+   and the item is folded as an observation (no WP2/WP3).
 3. **WP2 (conditional, hard):** a human + Codex-blessed design verdict routing to a WP3
    charter or to close.
 4. **WP3 (conditional, hard):** the runtime change passes the §4/§5 protections + the
@@ -186,4 +198,5 @@ YAML.
 ## 11. Estimated duration (informational)
 
 ~1–3 sub-sprints. WP1 is the only committed sub-sprint. WP2 (+WP3) materialize only on a
-load-bearing WP1 verdict. If WP1 is isolated, the milestone closes after WP1.
+load-bearing WP1 verdict. If WP1 is `CHARACTERIZATION_NEGATIVE` (or intermittent), the
+milestone closes after WP1.
