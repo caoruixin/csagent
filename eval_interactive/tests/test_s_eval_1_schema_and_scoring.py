@@ -371,13 +371,19 @@ class TestBackwardCompatLoad:
         # the Alice YAML (S-Eval-4 §6 #5 / milestone §6 #6).
         assert "alice_uc_a_uc_h_misclass" in ids
         # S-Eval-4 (Sprint 45) expansion: 11 new bad cases sourced from the 17
-        # approved `case_spec_overrides.yaml` entries landed alongside Alice.
-        # Total = 12 = 1 Alice + 11 new (cs012 / cs015 / cs066 / cs029 / cs095 /
-        # cs011 / cs014 / cs001 / wmkb / iwzx / fg5q). Anchor floor for the
-        # S-Eval-1 checkpoint at HEAD after S-Eval-4 close.
-        assert len(specs) == 12, (
-            f"bad_cases should carry exactly 12 cases (1 Alice + 11 S-Eval-4 expansion) "
-            f"at S-Eval-4 close baseline; found {len(specs)}"
+        # approved `case_spec_overrides.yaml` entries landed alongside Alice
+        # (1 Alice + 11 = 12).
+        # M-Auto-7 (Sprint 086b) entity-context expansion: +5 UC-A/UC-FP
+        # entity-context cases (cs_uc_a_no_ad_id_ad_specific,
+        # cs_uc_a_generic_policy_question, cs_uc_a_loaded_listing,
+        # cs_uc_fp_loaded_moderation, cs_uc_a_lookup_failed) → 17.
+        # Sprint 097 / S-Auto-45 (M-Auto-9 WP2): +1 satisfiable companion
+        # `cs_uc_a_loaded_listing_resolvable` → 18. (This anchor was stale at
+        # 12 from the M-Auto-7 close, which did not update it; corrected to the
+        # current count alongside the WP2 add.)
+        assert len(specs) == 18, (
+            f"bad_cases should carry exactly 18 cases (12 S-Eval-4 + 5 M-Auto-7 "
+            f"entity-context + 1 M-Auto-9 WP2 companion); found {len(specs)}"
         )
 
     def test_case_family_fixtures_load_unchanged(self):
