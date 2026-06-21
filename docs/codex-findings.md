@@ -16,10 +16,10 @@ this file is reset to this scaffold.
   summary: <one paragraph>
   ```
 
-**Last archived:** M-Auto-10 → `docs/milestones/M-Auto-10_codex-review.md` (2026-06-21;
-S-Auto-47 design-review APPROVE/0; no new Codex run required at close — WP1 §4.1-EXEMPT,
-WP2 design-review APPROVE'd, Sprint 100 within pre-assessed bounds, deliver close
-docs/status-sync only, §5.6 confirms route (a)). Prior: M-Auto-9 →
+**Last archived:** M-Auto-11 → `docs/milestones/M-Auto-11_codex-review.md` (2026-06-22;
+WP1 TARGET CaseSpec anti-hardcode review `approve`/0; milestone-close `pass`/0 — single
+additive characterization CaseSpec, no semantic hardcode / oracle-weakening / forbidden
+surface). Prior: M-Auto-10 → `docs/milestones/M-Auto-10_codex-review.md`; M-Auto-9 →
 `docs/milestones/M-Auto-9_codex-review.md`.
 
 ---
