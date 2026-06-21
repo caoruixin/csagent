@@ -2,7 +2,14 @@
 title: "M-Auto-10 WP2 — Canonical RESOLVE closure-path decision (OQ-S93.1): ROUTE (a) — grounding-gated isResolvedSuccessTerminal is canonical"
 doc_tier: proposal
 status: proposal
-implementation_status: not_started
+implementation_status: implemented
+implemented_by: >
+  Route-(a) corrections landed in Sprint 100 / S-Auto-48 (M-Auto-10 WP2
+  route-(a) follow-up): companion cs_uc_a_loaded_listing_resolvable
+  expected_tool_sequence record_outcome retirement + characterization-test
+  update + OQ-S93.1 brief / M-Auto-9 charter / Sprint 097 handoff annotations.
+  No runtime / scored-acceptance-bar change. The §4.2 OQ-S99.1 remains an
+  untriggered, unscheduled Gate-D robustness / measurement-completeness question.
 source_of_truth: this file (design verdict); runtime code paths + recorded WP2 traces cited inline
 last_reviewed: 2026-06-21
 review_cadence: per milestone
@@ -118,6 +125,14 @@ escalate**. Closure split:
 |---|---|---|---|
 | **resolved (grounding-gated, Gate D)** | **8/11** | **(iii)** grounding-gated **is** the canonical closure | `…014438` (UC-A, CONFIRM-promoted, articles=6), `…014556`, `…014718`, `…014832`, `…014935`, `…015148`, `…015309`, `…015535` |
 | **empty containment** | **3/11** | **(i)+(ii)** + a Gate-D-internal miss (NOT (iv)) | see below |
+
+> **Shorthand clarification (2026-06-21, route-(a) follow-up).** "`…014438`
+> (UC-A, **CONFIRM-promoted**)" means the DB record persisted
+> `phase_after=CONFIRM` (the Gate-B structural promotion of the prior grounded
+> RESOLVE turn). It does **not** mean a CONFIRM-phase `phase_plan` bot turn ran:
+> the companion is `reachedCONFIRM=0/11` — no CONFIRM planner turn executed on
+> any companion draw (the simulator `goal_achieved` preempt ends the session
+> first). The grounding-gated terminal stamps the resolve without a CONFIRM turn.
 
 The 3 empty draws — **all** satisfied + `goal_achieved`-preempted:
 

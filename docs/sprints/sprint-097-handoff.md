@@ -218,6 +218,21 @@ baseline (not regressed). **SUCCESS by the V3 rule.**
 
 ## 5. The closure mechanism (precise + honest) — resolve lands grounding-gated, NOT via explicit record_outcome→CONFIRM→CLOSE
 
+> **Forward annotation (2026-06-21, M-Auto-10 WP2 — ROUTE (a); does not alter
+> the delivered record below).** The "documented residual (OQ-S93.1)" this
+> section surfaces is now **resolved route (a)**: grounding-gated
+> `isResolvedSuccessTerminal` **is** the canonical one-shot satisfiable closure
+> (exactly what §5 sub-path 1 describes), and the explicit
+> `record_outcome→CONFIRM→CLOSE` path is the **sound multi-turn** closure
+> (demonstrated landing end-to-end on the PRIMARY `cs_uc_a_loaded_listing`),
+> **not** a runtime closure defect. It is structurally unreachable on this
+> one-shot satisfiable flow only because the satisfied user ends the session
+> (`goal_achieved`) before a CONFIRM turn — a simulator preempt, not a bot fault.
+> So the §5 residual was **not** a "make resolve land" runtime gap; no
+> phase-machine change was required. Verdict:
+> [`../proposals/m-auto-10-wp2-closure-path-canonical-decision.md`](../proposals/m-auto-10-wp2-closure-path-canonical-decision.md);
+> route-(a) trace-expectation + docs corrections applied in Sprint 100 / S-Auto-48.
+
 The bounded run resolves a subtlety in the §2/§5 "record_outcome(resolve) → CONFIRM
 → CLOSE" phrasing. Two runtime sub-paths were observed (no runtime change made):
 

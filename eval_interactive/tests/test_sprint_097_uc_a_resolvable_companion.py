@@ -5,7 +5,9 @@ Zero-LLM. Pins two things the real-LLM bounded run cannot itself certify
 cheaply, and which a future edit must not silently break:
 
 1. The companion CaseSpec loads + carries the §5 trace contract (UC-A,
-   resolve, no escalation, the consult→ground→record tool sequence, the
+   resolve, no escalation, the consult→ground advisory tool sequence —
+   `record_outcome` retired per the OQ-S93.1 ROUTE (a) verdict, since the
+   grounding-gated terminal is the canonical one-shot closure — the
    anti-misroute forbidden tools, the identical-to-PRIMARY
    `conditional_outcome_acceptance` block).
 
@@ -117,15 +119,25 @@ def test_companion_loads_and_carries_uc_a_resolve_contract():
     assert cs.closure_criterion is not None
 
 
-def test_companion_tool_sequence_is_consult_then_ground_then_record():
+def test_companion_tool_sequence_is_consult_then_ground_record_outcome_retired():
+    # S-Auto-48 (M-Auto-10 WP2 route-(a) follow-up): `record_outcome` is RETIRED
+    # from the required canonical one-shot sequence per the OQ-S93.1 ROUTE (a)
+    # verdict. On the canonical one-shot satisfiable flow the simulator ends on
+    # `goal_achieved` before a CONFIRM turn, so the grounding-gated
+    # `isResolvedSuccessTerminal` terminal — not a landed `record_outcome` — is
+    # the canonical closure. `tool_sequence_match` is advisory severity (it does
+    # not gate the composite outcome score), so this correction changes no scored
+    # acceptance bar; the conditional-outcome bar is pinned unchanged below.
     cs = _companion()
     assert cs.expected.expected_tool_sequence == [
         "classify_use_case",
         "get_customer_context",
         "search_knowledge",
         "resolve_article",
-        "record_outcome",
     ]
+    # The overly-literal explicit-record_outcome trace expectation is retired:
+    # the canonical one-shot satisfiable sequence does NOT require record_outcome.
+    assert "record_outcome" not in cs.expected.expected_tool_sequence
     # Anti-misroute fences: an EXPIRED lifecycle question must not become a
     # UC-K case creation or a message-moderation (UC-FP-adjacent) probe.
     assert "create_case_controlled" in cs.expected.forbidden_tools
@@ -158,7 +170,15 @@ def test_companion_acceptance_block_is_identical_shape_to_primary():
 
 def test_satisfied_resolve_lands_pass():
     """The §5 target: grounded EXPIRED diagnosis + simulator user_state
-    `satisfied` + containment resolved → PASS (resolve CAN land)."""
+    `satisfied` + containment resolved → PASS (resolve CAN land).
+
+    This proves a genuine SATISFIED + grounded interaction records RESOLVE via
+    the CANONICAL grounding-gated terminal: the trace carries NO `record_outcome`
+    tool call, yet the scored conditional-outcome bar PASSes from
+    `containment_outcome=resolved` + the satisfied user_state. This is precisely
+    why the explicit-`record_outcome` `expected_tool_sequence` requirement could
+    be retired (OQ-S93.1 route (a)) without touching any scored acceptance bar.
+    """
     cs = _companion()
     tr = _trace(
         outcome="resolved",

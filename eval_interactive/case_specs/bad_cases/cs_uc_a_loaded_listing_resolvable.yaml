@@ -197,12 +197,29 @@ expected:
     phase reaches CONFIRM then CLOSE.
   escalation_trigger: null
   risk_level: low
+  # S-Auto-48 (Sprint 100, M-Auto-10 WP2 route-(a) follow-up): `record_outcome`
+  # is RETIRED from the required canonical one-shot sequence per the OQ-S93.1
+  # ROUTE (a) verdict
+  # (docs/proposals/m-auto-10-wp2-closure-path-canonical-decision.md).
+  # On the canonical one-shot satisfiable flow the user is satisfied and the
+  # simulator ends the session on `goal_achieved` BEFORE any CONFIRM-phase turn
+  # can run, so the grounding-gated `isResolvedSuccessTerminal` terminal
+  # (ControlKernel.java) — not a landed `record_outcome` — is the canonical
+  # closure. The explicit `record_outcome -> CONFIRM -> CLOSE` tool path is the
+  # SOUND MULTI-TURN closure (demonstrated landing end-to-end on the PRIMARY
+  # cs_uc_a_loaded_listing), structurally unreachable on this one-shot persona;
+  # the `bot_handling_pattern` Turn-3 / `closure_criterion` (d) prose describe
+  # that multi-turn path, not the one-shot terminal. This is an ADVISORY
+  # trace-expectation correction only (`tool_sequence_match` severity=advisory —
+  # excluded from the outcome-score mean and the mandatory-L2 gate); the scored
+  # `conditional_outcome_acceptance` bar (satisfied -> resolve, read from
+  # containment_outcome + the Phase-1 user_state series) is UNCHANGED, and
+  # nothing about what counts as SATISFIED / grounded / resolved is widened.
   expected_tool_sequence:
     - classify_use_case
     - get_customer_context
     - search_knowledge
     - resolve_article
-    - record_outcome
   forbidden_tools:
     - create_case_controlled
     - get_message_moderation_context

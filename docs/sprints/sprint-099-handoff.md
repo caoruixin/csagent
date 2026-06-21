@@ -90,6 +90,11 @@ so no CONFIRM turn runs — **not** Gate A, **not** a CONFIRM-skill/Gate-D defec
   the canonical closure; the literal record_outcome expectation is the artefact). Only
   **2/11** even attempted `record_outcome`. Cited: `…014438` (UC-A, CONFIRM-promoted,
   articles=6) + 7 others.
+  - **Shorthand note (2026-06-21, route-(a) follow-up):** "CONFIRM-promoted" = the
+    DB record persisted `phase_after=CONFIRM` (Gate-B structural promotion of the
+    prior grounded RESOLVE turn), **not** an executed CONFIRM `phase_plan` bot turn.
+    Companion `reachedCONFIRM=0/11`: no CONFIRM planner turn ran on any draw; the
+    grounding-gated terminal stamps the resolve without one.
 - **3/11 empty → mechanism (i)+(ii) + Gate-D-internal miss; NOT (iv):**
   - `…014322` (UC-B): premature `record_outcome` REJ in RESOLVE **(i)** + preempt **(ii)**;
     Gate C early-return suppressed Gate D. Satisfied.

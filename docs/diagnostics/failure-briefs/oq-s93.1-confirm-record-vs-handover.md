@@ -4,10 +4,18 @@ doc_tier: diagnostic
 status: diagnostic
 implementation_status: not_started
 source_of_truth: this file (evidence) + Sprint 093 bounded-run traces (eval_interactive/results/2026061[78]-*) + runtime code cited inline
-last_reviewed: 2026-06-18
+last_reviewed: 2026-06-21
 review_cadence: ad hoc
 supersedes: []
 superseded_by: null
+resolution: >
+  RESOLVED 2026-06-21 (M-Auto-10 WP2, ROUTE (a)): runtime-closure-defect
+  hypothesis (mechanism (iv)) REJECTED; grounding-gated isResolvedSuccessTerminal
+  is the canonical one-shot satisfiable closure; explicit record_outcome→CONFIRM→CLOSE
+  is the sound multi-turn path (demonstrated landing on the PRIMARY), not required
+  one-shot. Route-(a) corrections applied Sprint 100 / S-Auto-48; no runtime /
+  scored-bar change. See the RESOLUTION banner in the body + the verdict doc
+  docs/proposals/m-auto-10-wp2-closure-path-canonical-decision.md.
 notes: >
   Read-only research for OQ-S93.1, the SECOND deadlock layer surfaced by the
   Sprint 093 / S-Auto-39 bounded run. NO code / CaseSpec / evaluator / baseline
@@ -19,6 +27,36 @@ notes: >
 ---
 
 # OQ-S93.1 — CONFIRM-phase record-vs-handover + `user_requested` mislabel
+
+> **RESOLUTION (2026-06-21, M-Auto-10 WP2 — ROUTE (a); runtime-defect hypothesis
+> REJECTED).** The OQ-S93.1 question "is the explicit
+> `record_outcome→CONFIRM→CLOSE` path a product-required mechanism that must be
+> repaired?" is resolved **route (a)**: grounding-gated
+> `isResolvedSuccessTerminal` (`ControlKernel.java`) **is** the canonical RESOLVE
+> closure on a one-shot satisfiable flow; the explicit
+> `record_outcome→CONFIRM→CLOSE` path is the **sound multi-turn** closure,
+> **not** a runtime defect. The earlier "make `record_outcome` land" /
+> runtime-closure-defect hypothesis (WP2 mechanism (iv)) is **RULED OUT, not
+> merely absent**: the explicit path is demonstrated to land end-to-end on the
+> PRIMARY `cs_uc_a_loaded_listing` (a draw reaches `current_phase=CLOSE` after
+> `record_outcome` succeeds in CONFIRM). On the satisfiable companion it is
+> structurally unreachable only because a satisfied user ends the session
+> (`goal_achieved`) before any CONFIRM turn — a simulator preempt, not a bot or
+> runtime fault. **No runtime fix; no phase-machine change.** The route-(a)
+> trace-expectation + docs corrections were applied in **Sprint 100 / S-Auto-48**
+> (the companion `expected_tool_sequence` `record_outcome` retirement +
+> characterization-test update + these annotations); **no scored acceptance bar
+> changed**. A residual latent-robustness question (Gate-D missing 3/11 satisfied
+> one-shot users via two Gate-D-internal gaps) is preserved as the **untriggered,
+> unscheduled** open question **OQ-S99.1** (measurement-completeness, NOT a
+> closure defect, NOT mechanism (iv)). Verdict + full attribution:
+> [`../../proposals/m-auto-10-wp2-closure-path-canonical-decision.md`](../../proposals/m-auto-10-wp2-closure-path-canonical-decision.md).
+>
+> Sections below are preserved as the original 2026-06-18 research record. The
+> §3.5 "WP2 — CONFIRM record-vs-handover on *satisfiable* flows" item and the §5
+> "make resolve land" framing are now answered by route (a) above (the
+> satisfiable path closes grounding-gated; the explicit tool path is not
+> required on a one-shot flow).
 
 ## 0. Headline (reframes OQ-S93.1)
 

@@ -212,6 +212,18 @@ Map the post-loop interpreter and disposition logic as the design's foundation:
 
 ### 3. Required trace-level behavior for each PRIMARY (the design target)
 
+> **Annotation (2026-06-21, M-Auto-10 WP2 — ROUTE (a)).** Where this section
+> phrases the satisfied terminal as "record RESOLVE → CONFIRM": the canonical
+> closure on a **one-shot satisfiable** flow is the grounding-gated
+> `isResolvedSuccessTerminal` terminal (`ControlKernel.java`), **not** a landed
+> `record_outcome`. The explicit `record_outcome→CONFIRM→CLOSE` tool path is the
+> **sound multi-turn** closure (demonstrated landing end-to-end on the PRIMARY
+> `cs_uc_a_loaded_listing`); it is structurally unreachable on a one-shot
+> `goal_achieved` flow because the satisfied user ends the session before a
+> CONFIRM turn. This charter's "no phase-machine change is a first-class valid
+> outcome" (§6) is exactly what route (a) confirmed: no runtime fix. See
+> [`./m-auto-10-wp2-closure-path-canonical-decision.md`](./m-auto-10-wp2-closure-path-canonical-decision.md).
+
 - `no_ad_id`: request reference → load listing (`get_customer_context`) →
   grounded answer on listing state → **the correct terminal depends on the product
   decision.** exp-90 shows the ask+ground half already works (search HIT + listing
