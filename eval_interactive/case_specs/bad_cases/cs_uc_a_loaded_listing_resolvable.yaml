@@ -1,0 +1,232 @@
+case_id: cs_uc_a_loaded_listing_resolvable
+source_session_id: synthetic-wp2-cs_uc_a_loaded_listing_resolvable-2026-06-21
+source_dataset: bad_case_authored
+
+bad_case_metadata:
+  surfaced_by: |
+    deliver-agent + human (Sprint 097 / S-Auto-45, M-Auto-9 WP2 — the
+    satisfiable UC-A entity-context companion). Charter
+    docs/proposals/runtime-closure-record-outcome-design-milestone-oq-s93.1.md
+    §6 asks for a satisfiable companion to prove a recorded resolve terminal
+    CAN land, after M-Auto-7's pilot found neither unsatisfiable PRIMARY
+    persona reaches a recorded SATISFIED+resolve even when grounding is correct.
+  surfaced_date: 2026-06-21
+  bless_record: |
+    Human-BLESSED 2026-06-21 (deliver session): both the companion case_id
+    `cs_uc_a_loaded_listing_resolvable` (`resolvable` names the human-blessed
+    ground truth without implying an easy / unconditionally cooperative
+    persona) AND the 10-point §3 #2 resolvability + acceptance contract
+    (docs/sprint_objective.md Sprint 097 §3 #2). Authored exactly to those
+    blessed terms; not weakened or widened.
+  control_role: |
+    This is a VISIBLE companion / control, NOT a failure-to-fix. It differs
+    from the PRIMARY `cs_uc_a_loaded_listing` PRIMARILY in the persona
+    acceptance contract — same UC-A entity-context surface (a loaded listing
+    + an ad-specific question + the consult-then-ground flow), but a
+    SATISFIABLE diagnostic goal: the listing has a concrete, self-service-
+    resolvable cause (status=EXPIRED), so a correct, listing-grounded answer
+    ("your ad has expired — here is how to repost it") genuinely ACHIEVES the
+    user's understand-and-fix goal, whereas the PRIMARY's open-ended
+    "make my live ad perform better / appear in search" goal is unsatisfiable
+    in-chat (the simulator declares goal_status=impossible after a reasonable
+    answer). Reuses the already-committed AD-2007 EXPIRED fixture
+    (server/src/main/resources/mock/listings/expired_ad.json) — NO fixture
+    change, NO runtime / phase-machine / prompt / record_outcome change.
+  resolve_can_land_purpose: |
+    Goal = demonstrate a recorded SATISFIED → record_outcome(resolve) →
+    CONFIRM → CLOSE terminal can land end-to-end on a genuinely-satisfiable
+    flow, decided under the S-Y1.7 V3 noise-aware rule (not raw pass counts),
+    via the EXISTING Sprint-093 RESOLVE→CONFIRM transition + Sprint-096 WP1
+    reason honesty — with NO premature-guard relax and NO phase forcing.
+  tool_visibility_note: |
+    The agent's entity tool is `get_customer_context` (AGENT_VISIBLE — the
+    sanitized composite). Its sanitized listing projection surfaces ad_id,
+    title, category, STATUS, price, location, posted_date, is_featured
+    (GetCustomerContextTool.sanitizeListing). status=EXPIRED IS agent-visible;
+    the fixture's `expired_at` timestamp is NOT projected, so the grounded
+    diagnosis keys on the visible EXPIRED status + posted_date, never on the
+    exact expiry timestamp. EXPIRED is neither `removed` nor `moderated`, so
+    get_customer_context does NOT fetch a moderation_review — this stays a
+    clean UC-A lifecycle question, not a UC-FP moderation case.
+    `customer_context_status` is OBSERVATION-ONLY here (it tracks the
+    RUNTIME_ONLY lookup_listing_or_ad tool the agent cannot call), not a
+    pass/fail signal.
+  failure_shape_or_control_target: |
+    The control fails (stays UNRESOLVED / no recorded genuine resolve) if the
+    bot answers with a generic ad-visibility / search FAQ article without
+    consulting the listing, or misroutes the EXPIRED lifecycle question to a
+    UC-FP removed-for-policy / UC-K technical frame, or records a false
+    resolve while the user is still dissatisfied. It PASSES only when the bot
+    consults AD-2007, grounds the diagnosis in the actual EXPIRED status, and
+    records a resolve the SATISFIED user accepts.
+  layers_involved: |
+    eval_spec (companion CaseSpec / persona + acceptance contract authoring).
+    No runtime / prompt / phase-machine / record_outcome change is intended
+    (if one proves necessary the sub-sprint STOPs and surfaces a real closure
+    defect — sprint_objective.md §8).
+  related_dimensions: [D1, D6]
+  related_r_items:
+    - R-oq-s93.1 (M-Auto-9 WP2 — prove RESOLVE→CONFIRM→CLOSE can land)
+    - OBS-S1 (entity-context verification for UC-A)
+  tier: tier_1_companion
+
+closure_criterion: |
+  Bot CONSULTS the specific listing (via get_customer_context for AD-2007)
+  and USES the listing's actual status in a substantive, accurate diagnosis,
+  then records a resolve that the SATISFIED customer accepts.
+
+  PASS conditions:
+    (a) Bot consults entity context via get_customer_context(AD-2007) (or
+        demonstrably uses the pre-loaded customer_context.listing);
+    (b) Bot's answer materially depends on the listing's actual EXPIRED
+        status: it tells the user the ad has EXPIRED (not generic "check your
+        filters / ads take time to appear" advice) AND gives the concrete
+        grounded next step (repost / renew the listing). At least one
+        diagnosis or recommended action depends on the real listing state /
+        fields (status=EXPIRED, title, category, posted_date);
+    (c) The customer is SATISFIED by that grounded answer — the simulator's
+        own per-turn user_state series shows `satisfied` at/after the
+        grounded turn (Phase-1 ground truth, never back-inferred);
+    (d) `correct_outcome: resolve`; the phase path reaches CONFIRM then
+        CLOSE; `escalation_reason` is none.
+
+  FAIL conditions:
+    (e) Bot answers with a generic ad-visibility / search FAQ article without
+        consulting the listing and references no listing-specific status /
+        field — merely naming the title / status before reverting to generic
+        FAQ advice does NOT satisfy;
+    (f) Bot misclassifies the UC (e.g. UC-FP removed-for-policy, UC-K
+        technical-defect) instead of UC-A — the ad simply EXPIRED, it was not
+        removed for a policy reason and there is nothing broken about it;
+    (g) Bot asks the user for an ad_id that is already in form_context;
+    (h) Bot records a resolve while the customer is still positively
+        UNRESOLVED (false resolve), or escalates after the customer was
+        already satisfied.
+
+  Observation (not a gate): `customer_context_status` may read
+  `lookup_skipped` even on a PASS — it tracks the RUNTIME_ONLY
+  lookup_listing_or_ad tool the agent cannot call; this case keys on the
+  AGENT_VISIBLE get_customer_context signal + grounding in the returned
+  EXPIRED listing status.
+
+# S-Auto-40 (WP1-A): declarative, condition-bound outcome acceptance.
+# IDENTICAL in shape to the two PRIMARY (cs_uc_a_loaded_listing /
+# cs_uc_a_no_ad_id_ad_specific): a resolve is correct ONLY when the customer
+# is SATISFIED; an escalate after closure-qualified grounded help is at most
+# CONDITIONAL_ELIGIBLE / REVIEW_REQUIRED (never auto-PASS). The companion
+# differs from the PRIMARY ONLY in the persona's satisfiability, NOT in this
+# acceptance mechanism — so this block stays a clean control. For THIS
+# satisfiable persona the SATISFIED → resolve branch is the target terminal;
+# a false resolve on a still-UNRESOLVED user still FAILs, and a premature /
+# unsatisfied escalation is not auto-accepted.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
+
+form_context:
+  first_name: Karen
+  email: karen.techbug@example.com
+  topic_subject: Ad Support
+  ad_id: AD-2007
+  description: |
+    I posted my Vintage Record Player ad a while back but it's not showing
+    up in search anymore and I can't find it in my listings. Is it still
+    active, and what do I need to do?
+
+persona:
+  user_goal_summary: |
+    User posted a "Vintage Record Player" ad (AD-2007) and now cannot find
+    it in search or on their listings page. Their goal is to UNDERSTAND why
+    it is no longer visible and to learn the concrete next step to make it
+    live again. The listing is retrievable via get_customer_context(AD-2007)
+    and its status is EXPIRED (For Sale ads stay live ~30 days; this one was
+    posted 2026-02-01 and has since lapsed — it was NOT removed for any
+    policy reason and nothing is wrong with the ad). The user is cooperative
+    and just wants a clear, accurate answer about their specific ad. This is
+    an information / understanding goal: once the bot explains — grounded in
+    the actual listing — that the ad has EXPIRED and that they can repost /
+    renew it, the user's question is fully answered and they are satisfied.
+  frustration_level: mild
+  verbosity: normal
+  drift_behavior: none
+  seed_messages:
+    - "Hi, I posted my Vintage Record Player ad a while ago but it's not
+       showing up in search anymore and I can't find it in my listings.
+       Is it still active?"
+    - "Yes, that's the one — AD-2007."
+    - "Ah, that makes sense — so I just repost it. Thanks, that clears it up."
+  hidden_facts:
+    - fact: |
+        The "Vintage Record Player" listing (AD-2007) has EXPIRED. For Sale
+        ads stay live for about 30 days; this one was posted on 2026-02-01
+        and lapsed rather than being removed for any policy reason. The fix
+        is simply to repost / renew it — there is nothing wrong with the ad
+        itself.
+      disclose_when: |
+        if the bot asks about the ad's age, when it was posted, or whether
+        it might have expired
+  will_request_human_if: |
+    the bot gives a generic answer about ad visibility or search (e.g.
+    "check your filters", "ads can take time to appear", a generic FAQ
+    article) WITHOUT consulting the specific listing and telling you its
+    actual status; or the bot claims the ad was removed for a policy
+    violation (it was not — it simply expired); or the bot asks for an
+    ad_id that is already in the form
+
+expected:
+  outcome_class: resolve
+  primary_uc: UC-A
+  secondary_ucs: []
+  should_escalate: false
+  allow_bot_resolution: 'true'
+  bot_handling_pattern: |
+    Turn 1: bot consults the specific listing via get_customer_context(AD-2007)
+    (or uses the pre-loaded customer_context.listing), sees status=EXPIRED,
+    and answers with a grounded diagnosis that references the user's specific
+    listing (title "Vintage Record Player", posted 2026-02-01, EXPIRED) — it
+    explains the ad has expired (it was not removed for a policy reason) and
+    that the concrete next step is to repost / renew it; optionally calls
+    search_knowledge for the canonical ad-status / reposting article.
+
+    Turn 2: user confirms (AD-2007) / asks "so I just repost it?"; bot
+    confirms the grounded next step.
+
+    Turn 3: user is satisfied; bot records resolution (record_outcome) and the
+    phase reaches CONFIRM then CLOSE.
+  escalation_trigger: null
+  risk_level: low
+  expected_tool_sequence:
+    - classify_use_case
+    - get_customer_context
+    - search_knowledge
+    - resolve_article
+    - record_outcome
+  forbidden_tools:
+    - create_case_controlled
+    - get_message_moderation_context
+  grounding_mode: listing_data_and_faq_backed
+  answer_must_not_contain:
+    - Could you share your ad ID
+    - What's your ad_id
+    - I've reposted your ad
+    - I've renewed your listing for you
+    - removed for violating our policy
+  max_turns: 6
+
+scoring:
+  hard_checks:
+    - phase_transition_validity
+    - no_critical_policy_violation
+    - no_pii_leakage
+    - no_stall
+    - no_human_only_tool_exposure
+    - no_forbidden_tools
+    - budget_enforcement
+    - grounding_compliance
+  outcome_checks:
+    - correct_uc
+    - correct_outcome
+    - tool_sequence_match
+  llm_judge_dimensions: []
