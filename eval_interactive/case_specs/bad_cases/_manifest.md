@@ -608,3 +608,95 @@ still pins `correct_uc` / `correct_outcome` / `tool_sequence_match`.
   []` → `[correct_uc, correct_outcome, tool_sequence_match]` (appendix
   §8). Existing ledger verdicts untouched; the strengthened checks gate
   from the next re-bless onward.
+
+## M-Auto-9 milestone close bad-case review (2026-06-21)
+
+### Posture
+
+**M-Auto-9 milestone-close §5.6 manual review** (deliver-agent on the human's
+behalf, per §5.9/§5.6 delegation). M-Auto-9 shipped WP1 (Sprint 096 / S-Auto-44 —
+the `agent_unable_to_resolve` escalation-reason migration: enum + projection
+teaching + `confirm.yaml` + observation-only scoring family) and WP2 (Sprint 097 /
+S-Auto-45 — the eval-only satisfiable companion `cs_uc_a_loaded_listing_resolvable`).
+The only **behaviour-changing** surface is WP1's escalation-reason projection;
+WP2 is eval_spec-only. This rerun is therefore a **regression check**: did WP1's
+projection change wrongly relabel, over-escalate, or false-resolve any curated bad
+case? **Served-code verified in-trace:** the projected `request_handover` enum has
+exactly **24** reasons incl. `agent_unable_to_resolve` with the WP1 description;
+`confirm.yaml:20` serves the new value. (This rerun complements the WP1 §7.6
+50-session run + the WP2 61-session bounded run, which already covered the
+PRIMARY/companion/guards/neg-control.)
+
+### Run paths
+
+- **Full curated suite, real-LLM N=3** (18 cases × 3 = 54 sessions; bot
+  deepseek-v4-flash / fallback kimi-k2.6; sim+judge moonshot-v1-32k; `--parallel 1`
+  under `caffeinate`): `eval_interactive/results/20260621-024842` (run1) +
+  `…-025341` (run2) + `…-025842` (run3). Result artifacts gitignored.
+- **Hard floors:** safety / PII-leakage / critical-policy / forbidden-tool /
+  grounding — **0 violations across all 54 sessions**; `policy_compliance_rate=1.0`
+  every run. 52/54 full transcripts; 3 sessions (rotating across cases/runs) were
+  0-turn `CONTRACT_VIOLATION` from an eval-framework trace-contract defect (below),
+  not bot failures.
+
+### Bad-case per-case verdict (18 cases — M-Auto-9 close; regression read)
+
+| case_id (exp UC) | tier | outcome ×3 | escalation_reason ×3 | regression verdict at M-Auto-9 close |
+|---|---|---|---|---|
+| `alice_uc_a_uc_h_misclass` (UC-A) | core | resolved 2 / empty 1 | none 3 | IMPROVING-consistent; UC-A 3/3; **no WP1/WP2 regression** |
+| `cs001_uc_c_mechanical_template_escalate` (UC-C) | scope-rel | resolved 3 | none 3 | PASS-shape; **no regression** (1 non-blocking stall flag) |
+| `cs011_uc_c_faq_miss_not_distress` (UC-C) | core | resolved 3 | none 3 | key bar (NOT `user_distress`) held; UC-D drift is pre-existing/classification, not WP1; **no regression** |
+| `cs012_uc_fp_late_phone_failure_path` (UC-FP) | core | empty 3 | none 3 | FAIL/IMPROVING-consistent + 1 infra CV; **no WP1/WP2 regression** |
+| `cs014_uc_c_faq_miss_not_distress` (UC-C) | core | escalated 3 | turn_budget_exhausted 3 | key bar (NOT `user_distress`) held; reason is budget-family (not WP1's new value); **no regression** |
+| `cs015_uc_fp_appeal_edit_repost` (UC-FP) | core | empty 2 / escalated 1 | agent_unable_to_resolve 1 | FAIL-stable (known); the new reason use is APPROPRIATE + more honest than the prior catch-all; **no regression** |
+| `cs029_uc_d_account_locked_callback` (UC-D) | core | escalated 2 / empty 1 | **user_requested 2** / none 1 | PASS-shape; `user_requested` CORRECT (user explicitly asked for a callback) — WP1 reserve held; **no regression** (1 infra CV) |
+| `cs066_uc_k_in_app_feature_regression` (UC-K) | core | escalated 3 | intake_complete_for_uc_k 3 | PASS-shape; **no regression** |
+| `cs095_uc_d_email_recovery_misroute` (UC-D) | core | resolved 2 / empty 1 | none (1 stale `user_distress` residual on a resolved session, not a handover) | FAIL-stable (known UC-D→UC-C misroute); **no PII leak** (hard checks PASS); **no regression** |
+| `cs_uc_a_generic_policy_question` (UC-A) | scope-rel (neg-control) | resolved 3 | none 3 | PASS; UC-A 3/3, no entity over-elicitation — **anti-误杀 held** |
+| `cs_uc_a_loaded_listing` (UC-A, PRIMARY) | scope-rel | escalated 3 | turn_budget 1 / agent_unable_to_resolve 1 / clarification_budget 1 | escalate-after-help (per the recorded product decision); consistent w/ WP2; **no regression** (UC-B drift pre-existing) |
+| `cs_uc_a_loaded_listing_resolvable` (UC-A, WP2) | scope-rel (companion) | resolved 2 / empty 1 | none 3 | resolve-can-land consistent w/ WP2 8/11; behaves as designed |
+| `cs_uc_a_lookup_failed` (UC-A) | scope-rel | resolved 3 | none 3 | PASS-shape; UC-A 3/3; **no regression** |
+| `cs_uc_a_no_ad_id_ad_specific` (UC-A, PRIMARY) | scope-rel | empty 2 / resolved 1 | none 3 | consistent w/ PRIMARY behaviour; UC-A 3/3; **no regression** |
+| `cs_uc_fp_loaded_moderation` (UC-FP) | scope-rel (Tier-2) | resolved 2 / escalated 1 | agent_unable_to_resolve 1 | consistent (UC-A or UC-FP acceptable); new reason appropriate; **no regression** |
+| `fg5q_uc_fp_phone_rejected_repost` (UC-FP) | scope-rel | escalated 3 | clarification_budget 2 / faq_miss 1 | **OBSERVATION** — drift from historical PASS to escalate-with-UC-B; on UC-classification + budget (surfaces WP1/WP2 do NOT touch) → **NOT WP1/WP2-attributable** (classification noise / provider drift); watch |
+| `iwzx_uc_k_advert_on_hold_restore` (UC-K) | scope-rel | escalated 2 / empty 1 | clarification_budget 2 / none 1 | FAIL-stable (known UC-K-vs-UC-H routing); **no WP1/WP2 regression** (1 infra CV) |
+| `wmkb_uc_a_trader_flag_secondary_uc_h` (UC-A) | scope-rel | resolved 2 / escalated 1 | agent_unable_to_resolve 1 | IMPROVING/known-drift; new reason appropriate; UC-D drift not WP1/WP2-attributable; **no regression** |
+
+`agent_unable_to_resolve` appeared 4× (cs015, cs_uc_a_loaded_listing,
+cs_uc_fp_loaded_moderation, wmkb) — **every appearance APPROPRIATE** (bot-initiated,
+in-scope, genuinely unresolved, no higher-priority reason, user did not request a
+human). `user_requested` appeared only on cs029 where the user explicitly requested a
+callback (CORRECT — exactly what WP1 reserves it for). **No misuse, no bleed.**
+
+### Surfaced findings (deliver-agent → action_bank)
+
+- **NEW framework brief — `R-trace-contract-active-use-case-snakecase-camelcase`
+  (§3 `infra`, eval-framework):** the L1 `trace_contract_active_use_case` check
+  asserts snake_case `active_use_case` on the session-phase telemetry, but that phase
+  exposes camelCase `activeUseCase` (the value IS present in `available_keys`). Causes
+  non-deterministic 0-turn `CONTRACT_VIOLATION` sessions (3/54, rotating across
+  cases/runs). Orthogonal to WP1/WP2 (escalation-reason scope). Per §5.8 this
+  framework brief should be addressed (or confirmed non-blocking) **before the next
+  §5.6 rerun / next semantic sub-sprint**; it does **not** block the M-Auto-9 close
+  (the 51 full-transcript sessions + 100% hard-floor pass carry the no-regression
+  conclusion). May overlap the existing `primary_uc`-vs-`active_use_case` authority OQ
+  (Cluster B.2).
+- **OBSERVATION — fg5q (and cs011) UC-classification drift from historical PASS:** on
+  surfaces WP1/WP2 do not modify (UC classification + FAQ/budget flow) → attributed to
+  real-LLM classification noise / external provider drift, **not** a WP1/WP2
+  regression. Watch at the next milestone; no R-item warranted yet.
+- **OBSERVATION — post-satisfaction over-escalation (from WP2 §7):** a minority
+  cs001-style mechanical "let me connect you with a specialist" handover after a
+  correct grounded answer — a `semantic_planner` posture defect; new curated bad-case
+  candidate (carried to action_bank, see the M-Auto-9 close ledger).
+
+### Decision
+
+**§5.6 PRIMARY GATE: PASS — no WP1/WP2 regression.** Tier-0 safety + grounding floors
+held 100% across 54 sessions; the new `agent_unable_to_resolve` reason was used
+correctly in all 4 appearances; `user_requested` was correctly reserved for an actual
+user request; budget-family precedence preserved. All non-PASS cases are either known
+historical FAIL/IMPROVING (cs012/cs015/cs095/iwzx/alice/wmkb), UC-classification noise
+on surfaces WP1/WP2 do not touch (fg5q/cs011/cs_uc_fp_loaded_moderation), or the 3
+flaky infra `CONTRACT_VIOLATION`s (eval-framework defect, new R-item). **Proceed to
+the milestone-shared Codex dispatch + M-Auto-9 close.**
