@@ -311,7 +311,7 @@ record_outcome→CONFIRM→CLOSE residual is a runtime item for a **separate** s
 | §7 standing guards green (§5.3) | ✅ 0 forced/false resolve |
 | zero-LLM cross-check confirms genuine resolve (§5.4) | ✅ 100% user_state-driven |
 | suites no new regression (§5.2) | ✅ Java 1422/1/0/2; eval pre-existing 5 errors only |
-| §4.1 Codex `pass` (§6) | ⏳ pending — dispatched; verdict recorded at §11 |
+| §4.1 Codex `pass` (§6) | ✅ `approve` (= pass) — recorded verbatim in `docs/codex-findings.md` |
 
 **Recommended verdict: COMPLETE** on the demonstrable resolve-can-land claim, with
 the §5 record_outcome→CONFIRM→CLOSE residual recorded as an OQ for a separate runtime
@@ -321,6 +321,12 @@ precisely so that decision can be made on facts.) No §8 STOP fired.
 
 ## 11. §4.1 Codex verdict pointer
 
-_Pending — per-sub-sprint Codex §4.1 review dispatched on the committed companion +
-tests + this handoff. Verdict recorded verbatim in `docs/codex-findings.md` and
-pointer added here on receipt._
+**`approve` (= `pass`), blocking_count: 0.** Per-sub-sprint Codex §4.1 review run
+read-only (`codex exec --sandbox read-only`, `model_reasoning_effort=high`) over
+`git diff 1f1c155c^..32e398ce` + the objective + the product decision + this handoff +
+the kernel. All nine kernel questions clean; all five §6 points CONFIRMED (genuine
+control / no special-casing / user_state-driven / no PRIMARY widen / no frozen surface
+touched, WP0 held; the 12→18 anchor correction assessed as in-scope characterization-test
+maintenance). Recorded verbatim at the top of `docs/codex-findings.md`
+("Sub-sprint Review Decision — S-Auto-45"). This satisfies the §11 / §6 §4.1-`pass`
+close gate.

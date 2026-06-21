@@ -1,3 +1,26 @@
+## Sub-sprint Review Decision — S-Auto-45 (Sprint 097, M-Auto-9 WP2: satisfiable UC-A entity-context companion cs_uc_a_loaded_listing_resolvable)
+decision: pass
+blocking_count: 0
+summary: Commits 1f1c155c (companion CaseSpec + _manifest.md row), 9757f695 (zero-LLM characterization tests + stale bad_cases anchor correction 12→18), 32e398ce (dev handoff) author ONE VISIBLE human-blessed satisfiable UC-A entity-context companion (cs_uc_a_loaded_listing_resolvable) that demonstrates a recorded SATISFIED+resolve terminal CAN land (8/11 bounded real-LLM, V3-clearing) while the two PRIMARY stay unchanged. Codex applied the §4.1 nine-question kernel read-only (`codex exec --sandbox read-only`, model_reasoning_effort=high) over `git diff 1f1c155c^..32e398ce`, the objective, the product decision, and the handoff. Per-PR verdict: `approve` — eval_spec companion authoring only (one new visible CaseSpec, one manifest row, zero-LLM characterization tests, a bounded-run handoff, and an in-scope stale bad_cases count correction); the diff does not touch runtime, prompt, phase-machine, evaluator, fixture, PRIMARY CaseSpecs, or frozen closure surfaces. All five §6 points CONFIRMED: (1) genuine control on the same UC-A entity-context surface with a genuinely-resolvable AD-2007 expired-listing fact pattern (fails generic answers / false resolves), NOT a benchmark-shaped easy case or PRIMARY widen; (2) no special-casing branch — acceptance comes from the generic evaluate_conditional_outcome, the test flipping PASS/FAIL only by user_state; (3) acceptance is user_state-driven (reads trace.user_state_signals), not back-inferred; (4) no PRIMARY CaseSpec / expected outcome / bar changed; (5) no frozen runtime surface touched and WP0 stays HELD; the 12→18 anchor correction is in-scope characterization-test maintenance. Verdict transcript recorded verbatim below.
+
+Per-PR §4.1 verdict: `approve`. Read-only `codex exec` (model_reasoning_effort=high) over `git diff 1f1c155c^..32e398ce`, `docs/sprint_objective.md`, `docs/current/m-auto-9-escalate-after-help-product-decision.md`, `docs/sprints/sprint-097-handoff.md`, `docs/current/anti-hardcode-review-kernel.md`. Nine-question kernel (verbatim):
+
+1. No keyword / regex / if-else / enum / per-UC runtime matrix added. The new semantic surface is the CaseSpec contract at cs_uc_a_loaded_listing_resolvable.yaml:73, layer `eval_spec`.
+2. Not applicable: Q1 is no. No Tier-0 invariant is claimed or added.
+3. No hard Java/prompt branch exists to downgrade. The acceptance remains declarative through `conditional_outcome_acceptance` at cs_uc_a_loaded_listing_resolvable.yaml:122.
+4. Case id appears in the new CaseSpec, manifest, tests, and handoff only; it is not encoded into runtime, prompt, or judge config. The generic evaluator reads the CaseSpec block, never a hard-coded case id or customer text (conditional_outcome.py:11).
+5. No LLM-owned semantic decision moved to Java. `git diff 1f1c155c^..32e398ce --name-only` shows no `server/` or scoring-code edits.
+6. No prompt edit and no prompt if-else block.
+7. Tool schema, permission boundary, PII/safety floor, and grounding floor are preserved. The companion requires `get_customer_context` + grounded listing use and keeps safety hard checks (cs_uc_a_loaded_listing_resolvable.yaml:200).
+8. Coverage is acceptable for this `eval_spec` companion: the new tests pin target acceptance and false-resolve rejection (test_sprint_097_uc_a_resolvable_companion.py:159), while the handoff records PRIMARY, negative-control, neighbor, and safety-guard bounded evidence.
+9. Not temporary runtime behavior. No sunset/downgrade trigger required.
+
+§6 confirmations: (1) CONFIRM genuine control; (2) CONFIRM no special-casing branch (acceptance via evaluate_conditional_outcome, test flips PASS/FAIL only by user_state); (3) CONFIRM acceptance is user_state-driven (reads trace.user_state_signals at conditional_outcome.py:302, not back-inference); (4) CONFIRM no PRIMARY CaseSpec / expected outcome / bar changed; (5) CONFIRM no frozen runtime surface touched, WP0 held, the bad_cases anchor correction 12→18 is in-scope characterization-test maintenance.
+
+(Reviewer note: the read-only sandbox could not run the pytest command — exited without diagnostics; the dev-side green run is recorded in the handoff §3: eval_interactive 635 passed / 5 pre-existing errors, Java 1422/1/0/2.)
+
+---
+
 ## Sub-sprint Review Decision — S-Auto-44 (Sprint 096, M-Auto-9 WP1: D-new-escalation-reason-enum → agent_unable_to_resolve)
 decision: pass
 blocking_count: 0
