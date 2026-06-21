@@ -40,7 +40,7 @@ notes: >
 
 | WP | Sub-sprint id | §3.2 layer | §7 stanza | Codex |
 |----|---------------|-----------|-----------|-------|
-| **WP1 — trace-contract integrity (PREREQUISITE)** | Sprint 098 / S-Auto-46 | `infra` (eval-framework trace contract) | **EXEMPT** (pure infra) | **EXEMPT** per iteration_governance §4.1 pure-infra clause (record exemption in verdict) |
+| **WP1 — trace-contract integrity (PREREQUISITE) ✅ CLOSED COMPLETE 2026-06-21** | Sprint 098 / S-Auto-46 | `infra` (eval-framework trace contract) | **EXEMPT** (pure infra) | **EXEMPT** per iteration_governance §4.1 pure-infra clause (recorded in handoff §6) |
 | **WP2 — OQ-S93.1 canonical-closure-path decision (DESIGN-ONLY)** | Sprint 099 / S-Auto-47 | multi-layer **prospective** (read-only): candidate §3.2 layers per outcome — `eval_spec` (trace-expectation literalism) \| `semantic_planner`/`skill_state` (CONFIRM record-vs-handover) \| `java_guard`/runtime (premature-resolve guard) \| `infra` (simulator CONFIRM-turn preempt) | **EXEMPT** (design/research; ships no behaviour) | Design review (read-only `codex exec`), not the §4.1 anti-hardcode kernel (no semantic surface shipped) |
 | **WP3 — runtime closure repair (CONDITIONAL, NOT pre-committed)** | Sprint 100 / S-Auto-48 *(reserved; only if WP2 ⇒ route (b))* | `semantic_planner`/`skill_state`/`java_guard` (touches the FROZEN phase machine) | **REQUIRED** (authored if/when scoped) | **Per-sub-sprint §4.1 REQUIRED** (§4.3 trigger #3 — frozen surface) |
 
@@ -65,7 +65,20 @@ repair the explicit path (runtime change, fully protected).
 
 ## 3. Sub-sprint sequence
 
-### WP1 — Sprint 098 / S-Auto-46 — trace-contract `active_use_case` snake/camel reconciliation (PREREQUISITE, implementation-eligible now)
+### WP1 — Sprint 098 / S-Auto-46 — trace-contract `active_use_case` reconciliation (PREREQUISITE) — ✅ CLOSED COMPLETE 2026-06-21
+
+> **CLOSED COMPLETE** (dev `f7c5232d` + deliver close). The brief's snake/camel
+> hypothesis was **disproven** with read-only DB evidence; the **true root cause** is
+> a phase-gating defect — the L1 check used turn-count as a proxy for "routing
+> happened," but `active_use_case` is set on *exit* from DISCOVER (which spans turns),
+> so a session captured mid-DISCOVER (1 turn, empty UC) is telemetry-faithful yet was
+> wrongly flagged. Fixed **strictly-narrowing** via a `PRE_ROUTING_PHASES = {INIT,
+> DISCOVER}` gate in `collector.py`. Evidence: 3→0 spurious violations on the 54-session
+> M-Auto-9 §5.6 set; 51 sessions byte-identical; **no previously-correctly-scored
+> session changed**; negative control + OOS carve-out preserved; zero-LLM throughout;
+> eval `639p/0f/5e` (+4 tests); no `server/`/scoring/baseline change. §5.8 prerequisite
+> satisfied → WP2 + the next §5.6 rerun are unblocked. Archives:
+> `docs/sprints/sprint-098-{objective,handoff}.md`.
 
 `infra`. The L1 `trace_contract_active_use_case` check raises a 0-turn
 `CONTRACT_VIOLATION` on sessions whose session-state telemetry carries camelCase
