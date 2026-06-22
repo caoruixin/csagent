@@ -28,6 +28,11 @@ from .eval_runner import (
     run_v1_fitness_suite,
 )
 from .gaming import GamingFlag, detect
+from .objective_alignment import (
+    ObjectiveAlignment,
+    classify,
+    evaluate_alignment,
+)
 from .tier_evaluator import (
     LayerResult,
     LexicographicVerdict,
@@ -46,12 +51,15 @@ __all__ = [
     "GamingFlag",
     "LayerResult",
     "LexicographicVerdict",
+    "ObjectiveAlignment",
     "ShadowAuditDetail",
     "SuiteRunResult",
     "SuiteRunSpec",
     "SuiteSnapshot",
+    "classify",
     "detect",
     "evaluate",
+    "evaluate_alignment",
     "load",
     "run_suite",
     "run_v1_fitness_suite",

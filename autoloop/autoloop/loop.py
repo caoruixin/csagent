@@ -71,7 +71,13 @@ from .sandbox.yaml_diff_validator import (
     ValidationResult,
     validate_skill_yaml_diff,
 )
-from .scoring import baseline_loader, eval_runner, gaming as _gaming, tier_evaluator
+from .scoring import (
+    baseline_loader,
+    eval_runner,
+    gaming as _gaming,
+    objective_alignment as _objective_alignment,
+    tier_evaluator,
+)
 from .scoring.gaming import GamingFlag
 from .scoring.tier_evaluator import LexicographicVerdict
 
@@ -138,6 +144,12 @@ class IterationResult:
     # OFF_TARGET proposal is discarded here (reason `off_target_precheck:*`)
     # without paying for eval; in a dry run it is recorded for inspection only.
     off_target_verdict: dict[str, Any] | None = None
+    # S-Auto-50 (M-Auto-12 WP1): observation-only objective-alignment label
+    # (FULL_SUCCESS / OBJECTIVE_KEEP / PERIPHERAL_ONLY / OFF_TARGET / UNSCOPED)
+    # computed AFTER `evaluate()` from the run's PRIMARY targets + the gate's
+    # own per-case Tier-1 posteriors. It NEVER changes keep/discard or the
+    # safety gate; `merge_eligible` is recorded but no consumer is wired yet.
+    objective_alignment: _objective_alignment.ObjectiveAlignment | None = None
 
 
 def run_one_iteration(
@@ -384,6 +396,21 @@ def run_one_iteration(
         result.discard_reason = (
             verdict.discard_reason if verdict.decision == "discard" else None
         )
+
+        # --- 9.4. Objective-alignment label (S-Auto-50, observation-only).
+        # Computed AFTER the verdict from the run's PRIMARY targets + the gate's
+        # own per-case Tier-1 posteriors. Reads `verdict.decision` only; NEVER
+        # writes keep/discard or touches the safety gate. Best-effort: any
+        # internal failure must not block iteration persistence.
+        try:
+            primary_targets = list(
+                (result.pilot_snapshot or {}).get("primary_targets") or []
+            )
+            result.objective_alignment = _objective_alignment.evaluate_alignment(
+                verdict, primary_targets, config
+            )
+        except Exception:
+            result.objective_alignment = None
 
         # --- 9.5. Anti-gaming checks (observation-only in v1).
         try:
@@ -637,6 +664,9 @@ def _build_record_dict(
         "off_target_verdict": result.off_target_verdict,
         "applied": _serialize_applied(applied),
         "verdict": _serialize_verdict(result.verdict),
+        # S-Auto-50: observation-only objective-alignment label. Independent of
+        # `decision` / `verdict` (which are unchanged by this label).
+        "objective_alignment": _safe_asdict(result.objective_alignment),
         "gaming_flags": list(result.gaming_flags or []),
         "decision": result.decision,
         "discard_reason": result.discard_reason,
