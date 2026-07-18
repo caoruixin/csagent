@@ -1,111 +1,113 @@
 # Customer Service Agent (csagent)
 
-这不是一个关键词 chatbot，而是一套**工程方法论**的产物：用 **LLM-first 的语义自由**真正解决分类信息平台的客服问题（FAQ 自动解答、Intake 采集、结构化人工转接），同时把安全、预算、工具权限、评估等机械约束牢牢钉死在确定性的运行时骨架里。支撑它的四块基石——**LLM-vs-Runtime 所有权边界**、**四层评估金字塔（人工为主门）**、**反 hardcode 治理纪律**、**autoloop 元进化**——都是在一轮轮 bad-case 复盘与研究驱动实验中*被迫沉淀出来*的，而非一开始就设计完备。下方「演进轨迹」即这套系统的发现过程。
+**English** · [简体中文](README-CN.md)
 
-> **源码即真相**：运行时行为以 `server/src/main/java/com/gumtree/csagent/service/runtime/` 与 `server/src/main/resources/config/`、`skills/` 为准。契约摘要见 [`docs/current/runtime_contract.md`](docs/current/runtime_contract.md)；治理宪法见 [`AGENTS.md`](AGENTS.md) → [`docs/current/iteration_governance.md`](docs/current/iteration_governance.md)。
+This is not a keyword chatbot but the product of an **engineering methodology**: using **LLM-first semantic freedom** to genuinely solve customer-service problems for a classifieds marketplace (automated FAQ answering, intake collection, structured human handover), while nailing mechanical constraints — safety, budget, tool permissions, evaluation — firmly into a deterministic runtime skeleton. The four cornerstones that support it — the **LLM-vs-Runtime ownership boundary**, the **four-tier evaluation pyramid (human as the primary gate)**, **anti-hardcode governance discipline**, and **autoloop meta-evolution** — were *forced into existence* through round after round of bad-case retrospectives and research-driven experiments, rather than being fully designed up front. The "Evolution Trajectory" below is this system's discovery process.
 
----
-
-## 演进轨迹（迭代驱动的进化）
-
-每个里程碑对应一次「**发现一类问题 → 沉淀一项能力**」，而不是线性堆功能。系统由两条迭代输入驱动：**Path 1 研究驱动**（提假设 → 设计实验 → 验证）与 **Path 2 bad-case 驱动**（人工读 trace → 用[九层 Fix-Layer 分类](docs/current/iteration_governance.md)定位失败层 → 最小修复）。任何语义失败在动手前都要先过[九问反-hardcode kernel](docs/current/anti-hardcode-review-kernel.md)——**默认禁止用关键词 / 正则 / if-else 掩盖语义问题**，否则审查直接 reject。这条纪律，连同下表里被反复踩中的坑，是这套系统真正的护城河。
-
-| 阶段 | 里程碑 | 发现的问题 → 沉淀的能力 |
-|------|--------|------------------------|
-| 骨架 | **M1** | DISCOVER 分类 + Intake：模型优先意图分类、阶段状态机、intake 字段跨轮 durability |
-| 抽象 | **M2** | 把「该怎么做」从 Java 下沉为 **Skill Registry**：行为外置进 YAML 信封（LLM-led / Policy-bounded） |
-| 评估 | **M3-Eval** | **粗到细四层评估金字塔**（Tier-0 安全 → Tier-3 润色），解决「分数涨了但没真正变好」 |
-| 治理 | **M4 / M5** | 评估 harness 清理 + 治理缺口补齐；**可观测一致性**（trace 与真实行为对齐） |
-| 元进化·基底 | **M-Auto-1～3** | **autoloop**：元 Agent 只改 6 个 Skill YAML 做爬山式自进化（基础设施 → 校准 → 信号清洁） |
-| 信号纯净 | **M-Auto-4 / 5** | 发现**评估测量伪影会硬性「误杀」正确行为**；做到 fitness 可靠、判分与 trace 契约诚实 |
-| 底座硬化 | **M-Auto-6** | runtime substrate hygiene + admin 可观测 + intake/澄清契约 + 语料治理 |
-| 元进化·落地 | **M-Auto-7**（进行中） | **CS4 实体上下文 autoloop pilot**（CORE GATE）：autoloop 真正产出 Skill 候选 → 人工 §4.1 审核 → 合入 |
-
-> 里程碑全量归档见 [`docs/milestones/`](docs/milestones/)，当前进度见 [`docs/10-handoff.md`](docs/10-handoff.md)。截至 **2026-06-09**：分支 `auto-loop-branch`，**M-Auto-7** 进行中（S-Y2 / Sprint 088，CS4 entity-context autoloop pilot = CORE GATE，Part C 待人工放行）。
+> **Source code is the truth**: runtime behavior is governed by `server/src/main/java/com/gumtree/csagent/service/runtime/`, `server/src/main/resources/config/`, and `skills/`. For a contract summary see [`docs/current/runtime_contract.md`](docs/current/runtime_contract.md); for the governance constitution see [`AGENTS.md`](AGENTS.md) → [`docs/current/iteration_governance.md`](docs/current/iteration_governance.md).
 
 ---
 
-## 目录
+## Evolution Trajectory (Iteration-Driven Evolution)
 
-0. [演进轨迹（迭代驱动的进化）](#演进轨迹迭代驱动的进化)
-1. [产品边界](#1-产品边界)
-2. [仓库结构](#2-仓库结构)
-3. [架构总览](#3-架构总览)
-4. [运行时：双环 Agent 设计](#4-运行时双环-agent-设计)
-5. [Harness：LLM 与 Runtime 分工](#5-harnessllm-与-runtime-分工)
-6. [上下文工程](#6-上下文工程)
-7. [工具与知识库](#7-工具与知识库)
-8. [评估体系](#8-评估体系)
-9. [Autoloop：Skill 驱动的自动进化](#9-autoloopskill-驱动的自动进化)
-10. [本地开发与运行](#10-本地开发与运行)
-11. [可靠性与控制](#11-可靠性与控制)
-12. [设计取舍与可借鉴点](#12-设计取舍与可借鉴点)
-13. [与 2025 中后期行业方案对比](#13-与-2025-中后期行业方案对比)
-14. [延伸阅读](#14-延伸阅读)
+Each milestone corresponds to one cycle of "**discover a class of problems → distill a capability**", rather than linearly stacking features. The system is driven by two iteration inputs: **Path 1, research-driven** (form hypothesis → design experiment → validate) and **Path 2, bad-case-driven** (human reads the trace → uses the [nine-layer Fix-Layer classification](docs/current/iteration_governance.md) to locate the failing layer → minimal fix). Before any work begins, every semantic failure must first pass the [nine-question anti-hardcode kernel](docs/current/anti-hardcode-review-kernel.md) — **by default, papering over a semantic problem with keywords / regex / if-else is forbidden**, or review rejects it outright. This discipline, together with the pitfalls repeatedly hit in the table below, is the real moat of this system.
+
+| Stage | Milestone | Problem discovered → capability distilled |
+|-------|-----------|--------------------------------------------|
+| Skeleton | **M1** | DISCOVER classification + Intake: model-first intent classification, phase state machine, cross-turn durability of intake fields |
+| Abstraction | **M2** | Push "how to do it" down from Java into a **Skill Registry**: behavior externalized into YAML envelopes (LLM-led / Policy-bounded) |
+| Evaluation | **M3-Eval** | **Coarse-to-fine four-tier evaluation pyramid** (Tier-0 safety → Tier-3 polish), solving "the score went up but it didn't actually get better" |
+| Governance | **M4 / M5** | Evaluation-harness cleanup + governance-gap closure; **observability consistency** (trace aligned with real behavior) |
+| Meta-evolution · foundation | **M-Auto-1–3** | **autoloop**: a meta-agent edits only 6 Skill YAMLs for hill-climbing self-evolution (infrastructure → calibration → signal hygiene) |
+| Signal purity | **M-Auto-4 / 5** | Discovered that **evaluation measurement artifacts hard-"kill" correct behavior**; achieved reliable fitness and honest scoring / trace contracts |
+| Substrate hardening | **M-Auto-6** | runtime substrate hygiene + admin observability + intake/clarification contract + corpus governance |
+| Meta-evolution · landing | **M-Auto-7** (in progress) | **CS4 entity-context autoloop pilot** (CORE GATE): autoloop genuinely produces Skill candidates → human §4.1 review → merge |
+
+> Full milestone archive at [`docs/milestones/`](docs/milestones/); current progress at [`docs/10-handoff.md`](docs/10-handoff.md). As of **2026-06-09**: branch `auto-loop-branch`, **M-Auto-7** in progress (S-Y2 / Sprint 088, CS4 entity-context autoloop pilot = CORE GATE, Part C pending human approval).
 
 ---
 
-## 1. 产品边界
+## Table of Contents
 
-### 解决什么问题
+0. [Evolution Trajectory (Iteration-Driven Evolution)](#evolution-trajectory-iteration-driven-evolution)
+1. [Product Boundaries](#1-product-boundaries)
+2. [Repository Structure](#2-repository-structure)
+3. [Architecture Overview](#3-architecture-overview)
+4. [Runtime: Dual-Loop Agent Design](#4-runtime-dual-loop-agent-design)
+5. [Harness: LLM and Runtime Division of Labor](#5-harness-llm-and-runtime-division-of-labor)
+6. [Context Engineering](#6-context-engineering)
+7. [Tools and Knowledge Base](#7-tools-and-knowledge-base)
+8. [Evaluation System](#8-evaluation-system)
+9. [Autoloop: Skill-Driven Auto-Evolution](#9-autoloop-skill-driven-auto-evolution)
+10. [Local Development and Running](#10-local-development-and-running)
+11. [Reliability and Control](#11-reliability-and-control)
+12. [Design Trade-offs and Takeaways](#12-design-trade-offs-and-takeaways)
+13. [Comparison with Late-2025 Industry Approaches](#13-comparison-with-late-2025-industry-approaches)
+14. [Further Reading](#14-further-reading)
 
-在客服场景中，Agent 位于**客户与人工坐席之间**：
+---
 
-- **FAQ 路径**（UC-A～UC-FP）：检索帮助中心 → 引用文章 → 记录解决结果
-- **Intake 路径**（UC-G～UC-K）：收集必填字段 → 创建 Case → 结构化转人工
-- **安全与合规**：预算、升级原因优先级、PII 脱敏、禁止虚假承诺
+## 1. Product Boundaries
+
+### What problem it solves
+
+In a customer-service scenario, the Agent sits **between the customer and the human agent**:
+
+- **FAQ path** (UC-A–UC-FP): search the help center → cite articles → record the resolution outcome
+- **Intake path** (UC-G–UC-K): collect required fields → create a Case → structured handover to a human
+- **Safety and compliance**: budget, escalation-reason priority, PII redaction, no false promises
 
 ### In scope
 
-| 能力 | 说明 |
-|------|------|
-| 12 个 Use Case + 4 类 Out-of-scope 直转 | 见 `use-case-registry.yaml` |
-| 阶段状态机 | INIT → DISCOVER → RESOLVE → CONFIRM → CLOSE / ESCALATE |
-| 11 个工具（6 Agent 可见 + 5 Runtime-only） | 见 [§7](#7-工具与知识库) |
-| pgvector 知识检索 + LLM Rerank | `KnowledgeSearchService` |
-| 交互式 + 回放式评估 | `eval_interactive/` + `eval/` |
-| Demo UI + Admin 追踪 | `ui/` + `/v1/demo/*`（仅 `local` profile） |
+| Capability | Notes |
+|------------|-------|
+| 12 Use Cases + 4 out-of-scope direct-handover classes | see `use-case-registry.yaml` |
+| Phase state machine | INIT → DISCOVER → RESOLVE → CONFIRM → CLOSE / ESCALATE |
+| 11 tools (6 Agent-visible + 5 Runtime-only) | see [§7](#7-tools-and-knowledge-base) |
+| pgvector knowledge retrieval + LLM rerank | `KnowledgeSearchService` |
+| Interactive + replay evaluation | `eval_interactive/` + `eval/` |
+| Demo UI + Admin tracing | `ui/` + `/v1/demo/*` (`local` profile only) |
 
-### Out of scope（当前仓库）
+### Out of scope (current repo)
 
-- 执行业务副作用（退款、删帖、改账户）— Agent 只**解释流程**并转人工
-- 生产级 Salesforce 集成（本地为 Mock）
-- Streaming / 多模态 / 跨会话长期记忆
-- 容器化部署与 CI（需自行补齐）
+- Executing business side effects (refunds, delisting, account changes) — the Agent only **explains the process** and hands over to a human
+- Production-grade Salesforce integration (Mock locally)
+- Streaming / multimodal / cross-session long-term memory
+- Containerized deployment and CI (to be added yourself)
 
 ---
 
-## 2. 仓库结构
+## 2. Repository Structure
 
 ```
 csagent-latest/
-├── server/              # Spring Boot 3 运行时（Java 17）
-├── ui/                  # React 19 + Vite 演示与管理台
-├── eval/                # Java 批量回放评估（CSV 数据集）
-├── eval_interactive/    # Python 交互评估（LLM 用户模拟器 + CaseSpec）
-├── autoloop/            # Skill YAML 自动进化子系统（元 Agent）
-├── data/knowledge/      # KB 源数据
-├── docs/                # 治理、契约、Sprint 归档
-├── compact/             # Dev / Deliver / Review Agent 提示词包
-└── case_specs/          # 位于 eval_interactive/case_specs/
+├── server/              # Spring Boot 3 runtime (Java 17)
+├── ui/                  # React 19 + Vite demo and admin console
+├── eval/                # Java batch replay evaluation (CSV datasets)
+├── eval_interactive/    # Python interactive evaluation (LLM user simulator + CaseSpec)
+├── autoloop/            # Skill YAML auto-evolution subsystem (meta-agent)
+├── data/knowledge/      # KB source data
+├── docs/                # governance, contracts, sprint archives
+├── compact/             # Dev / Deliver / Review Agent prompt packs
+└── case_specs/          # located under eval_interactive/case_specs/
 ```
 
-| 模块 | 入口 | 端口 |
-|------|------|------|
+| Module | Entry point | Port |
+|--------|-------------|------|
 | Server | `CsAgentApplication.java` / `make backend` | `:8080` |
 | UI | `ui/src/main.tsx` / `make frontend` | `:5173` |
-| Eval CLI | `eval-interactive`（`eval_interactive/cli.py`） | — |
+| Eval CLI | `eval-interactive` (`eval_interactive/cli.py`) | — |
 | Autoloop | `python -m autoloop` | — |
 
 ---
 
-## 3. 架构总览
+## 3. Architecture Overview
 
-### 3.1 系统架构图
+### 3.1 System Architecture Diagram
 
 ```mermaid
 flowchart TB
-  subgraph Client["客户端"]
+  subgraph Client["Client"]
     CW[ChatWidget]
     ADM[AdminPage]
   end
@@ -113,33 +115,33 @@ flowchart TB
   subgraph API["Spring Boot API :8080"]
     CC["ChatController<br/>30s deadline"]
     SM[SessionManager]
-    CK["ControlKernel<br/>外层环"]
-    ARL["AgentRunLoopImpl<br/>内层环"]
+    CK["ControlKernel<br/>Outer Loop"]
+    ARL["AgentRunLoopImpl<br/>Inner Loop"]
     PE[PhaseEvaluator]
     CPB[ContextProjectionBuilder]
     TD[ToolDispatcher]
     SR["SkillRegistry<br/>skills/*.yaml"]
   end
 
-  subgraph LLM["LLM 层"]
-    DS[DeepSeek 主]
-    KM[Kimi 备]
+  subgraph LLM["LLM Layer"]
+    DS["DeepSeek (primary)"]
+    KM["Kimi (fallback)"]
     FB[FallbackLlmClient]
   end
 
-  subgraph Data["数据层"]
+  subgraph Data["Data Layer"]
     PG[("PostgreSQL + pgvector")]
-    RD[(Redis 健康检查)]
+    RD[("Redis health check")]
     KB["kb_articles / kb_chunks"]
   end
 
-  subgraph Eval["评估层"]
-    EI["eval_interactive<br/>LLM 用户模拟"]
-    EJ["eval<br/>CSV 回放"]
+  subgraph Eval["Eval Layer"]
+    EI["eval_interactive<br/>LLM user simulation"]
+    EJ["eval<br/>CSV replay"]
   end
 
-  subgraph Meta["元进化（可选）"]
-    AL["autoloop<br/>仅改 6 个 Skill YAML"]
+  subgraph Meta["Meta-Evolution (optional)"]
+    AL["autoloop<br/>edits only 6 Skill YAMLs"]
   end
 
   CW --> CC
@@ -156,62 +158,62 @@ flowchart TB
   CPB --> KB
   EI --> CC
   EJ --> CC
-  AL -.->|提议 Skill diff| SR
+  AL -.->|proposes Skill diff| SR
   AL --> EI
 ```
 
-### 3.2 主调用路径（单条用户消息）
+### 3.2 Main Call Path (a single user message)
 
 ```
 POST /v1/chat/sessions/{id}/messages
-  → ChatController 设置 LlmCallContext 30s 墙钟
+  → ChatController sets a 30s LlmCallContext wall clock
   → SessionManager.processMessage
-    → ControlKernel.processMessage          # 外层：每用户消息一次
-      → 确定性：distress / 显式要人工 / 预算 / 漂移 / 重路由
+    → ControlKernel.processMessage          # outer loop: once per user message
+      → deterministic: distress / explicit handover request / budget / drift / reroute
       → PhaseEvaluator.plan → SkillRegistry.select → PhasePlan
-      → AgentRunLoopImpl.run                  # 内层：0..maxToolSteps
-      → [可选] USE_CASE_IDENTIFIED 后同轮 RESOLVE replan（剩余 ≥8s）
-      → PhaseEvaluator.interpretRunResult → 阶段转换
+      → AgentRunLoopImpl.run                  # inner loop: 0..maxToolSteps
+      → [optional] same-turn RESOLVE replan after USE_CASE_IDENTIFIED (≥8s remaining)
+      → PhaseEvaluator.interpretRunResult → phase transition
       → recordRunResult → bot_turns + bot_events
-  → 若 shouldEndChat：recordOutcome / recordHandover
+  → if shouldEndChat: recordOutcome / recordHandover
 ```
 
-**关键类**（均在 `server/src/main/java/com/gumtree/csagent/service/runtime/`）：
+**Key classes** (all under `server/src/main/java/com/gumtree/csagent/service/runtime/`):
 
-| 类 | 职责 |
-|----|------|
-| `ControlKernel` | 唯一编排入口：`processMessage` |
-| `AgentRunLoopImpl` | LLM↔工具有界循环 |
+| Class | Responsibility |
+|-------|----------------|
+| `ControlKernel` | sole orchestration entry: `processMessage` |
+| `AgentRunLoopImpl` | bounded LLM↔tool loop |
 | `PhaseEvaluator` | `plan()` / `interpretRunResult()` / legacy `evaluate()` |
-| `ContextProjectionBuilder` | 构建 LLM 可见 JSON 投影 |
-| `SessionManager` | 会话创建、消息处理、结果持久化 |
+| `ContextProjectionBuilder` | builds the LLM-visible JSON projection |
+| `SessionManager` | session creation, message processing, result persistence |
 
 ---
 
-## 4. 运行时：双环 Agent 设计
+## 4. Runtime: Dual-Loop Agent Design
 
-> **说明**：分支名 `auto-loop-branch` 指 **D16 Agent Run Loop 全相位启用** + **Autoloop 元进化里程碑**；Python `autoloop/` **不接入** Java 请求路径。
+> **Note**: the branch name `auto-loop-branch` refers to **D16 Agent Run Loop enabled across all phases** + the **Autoloop meta-evolution milestone**; the Python `autoloop/` is **not wired into** the Java request path.
 
-### 4.1 Harness 组件图
+### 4.1 Harness Component Diagram
 
 ```mermaid
 flowchart LR
-  subgraph Deterministic["Runtime / 确定性"]
+  subgraph Deterministic["Runtime / Deterministic"]
     FSM["Phase FSM<br/>control-policy.yaml"]
     BUD[BudgetChecker]
-    ESC["EscalationReasonResolver<br/>23 值优先级"]
+    ESC["EscalationReasonResolver<br/>23-value priority"]
     TP[ToolPolicyEnforcer]
     SG[SkillGuardrailDispatcher]
-    PII[投影 PII 脱敏]
+    PII["Projection PII redaction"]
   end
 
-  subgraph Config["配置驱动"]
+  subgraph Config["Config-Driven"]
     SK["skills/*.yaml"]
     UCR[use-case-registry.yaml]
     TPY[tool-policy.yaml]
   end
 
-  subgraph Probabilistic["LLM / 概率性"]
+  subgraph Probabilistic["LLM / Probabilistic"]
     ROUT[routing_prompt]
     SYS[system_prompt.txt]
     ACT[ActionParser JSON]
@@ -225,7 +227,7 @@ flowchart LR
   Deterministic --> ARL
 ```
 
-### 4.2 Agent 循环时序图
+### 4.2 Agent Loop Sequence Diagram
 
 ```mermaid
 sequenceDiagram
@@ -272,10 +274,10 @@ sequenceDiagram
   CK-->>U: bot response
 ```
 
-### 4.3 内层环伪代码（`AgentRunLoopImpl.run`）
+### 4.3 Inner-Loop Pseudocode (`AgentRunLoopImpl.run`)
 
 ```text
-maxSteps = plan.maxToolSteps  // 通常 2~6（FAQ RESOLVE 为 6），来自 Skill YAML
+maxSteps = plan.maxToolSteps  // typically 2-6 (6 for FAQ RESOLVE), from Skill YAML
 for step in 0 .. maxSteps-1:
     projection = ContextProjectionBuilder.build(
         session, history, plan, userMessage,
@@ -296,165 +298,165 @@ for step in 0 .. maxSteps-1:
         if request_handover succeeded: return ESCALATE
         if classify_use_case on DISCOVER: return USE_CASE_IDENTIFIED
 
-return MAX_STEPS  // PhaseEvaluator 映射为具体 escalation_reason
+return MAX_STEPS  // PhaseEvaluator maps this to a concrete escalation_reason
 ```
 
-### 4.4 终端结果（`TerminalOutcome`）
+### 4.4 Terminal Outcomes (`TerminalOutcome`)
 
-| 结果 | 含义 | 典型后续 |
-|------|------|----------|
-| `FINAL_ANSWER` | 无工具、非澄清 | 可能进入 CONFIRM |
-| `CLARIFICATION_NEEDED` | 追问用户 | 保持当前 phase |
-| `ESCALATE` | `request_handover` 成功 | → ESCALATE |
-| `USE_CASE_IDENTIFIED` | DISCOVER 分类成功 | 同轮 RESOLVE replan |
-| `MAX_STEPS` | 步数用尽 | 按 intake/FAQ/轮次映射升级原因 |
-| `DEADLINE_EXCEEDED` | 30s 超时 | **诚实重试文案，不伪造升级** |
-| `LLM_UNAVAILABLE` | 基础设施失败 | 同上 |
+| Outcome | Meaning | Typical follow-up |
+|---------|---------|-------------------|
+| `FINAL_ANSWER` | no tool, not a clarification | may enter CONFIRM |
+| `CLARIFICATION_NEEDED` | ask the user | stay in the current phase |
+| `ESCALATE` | `request_handover` succeeded | → ESCALATE |
+| `USE_CASE_IDENTIFIED` | DISCOVER classification succeeded | same-turn RESOLVE replan |
+| `MAX_STEPS` | steps exhausted | escalation reason mapped by intake/FAQ/turn count |
+| `DEADLINE_EXCEEDED` | 30s timeout | **honest retry copy, does not fake an escalation** |
+| `LLM_UNAVAILABLE` | infrastructure failure | same as above |
 
-### 4.5 阶段与 Skill
+### 4.5 Phases and Skills
 
-**阶段**（`SessionPhase`）：`INIT → DISCOVER → RESOLVE → CONFIRM → CLOSE`，分支 `ESCALATE`。
+**Phases** (`SessionPhase`): `INIT → DISCOVER → RESOLVE → CONFIRM → CLOSE`, with branch `ESCALATE`.
 
-**6 个 Skill 文件**（`server/src/main/resources/skills/`）：
+**6 Skill files** (`server/src/main/resources/skills/`):
 
 | Skill | Phase | UC |
 |-------|-------|-----|
 | `discover_triage.yaml` | DISCOVER | `*` |
-| `resolve_faq_grounded_answer.yaml` | RESOLVE | UC-A～FP |
-| `resolve_intake_collect_and_handover.yaml` | RESOLVE | UC-G～K |
+| `resolve_faq_grounded_answer.yaml` | RESOLVE | UC-A–FP |
+| `resolve_intake_collect_and_handover.yaml` | RESOLVE | UC-G–K |
 | `confirm.yaml` | CONFIRM | `*` |
 | `escalate.yaml` | ESCALATE | `*` |
 | `terminal.yaml` | CLOSE | `*` |
 
-`SkillRegistry.select(phase, useCase)`：精确匹配 → 通配符 `*`。
+`SkillRegistry.select(phase, useCase)`: exact match → wildcard `*`.
 
 ---
 
-## 5. Harness：LLM 与 Runtime 分工
+## 5. Harness: LLM and Runtime Division of Labor
 
-宪法原则见 [`docs/current/iteration_governance.md`](docs/current/iteration_governance.md) §1。
+For the constitutional principles see [`docs/current/iteration_governance.md`](docs/current/iteration_governance.md) §1.
 
-| 维度 | **LLM 拥有** | **Runtime 拥有** |
-|------|-------------|-----------------|
-| 语义 | 意图、措辞、是否引用知识、工具调用选择 | — |
-| 机械 | — | 阶段 FSM、预算、工具白名单、guardrail、canonical `escalation_reason` |
-| 安全 | — | 显式要人工、distress 检测（LLM **不能**自行设为 `user_distress`） |
-| 失败 | — | 超时/不可用 → 诚实消息，非假 handover |
+| Dimension | **LLM owns** | **Runtime owns** |
+|-----------|--------------|------------------|
+| Semantic | intent, wording, whether to cite knowledge, choice of tool calls | — |
+| Mechanical | — | phase FSM, budget, tool whitelist, guardrail, canonical `escalation_reason` |
+| Safety | — | explicit handover request, distress detection (the LLM **cannot** set `user_distress` itself) |
+| Failure | — | timeout/unavailable → honest message, not a fake handover |
 
-**教学式护栏**：`SkillGuardrailDispatcher` 拒绝时把 `{error, hint, missing_fields}` 写入 `accumulated_tool_results`，下一轮 LLM 可自我修正（见 `AgentRunLoopImpl` + `resolve_faq_grounded_answer.yaml` 的 `faq_miss_handover_requires_resolve_attempt`）。
+**Teaching-style guardrail**: when `SkillGuardrailDispatcher` rejects, it writes `{error, hint, missing_fields}` into `accumulated_tool_results`, so the LLM can self-correct on the next turn (see `AgentRunLoopImpl` + `resolve_faq_grounded_answer.yaml`'s `faq_miss_handover_requires_resolve_attempt`).
 
-**回滚开关**：`application.yml` 中 `agent.run-loop.enabled-phases` 清空 → 回退 `PhaseEvaluator.evaluate()` 遗留路径。
+**Rollback switch**: clearing `agent.run-loop.enabled-phases` in `application.yml` → falls back to the legacy `PhaseEvaluator.evaluate()` path.
 
 ---
 
-## 6. 上下文工程
+## 6. Context Engineering
 
-### 6.1 每次 LLM 调用的消息形状
+### 6.1 Message Shape of Each LLM Call
 
 ```text
 messages = [
   { role: "system", content: system_prompt.txt + "\n\nCurrent context:\n" + projection_json },
-  { role: "user",   content: 当前轮用户原文 }
+  { role: "user",   content: raw user text of the current turn }
 ]
 ```
 
-- **无 SSE streaming**；`response_format: json_object`
-- **多轮历史**嵌在 projection 的 `conversation_history`（最近 10 轮，邮箱脱敏），而非多条 chat messages
+- **No SSE streaming**; `response_format: json_object`
+- **Multi-turn history** is embedded in the projection's `conversation_history` (last 10 turns, emails redacted), not as multiple chat messages
 
-### 6.2 Projection 主要字段（`ContextProjectionBuilder`）
+### 6.2 Main Projection Fields (`ContextProjectionBuilder`)
 
-| 字段 | 作用 |
-|------|------|
-| `session` | phase、active_use_case、计数器 |
-| `phase_plan` | objective、procedure、allowed_tools、grounding、escalation_policy、`critical_steps` |
-| `tool_schemas` | 按 plan 过滤后的工具定义 |
-| `accumulated_tool_results` | 当轮工具输出 |
-| `already_called` | `{tool, arguments_hash, at_step}` 去重提示 |
-| `intake_state` | Intake UC 必填/已收集字段 |
-| `customer_context` / `listing_context` | Runtime-only 工具预填结果 |
-| `candidate_use_cases` 等 | **软信号**：供 LLM 读，Runtime 不因它们分支 |
+| Field | Purpose |
+|-------|---------|
+| `session` | phase, active_use_case, counters |
+| `phase_plan` | objective, procedure, allowed_tools, grounding, escalation_policy, `critical_steps` |
+| `tool_schemas` | tool definitions filtered by the plan |
+| `accumulated_tool_results` | tool outputs of the current turn |
+| `already_called` | `{tool, arguments_hash, at_step}` dedup hint |
+| `intake_state` | required/collected fields for Intake UCs |
+| `customer_context` / `listing_context` | prefetched results of Runtime-only tools |
+| `candidate_use_cases` etc. | **soft signals**: for the LLM to read; the Runtime does not branch on them |
 
-### 6.3 优势与局限
+### 6.3 Strengths and Limitations
 
-| 优势 | 局限 |
-|------|------|
-| Runtime 精确控制「模型看到什么」 | 固定 10 轮窗口，无语义检索历史 |
-| Skill 按阶段注入 procedure，避免巨型 prompt | 每 tool step 重建完整 projection，token 开销大 |
-| `already_called` 减少重复工具调用 | 无对话级 KV cache 优化 |
+| Strength | Limitation |
+|----------|------------|
+| Runtime precisely controls "what the model sees" | fixed 10-turn window, no semantic retrieval of history |
+| Skills inject procedure per phase, avoiding a giant prompt | full projection rebuilt every tool step, high token cost |
+| `already_called` reduces duplicate tool calls | no conversation-level KV-cache optimization |
 
 ---
 
-## 7. 工具与知识库
+## 7. Tools and Knowledge Base
 
-### 7.1 工具矩阵
+### 7.1 Tool Matrix
 
-策略源：`server/src/main/resources/config/tool-policy.yaml`。
+Policy source: `server/src/main/resources/config/tool-policy.yaml`.
 
-| 工具 | 可见性 | 允许 UC（摘要） |
-|------|--------|----------------|
+| Tool | Visibility | Allowed UCs (summary) |
+|------|------------|-----------------------|
 | `search_knowledge` | Agent | FAQ UCs |
 | `resolve_article` | Agent | FAQ UCs |
-| `classify_use_case` | Agent | ALL（plan 限 DISCOVER） |
-| `get_customer_context` | Agent | 子集 |
+| `classify_use_case` | Agent | ALL (plan limits it to DISCOVER) |
+| `get_customer_context` | Agent | subset |
 | `request_handover` | Agent | ALL |
 | `record_outcome` | Agent | ALL |
-| `lookup_*` / `get_moderation_*` | Runtime-only | 按 UC |
+| `lookup_*` / `get_moderation_*` | Runtime-only | per UC |
 | `create_case_controlled` | Runtime-only | UC-H, J, K |
 
-分发管线：`ToolDispatcher.dispatch` → 注册表查找 → `ToolPolicyEnforcer` → `execute()`。
+Dispatch pipeline: `ToolDispatcher.dispatch` → registry lookup → `ToolPolicyEnforcer` → `execute()`.
 
-### 7.2 知识检索管线
+### 7.2 Knowledge Retrieval Pipeline
 
-`KnowledgeSearchService.search()`：
+`KnowledgeSearchService.search()`:
 
-1. `DashScopeEmbeddingClient` → 768 维向量
-2. pgvector HNSW 余弦 ANN（`KbChunkRepository`）
-3. Retrieval gate：相似度 < 0.3 → `retrieval_miss`
-4. `RerankService`：并行 LLM 1–5 分（8 线程）
-5. Answer gate：top < 3.5 → `answer_miss`
-6. 返回 top 3 `KnowledgeHit`
+1. `DashScopeEmbeddingClient` → 768-dim vector
+2. pgvector HNSW cosine ANN (`KbChunkRepository`)
+3. Retrieval gate: similarity < 0.3 → `retrieval_miss`
+4. `RerankService`: parallel LLM 1–5 score (8 threads)
+5. Answer gate: top < 3.5 → `answer_miss`
+6. return top 3 `KnowledgeHit`
 
-入库：`make ingest` → `KnowledgeIngestionRunner` 读 `data/knowledge/`。
+Ingestion: `make ingest` → `KnowledgeIngestionRunner` reads `data/knowledge/`.
 
 ---
 
-## 8. 评估体系
+## 8. Evaluation System
 
-### 8.1 两套 Harness
+### 8.1 Two Harnesses
 
-| | **eval_interactive/**（主） | **eval/**（CI 回放） |
-|--|---------------------------|---------------------|
-| 用户 | LLM `UserSimulator` 自适应 | CSV 固定 visitor turns |
-| 案例 | YAML CaseSpec（486，另含独立 shadow 集） | 7 数据集 601 sessions |
-| 评分 | L1 硬检查 + L2 结果 + L3 Judge + Tier-2 Skill steps | 7 code + 4 model graders |
-| 用途 | Sprint 验收、锚定回归、人工审 bad case | PR 快速门控 |
+| | **eval_interactive/** (primary) | **eval/** (CI replay) |
+|--|---------------------------------|-----------------------|
+| User | LLM `UserSimulator`, adaptive | CSV fixed visitor turns |
+| Cases | YAML CaseSpec (486, plus a separate shadow set) | 7 datasets, 601 sessions |
+| Scoring | L1 hard checks + L2 outcome + L3 Judge + Tier-2 Skill steps | 7 code + 4 model graders |
+| Purpose | sprint acceptance, anchored regression, human review of bad cases | fast PR gate |
 
-### 8.2 评分金字塔（M3-Eval）
+### 8.2 Scoring Pyramid (M3-Eval)
 
-| Tier | 角色 | 是否挡 `case_passed` |
-|------|------|---------------------|
-| **Tier-0** | 安全底（PII、禁工具暴露、升级合规） | 是 |
-| **Tier-1** | 结果（`bad_cases` 人工 + `anchor_outcome`） | **人工主门**（§5.6） |
-| **Tier-2** | Skill `critical_steps` 流程 | 是（mandatory 步骤） |
-| **Tier-3** | 润色（效率、工具序列等） | 否（仅观察） |
+| Tier | Role | Blocks `case_passed`? |
+|------|------|-----------------------|
+| **Tier-0** | safety floor (PII, no tool exposure, escalation compliance) | Yes |
+| **Tier-1** | outcome (`bad_cases` human + `anchor_outcome`) | **primary human gate** (§5.6) |
+| **Tier-2** | Skill `critical_steps` procedure | Yes (mandatory steps) |
+| **Tier-3** | polish (efficiency, tool sequence, etc.) | No (observation only) |
 
-程序化通过（交互评估）：`case_passed AND composite >= 0.7`（`composite = 0.5×L2 + 0.5×L3`，仅当 case_passed）。
+Programmatic pass (interactive eval): `case_passed AND composite >= 0.7` (`composite = 0.5×L2 + 0.5×L3`, only when case_passed).
 
-**重要**：`case_specs/smoke/`（14 条）的 composite **已降级为观察指标**，不能单独证明 sprint close。
+**Important**: the composite of `case_specs/smoke/` (14 cases) has been **downgraded to an observational metric** and cannot alone justify a sprint close.
 
-### 8.3 CaseSpec 目录
+### 8.3 CaseSpec Directories
 
-| 目录 | 角色 |
-|------|------|
-| `anchor/`（159） | 广度回归 |
-| `anchor_outcome/`（12） | 每 UC 一条，人工审第二面 |
-| `bad_cases/`（17） | **主验收**（人工读 trace） |
-| `case_families/`（51） | 按失败族聚类的 target / neighbor / negative |
-| `exploration/`（107）· `probe/`（25）· `promotion/`（101） | 探索、定向探针、晋升候选 |
-| `smoke/`（14） | 快速冒烟（已降级为观察指标） |
-| `eval_interactive/case_specs_shadow/` | 里程碑 shadow 回归（独立目录，dev 开发期不可读） |
+| Directory | Role |
+|-----------|------|
+| `anchor/` (159) | breadth regression |
+| `anchor_outcome/` (12) | one per UC, human reviews the second face |
+| `bad_cases/` (17) | **primary acceptance** (human reads the trace) |
+| `case_families/` (51) | target / neighbor / negative clustered by failure family |
+| `exploration/` (107) · `probe/` (25) · `promotion/` (101) | exploration, targeted probes, promotion candidates |
+| `smoke/` (14) | quick smoke (downgraded to an observational metric) |
+| `eval_interactive/case_specs_shadow/` | milestone shadow regression (separate directory, not readable during dev) |
 
-运行示例：
+Run examples:
 
 ```bash
 cd eval_interactive
@@ -462,158 +464,158 @@ uv run eval-interactive run --path case_specs/smoke/
 uv run eval-interactive run --path case_specs/bad_cases/
 ```
 
-配置：`eval_interactive/eval_interactive.yaml`（`CSAGENT_BACKEND_URL`、模拟器 LLM 等）。
+Config: `eval_interactive/eval_interactive.yaml` (`CSAGENT_BACKEND_URL`, simulator LLM, etc.).
 
 ---
 
-## 9. Autoloop：Skill 驱动的自动进化
+## 9. Autoloop: Skill-Driven Auto-Evolution
 
-**独立子系统**（`autoloop/`），通过元 Agent 提议修改 **仅 6 个 Skill YAML** 的 LLM-soft 字段；`server/` Java、`case_specs/`、prompt 等为硬围栏。
+An **independent subsystem** (`autoloop/`) where a meta-agent proposes changes to the LLM-soft fields of **only 6 Skill YAMLs**; `server/` Java, `case_specs/`, prompts, etc. are hard fences.
 
-| 概念 | 说明 |
-|------|------|
-| 可变面 | 6 Skill × procedure / grounding / escalation 等 |
-| Fitness | 五层词典序（Tier-0 安全 → Tier-1 结果 → Tier-2 流程 → 改进 → shadow） |
-| Fitness 基线 | `config.fitness.baseline_dir` 指向 `m-auto-7-prepilot-baseline-20260608`（诚实基线，gap 已确认） |
-| 当前 pilot | CS4 实体上下文：Tier-1 目标（`cs_uc_a_*`）+ anti-误杀负控 |
-| 入口 | [`autoloop/README.md`](autoloop/README.md)、[`autoloop/program.md`](autoloop/program.md) |
+| Concept | Notes |
+|---------|-------|
+| Mutable surface | 6 Skills × procedure / grounding / escalation, etc. |
+| Fitness | five-tier lexicographic (Tier-0 safety → Tier-1 outcome → Tier-2 procedure → improvement → shadow) |
+| Fitness baseline | `config.fitness.baseline_dir` points to `m-auto-7-prepilot-baseline-20260608` (honest baseline, gap confirmed) |
+| Current pilot | CS4 entity context: Tier-1 target (`cs_uc_a_*`) + anti-false-kill (anti-误杀) negative control |
+| Entry | [`autoloop/README.md`](autoloop/README.md), [`autoloop/program.md`](autoloop/program.md) |
 
-当前里程碑（`docs/milestone_objective.md`）：**M-Auto-7** — autoloop readiness + CS4 实体上下文 pilot（CORE GATE：autoloop 产出 Skill 候选 → 人工 §4.1 审核 → 合入 + re-bless）。**不影响**在线客服请求路径。
+Current milestone (`docs/milestone_objective.md`): **M-Auto-7** — autoloop readiness + CS4 entity-context pilot (CORE GATE: autoloop produces Skill candidates → human §4.1 review → merge + re-bless). It **does not affect** the online customer-service request path.
 
 ---
 
-## 10. 本地开发与运行
+## 10. Local Development and Running
 
-### 10.1 前置条件
+### 10.1 Prerequisites
 
-- Java 17+、Maven、Node.js、PostgreSQL 17（pgvector）、Redis
-- Python 3.11+、`uv`（评估与 autoloop）
-- `.env.local`（**不提交**；Makefile `include`）
+- Java 17+, Maven, Node.js, PostgreSQL 17 (pgvector), Redis
+- Python 3.11+, `uv` (evaluation and autoloop)
+- `.env.local` (**not committed**; `include`d by the Makefile)
 
-### 10.2 环境变量（摘录）
+### 10.2 Environment Variables (excerpt)
 
-| 变量 | 用途 |
-|------|------|
-| `DEEPSEEK_API_KEY` | 主 Chat LLM（必需） |
-| `KIMI_API_KEY` | 备用 Chat（强烈建议） |
-| `DASHSCOPE_API_KEY` | Embedding（ingest/检索必需） |
-| `DB_*` / `REDIS_*` | 数据库与 Redis |
-| `CSAGENT_BACKEND_URL` | eval 指向后端（默认 `http://localhost:8080`） |
+| Variable | Purpose |
+|----------|---------|
+| `DEEPSEEK_API_KEY` | primary Chat LLM (required) |
+| `KIMI_API_KEY` | fallback Chat (strongly recommended) |
+| `DASHSCOPE_API_KEY` | Embedding (required for ingest/retrieval) |
+| `DB_*` / `REDIS_*` | database and Redis |
+| `CSAGENT_BACKEND_URL` | eval points at the backend (default `http://localhost:8080`) |
 
-### 10.3 快速启动
+### 10.3 Quick Start
 
 ```bash
-make setup      # 启动 PostgreSQL + Redis
+make setup      # start PostgreSQL + Redis
 make build      # mvn clean install -DskipTests
-make ingest     # 知识库入库
+make ingest     # ingest the knowledge base
 
-# 终端 1
+# terminal 1
 set -a && source .env.local && set +a
 make backend    # :8080, profile=local
 
-# 终端 2
+# terminal 2
 make frontend   # :5173
 
-# 可选：冒烟评估
+# optional: smoke evaluation
 cd eval_interactive && uv run eval-interactive run --path case_specs/smoke/
 ```
 
-- 聊天：`http://localhost:5173`
-- 管理台：`http://localhost:5173/admin`（trace、handover、漏斗指标）
+- Chat: `http://localhost:5173`
+- Admin: `http://localhost:5173/admin` (trace, handover, funnel metrics)
 
-### 10.4 测试
+### 10.4 Testing
 
 ```bash
-cd server && mvn test                    # Java 基线 1383/1/0/2（含 ControlKernel 集成；1 个继承性已知失败）
-cd eval_interactive && uv run pytest -q  # 评估管线 ~553（548 + 5 继承）
+cd server && mvn test                    # Java baseline 1383/1/0/2 (incl. ControlKernel integration; 1 inherited known failure)
+cd eval_interactive && uv run pytest -q  # eval pipeline ~553 (548 + 5 inherited)
 cd autoloop && uv run --extra dev pytest -q   # autoloop ~331
 cd ui && npm test                        # UI vitest 10 passed
 ```
 
-集成测试模式：**Mockito 组装真实 `ControlKernel` + `AgentRunLoopImpl`**，stub `LlmInvocationService`（非全栈 E2E）。
+Integration-test pattern: **Mockito wires a real `ControlKernel` + `AgentRunLoopImpl`**, stubbing `LlmInvocationService` (not full-stack E2E).
 
 ---
 
-## 11. 可靠性与控制
+## 11. Reliability and Control
 
-| 机制 | 实现 |
-|------|------|
-| 请求 deadline | `ChatController` 30s → `LlmCallContext` |
-| LLM 容错 | `FallbackLlmClient`：DeepSeek → Kimi；单提供商 1 次重试 |
-| 预算 | `control-policy.yaml`：澄清 2 轮、FAQ miss 2、FAQ 15 轮、Intake 10 轮、总计 25 轮 |
-| 升级优先级 | `EscalationReasonResolver`：23 值，如 `user_requested`(1) > `faq_miss`(41) |
-| 强制升级 | `ControlKernel.forceEscalate`：无 LLM，合成 handover trace |
-| Trace | `bot_turns`：projection、tool_calls、per-step `bot_turn_llm_calls`（V15） |
-| PII | 投影 email 脱敏；`ToolCallTraceSanitizer` 持久化脱敏 |
+| Mechanism | Implementation |
+|-----------|----------------|
+| Request deadline | `ChatController` 30s → `LlmCallContext` |
+| LLM fault tolerance | `FallbackLlmClient`: DeepSeek → Kimi; 1 retry per single provider |
+| Budget | `control-policy.yaml`: clarify 2 turns, FAQ miss 2, FAQ 15 turns, Intake 10 turns, 25 turns total |
+| Escalation priority | `EscalationReasonResolver`: 23 values, e.g. `user_requested`(1) > `faq_miss`(41) |
+| Forced escalation | `ControlKernel.forceEscalate`: no LLM, synthesizes a handover trace |
+| Trace | `bot_turns`: projection, tool_calls, per-step `bot_turn_llm_calls` (V15) |
+| PII | projection email redaction; `ToolCallTraceSanitizer` redacts at persistence |
 
-**生产缺口**：`MockGumtreeApiService`、`MockSalesforceService`、`DemoInspectionController` 均为 `@Profile("local")`；无真实 CRM/业务 API 实现类。
-
----
-
-## 12. 设计取舍与可借鉴点
-
-### 优化了什么
-
-- **可控性 > 创造性**：YAML Skill + Runtime guardrail + 评估金字塔
-- **Grounding > 自由发挥**：FAQ 必须先 `search_knowledge` 再回答
-- **可观测 > 黑盒**：每轮完整 trace，支撑 Tier-2 与人工审
-- **评估驱动迭代**：bad_cases 人工主门，而非单一自动化分数
-
-### 牺牲了什么
-
-- 无 streaming、无多模态
-- 同步 REST，长 FAQ 路径延迟较高
-- 重型治理文档与 CaseSpec 维护成本
-- Java + 双评估栈的学习曲线
-
-### 建议学习 vs 谨慎复制
-
-| 应学习 | 勿盲目复制 |
-|--------|-------------|
-| LLM-Runtime 所有权边界 | 无 streaming 的交互模式 |
-| Skill 信封 + 教学式护栏拒绝 | 单 user message + 巨型 projection |
-| 投影式上下文控制 | 仅 mock 的业务集成 |
-| 确定性预算与升级优先级表 | 大量 YAML 无生成管线时的手工维护 |
-| 双层评估 + 人工主门 | 完整治理文档链（小团队可裁剪） |
+**Production gap**: `MockGumtreeApiService`, `MockSalesforceService`, `DemoInspectionController` are all `@Profile("local")`; there is no real CRM/business-API implementation class.
 
 ---
 
-## 13. 与 2025 中后期行业方案对比
+## 12. Design Trade-offs and Takeaways
 
-| 维度 | 本项目 | 2025 中后期常见实践 | 差距 |
-|------|--------|---------------------|------|
-| 响应 | 同步 JSON，阻塞 | SSE / WebSocket streaming | 体验 |
-| 模型路由 | 固定 DeepSeek+Kimi fallback | 按意图/阶段路由大小模型 | 成本与延迟 |
-| 记忆 | 单会话 DB | 向量 memory + 实体图 | 跨会话连续性 |
-| 工具 | 串行 dispatch | 无依赖工具并行 | 吞吐 |
-| 自验 | 无 reflection loop | CoVe / self-critique 再答 | 质量上限 |
-| 人机协作 | 转接结束 | 坐席中 Agent 辅助 | 协作深度 |
-| Online eval | 无 | 生产 CSAT → 案例库闭环 | 持续改进 |
-| 自动进化 | **autoloop（Skill-only）** | 多数仍为人工 prompt 迭代 | 本项目在元进化上有探索 |
+### What it optimized for
 
-**优先改进路线（若产品化）**：P0 Streaming + 模型路由；P1 语义历史压缩 + 工具并行；P2 轻量 self-check 层 + Online eval 采样。
+- **Controllability > creativity**: YAML Skills + Runtime guardrail + evaluation pyramid
+- **Grounding > free improvisation**: FAQ must `search_knowledge` before answering
+- **Observability > black box**: a full trace every turn, supporting Tier-2 and human review
+- **Eval-driven iteration**: bad_cases as the primary human gate, not a single automated score
 
----
+### What it sacrificed
 
-## 14. 延伸阅读
+- No streaming, no multimodal
+- Synchronous REST, higher latency on long FAQ paths
+- Heavy governance docs and CaseSpec maintenance cost
+- Learning curve of Java + a dual evaluation stack
 
-| 读者 | 文档 |
-|------|------|
-| 采用者 / 集成方 | [`docs/current/runtime_contract.md`](docs/current/runtime_contract.md)、[`docs/current/faq_grounding_contract.md`](docs/current/faq_grounding_contract.md)、[`docs/runbooks/admin-guide.md`](docs/runbooks/admin-guide.md) |
-| 贡献者 / Agent | [`AGENTS.md`](AGENTS.md) → `docs/current/iteration_governance.md`、`docs/sprint_objective.md` |
-| Autoloop | [`autoloop/README.md`](autoloop/README.md)、[`autoloop/program.md`](autoloop/program.md) |
-| 架构历史 | [`docs/foundational/`](docs/foundational/) Phase 0–5 规格 |
+### Learn from vs copy with caution
 
-**当前活跃工作**（2026-06-09）：分支 `auto-loop-branch`，里程碑 **M-Auto-7**（autoloop readiness + CS4 实体上下文 pilot，CORE GATE）；运行时 **六 phase 全走 AgentRunLoop**。详见 [`docs/10-handoff.md`](docs/10-handoff.md)。
+| Learn from | Don't blindly copy |
+|------------|--------------------|
+| LLM-Runtime ownership boundary | the no-streaming interaction pattern |
+| Skill envelope + teaching-style guardrail rejection | single user message + giant projection |
+| projection-style context control | mock-only business integration |
+| deterministic budget and escalation-priority table | hand-maintained YAML with no generation pipeline |
+| two-layer eval + primary human gate | the full governance doc chain (small teams can trim it) |
 
 ---
 
-## 附录：对比表（Harness vs 典型 Chatbot vs 2025 Agent 框架）
+## 13. Comparison with Late-2025 Industry Approaches
 
-| 能力 | csagent | 传统规则 Chatbot | 通用 Agent 框架（LangGraph 等） |
-|------|-----------------|------------------|--------------------------------|
-| 意图路由 | LLM + 确定性 prior | 关键词/决策树 | 自由 LLM 路由 |
-| 工具约束 | 三重白名单 + guardrail | 固定 API | 开发者自定 |
-| 阶段机 | 显式 FSM + Skill | 有限状态 | 图/节点自由组合 |
-| 评估 | 四层金字塔 + 人工主门 | 脚本断言 | 多为可选 tracing |
-| 元进化 | autoloop（Skill YAML only） | 无 | 少见、通常全 prompt |
+| Dimension | This project | Common late-2025 practice | Gap |
+|-----------|--------------|---------------------------|-----|
+| Response | synchronous JSON, blocking | SSE / WebSocket streaming | experience |
+| Model routing | fixed DeepSeek+Kimi fallback | route large/small models by intent/phase | cost and latency |
+| Memory | single-session DB | vector memory + entity graph | cross-session continuity |
+| Tools | serial dispatch | parallel independent tools | throughput |
+| Self-verification | no reflection loop | CoVe / self-critique then re-answer | quality ceiling |
+| Human-agent collaboration | ends at handover | in-seat Agent assist for the human | collaboration depth |
+| Online eval | none | production CSAT → case-library closed loop | continuous improvement |
+| Auto-evolution | **autoloop (Skill-only)** | mostly still manual prompt iteration | this project explores meta-evolution |
+
+**Priority improvement roadmap (if productized)**: P0 streaming + model routing; P1 semantic history compression + tool parallelism; P2 lightweight self-check layer + online-eval sampling.
+
+---
+
+## 14. Further Reading
+
+| Reader | Docs |
+|--------|------|
+| Adopters / integrators | [`docs/current/runtime_contract.md`](docs/current/runtime_contract.md), [`docs/current/faq_grounding_contract.md`](docs/current/faq_grounding_contract.md), [`docs/runbooks/admin-guide.md`](docs/runbooks/admin-guide.md) |
+| Contributors / Agents | [`AGENTS.md`](AGENTS.md) → `docs/current/iteration_governance.md`, `docs/sprint_objective.md` |
+| Autoloop | [`autoloop/README.md`](autoloop/README.md), [`autoloop/program.md`](autoloop/program.md) |
+| Architecture history | [`docs/foundational/`](docs/foundational/) Phase 0–5 specs |
+
+**Current active work** (2026-06-09): branch `auto-loop-branch`, milestone **M-Auto-7** (autoloop readiness + CS4 entity-context pilot, CORE GATE); the runtime runs **all six phases through AgentRunLoop**. See [`docs/10-handoff.md`](docs/10-handoff.md).
+
+---
+
+## Appendix: Comparison Table (Harness vs Typical Chatbot vs 2025 Agent Frameworks)
+
+| Capability | csagent | Traditional rule-based Chatbot | General Agent framework (LangGraph, etc.) |
+|------------|---------|--------------------------------|-------------------------------------------|
+| Intent routing | LLM + deterministic prior | keyword/decision tree | free LLM routing |
+| Tool constraints | triple whitelist + guardrail | fixed API | developer-defined |
+| Phase machine | explicit FSM + Skill | finite states | free graph/node composition |
+| Evaluation | four-tier pyramid + primary human gate | scripted assertions | mostly optional tracing |
+| Meta-evolution | autoloop (Skill YAML only) | none | rare, usually all-prompt |
