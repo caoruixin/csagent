@@ -36,14 +36,16 @@ class ToolPolicyEnforcerTest {
     // --- search_knowledge: only allowed for FAQ UCs ---
 
     @ParameterizedTest
-    @ValueSource(strings = {"UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP"})
+    // WS-3 / A3 (2026-07-25): UC-K joined the knowledge-capable set when its
+    // registry path moved INTAKE -> PARTIAL.
+    @ValueSource(strings = {"UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP", "UC-K"})
     void isToolAllowed_searchKnowledge_faqUcs_shouldAllow(String ucId) {
         assertTrue(enforcer.isToolAllowed("search_knowledge", ucId),
                 "search_knowledge should be allowed for FAQ UC: " + ucId);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"UC-G", "UC-H", "UC-I", "UC-J", "UC-K"})
+    @ValueSource(strings = {"UC-G", "UC-H", "UC-I", "UC-J"})
     void isToolAllowed_searchKnowledge_intakeUcs_shouldBlock(String ucId) {
         assertFalse(enforcer.isToolAllowed("search_knowledge", ucId),
                 "search_knowledge should be BLOCKED for INTAKE UC: " + ucId);
@@ -58,13 +60,13 @@ class ToolPolicyEnforcerTest {
     // --- resolve_article: same policy as search_knowledge ---
 
     @ParameterizedTest
-    @ValueSource(strings = {"UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP"})
+    @ValueSource(strings = {"UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP", "UC-K"})
     void isToolAllowed_resolveArticle_faqUcs_shouldAllow(String ucId) {
         assertTrue(enforcer.isToolAllowed("resolve_article", ucId));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"UC-G", "UC-H", "UC-I", "UC-J", "UC-K"})
+    @ValueSource(strings = {"UC-G", "UC-H", "UC-I", "UC-J"})
     void isToolAllowed_resolveArticle_intakeUcs_shouldBlock(String ucId) {
         assertFalse(enforcer.isToolAllowed("resolve_article", ucId));
     }

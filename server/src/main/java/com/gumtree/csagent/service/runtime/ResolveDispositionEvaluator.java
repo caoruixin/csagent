@@ -181,13 +181,31 @@ public final class ResolveDispositionEvaluator {
         if (!"RESOLVE".equalsIgnoreCase(plan.phase())) return false;
         String uc = plan.useCase();
         if (uc == null || uc.isBlank()) return false;
-        // INTAKE UCs route through their own flow; they never produce
+        // Intake-ONLY UCs route through their own flow; they never produce
         // FAQ-grounded final answers in the same way.
-        return !INTAKE_UCS.contains(uc);
+        return !INTAKE_ONLY_UCS.contains(uc);
     }
 
-    private static final java.util.Set<String> INTAKE_UCS = java.util.Set.of(
-            "UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
+    /**
+     * Intake-only UCs (registry {@code path: INTAKE}).
+     *
+     * <p>WS-3 / A3 (2026-07-25): UC-K removed. Its registry path is now
+     * {@code PARTIAL}, so a UC-K RESOLVE turn CAN produce a grounded final
+     * answer and must therefore get a real {@link ResolveDisposition} — with
+     * UC-K still listed here, every UC-K answer fell through to
+     * {@code CONTINUE_RESOLVE}, the session could never reach CONFIRM, and
+     * {@code record_outcome} could never land. That is the second half of the
+     * "architecturally cannot self-resolve" defect A3 names.
+     *
+     * <p>The authoritative declaration is {@code path} in
+     * {@code config/use-case-registry.yaml}. This class is a static utility on
+     * the {@code runtime_freeze_and_risk_policy.md} §1.1 #3 frozen surface and
+     * has no Spring context to inject the registry from, so it mirrors the
+     * registry rather than reading it; {@code UseCaseRegistryPathConsistencyTest}
+     * fails if the two ever disagree.
+     */
+    private static final java.util.Set<String> INTAKE_ONLY_UCS = java.util.Set.of(
+            "UC-G", "UC-H", "UC-I", "UC-J");
 
     private static boolean recordOutcomeSucceededThisRun(AgentRunResult result) {
         if (result == null || result.toolEvents() == null) return false;

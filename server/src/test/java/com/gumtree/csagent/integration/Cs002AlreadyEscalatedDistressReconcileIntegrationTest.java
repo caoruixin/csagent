@@ -108,6 +108,7 @@ class Cs002AlreadyEscalatedDistressReconcileIntegrationTest {
     @Mock private UseCaseRouter useCaseRouter;
     @Mock private ControlPolicyService controlPolicy;
     @Mock private UseCaseRegistryService useCaseRegistry;
+    @Mock private com.gumtree.csagent.repository.KbArticleRepository kbArticleRepository;
 
     // ControlKernel collaborators (mocked individually so the SUT can
     // exercise the real ControlKernel.normalizeHandoverArgsToSessionReason
@@ -144,7 +145,8 @@ class Cs002AlreadyEscalatedDistressReconcileIntegrationTest {
                 handoverLogRepository, botTurnRepository, formIngestion,
                 useCaseRouter, controlKernel, controlPolicy,
                 useCaseRegistry, objectMapper, handoverPayloadAssembler,
-                escalationResolver);
+                escalationResolver,
+                new com.gumtree.csagent.service.knowledge.ArticleCardAssembler(kbArticleRepository));
     }
 
     /**

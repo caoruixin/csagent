@@ -335,6 +335,27 @@ public class EscalationReasonResolver {
      * budget bucket later trips on the same turn.
      */
     public boolean detectDistressSignal(String userMessage) {
+        return hasDistressSignal(userMessage);
+    }
+
+    /**
+     * WS-3 / D2 (2026-07-25) — static twin of
+     * {@link #detectDistressSignal(String)}.
+     *
+     * <p>Exists so {@code ContextProjectionBuilder} can surface the signal to
+     * the LLM as an advisory {@code user_sentiment_signal} slot without taking
+     * a constructor dependency on this bean. The detection logic is unchanged
+     * and lives in exactly one place.
+     *
+     * <p><b>What this signal is and is not.</b> It is an <i>observation</i>
+     * that the customer sounds frustrated. It is NOT an escalation trigger.
+     * The runtime never calls {@code forceEscalate} on it (see
+     * {@code ControlKernel.processMessage} step 2.4) and the projection marks
+     * it advisory. Per D2 the decision — de-escalate and keep solving, or hand
+     * over — belongs to the LLM, which is the only party that can tell whether
+     * the underlying ask is still explanation- or query-class.
+     */
+    public static boolean hasDistressSignal(String userMessage) {
         if (userMessage == null || userMessage.isBlank()) {
             return false;
         }

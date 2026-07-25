@@ -31,8 +31,16 @@ import java.util.stream.Collectors;
 @Service
 public class PhaseEvaluator {
 
-    /** Intake-only UCs that should never invoke knowledge search. */
-    private static final Set<String> INTAKE_UCS = Set.of("UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
+    // WS-3 / A3 (2026-07-25): the literal
+    // `INTAKE_UCS = {UC-G, UC-H, UC-I, UC-J, UC-K}` constant that used to live
+    // here is removed. "Is this UC intake-only?" is now answered by
+    // `isIntakeOnlyUseCase(String)` below, which reads the `path` field of
+    // `config/use-case-registry.yaml` through the injected registry (the
+    // service's own `isIntakeOnlyPath` predicate is the same rule, exposed for
+    // callers that hold the registry directly). The duplicated constant was the reason
+    // UC-K stayed intake-only after the domain spec had declared it `partial`:
+    // four Java sets and two eval-side Python sets each had to be edited in
+    // lockstep, and they had already drifted apart over UC-K.
 
     /**
      * Canonical 24-value escalation_reason enum (mirrors
@@ -158,6 +166,23 @@ public class PhaseEvaluator {
     }
 
     /**
+     * WS-3 / A3 (2026-07-25) — "is this UC intake-ONLY?", read from the
+     * registry's {@code path} field rather than from a literal UC set.
+     *
+     * <p>{@code path: INTAKE} means the UC may never retrieve knowledge and
+     * never terminates on a customer-facing final answer. {@code path: FAQ}
+     * and the new {@code path: PARTIAL} both may. Resolving through
+     * {@link UseCaseRegistryService#getUseCase(String)} (rather than the
+     * service's own predicate) keeps this consistent with every other registry
+     * read in this class. An unknown UC is not treated as intake-only — the
+     * callers' fall-through paths are the safe ones.
+     */
+    private boolean isIntakeOnlyUseCase(String ucId) {
+        UseCaseRegistryService.UseCaseDefinition def = useCaseRegistry.getUseCase(ucId);
+        return def != null && UseCaseRegistryService.PATH_INTAKE.equals(def.path());
+    }
+
+    /**
      * Pick the canonical escalation_reason for a {@link TerminalOutcome#MAX_STEPS}
      * exit. See the call site for rationale (Codex 1.9). Falls back to
      * {@code turn_budget_exhausted} when nothing more specific applies.
@@ -189,7 +214,13 @@ public class PhaseEvaluator {
     String resolveMaxStepsReason(PhasePlan plan,
                                  AgentRunResult result,
                                  BotSession session) {
-        if (plan != null && plan.useCase() != null && INTAKE_UCS.contains(plan.useCase())) {
+        // WS-3 / A3: intake-ONLY plans attribute to incomplete_intake. A
+        // PARTIAL-path plan (UC-K) that exhausted its steps may have been
+        // retrieving rather than collecting, so it falls through to the
+        // evidence-aware FAQ / turn-budget attribution below instead of being
+        // stamped with an intake reason it may not have earned.
+        if (plan != null && plan.useCase() != null
+                && isIntakeOnlyUseCase(plan.useCase())) {
             return "incomplete_intake";
         }
         if (session != null && session.getClarificationCount() != null
@@ -592,8 +623,11 @@ public class PhaseEvaluator {
         // a customer-facing final answer. Keep the session in RESOLVE so the
         // user can supply the missing details. INTAKE plans terminate via
         // ESCALATE only.
+        // WS-3 / A3: intake-ONLY. A PARTIAL-path plan (UC-K) may legitimately
+        // terminate on a FINAL_ANSWER — that is the whole point of the path —
+        // so it must not be forced back into RESOLVE-as-clarification.
         boolean isIntakePlan = plan != null && plan.useCase() != null
-                && INTAKE_UCS.contains(plan.useCase());
+                && isIntakeOnlyUseCase(plan.useCase());
 
         String fromPhase = plan == null ? null : plan.phase();
 
@@ -1012,13 +1046,20 @@ public class PhaseEvaluator {
                     "unknown_use_case");
         }
 
-        // Intake UCs (UC-G/H/I/J/K) must NEVER invoke knowledge search —
-        // they use fixed script templates + clarifying questions for intake field collection.
-        if ("INTAKE".equals(ucDef.path()) || INTAKE_UCS.contains(activeUc)) {
+        // Intake-ONLY UCs (registry `path: INTAKE` — UC-G/H/I/J) must NEVER
+        // invoke knowledge search; they use fixed script templates +
+        // clarifying questions for intake field collection.
+        //
+        // WS-3 / A3 (2026-07-25): the second disjunct here used to be a
+        // literal UC set containing UC-K, which overrode the registry and
+        // forced every technical-support question down the no-retrieval path.
+        // The registry `path` is now the sole classifier: PARTIAL-path UCs
+        // reach resolveFaq and may consult the knowledge surface.
+        if (isIntakeOnlyUseCase(activeUc)) {
             return resolveIntake(session, userMessage, conversationHistory, ucDef);
         }
 
-        // FAQ UCs proceed with knowledge search
+        // FAQ- and PARTIAL-path UCs proceed with knowledge search.
         return resolveFaq(session, userMessage, conversationHistory, ucDef);
     }
 

@@ -28,13 +28,34 @@ import java.util.*;
 @Service
 public class ControlKernel {
 
-    /** FAQ UCs that route through the {@code RESOLVE_FAQ} phase plan. */
-    private static final Set<String> FAQ_UCS = Set.of(
-            "UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP");
+    /**
+     * Knowledge-capable UCs that route through the {@code RESOLVE_FAQ} phase
+     * plan — registry {@code path} of {@code FAQ} or {@code PARTIAL}.
+     *
+     * <p>WS-3 / A3 (2026-07-25): UC-K joined this set when its registry path
+     * moved {@code INTAKE -> PARTIAL}. The route key only gates the
+     * {@code agent.run-loop.enabled-phases} feature flag; the actual Skill is
+     * still resolved by {@code SkillRegistry.select(phase, uc)}, which hands
+     * UC-K to {@code resolve_technical_diagnose_or_intake.yaml}.
+     *
+     * <p>The authoritative declaration is {@code path} in
+     * {@code config/use-case-registry.yaml}; this and {@link #INTAKE_ONLY_UCS}
+     * are mirrors, guarded against drift by
+     * {@code UseCaseRegistryPathConsistencyTest}. {@link ControlKernel} is
+     * constructed directly (without Spring) by a large number of legacy tests
+     * through three back-compat constructors, so injecting
+     * {@code UseCaseRegistryService} here is deferred rather than done inline.
+     */
+    private static final Set<String> KNOWLEDGE_CAPABLE_UCS = Set.of(
+            "UC-A", "UC-B", "UC-C", "UC-D", "UC-E", "UC-F", "UC-FP", "UC-K");
 
-    /** INTAKE UCs that route through the {@code RESOLVE_INTAKE} phase plan. */
-    private static final Set<String> INTAKE_UCS = Set.of(
-            "UC-G", "UC-H", "UC-I", "UC-J", "UC-K");
+    /**
+     * Intake-only UCs (registry {@code path: INTAKE}) that route through the
+     * {@code RESOLVE_INTAKE} phase plan and may never retrieve knowledge.
+     * Mirror of the registry; see {@link #KNOWLEDGE_CAPABLE_UCS}.
+     */
+    private static final Set<String> INTAKE_ONLY_UCS = Set.of(
+            "UC-G", "UC-H", "UC-I", "UC-J");
 
     /**
      * Sprint 8.1 §M3 — minimum remaining wall-clock budget required to
@@ -2413,8 +2434,12 @@ public class ControlKernel {
             try {
                 lineage = com.gumtree.csagent.service.knowledge.SourceEvidenceLineage
                         .fromToolEvents(result.toolEvents(), persistedBotResponse);
+                // WS-3 / A3: intake-ONLY. The FAQ output classifier uses this to
+                // decide whether a reply could have been a grounded answer at
+                // all; a PARTIAL-path UC (UC-K) can, so it must not be treated
+                // as intake here or its grounded answers score as intake text.
                 boolean intakeUc = plan != null && plan.useCase() != null
-                        && INTAKE_UCS.contains(plan.useCase());
+                        && INTAKE_ONLY_UCS.contains(plan.useCase());
                 boolean handoverDispatched = "ESCALATE".equals(phaseAfter)
                         && session.getEscalationReason() != null;
                 outputClass = com.gumtree.csagent.service.knowledge.FaqOutputClassifier.classify(
@@ -2541,8 +2566,8 @@ public class ControlKernel {
             case "RESOLVE": {
                 String uc = session.getActiveUseCase();
                 if (uc == null) return null;
-                if (FAQ_UCS.contains(uc)) return "RESOLVE_FAQ";
-                if (INTAKE_UCS.contains(uc)) return "RESOLVE_INTAKE";
+                if (KNOWLEDGE_CAPABLE_UCS.contains(uc)) return "RESOLVE_FAQ";
+                if (INTAKE_ONLY_UCS.contains(uc)) return "RESOLVE_INTAKE";
                 return null;
             }
             case "DISCOVER":
