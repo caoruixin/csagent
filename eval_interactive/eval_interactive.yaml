@@ -20,6 +20,20 @@ llm:
   # fitness signal in the autoloop is not noise-dominated.
   simulator_temperature: 0.0
 
+# WS-5 item 3: the L3 LLM judge gets its own provider/model so the graded
+# party, the simulated customer and the grader are three different models
+# (bot=deepseek-v4-flash | simulator=qwen-plus | judge=kimi-k2.6) and the
+# judge's errors are not correlated with the simulator's by construction.
+# Any field left empty (i.e. the JUDGE_* env var is unset) falls back to the
+# `llm` section above with a WARNING — see config.resolve_judge_config — so
+# an environment without JUDGE_* still runs, exactly as it did before.
+judge:
+  base_url: ${JUDGE_BASE_URL}
+  api_key: ${JUDGE_API_KEY}
+  model: ${JUDGE_MODEL}
+  # Grading stays deterministic. Leave unset to inherit llm.temperature.
+  temperature: 0.0
+
 simulator:
   max_turns: 15
   default_persona:

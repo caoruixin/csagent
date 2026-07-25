@@ -39,14 +39,75 @@ Facts you know (reveal naturally when relevant):
 If the bot {{ persona.will_request_human_if }}, ask to speak with a human agent.
 {% endif %}
 
+How your needs move during this conversation ({{ drift_behavior }}):
+{%- if drift_behavior == "hard_shift" %}
+- Partway through this chat you turn to a CLEARLY DIFFERENT request from the
+  one you opened with: a separate problem you also need dealt with, not a
+  follow-up question about the first one. Pick something a real Gumtree
+  customer in your situation would plausibly also be dealing with.
+- You still care about what you came for. Raising the second request does
+  not mean the first one stopped mattering.
+{%- elif drift_behavior == "soft_shift" %}
+- Partway through this chat you raise a RELATED BUT DIFFERENT sub-problem
+  inside the same overall topic: still the same area of your account /
+  ad / payment, but a distinct question the bot has not answered.
+- You still care about what you came for; the new sub-problem sits
+  alongside it, it does not replace it.
+{%- elif drift_behavior == "minor" %}
+- Your focus shifts only slightly during this chat: the same request, seen
+  from a different angle or with the emphasis moved (for example onto
+  timing, cost, or the consequences for you).
+{%- else %}
+- Your needs do not move: stay with the request you opened with for the
+  whole conversation. Do not introduce a new or unrelated problem.
+{%- endif %}
+{%- if drift_behavior != "none" %}
+- YOU decide when this happens, the same way a real customer would: when it
+  feels natural to you, not on a fixed turn number. Do not announce that you
+  are switching topic, and do not raise it in your first reply just to get it
+  out of the way.
+- On the turn where you first raise it, report ``user_state: "new_request"``.
+{%- endif %}
+
 Rules:
 - Respond as a real customer would. Do NOT reveal you are an AI.
 - If the bot has resolved your issue, say something like "thank you, that helps."
 - If the bot is clearly unable to help after multiple attempts, say "can I speak to someone?"
 - Keep responses concise (1-3 sentences).
 
-In addition to your reply, report your CURRENT resolution state for THIS turn
-in the ``user_state`` field, judged ONLY from your own point of view as the
+In addition to your reply, report in ``goal_status`` whether the reason you
+started this conversation still stands. THIS FIELD ENDS THE CHAT: reporting
+"achieved" or "impossible" stops the conversation immediately, so report
+either one only if you would genuinely stop typing right now. Judge it ONLY
+from your own point of view as the customer -- never from the bot's wording,
+and never from whether it offered you a human agent or said goodbye:
+- "achieved": what you came for is actually done, OR you now hold the
+  concrete next step you needed (the answer, the link, the form, the
+  instruction you can act on), AND there is nothing further you intend to
+  raise in this chat. If you still plan to bring up another request, it is
+  not "achieved" yet.
+- "impossible": what you want genuinely CANNOT be obtained -- not by this
+  bot, not by a human, not through any channel. Report it when: the thing
+  you want no longer exists or is gone for good; you have been given a
+  definitive answer that what you ask for is not allowed or not possible and
+  you accept that it is final; or the only route forward needs something you
+  have no way to supply.
+  "impossible" is about YOUR GOAL, not about this attempt. A bot that
+  answered badly, missed your point, repeated itself, gave a generic reply,
+  asked yet another question, or is transferring you to a human has NOT made
+  your goal impossible -- it has just failed to help you so far. That is
+  "in_progress" (with ``user_state: "unresolved_after_help"`` on the turn
+  where you say so).
+- "in_progress": everything else, including: you are still explaining; you
+  are waiting; you are unhappy with the answer; you have been handed to a
+  human and you still want your problem fixed; you are about to raise a
+  different request.
+``goal_status`` and ``user_state`` describe the SAME turn and should not
+contradict each other: when ``user_state`` is "unresolved_after_help",
+"working", or "new_request", ``goal_status`` is normally "in_progress".
+
+Also report your CURRENT resolution state for THIS turn in the
+``user_state`` field, judged ONLY from your own point of view as the
 customer (never from the bot's wording):
 - "satisfied": the bot's latest help actually solved YOUR specific problem.
 - "unresolved_after_help": the bot already gave you an answer / advice / help,
@@ -100,6 +161,40 @@ _USER_STATE_VALUES: tuple[str, ...] = (
 # than a single shot, since the original single retry could repeat the
 # same malformed reply.
 _MAX_SIMULATOR_ATTEMPTS = 3
+
+# --- Persona topic-drift injection (WS-5 item 2) -------------------------
+#
+# ``persona.drift_behavior`` is declared non-``none`` on 344/486 CaseSpecs
+# but was never rendered into the simulator system prompt: it was parsed
+# (config.py) and used to *exclude* cases from the smoke fixture
+# (case_spec/smoke_curator.py), and nothing else. Intent switching was
+# therefore never exercised by the interactive harness.
+#
+# NOTE ON NAMING: this is TOPIC drift (the simulated customer changing what
+# they are asking for), which is a persona property owned by the LLM. It is
+# unrelated to the ``_DRIFT_KEYWORDS`` / ``SimulatorDriftError`` machinery
+# below, which detects CUSTOMER-VOICE drift (the simulator slipping into
+# support-agent voice) and is a measurement guard.
+_TOPIC_DRIFT_VALUES: tuple[str, ...] = (
+    "none",
+    "minor",
+    "soft_shift",
+    "hard_shift",
+)
+
+
+def _normalize_topic_drift(persona: object) -> str:
+    """Return the persona's declared topic-drift behaviour, normalized.
+
+    Unknown / missing / empty values normalize to ``"none"`` (stay on the
+    original request), matching ``DefaultPersona.drift_behavior`` in
+    ``config.py`` and ``_derive_drift_behavior``'s own unknown-value default
+    in ``case_spec/extractor.py``.
+    """
+    raw = getattr(persona, "drift_behavior", "") or ""
+    value = raw.strip().lower()
+    return value if value in _TOPIC_DRIFT_VALUES else "none"
+
 
 # Appended after a parse failure so the next attempt restates the exact
 # contract instead of re-emitting the same malformed shape.
@@ -366,6 +461,7 @@ class UserSimulator:
         system_prompt = _SYSTEM_PROMPT_TEMPLATE.render(
             persona=case_spec.persona,
             form_context=case_spec.form_context,
+            drift_behavior=_normalize_topic_drift(case_spec.persona),
         )
 
         # Build conversation history for the LLM

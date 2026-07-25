@@ -492,3 +492,153 @@ class TestDriftDetector:
 
     def test_d2_skipped_when_no_prior_bot_reply(self):
         assert _is_regurgitation("anything at all here", None) is False
+
+
+# ---------------------------------------------------------------------------
+# WS-5 items 1 + 2: goal_status rubric and persona topic-drift injection
+#
+# NOTE (iteration_governance.md §5.7): everything below is a RENDERING /
+# WIRING test. It proves what the simulator LLM is told, not what the
+# simulator LLM then does. Whether the rubric changes the goal_status
+# distribution, or whether the drift block makes the simulated customer
+# actually switch intent, is only answerable by a real-LLM rerun.
+# ---------------------------------------------------------------------------
+
+
+def _drift_case(drift: str, *, goal: str = "reset my password"):
+    case = _full_case(goal=goal)
+    case.persona.drift_behavior = drift
+    return case
+
+
+def _render_for(drift):
+    """Return the system prompt the simulator would send for ``drift``."""
+    sim = _simulator_with([_sim_json("still stuck")])
+    case = _full_case() if drift is _UNSET else _drift_case(drift)
+    sim.generate_next(case, _four_turn_transcript(), "b2 bot answer two")
+    return sim._client.chat.completions.calls[0][0]["content"]
+
+
+_UNSET = object()
+
+
+class TestGoalStatusRubric:
+    """WS-5.1: the session-TERMINATING field now has a rubric."""
+
+    def test_rubric_defines_all_three_values(self):
+        prompt = _render_for("none")
+        assert "``goal_status``" in prompt
+        for value in ('"achieved"', '"impossible"', '"in_progress"'):
+            # each value is introduced as a definition bullet, not only in
+            # the closing JSON schema line
+            assert f'- {value}:' in prompt, value
+
+    def test_rubric_states_the_terminating_consequence(self):
+        prompt = _render_for("none")
+        assert "ENDS THE CHAT" in prompt
+
+    def test_impossible_is_scoped_to_the_goal_not_the_attempt(self):
+        """The 'pressured into escalation' channel: a bad bot turn is not
+        an impossible goal."""
+        prompt = _render_for("none")
+        assert "about YOUR GOAL, not about this attempt" in prompt
+        assert "transferring you to a human has NOT made" in prompt
+
+    def test_rubric_forbids_reading_it_off_the_bot(self):
+        """Same first principle as the pre-existing user_state rubric."""
+        prompt = _render_for("none")
+        assert "from your own point of view as the customer" in prompt
+        assert "never from whether it offered you a human agent" in prompt
+
+    def test_rubric_is_not_biased_against_impossible(self):
+        """A faithful rubric names the cases where 'impossible' is CORRECT.
+
+        Guards against the tempting-but-wrong fix of simply discouraging the
+        value to make the distribution look better.
+        """
+        prompt = _render_for("none")
+        assert "no longer exists or is gone for good" in prompt
+        assert "have no way to supply" in prompt
+        assert "not allowed or not possible" in prompt
+
+    def test_rubric_is_consistent_with_user_state(self):
+        prompt = _render_for("none")
+        assert "should not\ncontradict each other" in prompt
+        # the pre-existing user_state rubric is still intact
+        assert '- "unresolved_after_help":' in prompt
+
+
+class TestTopicDriftInjection:
+    """WS-5.2: persona.drift_behavior reaches the prompt at last."""
+
+    def test_hard_shift_asks_for_a_clearly_different_request(self):
+        prompt = _render_for("hard_shift")
+        assert "How your needs move during this conversation (hard_shift)" in prompt
+        assert "CLEARLY DIFFERENT request" in prompt
+
+    def test_soft_shift_stays_inside_the_same_topic(self):
+        prompt = _render_for("soft_shift")
+        assert "(soft_shift)" in prompt
+        assert "RELATED BUT DIFFERENT sub-problem" in prompt
+        assert "CLEARLY DIFFERENT request" not in prompt
+
+    def test_minor_is_an_emphasis_shift_only(self):
+        prompt = _render_for("minor")
+        assert "(minor)" in prompt
+        assert "shifts only slightly" in prompt
+
+    def test_none_anchors_on_the_original_request(self):
+        prompt = _render_for("none")
+        assert "(none)" in prompt
+        assert "Your needs do not move" in prompt
+        assert "CLEARLY DIFFERENT request" not in prompt
+        assert "RELATED BUT DIFFERENT sub-problem" not in prompt
+
+    def test_drift_timing_is_not_scripted(self):
+        """§1.3: WHEN to switch is a semantic decision owned by the LLM.
+
+        A turn number in the prompt would turn the persona into a script.
+        """
+        prompt = _render_for("hard_shift")
+        assert "not on a fixed turn number" in prompt
+        for scripted in ("turn 3", "turn 4", "third turn", "after 2 turns"):
+            assert scripted not in prompt.lower()
+
+    def test_non_none_drift_maps_to_new_request_user_state(self):
+        prompt = _render_for("hard_shift")
+        assert 'report ``user_state: "new_request"``' in prompt
+
+    def test_none_carries_no_switch_timing_instruction(self):
+        prompt = _render_for("none")
+        assert "YOU decide when this happens" not in prompt
+
+    def test_unknown_and_missing_values_normalize_to_none(self):
+        from eval_interactive.simulator.user_simulator import _normalize_topic_drift
+
+        assert _normalize_topic_drift(SimpleNamespace(drift_behavior="HARD_SHIFT")) == "hard_shift"
+        assert _normalize_topic_drift(SimpleNamespace(drift_behavior="  soft_shift ")) == "soft_shift"
+        assert _normalize_topic_drift(SimpleNamespace(drift_behavior="")) == "none"
+        assert _normalize_topic_drift(SimpleNamespace(drift_behavior=None)) == "none"
+        assert _normalize_topic_drift(SimpleNamespace(drift_behavior="wobble")) == "none"
+        assert _normalize_topic_drift(SimpleNamespace()) == "none"
+
+    def test_persona_without_the_attribute_still_renders(self):
+        """Defensive: legacy persona namespaces must not crash the prompt."""
+        prompt = _render_for(_UNSET)
+        assert "How your needs move during this conversation (none)" in prompt
+
+
+class TestDriftInjectionCoversTheRealCorpus:
+    """The 344 non-none specs are the point of WS-5.2; prove they route."""
+
+    def test_every_declared_corpus_value_is_recognised(self):
+        from eval_interactive.simulator.user_simulator import (
+            _TOPIC_DRIFT_VALUES,
+            _normalize_topic_drift,
+        )
+
+        # The four values the extractor can emit
+        # (case_spec/extractor.py::_derive_drift_behavior).
+        for value in ("none", "minor", "soft_shift", "hard_shift"):
+            assert value in _TOPIC_DRIFT_VALUES
+            assert _normalize_topic_drift(SimpleNamespace(drift_behavior=value)) == value

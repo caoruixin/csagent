@@ -10,13 +10,34 @@ from dataclasses import dataclass
 from openai import OpenAI
 
 from eval_interactive.case_spec.schema import CaseSpec
-from eval_interactive.config import Config
+from eval_interactive.config import Config, resolve_judge_config
 from eval_interactive.trace.models import TraceData
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_SCORE = 3.0
 _MAX_RETRIES = 1
+
+
+# Models observed (this process) to reject an explicit ``temperature``.
+# The executor builds a fresh ``LlmJudge`` per case, so without a
+# process-level memo every case would pay one doomed 400 before falling
+# back — 486 wasted calls on a full-corpus run.
+_TEMPERATURE_PINNED_MODELS: set[str] = set()
+
+
+def _is_temperature_rejection(exc: Exception) -> bool:
+    """Does ``exc`` look like "this model does not accept that temperature"?
+
+    Provider-agnostic: a 400 whose message mentions ``temperature``.
+    Deliberately narrow — any other 400 (bad model id, oversized prompt)
+    must still surface through the normal retry / default-score path so a
+    real failure is not silently swallowed.
+    """
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if status not in (400, "400"):
+        return False
+    return "temperature" in str(exc).lower()
 
 
 @dataclass
@@ -81,13 +102,26 @@ class LlmJudge:
         Args:
             config: Application config with llm section.
         """
-        self._model = config.llm.model
-        self._temperature = config.llm.temperature  # 0.0 for grading
+        # WS-5 item 3: the judge reads its OWN section so it is not forced
+        # onto the user simulator's model/provider. ``resolve_judge_config``
+        # falls back field-by-field to ``config.llm`` (with a WARNING) when
+        # the JUDGE_* env vars are unset, so environments that predate the
+        # split behave exactly as before.
+        judge_cfg = resolve_judge_config(config)
+        self._model = judge_cfg.model
+        self._temperature = judge_cfg.temperature  # 0.0 for grading
+        # Set on the first provider-side rejection of an explicit
+        # temperature; see ``_is_temperature_rejection``. Seeded from the
+        # process-level memo so later cases in the same run skip the probe.
+        self._temperature_unsupported = self._model in _TEMPERATURE_PINNED_MODELS
         self._client = OpenAI(
-            base_url=config.llm.base_url or None,
-            api_key=config.llm.api_key or "not-set",
+            base_url=judge_cfg.base_url or None,
+            api_key=judge_cfg.api_key or "not-set",
         )
-        logger.info("LlmJudge initialized: model=%s, base_url=%s", self._model, config.llm.base_url)
+        logger.info(
+            "LlmJudge initialized: model=%s, base_url=%s (simulator model=%s)",
+            self._model, judge_cfg.base_url, config.llm.model,
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -389,14 +423,45 @@ Respond with ONLY a JSON object: {{"score": <1-5>, "reasoning": "<brief explanat
         logger.info("LLM [judge:%s] call: model=%s", dimension, self._model)
         for attempt in range(_MAX_RETRIES + 1):
             try:
-                response = self._client.chat.completions.create(
-                    model=self._model,
-                    temperature=self._temperature,
-                    messages=[{"role": "user", "content": prompt}],
-                )
+                kwargs: dict = {
+                    "model": self._model,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+                # Some providers pin the sampling temperature for a given
+                # model and 400 on any explicit value (observed on
+                # moonshot ``kimi-k2.6``: "invalid temperature: only 1 is
+                # allowed for this model"). Once seen, this judge omits the
+                # parameter for the rest of the run rather than degrading
+                # every L3 dimension to the default score.
+                if not self._temperature_unsupported:
+                    kwargs["temperature"] = self._temperature
+                response = self._client.chat.completions.create(**kwargs)
                 content = response.choices[0].message.content or ""
                 return self._parse_response(dimension, content, severity)
-            except Exception:
+            except Exception as exc:
+                if _is_temperature_rejection(exc) and not self._temperature_unsupported:
+                    self._temperature_unsupported = True
+                    _TEMPERATURE_PINNED_MODELS.add(self._model)
+                    logger.warning(
+                        "LlmJudge: model=%s rejected temperature=%s (%s); "
+                        "re-issuing without the temperature parameter for the "
+                        "rest of this run. Grading determinism is now the "
+                        "provider's default, not %s.",
+                        self._model, self._temperature, exc, self._temperature,
+                    )
+                    # Not a real failure: does not consume the retry budget.
+                    try:
+                        response = self._client.chat.completions.create(
+                            model=self._model,
+                            messages=[{"role": "user", "content": prompt}],
+                        )
+                        content = response.choices[0].message.content or ""
+                        return self._parse_response(dimension, content, severity)
+                    except Exception:
+                        logger.warning(
+                            "LlmJudge: retry without temperature also failed "
+                            "for %s", dimension, exc_info=True,
+                        )
                 if attempt < _MAX_RETRIES:
                     logger.warning(
                         "LlmJudge: attempt %d for %s failed, retrying",
