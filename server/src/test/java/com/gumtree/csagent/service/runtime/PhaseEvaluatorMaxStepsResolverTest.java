@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.Mockito.when;
 
 /**
@@ -221,15 +222,56 @@ class PhaseEvaluatorMaxStepsResolverTest {
         assertEquals("faq_miss_threshold_exceeded", reason);
     }
 
+    // ---- Sprint 104: the clarification branch is gone (it was never true) ---
+
     @Test
-    void clarificationCheckedBeforeSearch_mixedLoop() {
-        // Step 2 precedence: a mixed search + clarify loop attributes to
-        // clarification_budget_exhausted, regardless of the last faq_miss.
+    void clarificationCountNeverAttributesToClarificationBudget_viableHit() {
+        // REPLACES the former `clarificationCheckedBeforeSearch_mixedLoop`,
+        // which asserted that a MAX_STEPS exit with clarificationCount = 2
+        // attributes to clarification_budget_exhausted.
+        //
+        // This is NOT a weakened assertion — it pins the opposite outcome for
+        // the same input, because the old outcome was a false statement about
+        // the runtime. A turn cannot both increment clarificationCount and exit
+        // MAX_STEPS (the increment branch in AgentRunLoopImpl returns), and a
+        // session that had already reached the cap is force-escalated by
+        // ControlKernel Step 3 before the loop runs. So this input is
+        // unreachable in production; when it is constructed directly, the
+        // resolver must attribute on the evidence in the turn — a viable hit
+        // means the loop ran out of steps with a usable answer.
         String reason = evaluator.resolveMaxStepsReason(
                 plan("RESOLVE", "UC-A"),
                 maxStepsWith(searchEvent(0, false)),
                 sessionWithClarifications(2));
-        assertEquals("clarification_budget_exhausted", reason);
+        assertEquals("turn_budget_exhausted", reason);
+    }
+
+    @Test
+    void clarificationCountDoesNotShadowGenuineFaqMiss() {
+        // The removed branch sat ABOVE the faq_miss check, so any session with
+        // clarificationCount > 0 was stamped clarification_budget_exhausted even
+        // when the turn ended on a genuine knowledge miss. Now the miss wins.
+        String reason = evaluator.resolveMaxStepsReason(
+                plan("RESOLVE", "UC-C"),
+                maxStepsWith(searchEvent(0, true)),
+                sessionWithClarifications(1));
+        assertEquals("faq_miss_threshold_exceeded", reason);
+    }
+
+    @Test
+    void observedSession32debe76_toolStepStormNoLongerClaimsClarificationBudget() {
+        // Regression pin for the mis-stamp measured on 2026-07-26: session
+        // 32debe76-45b9-4eaf-8eea-8f697769bd0a (cs_interactive_185 draw 2)
+        // escalated on an 8-call RESOLVE turn with clarificationCount = 1
+        // against max-clarification-rounds = 2, and was recorded as
+        // clarification_budget_exhausted. It must not claim a budget that was
+        // demonstrably not exhausted.
+        String reason = evaluator.resolveMaxStepsReason(
+                plan("RESOLVE", "UC-D"),
+                maxStepsWith(searchEvent(0, false)),
+                sessionWithClarifications(1));
+        assertEquals("turn_budget_exhausted", reason);
+        assertNotEquals("clarification_budget_exhausted", reason);
     }
 
     // ---- Null-safety on plan / session -------------------------------------

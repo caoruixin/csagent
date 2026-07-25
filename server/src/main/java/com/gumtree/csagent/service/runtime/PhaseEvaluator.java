@@ -187,16 +187,21 @@ public class PhaseEvaluator {
      * exit. See the call site for rationale (Codex 1.9). Falls back to
      * {@code turn_budget_exhausted} when nothing more specific applies.
      *
-     * <p>Heuristics, in priority order (Codex 2026-05-03 round 3 — clarification
-     * count is checked before knowledge search so a mixed search + clarify
-     * loop attributes to the user-feedback-driven signal that actually stalled
-     * the conversation, instead of the first FAQ attempt):
+     * <p>Heuristics, in priority order:
      * <ol>
      *   <li>Plan is INTAKE (UC-G/H/I/J/K) → {@code incomplete_intake} (the loop
      *       exhausted without collecting all required fields).</li>
-     *   <li>Session has at least one logged clarification turn → {@code
-     *       clarification_budget_exhausted} (the agent kept asking instead of
-     *       converging).</li>
+     *   <li><del>Session has at least one logged clarification turn →
+     *       {@code clarification_budget_exhausted}</del> — <strong>removed in
+     *       Sprint 104.</strong> The Codex 2026-05-03 round-3 ordering
+     *       rationale (check clarification before knowledge search so a mixed
+     *       search + clarify loop attributes to the signal that actually
+     *       stalled the conversation) was about ORDER; the {@code > 0}
+     *       threshold it shipped with made the branch fire on sessions whose
+     *       clarification budget was provably not exhausted. See the inline
+     *       proof at the former call site. A genuine clarification exhaustion
+     *       is stamped by {@code ControlKernel} Step 3 and never reaches this
+     *       method.</li>
      *   <li>The most-recent {@code search_knowledge} result was a genuine miss
      *       ({@code faq_miss=true}) → {@code faq_miss_threshold_exceeded} (only
      *       reachable when the agent did not also stall on clarification).
@@ -223,10 +228,37 @@ public class PhaseEvaluator {
                 && isIntakeOnlyUseCase(plan.useCase())) {
             return "incomplete_intake";
         }
-        if (session != null && session.getClarificationCount() != null
-                && session.getClarificationCount() > 0) {
-            return "clarification_budget_exhausted";
-        }
+        // Sprint 104 — the former step 2 ("session has at least one logged
+        // clarification turn → clarification_budget_exhausted") is REMOVED. It
+        // could never be a true statement about the runtime, by four steps all
+        // checkable from code:
+        //
+        //   1. this method is called only from interpretRunResult (:674);
+        //   2. interpretRunResult has exactly one caller in src/main/java —
+        //      ControlKernel:501, inside processMessage;
+        //   3. processMessage runs BudgetChecker at :310 and force-escalates
+        //      (returning early) when clarificationCount >= max, so any turn
+        //      that reaches here had clarificationCount < max at turn start;
+        //   4. within a turn the two outcomes are mutually exclusive — the
+        //      increment (AgentRunLoopImpl:595) sits in the
+        //      `calls == null || calls.isEmpty()` branch, which RETURNS at
+        //      :598/:601, while AgentRunResult.maxSteps(...) is only reached
+        //      at :1172 after the `step < maxSteps` loop falls through.
+        //
+        // ∴ clarificationCount is always < max here. Stamping "budget
+        // exhausted" was a false claim, and it mis-attributed real tool-step
+        // storms: session 32debe76-… (2026-07-26) escalated on an 8-call
+        // RESOLVE turn with clarificationCount = 1 against max = 2 and was
+        // recorded as a clarification-budget close-out. A genuine clarification
+        // exhaustion never arrives here at all — ControlKernel Step 3 stamps it
+        // via mapBudgetToEscalationReason (:334) and never runs the loop.
+        //
+        // This is a re-attribution among EXISTING canonical values only; no
+        // enum value is added, renamed, or removed (frozen —
+        // runtime_freeze_and_risk_policy.md §1.2.3 / §1.3.5), and no budget
+        // value changes. Cases that used to land here now attribute on the
+        // evidence below (faq_miss when the last search genuinely missed,
+        // otherwise the catch-all).
         // Step 3 (Sprint 070 / S-Auto-14, B1) — evidence-aware FAQ attribution.
         // Attribute to faq_miss_threshold_exceeded ONLY when the MOST-RECENT
         // search_knowledge result was a genuine miss (faq_miss=true). When the
