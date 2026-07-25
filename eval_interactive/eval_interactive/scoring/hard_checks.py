@@ -267,9 +267,18 @@ class HardChecker:
     # ``_check_user_requested_escalation``. The union is re-exported here
     # unchanged so any external reader keeps working; the GATE no longer
     # consumes the union.
+    #
+    # cs_interactive_208 follow-up: a third class (1b,
+    # ``CONNECTION_REQUEST_PATTERNS``) covers "connect me with <anyone>" —
+    # the object constraint removed. It is a WAIVER + observation, never a
+    # critical demand. See the module docstring of ``escalation_intent``.
     ESCALATION_REQUEST_PATTERNS = list(_esc_intent.ESCALATION_REQUEST_PATTERNS)
     EXPLICIT_HUMAN_REQUEST_PATTERNS = list(
-        _esc_intent.EXPLICIT_HUMAN_REQUEST_PATTERNS
+        _esc_intent.EXPLICIT_HUMAN_PARTY_PATTERNS
+    )
+    CONNECTION_REQUEST_PATTERNS = list(_esc_intent.CONNECTION_REQUEST_PATTERNS)
+    HUMAN_HANDOVER_REQUEST_PATTERNS = list(
+        _esc_intent.HUMAN_HANDOVER_REQUEST_PATTERNS
     )
     CONTACT_CHANNEL_REQUEST_PATTERNS = list(
         _esc_intent.CONTACT_CHANNEL_REQUEST_PATTERNS
@@ -786,10 +795,21 @@ class HardChecker:
 
         * **Explicit human request.** Product decision D2 keeps an explicit
           demand for a human as a valid immediate trigger; only *frustration*
-          was demoted. Uses the narrowed
-          ``escalation_intent.EXPLICIT_HUMAN_REQUEST_PATTERNS`` set, so a
-          bare "call me about this" does NOT license a turn-0 handover — it
-          is the ambiguous class this sprint downgraded to observation.
+          was demoted. Uses ``escalation_intent.user_demanded_human``, i.e.
+          the ``HUMAN_HANDOVER_REQUEST_PATTERNS`` waiver set (class 1a ∪ 1b),
+          so a bare "call me about this" does NOT license a turn-0 handover
+          — that is the ambiguous channel class downgraded to observation —
+          while "connect me with Monisha" DOES.
+
+          cs_interactive_208 regression (fixed): the waiver originally used
+          class 1a alone, whose object slot is a closed list of human common
+          nouns. A customer who names a *specific person* ("Can u plz kindly
+          connect me with Monisha") was therefore not covered, so the bot's
+          correct handover FAILED this gate in all three experiment arms —
+          the cs012 shape, reintroduced by the gate meant to remove it. The
+          waiver now takes the broad class-1a ∪ 1b reading; the critical
+          ``user_requested_escalation`` demand deliberately does not (see
+          ``_check_user_requested_escalation`` for the asymmetry rationale).
         * **``fixed_script_only`` intake path.** Knowledge tools are
           forbidden there (``intake_no_knowledge_tool``), so there is no
           attempt the bot could legitimately have made.
@@ -1191,9 +1211,39 @@ class HardChecker:
         "call me now" from "explain or call me about this" by pattern is
         exactly the keyword-piling the constitution rules out, so the whole
         channel class is demoted rather than re-split.
+
+        ``cs_interactive_208`` follow-up — class 1b is observation-only here
+        --------------------------------------------------------------------
+        ``escalation_intent.CONNECTION_REQUEST_PATTERNS`` ("connect me",
+        "transfer me", "put me through" with the object slot unconstrained)
+        widens the **waiver** so a bot that honours "connect me with Monisha"
+        is no longer charged with premature escalation. It deliberately does
+        **not** widen this critical demand:
+
+        * The removed object constraint admits objects that are not parties
+          ("connect me to the FAQ"). Deciding party-vs-artifact is animacy
+          semantics, i.e. LLM-owned (§1.3). Gating on it critically would
+          hard-fail a bot that correctly answered — recreating the cs012
+          shape one step to the left.
+        * Corpus measurement: of the 4 specs whose user text newly matches,
+          ``cs_interactive_208`` declares ``should_escalate: false`` while
+          ``cs_interactive_212`` declares ``should_escalate: true`` on the
+          *same* utterance shape ("connect me to Thato"). The corpus
+          contradicts itself here; a critical gate would pick a side on
+          ``eval_spec`` ground that belongs to WS-2, and would make
+          ``cs_interactive_208`` unwinnable in the opposite direction.
+
+        So class 1b is recorded as an advisory observation (visible as the
+        ``L1:user_requested_escalation`` tag) and feeds the session-wide
+        non-inertness invariant below, which is safe under either reading.
+        Net effect versus before: ``csmp_g02_uc_a_user_requested_specialist``
+        and ``cs_interactive_212`` — whose user text class 1a never matched
+        at all — become *visible* rather than silently unmeasured.
         """
         channel_requests: list[str] = []
         channel_observations: list[str] = []
+        connection_requests: list[str] = []
+        connection_observations: list[str] = []
 
         for i, turn in enumerate(trace.turns):
             text = turn.user_message or ""
@@ -1209,6 +1259,17 @@ class HardChecker:
                     severity="critical",
                 )
             if explicit:
+                continue
+
+            connection = _esc_intent.is_connection_request(text)
+            if connection:
+                connection_requests.append(
+                    f"turn {turn.turn_index}: {connection!r}"
+                )
+                if not self._escalated_within_window(trace, i):
+                    connection_observations.append(
+                        f"turn {turn.turn_index}: {connection!r}"
+                    )
                 continue
 
             channel = _esc_intent.is_contact_channel_request(text)
@@ -1237,7 +1298,13 @@ class HardChecker:
         # cs012 to hand over before explaining. cs012's correct behaviour
         # (search the policy surface, then explain) satisfies the invariant
         # because a retrieval turn IS a resolution attempt.
-        if channel_requests:
+        #
+        # cs_interactive_208 follow-up: class-1b connection requests join the
+        # invariant on the same footing. "connect me with Monisha" is at least
+        # as strong a request for contact as "call me", so a session that
+        # neither answered nor handed over is wrong under every reading.
+        inert_triggers = connection_requests + channel_requests
+        if inert_triggers:
             attempted = _esc_intent.has_resolution_attempt(trace)
             escalated = _esc_intent.session_escalated(trace)
             if not attempted and not escalated:
@@ -1249,9 +1316,21 @@ class HardChecker:
                     "cited turn AND no handover. This does not adjudicate "
                     "whether the request meant 'a human' or 'an answer' — "
                     "neither reading permits doing nothing; "
-                    + "; ".join(channel_requests[:5]),
+                    + "; ".join(inert_triggers[:5]),
                     severity="critical",
                 )
+
+        if connection_observations:
+            return HardCheckResult(
+                "user_requested_escalation",
+                False,
+                "OBSERVATION (non-gating): connection request with an "
+                "unconstrained object and no handover within 1 turn — whether "
+                "the named object is a human party or a self-serve artifact "
+                "is an LLM-owned semantic judgement; "
+                + "; ".join(connection_observations[:5]),
+                severity="advisory",
+            )
 
         if channel_observations:
             return HardCheckResult(

@@ -7,6 +7,7 @@ to execute a full simulated conversation and produce a SessionResult.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -23,6 +24,47 @@ from eval_interactive.simulator.user_simulator import (
 logger = logging.getLogger(__name__)
 
 
+class SessionCancelled(RuntimeError):
+    """Raised at a cooperative checkpoint when the run was abandoned.
+
+    ``BatchExecutor._run_one`` bounds each case with ``asyncio.wait_for``, but
+    the case body runs in ``asyncio.to_thread`` and **asyncio cannot cancel a
+    worker thread**. Before this exception existed, a session that overran
+    ``batch.timeout_per_session_seconds`` kept running to completion in the
+    background: the batch spent the LLM budget twice (the abandoned worker
+    finished its turns and its L3 judge call), threw the real result away, and
+    persisted a synthetic ``TIMEOUT`` row in its place. Observed verbatim on a
+    real baseline arm — 4/5 cases recorded ``TIMEOUT`` while the log carried
+    their ``FAIL ... turns=5`` completion lines.
+
+    The runner and the executor now poll a ``threading.Event`` at cheap
+    checkpoints (turn boundaries, and before each of the two remaining LLM
+    surfaces) and raise this to unwind promptly.
+
+    Cancellation is **cooperative, therefore approximate**: a checkpoint can
+    only be reached between blocking calls, so a worker signalled while inside
+    a bot HTTP request (``agent_client.DEFAULT_READ_TIMEOUT_SECONDS`` = 90s) or
+    an LLM call finishes that one call first. ``_timeout_result`` states this
+    on the row rather than presenting the deadline as a clean terminal.
+    """
+
+
+def check_cancelled(
+    cancel_event: threading.Event | None, case_id: str, where: str
+) -> None:
+    """Raise :class:`SessionCancelled` iff cancellation has been requested.
+
+    Public because ``batch.executor`` places the same checkpoint around the
+    post-session stages (trace collection, the L3 judge call) that also cost
+    real time and LLM budget.
+    """
+    if cancel_event is not None and cancel_event.is_set():
+        raise SessionCancelled(
+            f"case {case_id}: run abandoned by the batch timeout; stopping at "
+            f"{where} instead of finishing the session in the background"
+        )
+
+
 @dataclass
 class SessionResult:
     """Result of a single interactive evaluation session."""
@@ -33,7 +75,8 @@ class SessionResult:
     # [{role: "user"|"bot", message: str, turn_index: int}]
     stop_reason: str = ""
     # bot_ended | max_turns_exceeded | stall_detected |
-    # loop_detected | goal_achieved | goal_impossible | session_create_failed
+    # loop_detected | goal_achieved | goal_impossible |
+    # session_create_failed | error
     total_turns: int = 0
     elapsed_ms: int = 0
     bot_greeting: str = ""
@@ -53,6 +96,17 @@ class SessionResult:
     # so the executor can short-circuit trace collection and surface the
     # real cause (e.g. ConnectionRefused) instead of a downstream contract
     # violation. session_id is set to "error-<hex>" in this case.
+    transport_error: str | None = None
+    # Set when ``send_message`` raises MID-SESSION (HTTP 5xx, ReadTimeout,
+    # ConnectError, malformed body). Mirrors ``creation_error`` for the
+    # in-loop case: the session_id IS real (the session was created), but
+    # the conversation was cut short by a transport / backend failure rather
+    # than by anything the bot decided. Carries the original exception repr
+    # so the executor can surface the real cause in ``results.json``
+    # (``INFRA:BotTransportError``) instead of leaving it in stderr.
+    #
+    # ``stop_reason`` is ``"error"`` in this case, NOT ``"bot_ended"`` --
+    # see the ``send_message`` except-branch in ``run_session`` for why.
 
 
 class SessionRunner:
@@ -81,7 +135,11 @@ class SessionRunner:
         self._simulator = user_simulator
         self._stall_detector = stall_detector
 
-    def run_session(self, case_spec: CaseSpec) -> SessionResult:
+    def run_session(
+        self,
+        case_spec: CaseSpec,
+        cancel_event: threading.Event | None = None,
+    ) -> SessionResult:
         """Run a complete evaluation session.
 
         Flow:
@@ -92,9 +150,19 @@ class SessionRunner:
 
         Args:
             case_spec: The case specification driving this session.
+            cancel_event: Optional cooperative-cancellation flag set by
+                ``BatchExecutor._run_one`` when the batch deadline fires. Polled
+                twice per turn (before the bot call and before the simulator
+                call); raises :class:`SessionCancelled` so an abandoned worker
+                stops spending LLM budget instead of running to completion in
+                the background. ``None`` (the default) disables the polling
+                entirely, so every existing caller is unaffected.
 
         Returns:
             A SessionResult capturing the full transcript and outcome.
+
+        Raises:
+            SessionCancelled: cancellation was requested at a checkpoint.
         """
         start_ns = time.monotonic_ns()
         result = SessionResult(
@@ -175,20 +243,56 @@ class SessionRunner:
 
         # ---- Step 3: Conversation loop ----
         for turn in range(1, max_turns + 1):
+            check_cancelled(
+                cancel_event, case_spec.case_id, f"turn {turn} (before bot call)"
+            )
             # Send user message to bot
             try:
                 bot_resp = self._agent.send_message(
                     result.session_id, user_msg
                 )
             except Exception as exc:
-                logger.error("Bot API error on turn %d: %s", turn, exc)
+                # A transport / backend failure is NOT a terminal the bot
+                # chose. Before this fix the branch stamped
+                # ``stop_reason="bot_ended"`` -- the exact same value line
+                # ~212 below stamps when the bot legitimately sets
+                # ``should_end_chat=true``. Two consequences, both observed
+                # on a real run where POST
+                # /v1/chat/sessions/{id}/messages returned 500:
+                #
+                # 1. The two are INDISTINGUISHABLE in ``results.json``, so a
+                #    transport failure was recorded in full as a bot
+                #    behaviour failure (blank ``containment_outcome`` ->
+                #    ``trace_minimum`` FAIL, ``correct_uc``=0.0,
+                #    ``correct_outcome``=0.0) with the real cause visible
+                #    only in stderr.
+                # 2. Worse, ``bot_ended`` is explicitly excluded from
+                #    ``hard_checks._TERMINAL_FAILURE_STOP_REASONS`` ("NOT
+                #    failures and never appear"), so a session that stamped
+                #    ``containment_outcome="resolved"`` on an earlier turn
+                #    and THEN died on a 500 skipped the Mode-3
+                #    stale-stamp contradiction and could VACUOUS-PASS
+                #    ``trace_minimum``.
+                #
+                # ``"error"`` is the value the repo already uses for exactly
+                # this class of event: ``SimulatorDriftError``'s docstring
+                # states it lands on ``stop_reason="error"`` deliberately
+                # because that is NOT in
+                # ``hard_checks._VALID_TERMINAL_STOP_REASONS`` and therefore
+                # cannot vacuous-pass. HTTP / transport failures now take
+                # the same route. It is additionally IN
+                # ``_TERMINAL_FAILURE_STOP_REASONS``, which closes (2).
+                logger.error(
+                    "Bot API error on turn %d: %s", turn, exc, exc_info=True
+                )
                 # Record the user message that caused the error
                 result.transcript.append({
                     "role": "user",
                     "message": user_msg,
                     "turn_index": turn,
                 })
-                result.stop_reason = "bot_ended"
+                result.transport_error = repr(exc)
+                result.stop_reason = "error"
                 break
 
             bot_reply = bot_resp.get("reply_text", "")
@@ -229,6 +333,11 @@ class SessionRunner:
                 break
 
             # ---- Generate next user message ----
+            check_cancelled(
+                cancel_event,
+                case_spec.case_id,
+                f"turn {turn} (before simulator call)",
+            )
             sim_result = self._simulator.generate_next(
                 case_spec, result.transcript, bot_reply
             )

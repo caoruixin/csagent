@@ -101,12 +101,41 @@ class StallDetectorConfig:
     followup_window_turns: int = 2
 
 
+# Per-case wall-clock ceiling for a batch run (``batch.timeout_per_session_seconds``).
+#
+# WAS 120s, which is not a realistic budget for this harness:
+#
+# * 120s is EXACTLY the session-create read budget on its own
+#   (``simulator.agent_client.SESSION_CREATE_READ_TIMEOUT_SECONDS`` = 120.0), so
+#   the deadline could fire before the first customer message was ever sent.
+# * Each subsequent turn costs one bot request (read ceiling
+#   ``agent_client.DEFAULT_READ_TIMEOUT_SECONDS`` = 90.0) plus one simulator LLM
+#   call, and 262 of the 488 corpus specs declare ``max_turns: 15``. A session
+#   that never exceeded a single documented per-request budget can therefore
+#   legitimately run 120 + 15*90 = 1470s before the simulator and L3 judge calls
+#   are counted at all.
+# * MEASURED: on the qwen-plus simulator / kimi-k2.6 judge provider combination a
+#   single session takes 4-9 minutes (240-540s). At 120s a healthy session was
+#   truncated as a matter of course — one real baseline arm recorded 4/5 cases as
+#   TIMEOUT while the abandoned workers went on to finish normally.
+#
+# 1800s (30 min) is the smallest round value above the 1470s per-request-budget
+# bound, i.e. above every duration a HEALTHY session can reach without some
+# individual request already having blown its own timeout. It is still ~3.3x the
+# measured 9-minute worst case, so a genuinely hung session is caught.
+#
+# Raising this is not a substitute for the cancellation fix: see
+# ``simulator.session_runner.SessionCancelled`` — the deadline can only request
+# cancellation cooperatively, it cannot kill the worker thread.
+DEFAULT_TIMEOUT_PER_SESSION_SECONDS = 1800
+
+
 @dataclass
 class BatchConfig:
     # parallel=1 default per M3-Eval close evidence (bad-case suite stability
     # requires sequential runs); opt-in to higher parallel via CLI --parallel.
     parallel: int = 1
-    timeout_per_session_seconds: int = 120
+    timeout_per_session_seconds: int = DEFAULT_TIMEOUT_PER_SESSION_SECONDS
 
 
 @dataclass
@@ -174,7 +203,10 @@ def _build_config(raw: dict) -> Config:
     batch = BatchConfig(
         parallel=int(batch_raw.get("parallel", 1)),
         timeout_per_session_seconds=int(
-            batch_raw.get("timeout_per_session_seconds", 120)
+            batch_raw.get(
+                "timeout_per_session_seconds",
+                DEFAULT_TIMEOUT_PER_SESSION_SECONDS,
+            )
         ),
     )
 

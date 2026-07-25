@@ -284,8 +284,13 @@ class OutcomeChecker:
             # not the correct behaviour, so requiring it would build a NEW
             # contradiction into the ruler — the exact defect WS-1 exists to
             # remove):
-            #   * the customer explicitly demanded a human (product decision
-            #     D2 keeps explicit human requests as a valid trigger), or
+            #   * the customer asked to be handed to a human (product
+            #     decision D2 keeps explicit human requests as a valid
+            #     trigger). Uses the broad ``user_demanded_human`` waiver set
+            #     (``escalation_intent`` class 1a ∪ 1b), so naming a specific
+            #     person ("connect me with Monisha") counts — see the
+            #     cs_interactive_208 note on
+            #     ``HardChecker._check_no_premature_escalation``, or
             #   * the case runs the fixed-script intake path, where knowledge
             #     tools are forbidden outright
             #     (``intake_no_knowledge_tool``).
@@ -502,7 +507,11 @@ class OutcomeChecker:
 
         Anti-误杀 exemptions (identical to ``correct_outcome`` and the L1
         ``no_premature_escalation`` gate, so the three never disagree):
-        an explicit customer request for a human, and the
+        a customer request to be handed to a human (the broad
+        ``user_demanded_human`` waiver set — ``escalation_intent`` class
+        1a ∪ 1b, so "connect me with <named person>" counts; see the
+        cs_interactive_208 note on
+        ``HardChecker._check_no_premature_escalation``), and the
         ``fixed_script_only`` intake path where knowledge tools are
         forbidden. On both, an immediate handover is the correct behaviour.
 

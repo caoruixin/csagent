@@ -383,6 +383,288 @@ class TestItem2NoPrematureEscalation:
 
 
 # ---------------------------------------------------------------------------
+# Item 2 regression — cs_interactive_208: "connect me with <a named person>"
+#
+# The WS-1 waiver keyed on class 1a, whose object slot is a closed list of
+# human common nouns. cs_interactive_208's customer asks for a specific
+# person by name; the bot handed over (correct) and the gate failed it in all
+# three experiment arms. Same shape as cs012 — the shape WS-1 exists to
+# remove. Fixed by REMOVING the object constraint (class 1b), not by adding a
+# name list.
+# ---------------------------------------------------------------------------
+
+
+class TestItem2NamedHumanRequestRegression:
+    # cs_interactive_208 form_context.description / seed_messages[0], verbatim.
+    CS208_FORM = "Can u plz kindly connect me with Monisha"
+    CS208_SEED = "Hi can u plz connect me with Monisha thanks"
+
+    @staticmethod
+    def _named_person_handover_trace(user: str) -> TraceData:
+        """Turn-0 handover on a "connect me with <name>" request."""
+        return _trace(
+            [
+                _turn(
+                    0,
+                    user=user,
+                    tools=["request_handover"],
+                    phase_after="ESCALATE",
+                )
+            ],
+            handover=_handover(),
+        )
+
+    @pytest.mark.parametrize("user", [CS208_FORM, CS208_SEED])
+    def test_cs208_named_person_request_no_longer_misfires(self, user):
+        """THE regression: honouring "connect me with Monisha" must not FAIL."""
+        result = next(
+            r
+            for r in HardChecker().run_checks(
+                _spec(), self._named_person_handover_trace(user)
+            )
+            if r.check_name == "no_premature_escalation"
+        )
+        assert result.passed is True
+        assert "explicit customer request for a human" in result.detail
+
+    def test_cs208_shape_passes_the_whole_l1_composite_gate(self):
+        """The L1 gate must stop manufacturing the failure.
+
+        Uses ``acceptable_outcomes=[resolve, escalate]`` to exercise the L2
+        cross-class waiver in lockstep with the L1 one. NOTE: the real
+        ``cs_interactive_208`` spec declares ``acceptable_outcomes: []`` (=>
+        ``[resolve]``), so on the real case ``correct_outcome`` short-circuits
+        to 0.0 at the membership check before the waiver is consulted. That
+        residual is an ``eval_spec`` disagreement — the customer demands a
+        named human while the spec permits only ``resolve`` — and belongs to
+        WS-2, not to the scoring layer.
+        """
+        case = _spec(
+            outcome_checks=["correct_outcome"],
+            acceptable_outcomes=["resolve", "escalate"],
+            primary_uc="UC-FP",
+        )
+        trace = self._named_person_handover_trace(self.CS208_FORM)
+        l1 = HardChecker().run_checks(case, trace)
+        l2 = OutcomeChecker().run_checks(case, trace)
+        score = compute_composite(
+            "ws1-208", l1, l2, [], StallResult(detected=False), case_spec=case
+        )
+        assert "L1:no_premature_escalation" not in score.failure_tags
+        # The L2 waiver moves in lockstep with the L1 one (correct_outcome's
+        # attempt requirement is waived by the same predicate).
+        outcome = next(r for r in l2 if r.check_name == "correct_outcome")
+        assert outcome.score == 1.0
+
+    def test_no_name_list_was_added(self):
+        """The fix removed a constraint; it did not enumerate people.
+
+        If a future edit re-adds an object allowlist, the open set of personal
+        names comes back with it (§1.5 / §1.7).
+        """
+        assert esc.CONNECTION_REQUEST_PATTERNS == (
+            r"\bconnect\s+me\b",
+            r"\btransfer\s+me\b",
+            r"\bput\s+me\s+through\b",
+        )
+        for name in ("monisha", "thato", "frank", "dave"):
+            assert not any(
+                name in p.lower() for p in esc.HUMAN_HANDOVER_REQUEST_PATTERNS
+            )
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Can u plz kindly connect me with Monisha",
+            "please connect me to Thato",  # cs_interactive_212, verbatim
+            "My listing visibility is wrong - just connect me to a specialist please",  # csmp_g02
+            "thanks - just connect me",  # cs01g01 seed[1]
+            "put me through to a human",
+            "please transfer me to the moderation team",
+        ],
+    )
+    def test_waiver_covers_the_corpus_connection_requests(self, text):
+        assert esc.is_human_handover_request(text) is not None
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            # Verbatim corpus string from a scam-report case. `me` MUST stay
+            # mandatory on the class-1b transfer pattern or a money transfer
+            # reads as a handover request.
+            "transfer to Monzo account 83367413, sort code 04-00-03",
+            "I want to transfer to a new email address",
+            "transfer my items for sale to my daviesnineteenseventy account",
+            "can I transfer their active ads from the old profile",
+            # Ordinary marketplace language that must stay inert.
+            "I put my ad up yesterday and it is not at the top",
+            "why was I put on hold for the second time",
+        ],
+    )
+    def test_waiver_does_not_fire_on_non_handover_language(self, text):
+        assert esc.is_human_handover_request(text) is None
+
+    def test_class_1b_is_waiver_only_never_a_critical_demand(self):
+        """The asymmetry invariant.
+
+        A bot that ANSWERS "connect me with Monisha" must not be hard-failed:
+        object-is-a-party-vs-artifact ("connect me to the FAQ") is animacy
+        semantics, LLM-owned (§1.3). The class-1b signal is recorded as an
+        advisory observation instead.
+        """
+        trace = _trace(
+            [
+                _turn(
+                    0,
+                    user=self.CS208_FORM,
+                    bot="Monisha is not available, but here is the answer.",
+                    tools=["search_knowledge"],
+                    source_ids=["faq-7"],
+                )
+            ],
+            containment_outcome="resolved",
+        )
+        result = next(
+            r
+            for r in HardChecker().run_checks(_spec(), trace)
+            if r.check_name == "user_requested_escalation"
+        )
+        assert result.severity == "advisory"
+        assert "OBSERVATION (non-gating)" in result.detail
+        # No critical L1 failure anywhere: answering is a legitimate response.
+        assert [
+            r
+            for r in HardChecker().run_checks(_spec(), trace)
+            if not r.passed and r.severity == "critical"
+        ] == []
+
+    def test_connect_me_to_the_faq_counterexample_is_not_hard_failed(self):
+        """The named counter-example. Answering it is correct behaviour."""
+        trace = _trace(
+            [
+                _turn(
+                    0,
+                    user="connect me to the FAQ about relisting please",
+                    bot="Here is the relisting article.",
+                    tools=["resolve_article"],
+                    source_ids=["faq-relist"],
+                )
+            ],
+            containment_outcome="resolved",
+        )
+        results = HardChecker().run_checks(_spec(), trace)
+        critical_failures = [
+            r for r in results if not r.passed and r.severity == "critical"
+        ]
+        assert critical_failures == []
+
+    def test_inert_bot_after_a_connection_request_still_hard_fails(self):
+        """Neither answered nor handed over is wrong under every reading."""
+        trace = _trace(
+            [
+                _turn(0, user=self.CS208_SEED, bot="Could you clarify?"),
+                _turn(1, user="just connect me", bot="Could you say more?"),
+            ],
+            containment_outcome="resolved",
+        )
+        result = next(
+            r
+            for r in HardChecker().run_checks(_spec(), trace)
+            if r.check_name == "user_requested_escalation"
+        )
+        assert result.passed is False
+        assert result.severity == "critical"
+        assert "inert for the whole session" in result.detail
+
+    def test_cs012_channel_class_is_untouched_by_the_widening(self):
+        """cs012's WS-1 semantics must survive: channel != handover demand.
+
+        Its seed #2 is neither class 1a nor class 1b, so a bot that explains
+        the policy instead of handing over is still correct, and a turn-0
+        handover on that message alone still earns NO waiver.
+        """
+        cs012 = TestItem5UserRequestedEscalation.CS012_MESSAGE
+        assert esc.is_human_handover_request(cs012) is None
+        assert esc.is_connection_request(cs012) is None
+        assert esc.is_contact_channel_request(cs012) is not None
+
+        # Turn-0 handover on the channel utterance alone: still premature.
+        trace = _trace(
+            [
+                _turn(
+                    0,
+                    user=cs012,
+                    tools=["request_handover"],
+                    phase_after="ESCALATE",
+                )
+            ],
+            handover=_handover(),
+        )
+        result = next(
+            r
+            for r in HardChecker().run_checks(_spec(), trace)
+            if r.check_name == "no_premature_escalation"
+        )
+        assert result.passed is False
+
+    @pytest.mark.parametrize("uc", ["UC-G", "UC-H", "UC-I", "UC-J"])
+    def test_genuine_intake_over_escalation_is_still_caught(self, uc):
+        """Real premature escalation on the intake UCs must still FAIL.
+
+        The customer never asks for a human and the bot never retrieves, so
+        neither class-1a nor the widened class-1b waiver applies. Runs on a
+        ``faq_source_backed`` grounding_mode because ``fixed_script_only``
+        carries its own (separate) intake waiver.
+        """
+        case = _spec(primary_uc=uc, grounding_mode="faq_source_backed")
+        trace = _trace(
+            [
+                _turn(
+                    0,
+                    user="My account was blocked this morning, what happened?",
+                    tools=["request_handover"],
+                    phase_after="ESCALATE",
+                )
+            ],
+            handover=_handover(),
+        )
+        result = next(
+            r
+            for r in HardChecker().run_checks(case, trace)
+            if r.check_name == "no_premature_escalation"
+        )
+        assert result.passed is False
+        assert "premature escalation" in result.detail
+        assert result.severity == "critical"
+
+    @pytest.mark.parametrize("uc", ["UC-G", "UC-H", "UC-I", "UC-J"])
+    def test_intake_over_escalation_with_a_bare_name_mention_still_fails(self, uc):
+        """A person's name alone is NOT a connection request.
+
+        Guards against the fix degenerating into "any message naming a human
+        waives the gate" — the verb+``me`` construction is load-bearing.
+        """
+        case = _spec(primary_uc=uc, grounding_mode="faq_source_backed")
+        trace = _trace(
+            [
+                _turn(
+                    0,
+                    user="Monisha said last week my account would be fixed.",
+                    tools=["request_handover"],
+                    phase_after="ESCALATE",
+                )
+            ],
+            handover=_handover(),
+        )
+        result = next(
+            r
+            for r in HardChecker().run_checks(case, trace)
+            if r.check_name == "no_premature_escalation"
+        )
+        assert result.passed is False
+
+
+# ---------------------------------------------------------------------------
 # Item 3 — escalation_timing rewards effort, not earliness
 # ---------------------------------------------------------------------------
 
@@ -742,10 +1024,23 @@ class TestItem5UserRequestedEscalation:
     def test_pattern_union_is_unchanged(self):
         """No keyword was ADDED; the pre-WS-1 list was partitioned."""
         assert set(esc.ESCALATION_REQUEST_PATTERNS) == set(
-            esc.EXPLICIT_HUMAN_REQUEST_PATTERNS
+            esc.EXPLICIT_HUMAN_PARTY_PATTERNS
         ) | set(esc.CONTACT_CHANNEL_REQUEST_PATTERNS)
         assert not (
-            set(esc.EXPLICIT_HUMAN_REQUEST_PATTERNS)
+            set(esc.EXPLICIT_HUMAN_PARTY_PATTERNS)
             & set(esc.CONTACT_CHANNEL_REQUEST_PATTERNS)
         )
         assert len(esc.ESCALATION_REQUEST_PATTERNS) == 12
+
+    def test_explicit_human_request_alias_is_class_1a(self):
+        """The critical demand gate's entry point stayed on class 1a.
+
+        cs_interactive_208 widened the WAIVER only. If this alias ever drifts
+        to the broad set, "connect me to the FAQ" starts hard-failing a bot
+        that correctly answered.
+        """
+        assert (
+            esc.EXPLICIT_HUMAN_REQUEST_PATTERNS
+            == esc.EXPLICIT_HUMAN_PARTY_PATTERNS
+        )
+        assert esc.is_explicit_human_request is esc.is_explicit_human_party_request

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -33,7 +34,12 @@ from eval_interactive.scoring.skill_procedure_check import (
 )
 from eval_interactive.scoring.stall_detector import StallDetector
 from eval_interactive.simulator.agent_client import AgentClient
-from eval_interactive.simulator.session_runner import SessionResult, SessionRunner
+from eval_interactive.simulator.session_runner import (
+    SessionCancelled,
+    SessionResult,
+    SessionRunner,
+    check_cancelled,
+)
 from eval_interactive.simulator.user_simulator import UserSimulator
 from eval_interactive.trace.collector import TraceCollector, TraceContractError
 
@@ -252,16 +258,36 @@ class BatchExecutor:
         """Run the full pipeline for a single case with semaphore gating."""
         async with semaphore:
             timeout_s = self._config.batch.timeout_per_session_seconds
+            # ``asyncio.wait_for`` cannot cancel the ``asyncio.to_thread``
+            # worker underneath ``_execute_case`` — the coroutine is abandoned
+            # but the THREAD runs on, finishing its turns and its L3 judge call
+            # against the LLM budget while its result is discarded in favour of
+            # the synthetic ``_timeout_result`` row. This event is the
+            # cooperative channel that actually stops it; the worker polls it
+            # at turn boundaries and before each remaining LLM surface. See
+            # ``simulator.session_runner.SessionCancelled``.
+            cancel_event = threading.Event()
             try:
                 return await asyncio.wait_for(
-                    self._execute_case(case_spec),
+                    self._execute_case(case_spec, cancel_event),
                     timeout=timeout_s,
                 )
             except asyncio.TimeoutError:
+                cancel_event.set()
                 logger.error(
-                    "Case %s timed out after %ds", case_spec.case_id, timeout_s
+                    "Case %s timed out after %ds; cooperative cancellation "
+                    "requested. The worker thread stops at its next checkpoint "
+                    "(turn boundary), so it may still complete one in-flight "
+                    "bot HTTP request or LLM call. Any turns it completes after "
+                    "this point are NOT reflected in the persisted row.",
+                    case_spec.case_id,
+                    timeout_s,
                 )
-                click.echo(f"  TIMEOUT  {case_spec.case_id}")
+                click.echo(
+                    f"  TIMEOUT  {case_spec.case_id}  "
+                    f"(cancel requested; worker may still be finishing one "
+                    f"in-flight call — row is UNMEASURED, not a verdict)"
+                )
                 return self._timeout_result(case_spec)
             except TraceContractError as exc:
                 # Wave B1.4: trace telemetry is missing or malformed.
@@ -283,12 +309,28 @@ class BatchExecutor:
                 click.echo(f"  ERROR    {case_spec.case_id}: {exc}")
                 return self._error_result(case_spec, str(exc))
 
-    async def _execute_case(self, case_spec: CaseSpec) -> dict:
+    async def _execute_case(
+        self,
+        case_spec: CaseSpec,
+        cancel_event: threading.Event | None = None,
+    ) -> dict:
         """Execute the full evaluation pipeline for one case in a thread."""
-        return await asyncio.to_thread(self._execute_case_sync, case_spec)
+        return await asyncio.to_thread(
+            self._execute_case_sync, case_spec, cancel_event
+        )
 
-    def _execute_case_sync(self, case_spec: CaseSpec) -> dict:
-        """Synchronous pipeline for one case (runs inside a worker thread)."""
+    def _execute_case_sync(
+        self,
+        case_spec: CaseSpec,
+        cancel_event: threading.Event | None = None,
+    ) -> dict:
+        """Synchronous pipeline for one case (runs inside a worker thread).
+
+        ``cancel_event`` is the cooperative-cancellation flag described on
+        :class:`~eval_interactive.simulator.session_runner.SessionCancelled`.
+        ``None`` (the default) disables polling, so direct callers and tests
+        behave exactly as before.
+        """
         agent_client = AgentClient(self._config.bot.base_url)
         user_simulator = UserSimulator(self._config)
         stall_detector = StallDetector(self._config)
@@ -299,7 +341,9 @@ class BatchExecutor:
         try:
             # 1. Run session
             session_runner = SessionRunner(agent_client, user_simulator, stall_detector)
-            session_result: SessionResult = session_runner.run_session(case_spec)
+            session_result: SessionResult = session_runner.run_session(
+                case_spec, cancel_event=cancel_event
+            )
 
             # Fail fast: if session creation itself failed, the synthetic
             # "error-<hex>" id has no backend record. Skip trace collection
@@ -321,7 +365,58 @@ class BatchExecutor:
                     )
                 return self._error_result(case_spec, msg)
 
+            # Same fail-fast posture for a MID-SESSION transport failure
+            # (``send_message`` raised: HTTP 5xx, ReadTimeout, ConnectError).
+            # Before this branch existed the runner stamped
+            # ``stop_reason="bot_ended"`` and the case fell through to full
+            # scoring, so a backend 500 was recorded as a complete bot
+            # behaviour failure (``trace_minimum`` FAIL, ``correct_uc``=0.0,
+            # ``correct_outcome``=0.0) with the real cause only in stderr —
+            # and, if an earlier turn had stamped
+            # ``containment_outcome="resolved"``, could even vacuous-pass.
+            # See the ``send_message`` except-branch in
+            # ``SessionRunner.run_session``.
+            #
+            # Unlike ``creation_error`` the session_id here is REAL, so the
+            # partial transcript and the session id are carried into the
+            # error result: the point is to make the transport failure
+            # diagnosable, not to erase it.
+            if session_result.transport_error is not None:
+                msg = (
+                    f"bot_transport_failed on turn "
+                    f"{session_result.total_turns or len(session_result.transcript)}: "
+                    f"{session_result.transport_error}. POST "
+                    f"{self._config.bot.base_url}"
+                    f"/v1/chat/sessions/{session_result.session_id}/messages "
+                    f"failed mid-session; this case is UNMEASURED, not a bot "
+                    f"behaviour failure."
+                )
+                click.echo(f"  ERROR    {case_spec.case_id}: {msg}")
+                failure_kind = (
+                    "ReadTimeout"
+                    if "ReadTimeout" in session_result.transport_error
+                    else "BotTransportError"
+                )
+                return self._error_result(
+                    case_spec,
+                    msg,
+                    failure_kind=failure_kind,
+                    session_id=session_result.session_id,
+                    transcript=session_result.transcript,
+                    total_turns=len(
+                        [
+                            t
+                            for t in session_result.transcript
+                            if t.get("role") == "user"
+                        ]
+                    ),
+                    stop_reason=session_result.stop_reason,
+                )
+
             # 2. Collect trace
+            check_cancelled(
+                cancel_event, case_spec.case_id, "before trace collection"
+            )
             trace_collector = TraceCollector(agent_client)
             trace_data = trace_collector.collect(session_result.session_id)
 
@@ -361,6 +456,12 @@ class BatchExecutor:
             l2_results = outcome_checker.run_checks(case_spec, trace_data)
 
             # 7. LLM judge (L3)
+            # Last cancellation checkpoint before the final LLM surface: an
+            # abandoned worker reaching this point would otherwise buy a full
+            # judge call whose verdict is discarded.
+            check_cancelled(
+                cancel_event, case_spec.case_id, "before the L3 judge call"
+            )
             l3_results = llm_judge.judge(
                 case_spec, trace_data, session_result.transcript
             )
@@ -440,6 +541,16 @@ class BatchExecutor:
                 )
 
             return case_result
+
+        except SessionCancelled as exc:
+            # The batch deadline already returned ``_timeout_result`` for this
+            # case and stopped awaiting us, so there is no consumer for a
+            # result here. Log and unwind quietly; re-raising would surface as
+            # an "exception never retrieved" warning on an already-cancelled
+            # future and add noise to a run that is already being reported as
+            # a timeout.
+            logger.warning("Cooperative cancellation honoured: %s", exc)
+            return self._cancelled_result(case_spec, str(exc))
 
         finally:
             agent_client.close()
@@ -710,8 +821,38 @@ class BatchExecutor:
             "per_turn_trace": self._build_per_turn_trace(trace_data),
         }
 
+    # Human-readable statement of what a TIMEOUT row does and does not mean.
+    # Emitted on the row itself because the row is otherwise shaped exactly
+    # like a scored verdict (``case_passed: false``, ``composite_score: 0.0``)
+    # and was being read as one.
+    _TIMEOUT_MEASUREMENT_CAVEAT = (
+        "UNMEASURED, NOT A VERDICT. The case exceeded "
+        "batch.timeout_per_session_seconds. asyncio cannot cancel the "
+        "asyncio.to_thread worker running this case, so cancellation is "
+        "COOPERATIVE: the deadline sets a flag that the worker honours at its "
+        "next checkpoint (turn boundary / before trace collection / before the "
+        "L3 judge call). The worker may therefore still be inside one in-flight "
+        "bot HTTP request or LLM call while this row is written, and any turns "
+        "it completed after the deadline are NOT reflected here. "
+        "composite_score/outcome_score/judge_score are placeholder zeros, not "
+        "measurements, and must be excluded from any pass-rate or mean-score "
+        "trend rather than counted as a failure."
+    )
+
     def _timeout_result(self, case_spec: CaseSpec) -> dict:
-        """Build a placeholder result for a timed-out case."""
+        """Build a placeholder result for a timed-out case.
+
+        The row is deliberately self-describing: before this, a TIMEOUT row was
+        indistinguishable in shape from a scored FAIL (``case_passed: false``,
+        ``composite_score: 0.0``, ``failure_tags: ["TIMEOUT"]``) and
+        ``_compute_summary`` still folds it into ``failed_cases`` and
+        ``mean_composite_score``. On a real baseline arm 4/5 cases were
+        persisted as TIMEOUT while the log showed the abandoned workers
+        finishing normally (``FAIL ... turns=5``) — so the run stored a row that
+        was silently wrong in both directions. The caveat + explicit
+        ``measurement_valid: False`` marker names that so a consumer cannot read
+        the zeros as scores.
+        """
         return {
             "case_id": case_spec.case_id,
             "primary_uc": case_spec.expected.primary_uc,
@@ -725,7 +866,10 @@ class BatchExecutor:
             "composite_score": 0.0,
             "outcome_score": 0.0,
             "judge_score": 0.0,
-            "failure_tags": ["TIMEOUT"],
+            "failure_tags": [
+                "TIMEOUT",
+                "INFRA:TIMEOUT_WORKER_NOT_FORCIBLY_KILLED",
+            ],
             "stall_detected": False,
             "stall_failure_tag": "",
             "containment_outcome": "",
@@ -738,6 +882,53 @@ class BatchExecutor:
             "status": "TIMEOUT",
             "llm_calls": [],
             "per_turn_trace": [],
+            # Machine-readable: this row carries no measurement.
+            "measurement_valid": False,
+            "measurement_caveat": self._TIMEOUT_MEASUREMENT_CAVEAT,
+            "cancellation": "cooperative_requested",
+        }
+
+    def _cancelled_result(self, case_spec: CaseSpec, detail: str) -> dict:
+        """Row for a worker that honoured cooperative cancellation.
+
+        Normally discarded — ``_run_one`` already returned
+        :meth:`_timeout_result` for this case and is no longer awaiting the
+        worker. Returning a value (rather than re-raising) keeps an
+        already-cancelled future from logging "exception was never retrieved"
+        on a run that is already reported as a timeout.
+        """
+        return {
+            "case_id": case_spec.case_id,
+            "primary_uc": case_spec.expected.primary_uc,
+            "expected_outcome": case_spec.expected.outcome_class,
+            "case_passed_authority": _resolve_case_passed_authority(case_spec),
+            "session_id": "",
+            "total_turns": 0,
+            "stop_reason": "cancelled",
+            "elapsed_ms": 0,
+            "case_passed": False,
+            "composite_score": 0.0,
+            "outcome_score": 0.0,
+            "judge_score": 0.0,
+            "failure_tags": ["INFRA:CANCELLED", f"CANCELLED:{detail[:200]}"],
+            "stall_detected": False,
+            "stall_failure_tag": "",
+            "containment_outcome": "",
+            "active_use_case": "",
+            "escalation_reason": "",
+            "l1_results": [],
+            "l2_results": [],
+            "l3_results": [],
+            "transcript": [],
+            "status": "CANCELLED",
+            "llm_calls": [],
+            "per_turn_trace": [],
+            "measurement_valid": False,
+            "measurement_caveat": (
+                "UNMEASURED, NOT A VERDICT. The worker stopped at a cooperative "
+                "cancellation checkpoint after the batch deadline fired."
+            ),
+            "cancellation": "cooperative_honoured",
         }
 
     def _error_result(
@@ -745,6 +936,11 @@ class BatchExecutor:
         case_spec: CaseSpec,
         error_msg: str,
         failure_kind: str | None = None,
+        *,
+        session_id: str = "",
+        transcript: list[dict] | None = None,
+        total_turns: int = 0,
+        stop_reason: str = "error",
     ) -> dict:
         """Build a placeholder result for a case that raised an exception.
 
@@ -752,6 +948,12 @@ class BatchExecutor:
         emit an extra structured failure tag alongside the legacy
         ``ERROR:...`` tag so the post-Sprint-6 handoff / aggregation can
         separate upstream latency from a real bot-side failure.
+
+        The keyword-only ``session_id`` / ``transcript`` / ``total_turns``
+        arguments default to the original empty values so every pre-existing
+        caller is byte-identical. They exist for the mid-session transport
+        failure path, where the session DOES exist in the backend and the
+        partial transcript is the diagnostic evidence.
         """
         failure_tags = [f"ERROR:{error_msg[:200]}"]
         if failure_kind:
@@ -761,9 +963,9 @@ class BatchExecutor:
             "primary_uc": case_spec.expected.primary_uc,
             "expected_outcome": case_spec.expected.outcome_class,
             "case_passed_authority": _resolve_case_passed_authority(case_spec),
-            "session_id": "",
-            "total_turns": 0,
-            "stop_reason": "error",
+            "session_id": session_id,
+            "total_turns": total_turns,
+            "stop_reason": stop_reason,
             "elapsed_ms": 0,
             "case_passed": False,
             "composite_score": 0.0,
@@ -778,7 +980,7 @@ class BatchExecutor:
             "l1_results": [],
             "l2_results": [],
             "l3_results": [],
-            "transcript": [],
+            "transcript": list(transcript or []),
             "status": "ERROR",
             "llm_calls": [],
             "per_turn_trace": [],

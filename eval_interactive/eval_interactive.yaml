@@ -56,7 +56,21 @@ batch:
   # S-Cleanup-1 close (2026-05-23) OQ-S47.1 disposition; M3-Eval close
   # evidence supports sequential runs for bad-case suite stability.
   parallel: 1
-  timeout_per_session_seconds: 120
+  # Per-case wall-clock ceiling. WAS 120s, which truncated healthy sessions:
+  #   * 120s is exactly the session-create read budget by itself
+  #     (agent_client.SESSION_CREATE_READ_TIMEOUT_SECONDS = 120.0), so the
+  #     deadline could fire before the first customer message was sent;
+  #   * a 15-turn spec (262 of 488 corpus specs) can legitimately reach
+  #     120 + 15*90 = 1470s without any single request exceeding its own
+  #     documented budget (DEFAULT_READ_TIMEOUT_SECONDS = 90.0 per bot turn),
+  #     before the simulator + L3 judge LLM calls are counted at all;
+  #   * MEASURED on the qwen-plus simulator / kimi-k2.6 judge combination: a
+  #     single session takes 4-9 minutes. One real baseline arm recorded 4/5
+  #     cases as TIMEOUT while the abandoned workers finished normally.
+  # 1800s is the smallest round value above the 1470s bound and still ~3.3x the
+  # measured 9-minute worst case. Rationale in full at
+  # config.py::DEFAULT_TIMEOUT_PER_SESSION_SECONDS.
+  timeout_per_session_seconds: 1800
 
 report:
   output_dir: results/
