@@ -27,6 +27,11 @@ target/
 eval_interactive/results/*
 !eval_interactive/results/.gitkeep
 
+# The eval-interactive CLI writes to a repo-root results/ as well, not only
+# to eval_interactive/results/. Same content class: full transcripts and
+# per-turn projections, regenerated per run, never a source of truth.
+/results/
+
 # Log file
 *.log
 
