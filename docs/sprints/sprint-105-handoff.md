@@ -452,44 +452,68 @@ it is not the same as a spec that configures `premature_finish` /
 
 ## 7. Real defects found but out of contract — listed, not fixed
 
-1. **No spec in the corpus configures either gating L3 dimension** — 0 of
-   486. The two unconfigured dims are `premature_finish` and `stall_quality`,
-   which are *precisely* the ones that would catch the failure both negative
-   controls exhibit (handover with no attempt). The spec corpus has been
-   declining to measure the thing it most needs to measure. `promotion/` and
-   `case_families/` are Sprint 106's paths. **This is the highest-value
-   follow-up in this handoff.**
+1. **`premature_finish`'s rubric credits every handover, so the dim cannot
+   detect a careless one.** Its rubric reads *"5 = the conversation ended
+   naturally after the issue was fully resolved **or properly escalated**"*,
+   with no test of what "properly" requires.
 
-2. **`data/eval_datasets/badcase_turns.csv` is missing from the primary
+   **Measured, 2026-07-26** (human-authorised follow-up; enabled the two
+   critical dims as an always-on floor and re-judged all 17 recorded
+   sessions live against the judge provider, 34 calls, 0 fallbacks):
+
+   | session | `premature_finish` | what actually happened |
+   |---|---|---|
+   | `cs_interactive_155` @ negctl | **5.0** | zero retrieval, handed over after receiving the user's email |
+   | `cs_interactive_185` @ 165045 | **5.0** | zero retrieval, handed over after receiving the ad title it asked for |
+   | `cs_interactive_179` @ ws5-draw3 | **1.0** | HTTP-500 transport failure — the bot never ended anything |
+   | `cs_interactive_170` @ neighbors | **1.0** | HTTP-500 transport failure |
+
+   It scores 5.0 on exactly the sessions it exists to catch, and 1.0 on
+   sessions the bot did not end. Tightening the rubric to require evidence
+   of a genuine attempt fixes it (both negative controls → stable 1.0 over
+   3 draws; both infra failures → 5.0; the one good session → stable 5.0;
+   one genuinely gray case flips `[1,1,5]`). **That change was measured and
+   then reverted, not shipped** — see §8 item 8 for why.
+
+2. **The corpus configures neither gating L3 dim** — 0 of 486. This is a
+   real observation, but the inference "therefore premature handover is
+   unmeasured" is **wrong**, and I originally reported it that way. The L1
+   hard check `no_premature_escalation` (landed by WS-1) already catches
+   this failure mode deterministically: it is what fails on both negative
+   controls, and it hard-zeroes the composite through the L1 gate. A stable
+   deterministic check is a better guard here than a noisy LLM dim. The
+   corpus's omission is, on this failure mode, costing nothing.
+
+3. **`data/eval_datasets/badcase_turns.csv` is missing from the primary
    checkout too**, costing 2 test failures the contract did not account for.
    Both missing data files are gitignored, so restoring them is a local-env
    task, not a code change.
 
-3. **Two of 17 recorded sessions died on a backend HTTP 500**
+4. **Two of 17 recorded sessions died on a backend HTTP 500**
    (`cs_interactive_170` @ `s103-neighbors`, `cs_interactive_179` @
    `ws5-draw3`) — `BotTransportError`, empty `per_turn_trace`, blank
    containment. ~12% of the recorded substrate is unmeasured for infra
    reasons. The ladder now reports these as UNKNOWN rather than D3, but the
    underlying 500s are unexplained.
 
-4. **`results.json` drops 8 of 10 `TurnTrace` fields and both `events` and
+5. **`results.json` drops 8 of 10 `TurnTrace` fields and both `events` and
    `handover` entirely** (§1 table). I fixed only the `severity` gap, because
    that is the one that blocks composite re-scoring. Full L1/L2 offline
    re-scoring remains impossible; closing it means widening
    `_build_per_turn_trace` and serialising `TraceData.handover`.
 
-5. **`contract_warnings` is absent from some case-result rows.** The
+6. **`contract_warnings` is absent from some case-result rows.** The
    timeout / transport-error paths build their rows without it, so a consumer
    doing `case["contract_warnings"]` raises `KeyError` (I hit this). The
    schema is documented as uniform across populated / placeholder / error
    paths; it is not.
 
-6. **Spec loading emits five copies of
+7. **Spec loading emits five copies of
    `"Expected.escalation_trigger is None with should_escalate=true; family-match
    scoring will be treated as advisory for this case."` on every corpus load**,
    with no case id attached. Unactionable as written.
 
-7. **The `resolved` containment stamp on `cs_interactive_185` @ ws5-draw3 is
+8. **The `resolved` containment stamp on `cs_interactive_185` @ ws5-draw3 is
    generous** — the user's goal was not met and they close by asking for a
    human. Runtime stamping, `server/**`, Sprint 104's path.
 
@@ -548,6 +572,42 @@ it is not the same as a spec that configures `premature_finish` /
    unusable. I implemented both as separate flags (`evidence_clean` vs
    `verdict_usable`) because they are different bars, but the contract reads
    as though they are one.
+
+8. **Where *I* was wrong — the always-on quality floor, built and reverted
+   2026-07-26.** My own §7 originally called "turn the two gating dims on"
+   the highest-value follow-up, and it was authorised on that framing. I
+   built it (an always-on `_FLOOR_DIMENSIONS` in `llm_judge.judge()`, so no
+   spec file was touched and Sprint 106 was not disturbed), measured it, and
+   reverted it. Three findings, in the order they landed:
+
+   - **The premise was false.** `premature_finish` scored **5.0** on both
+     negative controls — the sessions it exists to catch — because its
+     rubric credits any handover as a proper ending (§7 item 1). Turning the
+     dim on as-written would have measured nothing and cost ~972 extra judge
+     calls per full-corpus run.
+   - **Fixing the rubric works but is not free.** A tightened rubric gives
+     both negative controls a stable 1.0 across 3 draws and correctly stops
+     mis-firing on the two HTTP-500 sessions. But one genuinely gray case
+     flips `[1, 1, 5]`, so the dim is a reasonable *observation* and a poor
+     *gate* — §3.2's tail rule would classify that as
+     `judge_calibration`.
+   - **Enabling the floor silently makes the ruler LOOSER.** Once a gating
+     dim always exists, S-Eval-5's rule that advisory dims drop out of the
+     mean stops being a tie-breaker and becomes a permanent deletion:
+     `groundedness` / `relevance` / `tone_appropriateness` would never reach
+     the composite again. Measured on the one moving session, that discarded
+     the real `groundedness = 2.0` deduction and took it **0.8667 →
+     0.9500**. Repairing *that* means reversing S-Eval-5's exclusion rule
+     outright, which breaks eight existing tests that encode it.
+
+   Three coupled semantic reversals, to enable a dim whose failure mode is
+   **already caught deterministically at L1** by `no_premature_escalation`,
+   is a bad trade. Reverted; the findings are recorded above instead.
+
+   The general lesson for this contract series: "the corpus does not
+   configure X" is an observation about configuration, not evidence that X
+   is unmeasured. I asserted the latter from the former without checking
+   whether another layer already covered it. It did.
 
 ---
 
