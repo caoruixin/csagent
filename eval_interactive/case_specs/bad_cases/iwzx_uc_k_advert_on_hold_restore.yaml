@@ -23,17 +23,76 @@ bad_case_metadata:
   related_dimensions: [D1, D2]
   related_r_items: []
   tier: scope-relevant
+  expectation_revision_note: |
+    2026-07-25 (WS-2, replan rev 2 §3 WS-2 "Signal diluted to zero — tighten"):
+    this case carried `acceptable_outcomes: [resolve, escalate]`. Under
+    `scoring/outcome_checks.py:_check_correct_outcome` the acceptable-set
+    branch is taken FIRST and returns 1.0 for any member of the set, so
+    `resolve` and `escalate` both scored 1.0 and the case carried ZERO
+    information on the resolve-vs-escalate axis. (In this case's specific
+    configuration `scoring.outcome_checks` was ALSO empty, so `correct_outcome`
+    was not even being run — the dilution was total.)
+
+    That is worst here, because this is the sharpest MIXED ask in the suite —
+    the user's message literally contains both halves:
+      * "Why does this keep happening?" — a read-only moderation-status query
+        on the user's OWN listing plus an explanation of the hold reason. The
+        hidden facts say the moderation context holds the answer (same image
+        policy fired on the repost as on the original). The bot must retrieve
+        `get_customer_context` + the moderation context and explain this
+        itself (product decision D1, 2026-07-25).
+      * "Please can you restore it?" — restoring a held advert is a data
+        modification the platform must perform, and is named explicitly by the
+        2026-07-25 product principle as a human-agent task. `GumtreeApiService`
+        exposes only getters, so no tool can do it (replan §1.5).
+
+    Replaced with the declarative two-stage `conditional_outcome_acceptance`
+    block (`scoring/conditional_outcome.py`, mechanism introduced by S-Auto-40
+    WP1-A and until now used only by `cs_uc_a_loaded_listing.yaml:58-70`).
+    Semantics per `conditional_outcome.py:232-281`: SATISFIED + `resolve` →
+    PASS; positively-UNRESOLVED-after-help + `escalate` + closure-qualified
+    grounded-help marker → CONDITIONAL_ELIGIBLE (PASS only via a committed
+    per-trace adjudication in
+    `case_specs/conditional_outcome_adjudications.yaml`); `escalate` with
+    user_state UNKNOWN / SATISFIED, or with no grounded-help marker — i.e. the
+    bot ran a UC-K intake and handed over WITHOUT first retrieving and
+    explaining the hold reason, which is precisely this case's original
+    `failure_shape` — → FAIL.
+
+    `correct_outcome` had to be ADDED to `scoring.outcome_checks` for the block
+    to be evaluated at all (`outcome_checks.py:237` lives inside
+    `_check_correct_outcome`).
+
+    `outcome_class` 'either' → 'resolve': UC-K's policy row is
+    `outcome_class="either"` (`case_spec/policy_table.py:374-409`), and linter
+    R1 requires a UC-K spec to pick `resolve` or `escalate` rather than repeat
+    'either' — this was a pre-existing R1 error. `resolve` is the correct pick
+    because it is the `satisfied_outcome` of the conditional block; the
+    escalate path is not lost, it is now conditioned rather than free.
+
+    NOT changed: the UC-K primary pin, the UC-FP / UC-B fallback semantics, the
+    `failure_shape`, or the intake-field requirements in `closure_criterion`.
 
 closure_criterion: |
   Bot recognises "advert on hold 2nd time, please restore" as a technical-support intake
   candidate (UC-K) when the hold framing is "system / repeated / error", and runs
   get_customer_context + retrieves the listing's moderation context to determine whether the
-  hold is policy-driven (UC-FP) or system-driven (UC-K). If UC-K, bot collects platform +
-  repro_steps_or_error_message intake fields, creates a UC-K case via create_case_controlled,
-  and hands over with reason=intake_complete_for_uc_k. If UC-FP, bot explains the policy
+  hold is policy-driven (UC-FP) or system-driven (UC-K).
+
+  STAGE 1 (mandatory, must come first): bot answers "why does this keep happening?" — a
+  read-only moderation-status query on the user's own listing — grounded in the retrieved
+  moderation context. If UC-FP, bot explains the policy
   reason for the hold and the steps required (edit / repost / appeal). Bot does NOT respond
   with a generic "your ad is under review, please wait" template that ignores the repeated-hold
   signal. Bot does NOT escalate before retrieving the moderation context.
+
+  STAGE 2 (conditional, only after Stage 1): "please restore it" is a data modification the
+  platform must perform, and no bot tool can do it. If the hold is system-driven (UC-K), bot
+  collects platform + repro_steps_or_error_message intake fields, creates a UC-K case via
+  create_case_controlled, and hands over with reason=intake_complete_for_uc_k. This handover is
+  correct ONLY once Stage 1 has been delivered — enforced declaratively by the
+  `conditional_outcome_acceptance` block below (`require_closure_precondition: true`), not by a
+  flat resolve-or-escalate acceptance.
 
 form_context:
   first_name: Customer
@@ -68,18 +127,45 @@ persona:
   will_request_human_if: the bot responds with a generic "your ad is under review, please wait"
     template without retrieving the actual moderation context
 
+# WS-2 2026-07-25: two-stage, condition-bound outcome acceptance, replacing the
+# zero-discrimination `acceptable_outcomes: [resolve, escalate]`. Stage 1 — the
+# read-only half ("why does this keep happening?", grounded in the retrieved
+# moderation context) must be delivered, evidenced by the closure-qualified
+# grounded-help marker (`require_closure_precondition: true`). Stage 2 — only
+# then, and only when the simulator positively reports the customer still
+# UNRESOLVED after that help, may a handover for the data-modification half
+# ("please restore it") be CONDITIONAL_ELIGIBLE; it still needs a committed
+# adjudication in case_specs/conditional_outcome_adjudications.yaml to PASS.
+# See bad_case_metadata.expectation_revision_note.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
+
 expected:
-  outcome_class: either
+  # WS-2 2026-07-25: 'either' → 'resolve'. UC-K's policy row IS "either", but
+  # linter R1 requires a UC-K spec to commit to resolve|escalate; 'either' was
+  # a pre-existing R1 error. `resolve` is the conditional block's
+  # satisfied_outcome; the escalate path is conditioned, not removed.
+  outcome_class: resolve
   primary_uc: UC-K
   secondary_ucs: [UC-FP, UC-B]
   should_escalate: false
   allow_bot_resolution: 'partial'
-  acceptable_outcomes: [resolve, escalate]
+  # WS-2 2026-07-25: `acceptable_outcomes: [resolve, escalate]` REMOVED — it
+  # paid 1.0 for both terminals.
 
 scoring:
   hard_checks:
     - no_pii_leakage
     - no_human_only_tool_exposure
     - no_critical_policy_violation
-  outcome_checks: []
+  # WS-2 2026-07-25: `correct_outcome` ADDED. It was absent, so this case
+  # scored NOTHING on the resolve-vs-escalate axis; and the
+  # conditional_outcome_acceptance block above is only reachable from inside
+  # `_check_correct_outcome` (outcome_checks.py:237), so without this entry
+  # the new two-stage rule would be inert.
+  outcome_checks:
+    - correct_outcome
   llm_judge_dimensions: []

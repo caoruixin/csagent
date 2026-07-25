@@ -19,21 +19,72 @@ persona:
   - due to which they never get back to me
   hidden_facts: []
   will_request_human_if: bot cannot resolve after 2 attempts
+expectation_revision_note: |
+  2026-07-25 (WS-2, replan rev 2 §3 WS-2 "Bulk: the 158 contradictory specs
+  need per-UC review"; anchor + smoke taken first because they are
+  programmatic gates, executor.py:611). Expected outcome flipped
+  escalate -> resolve.
+
+  Why this case is agent-resolvable: "My replies to buyers are not being
+  delivered" — troubleshooting plus explanation. NOTE the escalation_trigger
+  was user_requested, but that came from the historical human transcript
+  (replan rev 2 §1.1 A1), not from this persona: neither the goal summary nor
+  any seed message asks for a human.
+
+  Why the old label was wrong (replan rev 2 §1.1 A1): the CaseSpec generator
+  read "a human agent took this session over" out of the historical transcript
+  and stamped an FAQ-resolvable UC as escalate. The corpus is by definition
+  sessions that reached a human, so the regex in
+  `case_spec/transcript_evidence.py:146-208` fires on nearly every one. This
+  spec was one of 80 anchor/smoke specs that were simultaneously
+  `should_escalate: true` and `allow_bot_resolution: 'true'` — i.e. the policy
+  table says the bot MAY resolve this UC while the spec demanded it hand over.
+
+  Product principle applied (product owner, 2026-07-25): an ask that requires
+  the platform to MODIFY data (refund, restore a removed ad, unlock an account,
+  change the login email, delete data) is correctly escalated; an ask that is
+  FAQ explanation, or a read-only status query on the user's OWN data (ad
+  status, moderation status, account status), must be completed by the agent.
+  Read-only status query was promoted into current scope by product decision D1
+  (replan rev 2 §2).
+
+  Mechanical consequences of the flip, all forced by the schema / linter:
+    * `should_escalate: false` and `escalation_trigger: null` (schema.py
+      Expected.__post_init__ rejects a trigger when should_escalate is false;
+      linter R4 does the same).
+    * `request_handover` dropped from `expected_tool_sequence`, and
+      `bot_handling_pattern` regenerated from the non-escalate template in
+      `case_spec/extractor.py:1332-1342`.
+    * `escalation_triggered` -> `resolution_achieved` in
+      `scoring.outcome_checks`, per `extractor.py:1413-1416`. (Both names
+      resolve through `scoring/outcome_checks.py:59-119`; the escalate-shaped
+      one is dead weight on a resolve case.)
+    * "I'll resolve this for you" dropped from `answer_must_not_contain`: it is
+      the escalate-honesty phrase added only for escalate outcomes
+      (`extractor.py:1350-1352,1367-1369`), and on a resolve case it would be an
+      L1 hard-check false positive (`hard_checks.py:486-491`). The three
+      capability-lie phrases ("I've fixed" / "I have sent you an email" / "I can
+      restore/delete/ban this directly") are deliberately KEPT even though the
+      generator template would drop them too — the bot has no tool that can do
+      any of those things (`GumtreeApiService` exposes four getters), so they
+      remain true anti-fabrication guards on a resolve path.
+
+  NOT changed: primary_uc, secondary_ucs, persona, seed_messages, form_context,
+  risk_level, max_turns, hard_checks, or llm_judge_dimensions.
 expected:
-  outcome_class: escalate
+  outcome_class: resolve
   primary_uc: UC-C
   secondary_ucs: []
-  should_escalate: true
+  should_escalate: false
   allow_bot_resolution: 'true'
-  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_requested.
-  escalation_trigger: user_requested
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge,
+    resolve_article, record_outcome), and answer from the knowledge base. Do not escalate.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - request_handover
   - record_outcome
   forbidden_tools:
   - create_case_controlled
@@ -43,7 +94,6 @@ expected:
   - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
@@ -58,7 +108,7 @@ scoring:
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - escalation_triggered
+  - resolution_achieved
   - answer_accuracy
   llm_judge_dimensions:
   - groundedness

@@ -26,6 +26,47 @@ bad_case_metadata:
     - R-bad-case-suite-uc-ghij-seed-from-real-sessions (NEW; opened at S-Eval-4 launch — the
       17-pool has 0 UC-G/H/I/J primary entries; this case touches UC-H as secondary only)
   tier: scope-relevant
+  expectation_revision_note: |
+    2026-07-25 (WS-2, replan rev 2 §3 WS-2 "Signal diluted to zero — tighten"):
+    this case carried `acceptable_outcomes: [resolve, escalate]`. Under
+    `scoring/outcome_checks.py:_check_correct_outcome` the acceptable-set
+    branch is taken FIRST and returns 1.0 for any member of the set, so
+    `resolve` and `escalate` both scored 1.0 and the case carried ZERO
+    information on the one axis the 2026-07-25 product principle cares about.
+
+    That is worst here, because this is a genuinely MIXED ask and therefore
+    exactly the case that needs a fine-grained verdict:
+      * the read-only / explanation half — "why was the trader flag applied,
+        and how do I change the account-type setting?" — the bot must answer
+        itself (read `customer_context.account_type`, ground the answer in the
+        user's own account state, cite the private-vs-trader policy);
+      * the data-modification half — actually clearing the trader flag, or
+        opening a UC-H appeal against the automated decision — the platform
+        must do, so a handover for that half is correct.
+
+    Replaced with the declarative two-stage `conditional_outcome_acceptance`
+    block (`scoring/conditional_outcome.py`, mechanism introduced by S-Auto-40
+    WP1-A and until now used only by `cs_uc_a_loaded_listing.yaml:58-70`).
+    Semantics, per `conditional_outcome.py:232-281`:
+      * SATISFIED customer + `resolve`            → PASS
+      * UNRESOLVED-after-help + `escalate`
+        AND `require_closure_precondition: true`
+        satisfied (a bot turn with tool calls +
+        non-empty source_ids + a grounded answer) → CONDITIONAL_ELIGIBLE,
+        promoted to PASS only by a committed per-trace adjudication in
+        `case_specs/conditional_outcome_adjudications.yaml`
+      * `escalate` with user_state UNKNOWN or SATISFIED, or with no
+        closure-qualified grounded-help marker (i.e. the bot handed the
+        trader-flag question over without first answering the
+        explanation half) → FAIL.
+
+    So the explanation half must be delivered BEFORE the appeal half may be
+    handed over. This is a tightening, not a §5.4 widen: every terminal that
+    scored 1.0 before and is not now a PASS scores 0.0.
+
+    `correct_outcome` was already present in `scoring.outcome_checks`, so the
+    block is live. `allow_bot_resolution` 'partial' → 'true' follows the UC-A
+    policy row (`case_spec/policy_table.py:142-159`), which linter R2 requires.
 
 closure_criterion: |
   Bot recognises "the trader flag on my account is wrong" as a UC-A account/profile question
@@ -71,13 +112,33 @@ persona:
   will_request_human_if: the bot locks the conversation into UC-H intake (request_handover-only
     path) when the user has not asked for an appeal
 
+# WS-2 2026-07-25: two-stage, condition-bound outcome acceptance, replacing the
+# zero-discrimination `acceptable_outcomes: [resolve, escalate]`. Stage 1 —
+# the explanation / read-only half (why the trader flag fired, how to change
+# the account-type setting, grounded in the user's own account_type) must be
+# delivered, evidenced by the closure-qualified grounded-help marker
+# (`require_closure_precondition: true`). Stage 2 — only then, and only when
+# the simulator positively reports the customer still UNRESOLVED after that
+# help, may a handover for the data-modification half (clearing the flag /
+# UC-H appeal) be CONDITIONAL_ELIGIBLE. It still never auto-passes: it needs a
+# committed adjudication in case_specs/conditional_outcome_adjudications.yaml.
+# See bad_case_metadata.expectation_revision_note.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
+
 expected:
   outcome_class: resolve
   primary_uc: UC-A
   secondary_ucs: [UC-H, UC-D]
   should_escalate: false
-  allow_bot_resolution: 'partial'
-  acceptable_outcomes: [resolve, escalate]
+  # WS-2 2026-07-25: 'partial' → 'true' per the UC-A policy row (linter R2).
+  allow_bot_resolution: 'true'
+  # WS-2 2026-07-25: `acceptable_outcomes: [resolve, escalate]` REMOVED — it
+  # paid 1.0 for both terminals. The conditional_outcome_acceptance block
+  # above now owns the verdict (outcome_checks.py:237 short-circuits to it).
   bot_handling_pattern: |
     Bot recognises "the trader flag on my account is wrong" as
     a UC-A account/profile question. Bot may ask one focused

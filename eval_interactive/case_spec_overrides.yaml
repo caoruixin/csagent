@@ -206,15 +206,55 @@ overrides:
       (`user_distress`) was based on the persona's "frustration over
       multiple failed agent attempts" subtext but is superseded by the
       deterministic Sprint §B1 / Sprint 4 §E1 contract.
+    # -------------------------------------------------------------------
+    # WS-2 REVISION (2026-07-25, replan rev 2 §3 WS-2). This override used
+    # to pin `escalation_trigger: faq_miss_threshold_exceeded` plus an
+    # escalate-shaped `bot_handling_pattern` ("... and hand over with
+    # reason faq_miss_threshold_exceeded"). Both are revised to the
+    # resolve shape, for two reasons:
+    #
+    # (1) Correctness. The Sprint 4 §E1 reasoning preserved in the
+    #     rationale above is still right about WHICH reason is truthful
+    #     *if* the bot hands over — it was never evidence that handing
+    #     over is the right OUTCOME. This session is a password-reset
+    #     loop; the paired bad case `cs011_uc_c_faq_miss_not_distress`
+    #     records in its own `hidden_facts` that the reset mail is in the
+    #     user's spam / promotions folder and the platform-side address is
+    #     correct. That is self-serve resolvable, and nothing in it asks
+    #     the platform to MODIFY data, so the 2026-07-25 product
+    #     principle + product decision D1 place it in the agent's scope.
+    #     The old escalate label is an instance of replan rev 2 §1.1 A1:
+    #     the generator read "a human agent took this session over" out of
+    #     a corpus that consists, by construction, of sessions that
+    #     reached a human.
+    #
+    # (2) Durability + schema safety. `case_specs/anchor/cs_interactive_011.yaml`
+    #     and `case_specs/smoke/cs_interactive_011.yaml` were flipped to
+    #     `outcome_class: resolve` / `should_escalate: false` by WS-2. Had
+    #     this override kept its old shape, the next regeneration would
+    #     have re-asserted an `escalation_trigger` on a spec with
+    #     `should_escalate: false` — which `schema.Expected.__post_init__`
+    #     raises on ("escalation_trigger must be empty/null when
+    #     should_escalate=false") and linter R4 reports. So leaving it
+    #     alone was not a no-op; it was a latent load failure.
+    #
+    # The override's ORIGINAL purpose is retained: it still exists to stop
+    # the bot LLM's unconfirmed `user_distress` Tier-0 claim from being
+    # treated as the expected reason. That claim is now rejected by the
+    # stronger statement that no escalation reason is expected at all.
+    # `qa-reports/smoke-case-review.md` was doc-synced in the same change.
+    # -------------------------------------------------------------------
     expected:
-      escalation_trigger: faq_miss_threshold_exceeded
+      escalation_trigger: null
       bot_handling_pattern: >-
         Acknowledge the issue, run policy-mandated tools
         (get_customer_context, search_knowledge, resolve_article,
-        request_handover, record_outcome), collect required intake
-        fields (none), and hand over with reason
-        faq_miss_threshold_exceeded once FAQ search has no useful
-        article for the password-reset-loop the user reports.
+        record_outcome), and resolve the password-reset loop from the
+        knowledge base: have the user check the spam / junk / promotions
+        folder, confirm which address the reset link was sent to, and
+        offer the alternate recovery route if the mail is genuinely
+        absent. Do not escalate, and do not claim `user_distress` on
+        cooperative lower-case text.
 
   # -----------------------------------------------------------------------
   # cs_interactive_066 / 570Q5000008fBsXIAU
@@ -377,15 +417,60 @@ overrides:
       `prompt_projection` / `semantic_planner` bug captured by the
       Sprint 20 cs001 case family and is NOT papered over by this
       override.
+    # -------------------------------------------------------------------
+    # WS-2 REVISION (2026-07-25, replan rev 2 §3 WS-2). This override used
+    # to pin `escalation_trigger: faq_miss_threshold_exceeded` plus an
+    # escalate-shaped `bot_handling_pattern` ("... and hand over with
+    # reason faq_miss_threshold_exceeded"). Both are revised to the
+    # resolve shape, for two reasons:
+    #
+    # (1) Correctness. The rationale above correctly resolved ONE
+    #     question — that `clarification_budget_exhausted` was an internal
+    #     contradiction and FAQ-miss is the truthful reason *if* the bot
+    #     hands over. It never established that handing over is the right
+    #     OUTCOME. The paired bad case
+    #     `cs001_uc_c_mechanical_template_escalate` records two ordinary
+    #     self-serve causes in its own `hidden_facts`: email
+    #     reply-notifications switched off in notification settings, and
+    #     auto-filtered replies sitting in a hidden "blocked" folder. Both
+    #     are answerable by explaining a setting the user controls; neither
+    #     asks the platform to MODIFY data. Per the 2026-07-25 product
+    #     principle that is agent-resolvable, and the old escalate label is
+    #     an instance of replan rev 2 §1.1 A1 (the generator read "a human
+    #     agent took this session over" out of a corpus that consists, by
+    #     construction, of sessions that reached a human).
+    #
+    # (2) Durability + schema safety. `case_specs/anchor/cs_interactive_001.yaml`
+    #     and `case_specs/smoke/cs_interactive_001.yaml` were flipped to
+    #     `outcome_class: resolve` / `should_escalate: false` by WS-2. Had
+    #     this override kept its old shape, the next regeneration would
+    #     have re-asserted an `escalation_trigger` on a spec with
+    #     `should_escalate: false` — which `schema.Expected.__post_init__`
+    #     raises on ("escalation_trigger must be empty/null when
+    #     should_escalate=false") and linter R4 reports. So leaving it
+    #     alone was not a no-op; it was a latent load failure.
+    #
+    # UNCHANGED, and explicitly re-affirmed: this override still does NOT
+    # paper over the bot's separate L3 QUALITY failure (the turn-0
+    # mechanical template "Hi Benjamin! I'm having difficulty resolving
+    # this. Let me connect you with a specialist." with zero
+    # acknowledgement of the user's actual complaint). WS-2 strengthened
+    # that assertion rather than weakening it: the bad case now enforces
+    # it as an L1 hard check via `expected.answer_must_not_contain`, so a
+    # reply that reaches the right outcome through a turn-0 mechanical
+    # template still fails. `qa-reports/smoke-case-review.md` was
+    # doc-synced in the same change.
+    # -------------------------------------------------------------------
     expected:
-      escalation_trigger: faq_miss_threshold_exceeded
+      escalation_trigger: null
       bot_handling_pattern: >-
-        Acknowledge the user's specific Replies/Messaging complaint, run
-        policy-mandated tools (search_knowledge, resolve_article,
-        request_handover, record_outcome), collect required intake
-        fields (none), and hand over with reason
-        faq_miss_threshold_exceeded once FAQ search exhausts without a
-        resolve-grade hit on the UC-C messaging topic.
+        Acknowledge the user's specific Replies/Messaging complaint by
+        naming the actual issue, run policy-mandated tools
+        (search_knowledge, resolve_article, record_outcome), and resolve
+        from the knowledge base by walking the user to the relevant
+        notification setting / blocked-message folder. Do not open with a
+        mechanical "I'm having difficulty resolving this" template before
+        any tool call has run, and do not escalate.
 
   # -----------------------------------------------------------------------
   # cs_interactive_095 / 570Q5000008U5C9IAK

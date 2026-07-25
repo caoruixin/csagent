@@ -26,16 +26,51 @@ bad_case_metadata:
   related_dimensions: [D4]
   related_r_items: []
   tier: scope-relevant
+  expectation_revision_note: |
+    2026-07-25 (WS-2, replan rev 2 §3 WS-2 "Expectation is wrong — flip to
+    resolve" / "decouple the quality complaint from the outcome"): the outcome
+    expectation is revised from `escalate` to `resolve`.
+
+    This case exists to assert a QUALITY property — that the turn-0 reply must
+    not be the mechanical template "Hi Benjamin! I'm having difficulty
+    resolving this. Let me connect you with a specialist." with zero
+    acknowledgement of the user's actual complaint. That assertion is intact
+    and is now enforced twice: in `closure_criterion` and, newly, as a hard
+    check via `expected.answer_must_not_contain`.
+
+    What was wrong is that the case ALSO pinned the terminal to `escalate`,
+    conflating "the wording was bad" with "a human was needed". They are
+    independent. The case's own `hidden_facts` (below) are two ordinary
+    self-serve causes — email reply-notifications switched off in notification
+    settings, and auto-filtered replies sitting in a hidden "blocked" folder.
+    Both are answerable by explaining a setting the user controls; neither
+    requires the platform to modify the user's data. Under the 2026-07-25
+    product principle that makes this an agent-resolvable case, and the prior
+    `escalate` label is an instance of replan §1.1 A1 (the generator read "a
+    human took this session over" out of the historical transcript).
+
+    `allow_bot_resolution` 'partial' → 'true' follows the UC-C policy row
+    (`case_spec/policy_table.py:178-194`), which linter R2 requires.
+
+    NOT changed: `primary_uc` UC-C is correct (Replies & Messaging), and the
+    `failure_shape` record above is preserved verbatim.
 
 closure_criterion: |
-  Bot acknowledges the user's specific Replies / Messaging complaint by paraphrasing or naming
-  the actual issue ("you can't receive messages on your account") in the turn-0 reply, runs the
-  policy-mandated tool sequence (search_knowledge + resolve_article), and hands over with
-  reason=faq_miss_threshold_exceeded once FAQ search exhausts without a resolve-grade hit.
-  Bot does NOT use a mechanical template ("I'm having difficulty resolving this") on turn 0
-  before any tool call has run. Bot does NOT escalate with reason=clarification_budget_exhausted
-  when no clarification fields are required (a logical impossibility). Bot does NOT skip FAQ
-  search and escalate immediately.
+  OUTCOME requirement: bot RESOLVES this case. The two hidden facts are ordinary self-serve
+  causes (email reply-notifications turned off; auto-filtered replies in a hidden "blocked"
+  folder), so a good CS agent walks the user to the relevant setting / folder and closes the
+  issue. No data modification is asked of the platform, so a handover is a FAILURE here, not a
+  safe default. Bot does NOT skip FAQ search and escalate immediately, and does NOT escalate
+  with reason=clarification_budget_exhausted when no clarification fields are required (a
+  logical impossibility).
+
+  QUALITY requirement (this case's original and still-primary assertion, independent of the
+  outcome above): bot acknowledges the user's specific Replies / Messaging complaint by
+  paraphrasing or naming the actual issue ("you can't receive messages on your account") in the
+  turn-0 reply. Bot does NOT use a mechanical template ("I'm having difficulty resolving this"
+  / "Let me connect you with a specialist") on turn 0 before any tool call has run, and runs the
+  policy-mandated tool sequence (search_knowledge + resolve_article) before answering. A reply
+  that reaches the right OUTCOME through a turn-0 mechanical template still FAILS this case.
 
 form_context:
   first_name: Benjamin
@@ -70,13 +105,31 @@ persona:
     template before running any FAQ search
 
 expected:
-  outcome_class: escalate
+  # WS-2 2026-07-25: escalate → resolve. The quality assertion (turn-0
+  # mechanical template) is decoupled from the outcome assertion and now lives
+  # in closure_criterion + answer_must_not_contain below. See
+  # bad_case_metadata.expectation_revision_note.
+  outcome_class: resolve
   primary_uc: UC-C
   secondary_ucs: []
-  should_escalate: true
-  allow_bot_resolution: 'partial'
-  escalation_trigger: faq_miss_threshold_exceeded
-  acceptable_outcomes: [escalate, resolve]
+  should_escalate: false
+  # WS-2 2026-07-25: 'partial' → 'true' per the UC-C policy row (linter R2).
+  allow_bot_resolution: 'true'
+  # WS-2 2026-07-25: must be null when should_escalate=false (schema post-init
+  # + linter R4).
+  escalation_trigger: null
+  # WS-2 2026-07-25: was [escalate, resolve], which under
+  # scoring/outcome_checks.py:_check_correct_outcome paid 1.0 for either
+  # terminal — zero discrimination on the very axis this sprint cares about.
+  acceptable_outcomes: [resolve]
+  # WS-2 2026-07-25: the quality complaint, re-homed. These are enforced as an
+  # L1 hard check (hard_checks.py:486-491, folded into
+  # no_critical_policy_violation) so the turn-0 mechanical-template failure
+  # this case was built to catch still fails the case on its own, without
+  # needing the outcome to be pinned to escalate.
+  answer_must_not_contain:
+    - I'm having difficulty resolving this
+    - Let me connect you with a specialist
 
 scoring:
   hard_checks:

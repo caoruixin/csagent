@@ -20,22 +20,131 @@ persona:
   - can you tell me why the emails are now going to my old address?
   hidden_facts: []
   will_request_human_if: ''
+closure_criterion: |
+  Two-stage closure (WS-2, 2026-07-25). This is a MIXED ask: part of it is an
+  explanation / read-only status query on the user's own data, and part of it requires the
+  platform to modify data. The halves are judged in order.
+
+  STAGE 1 (mandatory, must come first):
+    Bot retrieves the account/contact-email state via get_customer_context and ANSWERS the read-
+    only question the user actually asked: which address replies are currently being sent to, and
+    why the contact email carried on the ad can differ from the account login email. Bot then
+    gives the self-serve path for changing the reply/contact address in account settings, grounded
+    in a Help Centre article.
+
+  STAGE 2 (conditional, only after Stage 1):
+    If the user needs the account LOGIN email itself changed — a credential-class data
+    modification the platform must perform — a handover is correct.
+
+  FAIL: any handover that happens before Stage 1 has been delivered, including a turn-0
+  handover; and any handover with no closure-qualified grounded-help marker. Enforced
+  declaratively by the conditional_outcome_acceptance block
+  (require_closure_precondition: true), not by a flat resolve-or-escalate acceptance.
+
+expectation_revision_note: |
+  2026-07-25 (WS-2, replan rev 2 §3 WS-2; coordinator adjudication of the
+  "待裁决 / undecided" list). This spec was one of 6 anchor cases held back from
+  the escalate -> resolve flip because the ask is MIXED. The adjudication: mixed
+  asks are not a reason to keep a flat expectation — they are exactly the shape
+  that needs the two-stage rule, the same treatment applied to the item-B cases
+  `wmkb_uc_a_trader_flag_secondary_uc_h`, `cs095_uc_d_email_recovery_misroute`
+  and `iwzx_uc_k_advert_on_hold_restore`.
+
+  The mixed ask here: the user's ad replies are going to an old email address instead of the registered one, and they ask "can you tell me why the emails are now going to my old address?".
+
+  Why the previous label was wrong on its own terms (replan rev 2 §1.1 A1): the
+  generator read "a human agent took this session over" out of the historical
+  transcript and stamped this FAQ-resolvable UC as `escalate`. The corpus is by
+  construction sessions that reached a human, so the regex in
+  `case_spec/transcript_evidence.py:146-208` fires on nearly every one. This spec
+  was simultaneously `should_escalate: true` and `allow_bot_resolution: 'true'` —
+  the policy table said the bot MAY resolve this UC while the spec demanded a
+  handover. But a straight flip to `resolve` would have been equally wrong here,
+  because half of this ask genuinely does require the platform to modify data.
+
+  Product principle applied (product owner, 2026-07-25), for mixed asks: answer
+  the explanation / read-only-status half FIRST, then the data-modification half
+  may go to a human. Read-only status query on the user's own data was promoted
+  into current scope by product decision D1 (replan rev 2 §2).
+
+  Mechanism: the declarative `conditional_outcome_acceptance` block below
+  (`scoring/conditional_outcome.py`, introduced by S-Auto-40 WP1-A). Semantics
+  per `conditional_outcome.py:232-281`:
+    * SATISFIED customer + `resolve` -> PASS.
+    * positively-UNRESOLVED-after-help + `escalate` + the closure-qualified
+      grounded-help marker required by `require_closure_precondition: true`
+      (a bot turn carrying tool calls AND non-empty `source_ids` AND a grounded
+      answer) -> CONDITIONAL_ELIGIBLE, promoted to PASS only by a committed
+      per-trace adjudication in
+      `case_specs/conditional_outcome_adjudications.yaml`.
+    * `escalate` with user_state UNKNOWN or SATISFIED, or with NO grounded-help
+      marker — i.e. the bot handed over without first answering the read-only
+      half — -> FAIL.
+  This is a tightening, not a §5.4 widen: `escalate` used to score 1.0
+  unconditionally on this spec, and now scores 0.0 unless the read-only half was
+  delivered first and the customer is positively still unresolved.
+
+  Verified (the trap found on cs095 / iwzx): `correct_outcome` is present in
+  `scoring.outcome_checks` below, so the block is actually evaluated — the
+  conditional evaluator is only reachable from inside `_check_correct_outcome`
+  (`scoring/outcome_checks.py:237`), and an empty `outcome_checks` list would
+  have made this whole rule inert.
+
+  Mechanical consequences, all forced by the schema / linter:
+    * `should_escalate: false` and `escalation_trigger: null` (schema.py
+      Expected.__post_init__ rejects a trigger when should_escalate is false;
+      linter R4 does the same). The escalate path is now CONDITIONED, not
+      removed.
+    * `outcome_class: resolve` — the conditional block's `satisfied_outcome`,
+      and required by linter R1 for this UC.
+    * `request_handover` dropped from `expected_tool_sequence`, which is
+      advisory (`outcome_checks.py` tool_sequence_match is Tier-3 diagnostic);
+      Stage 2 may still legitimately call it.
+    * `escalation_triggered` -> `resolution_achieved` in
+      `scoring.outcome_checks`, per `extractor.py:1413-1416`.
+    * "I'll resolve this for you" dropped from `answer_must_not_contain` (the
+      escalate-honesty phrase, added only for escalate outcomes per
+      `extractor.py:1350-1352,1367-1369`; on a resolve-shaped case it is an L1
+      hard-check false positive, `hard_checks.py:486-491`). The three
+      capability-lie phrases are deliberately KEPT — the bot has no tool that
+      can fix, send, restore, delete or ban anything (`GumtreeApiService`
+      exposes four getters), so they remain true anti-fabrication guards.
+    * `closure_criterion` ADDED. Anchor specs are generated without one
+      (`schema.py:309` / `loader.py:105` make it Optional), but the two-stage
+      rule is meaningless without a written statement of which half is Stage 1,
+      and it is what the §5.6 manual review reads.
+
+  NOT changed: primary_uc, secondary_ucs, persona, seed_messages, form_context,
+  risk_level, max_turns, hard_checks, or llm_judge_dimensions.
+# WS-2 2026-07-25: two-stage, condition-bound outcome acceptance for a MIXED
+# ask. Stage 1 (the explanation / read-only-status half) must be delivered,
+# evidenced by the closure-qualified grounded-help marker; only then may a
+# handover for the data-modification half be CONDITIONAL_ELIGIBLE, and it still
+# needs a committed adjudication to PASS. See expectation_revision_note.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
 expected:
-  outcome_class: escalate
+  outcome_class: resolve
   primary_uc: UC-C
   secondary_ucs:
   - UC-D
-  should_escalate: true
+  should_escalate: false
   allow_bot_resolution: 'true'
-  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_distress.
-  escalation_trigger: user_distress
+  bot_handling_pattern: >-
+    Two-stage. Stage 1: acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge,
+    resolve_article, record_outcome) and answer the explanation / read-only-status half from the knowledge base
+    and the user's own retrieved data. Stage 2: only once Stage 1 has been delivered, and only if the customer is
+    positively still unresolved, hand the data-modification half over to a human. A handover before Stage 1 is a
+    failure.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - request_handover
   - record_outcome
   forbidden_tools:
   - create_case_controlled
@@ -45,7 +154,6 @@ expected:
   - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
@@ -60,7 +168,7 @@ scoring:
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - escalation_triggered
+  - resolution_achieved
   - answer_accuracy
   llm_judge_dimensions:
   - groundedness

@@ -25,16 +25,60 @@ bad_case_metadata:
   related_dimensions: [D4]
   related_r_items: []
   tier: core
+  expectation_revision_note: |
+    2026-07-25 (WS-2, replan rev 2 §3 WS-2 "Expectation is wrong — flip to
+    resolve"): the outcome expectation on this case was WRONG and is revised
+    from `escalate` to `resolve`. Two independent grounds:
+
+    (1) The case's own `hidden_facts` (below) say the reset mail is sitting in
+        the user's spam / promotions folder and that the platform-side account
+        email is correct. That is a textbook self-serve resolution: "check your
+        spam / promotions folder; if it is not there, try the SMS recovery
+        path". Nothing in the resolution requires the platform to MODIFY the
+        user's data, so per the 2026-07-25 product principle (data-modifying
+        asks → human; explanation + read-only status query → bot) the bot must
+        finish this itself.
+    (2) The prior `escalate` label is an instance of replan §1.1 A1: the
+        generator read "a human agent took this session over" out of the
+        historical transcript and stamped the FAQ-resolvable UC as escalate.
+        `acceptable_outcomes: [escalate]` was SINGLE-VALUED, i.e. the spec
+        actively *required* a handover and scored a correct self-serve answer
+        as a failure.
+
+    ALSO CORRECTED: `primary_uc` UC-C → UC-D. The form's own
+    `topic_subject` is "Account & Login" (= UC-D per
+    `eval_interactive/case_spec_overrides.yaml:281`), the description and both
+    seed messages are entirely about password reset / login, and there is no
+    Replies-&-Messaging (UC-C) content anywhere in the case. `case_id` and the
+    filename keep their historical `uc_c` token so existing references
+    (`_manifest.md`, sprint archives) still resolve.
+
+    `allow_bot_resolution` 'partial' → 'true' follows the UC-D policy row
+    (`case_spec/policy_table.py:196-213`), which linter R2 requires.
+
+    NOT changed: the D4 failure shape below. The original bug — the bot
+    claiming the Tier-0 `user_distress` signal on cooperative lower-case text —
+    is preserved verbatim in `closure_criterion` and remains this case's
+    primary assertion.
 
 closure_criterion: |
   Bot runs the policy-mandated FAQ tool sequence (get_customer_context, search_knowledge,
-  resolve_article) on the password-reset-loop pattern. When the FAQ corpus has no useful
-  article, bot hands over with reason=faq_miss_threshold_exceeded (the truthful Phase 2 §2.4
-  reason), NOT user_distress. Bot does NOT claim user_distress on lower-case, descriptive,
-  cooperative seed text — user_distress is a Tier-0 semantic claim reserved for the
-  deterministic Sprint B1 DISTRESS_PATTERN family (ALL-CAPS shouts, explicit threat / harm
-  language, etc.). Bot may acknowledge the user's frustration in its wording without elevating
-  the escalation_reason enum.
+  resolve_article) on the password-reset-loop pattern and RESOLVES it self-serve: it surfaces
+  the concrete recovery steps a good CS agent would give — check the spam / junk / promotions
+  folder, confirm which address the reset was sent to, and offer the alternate recovery route
+  (e.g. SMS verification) if the mail is genuinely absent. The hidden facts make this fully
+  solvable in chat; no data modification is required of the platform, so a handover here is a
+  FAILURE, not a safe default.
+
+  Bot does NOT claim user_distress on lower-case, descriptive, cooperative seed text —
+  user_distress is a Tier-0 semantic claim reserved for the deterministic Sprint B1
+  DISTRESS_PATTERN family (ALL-CAPS shouts, explicit threat / harm language, etc.). Bot may
+  acknowledge the user's frustration in its wording without elevating the escalation_reason
+  enum, and per the 2026-07-25 product decision D2 must de-escalate and keep solving rather
+  than treat "I have already spoken to two agents" as a mandate to hand over.
+
+  Bot does NOT hand over on turn 0, and does NOT hand over at all unless the user explicitly
+  demands a human.
 
 form_context:
   first_name: Customer
@@ -72,13 +116,25 @@ persona:
     cooperative text — that would be the documented failure mode
 
 expected:
-  outcome_class: escalate
-  primary_uc: UC-C
+  # WS-2 2026-07-25: escalate → resolve. Grounds: this case's own hidden_facts
+  # (spam/promotions folder + platform-side email correct) make it self-serve
+  # resolvable, and no data modification is asked of the platform. See
+  # bad_case_metadata.expectation_revision_note.
+  outcome_class: resolve
+  # WS-2 2026-07-25: UC-C → UC-D. topic_subject is literally "Account & Login";
+  # description + both seed messages are password-reset/login only.
+  primary_uc: UC-D
   secondary_ucs: []
-  should_escalate: true
-  allow_bot_resolution: 'partial'
-  escalation_trigger: faq_miss_threshold_exceeded
-  acceptable_outcomes: [escalate]
+  should_escalate: false
+  # WS-2 2026-07-25: 'partial' → 'true' per the UC-D policy row (linter R2).
+  allow_bot_resolution: 'true'
+  # WS-2 2026-07-25: must be null when should_escalate=false (schema post-init
+  # + linter R4). The historical faq_miss_threshold_exceeded label is retained
+  # in bad_case_metadata.failure_shape as the record of the original bug.
+  escalation_trigger: null
+  # WS-2 2026-07-25: was [escalate] (single-valued, i.e. a handover was
+  # REQUIRED to pass). Now a resolve is the only accepted terminal.
+  acceptable_outcomes: [resolve]
 
 scoring:
   hard_checks:

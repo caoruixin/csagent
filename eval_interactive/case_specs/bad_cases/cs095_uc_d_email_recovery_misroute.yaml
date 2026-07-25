@@ -25,13 +25,70 @@ bad_case_metadata:
   related_dimensions: [D1]
   related_r_items: []
   tier: core
+  expectation_revision_note: |
+    2026-07-25 (WS-2, replan rev 2 §3 WS-2 "Signal diluted to zero — tighten"):
+    this case carried `acceptable_outcomes: [resolve, escalate]`. Under
+    `scoring/outcome_checks.py:_check_correct_outcome` the acceptable-set
+    branch is taken FIRST and returns 1.0 for any member of the set, so
+    `resolve` and `escalate` both scored 1.0 and the case carried ZERO
+    information on the resolve-vs-escalate axis. (In this case's specific
+    configuration `scoring.outcome_checks` was ALSO empty, so `correct_outcome`
+    was not even being run — the dilution was total.)
+
+    That is worst here, because this is a genuinely MIXED ask:
+      * the read-only / explanation half — "which of my two emails is the
+        authoritative one on this account, and why do I see zero adverts from
+        the other one?" — is a read-only account-state lookup plus an
+        explanation, and the bot must do it itself (product decision D1,
+        2026-07-25);
+      * the data-modification half — actually changing the account LOGIN email
+        so the two addresses stop diverging — is explicitly named by the
+        2026-07-25 product principle as a human-agent task.
+
+    Replaced with the declarative two-stage `conditional_outcome_acceptance`
+    block (`scoring/conditional_outcome.py`, mechanism introduced by S-Auto-40
+    WP1-A and until now used only by `cs_uc_a_loaded_listing.yaml:58-70`).
+    Semantics per `conditional_outcome.py:232-281`: SATISFIED + `resolve` →
+    PASS; positively-UNRESOLVED-after-help + `escalate` + closure-qualified
+    grounded-help marker → CONDITIONAL_ELIGIBLE (PASS only via a committed
+    per-trace adjudication in
+    `case_specs/conditional_outcome_adjudications.yaml`); `escalate` with
+    user_state UNKNOWN / SATISFIED, or with no grounded-help marker (i.e. the
+    bot handed over without first telling the user which email is
+    authoritative) → FAIL.
+
+    `correct_outcome` had to be ADDED to `scoring.outcome_checks` for the
+    block to be evaluated at all (`outcome_checks.py:237` is inside
+    `_check_correct_outcome`; an empty `outcome_checks` list means the
+    conditional evaluator never runs).
+
+    `outcome_class` 'either' → 'resolve' and `allow_bot_resolution` 'partial' →
+    'true' follow the UC-D policy row (`case_spec/policy_table.py:196-213`);
+    both were pre-existing linter R1 / R2 errors.
+
+    NOT changed: the UC-D primary pin, the `failure_shape`, or any of the four
+    quality prohibitions in `closure_criterion` (internal Salesforce source-id
+    leak, T1 placeholder without a follow-on tool call, duplicated greeting,
+    fabricated account state).
 
 closure_criterion: |
   Bot recognises "wrong email address on my app account" as the dominant signal (UC-D
   account/email recovery), with "no adverts showing" as a downstream consequence rather than a
-  standalone UC-A Top-Ad visibility question. Bot walks the user through verifying which email
-  is the active one on the account (account-settings path) or escalates with a useful handover
-  summary naming the dual-email confusion. Bot does NOT loop asking which email to use as if
+  standalone UC-A Top-Ad visibility question.
+
+  STAGE 1 (mandatory, must come first): bot walks the user through verifying which email is the
+  active one on the account (account-settings path), grounded in the retrieved account state.
+  This half is a read-only status query on the user's own data and the bot must complete it
+  itself (product decision D1, 2026-07-25). Handing over before this half is delivered is a
+  FAILURE.
+
+  STAGE 2 (conditional, only after Stage 1): if the user still needs the account LOGIN email
+  itself changed — a data modification the platform must perform — a handover with a useful
+  summary naming the dual-email confusion is acceptable. Enforced declaratively by the
+  `conditional_outcome_acceptance` block below (`require_closure_precondition: true`), not by
+  a flat resolve-or-escalate acceptance.
+
+  Bot does NOT loop asking which email to use as if
   the answer were obvious. Bot does NOT fabricate an account state. Bot does NOT leak internal
   Salesforce source IDs / ka-prefixed identifiers in user-facing text. Bot does NOT produce a
   T1 placeholder ("I'm looking into this for you") without a follow-on tool call in the same
@@ -72,18 +129,44 @@ persona:
     without an actual action in the same turn, OR the bot fabricates an account state without
     retrieving customer context
 
+# WS-2 2026-07-25: two-stage, condition-bound outcome acceptance, replacing the
+# zero-discrimination `acceptable_outcomes: [resolve, escalate]`. Stage 1 —
+# the read-only half (which of the two emails is authoritative on this
+# account) must be answered, evidenced by the closure-qualified grounded-help
+# marker (`require_closure_precondition: true`). Stage 2 — only then, and only
+# when the simulator positively reports the customer still UNRESOLVED after
+# that help, may a handover for the data-modification half (changing the
+# account login email) be CONDITIONAL_ELIGIBLE; it still needs a committed
+# adjudication in case_specs/conditional_outcome_adjudications.yaml to PASS.
+# See bad_case_metadata.expectation_revision_note.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
+
 expected:
-  outcome_class: either
+  # WS-2 2026-07-25: 'either' → 'resolve' per the UC-D policy row (linter R1);
+  # the conditional block above owns the actual verdict.
+  outcome_class: resolve
   primary_uc: UC-D
   secondary_ucs: [UC-A, UC-K]
   should_escalate: false
-  allow_bot_resolution: 'partial'
-  acceptable_outcomes: [resolve, escalate]
+  # WS-2 2026-07-25: 'partial' → 'true' per the UC-D policy row (linter R2).
+  allow_bot_resolution: 'true'
+  # WS-2 2026-07-25: `acceptable_outcomes: [resolve, escalate]` REMOVED — it
+  # paid 1.0 for both terminals.
 
 scoring:
   hard_checks:
     - no_pii_leakage
     - no_human_only_tool_exposure
     - no_critical_policy_violation
-  outcome_checks: []
+  # WS-2 2026-07-25: `correct_outcome` ADDED. It was absent, so this case
+  # scored NOTHING on the resolve-vs-escalate axis; and the
+  # conditional_outcome_acceptance block above is only reachable from inside
+  # `_check_correct_outcome` (outcome_checks.py:237), so without this entry
+  # the new two-stage rule would be inert.
+  outcome_checks:
+    - correct_outcome
   llm_judge_dimensions: []

@@ -36,22 +36,57 @@ bad_case_metadata:
   related_r_items:
     - OBS-S1 (entity-context verification including degradation path)
   tier: tier_2_neighbor
+  expectation_revision_note: |
+    2026-07-25 (WS-2, replan rev 2 §3 WS-2 "Expectation is wrong — flip to
+    resolve"): outcome expectation revised from `either` to `resolve`, and
+    the escalation PASS branch is deleted.
+
+    The old `closure_criterion` PASS condition (c) read "Bot escalates with
+    reason=user_requested or a degradation reason (preferred over a silent
+    generic answer)" — i.e. it made a handover a *preferred* pass. That is
+    contradicted by this case's own `hidden_facts`: the user is holding the
+    correct id (AD-2002, an active listing) and `seed_messages[1]` volunteers
+    it unprompted on the second turn. There is therefore no state of the world
+    in which this case genuinely needs a human: it is a read-only status query
+    on the user's own listing, which the 2026-07-25 product decision D1
+    promotes into current scope. The whole difficulty of the case is the
+    graceful-degradation TURN (turn 1), not the terminal.
+
+    The intended contrast — "degrade gracefully" beats "silently answer
+    generically" — survives intact: the old (c) was never the only alternative
+    to the FAIL conditions, and (a)/(b) already covered both the good path and
+    the honest-degradation path. Removing (c) removes only the reward for
+    giving up.
+
+    `allow_bot_resolution` 'partial' → 'true' follows the UC-A policy row
+    (`case_spec/policy_table.py:142-159`), which linter R2 requires; it also
+    clears the pre-existing R1 error (`outcome_class='either'` is not a legal
+    value for a UC-A spec).
+
+    NOT changed: the tier_2_neighbor demotion, the `demotion_note`, the FAIL
+    conditions, `expected_tool_sequence`, or the observation-only status of
+    `customer_context_status`.
 
 closure_criterion: |
   Bot consults get_customer_context(AD-9999), recognises the listing was not
   found, and degrades gracefully (Tier-2 regression guard / harder adjacent
   neighbor — under n=9 the baseline stably fails this; see demotion_note).
 
+  This is a read-only status query on the user's own listing and the user is
+  holding the correct id, so it is fully resolvable in chat (product decision
+  D1, 2026-07-25). A handover is NOT an acceptable terminal here.
+
   PASS conditions (one of):
     (a) Bot tells the user the listing could not be found and asks them to
         confirm the ad_id, then on a corrected id consults
         get_customer_context(AD-2002) and grounds;
     (b) Bot tells the user the lookup failed and offers generic guidance with
-        explicit acknowledgement that it may not match their specific situation;
-    (c) Bot escalates with reason=user_requested or a degradation reason
-        (preferred over a silent generic answer).
+        explicit acknowledgement that it may not match their specific situation.
 
   FAIL conditions (regression):
+    (c) Bot escalates. The user supplies AD-2002 on turn 2 unprompted, so no
+        handover on this case can be anything but premature. (Was a PASS
+        condition before 2026-07-25 — see expectation_revision_note.)
     (d) Bot answers with a generic FAQ article as if the listing were loaded;
     (e) Bot fabricates listing details that were never retrieved (grounding
         floor violation);
@@ -97,12 +132,24 @@ persona:
     the failed lookup
 
 expected:
-  outcome_class: either
+  # WS-2 2026-07-25: 'either' → 'resolve'. hidden_facts:88-93 say the user
+  # holds the correct id (AD-2002) and seed_messages[1] volunteers it on turn
+  # 2, so this read-only status query is 100% completable in chat (product
+  # decision D1). See bad_case_metadata.expectation_revision_note.
+  outcome_class: resolve
   primary_uc: UC-A
   secondary_ucs: []
   should_escalate: false
-  allow_bot_resolution: 'partial'
-  acceptable_outcomes: [resolve, escalate]
+  # WS-2 2026-07-25: 'partial' → 'true' per the UC-A policy row (linter R2).
+  allow_bot_resolution: 'true'
+  # WS-2 2026-07-25: was [resolve, escalate], which paid 1.0 for a handover
+  # (scoring/outcome_checks.py:_check_correct_outcome takes the
+  # acceptable-set branch first). The escalate branch is now a FAIL.
+  acceptable_outcomes: [resolve]
+  # WS-2 2026-07-25: the former turn-3 "OR (alternate path) bot escalates
+  # gracefully if the user cannot provide a corrected ad_id" clause is deleted
+  # from bot_handling_pattern below — the user always supplies the corrected
+  # id on turn 2, so that path only rewarded giving up.
   bot_handling_pattern: |
     Turn 1: bot consults get_customer_context(AD-9999), which returns no
     listing. Bot tells the user the listing could not be found and asks to
@@ -111,9 +158,7 @@ expected:
     Turn 2: user provides AD-2002. Bot calls get_customer_context(AD-2002),
     retrieves the listing, and answers with grounded reference.
 
-    Turn 3: bot confirms resolution. OR (alternate path) bot escalates
-    gracefully if the user cannot provide a corrected ad_id after one
-    clarifying turn.
+    Turn 3: bot confirms resolution.
   escalation_trigger: null
   risk_level: low
   expected_tool_sequence:

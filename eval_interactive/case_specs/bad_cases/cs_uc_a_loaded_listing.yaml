@@ -31,19 +31,86 @@ bad_case_metadata:
   related_r_items:
     - OBS-S1 (entity-context verification for UC-A)
   tier: tier_1_target
+  expectation_revision_note: |
+    2026-07-25 (WS-2, replan rev 2 §3 WS-2 "Structurally unwinnable —
+    restructure"). Two options were on the table: (i) make the persona
+    satisfiable the way the `_resolvable` companion does, or (ii) explicitly
+    demote this case to "grounding-only, outcome not scored".
+
+    CHOSEN: (ii) — grounding-only. `correct_outcome` is removed from
+    `scoring.outcome_checks`; the entity-consult-and-ground assertion is
+    unchanged and remains this case's whole point.
+
+    Why (ii) and not (i) — three reasons, in order of weight:
+
+    1. Option (i) would DESTROY the control pair. The satisfiable variant
+       already exists as a separate, human-BLESSED case:
+       `cs_uc_a_loaded_listing_resolvable.yaml`, whose own `control_role`
+       (lines 21-34) states it "differs from the PRIMARY
+       `cs_uc_a_loaded_listing` PRIMARILY in the persona acceptance contract".
+       Converting the PRIMARY to a satisfiable persona would leave two
+       near-duplicate satisfiable cases and ZERO coverage of the surface this
+       one exists to cover: does the bot consult and ground in the user's own
+       listing when the user's goal is open-ended? That surface is real —
+       open-ended "make my ad do better" asks are common — and the grounding
+       requirement is winnable on it even though the terminal is not.
+
+    2. The unwinnable part is ONLY the terminal, and it is unwinnable in both
+       directions, so no persona tweak short of (i) rescues it:
+       - `resolve`: `session_runner.py:271-280` — the simulator's
+         `goal_status: impossible` (which the `_resolvable` companion's
+         metadata documents this persona as producing after a reasonable
+         answer) breaks the loop with `stop_reason=goal_impossible`. The bot
+         never gets to a recorded resolve terminal.
+       - `escalate`: `conditional_outcome.py:135-169` maps
+         `goal_status == "impossible"` to neutral, so `reduce_user_state`
+         returns UNKNOWN, and `decide()` (`:273-277`) FAILs an escalate on
+         UNKNOWN.
+       So every terminal this case can physically reach scores 0.0. That is
+       not a bar the agent can clear by behaving better — it is a measurement
+       artifact, and leaving it in place teaches the optimizer nothing except
+       that UC-A entity grounding is hopeless.
+
+    3. What survives is the assertion that was always the point.
+       `closure_criterion` PASS (a) + (b) — consult AD-2002 via
+       `get_customer_context`, and reference at least one specific field of the
+       returned listing — are fully winnable and are what `tier: tier_1_target`
+       and `related_r_items: OBS-S1` actually name. They stay enforced by
+       `grounding_compliance` (L1) plus the §5.6 manual review of
+       `closure_criterion` against `per_turn_trace`, which is this suite's
+       acceptance gate anyway (`case_passed_authority: human_review`).
+
+    Side effect, recorded for audit: editing `closure_criterion` changes its
+    sha256 prefix, which invalidates the four `closure_criterion_version:
+    ba55899118d0` entries in
+    `case_specs/conditional_outcome_adjudications.yaml`. This is harmless —
+    all four are `verdict: reject_escalation`, and the evaluator only ever
+    acts on `accept_escalation` (`conditional_outcome.py:204-229`), so no
+    trace's verdict changes. The entries remain valid as audit records of the
+    2026-06-19 human review.
+
+    NOT changed: `expected.outcome_class: resolve` (it still names the
+    *desired* terminal and is read by `correct_uc` / report rendering), the
+    persona, the fixture, `grounding_mode`, or the hard-check list.
 
 closure_criterion: |
   Bot CONSULTS the specific listing (via get_customer_context for AD-2002, or
   the pre-chat-loaded customer_context) and USES the listing data in its
   grounded answer.
 
+  SCOPE (WS-2, 2026-07-25): this case scores GROUNDING ONLY. The terminal
+  (resolve vs escalate) is deliberately NOT scored, because the persona's
+  open-ended "make my live ad perform better" goal is not satisfiable in chat
+  and every terminal the case can physically reach scores 0.0 — see
+  bad_case_metadata.expectation_revision_note for the two code paths that
+  close both directions. Judge PASS/FAIL on (a) and (b) alone.
+
   PASS conditions:
     (a) Bot consults entity context via get_customer_context(AD-2002) (or
         demonstrably uses the pre-loaded customer_context.listing);
     (b) Bot's user_message references listing-specific data (title, status,
         category, location, price, posted_date — at least one specific field —
-        e.g. "your listing AD-2002 is LIVE in Home & Garden > Furniture …");
-    (c) `correct_outcome: resolve`.
+        e.g. "your listing AD-2002 is LIVE in Home & Garden > Furniture …").
 
   FAIL conditions:
     (d) Bot answers with a generic FAQ article without consulting / using the
@@ -55,6 +122,14 @@ closure_criterion: |
   even on a PASS, because it tracks the RUNTIME_ONLY lookup_listing_or_ad tool
   the agent cannot call — see tool_visibility_note.
 
+# WS-2 2026-07-25: DORMANT. This block is retained as the record of the
+# S-Auto-40 §5.4 product decision and as the rule that would apply if the
+# terminal ever becomes scorable on this case, but it is NOT in effect today:
+# the evaluator is only reachable from inside `_check_correct_outcome`
+# (outcome_checks.py:237), and `correct_outcome` has been removed from
+# `scoring.outcome_checks` below. See
+# bad_case_metadata.expectation_revision_note.
+#
 # S-Auto-40 (WP1-A): declarative, condition-bound outcome acceptance.
 # The product decision (§5.4-authorized): a resolve is correct when the
 # customer is SATISFIED; an escalate after closure-qualified grounded help
@@ -152,6 +227,11 @@ scoring:
     - grounding_compliance
   outcome_checks:
     - correct_uc
-    - correct_outcome
+    # WS-2 2026-07-25: `correct_outcome` REMOVED — this case is demoted to
+    # grounding-only. The persona's goal is not satisfiable in chat, so both
+    # terminals score 0.0 regardless of bot quality; scoring it was measuring
+    # the simulator, not the agent. Grounding stays enforced via the
+    # `grounding_compliance` hard check + the §5.6 manual review of
+    # closure_criterion. See bad_case_metadata.expectation_revision_note.
     - tool_sequence_match
   llm_judge_dimensions: []
