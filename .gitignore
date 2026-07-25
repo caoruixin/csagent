@@ -56,3 +56,7 @@ replay_pid*
 compact/aidazi-*
 
 eval_interactive/analysis/out/
+
+# Local editor / assistant caches (SpecStory session history, Cursor index)
+.specstory/
+.cursorindexingignore
