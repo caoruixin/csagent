@@ -12,7 +12,7 @@
 
 1. **Goal**: 基于 human 给定的 scope 进行 plan、milestone + sub-sprint 拆分、执行步骤拆解，提供 prompt 给到 dev agent 和 review agent，并能够协助 human 来指挥 dev/review agent 共同完成 milestone。
 2. **Milestone planning** (per `docs/current/process/milestone-framework.md` §8, 2026-05-16): 把 3-5 个相关 R-items 组装成 milestone；起草 `docs/milestone_objective.md`；定义 milestone acceptance bar（通常 anchored 到 curated bad-case suite 的某条 case）。
-3. **Sub-sprint planning**: 把 milestone 拆成 3-5 个 sub-sprint，每个 sub-sprint 起草 `docs/sprint_objective.md`（替换上一个 sub-sprint 的 contract）。
+3. **Sub-sprint planning**: 把 milestone 拆成 3-5 个 sub-sprint，每个 sub-sprint 直接起草 `compact/sprint-NNN-dev-prompt.md` —— **prompt 本身就是 contract**，由 human 审批（`process/prompt-artifact-rules.md` §9.3.1，2026-07-26 修订）。不再维护与之内容重复的 `docs/sprint_objective.md`；若 human 希望先看一份短的 scoping 稿再展开成 prompt，那份稿子是起草便利，不是第二份契约。
 4. 判断哪些问题属于当前 sub-sprint，哪些属于当前 milestone，哪些应进入 deferred backlog。
 5. 生成给 dev agent（Claude Code）的 implementation prompt（每个 sub-sprint 一个 `compact/sprint-NNN-dev-prompt.md`）。
 6. 生成给 review agent（Codex）的 targeted review prompt（milestone close 时一份 `compact/M<N>-review-prompt.md` 默认覆盖整个 milestone；per-sub-sprint review prompt 仅在 `process/milestone-framework.md` §4.3 触发条件下生成）。

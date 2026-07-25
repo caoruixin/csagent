@@ -44,9 +44,8 @@ docs, eval results, git diff, handoffs, and review findings.
 |-------------|---------|-------|
 | Cold-start state | `docs/10-handoff.md` §0 (structured table) + §1 (narrative) | Deliver agent updates at close |
 | Current milestone | `docs/milestone_objective.md` | Deliver agent drafts; human approves |
-| Current sub-sprint | `docs/sprint_objective.md` | Deliver agent drafts; human approves |
-| Dev implementation brief | `compact/sprint-NNN-dev-prompt.md` (self-contained executable view of `sprint_objective.md`; see `docs/current/process/prompt-artifact-rules.md` §9) | Deliver agent authors |
-| Review brief | `compact/M<N>-review-prompt.md` (self-contained executable view of `milestone_objective.md`; see `docs/current/process/prompt-artifact-rules.md` §9) | Deliver agent authors |
+| Current sub-sprint | `compact/sprint-NNN-dev-prompt.md` — **the prompt is the contract** (prompt-artifact-rules §9.3.1, amended 2026-07-26). `docs/sprint_objective.md` is optional scoping scratch, not a second contract | Deliver agent drafts; human approves |
+| Review brief | `compact/<review-scope>-review-prompt.md`, authored **after** delivery against the actual diff + handoff (§9.3.2). Findings are adjudicated before becoming work (§9.3.3) | Deliver agent authors |
 | Sub-sprint result | `docs/sprints/sprint-NNN-handoff.md` | Dev agent authors |
 | Review findings | `docs/codex-findings.md` | Review agent authors |
 | Backlog | `docs/action_bank.md` | Deliver agent maintains R-items |
@@ -195,11 +194,11 @@ docs/current/
 
 compact/                              (working directory for per-sprint artifacts)
   ├── sprint-NNN-dev-prompt.md        (deliver agent creates per sub-sprint;
-  │                                    self-contained executable view of
-  │                                    sprint_objective.md; see process/prompt-artifact-rules.md §9)
-  └── M<N>-review-prompt.md           (deliver agent creates at milestone close;
-                                       self-contained executable view of
-                                       milestone_objective.md; see process/prompt-artifact-rules.md §9)
+  │                                    IS the contract, self-contained;
+  │                                    see process/prompt-artifact-rules.md §9.3.1)
+  └── <review-scope>-review-prompt.md (deliver agent creates AFTER delivery,
+                                       scoped by the actual diff + handoff;
+                                       see process/prompt-artifact-rules.md §9.3.2)
 
 docs/milestone_objective.md           (current milestone contract)
 docs/sprint_objective.md              (current sub-sprint contract)
