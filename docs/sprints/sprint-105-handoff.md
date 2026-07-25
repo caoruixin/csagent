@@ -1,0 +1,576 @@
+---
+title: Sprint 105 handoff — eval verdict: Loop C, L3 collapse, D1/D2/D3 ladder
+doc_tier: sprint-archive
+status: current
+implementation_status: implemented
+source_of_truth: eval_interactive/eval_interactive/scoring/
+last_reviewed: 2026-07-26
+review_cadence: ad hoc
+supersedes: []
+superseded_by: null
+notes: >
+  Sprint 105 (WS-4 + Loop C). Branch sprint-105-eval-verdict, worktree
+  ../csagent-wt-105, based on perf-replan-2026-07 @ 82f8a137. Scoring-layer
+  only; no server/** change. Evidence is deterministic re-scoring of eight
+  already-recorded runs plus a corpus-wide structural sweep.
+---
+
+# Sprint 105 handoff
+
+Branch `sprint-105-eval-verdict`; commits `291b1023`, `a6d43fae`,
+`2220ed54`, `d48057d6`.
+
+**Base-commit discrepancy.** The contract §0.1 states the tip of
+`perf-replan-2026-07` is `d7d84f86` and that `git log --oneline -1` "must
+read d7d84f86". It actually reads **`82f8a137`** ("docs: four parallel
+sub-sprint contracts…") — the commit that introduced the contract itself,
+a descendant of `d7d84f86`. Sprint 104's worktree is on the same commit. I
+branched from the real tip.
+
+---
+
+## 1. Item 1 feasibility finding — what `results.json` does and does not carry
+
+**Verdict: feasible for the layer that has the defect; not feasible for the
+layers below it.** No fallback to fixtures was needed, and no live run was
+requested.
+
+### Carried, and sufficient to replay `compute_composite` exactly
+
+`l1_results[]`, `l2_results[]`, `l3_results[]`, `tier2_result` (including
+`per_step[]`), `stall_detected` / `stall_failure_tag`, `case_passed`,
+`composite_score`, `outcome_score`, `judge_score`, `failure_tags`,
+`containment_outcome`, `active_use_case`, `escalation_reason`,
+`total_turns`, `stop_reason`, `case_passed_authority`, `user_state_signals`,
+`transcript[]` (`role` / `message` / `turn_index` / `source`), `llm_calls[]`,
+and `per_turn_trace[]`.
+
+These are precisely `compute_composite`'s inputs, which is why the Loop C
+defect — which lives in that function — is re-scorable offline.
+
+### NOT carried (recorded in code as `rescore.REHYDRATION_GAPS`)
+
+| Owner | Missing field | Consequence |
+|---|---|---|
+| `TraceData` | `events` | Absent entirely. Any L1 check reading session events cannot be recomputed. |
+| `TraceData` | `handover` (`log_id`, `handover_payload`, `transfer_result`) | Absent entirely. L2 `handover_completeness` cannot be recomputed; its recorded score is reused. |
+| `SessionState` | `candidate_use_cases`, `clarification_count`, `faq_miss_count`, `form_context`, `customer_context`, `articles_shown`, `current_phase`, `total_bot_turns` | 8 of 12 fields dropped; only `containment_outcome` / `active_use_case` / `escalation_reason` survive. |
+| `TurnTrace` | `turn_index`, `user_message`, `bot_response`, `source_ids`, `phase_before`, `phase_after`, `active_use_case`, `latency_ms` | `_build_per_turn_trace` keeps only `tool_calls` / `phase_plan` / `projection` — **8 of 10 fields dropped**. Bot text is recoverable from `transcript[]`; the phase pair and `source_ids` are not. |
+| `HardCheckResult` / `OutcomeCheckResult` | `severity` | Dropped by the pre-Sprint-105 serialiser. **This one is load-bearing** — `composite.py` filters advisory results out of both the L1 gate and the outcome mean. |
+
+The severity gap is not recoverable from the check name: `no_forbidden_tools`,
+`user_requested_escalation` and `escalation_reason_family_match` all choose
+severity at runtime. **Sprint 105 now persists it** (`d48057d6`), so runs
+recorded from here on are fully re-scorable.
+
+### Why the gap did not invalidate this sprint's evidence
+
+Rather than assume the severity default was harmless, `rescore.py` proves it
+per-case. `legacy_verdict()` is a deliberately frozen, standalone copy of the
+pre-Sprint-105 arithmetic that **does not import `composite.py`** — an oracle
+that shares the implementation it verifies cannot detect a change in it. Every
+case is checked against it before being quoted.
+
+**Result: 17 of 17 cases across all 8 recorded runs reproduce their recorded
+`outcome_score`, `judge_score`, `composite` and `case_passed` exactly.** The
+severity gap is empirically inert on this substrate.
+
+---
+
+## 2. The Loop C diagnosis, and why the alternative was rejected
+
+### What the contract offered
+
+The contract §3.2 asked me to choose between (a) `judge_score = 0.0` on no
+gating L3 being the defect, and (b) the `advisory` classification of the three
+dims being correct but the composite's treatment of "no gating dims" being
+wrong.
+
+**These are the same claim**, and both are (a). I settled on (a). But the
+naive form of (a) is wrong, and I rejected it — see below.
+
+### The measurement that decided it
+
+A corpus-wide sweep of all 486 loadable specs
+(`scratchpad/sweep_ceiling.py`, reproduced from
+`case_spec.loader.load_case_spec` + `LlmJudge.ALL_DIMENSIONS`):
+
+```
+judge-dim configuration across the corpus:
+   advisory dims only       430
+   no L3 dims at all         56
+specs configuring premature_finish or stall_quality:  0
+```
+
+**Zero of 486 specs configure either gating dimension.** Therefore
+`judge_score` was structurally `0.0` and `composite = 0.5 * outcome + 0.5 * 0
+≤ 0.5` for **every case in the corpus** — against a 0.7 pass bar.
+
+```
+structurally CANNOT reach 0.7 (old rules): 486 / 486
+structurally CANNOT reach 0.7 (new rules):  45 / 486
+```
+
+**This is materially worse than the contract and the re-plan state.** Both
+describe the problem as bad_cases plus the `promotion/` and `anchor/` specs.
+It is the entire corpus: `anchor` 159, `exploration` 107, `promotion` 101,
+`case_families` 49, `probe` 25, `bad_cases` 19, `smoke` 14, `anchor_outcome`
+12. `passed_cases`, `task_success_rate` and `mean_composite_score` have been
+pinned at zero corpus-wide, not merely depressed. The autoloop was optimising
+a constant.
+
+The 45 that still cannot reach 0.7 are exactly the specs with **no L2
+`outcome_checks` and no L3 dims** — `anchor_outcome` 12, `bad_cases` 8,
+`probe/option_beta_coverage` 25. These configure no programmatic scoring
+signal at all, and 20 of them are `human_review` authority by design. A spec
+that declines to be scored should not be given a programmatic pass; this is
+correct, not residual.
+
+### The fix, and the alternative I rejected
+
+The naive form of (a) is *renormalise the composite onto the outcome term*
+whenever no gating dim exists. **I implemented that first, measured it, and
+backed it out.**
+
+On the one recorded session whose verdict this sprint moves
+(`cs_interactive_185` @ `20260725-124324`), naive renormalisation scored a
+flat **1.0**. But the advisory judge had recorded `groundedness = 2.0` with
+this reasoning:
+
+> "In Turn 2, the bot properly grounded its password-reset instructions with a
+> canonical URL. However, in Turn 3 the bot made multiple definitive factual
+> claims about account recovery (e.g., Gumtree cannot manually verify accounts,
+> the login email cannot be changed, a new account is required) but only
+> referenced a vague 'help article' without surfacing a URL or human-readable
+> title to the user."
+
+That is a real, specific, correct quality deduction — precisely the
+ID-alone-citation failure pattern the S-Eval-5 groundedness rubric was
+tightened to catch. **Renormalising it away throws a real measurement on the
+floor and calls the result "unmeasured".** That is less discriminating, which
+is the wrong direction under §5.4.
+
+**The shipped rule: advisory dims are a fallback signal, never a dilutant.**
+
+| L3 state | `judge_basis` | composite |
+|---|---|---|
+| ≥1 gating dim measured | `gating` | `0.5*outcome + 0.5*judge` — **unchanged**, advisory dims excluded exactly as S-Eval-5 specified |
+| no gating dim, ≥1 advisory dim measured | `advisory_fallback` | `0.5*outcome + 0.5*judge(advisory)` |
+| no usable L3 at all | `none` | `outcome` (renormalised), or `0.0` with no gating L2 |
+
+S-Eval-5's intent is preserved exactly where it applies: advisory dims never
+dilute a mean that already contains a gating dim. S-Eval-5 simply did not
+contemplate the case where they are the *only* signal — which is the whole
+corpus.
+
+Under this rule the moving session scores **0.8667, not 1.0**. The deduction
+survives.
+
+### What was NOT done
+
+- **The 0.7 bar was not lowered.** Pinned by
+  `test_the_pass_threshold_was_not_lowered`.
+- **No dimension was promoted to gating.** Pinned by
+  `test_the_two_gating_l3_dims_are_the_only_non_advisory_ones`.
+- **No `bad_cases` `llm_judge_dimensions` field was edited**, though the
+  contract permitted it. The 11 bad_cases that carry L2 checks now reach a
+  ceiling of 1.0 through renormalisation without any spec edit, and their
+  authority is `human_review` regardless — editing them would have changed
+  the corpus under Sprint 106 for no gain.
+- **Renormalisation is one-directional.** It never applies to a missing
+  *outcome* term. With no gating L2 the ceiling is 0.5 even with a perfect
+  judge, so a pass still requires L2 evidence and OQ-S77 #3 is intact.
+  Pinned by `test_renormalisation_never_applies_to_a_missing_outcome_term`
+  and `test_oq_s77_no_evidence_gate_survives_renormalisation`.
+
+---
+
+## 3. Per-session before/after, with transcript justification
+
+All 8 recorded runs, 17 cases. Fidelity 17/17.
+
+| Run | Case | was | now | composite | tier | direction |
+|---|---|---|---|---|---|---|
+| ws5-draw1 | cs_interactive_179 | FAIL | FAIL | 0.0000 → 0.0000 | D2 | unchanged |
+| ws5-draw1 | cs_interactive_185 | FAIL | FAIL | 0.0000 → 0.0000 | D2 | unchanged |
+| ws5-draw2 | cs_interactive_179 | FAIL | FAIL | 0.0000 → 0.0000 | D2 | unchanged |
+| ws5-draw2 | cs_interactive_185 | FAIL | FAIL | 0.0000 → 0.0000 | D3 | unchanged |
+| ws5-draw3 | cs_interactive_179 | FAIL | FAIL | 0.0000 → 0.0000 | UNKNOWN | unchanged |
+| **ws5-draw3** | **cs_interactive_185** | **FAIL** | **PASS** | **0.5000 → 0.8667** | **D1** | **looser (+0.3667)** |
+| s103-draw1 | cs_interactive_179 | FAIL | FAIL | 0.0000 → 0.0000 | D2 | unchanged |
+| s103-draw1 | cs_interactive_185 | FAIL | FAIL | 0.0000 → 0.0000 | D3 | unchanged |
+| s103-draw2 | cs_interactive_179 | FAIL | FAIL | 0.0000 → 0.0000 | D2 | unchanged |
+| s103-draw2 | cs_interactive_185 | FAIL | FAIL | 0.0000 → 0.0000 | D2 | unchanged ⚠ |
+| s103-draw3 | cs_interactive_179 | FAIL | FAIL | 0.0000 → 0.0000 | D2 | unchanged |
+| s103-draw3 | cs_interactive_185 | FAIL | FAIL | 0.0000 → 0.0000 | D3 | unchanged |
+| s103-negctl | cs_interactive_030 | FAIL | FAIL | 0.0000 → 0.0000 | D2 | unchanged |
+| s103-negctl | cs_interactive_155 | FAIL | FAIL | 0.0000 → 0.0000 | D3 | unchanged |
+| s103-neighbors | cs_interactive_170 | FAIL | FAIL | 0.0000 → 0.0000 | UNKNOWN | unchanged |
+| s103-neighbors | cs_interactive_263 | FAIL | FAIL | 0.0000 → 0.0000 | D3 | unchanged |
+| defect1-verify | cs_interactive_208 | FAIL | FAIL | 0.0000 → 0.0000 | D3 | unchanged |
+
+⚠ = `20260725-165354` carries **1 L3 fallback call** (`relevance`,
+`parse_failure`) and is flagged **NOT QUOTABLE AS EVIDENCE** by the item-3
+diagnostic. It is listed for completeness; nothing is claimed from it.
+
+### The one rise — `cs_interactive_185` @ `20260725-124324` (§7.2)
+
+Exactly one verdict moved in the entire substrate, because it is the only
+recorded case with `case_passed = True` (every other case fails a hard gate,
+which zeroes the composite before any of this arithmetic runs).
+
+Harness facts: **zero L1 failures** (all 15 checks pass, including
+`no_premature_escalation` and `source_citation_present`), `correct_uc = 1.0`,
+`correct_outcome = 1.0` (`actual=resolve in acceptable=['resolve']`), Tier-2
+`passed=True severity=critical`, `containment_outcome = resolved`,
+`stop_reason = goal_impossible`.
+
+Transcript justification:
+
+- **Turn 2** — user reveals they are locked out and cannot edit two live ads.
+  The bot retrieves and delivers a concrete, grounded next step with a
+  clickable canonical URL:
+  > "you can reset your password by clicking 'Login/Register' on the Gumtree
+  > homepage, then 'Forgot your password?' … You'll receive a reset email —
+  > check your spam folder if it doesn't arrive. Here's the article for
+  > reference: `https://help.gumtree.com/s/technical-issues?cat=Account_Issues&article=Changing-Your-Password`"
+
+  Tool trace confirms it: `search_knowledge` → `resolve_article` on that turn.
+
+- **Turn 3** — user asks the bot to manually verify the account or resend to
+  a different address. The bot correctly refuses, states the policy limit
+  honestly, and offers a human:
+  > "Unfortunately, Gumtree cannot manually verify accounts or resend password
+  > reset links to a different email. … the login email cannot be changed …
+  > I'm sorry I can't do more here — would you like me to transfer you to a
+  > human agent who may be able to help further?"
+
+  This is correct: per the re-plan §1.5, `GumtreeApiService` exposes four
+  getters and `SalesforceService` only `createCase` + `requestHandover`. **No
+  tool can unlock an account.** The ask is genuinely outside the bot's
+  capability, and the bot said so instead of stalling or inventing.
+
+**Why the rise is defensible:** the bot retrieved, cited a real URL, gave an
+actionable next step, did not over-escalate, and escalated only when the
+remaining ask was provably impossible for it. That is a session I can defend
+on reading it.
+
+**Why it is 0.8667 and not 1.0:** the advisory `groundedness = 2.0` deduction
+quoted in §2 is carried into the score. The turn-3 claims were correct policy
+but cited only as "our help article" with no URL — a real citation-quality
+defect, and it costs the case 0.133. I consider that the right size for the
+flaw.
+
+**Residual concern I am recording rather than hiding:** the `resolved`
+containment stamp is generous. The user's actual goal — regain account access
+— was *not* achieved, and the session ends with them asking "Can I speak to
+someone?". Calling that `resolved` is a **runtime stamping** question, not a
+scoring one, and it is out of scope here (`server/**` is Sprint 104's). It is
+listed in §7.
+
+### Negative controls — neither rose (§7.3)
+
+Both were chosen by reading transcripts, not by taking the run labelled
+`negctl`.
+
+**NC-1 `cs_interactive_155` @ `20260725-165835`.** Tool trace across all
+turns: `[[], [], ['request_handover']]` — **zero retrieval calls, ever.** At
+turn 2 the bot asked the user to confirm their email; the user had already
+given it at turn 1, gave it again at turn 3 with "I've checked spam and
+promotions folders — nothing", and the bot replied:
+> "I've reached the limit of what I can assist with on this topic. Let me
+> connect you with a human agent who can help further."
+
+L1 fails: `no_premature_escalation`, `source_citation_present`.
+**0.0000 → 0.0000. Tier D3.**
+
+**NC-2 `cs_interactive_185` @ `20260725-165045`.** Tool trace:
+`[[], [], ['request_handover']]` — again zero retrieval. Sharper than NC-1:
+the bot *solicited* the information and then discarded it. Turn 2:
+> "To edit the contact number on one of your live ads, I'll need the ad ID or
+> the title of the ad you want to update. Could you please provide that?"
+
+Turn 3, user: *"The ad is 'Samsung Galaxy S23 Ultra - Unlocked - Excellent
+Condition'."* Bot: *"I've reached the limit of what I can assist with…"*
+
+L1 fail: `no_premature_escalation` ("handed over at turn 3 with no
+search_"). **0.0000 → 0.0000. Tier D3.**
+
+Both are genuinely wrong sessions and both remain FAIL, gated at L1 before
+any composite arithmetic runs. Additionally pinned synthetically by
+`test_negative_control_premature_handover_does_not_start_passing` and
+`test_negative_control_wrong_uc_does_not_start_passing`.
+
+### L3 fallback diagnostic per run (§7.4)
+
+| Run | fallback / total | quotable |
+|---|---|---|
+| ws5-draw1 | 0/6 | yes |
+| ws5-draw2 | 0/6 | yes |
+| ws5-draw3 | 0/3 | yes ← the one rise |
+| s103-draw1 | 0/6 | yes |
+| s103-draw2 | **1/6** | **no** |
+| s103-draw3 | 0/6 | yes |
+| s103-negctl | 0/6 | yes |
+| s103-neighbors | 0/3 | yes |
+| defect1-verify-208 | 0/3 | yes |
+
+Every run quoted above as evidence reports **0** fallbacks. The single
+degraded dimension was found by the new diagnostic, not known in advance.
+
+---
+
+## 4. The ladder definition
+
+`eval_interactive/eval_interactive/scoring/containment_ladder.py`. First
+match wins.
+
+| Tier | Trace facts that produce it |
+|---|---|
+| **UNKNOWN** | No per-turn trace recorded, **or** no `containment_outcome` stamped. An unmeasured session is never charged to the bot as a failure. |
+| **D1** | `containment_outcome == resolved` **and** no `request_handover` **and** a grounded artifact surfaced. Fully automated closure. |
+| **D2** | Retrieval attempted **and** a grounded artifact surfaced **and** — if handed over — `handover_completeness == 1.0`. Also: `resolved` with no grounded artifact (deflection claimed without retrieval evidence). |
+| **D3** | Everything else: handover with no retrieval attempt; retrieval that surfaced nothing; grounded work whose handover payload was incomplete; abandoned. |
+
+Input facts, all already recorded:
+
+| Fact | Source |
+|---|---|
+| `attempted_retrieval` | any `search_knowledge` / `resolve_article` in `per_turn_trace[].tool_calls[].tool_name` |
+| `grounded_artifact` | `search_knowledge` with ≥1 hit and no `faq_miss`/`retrieval_miss`, **or** `resolve_article` success carrying `source_url`/`canonical_url` |
+| `citation_check_passed` | L1 `source_citation_present` |
+| `handover_requested` / `handover_turn` | first `request_handover` tool call and its turn index |
+| `handover_payload_complete` | L2 `handover_completeness >= 1.0` |
+| `containment_outcome`, `total_turns` | as recorded |
+
+**Anti-hardcode:** the ladder never receives the transcript. Every input is a
+tool-call or structured tool-result fact. That is a structural guarantee, not
+a convention — pinned by
+`test_tier_is_derived_from_trace_facts_not_bot_wording`.
+
+**Reproducibility:** live and offline paths funnel through one extractor
+(`extract_facts_from_turn_dicts`) over the identical `tool_calls` payload, so
+a tier computed during a run and one recomputed from that run's
+`results.json` agree by construction — which is what lets a human spot-check
+verdict and the harness verdict disagree *visibly*.
+
+**Migration:** additive. `containment_outcome` keeps its three values and its
+meaning; no recorded baseline is re-mapped. The new `containment_tier` /
+`containment_tier_detail` case fields and the run-level
+`containment_tier_breakdown` are absent from older runs and default to
+`UNKNOWN` when re-scored, which is honest — those runs were not tiered.
+
+---
+
+## 5. Test numbers
+
+### `eval_interactive` pytest
+
+| | failed | passed | skipped |
+|---|---|---|---|
+| Baseline (before first edit) | **15** | 763 | 5 |
+| After | **14** | 786 | 5 |
+
+**The contract's stated baseline (`764 passed, 14 failed, 5 skipped`) was
+wrong, and its attribution was wrong twice over.** Measured attribution, via
+`pytest -q --tb=line`:
+
+| count | cause | owner |
+|---|---|---|
+| 12 | missing `data/human_review_annotations_2026-04-22_golden.csv` | `data/**` (Sprint 107) |
+| 2 | missing `data/eval_datasets/badcase_turns.csv` | `data/**` (Sprint 107) |
+| 1 | stale Skill-count assertion | **mine — item 5, fixed** |
+
+The contract said "13 of the 14 come from the missing
+`human_review_annotations…golden.csv`". It is 12 from that file and 2 from a
+*second* missing file the contract did not know about. Both are gitignored
+(`.gitignore:8 data/*`) and **both are absent from the primary checkout as
+well**, so this is environmental, not something Sprint 107 necessarily
+restores.
+
+Delta: −1 failure (item 5), +23 passes (22 new tests in
+`test_sprint_105_loop_c_and_ladder.py`, plus the item-5 test flipping green).
+**Self-introduced failures: 0.**
+
+Two pre-existing tests asserted the defect and were flipped, with the old
+assertion preserved verbatim in the docstring per §6:
+`test_composite.py::TestComputeComposite::test_all_pass_no_judge` and
+`test_s_eval_5_l3_repositioning.py::…::test_all_advisory_l3_yields_zero_judge_score`
+(renamed `…test_all_advisory_l3_used_as_fallback_signal`).
+
+### `server` mvn
+
+`cd server && mvn -o test` → `Tests run: 1493, Failures: 1, Errors: 0,
+Skipped: 2` **before and after — byte-identical**, as required. The one
+failure is the documented inherited
+`SystemPromptUserRequestedTiebreakerTest`. `git diff HEAD -- server/` is
+empty.
+
+### Corpus lint
+
+`488 spec(s), Errors: 226, Warnings: 51` before and after — unchanged, as
+expected for a sprint that edits no spec. (Sprint 106 is moving these under
+me in a parallel worktree; drift there is not mine.)
+
+---
+
+## 6. What the new verdict still cannot see (§7.5)
+
+**The ladder measures whether a correct next step was *delivered*, not
+whether the advice was *good*.** Two answers can both cite a real, correctly
+retrieved article and still differ materially in quality — the e2e findings
+recorded exactly that: two different groundings for the same question, one of
+them worse advice, both legitimately grounded. **My ladder places both at D2
+and cannot distinguish them.** Answer quality is the L3 judge's job and no
+trace-derived tier can substitute for it. This is stated in the module
+docstring so the next reader does not over-claim it.
+
+Also invisible to the tier:
+
+- **Whether the user's goal was actually met.** D1 keys on the `resolved`
+  stamp plus grounding, not on the customer's own resolution stance. The
+  moving session in §3 is the live example: tiered **D1**, yet the user ends
+  by asking for a human. `user_state_signals` is recorded and could feed a
+  future refinement; I did not wire it, because doing so would change what
+  the tier means, and the contract asked for a trace-derived tier.
+- **Whether the handover payload's *contents* are correct**, only whether
+  `handover_completeness` scored 1.0 — a completeness check, not an accuracy
+  check.
+- **Turn-level ordering quality.** A bot that retrieves at turn 5 after four
+  wasted turns and one that retrieves at turn 1 both reach D2. `handover_turn`
+  is recorded in the detail string but does not move the tier.
+- **The `resolved` stamp's own trustworthiness.** The ladder consumes it; it
+  cannot audit it.
+
+And on the composite fix specifically: **`judge_basis == "advisory_fallback"`
+means the verdict rests on dims that S-Eval-5 deliberately declined to gate
+on.** That is better than resting on nothing, which was the prior state, but
+it is not the same as a spec that configures `premature_finish` /
+`stall_quality`. See §7 item 1.
+
+---
+
+## 7. Real defects found but out of contract — listed, not fixed
+
+1. **No spec in the corpus configures either gating L3 dimension** — 0 of
+   486. The two unconfigured dims are `premature_finish` and `stall_quality`,
+   which are *precisely* the ones that would catch the failure both negative
+   controls exhibit (handover with no attempt). The spec corpus has been
+   declining to measure the thing it most needs to measure. `promotion/` and
+   `case_families/` are Sprint 106's paths. **This is the highest-value
+   follow-up in this handoff.**
+
+2. **`data/eval_datasets/badcase_turns.csv` is missing from the primary
+   checkout too**, costing 2 test failures the contract did not account for.
+   Both missing data files are gitignored, so restoring them is a local-env
+   task, not a code change.
+
+3. **Two of 17 recorded sessions died on a backend HTTP 500**
+   (`cs_interactive_170` @ `s103-neighbors`, `cs_interactive_179` @
+   `ws5-draw3`) — `BotTransportError`, empty `per_turn_trace`, blank
+   containment. ~12% of the recorded substrate is unmeasured for infra
+   reasons. The ladder now reports these as UNKNOWN rather than D3, but the
+   underlying 500s are unexplained.
+
+4. **`results.json` drops 8 of 10 `TurnTrace` fields and both `events` and
+   `handover` entirely** (§1 table). I fixed only the `severity` gap, because
+   that is the one that blocks composite re-scoring. Full L1/L2 offline
+   re-scoring remains impossible; closing it means widening
+   `_build_per_turn_trace` and serialising `TraceData.handover`.
+
+5. **`contract_warnings` is absent from some case-result rows.** The
+   timeout / transport-error paths build their rows without it, so a consumer
+   doing `case["contract_warnings"]` raises `KeyError` (I hit this). The
+   schema is documented as uniform across populated / placeholder / error
+   paths; it is not.
+
+6. **Spec loading emits five copies of
+   `"Expected.escalation_trigger is None with should_escalate=true; family-match
+   scoring will be treated as advisory for this case."` on every corpus load**,
+   with no case id attached. Unactionable as written.
+
+7. **The `resolved` containment stamp on `cs_interactive_185` @ ws5-draw3 is
+   generous** — the user's goal was not met and they close by asking for a
+   human. Runtime stamping, `server/**`, Sprint 104's path.
+
+---
+
+## 8. Where I think this contract is wrong
+
+1. **It understates Loop C by two orders of scope.** The contract says the
+   defect is "worse than bad_cases only" and names the `promotion/` and
+   `anchor/` specs. Measured: **all 486 specs**, every bucket. The pass rate
+   was not depressed — it was *pinned at zero corpus-wide*. The contract's
+   own framing would have led me to fix it for a subset and report success.
+
+2. **Its two offered diagnoses are the same diagnosis, and the fix it implies
+   is wrong.** §3.2 (a) and (b) both say the composite's handling of "no
+   gating dims" is the defect. More importantly, the obvious implementation
+   of that — renormalise onto the outcome term — discards a real advisory
+   measurement and would have scored the one moving session a flat 1.0,
+   throwing away a correct `groundedness = 2.0` deduction. The contract's P0
+   ("only more discriminating, never more permissive") is what caught this;
+   its §3.2 framing did not.
+
+3. **Its baseline was wrong and its attribution was wrong.** Stated `764
+   passed / 14 failed`; actual `763 passed / 15 failed`. Stated "13 from the
+   golden CSV"; actual 12 from the golden CSV and 2 from a second missing file
+   it does not mention. The contract's own warning ("re-measure; an earlier
+   contract in this series mis-attributed the 14th") was well-placed but
+   under-stated — the split was wrong in both directions.
+
+4. **Its named target session does not exist.** §1 and re-plan §1.3 both say
+   "the sharpest instance: `promotion/cs_interactive_179` under drift reached
+   `correct_uc = 1.0`, `correct_outcome = 1.0`, `containment_outcome =
+   resolved`, zero L1 failures". Across all 12 recorded draws of that case,
+   **`cs_interactive_179` never once reaches that profile** — its best is
+   `correct_uc=1.0, correct_outcome=0.0, escalated`. The session with exactly
+   the described profile is **`cs_interactive_185` @ `ws5-goalstatus-draw3`**.
+   The case ids were swapped somewhere upstream, and the re-plan carries the
+   error too. Anyone re-deriving the finding from `cs_interactive_179` will
+   fail to reproduce it.
+
+5. **The base commit in §0.1 is stale** (`d7d84f86` vs the actual
+   `82f8a137`), and the instruction "must read d7d84f86" would have made a
+   careful agent stop.
+
+6. **§5's generalization-coverage line (`5 / 19 / 2 / 0`) is not achievable
+   as written.** The 19 `bad_cases` are named as neighbours "all currently
+   structurally 0", but **no recorded run in the substrate contains a single
+   bad_case** — all 8 runs are `promotion/` and `anchor/` sessions. I
+   substituted the corpus-wide structural sweep (§2), which covers all 19 plus
+   the other 467, and is stronger evidence for P1 than re-scoring 19 sessions
+   would have been. But the contract's stated coverage plan could not be
+   executed against the substrate it points at.
+
+7. **Minor:** §7.4 says "a run with a non-zero fallback count may not be
+   quoted as evidence", while §3.3 asks only that a *wholly* collapsed run be
+   unusable. I implemented both as separate flags (`evidence_clean` vs
+   `verdict_usable`) because they are different bars, but the contract reads
+   as though they are one.
+
+---
+
+## 9. Self-check
+
+- [x] Worktree is `../csagent-wt-105` on `sprint-105-eval-verdict`; nothing
+      written outside owned paths; `git diff HEAD -- server/` is **empty**.
+- [x] Both baselines recorded before the first edit (pytest 15/763/5, mvn
+      1493/1/0/2); self-introduced failures **0**; `mvn -o test` byte-identical
+      after.
+- [x] Backend never restarted; no bot session launched; no `make ingest`; no
+      Postgres touched. All evidence is offline re-scoring plus static corpus
+      analysis.
+- [x] The one score that rose has quoted transcript justification (§3), and
+      the advisory deduction against it is carried into the score rather than
+      discarded.
+- [x] Two negative controls read and confirmed genuinely wrong; both remain
+      0.0000 (§3).
+- [x] L3 fallback diagnostic reports **0** for every run quoted as evidence;
+      the one run with 1 fallback is flagged and nothing is claimed from it.
+- [x] The 0.7 bar was not lowered; no dimension was promoted to gating. Both
+      pinned by tests.
+- [x] Autoloop not resumed; no Codex dispatched; no merge to
+      `perf-replan-2026-07` or `main`; no other sprint's paths touched
+      (`case_specs/**` unedited — lint identical at 488/226/51).
+- [x] No run artifacts committed; every commit staged by explicit path.
