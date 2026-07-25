@@ -102,6 +102,32 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
 
     // -------------------- RESOLVE-FAQ golden strings (static) --------------------
 
+    /**
+     * Sprint 103 / WS-6-A — the re-route paragraph appended verbatim to the
+     * RESOLVE Skills' {@code procedure}. Kept as one constant so the two
+     * golden strings that carry it cannot drift apart.
+     */
+    static final String REROUTE_PROCEDURE_PARAGRAPH =
+            "Mid-conversation intent switch (Sprint 103): the customer may raise a "
+                    + "need that is different from the one this session is working on. "
+                    + "`propose_reroute` moves the session to a different use case — "
+                    + "give it a `target_use_case` id and a `reasoning` string. The "
+                    + "`reroute_target_use_cases` projection slot lists every use case "
+                    + "this runtime serves except the one already active, with its id "
+                    + "and name; `alternate_candidate_use_cases`, when non-empty, names "
+                    + "the use cases the intake router already considered plausible for "
+                    + "this session. When the runtime honours the proposal it replans "
+                    + "this same turn into the target use case's RESOLVE skill, so the "
+                    + "tools and procedure you get next belong to the target use case, "
+                    + "not to the current one. When it declines it returns "
+                    + "`honoured: false` with a reason and the turn continues unchanged. "
+                    + "Whether the customer's latest message is a different need, a "
+                    + "follow-up on the current one, or something to handle after "
+                    + "finishing the current one is your judgement; the runtime does not "
+                    + "decide it for you. The original issue is not discarded on a "
+                    + "re-route — `prior_use_case_carry` keeps the previous use case and "
+                    + "its citations visible afterwards.";
+
     private static final String FAQ_PROCEDURE =
             "You are a helpful Gumtree customer support agent. "
                     + "Resolve the user's issue using the provided tools. "
@@ -112,7 +138,9 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
                     + "record_outcome. "
                     + "Only escalate via request_handover after a valid resolve "
                     + "attempt cannot complete (no viable hit, or resolve_article "
-                    + "could not produce a grounded answer).";
+                    + "could not produce a grounded answer). "
+                    // Sprint 103 / WS-6-A — mid-session re-route capability.
+                    + REROUTE_PROCEDURE_PARAGRAPH;
 
     private static final String FAQ_GROUNDING =
             "If tool data contains specific information about the user's case "
@@ -151,8 +179,13 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
         assertEquals("Determine the customer's issue and provide a grounded, helpful answer for "
                         + expectedUcName,
                 plan.objective());
+        // Sprint 103 / WS-6-A adds `propose_reroute` to the RESOLVE-FAQ Skill
+        // so the LLM can move the session when the customer raises a different
+        // need mid-conversation. Still an exact-match golden set; the new tool
+        // is appended in `tools_required` declaration order.
         assertEquals(List.of("get_customer_context", "search_knowledge",
-                        "resolve_article", "record_outcome", "request_handover"),
+                        "resolve_article", "record_outcome", "request_handover",
+                        "propose_reroute"),
                 plan.allowedTools());
         assertEquals(Set.of("form_context", "customer_context", "listing_context"),
                 plan.requiredContextKeys());
@@ -160,7 +193,8 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
         assertEquals(false, plan.allowInterimMessage());
         assertEquals(Set.of(TerminalOutcome.FINAL_ANSWER,
                         TerminalOutcome.CLARIFICATION_NEEDED,
-                        TerminalOutcome.ESCALATE),
+                        TerminalOutcome.ESCALATE,
+                        TerminalOutcome.USE_CASE_REROUTED),
                 plan.validTerminalOutcomes());
         assertEquals(FAQ_PROCEDURE, plan.systemInstruction());
         assertEquals(FAQ_GROUNDING, plan.groundingInstruction());
@@ -318,14 +352,16 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
         assertEquals("RESOLVE", plan.phase());
         assertEquals("UC-K", plan.useCase());
         assertEquals(List.of("get_customer_context", "search_knowledge", "resolve_article",
-                        "update_intake_fields", "record_outcome", "request_handover"),
+                        "update_intake_fields", "record_outcome", "request_handover",
+                        "propose_reroute"),
                 plan.allowedTools());
         assertEquals(Set.of("form_context", "customer_context"), plan.requiredContextKeys());
         assertEquals(4, plan.maxToolSteps());
         assertEquals(false, plan.allowInterimMessage());
         assertEquals(Set.of(TerminalOutcome.FINAL_ANSWER,
                         TerminalOutcome.CLARIFICATION_NEEDED,
-                        TerminalOutcome.ESCALATE),
+                        TerminalOutcome.ESCALATE,
+                        TerminalOutcome.USE_CASE_REROUTED),
                 plan.validTerminalOutcomes());
         // Placeholder substitution still resolves against the same registries.
         assertEquals("Diagnose the customer's technical issue for Technical Issue Intake, "

@@ -16,6 +16,12 @@ tools_required:
   - resolve_article
   - record_outcome
   - request_handover
+  # Sprint 103 / WS-6-A — capability wiring for the mid-session intent switch
+  # (Runtime §1.4). Before this the active use case could only change inside
+  # DISCOVER, so a customer raising a second, different need mid-conversation
+  # could only be answered inside the first use case's whitelist — or handed
+  # over when that failed.
+  - propose_reroute
 required_context_keys:
   - form_context
   - customer_context
@@ -26,8 +32,9 @@ valid_terminal_outcomes:
   - FINAL_ANSWER
   - CLARIFICATION_NEEDED
   - ESCALATE
+  - USE_CASE_REROUTED
 objective: "Determine the customer's issue and provide a grounded, helpful answer for {uc_name}"
-procedure: "You are a helpful Gumtree customer support agent. Resolve the user's issue using the provided tools. FAQ-path RESOLVE flow (S1): the intended terminal sequence is search_knowledge -> resolve_article -> grounded customer-facing answer (with a display_citation citation — the article's source_url when available, otherwise its article_id) -> record_outcome. Only escalate via request_handover after a valid resolve attempt cannot complete (no viable hit, or resolve_article could not produce a grounded answer)."
+procedure: "You are a helpful Gumtree customer support agent. Resolve the user's issue using the provided tools. FAQ-path RESOLVE flow (S1): the intended terminal sequence is search_knowledge -> resolve_article -> grounded customer-facing answer (with a display_citation citation — the article's source_url when available, otherwise its article_id) -> record_outcome. Only escalate via request_handover after a valid resolve attempt cannot complete (no viable hit, or resolve_article could not produce a grounded answer). Mid-conversation intent switch (Sprint 103): the customer may raise a need that is different from the one this session is working on. `propose_reroute` moves the session to a different use case — give it a `target_use_case` id and a `reasoning` string. The `reroute_target_use_cases` projection slot lists every use case this runtime serves except the one already active, with its id and name; `alternate_candidate_use_cases`, when non-empty, names the use cases the intake router already considered plausible for this session. When the runtime honours the proposal it replans this same turn into the target use case's RESOLVE skill, so the tools and procedure you get next belong to the target use case, not to the current one. When it declines it returns `honoured: false` with a reason and the turn continues unchanged. Whether the customer's latest message is a different need, a follow-up on the current one, or something to handle after finishing the current one is your judgement; the runtime does not decide it for you. The original issue is not discarded on a re-route — `prior_use_case_carry` keeps the previous use case and its citations visible afterwards."
 grounding_instruction: "If tool data contains specific information about the user's case (account/ad/moderation), answer from that first. For policy/process explanations, you MUST call search_knowledge first if accumulated_tool_results.search_knowledge is empty; do not produce a factual customer-facing answer without grounded knowledge evidence. After search_knowledge returns a viable hit, you MUST call resolve_article for the top hit before answering the customer; cite the display_citation token returned by resolve_article in your user_message (URL when available, article_id otherwise). If search_knowledge returns no viable hit, request_handover with escalation_reason='faq_miss_threshold_exceeded' is allowed. After a search_knowledge returns a viable hit (faq_miss=false), do NOT re-search this turn — draft your grounded answer from the existing hits via resolve_article, or escalate; a fresh search_knowledge is only warranted if the prior result was faq_miss=true."
 escalation_policy: "Escalate via request_handover if (a) the user explicitly requests a human (use escalation_reason='user_requested', priority 1), or (b) search_knowledge returned no viable hit and you cannot answer (use 'faq_miss_threshold_exceeded'), or (c) the issue is genuinely out of scope (use 'out_of_scope'). Do NOT short-circuit to request_handover('faq_miss_threshold_exceeded') when search_knowledge already returned a viable hit and resolve_article has not yet been attempted — the runtime will refuse such a handover and require a resolve_article attempt first."
 guardrails:
@@ -49,6 +56,13 @@ state_inheritance:
     - intake_fields_partial
   soft_signal_via_projection:
     - prior_use_case_carry
+    # Sprint 103 / WS-6-A. `alternate_candidate_use_cases` was declared only on
+    # discover_triage; it is intake-time evidence and is empty on every session
+    # that routed deterministically, so it is necessary but not sufficient.
+    # `reroute_target_use_cases` carries the argument domain of propose_reroute
+    # so its ids are not opaque outside DISCOVER.
+    - alternate_candidate_use_cases
+    - reroute_target_use_cases
 critical_steps:
   - id: search-knowledge-before-faq-answer
     desc: |

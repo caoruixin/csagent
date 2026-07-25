@@ -300,6 +300,9 @@ class Sprint53SkillDeclarationGatingTest {
         Skill terminal = pick(all, "terminal");
         Skill faq = pick(all, "resolve_faq_grounded_answer");
         Skill intake = pick(all, "resolve_intake_collect_and_handover");
+        // WS-3 / A3 (2026-07-25) added this Skill without extending the
+        // matrix below; Sprint 103 / WS-6-A brings it under the same guard.
+        Skill technical = pick(all, "resolve_technical_diagnose_or_intake");
 
         // §3.E — candidate_use_cases: only discover_triage declares.
         assertTrue(discover.requiredContextKeys().contains("candidate_use_cases"),
@@ -314,24 +317,62 @@ class Sprint53SkillDeclarationGatingTest {
                 "Audit §3.E: resolve_faq MUST NOT declare candidate_use_cases (post-classification).");
         assertFalse(intake.requiredContextKeys().contains("candidate_use_cases"),
                 "Audit §3.E: resolve_intake MUST NOT declare candidate_use_cases.");
+        assertFalse(technical.requiredContextKeys().contains("candidate_use_cases"),
+                "Audit §3.E: resolve_technical MUST NOT declare candidate_use_cases.");
 
-        // §3.G + §3.H — alternate / disambig: only discover_triage declares.
+        // §3.G — alternate_candidate_use_cases. The audit's "discover_triage
+        // only" disposition is SUPERSEDED by Sprint 103 / WS-6-A: the three
+        // Skills that carry `propose_reroute` (confirm + the two RESOLVE
+        // Skills that can re-route) also read the intake router's alternates,
+        // because a mid-session re-route is exactly the decision that list was
+        // collected for. escalate / terminal / resolve_intake keep the audit's
+        // disposition — none of them carries the tool.
         assertTrue(discover.stateInheritance().softSignalViaProjection().contains("alternate_candidate_use_cases"),
                 "Audit §3.G: discover_triage MUST declare alternate_candidate_use_cases.");
-        assertTrue(discover.stateInheritance().softSignalViaProjection().contains("discover_disambiguation_signals"),
-                "Audit §3.H: discover_triage MUST declare discover_disambiguation_signals.");
-        for (Skill s : List.of(confirm, escalate, terminal, faq, intake)) {
+        for (Skill s : List.of(confirm, faq, technical)) {
+            assertTrue(s.stateInheritance().softSignalViaProjection().contains("alternate_candidate_use_cases"),
+                    "WS-6-A: " + s.name() + " carries propose_reroute and MUST declare "
+                            + "alternate_candidate_use_cases.");
+        }
+        for (Skill s : List.of(escalate, terminal, intake)) {
             assertFalse(s.stateInheritance().softSignalViaProjection().contains("alternate_candidate_use_cases"),
                     "Audit §3.G: " + s.name() + " MUST NOT declare alternate_candidate_use_cases.");
+        }
+
+        // §3.H — discover_disambiguation_signals: audit disposition unchanged,
+        // only discover_triage declares.
+        assertTrue(discover.stateInheritance().softSignalViaProjection().contains("discover_disambiguation_signals"),
+                "Audit §3.H: discover_triage MUST declare discover_disambiguation_signals.");
+        for (Skill s : List.of(confirm, escalate, terminal, faq, intake, technical)) {
             assertFalse(s.stateInheritance().softSignalViaProjection().contains("discover_disambiguation_signals"),
                     "Audit §3.H: " + s.name() + " MUST NOT declare discover_disambiguation_signals.");
         }
 
-        // §3.I — prior_use_case_carry: only resolve_faq + resolve_intake declare.
-        assertTrue(faq.stateInheritance().softSignalViaProjection().contains("prior_use_case_carry"),
-                "Audit §3.I: resolve_faq MUST declare prior_use_case_carry.");
-        assertTrue(intake.stateInheritance().softSignalViaProjection().contains("prior_use_case_carry"),
-                "Audit §3.I: resolve_intake MUST declare prior_use_case_carry.");
+        // WS-6-A — reroute_target_use_cases: exactly the Skills that carry
+        // `propose_reroute`. The slot is that tool's argument domain, so a
+        // Skill declaring one without the other is a wiring error.
+        for (Skill s : List.of(confirm, faq, technical)) {
+            assertTrue(s.stateInheritance().softSignalViaProjection().contains("reroute_target_use_cases"),
+                    "WS-6-A: " + s.name() + " carries propose_reroute and MUST declare "
+                            + "reroute_target_use_cases.");
+            assertTrue(s.toolsRequired().contains("propose_reroute"),
+                    "WS-6-A: " + s.name() + " declares reroute_target_use_cases and MUST carry "
+                            + "propose_reroute.");
+        }
+        for (Skill s : List.of(discover, escalate, terminal, intake)) {
+            assertFalse(s.stateInheritance().softSignalViaProjection().contains("reroute_target_use_cases"),
+                    "WS-6-A: " + s.name() + " MUST NOT declare reroute_target_use_cases.");
+            assertFalse(s.toolsRequired().contains("propose_reroute"),
+                    "WS-6-A: " + s.name() + " MUST NOT carry propose_reroute.");
+        }
+
+        // §3.I — prior_use_case_carry: the three Skills that can be entered
+        // after a UC switch. resolve_technical was added by WS-3 / A3 and
+        // declares it; the audit predates that Skill.
+        for (Skill s : List.of(faq, intake, technical)) {
+            assertTrue(s.stateInheritance().softSignalViaProjection().contains("prior_use_case_carry"),
+                    "Audit §3.I: " + s.name() + " MUST declare prior_use_case_carry.");
+        }
         for (Skill s : List.of(discover, confirm, escalate, terminal)) {
             assertFalse(s.stateInheritance().softSignalViaProjection().contains("prior_use_case_carry"),
                     "Audit §3.I: " + s.name() + " MUST NOT declare prior_use_case_carry.");

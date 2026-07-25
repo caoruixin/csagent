@@ -31,6 +31,17 @@ package com.gumtree.csagent.model;
  *       RESOLVE for the newly committed UC instead of continuing the
  *       DISCOVER plan to {@code maxToolSteps} (which would otherwise be
  *       mis-mapped to ESCALATE / {@code faq_miss_threshold_exceeded}).</li>
+ *   <li>{@link #USE_CASE_REROUTED} — Sprint 103 / WS-6-A: the mid-session
+ *       analogue of {@link #USE_CASE_IDENTIFIED}. The LLM called
+ *       {@code propose_reroute} from a RESOLVE or CONFIRM plan because the
+ *       customer raised a different need, and the runtime honoured the
+ *       proposal by moving {@code session.activeUseCase} to the target UC.
+ *       Returned immediately so {@code ControlKernel} can replan the same
+ *       turn into the target UC's RESOLVE Skill; continuing the old UC's
+ *       plan would leave the loop dispatching against a plan whose
+ *       {@code allowedTools} and guardrails belong to a UC the session has
+ *       left. Distinct from {@link #USE_CASE_IDENTIFIED} so the trace can
+ *       tell an intake-time commit apart from a mid-session re-route.</li>
  * </ul>
  */
 public enum TerminalOutcome {
@@ -41,5 +52,6 @@ public enum TerminalOutcome {
     ERROR,
     DEADLINE_EXCEEDED,
     LLM_UNAVAILABLE,
-    USE_CASE_IDENTIFIED
+    USE_CASE_IDENTIFIED,
+    USE_CASE_REROUTED
 }

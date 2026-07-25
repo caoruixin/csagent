@@ -768,6 +768,19 @@ public class PhaseEvaluator {
                         "I'm looking into this for you.",
                         null, "uc_identified");
             }
+            case USE_CASE_REROUTED: {
+                // Sprint 103 / WS-6-A: mid-session re-route. `propose_reroute`
+                // moved session.activeUseCase and the loop returned
+                // immediately. RESOLVE is the landing phase — reachable from
+                // RESOLVE (no transition) and from CONFIRM (an edge
+                // control-policy.yaml already declares), so no new edge is
+                // introduced. Same shape as USE_CASE_IDENTIFIED above: the
+                // text here is a defensive placeholder that ControlKernel
+                // discards once the same-turn replan produces the real reply.
+                return new PhaseTransitionDecision("RESOLVE",
+                        "Let me look into that for you.",
+                        null, "uc_rerouted");
+            }
             default:
                 throw new IllegalStateException("Unknown terminal outcome: " + outcome);
         }

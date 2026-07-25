@@ -406,16 +406,32 @@ public class ControlKernel {
                 // budget cannot fit a RESOLVE attempt, leave the session in
                 // RESOLVE and return a non-terminal "looking into it"
                 // response — the next user turn will run RESOLVE fresh.
+                // Sprint 103 / WS-6-A generalises this block to the mid-session
+                // re-route. USE_CASE_REROUTED means `propose_reroute` already
+                // moved session.activeUseCase from a RESOLVE / CONFIRM plan;
+                // the plan just executed belongs to the UC the session left, so
+                // it needs the same bounded same-turn replan for exactly the
+                // same reason DISCOVER does. The landing phase is RESOLVE in
+                // both cases, and both reach it over an edge control-policy.yaml
+                // already declares (DISCOVER→RESOLVE, CONFIRM→RESOLVE, or no
+                // transition at all when already in RESOLVE). No new phase edge
+                // is introduced — see phase0_normative_freeze.md §0.6.
                 AgentRunResult discoverDiscovery = null;
                 String effectivePhaseBefore = phaseBefore;
-                if (runResult.terminalOutcome() == TerminalOutcome.USE_CASE_IDENTIFIED
-                        && plan.phase() != null
-                        && "DISCOVER".equalsIgnoreCase(plan.phase())) {
+                boolean ucIdentifiedOnDiscover =
+                        runResult.terminalOutcome() == TerminalOutcome.USE_CASE_IDENTIFIED
+                                && plan.phase() != null
+                                && "DISCOVER".equalsIgnoreCase(plan.phase());
+                boolean ucRerouted =
+                        runResult.terminalOutcome() == TerminalOutcome.USE_CASE_REROUTED;
+                if (ucIdentifiedOnDiscover || ucRerouted) {
                     discoverDiscovery = runResult;
                     String committedUc = session.getActiveUseCase();
-                    log.info("Session {}: §M3 same-turn DISCOVER->RESOLVE replan candidate "
+                    log.info("Session {}: {} same-turn {}->RESOLVE replan candidate "
                                     + "(committedUc={})",
-                            session.getSessionId(), committedUc);
+                            session.getSessionId(),
+                            ucRerouted ? "§WS-6-A" : "§M3",
+                            plan.phase(), committedUc);
                     // Apply the deterministic DISCOVER -> RESOLVE transition
                     // BEFORE the second plan() call so the new plan reflects
                     // the new phase. {@link #applyTransition} would also
@@ -463,9 +479,10 @@ public class ControlKernel {
                             runResult = mergeAgentRunResults(discoverDiscovery, resolveRunResult);
                             plan = resolvePlan;
                         } else {
-                            log.warn("Session {}: §M3 RESOLVE plan was null; falling back to "
-                                            + "USE_CASE_IDENTIFIED transitional response",
-                                    session.getSessionId());
+                            log.warn("Session {}: RESOLVE plan was null after {}; falling back to "
+                                            + "the transitional response",
+                                    session.getSessionId(),
+                                    ucRerouted ? "USE_CASE_REROUTED" : "USE_CASE_IDENTIFIED");
                         }
                     }
                 }

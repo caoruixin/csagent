@@ -189,9 +189,11 @@ class PhaseEvaluatorPlanTest {
 
         assertNotNull(plan);
         assertEquals(List.of("get_customer_context", "search_knowledge", "resolve_article",
-                        "update_intake_fields", "record_outcome", "request_handover"),
+                        "update_intake_fields", "record_outcome", "request_handover",
+                        "propose_reroute"),
                 plan.allowedTools(),
-                "UC-K is PARTIAL-path: retrieval + entity context + intake, no case creation");
+                "UC-K is PARTIAL-path: retrieval + entity context + intake, no case creation; "
+                        + "Sprint 103 / WS-6-A adds the mid-session re-route capability");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
         assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.FINAL_ANSWER),
                 "PARTIAL-path plan MUST be able to terminate on a grounded final answer");

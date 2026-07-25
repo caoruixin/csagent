@@ -7,6 +7,11 @@ applicable_use_cases:
 tools_required:
   - record_outcome
   - request_handover
+  # Sprint 103 / WS-6-A — capability wiring for the mid-session intent switch
+  # (Runtime §1.4). CONFIRM is where "are you happy with that?" most often
+  # meets "yes, but also…", and where the bot previously had only two exits:
+  # record RESOLVED, or hand over. See resolve_faq_grounded_answer.yaml.
+  - propose_reroute
 required_context_keys:
   - form_context
   - conversation_history
@@ -16,8 +21,9 @@ valid_terminal_outcomes:
   - FINAL_ANSWER
   - CLARIFICATION_NEEDED
   - ESCALATE
+  - USE_CASE_REROUTED
 objective: "Determine whether the user is satisfied with the prior answer"
-procedure: "You are in the CONFIRM phase. Interpret whether the user is satisfied with the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., 'no', 'still not working', 'I need more help'): if there is a viable retry path, transition back to RESOLVE; otherwise, if the user did not ask for a human and no higher-priority reason applies, call request_handover with reason 'agent_unable_to_resolve' (the honest bot-initiated unresolved-handover reason). If the user explicitly asks for a human, use 'user_requested' instead."
+procedure: "You are in the CONFIRM phase. Interpret whether the user is satisfied with the prior answer. If satisfied (e.g., 'thanks', 'that helps', 'yes'), call record_outcome with outcome='RESOLVED'. If not satisfied (e.g., 'no', 'still not working', 'I need more help'): if there is a viable retry path, transition back to RESOLVE; otherwise, if the user did not ask for a human and no higher-priority reason applies, call request_handover with reason 'agent_unable_to_resolve' (the honest bot-initiated unresolved-handover reason). If the user explicitly asks for a human, use 'user_requested' instead. Mid-conversation intent switch (Sprint 103): a CONFIRM reply is often 'yes, that worked — but also…'. When the user's reply raises a need that is different from the one just answered, `propose_reroute` moves the session to a different use case — give it a `target_use_case` id and a `reasoning` string. The `reroute_target_use_cases` projection slot lists every use case this runtime serves except the one already active, with its id and name; `alternate_candidate_use_cases`, when non-empty, names the use cases the intake router already considered plausible for this session. When the runtime honours the proposal it replans this same turn into the target use case's RESOLVE skill. When it declines it returns `honoured: false` with a reason and the turn continues unchanged. Whether the reply is satisfaction, dissatisfaction with the same issue, or a different need is your judgement; the runtime does not decide it for you."
 grounding_instruction: "Read the user's response carefully. Sentiment matters more than literal words. When unclear, ask a single yes/no clarification."
 escalation_policy: "Escalate if user clearly expresses dissatisfaction or requests a human."
 guardrails: []
@@ -27,7 +33,10 @@ state_inheritance:
     - accumulated_tool_results
     - intake_fields_partial
   reset: []
-  soft_signal_via_projection: []
+  soft_signal_via_projection:
+    # Sprint 103 / WS-6-A — see resolve_faq_grounded_answer.yaml.
+    - alternate_candidate_use_cases
+    - reroute_target_use_cases
 critical_steps:
   - id: record-outcome-on-confirmed-resolve
     desc: |

@@ -34,6 +34,15 @@ tools:
   classify_use_case:
     type: AGENT_VISIBLE
     allowed-ucs: [ALL]
+  # Sprint 103 / WS-6-A — mid-session re-route. `allowed-ucs: [ALL]` because the
+  # tool exists precisely to leave the currently active UC, so gating it per-UC
+  # would gate it on the wrong side of the decision. Actual exposure is the
+  # RESOLVE / CONFIRM Skills' `tools_required` (DISCOVER keeps
+  # `classify_use_case`). Capability wiring only (Runtime §1.4); whether the
+  # customer's new ask warrants a re-route stays the LLM's call (§1.3).
+  propose_reroute:
+    type: AGENT_VISIBLE
+    allowed-ucs: [ALL]
   lookup_customer_account:
     type: RUNTIME_ONLY
     allowed-ucs: [UC-C, UC-D, UC-FP, UC-K]

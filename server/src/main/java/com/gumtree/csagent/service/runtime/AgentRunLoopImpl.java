@@ -171,6 +171,18 @@ public class AgentRunLoopImpl implements AgentRunLoop {
     private static final String CLASSIFY_USE_CASE_TOOL = "classify_use_case";
     private static final String DISCOVER_PHASE = "DISCOVER";
 
+    /**
+     * Sprint 103 / WS-6-A — mid-session re-route boundary, the RESOLVE /
+     * CONFIRM analogue of {@link #CLASSIFY_USE_CASE_TOOL} above. When
+     * {@link com.gumtree.csagent.service.tools.ProposeRerouteTool} honours a
+     * proposal it has already moved {@code session.activeUseCase}; the plan
+     * this loop is executing still belongs to the UC the session just left,
+     * so continuing it would dispatch the old UC's tool whitelist and
+     * guardrails against the new UC's policy. Return immediately and let
+     * {@code ControlKernel} replan into the target UC's RESOLVE Skill.
+     */
+    private static final String PROPOSE_REROUTE_TOOL = "propose_reroute";
+
     // Sprint 39 (NEW M2) — Sprint 6 §G2 + Sprint 7 §I2 + Sprint 11 §M1
     // reject-reason labels + FAQ_PATH_UCS / FAQ_MISS_REASON / SEARCH_TOOL /
     // RESOLVE_TOOL constants previously inlined here are now owned by
@@ -1098,6 +1110,28 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                             llmEvents, toolEvents,
                             lastProjection, lastLlmRawResponse, llmCallRecords);
                 }
+
+                // 6f. Sprint 103 / WS-6-A — mid-session re-route boundary.
+                // `propose_reroute` returns success both when it honours and
+                // when it declines, so the loop keys on the honoured flag
+                // rather than on success: a declined proposal is ordinary
+                // tool output the LLM can react to within this same turn.
+                if (PROPOSE_REROUTE_TOOL.equals(toolName)
+                        && result != null && result.isSuccess()
+                        && isRerouteHonoured(result)
+                        && session != null
+                        && session.getActiveUseCase() != null
+                        && !session.getActiveUseCase().isBlank()) {
+                    log.info(
+                            "AgentRunLoop §WS-6-A: propose_reroute honoured on {} plan; "
+                                    + "active_use_case is now {} — returning USE_CASE_REROUTED "
+                                    + "for same-turn replan",
+                            plan.phase(), session.getActiveUseCase());
+                    return AgentRunResult.useCaseRerouted(
+                            session.getActiveUseCase(),
+                            llmEvents, toolEvents,
+                            lastProjection, lastLlmRawResponse, llmCallRecords);
+                }
             }
 
             if (handoverRequested) {
@@ -1271,6 +1305,19 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         if (call == null || call.getArguments() == null) return null;
         Object reason = call.getArguments().get("escalation_reason");
         return reason == null ? null : reason.toString();
+    }
+
+    /**
+     * Sprint 103 / WS-6-A — did {@code propose_reroute} actually move the
+     * session? The tool returns {@code success=true} for a declined proposal
+     * too (a decline is information for the LLM, not an error), so the loop
+     * must read the {@code honoured} flag before treating the turn as
+     * re-routed. Null-safe; anything other than {@code Boolean.TRUE} reads as
+     * not honoured.
+     */
+    static boolean isRerouteHonoured(ToolResult result) {
+        if (result == null || result.getData() == null) return false;
+        return Boolean.TRUE.equals(result.getData().get("honoured"));
     }
 
     /**

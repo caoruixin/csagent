@@ -208,7 +208,25 @@ class PhaseEvaluatorSkillIntegrationTest {
                     + "ask for a human and no higher-priority reason applies, call "
                     + "request_handover with reason 'agent_unable_to_resolve' (the honest "
                     + "bot-initiated unresolved-handover reason). If the user explicitly asks "
-                    + "for a human, use 'user_requested' instead.";
+                    + "for a human, use 'user_requested' instead. "
+                    // Sprint 103 / WS-6-A — mid-session re-route capability on
+                    // CONFIRM, where "yes, but also…" previously had only two
+                    // exits: record RESOLVED, or hand over.
+                    + "Mid-conversation intent switch (Sprint 103): a CONFIRM reply is "
+                    + "often 'yes, that worked — but also…'. When the user's reply "
+                    + "raises a need that is different from the one just answered, "
+                    + "`propose_reroute` moves the session to a different use case — "
+                    + "give it a `target_use_case` id and a `reasoning` string. The "
+                    + "`reroute_target_use_cases` projection slot lists every use case "
+                    + "this runtime serves except the one already active, with its id "
+                    + "and name; `alternate_candidate_use_cases`, when non-empty, names "
+                    + "the use cases the intake router already considered plausible for "
+                    + "this session. When the runtime honours the proposal it replans "
+                    + "this same turn into the target use case's RESOLVE skill. When it "
+                    + "declines it returns `honoured: false` with a reason and the turn "
+                    + "continues unchanged. Whether the reply is satisfaction, "
+                    + "dissatisfaction with the same issue, or a different need is your "
+                    + "judgement; the runtime does not decide it for you.";
 
     private static final String CONFIRM_GROUNDING_INSTRUCTION =
             "Read the user's response carefully. Sentiment matters more than literal words. "
@@ -312,13 +330,18 @@ class PhaseEvaluatorSkillIntegrationTest {
         assertEquals("CONFIRM", plan.phase());
         assertEquals(expectedUc, plan.useCase());
         assertEquals(CONFIRM_OBJECTIVE, plan.objective());
-        assertEquals(List.of("record_outcome", "request_handover"), plan.allowedTools());
+        // Sprint 103 / WS-6-A: CONFIRM gains `propose_reroute` so "yes, but
+        // also…" has an exit other than record RESOLVED or hand over. Exact
+        // match preserved.
+        assertEquals(List.of("record_outcome", "request_handover", "propose_reroute"),
+                plan.allowedTools());
         assertEquals(Set.of("form_context", "conversation_history"), plan.requiredContextKeys());
         assertEquals(2, plan.maxToolSteps());
         assertEquals(false, plan.allowInterimMessage());
         assertEquals(Set.of(TerminalOutcome.FINAL_ANSWER,
                         TerminalOutcome.CLARIFICATION_NEEDED,
-                        TerminalOutcome.ESCALATE),
+                        TerminalOutcome.ESCALATE,
+                        TerminalOutcome.USE_CASE_REROUTED),
                 plan.validTerminalOutcomes());
         assertEquals(CONFIRM_SYSTEM_INSTRUCTION, plan.systemInstruction());
         assertEquals(CONFIRM_GROUNDING_INSTRUCTION, plan.groundingInstruction());

@@ -65,7 +65,12 @@ public class SkillLoader {
     private static final Set<String> VALID_PROJECTION_SLOTS = Set.of(
             "alternate_candidate_use_cases",
             "discover_disambiguation_signals",
-            "prior_use_case_carry"
+            "prior_use_case_carry",
+            // Sprint 103 / WS-6-A — the argument domain of `propose_reroute`
+            // (use-case id + registry name, active UC excluded). Declared by
+            // the Skills that carry the tool so the ids it accepts are not
+            // opaque to the LLM.
+            "reroute_target_use_cases"
     );
 
     /**
@@ -96,6 +101,9 @@ public class SkillLoader {
             "search_knowledge",
             "resolve_article",
             "classify_use_case",
+            // Sprint 103 / WS-6-A — mid-session re-route, declared by the
+            // RESOLVE / CONFIRM Skills (DISCOVER keeps `classify_use_case`).
+            "propose_reroute",
             "record_outcome",
             "request_handover",
             // Sprint 080 / R7 — no-side-effect intake-field accumulation tool.

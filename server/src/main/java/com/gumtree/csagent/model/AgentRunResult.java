@@ -339,4 +339,40 @@ public record AgentRunResult(
                 llmCallRecords
         );
     }
+
+    /**
+     * Sprint 103 / WS-6-A — terminal outcome for an honoured mid-session
+     * re-route. The LLM called {@code propose_reroute} from a RESOLVE or
+     * CONFIRM plan and the runtime moved {@code session.activeUseCase} to
+     * the target UC. Carries the target UC in {@code finalUserMessage} as a
+     * marker; it is NOT customer-facing — the same-turn replan into the
+     * target UC's RESOLVE Skill owns the actual reply.
+     */
+    public static AgentRunResult useCaseRerouted(String targetUc,
+                                                  List<LlmCallEvent> llmEvents,
+                                                  List<ToolEvent> toolEvents,
+                                                  String lastProjection,
+                                                  String lastLlmRawResponse) {
+        return useCaseRerouted(targetUc, llmEvents, toolEvents, lastProjection,
+                lastLlmRawResponse, List.of());
+    }
+
+    public static AgentRunResult useCaseRerouted(String targetUc,
+                                                  List<LlmCallEvent> llmEvents,
+                                                  List<ToolEvent> toolEvents,
+                                                  String lastProjection,
+                                                  String lastLlmRawResponse,
+                                                  List<LlmCallRecord> llmCallRecords) {
+        return new AgentRunResult(
+                List.of(),
+                toolEvents,
+                llmEvents,
+                TerminalOutcome.USE_CASE_REROUTED,
+                targetUc,
+                Optional.empty(),
+                lastProjection,
+                lastLlmRawResponse,
+                llmCallRecords
+        );
+    }
 }

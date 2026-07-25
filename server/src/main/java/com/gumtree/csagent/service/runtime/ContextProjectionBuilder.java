@@ -142,6 +142,24 @@ public class ContextProjectionBuilder {
                         + "0.5, ask another clarifying question instead of calling this tool.",
                 buildClassifyUseCaseArgsSchema()));
 
+        // Sprint 103 / WS-6-A — mid-session re-route. Projected on the RESOLVE
+        // / CONFIRM Skills that declare it in `tools_required`; DISCOVER keeps
+        // `classify_use_case`. The description states what the tool does and
+        // what the runtime will do with the result — it does not tell the LLM
+        // when to use it, which is the §1.3 judgement.
+        toolSchemas.put("propose_reroute", buildToolSchema(
+                "propose_reroute",
+                "Move this conversation to a different use case when the customer has raised a "
+                        + "different need from the one the session is currently working on. The "
+                        + "runtime moves session.active_use_case to the target and replans the "
+                        + "same turn into that use case's RESOLVE skill, so the tools and "
+                        + "procedure you get next are the target use case's. The proposal is "
+                        + "declined (honoured=false, with a reason, not an error) if the target "
+                        + "is already active or no skill serves it; you may then pick a "
+                        + "different target or continue. See `reroute_target_use_cases` in the "
+                        + "projection for the ids this accepts and what each one means.",
+                buildProposeRerouteArgsSchema()));
+
         // Sprint 080 / R7 — no-side-effect intake-field accumulation tool. The
         // schema is registered here; whether it is projected to the LLM on a
         // given turn is gated by `plan.allowedTools()` (the intake Skill's
@@ -379,6 +397,37 @@ public class ContextProjectionBuilder {
         ArrayNode required = objectMapper.createArrayNode();
         required.add("use_case_id");
         required.add("confidence");
+        schema.set("required", required);
+        return schema;
+    }
+
+    /**
+     * Sprint 103 / WS-6-A — schema for the {@code propose_reroute} tool. The
+     * {@code target_use_case} enum is built from
+     * {@link UseCaseRegistryService#getAllUseCases()} rather than a literal
+     * list, so registering a use case in {@code use-case-registry.yaml} is the
+     * only place the accepted id set is declared.
+     */
+    private ObjectNode buildProposeRerouteArgsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "object");
+        ObjectNode props = objectMapper.createObjectNode();
+
+        ObjectNode targetProp = objectMapper.createObjectNode();
+        targetProp.put("type", "string");
+        ArrayNode ucEnum = objectMapper.createArrayNode();
+        useCaseRegistry.getAllUseCases().keySet().stream().sorted().forEach(ucEnum::add);
+        targetProp.set("enum", ucEnum);
+        props.set("target_use_case", targetProp);
+
+        ObjectNode reasoningProp = objectMapper.createObjectNode();
+        reasoningProp.put("type", "string");
+        props.set("reasoning", reasoningProp);
+
+        schema.set("properties", props);
+        ArrayNode required = objectMapper.createArrayNode();
+        required.add("target_use_case");
+        required.add("reasoning");
         schema.set("required", required);
         return schema;
     }
@@ -623,6 +672,44 @@ public class ContextProjectionBuilder {
                     }
                 }
                 projection.set("alternate_candidate_use_cases", alternateCandidateUcsNode);
+            }
+
+            // Sprint 103 / WS-6-A — reroute_target_use_cases projection slot.
+            // The argument domain of `propose_reroute`: every use case in the
+            // registry as {id, name}, minus the one already active.
+            //
+            // Why this slot and not `alternate_candidate_use_cases` alone: that
+            // slot is populated ONLY from `session.intakeAmbiguousCandidates`,
+            // which `SessionManager` writes only on the `RoutingResult.AMBIGUOUS`
+            // branch at session creation. A session that routed deterministically
+            // — every strong-prior topic, every B2 phrase-bias hit — has it null,
+            // so the slot emits `[]` on exactly the sessions where the intake
+            // router was confident and the customer later changed the subject.
+            // The slot's own documentation says as much ("mid-session shifts the
+            // intake router did not anticipate may not appear in the slot").
+            // Without this catalogue the LLM sees `propose_reroute`'s enum of
+            // opaque ids with nothing saying what they mean, because
+            // `candidate_use_cases_named` is gated to DISCOVER.
+            //
+            // This is fact, not persuasion: it states what the tool accepts and
+            // what each id is called. It does not say when to re-route — that is
+            // the §1.3 judgement. Construction is registry-driven; no per-UC
+            // branch, no keyword, and the runtime does not read the slot back.
+            if (skillDeclaresSoftSignal(session, activeUc, "reroute_target_use_cases")) {
+                ArrayNode rerouteTargetsNode = objectMapper.createArrayNode();
+                String activeUcForReroute = session.getActiveUseCase();
+                useCaseRegistry.getAllUseCases().entrySet().stream()
+                        .filter(e -> !e.getKey().equals(activeUcForReroute))
+                        .sorted(Map.Entry.comparingByKey())
+                        .forEach(e -> {
+                            ObjectNode entry = objectMapper.createObjectNode();
+                            entry.put("id", e.getKey());
+                            entry.put("name", e.getValue() != null && e.getValue().name() != null
+                                    ? e.getValue().name()
+                                    : e.getKey());
+                            rerouteTargetsNode.add(entry);
+                        });
+                projection.set("reroute_target_use_cases", rerouteTargetsNode);
             }
 
             // Sprint 33 — discover_disambiguation_signals projection slot.
