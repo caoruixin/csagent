@@ -68,6 +68,25 @@ class JudgeResult:
     score: float  # 1 - 5
     reasoning: str = ""
     severity: str = "critical"
+    # Sprint 105 (item 3). Empty when ``score`` came from the judge LLM.
+    # Otherwise names why no real score was obtained and ``_DEFAULT_SCORE``
+    # was substituted: ``llm_call_failed`` / ``parse_failure`` /
+    # ``unexpected_fallthrough``.
+    #
+    # Why this field exists: on 2026-07-25 the judge was pointed at a model
+    # that rejects an explicit ``temperature``. Every dimension 400'd twice
+    # and fell back to the mid-scale constant 3.0, so the entire L3 layer
+    # became a constant behind one WARNING log line while every run kept
+    # reporting scored-looking numbers. A fallback carries no information
+    # in either direction; conflating it with a real 3.0 is the defect.
+    # ``composite.py`` excludes fallbacks from the gating judge mean so
+    # the layer cannot silently re-become a constant.
+    fallback_reason: str = ""
+
+    @property
+    def is_fallback(self) -> bool:
+        """True when no real judge score was obtained for this dimension."""
+        return bool(self.fallback_reason)
 
 
 class LlmJudge:
@@ -480,6 +499,7 @@ Respond with ONLY a JSON object: {{"score": <1-5>, "reasoning": "<brief explanat
                     score=_DEFAULT_SCORE,
                     reasoning="LLM call failed; default score applied",
                     severity=severity,
+                    fallback_reason="llm_call_failed",
                 )
 
         # Should not reach here, but be safe
@@ -488,6 +508,7 @@ Respond with ONLY a JSON object: {{"score": <1-5>, "reasoning": "<brief explanat
             score=_DEFAULT_SCORE,
             reasoning="unexpected fallthrough",
             severity=severity,
+            fallback_reason="unexpected_fallthrough",
         )
 
     @classmethod
@@ -545,6 +566,7 @@ Respond with ONLY a JSON object: {{"score": <1-5>, "reasoning": "<brief explanat
             score=_DEFAULT_SCORE,
             reasoning=f"parse failure; raw: {content[:200]}",
             severity=severity,
+            fallback_reason="parse_failure",
         )
 
     @staticmethod

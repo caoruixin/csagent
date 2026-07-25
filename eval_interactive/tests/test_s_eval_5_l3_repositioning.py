@@ -120,9 +120,28 @@ class TestL3DemotionAdvisoryDoesNotGateJudgeScore:
         # dims are recorded for trend / report consumption).
         assert len(result.l3_results) == 2
 
-    def test_all_advisory_l3_yields_zero_judge_score(self):
-        """If every L3 result is advisory, ``judge_score`` = 0.0 (the
-        gating mean is empty)."""
+    def test_all_advisory_l3_used_as_fallback_signal(self):
+        """Sprint 105 (item 2): advisory dims are a fallback, not a dilutant.
+
+        BEFORE-STATE, preserved verbatim as this test's prior name and
+        expectation — ``test_all_advisory_l3_yields_zero_judge_score``::
+
+            assert result.judge_score == 0.0
+            # composite = 0.5 * outcome + 0.5 * judge = 0.5*1.0 + 0.5*0.0 = 0.5
+            assert result.composite == pytest.approx(0.5)
+
+        S-Eval-5 demoted these dims so they could not *skew* a judge mean
+        that already contained gating dims. That intent is unchanged and
+        is still pinned by
+        ``test_critical_l3_only_contributes_to_judge_score`` above: the
+        moment a gating dim is present, advisory dims drop out of the
+        mean. What S-Eval-5 did not contemplate is the case where the
+        advisory dims are the *only* judge signal — which is every one of
+        the 486 specs in the corpus, none of which configures a gating
+        dim. Discarding the only measurement available is strictly less
+        discriminating than using it, so when no gating dim is measured
+        the advisory dims now supply ``judge_score``.
+        """
         l1 = [HardCheckResult("no_stall", True)]
         l2 = [OutcomeCheckResult("correct_uc", 1.0)]
         l3 = [
@@ -133,9 +152,15 @@ class TestL3DemotionAdvisoryDoesNotGateJudgeScore:
         ]
         stall = StallResult(detected=False)
         result = compute_composite("case-s-eval-5-1b", l1, l2, l3, stall)
-        assert result.judge_score == 0.0
-        # composite = 0.5 * outcome + 0.5 * judge = 0.5 * 1.0 + 0.5 * 0.0 = 0.5
-        assert result.composite == pytest.approx(0.5)
+        assert result.judge_measured is True
+        assert result.judge_basis == "advisory_fallback"
+        # mean(5, 4, 3, 5) = 4.25 -> / 5.0 = 0.85
+        assert result.judge_score == pytest.approx(0.85)
+        # composite = 0.5 * 1.0 + 0.5 * 0.85 = 0.925 — and the imperfect
+        # tone_appropriateness=3.0 still costs the case real score,
+        # rather than being thrown away.
+        assert result.composite == pytest.approx(0.925)
+        assert result.composite < 1.0
 
     def test_advisory_l3_does_not_flip_case_passed(self):
         """A failing advisory L3 (e.g., groundedness=1.0 advisory) must
