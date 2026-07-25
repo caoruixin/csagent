@@ -77,6 +77,10 @@ def _parse_case_spec(raw: dict, source_suite: str | None = None) -> CaseSpec:
         risk_level=e_raw.get("risk_level", "low"),
         expected_tool_sequence=e_raw.get("expected_tool_sequence", []),
         forbidden_tools=e_raw.get("forbidden_tools", []),
+        # WS-1 item 4: still passed through verbatim, but ``Expected``'s
+        # post-init now validates it against ``GROUNDING_MODE_VALUES`` and
+        # raises ValueError on an unknown value, so a bad YAML value fails
+        # at load time instead of silently disabling the grounding gate.
         grounding_mode=e_raw.get("grounding_mode", "faq_source_backed"),
         answer_must_not_contain=e_raw.get("answer_must_not_contain", []),
         max_turns=int(e_raw.get("max_turns", 15)),

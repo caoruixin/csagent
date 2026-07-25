@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from eval_interactive.case_spec.policy_table import list_human_only_tools
 from eval_interactive.case_spec.schema import CaseSpec
+from eval_interactive.scoring import escalation_intent as _esc_intent
 from eval_interactive.scoring import escalation_reason_match as _esc_match
 from eval_interactive.scoring.stall_detector import StallResult
 from eval_interactive.trace.models import TraceData
@@ -146,6 +147,7 @@ class HardChecker:
         "required_escalation",
         "escalation_reason_consistency",
         "user_requested_escalation",
+        "no_premature_escalation",
         "source_citation_present",
         "intake_no_knowledge_tool",
         "no_stall",
@@ -224,7 +226,25 @@ class HardChecker:
         domain = e.rsplit("@", 1)[-1] if "@" in e else ""
         return domain in cls.BENIGN_EMAIL_DOMAINS
 
-    INTAKE_UCS = {"UC-G", "UC-H", "UC-I", "UC-J", "UC-K"}
+    # Intake-only UCs: the bot runs a fixed intake script and is
+    # architecturally forbidden from consulting the knowledge base. This set
+    # is the eval-side mirror of the server's INTAKE path membership
+    # (``use-case-registry.yaml`` ``path: INTAKE``) and is capability wiring,
+    # not a semantic rule.
+    #
+    # WS-3 / A3 (2026-07-25): UC-K (technical fault) was REMOVED from this
+    # set. UC-K's registry entry moved ``path: INTAKE`` -> ``path: PARTIAL``
+    # and ``tool-policy.yaml`` now lists UC-K under ``search_knowledge`` /
+    # ``resolve_article``, because UC-K is an explain/diagnose class that
+    # cannot be answered without the help-centre troubleshooting corpus.
+    # Keeping UC-K here made ``intake_no_knowledge_tool`` fail a UC-K session
+    # for doing exactly what the runtime now requires of it. UC-G/H/I/J are
+    # unchanged and still gated.
+    #
+    # Note: ``case_outcome_resolver._MANDATORY_ESCALATION_UCS`` already
+    # excluded UC-K, so this edit converges the two sets rather than
+    # diverging them.
+    INTAKE_UCS = {"UC-G", "UC-H", "UC-I", "UC-J"}
 
     ALLOWED_TRANSITIONS = {
         ("INIT", "DISCOVER"),
@@ -239,28 +259,35 @@ class HardChecker:
         ("ESCALATE", "CLOSE"),
     }
 
-    # Codex 2026-05-04 round 6 §P1: extend with callback / phone /
-    # ring / "please call" forms. cs_interactive_029's user said
-    # "can you please call me now?" and the bot escalated as
-    # ``turn_budget_exhausted`` instead of ``user_requested``. The
-    # gate fires regardless of risk level so it complements
-    # ``required_escalation``.
-    ESCALATION_REQUEST_PATTERNS = [
-        r"\btalk\s+to\s+(a\s+)?(human|agent|person|representative|someone)\b",
-        r"\bspeak\s+to\s+(a\s+)?(human|agent|person|representative|someone)\b",
-        r"\bconnect\s+me\s+to\s+(a\s+)?(human|agent|person|representative|someone)\b",
-        r"\btransfer\s+(me\s+)?to\s+(a\s+)?(human|agent|person|representative|someone)\b",
-        r"\bi\s+want\s+(a\s+)?(human|real\s+person|agent)\b",
-        r"\bget\s+me\s+(a\s+)?(human|agent|person|representative)\b",
-        r"\b(please\s+)?call\s+me\b",
-        r"\bgive\s+me\s+a\s+call\b",
-        r"\b(ring|phone)\s+me\b",
-        r"\bcall(\s+me)?\s+(back|now)\b",
-        r"\bcallback\b",
-        r"\bcan\s+(someone|anyone)\s+(call|phone|ring)\s+me\b",
-    ]
+    # Codex 2026-05-04 round 6 §P1 added the callback / phone / ring /
+    # "please call" forms to this list. WS-1 item 5 PARTITIONED the list into
+    # an explicit-human-request class (still a critical gate) and a
+    # contact-channel class (observation-only) — see
+    # ``scoring/escalation_intent.py`` and
+    # ``_check_user_requested_escalation``. The union is re-exported here
+    # unchanged so any external reader keeps working; the GATE no longer
+    # consumes the union.
+    ESCALATION_REQUEST_PATTERNS = list(_esc_intent.ESCALATION_REQUEST_PATTERNS)
+    EXPLICIT_HUMAN_REQUEST_PATTERNS = list(
+        _esc_intent.EXPLICIT_HUMAN_REQUEST_PATTERNS
+    )
+    CONTACT_CHANNEL_REQUEST_PATTERNS = list(
+        _esc_intent.CONTACT_CHANNEL_REQUEST_PATTERNS
+    )
 
     KNOWLEDGE_TOOLS = {"search_knowledge", "resolve_article"}
+
+    # WS-1 item 4: tools whose invocation proves the bot consulted the
+    # customer's OWN entity data (account / listing / moderation review).
+    # Names mirror ``case_spec.policy_table._TOOL_ALLOWED_UCS`` — this is a
+    # capability-wiring list, not a semantic rule.
+    ENTITY_CONTEXT_TOOLS = {
+        "get_customer_context",
+        "lookup_customer_account",
+        "lookup_listing_or_ad",
+        "get_moderation_review_context",
+        "get_message_moderation_context",
+    }
 
     # ------------------------------------------------------------------
     # Public API
@@ -304,6 +331,7 @@ class HardChecker:
             "required_escalation": lambda: self._check_required_escalation(case_spec, trace),
             "escalation_reason_consistency": lambda: self._check_escalation_reason_consistency(case_spec, trace),
             "user_requested_escalation": lambda: self._check_user_requested_escalation(case_spec, trace),
+            "no_premature_escalation": lambda: self._check_no_premature_escalation(case_spec, trace),
             "source_citation_present": lambda: self._check_source_citation_present(case_spec, trace),
             "intake_no_knowledge_tool": lambda: self._check_intake_no_knowledge_tool(case_spec, trace),
             "no_stall": lambda: self._check_no_stall(case_spec, trace, stall_result),
@@ -333,6 +361,14 @@ class HardChecker:
         # excluded from ``tier_evaluator._TIER0_PY_FAMILY``) unless an APPROVED
         # per-case override re-elevates it. Part-1 (``escalation_compliance``)
         # stays the deterministic tier-0 escalate-vs-don't floor.
+        # WS-1 item 2 (replan §3 WS-1.2): ``no_premature_escalation`` is
+        # global for the same reason ``required_escalation`` is — it is the
+        # mirror image of that gate. ``escalation_compliance`` documents in
+        # its own docstring that over-escalation "is intentionally NOT
+        # reported here", and it returns pass outright whenever
+        # ``should_escalate`` is false, so before WS-1 **no L1 check could
+        # fail on a premature escalation at all**. Making it per-case
+        # configurable would leave that hole open for any spec that omits it.
         global_checks = {
             "no_human_only_tool_exposure",
             "escalation_compliance",
@@ -340,6 +376,7 @@ class HardChecker:
             "required_escalation",
             "escalation_reason_consistency",
             "user_requested_escalation",
+            "no_premature_escalation",
             "trace_minimum",
         }
 
@@ -719,6 +756,114 @@ class HardChecker:
             f"request_handover tool call recorded",
         )
 
+    def _check_no_premature_escalation(
+        self, case_spec: CaseSpec, trace: TraceData
+    ) -> HardCheckResult:
+        """Mirror image of ``required_escalation``: hard-fail a handover the
+        bot made without ever trying to solve the problem.
+
+        WS-1 item 2 (replan §3 WS-1.2, closing hole §1.2 B2). Before this
+        check, over-escalation had **no L1 gate at all**:
+        ``_check_escalation_compliance`` returns pass immediately when
+        ``should_escalate`` is false and says so in its own docstring
+        ("Over-escalation ... is intentionally NOT reported here"). The L2
+        side then paid full marks for a 10-character handover summary, so an
+        agent optimized against this target was being taught to escalate.
+
+        FAILS when all of the following hold:
+
+        * the spec says the bot should NOT escalate
+          (``expected.should_escalate is False``), and
+        * the session escalated anyway (a ``request_handover`` call, an
+          ``ESCALATE`` phase transition, or ``containment_outcome ==
+          "escalated"``), and
+        * no ``search_knowledge`` / ``resolve_article`` retrieval turn and no
+          cited turn occurs at or before the handover.
+
+        Anti-误杀 exemptions — both are situations where "retrieve first" is
+        the WRONG behaviour, so requiring it would encode a fresh
+        contradiction of the kind WS-1 exists to remove:
+
+        * **Explicit human request.** Product decision D2 keeps an explicit
+          demand for a human as a valid immediate trigger; only *frustration*
+          was demoted. Uses the narrowed
+          ``escalation_intent.EXPLICIT_HUMAN_REQUEST_PATTERNS`` set, so a
+          bare "call me about this" does NOT license a turn-0 handover — it
+          is the ambiguous class this sprint downgraded to observation.
+        * **``fixed_script_only`` intake path.** Knowledge tools are
+          forbidden there (``intake_no_knowledge_tool``), so there is no
+          attempt the bot could legitimately have made.
+
+          KNOWN STALENESS (WS-3 / A3, 2026-07-25): this waiver keys on
+          ``grounding_mode``, and 23 UC-K specs still carry a
+          ``fixed_script_only`` snapshot taken before UC-K was reclassified
+          ``path: INTAKE`` -> ``path: PARTIAL`` (``use-case-registry.yaml``;
+          ``PhaseEvaluator.java:626`` now says "intake-ONLY. A PARTIAL-path
+          plan (UC-K) may legitimately ..."). UC-K CAN retrieve now, so on
+          those specs the waiver is no longer earned and a UC-K
+          over-escalation is currently unmeasurable. Deliberately left
+          behaviourally unchanged here: the three waivers (this gate,
+          ``correct_outcome``, ``escalation_timing``) are documented as
+          identical and re-keying them to :attr:`INTAKE_UCS` would shift the
+          anchor / smoke programmatic baselines. The fix belongs at the
+          ``eval_spec`` layer -- give the UC-K specs a grounding_mode that
+          matches the new path -- and is WS-1's to make.
+
+        Severity is ``critical`` so the composite L1 gate flips
+        ``case_passed``. The check is NOT added to
+        ``autoloop.scoring.tier_evaluator._TIER0_PY_FAMILY``: that frozenset
+        is the zero-tolerance *safety* floor, and premature escalation is a
+        service-quality failure, not a safety violation.
+        """
+        expected = case_spec.expected
+
+        if expected.should_escalate:
+            return HardCheckResult(
+                "no_premature_escalation",
+                True,
+                "spec expects escalation; over-escalation gate not applicable",
+            )
+
+        if not _esc_intent.session_escalated(trace):
+            return HardCheckResult(
+                "no_premature_escalation", True, "session did not escalate"
+            )
+
+        if expected.grounding_mode == "fixed_script_only":
+            return HardCheckResult(
+                "no_premature_escalation",
+                True,
+                "fixed_script_only intake path: knowledge retrieval is "
+                "forbidden, so no prior attempt can be required",
+            )
+
+        esc_pos = _esc_intent.first_escalation_position(trace)
+        esc_turn = trace.turns[esc_pos].turn_index if esc_pos is not None else None
+
+        if _esc_intent.has_resolution_attempt_before(trace, esc_pos):
+            return HardCheckResult(
+                "no_premature_escalation",
+                True,
+                f"escalated at turn {esc_turn} after a resolution attempt",
+            )
+
+        if _esc_intent.user_demanded_human(trace, esc_pos):
+            return HardCheckResult(
+                "no_premature_escalation",
+                True,
+                f"escalated at turn {esc_turn} on an explicit customer "
+                f"request for a human",
+            )
+
+        return HardCheckResult(
+            "no_premature_escalation",
+            False,
+            f"premature escalation: spec expects should_escalate=false but "
+            f"the session handed over at turn {esc_turn} with no "
+            f"search_knowledge / resolve_article / cited turn beforehand and "
+            f"no explicit customer request for a human",
+        )
+
     # S-Auto-19 (#1) / S-Auto-20 (#2): simulator stop_reasons that represent a
     # VALID measured terminal — a blank containment_outcome under one of these
     # is not a partial-instrumentation failure (the simulator ended the session
@@ -993,48 +1138,245 @@ class HardChecker:
             "escalation_reason_consistency", True, severity=gate_severity
         )
 
+    @staticmethod
+    def _escalated_within_window(trace: TraceData, position: int) -> bool:
+        """True iff the bot handed over on this turn or the next one."""
+        for t in trace.turns[position : position + 2]:
+            if t.phase_after.upper() == "ESCALATE":
+                return True
+            if _has_handover_tool_call(t):
+                return True
+        return False
+
     def _check_user_requested_escalation(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
-        """If user explicitly asks for a human/agent, bot must escalate within 1 turn."""
+        """Explicit human request must produce a handover within 1 turn.
+
+        WS-1 item 5 (replan §3 WS-1.5, resolving the §1.2 B6 contradiction).
+
+        The pre-WS-1 check ran one bundled pattern list as a **global
+        critical** gate. That list mixed two different utterances, and the
+        mix made ``cs012_uc_fp_late_phone_failure_path`` unwinnable:
+
+        * its seed message #2 is "I just want to know what happened. Can
+          someone explain **or** call me about this?", which matched
+          ``\\b(please\\s+)?call\\s+me\\b`` and therefore demanded a handover
+          within one turn;
+        * its own ``closure_criterion`` requires the bot to explain the
+          removal policy **first**, and states verbatim that a
+          ``user_requested`` handover "before policy explanation ... is
+          failure".
+
+        So behaving correctly failed L1 and behaving incorrectly passed it.
+
+        The fix splits the bundle instead of adding disambiguating keywords
+        (Constitution §1.5 / §1.7 forbid resolving a soft semantic decision
+        with more regex):
+
+        * **Explicit human request** — the customer names a human party
+          ("speak to an agent", "I want a real person"). Unambiguous; stays a
+          deterministic ``critical`` gate.
+        * **Contact-channel request** — the customer asks for a phone call
+          ("call me", "callback"). Whether that means "hand me over now" or
+          "answer me, and a call is fine" is an LLM-owned judgement (§1.3),
+          so it is emitted as an **observation**: ``severity="advisory"``,
+          which surfaces the ``L1:user_requested_escalation`` tag in reports
+          but does not flip ``case_passed``.
+
+        No pattern was added; the pre-WS-1 list was partitioned. See
+        ``scoring/escalation_intent.py``.
+
+        Known consequence: ``cs_interactive_029`` ("can you please call me
+        now?"), cited in the round-6 comment that introduced the channel
+        patterns, moves from a critical gate to an observation. Separating
+        "call me now" from "explain or call me about this" by pattern is
+        exactly the keyword-piling the constitution rules out, so the whole
+        channel class is demoted rather than re-split.
+        """
+        channel_requests: list[str] = []
+        channel_observations: list[str] = []
+
         for i, turn in enumerate(trace.turns):
-            text = turn.user_message.lower()
-            requested = any(
-                re.search(pat, text, re.IGNORECASE)
-                for pat in self.ESCALATION_REQUEST_PATTERNS
-            )
-            if not requested:
-                continue
+            text = turn.user_message or ""
 
-            # Check this turn and the next turn for escalation
-            escalated = False
-            window = trace.turns[i : i + 2]
-            for t in window:
-                if t.phase_after.upper() == "ESCALATE":
-                    escalated = True
-                    break
-                if _has_handover_tool_call(t):
-                    escalated = True
-                    break
-
-            if not escalated:
+            explicit = _esc_intent.is_explicit_human_request(text)
+            if explicit and not self._escalated_within_window(trace, i):
                 return HardCheckResult(
                     "user_requested_escalation",
                     False,
-                    f"user requested human at turn {turn.turn_index} but no escalation within 1 turn",
+                    f"user explicitly requested a human at turn "
+                    f"{turn.turn_index} ({explicit!r}) but no escalation "
+                    f"within 1 turn",
+                    severity="critical",
                 )
+            if explicit:
+                continue
+
+            channel = _esc_intent.is_contact_channel_request(text)
+            if channel:
+                channel_requests.append(f"turn {turn.turn_index}: {channel!r}")
+                if not self._escalated_within_window(trace, i):
+                    channel_observations.append(
+                        f"turn {turn.turn_index}: {channel!r}"
+                    )
+
+        # WS-1 item 5 (follow-up): the NON-INERTNESS invariant. The channel
+        # class stays observation-only because reading intent out of "call me"
+        # is an LLM-owned judgement — but there is one assertion that needs NO
+        # such reading and is therefore safe to gate deterministically:
+        #
+        #   the customer asked to be contacted, and across the WHOLE session
+        #   the bot neither attempted a resolution nor handed over.
+        #
+        # Under *either* interpretation of the request ("I want a human" or
+        # "I want an answer"), doing literally nothing is wrong. So this
+        # recovers the gating coverage lost by demoting the channel class
+        # (notably ``cs_interactive_029``, where the bot neither answered nor
+        # escalated) without disambiguating the utterance.
+        #
+        # It is session-wide, NOT the 1-turn window: the window is what forced
+        # cs012 to hand over before explaining. cs012's correct behaviour
+        # (search the policy surface, then explain) satisfies the invariant
+        # because a retrieval turn IS a resolution attempt.
+        if channel_requests:
+            attempted = _esc_intent.has_resolution_attempt(trace)
+            escalated = _esc_intent.session_escalated(trace)
+            if not attempted and not escalated:
+                return HardCheckResult(
+                    "user_requested_escalation",
+                    False,
+                    "customer requested contact but the bot was inert for the "
+                    "whole session: no search_knowledge / resolve_article / "
+                    "cited turn AND no handover. This does not adjudicate "
+                    "whether the request meant 'a human' or 'an answer' — "
+                    "neither reading permits doing nothing; "
+                    + "; ".join(channel_requests[:5]),
+                    severity="critical",
+                )
+
+        if channel_observations:
+            return HardCheckResult(
+                "user_requested_escalation",
+                False,
+                "OBSERVATION (non-gating): contact-channel request with no "
+                "handover within 1 turn — whether this is a handover demand "
+                "or an answerable request is an LLM-owned semantic judgement; "
+                + "; ".join(channel_observations[:5]),
+                severity="advisory",
+            )
 
         return HardCheckResult("user_requested_escalation", True)
 
-    def _check_source_citation_present(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
-        """If grounding_mode=faq_source_backed -> substantive answer turns must have source_ids.
+    def _has_entity_context_evidence(self, trace: TraceData) -> bool:
+        """True iff the session consulted the customer's own entity data.
 
-        Per Codex finding 1.3, the gate now applies only to *substantive*
-        FAQ answers (turns that retrieved KB material or produced a
-        long-form factual reply). Clarifying questions, acknowledgement /
-        progress messages, and pure greetings are exempt because they do
-        not make factual claims.
+        Two accepted forms, because the corpus exercises both:
+
+        * an ``ENTITY_CONTEXT_TOOLS`` call (the bot fetched the account /
+          listing / moderation review), or
+        * a non-empty ``session_state.customer_context`` (the entity data was
+          **pre-loaded** into the projection, so no fetch was needed).
+
+        The second form is required for anti-误杀 reasons: the bot_handling_pattern
+        of ``cs_uc_a_loaded_listing`` explicitly allows the bot to use "the
+        pre-loaded customer_context.listing" instead of calling a tool, and
+        ``cs_uc_fp_loaded_moderation`` runs with
+        ``moderation_reason_available=true``. Demanding a tool call on those
+        cases would fail the exact behaviour their specs prescribe.
         """
-        if case_spec.expected.grounding_mode != "faq_source_backed":
-            return HardCheckResult("source_citation_present", True, "grounding_mode not faq_source_backed")
+        if trace.session_state.customer_context:
+            return True
+        for turn in trace.turns:
+            for tc in turn.tool_calls:
+                tool_name = (
+                    tc.get("tool_name", "") if isinstance(tc, dict) else ""
+                ).lower()
+                if tool_name in self.ENTITY_CONTEXT_TOOLS:
+                    return True
+        return False
+
+    # WS-1 item 4: grounding_mode -> (faq_required, entity_required).
+    # ``fixed_script_only`` is absent on purpose: knowledge grounding does not
+    # apply to the intake script path, which ``intake_no_knowledge_tool``
+    # polices instead.
+    _GROUNDING_REQUIREMENTS: dict[str, tuple[bool, bool]] = {
+        "faq_source_backed": (True, False),
+        "listing_data_and_faq_backed": (True, True),
+        "moderation_review_and_faq_backed": (True, True),
+        # "or" mode: either evidence class satisfies the gate. Encoded as
+        # (False, False) plus the explicit ``_OR_GROUNDING_MODES`` membership
+        # below so the "either" semantics stay readable.
+        "listing_data_or_faq_backed": (False, False),
+    }
+
+    _OR_GROUNDING_MODES = frozenset({"listing_data_or_faq_backed"})
+
+    def _check_source_citation_present(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
+        """Substantive answer turns must be grounded per ``grounding_mode``.
+
+        Per Codex finding 1.3, the gate applies only to *substantive*
+        answers (turns that retrieved KB material or produced a long-form
+        factual reply). Clarifying questions, acknowledgement / progress
+        messages, and pure greetings are exempt because they do not make
+        factual claims.
+
+        WS-1 item 4 (replan §3 WS-1.4, closing hole §1.1 A5). This check used
+        to begin ``if grounding_mode != "faq_source_backed": return PASS``.
+        Six hand-authored bad_cases declare entity-grounded modes
+        (``listing_data_and_faq_backed``, ``listing_data_or_faq_backed``,
+        ``moderation_review_and_faq_backed``) that were never in the enum, so
+        the gate silently no-opped on **exactly the cases whose entire
+        purpose is "the answer must be grounded in the user's own data"**.
+        Those modes are now first-class (``schema.GroundingMode``) and are
+        graded here:
+
+        ============================== ======== ==========
+        grounding_mode                 FAQ      entity
+        ============================== ======== ==========
+        faq_source_backed              required —
+        listing_data_and_faq_backed    required required
+        moderation_review_and_faq_backed required required
+        listing_data_or_faq_backed     either   either
+        fixed_script_only              n/a (gate skipped)
+        ============================== ======== ==========
+        """
+        mode = case_spec.expected.grounding_mode
+        if mode not in self._GROUNDING_REQUIREMENTS:
+            return HardCheckResult(
+                "source_citation_present",
+                True,
+                f"grounding_mode={mode} is not source-grounded",
+            )
+
+        faq_required, entity_required = self._GROUNDING_REQUIREMENTS[mode]
+        is_or_mode = mode in self._OR_GROUNDING_MODES
+
+        # Entity evidence is session-level (a pre-loaded context or a tool
+        # call anywhere in the session grounds every later answer turn).
+        entity_ok = self._has_entity_context_evidence(trace)
+
+        if entity_required and not entity_ok:
+            return HardCheckResult(
+                "source_citation_present",
+                False,
+                f"grounding_mode={mode} requires the customer's own entity "
+                f"data but the session neither carried a pre-loaded "
+                f"customer_context nor called any of "
+                f"{sorted(self.ENTITY_CONTEXT_TOOLS)}",
+            )
+
+        if is_or_mode and entity_ok:
+            return HardCheckResult(
+                "source_citation_present",
+                True,
+                f"grounding_mode={mode} satisfied by entity context",
+            )
+
+        if not faq_required and not is_or_mode:
+            return HardCheckResult(
+                "source_citation_present",
+                True,
+                f"grounding_mode={mode} requires no FAQ citation",
+            )
 
         # S-Auto-19 (#2): grounding is session-accumulated, not per-turn.
         # The prompt directs the bot to retrieve on one turn (search_knowledge
@@ -1062,13 +1404,49 @@ class HardChecker:
                 prior_source_ids_seen = True
 
         if missing:
-            return HardCheckResult("source_citation_present", False, "; ".join(missing[:5]))
+            suffix = (
+                f" (grounding_mode={mode}; entity context also absent)"
+                if is_or_mode
+                else (f" (grounding_mode={mode})" if mode != "faq_source_backed" else "")
+            )
+            return HardCheckResult(
+                "source_citation_present", False, "; ".join(missing[:5]) + suffix
+            )
         return HardCheckResult("source_citation_present", True)
 
     def _check_intake_no_knowledge_tool(self, case_spec: CaseSpec, trace: TraceData) -> HardCheckResult:
-        """If grounding_mode=fixed_script_only -> search_knowledge/resolve_article never called."""
+        """Intake-only UCs must never call search_knowledge/resolve_article.
+
+        Two conditions must BOTH hold for the prohibition to apply:
+
+        1. ``grounding_mode == "fixed_script_only"`` -- the CaseSpec declares
+           the answer comes from a fixed intake script, not from retrieval.
+        2. ``expected.primary_uc`` is in :attr:`INTAKE_UCS` -- the UC is
+           actually on the runtime's INTAKE path.
+
+        Condition (2) was added by WS-3 / A3 (2026-07-25). Before it, the
+        gate keyed on ``grounding_mode`` alone, so it kept firing on UC-K
+        after UC-K was reclassified ``path: INTAKE`` -> ``path: PARTIAL`` on
+        the server (``use-case-registry.yaml``, ``tool-policy.yaml`` now
+        grant UC-K ``search_knowledge`` / ``resolve_article``). 23 already
+        generated UC-K specs carry a frozen ``grounding_mode:
+        fixed_script_only`` snapshot from the pre-reclassification policy
+        table, so gating on ``grounding_mode`` alone would fail a UC-K
+        session for doing what the runtime now requires. Gating on the UC
+        instead keeps the check live for UC-G/H/I/J -- the UCs that really
+        are script-only -- without depending on those stale snapshots.
+        """
         if case_spec.expected.grounding_mode != "fixed_script_only":
             return HardCheckResult("intake_no_knowledge_tool", True, "grounding_mode not fixed_script_only")
+
+        primary_uc = case_spec.expected.primary_uc
+        if primary_uc not in self.INTAKE_UCS:
+            return HardCheckResult(
+                "intake_no_knowledge_tool",
+                True,
+                f"{primary_uc} is not an intake-only UC "
+                f"(intake-only: {sorted(self.INTAKE_UCS)}); knowledge tools permitted",
+            )
 
         found: list[str] = []
         for turn in trace.turns:

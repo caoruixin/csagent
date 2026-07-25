@@ -77,14 +77,51 @@ def _run_linter(
     )
 
 
-@pytest.mark.parametrize("bucket", CORPUS_BUCKETS)
-def test_regenerated_corpus_bucket_lints_clean(bucket: str):
-    """Each regenerated bucket must lint with zero error-severity rules.
+# WS-1 item 6: the R1 carve-out that used to silence the
+# resolve-policy-UC-stamped-escalate contradiction was REMOVED
+# (``linter.py::_r1_uc_outcome_consistent``). 158 specs are simultaneously
+# ``should_escalate: true`` and ``allow_bot_resolution: 'true'`` (replan
+# §1.1 A1/A2), and R1 now reports them. Making them visible is the point of
+# WS-1; REWRITING them is WS-2's scope, so these tests no longer assert a
+# clean corpus. They assert instead that:
+#
+#   1. no rule OTHER than R1 regresses (the property the original tests
+#      actually protected), and
+#   2. the R1 backlog stays bounded — a guard against the corpus growing
+#      NEW contradictions while WS-2 works through the existing ones.
+#
+# Ratchet these to 0 as WS-2 rewrites each bucket. Measured 2026-07-25
+# immediately after the carve-out removal (anchor 74 + promotion 64 +
+# smoke 6 = 144 of the 158 contradictory specs; the remaining 14 live in
+# case_families/, which is not a CORPUS_BUCKETS member).
+R1_RULE_PREFIX = "R1 uc_outcome_consistent"
+R1_BACKLOG_MAX: dict[str, int] = {
+    "anchor": 74,
+    "promotion": 64,
+    "exploration": 0,
+    "smoke": 6,
+}
 
-    Linter exit codes (see ``case_spec/linter.py:main``):
-    * 0 -> no errors (warnings allowed)
-    * 1 -> at least one error
-    * 2 -> path does not exist
+
+def _violation_lines(stdout: str) -> list[str]:
+    """Report lines that record an ERROR-severity violation."""
+    return [ln for ln in stdout.splitlines() if "**ERROR**" in ln]
+
+
+def _non_r1_errors(stdout: str) -> list[str]:
+    return [ln for ln in _violation_lines(stdout) if R1_RULE_PREFIX not in ln]
+
+
+def _r1_errors(stdout: str) -> list[str]:
+    return [ln for ln in _violation_lines(stdout) if R1_RULE_PREFIX in ln]
+
+
+@pytest.mark.parametrize("bucket", CORPUS_BUCKETS)
+def test_regenerated_corpus_bucket_has_no_non_r1_errors(bucket: str):
+    """Each regenerated bucket must lint clean of every rule EXCEPT R1.
+
+    R1 is the known WS-2 backlog (see the module comment). Any other
+    error-severity rule firing is a genuine regression.
     """
     target = CASE_SPECS_ROOT / bucket
     if not target.exists():
@@ -92,17 +129,28 @@ def test_regenerated_corpus_bucket_lints_clean(bucket: str):
 
     result = _run_linter(target)
 
-    assert result.returncode == 0, (
-        f"linter exited with {result.returncode} on case_specs/{bucket} "
-        f"(expected 0 = no errors).\n"
-        f"--- stdout ---\n{result.stdout}\n"
-        f"--- stderr ---\n{result.stderr}\n"
+    non_r1 = _non_r1_errors(result.stdout)
+    assert not non_r1, (
+        f"case_specs/{bucket} has {len(non_r1)} non-R1 error-severity "
+        f"violation(s); only the R1 WS-2 backlog is tolerated.\n"
+        + "\n".join(non_r1[:20])
     )
 
-    # Defensive: the markdown report should explicitly say "Errors: 0".
-    assert "Errors: **0**" in result.stdout, (
-        f"linter report for case_specs/{bucket} did not advertise zero "
-        f"errors; stdout was:\n{result.stdout}"
+
+@pytest.mark.parametrize("bucket", CORPUS_BUCKETS)
+def test_regenerated_corpus_bucket_r1_backlog_is_bounded(bucket: str):
+    """The R1 contradiction backlog must not grow while WS-2 works it down."""
+    target = CASE_SPECS_ROOT / bucket
+    if not target.exists():
+        pytest.skip(f"corpus bucket {bucket!r} not present at {target}")
+
+    result = _run_linter(target)
+    r1 = _r1_errors(result.stdout)
+    budget = R1_BACKLOG_MAX[bucket]
+    assert len(r1) <= budget, (
+        f"case_specs/{bucket} R1 backlog grew to {len(r1)} (max {budget}). "
+        f"New outcome/policy contradictions must not be added while WS-2 "
+        f"rewrites the existing ones."
     )
 
 
@@ -154,14 +202,17 @@ def test_canonical_corpus_lints_clean_with_smoke_subset_flag(tmp_path):
 
     result = _run_linter(staged_root, subset_of=SUBSET_OF_FLAG)
 
-    assert result.returncode == 0, (
-        f"linter exited with {result.returncode} on the canonical corpus "
-        f"({present_buckets!r}) with --subset-of {SUBSET_OF_FLAG!r} "
-        f"(expected 0 = no errors).\n"
-        f"--- stdout ---\n{result.stdout}\n"
-        f"--- stderr ---\n{result.stderr}\n"
+    # WS-1 item 6: R1 is the known WS-2 backlog and no longer gates. What
+    # this test still protects is the R13 cross-bucket opt-in: linting the
+    # combined tree with --subset-of must not surface duplicate
+    # source_session_id errors between smoke and its parent buckets.
+    non_r1 = _non_r1_errors(result.stdout)
+    assert not non_r1, (
+        f"canonical corpus ({present_buckets!r}) with --subset-of "
+        f"{SUBSET_OF_FLAG!r} produced {len(non_r1)} non-R1 error-severity "
+        f"violation(s); the R13 subset opt-in should resolve clean.\n"
+        + "\n".join(non_r1[:20])
     )
-    assert "Errors: **0**" in result.stdout, (
-        f"linter report for the canonical corpus did not advertise zero "
-        f"errors; stdout was:\n{result.stdout}"
+    assert not [ln for ln in non_r1 if "R13" in ln], (
+        "R13 source_session_no_duplication fired despite --subset-of"
     )

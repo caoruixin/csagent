@@ -187,6 +187,10 @@ class TestCorrectOutcomeAcceptableOutcomes:
     minimum service-quality bar."""
 
     def test_cross_class_resolve_to_escalate_with_useful_handover_passes(self):
+        """WS-1 item 1: a useful handover STILL earns 1.0 — but only after a
+        genuine resolution attempt. Pre-WS-1 this test passed with no turns
+        at all, which is exactly the defect (the handover summary alone was
+        the whole price of escalating)."""
         checker = OutcomeChecker()
         case = _make_case_spec(
             outcome_checks=["correct_outcome"],
@@ -207,7 +211,22 @@ class TestCorrectOutcomeAcceptableOutcomes:
             transcript=[],
             transfer_result="",
         )
-        trace = _make_trace(containment_outcome="escalated", handover=handover)
+        trace = _make_trace(
+            turns=[
+                _make_turn(
+                    turn_index=1,
+                    tool_calls=[{"tool_name": "search_knowledge"}],
+                    source_ids=["faq-1"],
+                ),
+                _make_turn(
+                    turn_index=2,
+                    tool_calls=[{"tool_name": "request_handover"}],
+                    phase_after="ESCALATE",
+                ),
+            ],
+            containment_outcome="escalated",
+            handover=handover,
+        )
         results = checker.run_checks(case, trace)
         co = next(r for r in results if r.check_name == "correct_outcome")
         assert co.score == 1.0
@@ -222,7 +241,17 @@ class TestCorrectOutcomeAcceptableOutcomes:
             outcome_class="resolve",
             acceptable_outcomes=["resolve", "escalate"],
         )
-        trace = _make_trace(containment_outcome="escalated", handover=None)
+        trace = _make_trace(
+            turns=[
+                _make_turn(
+                    turn_index=1,
+                    tool_calls=[{"tool_name": "search_knowledge"}],
+                    source_ids=["faq-1"],
+                ),
+            ],
+            containment_outcome="escalated",
+            handover=None,
+        )
         results = checker.run_checks(case, trace)
         co = next(r for r in results if r.check_name == "correct_outcome")
         assert co.score == 0.5
@@ -247,7 +276,17 @@ class TestCorrectOutcomeAcceptableOutcomes:
             transcript=[],
             transfer_result="",
         )
-        trace = _make_trace(containment_outcome="escalated", handover=handover)
+        trace = _make_trace(
+            turns=[
+                _make_turn(
+                    turn_index=1,
+                    tool_calls=[{"tool_name": "search_knowledge"}],
+                    source_ids=["faq-1"],
+                ),
+            ],
+            containment_outcome="escalated",
+            handover=handover,
+        )
         results = checker.run_checks(case, trace)
         co = next(r for r in results if r.check_name == "correct_outcome")
         assert co.score == 0.5

@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 
 from eval_interactive.case_spec.schema import CaseSpec
+from eval_interactive.scoring import escalation_intent as _esc_intent
 from eval_interactive.trace.models import TraceData
 
 
@@ -266,6 +267,34 @@ class OutcomeChecker:
 
         # Cross-class fallback — apply the round-5 quality guard.
         if actual == "escalate" and expected == "resolve":
+            # WS-1 item 1 (replan §3 WS-1.1): this branch used to award 1.0
+            # for a >=10-character summary plus any reason, while the
+            # mirror-image branch below demanded real retrieval evidence.
+            # Escalating cost 10 characters; resolving cost a cited answer —
+            # so the ruler paid more for giving up than for solving. The two
+            # directions are now symmetric: each requires evidence that the
+            # chosen path was actually WORKED, not merely stamped.
+            #
+            # Evidence of work on the escalate path = the bot tried to
+            # resolve first (a retrieval or citation turn at or before the
+            # handover), which is the same predicate the L1
+            # ``no_premature_escalation`` gate uses.
+            #
+            # Anti-误杀 exemptions (both are cases where "search first" is
+            # not the correct behaviour, so requiring it would build a NEW
+            # contradiction into the ruler — the exact defect WS-1 exists to
+            # remove):
+            #   * the customer explicitly demanded a human (product decision
+            #     D2 keeps explicit human requests as a valid trigger), or
+            #   * the case runs the fixed-script intake path, where knowledge
+            #     tools are forbidden outright
+            #     (``intake_no_knowledge_tool``).
+            # KNOWN STALENESS (WS-3 / A3, 2026-07-25): 23 UC-K specs still
+            # declare ``grounding_mode: fixed_script_only`` from before UC-K
+            # moved INTAKE -> PARTIAL, so they take this waiver without
+            # earning it. See the matching note on
+            # ``HardChecker._check_no_premature_escalation``; the fix is an
+            # ``eval_spec`` grounding_mode correction, not a scoring change.
             payload = (
                 trace.handover.handover_payload
                 if trace.handover is not None
@@ -273,16 +302,52 @@ class OutcomeChecker:
             ) or {}
             summary = (payload.get("summary") or "").strip()
             reason = (payload.get("escalation_reason") or "").strip()
-            if len(summary) >= 10 and reason:
+            handover_usable = len(summary) >= 10 and bool(reason)
+
+            esc_pos = _esc_intent.first_escalation_position(trace)
+            attempted = _esc_intent.has_resolution_attempt_before(trace, esc_pos)
+            demanded_human = _esc_intent.user_demanded_human(trace, esc_pos)
+            script_only = case_spec.expected.grounding_mode == "fixed_script_only"
+            attempt_required = not (demanded_human or script_only)
+
+            if attempt_required and not attempted:
+                # Premature handover on a case the bot was expected to
+                # resolve, with no evidence it tried. This is a total outcome
+                # failure, not a partial one: scoring it 0.0 (rather than the
+                # degraded 0.5) also emits the ``L2:correct_outcome`` tag so
+                # the failure is visible in reports, not just in the gate.
+                return OutcomeCheckResult(
+                    "correct_outcome",
+                    0.0,
+                    "cross-class fallback REJECTED: actual=escalate on a "
+                    "resolve-expected case with no resolution attempt "
+                    "(no search_knowledge / resolve_article / cited turn "
+                    f"before handover; handover summary={len(summary)} chars, "
+                    f"reason={reason!r})",
+                )
+
+            if handover_usable:
+                exempt = (
+                    " (attempt waived: user explicitly requested a human)"
+                    if attempt_required is False and demanded_human
+                    else (
+                        " (attempt waived: fixed_script_only intake path)"
+                        if attempt_required is False
+                        else ""
+                    )
+                )
                 return OutcomeCheckResult(
                     "correct_outcome",
                     1.0,
-                    f"cross-class fallback OK: actual=escalate w/ useful handover (summary={len(summary)} chars, reason={reason})",
+                    f"cross-class fallback OK: actual=escalate after a genuine "
+                    f"resolution attempt w/ useful handover (summary="
+                    f"{len(summary)} chars, reason={reason}){exempt}",
                 )
             return OutcomeCheckResult(
                 "correct_outcome",
                 0.5,
-                f"cross-class fallback degraded: actual=escalate but handover summary={len(summary)} chars, reason={reason!r}",
+                f"cross-class fallback degraded: actual=escalate but handover "
+                f"summary={len(summary)} chars, reason={reason!r}",
             )
 
         if actual == "resolve" and expected == "escalate":
@@ -409,10 +474,42 @@ class OutcomeChecker:
             return OutcomeCheckResult("case_id_present", 1.0)
         return OutcomeCheckResult("case_id_present", 0.0, "case_id missing from handover payload")
 
-    def _check_escalation_timing(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:
-        """If escalation required: check it occurred within reasonable turns.
+    # WS-1 item 3: score awarded to an expected escalation that was NOT
+    # preceded by any resolution attempt. Low enough to be a clear signal,
+    # non-zero because the escalation itself was the expected outcome — only
+    # its timing is wrong.
+    _UNATTEMPTED_ESCALATION_SCORE = 0.3
 
-        Score 1.0 if within max_turns/2, decaying to 0.0 at max_turns.
+    def _check_escalation_timing(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:
+        """If escalation required: did it follow a genuine resolution attempt?
+
+        WS-1 item 3 (replan §3 WS-1.3). The pre-WS-1 rubric scored 1.0 for
+        any escalation at or before ``max_turns // 2`` and decayed linearly
+        after, which means **a turn-0 handover scored best** — the dimension
+        literally rewarded escalating sooner. Combined with the
+        ``correct_outcome`` asymmetry it taught the agent that giving up
+        early is the cheapest way to score.
+
+        The rubric is now effort-ordered rather than clock-ordered:
+
+        * escalation **after** a retrieval / citation turn -> 1.0
+        * escalation with **no** attempt at all -> 0.3
+
+        Lateness is deliberately no longer penalised here. ``turn_efficiency``
+        and the ``budget_enforcement`` L1 check already price excess turns;
+        re-pricing them in this dimension is what re-imported the
+        "escalate earlier" gradient.
+
+        Anti-误杀 exemptions (identical to ``correct_outcome`` and the L1
+        ``no_premature_escalation`` gate, so the three never disagree):
+        an explicit customer request for a human, and the
+        ``fixed_script_only`` intake path where knowledge tools are
+        forbidden. On both, an immediate handover is the correct behaviour.
+
+        KNOWN STALENESS (WS-3 / A3, 2026-07-25): the ``fixed_script_only``
+        waiver over-fires on the 23 UC-K specs whose grounding_mode predates
+        UC-K's INTAKE -> PARTIAL move. See
+        ``HardChecker._check_no_premature_escalation``.
         """
         if not case_spec.expected.should_escalate:
             return OutcomeCheckResult("escalation_timing", 1.0, "escalation not required")
@@ -421,30 +518,40 @@ class OutcomeChecker:
         if outcome != "escalated":
             return OutcomeCheckResult("escalation_timing", 0.0, "expected escalation but did not escalate")
 
-        # Find escalation turn
-        esc_turn = None
-        for turn in trace.turns:
-            if turn.phase_after.upper() == "ESCALATE":
-                esc_turn = turn.turn_index
-                break
+        esc_pos = _esc_intent.first_escalation_position(trace)
+        esc_turn = (
+            trace.turns[esc_pos].turn_index if esc_pos is not None else None
+        )
 
-        if esc_turn is None:
-            # Escalated at some unknown point -- give partial credit
-            return OutcomeCheckResult("escalation_timing", 0.5, "escalated but turn unknown")
+        if _esc_intent.has_resolution_attempt_before(trace, esc_pos):
+            return OutcomeCheckResult(
+                "escalation_timing",
+                1.0,
+                f"escalated at turn {esc_turn} after a resolution attempt",
+            )
 
-        max_t = case_spec.expected.max_turns
-        threshold = max(1, max_t // 2)
+        if case_spec.expected.grounding_mode == "fixed_script_only":
+            return OutcomeCheckResult(
+                "escalation_timing",
+                1.0,
+                "fixed_script_only intake path: knowledge retrieval is "
+                "forbidden, so a direct handover is the expected shape",
+            )
 
-        if esc_turn <= threshold:
-            return OutcomeCheckResult("escalation_timing", 1.0)
+        if _esc_intent.user_demanded_human(trace, esc_pos):
+            return OutcomeCheckResult(
+                "escalation_timing",
+                1.0,
+                f"escalated at turn {esc_turn} on an explicit customer "
+                f"request for a human",
+            )
 
-        overshoot = esc_turn - threshold
-        remaining = max_t - threshold
-        score = max(0.0, 1.0 - overshoot / remaining) if remaining > 0 else 0.0
         return OutcomeCheckResult(
             "escalation_timing",
-            round(score, 3),
-            f"escalated at turn {esc_turn}, threshold={threshold}",
+            self._UNATTEMPTED_ESCALATION_SCORE,
+            f"escalated at turn {esc_turn} with no prior resolution attempt "
+            f"(no search_knowledge / resolve_article / cited turn) and no "
+            f"explicit human request",
         )
 
     def _check_issue_preservation(self, case_spec: CaseSpec, trace: TraceData) -> OutcomeCheckResult:

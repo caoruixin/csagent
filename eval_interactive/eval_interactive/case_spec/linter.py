@@ -187,8 +187,6 @@ def _r1_uc_outcome_consistent(spec: _LintableSpec) -> list[LintViolation]:
     expected = spec.raw.get("expected") or {}
     primary_uc = expected.get("primary_uc")
     outcome = expected.get("outcome_class")
-    should_escalate = bool(expected.get("should_escalate"))
-    sequence = expected.get("expected_tool_sequence") or []
     if not primary_uc or outcome is None:
         return []
     try:
@@ -218,19 +216,24 @@ def _r1_uc_outcome_consistent(spec: _LintableSpec) -> list[LintViolation]:
                 )
             ]
         return []
-    if (
-        policy.outcome_class == "resolve"
-        and outcome == "escalate"
-        and should_escalate
-        and "request_handover" in sequence
-    ):
-        # Wave A4: transcript evidence may turn an otherwise FAQ-resolvable
-        # UC into a case-level handover when the selected human transcript
-        # shows investigation, handover/case language, clarification
-        # exhaustion, or user-requested-human evidence. The YAML does not
-        # carry raw transcript evidence, so validate the resolved handover
-        # contract here and let the generation audit preserve the rationale.
-        return []
+    # WS-1 item 6 (replan §3 WS-1.6, closing hole §1.1 A2). A Wave-A4
+    # carve-out used to sit here and return [] for the exact combination
+    # (FAQ-resolvable UC + outcome escalate + should_escalate + a
+    # ``request_handover`` in the sequence), on the rationale that transcript
+    # evidence may legitimately turn a resolvable UC into a handover.
+    #
+    # That rationale is what silenced the corpus's single largest
+    # contradiction. The corpus is by construction sessions that reached a
+    # human, so the generator's escalation-evidence regex fires on nearly
+    # every transcript (``case_outcome_resolver.py:196-206``,
+    # ``transcript_evidence.py:146-208``) and stamps FAQ-resolvable UCs as
+    # ``escalate`` — while the same specs keep ``allow_bot_resolution:
+    # 'true'``. The carve-out made every one of those invisible, and the
+    # linter was never wired into CI, so nothing ever surfaced them.
+    #
+    # The carve-out is removed. R1 now reports the contradiction. Per the
+    # WS-1 scope this sub-sprint only makes them VISIBLE; rewriting the
+    # affected specs is WS-2's job (replan §3 WS-2 "Bulk").
     if outcome != policy.outcome_class:
         return [
             LintViolation(

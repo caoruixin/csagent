@@ -85,7 +85,7 @@ def _build_minimal_spec(session_id: str = "sid-x") -> CaseSpec:
         risk_level="low",
         expected_tool_sequence=["search_knowledge", "resolve_article", "record_outcome"],
         forbidden_tools=[],
-        grounding_mode="kb_only",
+        grounding_mode="faq_source_backed",
         answer_must_not_contain=[],
         max_turns=15,
     )
@@ -143,7 +143,15 @@ def test_v2_schema_loads_cleanly() -> None:
     assert cs11.case_id_hint == "cs_interactive_011"
     assert cs11.classification is None
     assert cs11.expected is not None
-    assert cs11.expected["escalation_trigger"] == "faq_miss_threshold_exceeded"
+    # WS-2 (2026-07-25, replan rev 2 §3 WS-2): the cs_011 override was revised
+    # from `faq_miss_threshold_exceeded` to null. The password-reset loop is
+    # self-serve resolvable, so anchor/smoke cs_interactive_011 was flipped to
+    # `outcome_class: resolve` / `should_escalate: false`; an override that kept
+    # pinning a trigger would make a regenerated spec raise in
+    # `schema.Expected.__post_init__` ("escalation_trigger must be empty/null
+    # when should_escalate=false"). cs_014 below deliberately KEEPS its trigger
+    # — that ask is a contact-email change, i.e. data modification.
+    assert cs11.expected["escalation_trigger"] is None
     cs14 = registry.applied["570Q5000008u9gjIAA"]
     assert cs14.case_id_hint == "cs_interactive_014"
     assert cs14.expected is not None
@@ -480,7 +488,7 @@ def test_expected_override_applied_after_l1() -> None:
             "record_outcome",
         ],
         forbidden_tools=[],
-        grounding_mode="kb_only",
+        grounding_mode="faq_source_backed",
         answer_must_not_contain=[],
         max_turns=15,
     )

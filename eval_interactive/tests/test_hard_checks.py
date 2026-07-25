@@ -408,6 +408,9 @@ class TestRunChecksFiltering:
         "required_escalation",
         "escalation_reason_consistency",
         "user_requested_escalation",
+        # WS-1 item 2: the mirror image of ``required_escalation``. Global so
+        # a spec that omits it cannot re-open the over-escalation hole.
+        "no_premature_escalation",
         "trace_minimum",
     }
 
@@ -811,3 +814,109 @@ class TestNoPiiLeakageBenignRelaxation:
         results = checker.run_checks(case, trace)
         npl = next(r for r in results if r.check_name == "no_pii_leakage")
         assert npl.passed is False
+
+
+class TestIntakeNoKnowledgeToolUcGating:
+    """WS-3 / A3 (2026-07-25): ``intake_no_knowledge_tool`` is gated on the
+    UC being intake-only, not on ``grounding_mode`` alone.
+
+    UC-K (technical fault) was reclassified ``path: INTAKE`` -> ``path:
+    PARTIAL`` on the server: ``use-case-registry.yaml`` UC-K is now
+    ``partial``, ``tool-policy.yaml`` lists UC-K under ``search_knowledge``
+    and ``resolve_article``, and
+    ``skills/resolve_technical_diagnose_or_intake.yaml`` carries a critical
+    step whose ``mandatory_for`` is ``(UC-K,)`` and which orders
+    ``search_knowledge`` before ``resolve_article``. A UC-K session that
+    consults the help centre is therefore doing what the runtime requires,
+    and must not be scored as an intake violation.
+
+    The 23 already-generated UC-K specs still declare ``grounding_mode:
+    fixed_script_only`` (a frozen snapshot of the pre-reclassification
+    ``policy_table``), so the exemption cannot key on ``grounding_mode`` —
+    it keys on :attr:`HardChecker.INTAKE_UCS`.
+    """
+
+    # The real UC-K specs configure the ``fixed_script_adherence`` alias, not
+    # the canonical name; both dispatch to the same implementation, so both
+    # are exercised.
+    INTAKE_CHECK_NAMES = ["intake_no_knowledge_tool", "fixed_script_adherence"]
+
+    def test_intake_ucs_set_excludes_uc_k(self):
+        """Pin the set. Re-adding UC-K here silently re-breaks 23 specs."""
+        assert HardChecker.INTAKE_UCS == {"UC-G", "UC-H", "UC-I", "UC-J"}
+
+    @pytest.mark.parametrize("check_name", INTAKE_CHECK_NAMES)
+    @pytest.mark.parametrize("tool_name", ["search_knowledge", "resolve_article"])
+    def test_pass_uc_k_may_call_knowledge_tools(self, check_name, tool_name):
+        """THE FIX: UC-K + knowledge tool is no longer an intake violation,
+        even though the spec still says ``grounding_mode:
+        fixed_script_only``."""
+        checker = HardChecker()
+        case = _make_case_spec(
+            hard_checks=[check_name],
+            primary_uc="UC-K",
+            grounding_mode="fixed_script_only",
+        )
+        trace = _make_trace(
+            turns=[_make_turn(tool_calls=[{"tool_name": tool_name}])],
+            active_use_case="UC-K",
+        )
+        results = checker.run_checks(case, trace)
+        inkt = next(r for r in results if r.check_name == "intake_no_knowledge_tool")
+        assert inkt.passed is True, inkt.detail
+        assert "UC-K" in inkt.detail
+
+    @pytest.mark.parametrize("check_name", INTAKE_CHECK_NAMES)
+    @pytest.mark.parametrize("intake_uc", ["UC-G", "UC-H", "UC-I", "UC-J"])
+    @pytest.mark.parametrize("tool_name", ["search_knowledge", "resolve_article"])
+    def test_fail_true_intake_ucs_still_gated(self, check_name, intake_uc, tool_name):
+        """SANITY COUNTER-TEST: the check is not disabled wholesale. The four
+        UCs that really are script-only still FAIL on a knowledge call."""
+        checker = HardChecker()
+        case = _make_case_spec(
+            hard_checks=[check_name],
+            primary_uc=intake_uc,
+            grounding_mode="fixed_script_only",
+        )
+        trace = _make_trace(
+            turns=[_make_turn(tool_calls=[{"tool_name": tool_name}])],
+            active_use_case=intake_uc,
+        )
+        results = checker.run_checks(case, trace)
+        inkt = next(r for r in results if r.check_name == "intake_no_knowledge_tool")
+        assert inkt.passed is False, inkt.detail
+        assert tool_name in inkt.detail
+
+    def test_pass_intake_uc_without_knowledge_call(self):
+        """No false positive: a clean UC-J intake run still passes."""
+        checker = HardChecker()
+        case = _make_case_spec(
+            hard_checks=["intake_no_knowledge_tool"],
+            primary_uc="UC-J",
+            grounding_mode="fixed_script_only",
+        )
+        trace = _make_trace(
+            turns=[_make_turn(tool_calls=[{"tool_name": "create_case_controlled"}])],
+            active_use_case="UC-J",
+        )
+        results = checker.run_checks(case, trace)
+        inkt = next(r for r in results if r.check_name == "intake_no_knowledge_tool")
+        assert inkt.passed is True, inkt.detail
+
+    def test_grounding_mode_gate_still_short_circuits_first(self):
+        """An intake UC on a non-script grounding_mode is still exempt via
+        the original ``grounding_mode`` short-circuit, unchanged."""
+        checker = HardChecker()
+        case = _make_case_spec(
+            hard_checks=["intake_no_knowledge_tool"],
+            primary_uc="UC-G",
+            grounding_mode="faq_source_backed",
+        )
+        trace = _make_trace(
+            turns=[_make_turn(tool_calls=[{"tool_name": "search_knowledge"}])],
+            active_use_case="UC-G",
+        )
+        results = checker.run_checks(case, trace)
+        inkt = next(r for r in results if r.check_name == "intake_no_knowledge_tool")
+        assert inkt.passed is True
+        assert "grounding_mode not fixed_script_only" in inkt.detail

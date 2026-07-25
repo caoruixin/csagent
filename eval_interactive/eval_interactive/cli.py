@@ -230,6 +230,122 @@ def run(
 
 
 @main.command()
+@click.option(
+    "--path",
+    "target_path",
+    default="case_specs",
+    help="File or directory of CaseSpec YAML to lint (recursive).",
+)
+@click.option("--out", default=None, help="Write the markdown report here instead of stdout.")
+@click.option(
+    "--subset-of",
+    "subset_of",
+    default="smoke:anchor,smoke:promotion,smoke:exploration",
+    help=(
+        "Comma-separated 'subset:parent' bucket pairs allowed to share "
+        "source_session_id values without tripping R13. Pass '' to disable."
+    ),
+)
+@click.option(
+    "--rule",
+    "rules",
+    multiple=True,
+    help="Only report violations whose rule name starts with this prefix (e.g. 'R1'). Repeatable.",
+)
+@click.option(
+    "--summary-only",
+    is_flag=True,
+    default=False,
+    help="Print per-rule counts only, not the full per-case report.",
+)
+@click.option(
+    "--exit-zero",
+    is_flag=True,
+    default=False,
+    help="Always exit 0. Use for report-only runs; omit for CI gating.",
+)
+def lint(
+    target_path: str,
+    out: str | None,
+    subset_of: str,
+    rules: tuple[str, ...],
+    summary_only: bool,
+    exit_zero: bool,
+):
+    """Lint CaseSpec YAML for policy / spec inconsistencies.
+
+    WS-1 item 6: the linter existed but had no CLI entry point, so its
+    findings never surfaced in CI. Exits 1 when any error-severity violation
+    is found (0 with --exit-zero).
+    """
+    from collections import Counter
+    from pathlib import Path
+
+    from eval_interactive.case_spec.linter import (
+        _format_markdown_report,
+        _parse_subset_of,
+        lint_directory,
+    )
+
+    root = Path(target_path)
+    if not root.exists():
+        click.echo(f"Error: path does not exist: {root}", err=True)
+        raise SystemExit(2)
+
+    try:
+        subset_pairs = _parse_subset_of(subset_of)
+    except ValueError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(2)
+
+    per_file, cross, total = lint_directory(root, subset_pairs=subset_pairs)
+
+    if rules:
+        def _keep(v) -> bool:
+            return any(v.rule.startswith(prefix) for prefix in rules)
+
+        per_file = {p: [v for v in vs if _keep(v)] for p, vs in per_file.items()}
+        cross = [v for v in cross if _keep(v)]
+
+    all_violations = [v for vs in per_file.values() for v in vs] + list(cross)
+    errors = [v for v in all_violations if v.severity == "error"]
+    warnings = [v for v in all_violations if v.severity != "error"]
+
+    click.echo(f"Linted {total} spec(s) under {root}")
+    click.echo(f"  Errors:   {len(errors)}")
+    click.echo(f"  Warnings: {len(warnings)}")
+
+    rule_counts = Counter(v.rule for v in all_violations)
+    if rule_counts:
+        click.echo("\n  Violations by rule:")
+        for rule_name, count in sorted(rule_counts.items(), key=lambda kv: (-kv[1], kv[0])):
+            click.echo(f"    {count:>5d}  {rule_name}")
+
+    # Per-bucket breakdown makes the WS-2 backlog actionable (anchor/smoke
+    # are programmatic gates; bad_cases are human-review).
+    bucket_counts = Counter(
+        p.parent.name for p, vs in per_file.items() for _ in vs
+    )
+    if bucket_counts:
+        click.echo("\n  Violations by bucket:")
+        for bucket, count in sorted(bucket_counts.items(), key=lambda kv: (-kv[1], kv[0])):
+            click.echo(f"    {count:>5d}  {bucket}/")
+
+    if out:
+        report = _format_markdown_report(root, per_file, cross, total)
+        out_path = Path(out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(report, encoding="utf-8")
+        click.echo(f"\nWrote markdown report to {out_path}")
+    elif not summary_only:
+        click.echo("")
+        click.echo(_format_markdown_report(root, per_file, cross, total))
+
+    if errors and not exit_zero:
+        raise SystemExit(1)
+
+
+@main.command()
 @click.option("--baseline", default=None, help="Baseline results path (default: registered baseline)")
 @click.option("--current", required=True, help="Current results path (file or dir)")
 @click.option("--output", "-o", default=None, help="Output HTML report path (default: <current>/comparison.html)")

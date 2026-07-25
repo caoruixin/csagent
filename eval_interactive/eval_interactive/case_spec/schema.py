@@ -84,6 +84,38 @@ ESCALATION_TRIGGER_VALUES: tuple[str, ...] = get_args(EscalationTrigger)
 AllowBotResolution = Literal["true", "false", "partial"]
 
 
+# WS-1 item 4 (replan §3 WS-1.4 / §1.1 A5). ``grounding_mode`` was previously
+# an unvalidated ``str`` whose legal values were named only in a trailing
+# comment, and ``loader._parse_case_spec`` passed the YAML value through
+# verbatim. Six hand-authored bad_cases use entity-grounded values that were
+# never in that comment, and ``hard_checks._check_source_citation_present``
+# short-circuits with ``if grounding_mode != "faq_source_backed": return
+# PASS`` — so the grounding gate silently no-opped on exactly the six cases
+# whose entire purpose is "the answer must be grounded in the user's own
+# data". The enum is now canonical and validated at construction time, and
+# the gate reads it (see ``hard_checks._GROUNDING_REQUIREMENTS``).
+#
+# Semantics:
+#   faq_source_backed             — grounded in retrieved FAQ/KB sources.
+#   fixed_script_only             — intake script; knowledge tools forbidden
+#                                   (enforced by ``intake_no_knowledge_tool``).
+#   listing_data_and_faq_backed   — BOTH the user's own listing/entity data
+#                                   AND FAQ sources.
+#   listing_data_or_faq_backed    — EITHER entity data OR FAQ sources.
+#   moderation_review_and_faq_backed
+#                                 — BOTH the moderation-review context AND
+#                                   FAQ sources.
+GroundingMode = Literal[
+    "faq_source_backed",
+    "fixed_script_only",
+    "listing_data_and_faq_backed",
+    "listing_data_or_faq_backed",
+    "moderation_review_and_faq_backed",
+]
+
+GROUNDING_MODE_VALUES: tuple[str, ...] = get_args(GroundingMode)
+
+
 # ---------------------------------------------------------------------------
 # Sub-models
 # ---------------------------------------------------------------------------
@@ -171,7 +203,10 @@ class Expected:
     risk_level: str = "low"  # low | medium | high | critical
     expected_tool_sequence: list[str] = field(default_factory=list)
     forbidden_tools: list[str] = field(default_factory=list)
-    grounding_mode: str = "faq_source_backed"  # faq_source_backed | fixed_script_only
+    # WS-1 item 4: validated against ``GROUNDING_MODE_VALUES`` in
+    # ``__post_init__``. An unknown value now raises at load time instead of
+    # silently disabling the grounding gate.
+    grounding_mode: GroundingMode = "faq_source_backed"
     answer_must_not_contain: list[str] = field(default_factory=list)
     max_turns: int = 15
     # Codex 2026-05-04 round 4 §"Resolve vs Escalate" / §"Recommended
@@ -189,6 +224,16 @@ class Expected:
             raise ValueError(
                 f"allow_bot_resolution must be one of {allowed_resolution!r}; "
                 f"got {self.allow_bot_resolution!r}"
+            )
+
+        # ----- grounding_mode domain (WS-1 item 4) -----
+        # Fail loudly at load time. A typo or an undeclared value used to
+        # sail through the loader and then quietly disable
+        # ``source_citation_present`` for that case.
+        if self.grounding_mode not in GROUNDING_MODE_VALUES:
+            raise ValueError(
+                f"grounding_mode must be one of {GROUNDING_MODE_VALUES!r}; "
+                f"got {self.grounding_mode!r}"
             )
 
         # ----- bot_handling_pattern shape -----
