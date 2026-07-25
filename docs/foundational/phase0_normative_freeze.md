@@ -61,8 +61,8 @@
 | **human-only tools (Phase2 或人工触发)** | `moderation_enforcement_action`（删帖 / 限号 / 账号限制，critical risk）、`send_followup_email_or_async_update`（异步邮件更新，medium risk；**邮件规则/模版/内容遵循现有 Salesforce 人工 CS 系统，Bot 不直接向用户发送邮件**，由坐席 / back-office 触发）。Phase 1 Bot 不得直接或间接调用。 | tool_spec §tools (visibility: human_only) |
 | **per-UC 工具可用性矩阵** | 每个 tool 的 `allowed_use_cases` / `disallowed_use_cases` 作为硬约束；超范围调用由 runtime 拒绝并记录 `scope_blocked` | tool_spec §tools.*.allowed_use_cases |
 | **tool risk tier 与 runtime_policy** | low（knowledge）/ medium（composite read / controlled write）/ high（`create_case_controlled`）/ critical（`moderation_enforcement_action`）；每类风险对应 runtime policy（retries、must_log_*、must_validate_required_fields 等） | tool_spec §tools.*.risk_tier, runtime_policy |
-| **V1 use case 集合（Topic Subject → UC 两层分类，v8）** | **12 个 UC + 4 个 OUT_OF_SCOPE 分类按 Pre-chat Form Topic Subject 组织**：Ad Support → UC-A/B/FP/H；Account Support → UC-D（⚠️ v8 HR: 路由准确率仅 18.2%，实际 spillover 覆盖全部 UC）；Delete My Account or Data → UC-G；Payments → UC-F/I；Replies or Messaging → UC-C；Report a Safety Issue → UC-J；Technical Support → UC-E/K。每个 UC 有 `parent_topic_subject` 字段标识业务归属。**4 个 Handover-only Topic Subject**（Delivery / Pro Contract / Account Manager Support / Ratings Reviews）→ 不匹配已有 UC 时标记 `OUT_OF_SCOPE_DELIVERY` / `OUT_OF_SCOPE_PRO_CONTRACT` / `OUT_OF_SCOPE_ACCOUNT_MANAGER` / `OUT_OF_SCOPE_RATINGS_REVIEWS` + 固定话术 + `request_handover`（v8 HR: 19 条 OOS，全部 100% escalation）。UC-A..F, UC-FP 为 Bot 可 FAQ-resolvable；UC-G..K 为 V1 intake-then-handover（Bot 不自主 resolve）。 | tool_spec §use_cases / phase2 §2.11 |
-| **handover trigger policy (V1 minimal)** | user explicitly requests human / high-risk use case / clarification budget exhausted / faq miss threshold exceeded / policy requires escalation / system confidence-grounding insufficient | tech_spec §15.2 |
+| **V1 use case 集合（Topic Subject → UC 两层分类，v8）** | **12 个 UC + 4 个 OUT_OF_SCOPE 分类按 Pre-chat Form Topic Subject 组织**：Ad Support → UC-A/B/FP/H；Account Support → UC-D（⚠️ v8 HR: 路由准确率仅 18.2%，实际 spillover 覆盖全部 UC）；Delete My Account or Data → UC-G；Payments → UC-F/I；Replies or Messaging → UC-C；Report a Safety Issue → UC-J；Technical Support → UC-E/K。每个 UC 有 `parent_topic_subject` 字段标识业务归属。**4 个 Handover-only Topic Subject**（Delivery / Pro Contract / Account Manager Support / Ratings Reviews）→ 不匹配已有 UC 时标记 `OUT_OF_SCOPE_DELIVERY` / `OUT_OF_SCOPE_PRO_CONTRACT` / `OUT_OF_SCOPE_ACCOUNT_MANAGER` / `OUT_OF_SCOPE_RATINGS_REVIEWS` + 固定话术 + `request_handover`（v8 HR: 19 条 OOS，全部 100% escalation）。UC-A..F, UC-FP 为 Bot 可 FAQ-resolvable；UC-G..J 为 V1 intake-then-handover（Bot 不自主 resolve）。**[DEVIATION 2026-07-25 — 见 §0.6；UC-K 由 intake-then-handover 改为 `path: PARTIAL`（可自主 FAQ resolve **且**保留 intake），回归 `phase2_domain_realization_spec.md:493` 一直声明的 `allow_bot_resolution: partial`。]** | tool_spec §use_cases / phase2 §2.11 / §0.6 deviation log |
+| **handover trigger policy (V1 minimal)** | user explicitly requests human / high-risk use case / clarification budget exhausted / faq miss threshold exceeded / policy requires escalation / system confidence-grounding insufficient。**[DEVIATION 2026-07-25 — 见 §0.6；`BRD.md:126-138` 的 "customer indicates frustration" 明确**不是**确定性触发器：挫败降级为投影给 LLM 的 advisory 软信号（`user_sentiment_signal`），由 LLM 判断诉求类别后决定；fraud / safety / legal / imminent-harm 保留立即转人工。]** | tech_spec §15.2 / §0.6 deviation log |
 | **handover payload contract** | session_id / primary_use_case / candidate_use_cases / current_status / summary / clarification_count / faq_miss_count / articles_shown / escalation_reason / transcript_ref / **form_topic_subject**（v7 新增）/ **topic_uc_mismatch**（v7 新增） | tech_spec §15.3 / phase2 §2.11.6 |
 | **mandatory guardrails** | 明确 bot 身份、不伪装人工、不在无依据时编造答案、不处理高风险自动裁决、不做越权承诺、只暴露最小必要信息 | tech_spec §16.1 |
 | **versioned configs (V1)** | prompt version / projection policy version / control policy version / tool schema version / eval suite version | tech_spec §16.2 |
@@ -118,6 +118,63 @@
 ## 0.6 漂移登记 (Deviation Log)
 
 按 §0.5 流程登记的所有母规范偏离。每条记录包含变更范围、原设计、新设计、原因、对 release gates / eval suite 的影响、owner 确认、实施引用。
+
+### Deviation 2026-07-25 — 挫败不再是升级触发器 + UC-K 归位到 partial path
+
+**变更范围**: §0.3 表格行 "handover trigger policy (V1 minimal)"（移除"customer indicates frustration"作为确定性触发器；该条目原文写在 `BRD.md:126-138`，未写进本表，但 runtime 侧已有可执行落点）、§0.3 表格行 "V1 use case 集合（Topic Subject → UC 两层分类，v8）"（"UC-G..K 为 V1 intake-then-handover（Bot 不自主 resolve）" → UC-K 改为 partial：可自主 FAQ resolve **且**保留 intake）。本条统一登记产品负责人 2026-07-25 三项决策中的 D2 与 D3/A3（D1 只读用户数据状态查询提升进当前范围，不修改 §0.3 任何行，故不单列条目——见下方"D1 附注"）。
+
+**触发**: `docs/proposals/performance_priority_replan_2026-07.md`（rev 2）§1.2 B1 与 §1.1 A3。产品负责人两个体感症状——"该自己做完的没做完 / 不该马上转人工的马上转了"——经代码核查后定位到两条成文但已过期的业务规则，而非 agent 措辞问题。
+
+---
+
+**D2 — "customer indicates frustration ⇒ must escalate" 修订为"先解决再转"**
+
+**原设计**: `BRD.md:126-138` 原文 "The bot must escalate after: 2 failed intent recognitions, OR customer requests an agent, OR **customer indicates frustration**, OR the issue falls into an out-of-scope category."
+
+**新设计**: 用户表达挫败时，若其诉求仍属可解释 / 只读可查询类（状态查询、政策或流程解释、how-to、对用户自有数据的只读查询），则共情安抚并**在本轮继续尝试解决**；仅在（a）用户明确要求人工，或（b）已做过一次真实尝试并再次失败且无其他可试路径时才转人工。高风险话题——欺诈 / 诈骗、人身安全或威胁、迫在眉睫的伤害或自伤、法律或正式投诉诉求——**保留立即转人工的确定性硬规则，不受语气影响**。
+
+**原因**:
+1. **"挫败"是软语义判断，不是布尔触发器**。是否应转人工取决于用户此刻究竟在要求什么，只有 LLM 能读出这一点；Constitution §1.3 把 "escalation posture" 划归 LLM，§1.5 / §1.7 明确禁止用关键词 / regex / enum 表实现软语义决策。
+2. **原规则在 runtime 中有且仅有一处可执行落点，而那处判的是语气不是诉求**：`config/risk-keywords.yaml` 的 `escalation-pattern` 备选列表以裸名词短语 `customer service` / `live support` 结尾，因此 "your customer service is useless" / "this is the worst customer service I've had" 会命中 `DriftDetector` → `USER_ESCALATION_REQUEST` → `ControlKernel.processMessage` step 4 `forceEscalate()` 立即转人工。这正是"抱怨客服"被读成"要求客服"的误杀。
+3. **抱怨的内容恰恰是"被转走"**。以道歉开场、以排队结束，是用户已经在抱怨的那件事；先给出真实答案才是真正的降级。
+
+**实施（server 侧，本次落地）**:
+- `server/src/main/resources/config/risk-keywords.yaml` — `escalation-pattern` 收紧：`customer service` / `live support` 两个名词短语现在必须前置请求动词（`talk|speak|transfer|connect|put me through|get me|escalate`）才命中；真实请求形态（"connect me to customer service" / "put me through to live support" / "I want to speak to customer service"）全部仍然命中。文件头新增治理注释：本文件只承载确定性面（显式要人工 + fraud/safety/GDPR/payment/appeal 硬切换），**挫败刻意不在此表，且禁止以关键词形式加入**。
+- `server/src/main/java/.../runtime/EscalationReasonResolver.java` — 新增 `static hasDistressSignal(String)`（`detectDistressSignal` 委托给它，检测逻辑单点未变），供投影层调用而无需注入该 bean。
+- `server/src/main/java/.../runtime/ContextProjectionBuilder.java` — 新增 `user_sentiment_signal` 投影槽（`frustration_detected` / `binding: advisory` / `note`）。无信号时整槽省略，常态路径投影与改动前逐字节一致。这就是"降级为软信号"的落地形态：确定性检测器仍然运行，但其输出交给 LLM 判断，不再花在控制决策上。
+- `server/src/main/resources/prompts/system_prompt.txt` — 新增 "Customer frustration" 段落陈述上述策略（原则，不是关键词清单）；高风险例外明确列出。
+- **runtime 未新增任何 force-escalate 路径**；`ControlKernel` step 2.4 原本就只把 `user_distress` 作为 escalation_reason 的优先级 stamp，不触发终止（该行为未改动）。
+
+**未在本次改动、已登记为残留**: `server/src/main/resources/scripts/templates.yaml` 的 `h_frustration_ack` 模板文案为 "I completely understand your frustration ... Let me connect you to our team right away."，与 D2 相悖。该模板当前**无任何调用点**（`PhaseEvaluator.INTAKE_OPENING_TEMPLATES` 只引用 `h_empathy`），且其文案受 `docs/fixed_script_library_v1.md` §3 + `Sprint15ScriptLibraryConsistencyTest` 的 version-pin 约束，改文案需同步该文档并 bump library_version——超出本次 server-only 范围，留给脚本库 owner。
+
+---
+
+**D3 / A3 — UC-K 从 `path: INTAKE` 归位到 `path: PARTIAL`**
+
+**原设计**: `config/use-case-registry.yaml` 将 UC-K（Technical Issue Intake）登记为 `path: INTAKE` + `allow-bot-resolution: false`；`PhaseEvaluator.java:1017` 原文注释 `// Intake UCs (UC-G/H/I/J/K) must NEVER invoke knowledge search`。后果：任何被判进 UC-K 的解释 / 诊断类问题（技术故障排查）在架构上不可能被自主答完——它连知识库都不许查，`tool-policy.yaml` 也未给 UC-K `search_knowledge` / `resolve_article` 权限。
+
+**与母规范的关系**: 这是**回归**而非新增偏离。`phase2_domain_realization_spec.md:493` 一直写的是 `allow_bot_resolution: partial`（"能通过 get_customer_context 回拉状态解释的走 bot；需后端投诉的走 intake + case"），且同处声明了 UC-K 的 `knowledge_scope: help_centre_troubleshooting / app_issues / browser_support`。§0.3 表格行的 "UC-G..K 为 V1 intake-then-handover" 归纳与该 UC 级规范不一致；本条以 phase2 为准。
+
+**新设计**: registry 新增第三个 `path` 值 `PARTIAL` = 可检索知识**且**可收集 intake 字段，由 LLM 每轮判断用户的诉求需要哪一半。UC-K 成为唯一的 PARTIAL 用例。
+
+**实施（server 侧，本次落地）**:
+- `config/use-case-registry.yaml` — UC-K: `allow-bot-resolution: true`, `path: PARTIAL`。
+- `config/tool-policy.yaml` — `search_knowledge` / `resolve_article` 的 `allowed-ucs` 各加入 UC-K（capability wiring，Runtime §1.4）。
+- `skills/resolve_technical_diagnose_or_intake.yaml`（**新增**）— UC-K 专属 RESOLVE Skill：先诊断（entity context + troubleshooting 检索）后 intake。`SkillRegistry` 禁止两个 Skill 在同一 `(phase, use_case)` 上碰撞，因此 UC-K 只能是"迁移"而不是"同时属于两个 Skill"。guardrails 沿用与 FAQ Skill 相同的 `premature_resolve_outcome_guard` + `must_cite_source`，外加原 UC-K 的 `intake_complete_required`——grounding floor 与 intake floor 都未降低。
+- `skills/resolve_intake_collect_and_handover.yaml` — 移除 UC-K 及其 `uc-k-intake-complete-before-handover` critical step（随 UC-K 迁移，内容不变）。
+- **四处重复硬编码集合收敛**：`UseCaseRegistryService` 新增 `isIntakeOnlyPath` / `isKnowledgeCapablePath` / `collectsIntakeFields` 三个由 `path` 派生的谓词 + `PATH_FAQ|INTAKE|PARTIAL` 常量。`PhaseEvaluator` 删除自己的 `INTAKE_UCS` 常量，改读 registry（`:1017` 分流、`interpretRunResult` 的 `isIntakePlan`、`resolveMaxStepsReason` 的 step 1）。`ControlKernel` 与 `ResolveDispositionEvaluator` 因构造函数向后兼容面 / 静态工具类无 Spring 上下文，暂保留镜像集合但已收窄为 intake-only 四值，并由新增的 `UseCaseRegistryPathConsistencyTest` 在编译期外锁死漂移（该测试同时断言：任一 knowledge-capable UC 必须解析到能调用 `search_knowledge` 的 Skill；任一 intake-collecting UC 必须解析到带 `intake_complete_required` 的 Skill）。
+
+**对 release gates 与 eval suite 的影响**:
+- **eval 侧三处硬编码仍不一致，属本次范围外**（由并行的 WS-1/WS-2 agent 负责）：`eval_interactive/eval_interactive/case_spec/case_outcome_resolver.py:23` `_MANDATORY_ESCALATION_UCS` = {G,H,I,J}（不含 K，与新语义**已经一致**）；`eval_interactive/eval_interactive/scoring/hard_checks.py` 的 `INTAKE_UCS` = {G,H,I,J,K}（含 K，**现在与 server 冲突**——UC-K 的合法 grounded answer 会被判成 intake 违约；该文件正被 WS-1 并行修改，故此处不引行号）；`eval_interactive/eval_interactive/case_spec/policy_table.py:374-409` 已是 `partial`/`either`。
+- `wrong containment ≤ 2%` 预期改善（D2 消除抱怨客服触发的误转；A3 让 UC-K 的可答问题真的能被答完）。
+- `escalation_recall ≥ 95%` 有回退风险：CaseSpec 中标注 `escalation_trigger=user_distress` 且期望 escalate 的案例，若其诉求实际属可解释类，bot 现在可能正确地不转人工而被判 miss。这正是 rev 2 §3 WS-2 要重写的那批 spec；在 WS-1 落地前任何 pass-rate 都不可信（rev 2 §5）。
+- `groundedness pass rate ≥ 98%`：UC-K 新增了检索路径，但同时继承了与 FAQ 路径完全相同的 `must_cite_source` guardrail，grounding floor 未降低。
+- `critical policy violation = 0`：高风险硬规则（fraud / safety / GDPR / payment / appeal 硬切换，显式要人工）全部未改动。
+- Java 测试基线：改动前 1422 run / 1 failure（inherited `SystemPromptUserRequestedTiebreakerTest`）→ 改动后同一处 inherited failure，无新增失败。
+
+**owner 确认**: 产品负责人 2026-07-25 决策（D1 / D2 / D3 三项），记录于 `docs/proposals/performance_priority_replan_2026-07.md` §2。
+
+**D1 附注（不修改 §0.3 任何行，故不单列条目）**: 只读的用户数据状态查询由 `PRD_biz_part.md:228` 的 Phase 1.x 提升进当前范围。落地为 `skills/resolve_faq_grounded_answer.yaml` 新增 UC-A mandatory critical step `consult-entity-context-before-status-answer`（键在既已 AGENT_VISIBLE 的 `get_customer_context`），写法对齐同文件既有的 UC-FP `consult-moderation-context-on-removal-explanation`。未引入新工具、未改 tool-policy、未改 §0.3 任何冻结项：`get_customer_context` 对 UC-A 本来就是可见的，缺的只是"在给出泛化 FAQ 答案之前必须先查用户自己的实体上下文"这条程序性要求。`lookup_listing_or_ad` 仍为 RUNTIME_ONLY 且无活调用点，本次未依赖它。
 
 ### Deviation 2026-05-01 — action 抽象层移除（dual model → single tool-use layer）
 

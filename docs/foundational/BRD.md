@@ -137,6 +137,16 @@ customer indicates frustration, OR
 
 the issue falls into an out-of-scope category.
 
+> **[REVISED 2026-07-25 — see `phase0_normative_freeze.md` §0.6, deviation
+> "挫败不再是升级触发器 + UC-K 归位到 partial path".]** The
+> "customer indicates frustration" clause above is no longer a deterministic
+> escalation trigger. When the customer expresses frustration but the
+> underlying ask is still explanation- or read-only-query-class, the bot
+> acknowledges and keeps solving; escalation requires an explicit request for
+> a human or a second failed attempt. Fraud, safety, legal / formal-complaint,
+> and imminent-harm topics keep immediate escalation regardless of tone. The
+> other three clauses are unchanged.
+
 
 The bot must communicate expected wait time / next steps when escalating.
 

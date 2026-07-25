@@ -1,0 +1,97 @@
+name: resolve_technical_diagnose_or_intake
+description: >-
+  RESOLVE Skill for the PARTIAL-path UC-K — diagnose the technical issue from
+  the troubleshooting knowledge surface and the user's own account/entity
+  context first; fall back to intake + handover only when the issue genuinely
+  needs backend investigation.
+applicable_phases:
+  - RESOLVE
+applicable_use_cases:
+  - UC-K
+tools_required:
+  - get_customer_context
+  - search_knowledge
+  - resolve_article
+  - update_intake_fields
+  - record_outcome
+  - request_handover
+required_context_keys:
+  - form_context
+  - customer_context
+max_tool_steps: 4
+allow_interim_message: false
+valid_terminal_outcomes:
+  - FINAL_ANSWER
+  - CLARIFICATION_NEEDED
+  - ESCALATE
+objective: "Diagnose the customer's technical issue for {uc_name}, and collect intake details only if it needs backend investigation"
+procedure: "You are a Gumtree customer support agent handling a technical issue ({uc_name}). This use case is PARTIAL-path: some technical issues are answerable from the troubleshooting knowledge base or from the customer's own account state, and some genuinely need engineering investigation. You decide which, per turn — that judgement is yours, not a fixed script. Default order: (1) understand what is failing and on what platform; (2) consult `get_customer_context` when the symptom could be explained by the customer's own account or entity state; (3) call `search_knowledge` for the troubleshooting / app-issue / browser-support surface and `resolve_article` on the best hit, then answer with the `display_citation` token; (4) call `record_outcome` once you have delivered a grounded answer that resolves the issue. Only when the retrieval and context surfaces cannot explain the failure — a genuine backend defect, data corruption, or a repeatable error you have no article for — switch to intake: read the projected `intake_state.fields_remaining` (canonical required set for {uc_id}: {intake_required_fields}), ask ONLY for the next field listed there and never re-ask for anything already in `intake_state.fields_collected`, and call `request_handover` with escalation_reason='{intake_complete_trigger}' plus `arguments.intake_fields` once `intake_state.fields_remaining` is empty and `intake_state.intake_complete` is true. {case_creation_note}"
+grounding_instruction: "Ground every factual claim. Case-specific data you already hold (account / entity context) may be answered from directly. For product behaviour, error meanings, and how-to steps you MUST call `search_knowledge` first if accumulated_tool_results.search_knowledge is empty, then `resolve_article` on the chosen hit, and cite the `display_citation` token in your user_message. Do NOT guess at the cause of a technical failure — an unfounded diagnosis is worse than an honest 'I need to get this looked at'. If retrieval returns no viable hit, say so plainly and move to intake rather than paraphrasing an unrelated article."
+escalation_policy: "Escalate via request_handover when (a) the user explicitly requests a human (escalation_reason='user_requested', priority 1), or (b) intake is complete for a genuine backend issue (escalation_reason='{intake_complete_trigger}'), or (c) you engaged the issue, made a real grounded attempt, and still cannot resolve it (escalation_reason='agent_unable_to_resolve'). Do NOT open with a handover: a technical question you have not yet tried to diagnose is not yet a backend defect. Customer frustration is not by itself a reason to hand over — see the frustration guidance in the system prompt."
+guardrails:
+  - type: intake_complete_required
+    on_fail: reject_with_hint
+    parameters:
+      escalation_reason_pattern: "intake_complete_for_uc_*"
+      required_fields_source: IntakeFieldsRegistry
+  # Same pair the RESOLVE-FAQ Skill carries. UC-K is now a knowledge-capable
+  # path, so it inherits the identical Runtime grounding floor rather than a
+  # bespoke, weaker one: a `record_outcome(resolve)` still needs a citation
+  # and still cannot land before CONFIRM.
+  - type: premature_resolve_outcome_guard
+    on_fail: reject_with_hint
+    parameters: {}
+  - type: must_cite_source
+    on_fail: reject_with_hint
+    parameters:
+      outcome_class: resolve
+state_inheritance:
+  inherit:
+    - customer_context
+    - accumulated_tool_results
+    - intake_fields_partial
+  reset: []
+  soft_signal_via_projection:
+    - prior_use_case_carry
+critical_steps:
+  - id: attempt-diagnosis-before-technical-intake
+    desc: |
+      Before switching a UC-K session into intake-and-handover mode, make a
+      real attempt to diagnose: consult the customer's own context and/or
+      the troubleshooting knowledge surface. UC-K's registry path is
+      PARTIAL precisely because a large share of "the app keeps crashing" /
+      "I can't see search results" / "messages don't open" reports are
+      answered by an existing troubleshooting article or by the customer's
+      own account state. Opening with intake questions on a question that
+      had an article converts a solvable session into a queued case, which
+      is the wrong-containment shape this Skill exists to prevent.
+    trace_check: "any_of(accumulated_tool_results.search_knowledge, accumulated_tool_results.get_customer_context)"
+    mandatory_for:
+      - UC-K
+    severity: mandatory
+  - id: uc-k-intake-complete-before-handover
+    desc: |
+      When a UC-K session does route to intake, the canonical intake fields
+      `platform` and `repro_steps_or_error_message` must both be collected
+      before `request_handover` is dispatched with the
+      `intake_complete_for_uc_k` reason. The engineering triage team needs
+      the platform context plus a concrete repro / error signature to act;
+      without them the report is unactionable. The
+      `intake_complete_required` guardrail refuses such a handover and
+      hints at the missing fields.
+    trace_check: "all_of(intake_state.fields_collected.contains(platform), intake_state.fields_collected.contains(repro_steps_or_error_message))"
+    mandatory_for:
+      - UC-K
+    severity: mandatory
+  - id: cite-article-on-technical-answer
+    desc: |
+      A UC-K answer that explains a product behaviour, an error meaning, or
+      a how-to step is a factual claim about the platform and must carry the
+      `display_citation` token returned by `resolve_article`. Answers drawn
+      purely from the customer's own account/entity context are exempt —
+      that data is its own grounding. This step is advisory because the
+      intake path legitimately ends in a handover with no article citation.
+    trace_check: "tool_event_seq(search_knowledge) < tool_event_seq(resolve_article)"
+    mandatory_for:
+      - UC-K
+    severity: advisory

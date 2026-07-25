@@ -1,10 +1,17 @@
 tools:
+  # WS-3 / A3 (2026-07-25) — UC-K added. Its registry path moved INTAKE -> PARTIAL
+  # (`config/use-case-registry.yaml`), and `phase2_domain_realization_spec.md:493`
+  # has always declared UC-K's knowledge_scope as help_centre_troubleshooting /
+  # app_issues / browser_support. Without these two entries a UC-K session could
+  # not reach that surface at all, which made every technical troubleshooting
+  # question architecturally unresolvable. Capability wiring only (Runtime §1.4);
+  # whether to retrieve on a given turn stays the LLM's call (§1.3).
   search_knowledge:
     type: AGENT_VISIBLE
-    allowed-ucs: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP]
+    allowed-ucs: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP, UC-K]
   resolve_article:
     type: AGENT_VISIBLE
-    allowed-ucs: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP]
+    allowed-ucs: [UC-A, UC-B, UC-C, UC-D, UC-E, UC-F, UC-FP, UC-K]
   get_customer_context:
     type: AGENT_VISIBLE
     allowed-ucs: [UC-A, UC-C, UC-D, UC-F, UC-FP, UC-K]

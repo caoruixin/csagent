@@ -110,6 +110,66 @@ public class UseCaseRegistryService {
         return ucId != null && useCases.containsKey(ucId);
     }
 
+    /** Registry {@code path} value: FAQ-only — may retrieve knowledge, never collects intake. */
+    public static final String PATH_FAQ = "FAQ";
+    /** Registry {@code path} value: intake-only — collects intake fields, never retrieves knowledge. */
+    public static final String PATH_INTAKE = "INTAKE";
+    /**
+     * Registry {@code path} value: both — may retrieve knowledge AND collect intake
+     * fields. The LLM owns which of the two a given turn needs (Constitution §1.3);
+     * the Runtime only publishes the capability (§1.4).
+     */
+    public static final String PATH_PARTIAL = "PARTIAL";
+
+    /**
+     * WS-3 / A3 (2026-07-25) — the three routing predicates the runtime derives
+     * from {@code use-case-registry.yaml}'s {@code path} field.
+     *
+     * <p>Before this, four Java classes each carried their own literal
+     * {@code INTAKE_UCS = {UC-G, UC-H, UC-I, UC-J, UC-K}} constant
+     * ({@code PhaseEvaluator}, {@code ControlKernel},
+     * {@code ResolveDispositionEvaluator}, plus two eval-side Python sets that
+     * already disagreed with each other over UC-K). Duplicated sets drift; the
+     * registry is now the single declaration and these predicates are the only
+     * supported way to ask the question.
+     *
+     * <p>An unknown / unregistered UC is treated as intake-only and
+     * not-knowledge-capable — the conservative direction (no retrieval on an
+     * unrecognised UC).
+     */
+    public boolean isIntakeOnlyPath(String ucId) {
+        return PATH_INTAKE.equals(pathOf(ucId));
+    }
+
+    /**
+     * True when the UC's registry {@code path} permits knowledge retrieval and a
+     * grounded, bot-authored answer ({@code FAQ} or {@code PARTIAL}).
+     */
+    public boolean isKnowledgeCapablePath(String ucId) {
+        String path = pathOf(ucId);
+        return PATH_FAQ.equals(path) || PATH_PARTIAL.equals(path);
+    }
+
+    /**
+     * True when the UC's registry {@code path} requires intake-field collection
+     * before a handover can be considered complete ({@code INTAKE} or
+     * {@code PARTIAL}).
+     */
+    public boolean collectsIntakeFields(String ucId) {
+        String path = pathOf(ucId);
+        return PATH_INTAKE.equals(path) || PATH_PARTIAL.equals(path);
+    }
+
+    /**
+     * The raw registry {@code path} for a UC, or {@code null} when the UC is
+     * unknown or carries no path. Prefer the three predicates above; this
+     * accessor exists for logging / diagnostics.
+     */
+    public String pathOf(String ucId) {
+        UseCaseDefinition def = getUseCase(ucId);
+        return def == null ? null : def.path();
+    }
+
     /**
      * Get all use case definitions.
      */

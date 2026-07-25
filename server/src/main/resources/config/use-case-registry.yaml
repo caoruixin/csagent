@@ -65,12 +65,27 @@ use-cases:
     risk-level: CRITICAL
     allow-bot-resolution: false
     path: INTAKE
+  # WS-3 / A3 (2026-07-25) — UC-K realigned to the `partial` semantics the
+  # domain spec has always described (`phase2_domain_realization_spec.md:493`:
+  # `allow_bot_resolution: partial` — "能通过 get_customer_context 回拉状态解释的走
+  # bot；需后端投诉的走 intake + case"). It was registered as INTAKE / false,
+  # which made every technical troubleshooting question architecturally
+  # unanswerable: the RESOLVE-INTAKE Skill forbids knowledge search, so a
+  # UC-K session could never consult `help_centre_troubleshooting` even when
+  # the answer was one article away. `path: PARTIAL` is the registry's third
+  # value: the UC may retrieve knowledge AND collect intake fields, and the
+  # LLM decides per turn which of the two the user's ask needs.
+  #
+  # `path` is the single source of truth for the runtime's three derived
+  # predicates (see UseCaseRegistryService#isIntakeOnlyPath /
+  # #isKnowledgeCapablePath / #collectsIntakeFields). Adding a UC here is the
+  # only place that classification is declared.
   UC-K:
     name: "Technical Issue Intake"
     topic-subjects: ["Technical Support"]
     risk-level: MEDIUM
-    allow-bot-resolution: false
-    path: INTAKE
+    allow-bot-resolution: true
+    path: PARTIAL
 
 out-of-scope:
   OUT_OF_SCOPE_DELIVERY:

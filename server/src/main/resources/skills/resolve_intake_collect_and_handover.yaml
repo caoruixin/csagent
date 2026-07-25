@@ -2,12 +2,16 @@ name: resolve_intake_collect_and_handover
 description: RESOLVE-INTAKE phase Skill — collect required intake fields and hand over to the matching human team.
 applicable_phases:
   - RESOLVE
+# WS-3 / A3 (2026-07-25): UC-K moved to resolve_technical_diagnose_or_intake.yaml.
+# Its registry path is now PARTIAL (knowledge-capable AND intake-capable); this
+# Skill is the INTAKE-only path and forbids knowledge search, which is exactly
+# what made UC-K unanswerable here. SkillRegistry forbids two Skills colliding
+# on the same (phase, use_case), so the move is a relocation, not a duplication.
 applicable_use_cases:
   - UC-G
   - UC-H
   - UC-I
   - UC-J
-  - UC-K
 tools_required:
   - request_handover
   # Sprint 080 / R7 — lets the LLM persist partial intake fields across turns
@@ -95,15 +99,8 @@ critical_steps:
     mandatory_for:
       - UC-J
     severity: mandatory
-  - id: uc-k-intake-complete-before-handover
-    desc: |
-      For UC-K (Technical Issue Intake), the canonical intake fields
-      `platform` and `repro_steps_or_error_message` must both be
-      collected before `request_handover` is dispatched with the
-      `intake_complete_for_uc_k` reason. The engineering triage team
-      needs the platform context plus a concrete repro / error
-      signature to act; without them the report is unactionable.
-    trace_check: "all_of(intake_state.fields_collected.contains(platform), intake_state.fields_collected.contains(repro_steps_or_error_message))"
-    mandatory_for:
-      - UC-K
-    severity: mandatory
+# WS-3 / A3 (2026-07-25): the uc-k-intake-complete-before-handover step moved
+# with UC-K to resolve_technical_diagnose_or_intake.yaml. It is unchanged in
+# substance — the platform + repro_steps_or_error_message contract still gates
+# an `intake_complete_for_uc_k` handover — it is just declared on the Skill
+# that now owns UC-K.
