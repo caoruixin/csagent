@@ -3,6 +3,11 @@
 > Paste this whole file into a fresh dev session. It is self-contained per
 > `prompt-artifact-rules.md` §9.1: you need nothing else except the
 > `AGENTS.md` governance chain, which loads automatically.
+>
+> **This file IS the contract** (§9.3.1, amended 2026-07-26). There is no
+> separate `sprint_objective.md` to cross-check, and nothing here is a
+> summary of a document held elsewhere. If scope changes mid-sprint, it
+> changes here, in place.
 
 ## 0. Your role and how to start
 
@@ -329,6 +334,25 @@ Write `docs/sprints/sprint-103-handoff.md` covering:
 6. Anything you found that is a real defect but out of contract — list it,
    do not fix it.
 7. Any point in this contract you think is wrong, with evidence.
+
+### What happens after you hand off
+
+So you know what your handoff is for, and why precision in it pays:
+
+- An **independent verifier** will be commissioned *after* you deliver,
+  scoped by your actual diff and the specific claims you made
+  (§9.3.2). It did not see this prompt and has no stake in your
+  implementation. Write §5 of your handoff so that its claims are
+  checkable — name the runs, the counts, and what you did not verify.
+- Its findings come back as **claims, not instructions** (§9.3.3). They
+  are adjudicated against the underlying evidence before any of them
+  become work for you. A verifier can be wrong in the same direction as
+  the specs — on this codebase that has already happened, where three of
+  four reported failures were the verifier's own test defects.
+- If a finding survives adjudication, it comes back to **you**, in this
+  same session, with your context intact (§9.3.4). You are expected to be
+  able to withdraw your own decision if the evidence goes against it.
+  Doing so is a success of this process, not a failure of your work.
 
 ## 8. Commit discipline
 
