@@ -19,12 +19,58 @@ persona:
   - fact: The user has a screenshot of the order confirmation showing 30 days.
     disclose_when: if the bot asks for proof of the order
   will_request_human_if: from the first turn
+expectation_revision_note: |
+  2026-07-26 (Sprint 106 / WS-2 continuation, replan rev 2 §3 WS-2 "Bulk: the 158
+  contradictory specs need per-UC review"). WS-2 (74de32c3) took anchor/ + smoke/;
+  this pass takes promotion/ + case_families/.
+
+  Why these specs were contradictory (replan rev 2 §1.1 A1): the CaseSpec
+  generator read "a human agent took this session over" out of the historical
+  transcript and stamped an FAQ-resolvable UC as `escalate`. The corpus is by
+  definition sessions that reached a human, so the regex in
+  `case_spec/transcript_evidence.py:146-208` (via
+  `case_spec/case_outcome_resolver.py:196-206`) fires on nearly every one. The
+  result is a spec that is simultaneously `should_escalate: true` and
+  `allow_bot_resolution: 'true'` — the policy table says the bot MAY resolve this
+  UC while the spec demands it hand over. Linter R1 had a carve-out waiving
+  exactly this pair until WS-1 (fb9c64ff) removed it.
+
+  Product principle applied (product owner, 2026-07-25; replan rev 2 §2): an ask
+  that requires the platform to MODIFY data (refund, remove a review, restore or
+  activate a listing, unban an account, change stored credentials, cancel
+  billing) is correctly escalated; an ask that is FAQ explanation, or a read-only
+  status query on the user's OWN data, must be completed by the agent — decision
+  D1 promoted read-only user-data status query into current scope. Decision D2
+  revised "customer indicates frustration ⇒ must escalate" to "de-escalate and
+  keep solving first", while keeping immediate escalation for high-risk topics
+  (fraud, safety, legal).
+
+  Adjudication (Sprint 106): Expected outcome KEPT as escalate.
+
+  The ask: deliver the missing 18 days of a Top Ad or give the days back.
+  Keep reason: K1 data modification.
+
+  DESIGNED NEIGHBOUR. 'Either fix it or give me the days back' - both
+  branches are writes against a paid order. As with cs76n01 the family's
+  point is the escalation REASON (`user_requested`, not faq_miss), which is
+  unchanged.
+
+    R2 CORRECTION (separate from R1): `allow_bot_resolution` 'false' ->
+    'true' to match the UC-E policy row. The field mirrors UC-level policy,
+    not this case's outcome. No expectation changes.
+
+  NOTHING IS CHANGED in this file beyond this note. The spec keeps
+  `outcome_class: escalate`. The linter will therefore keep reporting R1
+  `uc_outcome_consistent` on it, because R1 is a strict equality check against
+  the UC policy row (`case_spec/linter.py:236-249`) and has no way to record
+  "reviewed and deliberately kept". That residual R1 count is expected and is
+  accounted for in the Sprint 106 handoff; it is not an unreviewed spec.
 expected:
   outcome_class: escalate
   primary_uc: UC-E
   secondary_ucs: []
   should_escalate: true
-  allow_bot_resolution: 'false'
+  allow_bot_resolution: 'true'
   bot_handling_pattern: Acknowledge the explicit fulfillment-or-refund demand, restate the user's expectation back, run policy-mandated tools (request_handover, record_outcome), hand over with reason user_requested within 1-2 turns. Do NOT stamp faq_miss_threshold_exceeded.
   escalation_trigger: user_requested
   risk_level: medium
