@@ -131,8 +131,7 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
                     + "returns a viable hit (faq_miss=false), do NOT re-search this turn — "
                     + "draft your grounded answer from the existing hits via resolve_article, "
                     + "or escalate; a fresh search_knowledge is only warranted if the prior "
-                    + "result was faq_miss=true or your new query is materially different "
-                    + "from what you already searched.";
+                    + "result was faq_miss=true.";
 
     private static final String FAQ_ESCALATION =
             "Escalate via request_handover if (a) the user explicitly requests "
@@ -306,12 +305,44 @@ class PhaseEvaluatorResolveSkillIntegrationTest {
     }
 
     @Test
-    void intake_ucK_composesGoldenPhasePlan() {
-        // UC-K — Technical Issue; in needsCase set.
-        assertGoldenIntake(evaluator.plan(session("UC-K"), "msg", List.of()),
-                "UC-K", "Technical Issue Intake", "Technical Support",
-                "[platform, repro_steps_or_error_message]",
-                "intake_complete_for_uc_k", CASE_CREATION_NOTE);
+    void partial_ucK_composesPartialPathPhasePlan() {
+        // WS-3 / A3 (2026-07-25): UC-K is no longer composed from the
+        // RESOLVE-INTAKE Skill. Its registry path is PARTIAL and it composes
+        // from resolve_technical_diagnose_or_intake.yaml. The golden
+        // pre-migration parity assertion no longer applies to UC-K — the whole
+        // point of A3 is that the old shape was wrong — so this pins the new
+        // contract's load-bearing properties instead of the legacy strings.
+        PhasePlan plan = evaluator.plan(session("UC-K"), "msg", List.of());
+
+        assertNotNull(plan);
+        assertEquals("RESOLVE", plan.phase());
+        assertEquals("UC-K", plan.useCase());
+        assertEquals(List.of("get_customer_context", "search_knowledge", "resolve_article",
+                        "update_intake_fields", "record_outcome", "request_handover"),
+                plan.allowedTools());
+        assertEquals(Set.of("form_context", "customer_context"), plan.requiredContextKeys());
+        assertEquals(4, plan.maxToolSteps());
+        assertEquals(false, plan.allowInterimMessage());
+        assertEquals(Set.of(TerminalOutcome.FINAL_ANSWER,
+                        TerminalOutcome.CLARIFICATION_NEEDED,
+                        TerminalOutcome.ESCALATE),
+                plan.validTerminalOutcomes());
+        // Placeholder substitution still resolves against the same registries.
+        assertEquals("Diagnose the customer's technical issue for Technical Issue Intake, "
+                        + "and collect intake details only if it needs backend investigation",
+                plan.objective());
+        org.junit.jupiter.api.Assertions.assertTrue(
+                plan.systemInstruction().contains("[platform, repro_steps_or_error_message]"),
+                "{intake_required_fields} must still substitute for UC-K");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                plan.systemInstruction().contains("intake_complete_for_uc_k"),
+                "{intake_complete_trigger} must still substitute for UC-K");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                plan.systemInstruction().contains(CASE_CREATION_NOTE),
+                "UC-K is in the needsCase set, so {case_creation_note} must be populated");
+        org.junit.jupiter.api.Assertions.assertFalse(
+                plan.groundingInstruction().contains("Do NOT search the knowledge base"),
+                "A3: the PARTIAL path must NOT inherit the INTAKE no-retrieval instruction");
     }
 
     // -------------------- legacy paths preserved unchanged --------------------

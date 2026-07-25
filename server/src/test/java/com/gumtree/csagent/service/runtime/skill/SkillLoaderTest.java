@@ -50,10 +50,12 @@ class SkillLoaderTest {
     @Test
     void loadAll_productionSkills_loadsAllSkills() {
         List<Skill> skills = loader.loadAll();
-        assertEquals(6, skills.size(),
+        assertEquals(7, skills.size(),
                 "Post-Sprint-39: 6 production Skill YAMLs (Sprint 38's "
                         + "DISCOVER + CONFIRM + ESCALATE + TERMINAL/CLOSE plus Sprint 39's "
-                        + "RESOLVE-FAQ + RESOLVE-INTAKE)");
+                        + "RESOLVE-FAQ + RESOLVE-INTAKE), plus the WS-3 / A3 "
+                        + "RESOLVE-PARTIAL Skill for UC-K "
+                        + "(resolve_technical_diagnose_or_intake)");
 
         List<String> names = skills.stream().map(Skill::name).toList();
         assertTrue(names.contains("discover_triage"));
@@ -81,7 +83,7 @@ class SkillLoaderTest {
         assertEquals(List.of("CLOSE"), terminal.applicablePhases(),
                 "OQ-7.1 default: keep CLOSE phase enum; file name terminal.yaml carries the M3+ intent");
 
-        // Sprint 39 ÿÿÿ verify the 2 RESOLVE Skills carry their expected guardrails.
+        // Sprint 39 ï¿½ï¿½ï¿½ verify the 2 RESOLVE Skills carry their expected guardrails.
         Skill resolveFaq = skills.stream()
                 .filter(s -> "resolve_faq_grounded_answer".equals(s.name()))
                 .findFirst().orElseThrow();
@@ -101,8 +103,23 @@ class SkillLoaderTest {
                         + "intake_complete_required");
         assertEquals("intake_complete_required",
                 resolveIntake.guardrails().get(0).type());
-        assertEquals(List.of("UC-G", "UC-H", "UC-I", "UC-J", "UC-K"),
+        // WS-3 / A3: UC-K left the INTAKE-only Skill for the PARTIAL-path Skill.
+        assertEquals(List.of("UC-G", "UC-H", "UC-I", "UC-J"),
                 resolveIntake.applicableUseCases());
+
+        Skill resolvePartial = skills.stream()
+                .filter(s -> "resolve_technical_diagnose_or_intake".equals(s.name()))
+                .findFirst().orElseThrow();
+        assertEquals(List.of("UC-K"), resolvePartial.applicableUseCases());
+        assertEquals(List.of("RESOLVE"), resolvePartial.applicablePhases());
+        assertTrue(resolvePartial.toolsRequired().contains("search_knowledge"),
+                "WS-3 / A3: the PARTIAL-path Skill must be able to consult the "
+                        + "troubleshooting knowledge surface â€” that is the whole fix.");
+        assertTrue(resolvePartial.toolsRequired().contains("update_intake_fields"),
+                "WS-3 / A3: it must also retain UC-K's intake capability.");
+        assertEquals(3, resolvePartial.guardrails().size(),
+                "PARTIAL-path Skill carries intake_complete_required + "
+                        + "premature_resolve_outcome_guard + must_cite_source");
     }
 
     @Test

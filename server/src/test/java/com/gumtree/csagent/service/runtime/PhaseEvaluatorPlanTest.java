@@ -172,20 +172,29 @@ class PhaseEvaluatorPlanTest {
     }
 
     @Test
-    void plan_resolveIntakeUcK_caseCreationIsRuntimeOnly() {
+    void plan_resolvePartialUcK_canRetrieveButNeverSeesCaseCreation() {
         // Codex 1.8: case creation is runtime-only; LLM must not see it.
+        //
+        // WS-3 / A3 (2026-07-25): UC-K's registry path moved INTAKE -> PARTIAL,
+        // so its RESOLVE plan is now the PARTIAL-path Skill. It gains the
+        // retrieval tools (the whole point — a technical question it could
+        // answer used to be architecturally unanswerable) and keeps
+        // update_intake_fields. `create_case_controlled` stays runtime-only.
         when(useCaseRegistry.getUseCase("UC-K")).thenReturn(
                 new UseCaseRegistryService.UseCaseDefinition(
                         "UC-K", "Technical Support",
-                        List.of("Tech"), "MEDIUM", false, "INTAKE"));
+                        List.of("Tech"), "MEDIUM", true, "PARTIAL"));
 
         PhasePlan plan = evaluator.plan(session("RESOLVE", "UC-K"), "msg", List.of());
 
         assertNotNull(plan);
-        assertEquals(List.of("request_handover", "update_intake_fields"), plan.allowedTools(),
-                "UC-K allows request_handover + update_intake_fields; case creation is runtime-only");
+        assertEquals(List.of("get_customer_context", "search_knowledge", "resolve_article",
+                        "update_intake_fields", "record_outcome", "request_handover"),
+                plan.allowedTools(),
+                "UC-K is PARTIAL-path: retrieval + entity context + intake, no case creation");
         assertFalse(plan.allowedTools().contains("create_case_controlled"));
-        assertFalse(plan.allowedTools().contains("search_knowledge"));
+        assertTrue(plan.validTerminalOutcomes().contains(TerminalOutcome.FINAL_ANSWER),
+                "PARTIAL-path plan MUST be able to terminate on a grounded final answer");
     }
 
     @Test

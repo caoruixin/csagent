@@ -169,6 +169,55 @@ class ContextProjectionBuilderTest {
         assertEquals("CRITICAL", riskFlags.get(0).asText());
     }
 
+    // --- WS-3 / D2: frustration as an advisory projected soft signal ---
+
+    @Test
+    void buildProjection_frustratedTurn_projectsAdvisorySentimentSignal() throws Exception {
+        BotSession session = buildSession("UC-A", "RESOLVE");
+
+        UseCaseRegistryService.UseCaseDefinition ucDef = new UseCaseRegistryService.UseCaseDefinition(
+                "UC-A", "Ad Status & Visibility", List.of("Ad Support"), "LOW", true, "FAQ");
+        when(useCaseRegistry.getUseCase("UC-A")).thenReturn(ucDef);
+        when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
+        when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
+        when(controlPolicy.getMaxFaqMiss()).thenReturn(2);
+        when(toolPolicyEnforcer.getVisibleToolsForUc("UC-A")).thenReturn(List.of("search_knowledge"));
+
+        String projection = builder.buildProjection(session, List.of(), null,
+                "this is ridiculous, I followed your process and nothing happened");
+        JsonNode root = objectMapper.readTree(projection);
+
+        assertTrue(root.has("user_sentiment_signal"),
+                "D2: a frustrated turn must reach the LLM as a projected signal so the LLM "
+                        + "can own the de-escalate-or-hand-over decision");
+        JsonNode signal = root.get("user_sentiment_signal");
+        assertTrue(signal.get("frustration_detected").asBoolean());
+        assertEquals("advisory", signal.get("binding").asText(),
+                "D2: the signal must be marked advisory — it is NOT an escalation trigger");
+        assertTrue(signal.get("note").asText().contains("NOT a reason to hand over"));
+    }
+
+    @Test
+    void buildProjection_calmTurn_omitsSentimentSignalEntirely() throws Exception {
+        BotSession session = buildSession("UC-A", "RESOLVE");
+
+        UseCaseRegistryService.UseCaseDefinition ucDef = new UseCaseRegistryService.UseCaseDefinition(
+                "UC-A", "Ad Status & Visibility", List.of("Ad Support"), "LOW", true, "FAQ");
+        when(useCaseRegistry.getUseCase("UC-A")).thenReturn(ucDef);
+        when(controlPolicy.getMaxBotTurnsFaq()).thenReturn(6);
+        when(controlPolicy.getMaxClarificationRounds()).thenReturn(3);
+        when(controlPolicy.getMaxFaqMiss()).thenReturn(2);
+        when(toolPolicyEnforcer.getVisibleToolsForUc("UC-A")).thenReturn(List.of("search_knowledge"));
+
+        String projection = builder.buildProjection(session, List.of(), null,
+                "Hi, could you tell me whether my advert is live?");
+        JsonNode root = objectMapper.readTree(projection);
+
+        assertFalse(root.has("user_sentiment_signal"),
+                "Parity invariant: the slot is omitted on the common path, so a calm turn's "
+                        + "projection is byte-identical to the pre-WS-3 shape");
+    }
+
     @Test
     void buildProjection_noActiveUc_shouldReturnEmptyRiskFlags() throws Exception {
         BotSession session = buildSession(null, "DISCOVER");

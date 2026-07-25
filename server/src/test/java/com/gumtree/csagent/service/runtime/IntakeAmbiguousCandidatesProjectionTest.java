@@ -74,6 +74,7 @@ class IntakeAmbiguousCandidatesProjectionTest {
     @Mock private ControlKernel controlKernel;
     @Mock private ControlPolicyService controlPolicy;
     @Mock private UseCaseRegistryService useCaseRegistry;
+    @Mock private com.gumtree.csagent.repository.KbArticleRepository kbArticleRepository;
 
     // -- ContextProjectionBuilder fixtures --
 
@@ -93,7 +94,8 @@ class IntakeAmbiguousCandidatesProjectionTest {
                 sessionRepository, eventRepository, outcomeRepository,
                 handoverLogRepository, botTurnRepository, formIngestion,
                 useCaseRouter, controlKernel, controlPolicy,
-                useCaseRegistry, objectMapper, handoverAssembler, resolver);
+                useCaseRegistry, objectMapper, handoverAssembler, resolver,
+                new com.gumtree.csagent.service.knowledge.ArticleCardAssembler(kbArticleRepository));
 
         projectionBuilder = new ContextProjectionBuilder(
                 objectMapper, useCaseRegistry, controlPolicy, toolPolicyEnforcer, null);

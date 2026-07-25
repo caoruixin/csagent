@@ -123,8 +123,32 @@ class Sprint068ClassifyFirstParaphraseTest {
                 "A3: grounding must discourage re-search after a viable hit");
         assertTrue(grounding.contains("faq_miss=false"),
                 "A3: grounding must key the discipline on faq_miss=false");
-        assertTrue(grounding.contains("materially different"),
-                "A3: grounding must allow a fresh search when the query is materially different");
+        // P1 search re-issue storm (2026-07-25) — INVERTED. This assertion
+        // used to require the clause "...or your new query is materially
+        // different from what you already searched". Measurement retired it:
+        //
+        //  (a) it was FALSE about this runtime. The A3 gate
+        //      (AgentRunLoopImpl, `lastSearchKnowledgeViableHit != null`) and
+        //      the cross-turn gate suppress a re-search after a viable hit
+        //      WITHOUT EVER COMPARING QUERY CONTENT. A "materially different"
+        //      query is suppressed exactly like a paraphrase, so the skill was
+        //      advertising an exemption the runtime does not implement.
+        //  (b) the model quoted it back while storming. Real E2E session
+        //      f62ad6ce-0a0f-4d88-ac05-8d3dc77914c3 turn 1: ten searches, one
+        //      real retrieval, nine suppressed, every step reasoning "a new
+        //      search with a materially different query is warranted".
+        //
+        // The faq_miss=true carve-out below is KEPT and pinned: that one is
+        // true (a non-viable result clears the gate's tracker and a fresh
+        // search really does run).
+        assertFalse(grounding.contains("materially different"),
+                "A3: the re-phrase exemption is retired — it described an exemption the "
+                        + "A3 / cross-turn gates never implemented (they never compare query "
+                        + "content) and the model cited it verbatim while issuing ten searches "
+                        + "in one turn");
+        assertTrue(grounding.contains("faq_miss=true"),
+                "A3: the TRUE carve-out must survive — a non-viable prior result does warrant "
+                        + "a fresh search, and the runtime really does allow it");
     }
 
     // ---- A3: ContextProjectionBuilder search-reuse echo ------------------

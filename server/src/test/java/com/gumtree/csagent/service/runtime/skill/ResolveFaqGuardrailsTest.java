@@ -192,15 +192,18 @@ class ResolveFaqGuardrailsTest {
 
     @Test
     void mustCiteSource_negative_doesNotFire_outside_resolveFaqSkill_scope() {
-        // INTAKE-path UCs route to a different Skill (without must_cite_source).
-        PhasePlan intakePlan = PhasePlan.builder().phase("RESOLVE").useCase("UC-K")
+        // Intake-ONLY UCs route to a different Skill (without must_cite_source).
+        // WS-3 / A3: UC-K is no longer such a UC — its registry path is PARTIAL
+        // and its Skill DOES declare must_cite_source, so this negative control
+        // now uses UC-H, which is still `path: INTAKE`.
+        PhasePlan intakePlan = PhasePlan.builder().phase("RESOLVE").useCase("UC-H")
                 .objective("intake")
                 .allowedTools(List.of("request_handover")).maxToolSteps(3).build();
         // INTAKE Skill's premature_resolve is NOT declared either, so the
         // dispatcher returns empty regardless of outcome class / message.
         assertFalse(dispatcher.checkBeforeOutcomePersist(
                 intakePlan, "resolve",
-                ctx(intakePlan, sess("UC-K", "RESOLVE"), Map.of(),
+                ctx(intakePlan, sess("UC-H", "RESOLVE"), Map.of(),
                         "Your ad is being escalated.")).isPresent());
     }
 }

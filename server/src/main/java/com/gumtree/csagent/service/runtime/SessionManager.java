@@ -7,6 +7,7 @@ import com.gumtree.csagent.repository.BotSessionRepository;
 import com.gumtree.csagent.repository.BotTurnRepository;
 import com.gumtree.csagent.repository.MockHandoverLogRepository;
 import com.gumtree.csagent.repository.SessionOutcomeRepository;
+import com.gumtree.csagent.service.knowledge.ArticleCardAssembler;
 import com.gumtree.csagent.service.runtime.UseCaseRouter.RoutingResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class SessionManager {
     private final ObjectMapper objectMapper;
     private final HandoverPayloadAssembler handoverPayloadAssembler;
     private final EscalationReasonResolver escalationResolver;
+    private final ArticleCardAssembler articleCardAssembler;
 
     public SessionManager(BotSessionRepository sessionRepository,
                           BotEventRepository eventRepository,
@@ -50,7 +52,8 @@ public class SessionManager {
                           UseCaseRegistryService useCaseRegistry,
                           ObjectMapper objectMapper,
                           HandoverPayloadAssembler handoverPayloadAssembler,
-                          EscalationReasonResolver escalationResolver) {
+                          EscalationReasonResolver escalationResolver,
+                          ArticleCardAssembler articleCardAssembler) {
         this.sessionRepository = sessionRepository;
         this.eventRepository = eventRepository;
         this.outcomeRepository = outcomeRepository;
@@ -64,6 +67,7 @@ public class SessionManager {
         this.objectMapper = objectMapper;
         this.handoverPayloadAssembler = handoverPayloadAssembler;
         this.escalationResolver = escalationResolver;
+        this.articleCardAssembler = articleCardAssembler;
     }
 
     /**
@@ -154,7 +158,8 @@ public class SessionManager {
                     // for the user's first message.
                     session.setCurrentPhase("RESOLVE");
                 }
-                greeting = buildGreeting(firstName, topicSubject, session.getActiveUseCase());
+                greeting = buildGreeting(firstName, topicSubject, session.getActiveUseCase(),
+                        adId, description);
             }
             case OUT_OF_SCOPE -> {
                 // Step 3a: differentiate soft OOS (UNKNOWN_TOPIC — no UC candidates
@@ -166,7 +171,7 @@ public class SessionManager {
                     session.setCurrentPhase("DISCOVER");
                     log.info("Session {}: soft OOS (UNKNOWN_TOPIC) -> DISCOVER for one clarifying turn",
                             session.getSessionId());
-                    greeting = buildAmbiguousGreeting(firstName, topicSubject);
+                    greeting = buildAmbiguousGreeting(firstName, topicSubject, adId, description);
                 } else {
                     // Hard OOS: handover-only topic — immediately escalate.
                     // escalation_reason MUST be canonical (request_handover tool enum,
@@ -199,11 +204,11 @@ public class SessionManager {
                                 : ambiguousCandidates.toArray(new String[0]));
                 // Move to DISCOVER to disambiguate
                 session.setCurrentPhase("DISCOVER");
-                greeting = buildAmbiguousGreeting(firstName, topicSubject);
+                greeting = buildAmbiguousGreeting(firstName, topicSubject, adId, description);
             }
             default -> {
                 session.setCurrentPhase("DISCOVER");
-                greeting = buildGreeting(firstName, topicSubject, null);
+                greeting = buildGreeting(firstName, topicSubject, null, adId, description);
             }
         }
 
@@ -379,8 +384,49 @@ public class SessionManager {
                 .replyText(result.responseText())
                 .intent(session.getActiveUseCase())
                 .shouldEndChat(result.shouldEndChat())
-                .additionalData(Map.of("latency_ms", result.latencyMs()))
+                .additionalData(buildReplyAdditionalData(session, result))
                 .build();
+    }
+
+    /**
+     * Assemble the {@code additional_data} block for a normal (non-terminal)
+     * reply.
+     *
+     * <p>Historically this was {@code Map.of("latency_ms", …)} and nothing
+     * else, which left {@code additional_data.articles} permanently unset — so
+     * the UI's FAQ source cards ({@code MessageBubble.tsx:15} →
+     * {@code ArticleCard.tsx}) were unreachable dead code and the knowledge
+     * sources behind an answer reached the customer only as an inline URL in
+     * the reply prose. The cards are now populated from the evidence lineage
+     * this turn already produced; see {@link ArticleCardAssembler} for the
+     * selection rule and the no-internal-id guarantee.
+     *
+     * <p>The {@code articles} key is <em>omitted</em> rather than emitted as an
+     * empty array when the turn used no knowledge source. Two reasons: it
+     * matches the existing convention here (keys appear only when they carry
+     * content, cf. {@code llm_deadline_exceeded} / {@code case_number}), and it
+     * keeps "this turn cited nothing" distinguishable from "assembly ran and
+     * produced nothing". {@code MessageBubble.tsx} guards with
+     * {@code Array.isArray}, so an absent key renders identically to an empty
+     * one.
+     *
+     * <p>Assembly is best-effort: a KB lookup failure must never take down an
+     * otherwise-good reply.
+     */
+    private Map<String, Object> buildReplyAdditionalData(BotSession session,
+                                                          ControlKernel.KernelResult result) {
+        Map<String, Object> additionalData = new LinkedHashMap<>();
+        additionalData.put("latency_ms", result.latencyMs());
+        try {
+            List<Map<String, Object>> articles = articleCardAssembler.assemble(session);
+            if (!articles.isEmpty()) {
+                additionalData.put(ArticleCardAssembler.ARTICLES_KEY, articles);
+            }
+        } catch (Exception e) {
+            log.warn("Session {}: failed to assemble article cards: {}",
+                    session.getSessionId(), e.getMessage());
+        }
+        return additionalData;
     }
 
     /**
@@ -393,25 +439,141 @@ public class SessionManager {
 
     // --- Greeting builders ---
 
-    private String buildGreeting(String firstName, String topicSubject, String activeUc) {
-        String name = (firstName != null && !firstName.isBlank()) ? firstName : "there";
+    /**
+     * Maximum number of characters of the customer's own {@code description}
+     * quoted back in the greeting. Long enough to be recognisable as "the bot
+     * read my form", short enough that the greeting stays one readable
+     * sentence.
+     */
+    private static final int DESCRIPTION_EXCERPT_MAX_CHARS = 140;
+
+    /**
+     * Static greeting for a session whose topic routed to a use case (or to
+     * DISCOVER with no ambiguity).
+     *
+     * <p>Sprint 8.1 §M0 constraint preserved: this method is purely
+     * deterministic string assembly. It performs no LLM call, no retrieval,
+     * and no DB read — the create-session path must never block on an LLM
+     * (see the §M0 note at {@link #createSession}).
+     *
+     * <p>Within that constraint the greeting now <em>carries forward the
+     * information the form already supplied</em> instead of discarding it.
+     * Previously the create-session reply acknowledged only the topic (and
+     * {@link #buildAmbiguousGreeting} not even that), so a customer who had
+     * just typed "My ad isn't performing well. Not many views." into the
+     * description box and supplied an ad id was greeted with a request to
+     * explain what they needed help with. Re-asking for information the
+     * customer already provided is the mechanical-template behaviour the
+     * product principle forbids; the fix is to reflect what we hold, not to
+     * add an LLM call.
+     */
+    private String buildGreeting(String firstName, String topicSubject, String activeUc,
+                                 String adId, String description) {
+        String name = greetingName(firstName);
         String topicSummary = buildTopicSummary(topicSubject, activeUc);
-        return String.format("Hi %s! I'm here to help with your inquiry about %s. Let me look into this for you.", name, topicSummary);
+        return String.format("Hi %s! Thanks for reaching out about %s.%s Let me look into this for you.",
+                name, topicSummary, buildFormAcknowledgement(adId, description));
     }
 
     private String buildOutOfScopeGreeting(String firstName, String topicSubject) {
-        String name = (firstName != null && !firstName.isBlank()) ? firstName : "there";
+        String name = greetingName(firstName);
         return String.format("Hi %s! Thank you for reaching out about %s. " +
                 "This type of inquiry requires assistance from a specialist. " +
                 "I'm connecting you with a human agent now.",
                 name, topicSubject != null ? topicSubject : "your inquiry");
     }
 
-    private String buildAmbiguousGreeting(String firstName, String topicSubject) {
-        String name = (firstName != null && !firstName.isBlank()) ? firstName : "there";
-        return String.format("Hi %s! Thank you for reaching out. " +
-                "I'd like to help you with your inquiry. Could you tell me a bit more about what you need help with?",
-                name);
+    /**
+     * Static greeting for the AMBIGUOUS / soft-OOS routing outcomes, where the
+     * deterministic router could not commit to a use case and the session
+     * lands in DISCOVER.
+     *
+     * <p>Same §M0 constraint and same product principle as
+     * {@link #buildGreeting}. The clarifying question is kept for exactly the
+     * case that still warrants it — the customer described nothing beyond the
+     * topic — and is dropped when a description was supplied, because then the
+     * question would be asking for something already on file. The ad
+     * reference, when present, is acknowledged in both branches. The branch is
+     * decided purely by <em>presence</em> of form fields; no semantic
+     * judgement about the description's content is made here (that stays with
+     * the LLM on the first real turn, per the Constitution §1.3/§1.4 split).
+     */
+    private String buildAmbiguousGreeting(String firstName, String topicSubject,
+                                          String adId, String description) {
+        String name = greetingName(firstName);
+        String topicSummary = buildTopicSummary(topicSubject, null);
+        String acknowledgement = buildFormAcknowledgement(adId, description);
+        if (description == null || description.isBlank()) {
+            return String.format("Hi %s! Thanks for reaching out about %s.%s "
+                            + "Could you tell me a bit more about what you need help with?",
+                    name, topicSummary, acknowledgement);
+        }
+        return String.format("Hi %s! Thanks for reaching out about %s.%s Let me look into this for you.",
+                name, topicSummary, acknowledgement);
+    }
+
+    private static String greetingName(String firstName) {
+        return (firstName != null && !firstName.isBlank()) ? firstName : "there";
+    }
+
+    /**
+     * Render the "here is what I already have from your form" clause, or the
+     * empty string when the form carried neither a description nor an ad id.
+     * Returns a leading space so callers can concatenate directly.
+     */
+    private static String buildFormAcknowledgement(String adId, String description) {
+        String excerpt = describeExcerpt(description);
+        boolean hasAdId = adId != null && !adId.isBlank();
+        if (excerpt != null && hasAdId) {
+            return String.format(" I can see you mentioned \"%s\" for ad %s.", excerpt, adId.trim());
+        }
+        if (excerpt != null) {
+            return String.format(" I can see you mentioned \"%s\".", excerpt);
+        }
+        if (hasAdId) {
+            return String.format(" I have your ad reference %s.", adId.trim());
+        }
+        return "";
+    }
+
+    /**
+     * Deterministic excerpt of the customer's own description, for quoting
+     * back. This is a mechanical truncation, not a summary: whitespace is
+     * collapsed, the text is cut at {@link #DESCRIPTION_EXCERPT_MAX_CHARS} on
+     * a word boundary when possible, and trailing sentence punctuation is
+     * trimmed so the surrounding quotes read cleanly. Returns {@code null}
+     * when there is nothing to quote.
+     */
+    private static String describeExcerpt(String description) {
+        if (description == null || description.isBlank()) {
+            return null;
+        }
+        String collapsed = description.trim().replaceAll("\\s+", " ");
+        if (collapsed.length() > DESCRIPTION_EXCERPT_MAX_CHARS) {
+            String head = collapsed.substring(0, DESCRIPTION_EXCERPT_MAX_CHARS);
+            int lastSpace = head.lastIndexOf(' ');
+            if (lastSpace > DESCRIPTION_EXCERPT_MAX_CHARS / 2) {
+                head = head.substring(0, lastSpace);
+            }
+            collapsed = trimTrailingSentencePunctuation(head) + "...";
+        } else {
+            collapsed = trimTrailingSentencePunctuation(collapsed);
+        }
+        return collapsed.isBlank() ? null : collapsed;
+    }
+
+    private static String trimTrailingSentencePunctuation(String text) {
+        int end = text.length();
+        while (end > 0) {
+            char ch = text.charAt(end - 1);
+            if (ch == '.' || ch == '!' || ch == '?' || ch == ',' || ch == ';'
+                    || ch == ':' || ch == '"' || ch == '\'' || ch == ' ') {
+                end--;
+            } else {
+                break;
+            }
+        }
+        return text.substring(0, end);
     }
 
     private String buildTopicSummary(String topicSubject, String activeUc) {

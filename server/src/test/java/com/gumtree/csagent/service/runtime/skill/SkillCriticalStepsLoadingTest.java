@@ -90,16 +90,24 @@ class SkillCriticalStepsLoadingTest {
         // fields and parses cleanly through the SkillLoader allowlist
         // validation that S-Eval-2 shipped. Per-Skill counts are within the
         // contract's stated 16-22 lower-bound envelope (3-5 per Skill).
+        // WS-3 (2026-07-25) update of the S-Eval-3 checkpoint:
+        //  - D1 adds `consult-entity-context-before-status-answer` (UC-A,
+        //    mandatory) to resolve_faq_grounded_answer: 5 -> 6.
+        //  - A3 splits UC-K out of resolve_intake_collect_and_handover into the
+        //    new resolve_technical_diagnose_or_intake Skill. The UC-K
+        //    intake-complete step MOVES (5 -> 4 on the intake Skill), and the
+        //    new Skill adds two further steps of its own.
         List<Skill> skills = loader.loadAll();
-        assertEquals(6, skills.size(),
-                "6 production Skill YAMLs (M2 close) — S-Eval-3 does not change the file count, "
-                        + "only appends critical_steps: blocks to the existing 6.");
+        assertEquals(7, skills.size(),
+                "6 production Skill YAMLs (M2 close) + the WS-3 / A3 PARTIAL-path Skill "
+                        + "for UC-K (resolve_technical_diagnose_or_intake).");
 
         java.util.Map<String, Integer> expectedCounts = java.util.Map.of(
                 "discover_triage", 3,
                 "confirm", 2,
-                "resolve_faq_grounded_answer", 5,
-                "resolve_intake_collect_and_handover", 5,
+                "resolve_faq_grounded_answer", 6,
+                "resolve_intake_collect_and_handover", 4,
+                "resolve_technical_diagnose_or_intake", 3,
                 "escalate", 2,
                 "terminal", 1
         );
@@ -130,9 +138,10 @@ class SkillCriticalStepsLoadingTest {
             total += s.criticalSteps().size();
         }
 
-        assertEquals(18, total,
-                "S-Eval-3 ships 18 populated critical_steps total across the 6 Skills "
-                        + "(within the contract §2 envelope 16-22 lower-bound; 18-30 outer envelope).");
+        assertEquals(21, total,
+                "S-Eval-3 shipped 18 populated critical_steps across 6 Skills; WS-3 adds "
+                        + "the UC-A entity-context step (D1) and two net-new UC-K steps (A3) "
+                        + "for 21 across 7 Skills (within the contract §2 18-30 outer envelope).");
     }
 
     @Test

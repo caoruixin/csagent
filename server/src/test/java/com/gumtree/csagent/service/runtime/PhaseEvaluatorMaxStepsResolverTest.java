@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.when;
 
 /**
  * Direct unit coverage for
@@ -188,13 +189,36 @@ class PhaseEvaluatorMaxStepsResolverTest {
 
     @Test
     void intakePlan_returnsIncompleteIntake_evenWhenSearchedKnowledge() {
-        // INTAKE plans short-circuit at step 1 and are never attributed to
+        // Intake-ONLY plans short-circuit at step 1 and are never attributed to
         // faq_miss; a search event (even a genuine miss) is shadowed.
+        //
+        // WS-3 / A3: step 1 now reads the UC's registry `path` instead of a
+        // literal UC set, so the mocked registry must supply UC-J's definition.
+        when(useCaseRegistry.getUseCase("UC-J")).thenReturn(
+                new UseCaseRegistryService.UseCaseDefinition(
+                        "UC-J", "Trust & Safety Report",
+                        List.of("Report a Safety Issue"), "CRITICAL", false, "INTAKE"));
         String reason = evaluator.resolveMaxStepsReason(
                 plan("RESOLVE", "UC-J"),
                 maxStepsWith(searchEvent(0, true)),
                 sessionWithClarifications(1));
         assertEquals("incomplete_intake", reason);
+    }
+
+    @Test
+    void partialPathPlan_isNotShortCircuitedToIncompleteIntake() {
+        // WS-3 / A3 negative control: UC-K's registry path is PARTIAL, so a
+        // MAX_STEPS exit is attributed on the evidence (a genuine faq_miss
+        // here), not stamped `incomplete_intake` on the strength of the UC id.
+        when(useCaseRegistry.getUseCase("UC-K")).thenReturn(
+                new UseCaseRegistryService.UseCaseDefinition(
+                        "UC-K", "Technical Issue Intake",
+                        List.of("Technical Support"), "MEDIUM", true, "PARTIAL"));
+        String reason = evaluator.resolveMaxStepsReason(
+                plan("RESOLVE", "UC-K"),
+                maxStepsWith(searchEvent(0, true)),
+                sessionWithClarifications(0));
+        assertEquals("faq_miss_threshold_exceeded", reason);
     }
 
     @Test

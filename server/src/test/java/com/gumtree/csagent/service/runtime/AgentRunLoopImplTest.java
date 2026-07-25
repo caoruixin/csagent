@@ -159,7 +159,18 @@ class AgentRunLoopImplTest {
     void maxSteps_returnsMaxStepsOutcome() {
         when(contextProjectionBuilder.build(any(), any(), any(PhasePlan.class), anyString(), any(), any()))
                 .thenReturn("{}");
-        // Every LLM call requests a tool. Loop should hit maxToolSteps.
+        // Every LLM call requests the SAME tool with the SAME (empty)
+        // arguments, so only step 0 dispatches; steps 1+ are served by the A1
+        // identity cache. The loop still makes exactly maxToolSteps LLM calls.
+        //
+        // P1 (2026-07-25): a no-progress-step budget refund was briefly tried
+        // here and WITHDRAWN the same day after measurement — it let a
+        // paraphrase storm run to maxToolSteps + 4 without changing the
+        // outcome. The loop bound is `step < maxToolSteps`, unchanged, and
+        // this test's original 3/3 expectations stand. See
+        // AgentRunLoopIdempotentRepeatBudgetTest#
+        // suppressedRepeatStorm_neverExceedsMaxToolStepsLlmCalls for the
+        // explicit regression guard against re-introducing the widening.
         when(llmInvocation.invokeChat(anyString(), anyString(), anyString(), anyInt()))
                 .thenReturn(LlmResponse.builder().content("call").build());
         when(actionParser.parse(any())).thenReturn(ParsedAction.builder()
@@ -177,8 +188,13 @@ class AgentRunLoopImplTest {
         AgentRunResult result = loop.run(plan(), session(), "msg", List.of());
 
         assertEquals(TerminalOutcome.MAX_STEPS, result.terminalOutcome());
-        assertEquals(3, result.llmEvents().size());
+        assertEquals(3, result.llmEvents().size(),
+                "the loop makes exactly maxToolSteps LLM calls — suppressed repeats "
+                        + "must never buy extra iterations");
         assertEquals(3, result.toolEvents().size());
+        // Only the FIRST call reached the dispatcher; every later identical
+        // call was served by the A1 identity cache without executing the tool.
+        verify(toolDispatcher, times(1)).dispatch(anyString(), any(), any());
     }
 
     @Test

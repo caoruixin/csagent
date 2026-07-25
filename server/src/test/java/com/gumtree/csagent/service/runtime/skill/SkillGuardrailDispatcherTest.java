@@ -195,7 +195,9 @@ class SkillGuardrailDispatcherTest {
         assertEquals(SkillGuardrailDispatcher.INTAKE_INCOMPLETE_REJECT_REASON,
                 verdict.get().predicateName());
         assertNotNull(verdict.get().trace().get("missing_fields"));
-        assertEquals("resolve_intake_collect_and_handover",
+        // WS-3 / A3: UC-K's Skill changed, but the intake_complete_required
+        // guardrail moved with it — an incomplete UC-K intake is still refused.
+        assertEquals("resolve_technical_diagnose_or_intake",
                 verdict.get().trace().get("skill_name"));
     }
 
@@ -421,16 +423,21 @@ class SkillGuardrailDispatcherTest {
 
     @Test
     void mustCiteSource_doesNotFire_outside_resolve_faq_scope() {
-        // UC-K (INTAKE Skill) does not declare must_cite_source; the
+        // UC-H (INTAKE Skill) does not declare must_cite_source; the
         // dispatcher does not invoke the handler.
-        BotSession s = intakeSession("UC-K",
-                "{\"platform\":\"Mac\",\"repro_steps_or_error_message\":\"button gone\"}");
+        //
+        // WS-3 / A3: this control used to use UC-K. UC-K's registry path is now
+        // PARTIAL and its Skill DOES declare must_cite_source, so the
+        // out-of-scope example moved to UC-H, which is still `path: INTAKE`.
+        BotSession s = intakeSession("UC-H",
+                "{\"ad_id_or_listing_url\":\"1234\",\"registered_email\":\"a@b.com\","
+                        + "\"stated_reason_or_context\":\"wrongly removed\"}");
         DispatchContext ctx = new DispatchContext(
-                intakePlan("UC-K"), s, Map.of(),
-                "Connecting you to Technical Support.",
-                Optional.of("Connecting you to Technical Support."));
+                intakePlan("UC-H"), s, Map.of(),
+                "Connecting you to Ad Support.",
+                Optional.of("Connecting you to Ad Support."));
         assertFalse(dispatcher.checkBeforeOutcomePersist(
-                intakePlan("UC-K"), "resolve", ctx).isPresent());
+                intakePlan("UC-H"), "resolve", ctx).isPresent());
     }
 
     @Test

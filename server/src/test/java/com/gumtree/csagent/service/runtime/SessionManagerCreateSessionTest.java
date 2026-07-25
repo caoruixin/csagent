@@ -44,6 +44,7 @@ class SessionManagerCreateSessionTest {
     @Mock private ControlKernel controlKernel;
     @Mock private ControlPolicyService controlPolicy;
     @Mock private UseCaseRegistryService useCaseRegistry;
+    @Mock private com.gumtree.csagent.repository.KbArticleRepository kbArticleRepository;
 
     private SessionManager sessionManager;
 
@@ -57,7 +58,8 @@ class SessionManagerCreateSessionTest {
                 sessionRepository, eventRepository, outcomeRepository,
                 handoverLogRepository, botTurnRepository, formIngestion,
                 useCaseRouter, controlKernel, controlPolicy,
-                useCaseRegistry, objectMapper, handoverAssembler, resolver);
+                useCaseRegistry, objectMapper, handoverAssembler, resolver,
+                new com.gumtree.csagent.service.knowledge.ArticleCardAssembler(kbArticleRepository));
     }
 
     @Test
@@ -100,8 +102,17 @@ class SessionManagerCreateSessionTest {
                 null, "I have a complex issue with my account and billing");
 
         assertNotNull(response);
-        assertTrue(response.getReplyText().contains("Could you tell me a bit more"),
-                "Ambiguous routing must produce the disambiguating greeting. Got: "
+        // P1-B (2026-07-25): the assertion used to require the literal
+        // "Could you tell me a bit more" here even though this fixture DOES
+        // supply a description. Re-asking for information the form already
+        // carried is the defect; the disambiguating question is now reserved
+        // for the description-blank case, pinned by
+        // SessionManagerGreetingFormContextTest.
+        assertFalse(response.getReplyText().contains("Could you tell me a bit more"),
+                "Ambiguous routing with a supplied description must NOT re-ask for it. Got: "
+                        + response.getReplyText());
+        assertTrue(response.getReplyText().contains("complex issue with my account and billing"),
+                "Ambiguous greeting must carry forward the description the form supplied. Got: "
                         + response.getReplyText());
         verify(controlKernel, never()).processMessage(any(BotSession.class), anyString());
     }
