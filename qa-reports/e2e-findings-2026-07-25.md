@@ -31,9 +31,58 @@ Executed from the orchestrating session against the user-managed services
 2 xpassed** (46 s). The two `xpass` entries are the deliberately-not-weakened
 assertions for P1-01 and P1-03, which flipped once the fixes were served.
 
-Browser scenarios 7–8 (chat UI, admin trace) remain **unverified** — driving a
-real Chrome requires the operator to approve a browser connection, which did
-not occur in this session. Unverified is not a pass.
+**Run 3 — after the P1-04 fix and another restart:** the corrected `test_06`
+passed **6/6** (previously 2 failures in 10 runs). Six runs cannot prove
+elimination — 0/6 is still consistent with a true rate up to roughly 39 % at
+95 % confidence — but it is consistent with the mechanism, which was a false
+statement in the projection that the model quoted back verbatim ten times.
+
+**Browser scenarios 7–8 — VERIFIED.** Note the UI was not in fact running at
+the start of this session: port 5173 was occupied by an unrelated project's
+dev server, and `ui/node_modules` was absent. After `npm install` and
+`npm run dev`:
+
+- Scenario 7 (chat UI): the pre-chat form submits, the greeting shows the
+  P1-B fix in the real product — *"Hi Riley! Thanks for reaching out about ad
+  support. I can see you mentioned 'How do I repost my expired advert?'"* — and
+  the reply renders **an ArticleCard with title, snippet and a Read-more
+  link**, confirming P1-C end-to-end. That component had been dead code.
+- Scenario 8 (admin trace): the dashboard loads with its Sessions / Traces /
+  Handover Queue / Events / Metrics tabs and lists the sessions this run
+  produced.
+
+## P1-05 — intermittent stall placeholder followed by a repeated intake question
+
+Surfaced by the corrected `test_04`, which now drives the UC-H appeal flow to
+completion. Fails roughly 1 run in 4:
+
+```
+"I'm looking into this for you."
+"Thanks, Riley. Could you please tell me why you think it was removed by
+ mistake? That way I can pass the full details to our Ad Support team."
+"Thanks, Riley. Could you please tell me why you think it was removed by
+ mistake? That way I can pass the full details to our Ad Support team."
+```
+
+**Pre-existing, not a regression.** The opening line is the stall placeholder
+already documented in the `cs095` failure brief ("stall placeholder without
+follow-on tool call"), and the repeated-beat shape is
+`R-slow-llm-placeholder-coalesce` in `docs/action_bank.md` — an `infra`-layer
+item logged at Sprint 19 with n=5 (cs002 / cs011 / cs014 / cs038 / cs040) and
+a documented remediation: coalesce consecutive deadline events into one
+user-facing beat, or escalate honestly on the second. It reproduces
+intermittently both before and after this session's changes; the corrected
+test merely drives enough turns to expose it.
+
+## Observation — answer quality varies on the same question
+
+Not a defect, recorded for the record. "How do I repost my expired advert?"
+produced two materially different groundings across runs: one citing *How Long
+Are Ads Active?* with the correct Inactive Ads → Edit → Update My Ad flow, and
+one citing *Deleting Ads* and advising the customer to delete and recreate the
+ad. Both are grounded in real published articles and neither is a grounding
+violation, but the second is worse advice. This is answer-selection variance,
+the surface WS-2's corrected specs are intended to start measuring.
 
 ## P0
 
