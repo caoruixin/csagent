@@ -87,6 +87,79 @@ public class AgentRunLoopImpl implements AgentRunLoop {
     private static final int CROSS_TURN_SUPPRESSION_BUDGET = 1;
 
     /**
+     * P1 idempotent-spin — WITHDRAWN no-progress step grace (2026-07-25,
+     * same day; kept as a documented negative result, not as behaviour).
+     *
+     * <p>The first attempt at this defect refunded "no-progress" steps (loop
+     * iterations in which every tool call was served by one of the three
+     * idempotency backstops, so no tool executed) and raised the loop ceiling
+     * to {@code maxToolSteps + 4}. <strong>Measurement falsified it.</strong>
+     * Real E2E session {@code f62ad6ce-0a0f-4d88-ac05-8d3dc77914c3} turn 1:
+     * the first {@code search_knowledge} landed a viable hit
+     * ({@code faq_miss=false}) and the within-turn A3 gate therefore
+     * suppressed <em>every</em> subsequent search that turn — all nine were
+     * no-progress steps, none were charged, and the turn ran to the absolute
+     * ceiling {@code 10 = 6 + 4} before escalating with the SAME
+     * {@code turn_budget_exhausted}. The refund did not change a single
+     * outcome; it bought the paraphrase storm four extra LLM calls of latency
+     * and four extra chances to re-phrase.
+     *
+     * <p>Conclusion: a backstop serve is not "nothing happened" — it is
+     * evidence the LLM is spinning, and refunding it rewards the spin. The
+     * work budget is restored to its original meaning: <strong>the loop makes
+     * at most {@code plan.maxToolSteps()} LLM invocations, exactly as before
+     * this file was touched.</strong> The no-progress accounting below is
+     * retained as OBSERVABILITY ONLY (it is what makes a storm visible in the
+     * logs) and has zero effect on control flow.
+     *
+     * <p>The real defect is one layer up and is fixed there: the LLM could not
+     * see the queries it had already issued this turn (the {@code
+     * already_called} slot carries only an opaque {@code arguments_hash}), so
+     * "is my new query materially different?" was an unanswerable question. See
+     * {@code ContextProjectionBuilder.buildSearchAttemptsNode}.
+     */
+
+    /**
+     * P1 idempotent-spin fix (2026-07-25) — key under which a backstop-served
+     * tool result carries its LLM-visible "this call was not executed"
+     * diagnostic inside {@code accumulated_tool_results.<tool>}. Added as an
+     * EXTRA key on a COPY of the served payload, so every existing reader of
+     * {@code hits} / {@code faq_miss} / {@code error} (projection,
+     * {@code SkillGuardrailDispatcher}) sees a byte-identical superset and the
+     * grounding evidence is never overwritten. Mirrors the existing
+     * {@code RejectVerdict} {@code error}/{@code hint} shape used at the
+     * guardrail reject sites below.
+     */
+    private static final String REPEAT_SUPPRESSED_KEY = "repeat_suppressed";
+
+    /**
+     * P1 idempotent-spin — the per-call statement served with every
+     * backstop-suppressed call. The silent-replay behaviour was half the
+     * defect: the gate returned the SAME payload with no indication the call
+     * had not run, so the LLM read it as "my query returned irrelevant
+     * results" and re-issued it.
+     *
+     * <p><strong>Measured limitation, recorded honestly:</strong> this line
+     * alone did NOT stop the storm. Session
+     * {@code f62ad6ce-0a0f-4d88-ac05-8d3dc77914c3} turn 1 shows it delivered
+     * at steps 3 and 8 and ignored both times; the model kept re-phrasing. It
+     * is retained because it is true and cheap, but the load-bearing fix is
+     * the {@code search_attempts_this_turn} projection slot, which gives the
+     * model the data it needs instead of telling it what to conclude.
+     *
+     * <p>Rewritten to state the mechanical consequence rather than issue an
+     * instruction. Structural and tool-agnostic — no use case, no keyword, no
+     * outcome preference (in particular it does NOT suggest escalating).
+     */
+    private static final String REPEAT_SUPPRESSED_HINT =
+            "This call was NOT executed. An identical or equivalent call earlier in "
+                    + "this session already produced the result shown here, and the runtime "
+                    + "returned that result unchanged rather than querying again. Re-issuing "
+                    + "it — in any wording — returns this same payload and still consumes one "
+                    + "of your remaining tool steps. See search_attempts_this_turn for every "
+                    + "query you have issued this turn and what each one returned.";
+
+    /**
      * Sprint 8.1 §M3 — DISCOVER classification phase boundary. When the
      * LLM successfully calls this tool inside a DISCOVER plan and
      * {@link com.gumtree.csagent.service.tools.ClassifyUseCaseTool}
@@ -217,6 +290,32 @@ public class AgentRunLoopImpl implements AgentRunLoop {
 
         int maxSteps = Math.max(1, plan.maxToolSteps());
 
+        // P1 idempotent-spin — OBSERVABILITY-ONLY step accounting.
+        //
+        //   * `dispatchingSteps` counts steps in which at least one tool was
+        //     really executed (or rejected pre-dispatch).
+        //   * `noProgressSteps` counts steps in which EVERY call was served by
+        //     an idempotency backstop (A1 / within-turn A3 / cross-turn) —
+        //     zero tools executed, zero new information.
+        //
+        // NEITHER gates the loop. The withdrawn budget-refund experiment is
+        // documented on the retired NO_PROGRESS_STEP_GRACE javadoc above: it
+        // was measured to buy a paraphrase storm four extra LLM calls without
+        // changing any outcome, so the loop bound is exactly `step < maxSteps`
+        // as it always was. These counters exist so a storm is visible in the
+        // logs (`no_progress_steps` >> 0 on a turn that hit MAX_STEPS is the
+        // signature) without changing behaviour.
+        int dispatchingSteps = 0;
+        int noProgressSteps = 0;
+
+        // P1 idempotent-spin fix (2026-07-25) — per-run count of how many
+        // times each tool-call identity (toolName + canonicalArgumentsHash)
+        // has been SERVED WITHOUT A FRESH DISPATCH by any of the three
+        // backstops. Feeds the escalating `identical_serve_count` in the
+        // LLM-visible diagnostic below so a repeat is observably a repeat.
+        // Pure cardinality per call identity — no content/keyword/UC logic.
+        Map<String, Integer> backstopServeCounts = new LinkedHashMap<>();
+
         // Sprint 7.1 §J0 — persist partial intake fields from the current
         // user turn + form context BEFORE the first projection so the
         // intake_state surface reflects what the user has already supplied.
@@ -303,6 +402,19 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         boolean crossTurnRefinementCountedThisTurn = false;
 
         for (int step = 0; step < maxSteps; step++) {
+            // P1 idempotent-spin — per-step progress flags, reset every
+            // iteration. Set at the four mutually exclusive outcomes a tool
+            // call can have inside this step:
+            //   freshDispatchThisStep  -> reached toolDispatcher.dispatch(...)
+            //   backstopServedThisStep -> served by A1 / A3 / cross-turn gate
+            //   otherOutcomeThisStep   -> rejected pre-dispatch (plan
+            //                             whitelist / Skill guardrail) or a
+            //                             malformed nameless call
+            // Only (backstopServed && !fresh && !other) is a no-progress step.
+            boolean freshDispatchThisStep = false;
+            boolean backstopServedThisStep = false;
+            boolean otherOutcomeThisStep = false;
+
             // 1. Build plan-aware projection.
             //
             // Sprint 20 Track B (R-prompt-projection-already-called-soft-
@@ -485,6 +597,8 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 String toolName = call == null ? null : call.getName();
                 if (toolName == null || toolName.isBlank()) {
                     log.warn("AgentRunLoop received tool_call with no name at step {}", step);
+                    // Not a backstop serve — charge the step (conservative).
+                    otherOutcomeThisStep = true;
                     continue;
                 }
 
@@ -499,6 +613,9 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                             sequence++, step, base2.toolName(), base2.arguments(),
                             base2.success(), base2.resultData(), base2.errorMessage(),
                             base2.latencyMs()));
+                    // A plan rejection is NEW information for the LLM — charge
+                    // the step (it is not an idempotent no-op serve).
+                    otherOutcomeThisStep = true;
                     continue;
                 }
 
@@ -554,6 +671,9 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                             guardWrap.put("missing_fields", missing);
                         }
                         accumulatedToolResults.put(HANDOVER_TOOL, guardWrap);
+                        // A guardrail rejection is NEW information (error +
+                        // hint) — charge the step.
+                        otherOutcomeThisStep = true;
                         continue;
                     }
                 }
@@ -595,6 +715,9 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                                 || "none".equals(session.getRecordOutcomeGuardResult()))) {
                             session.setRecordOutcomeGuardResult("rejected:" + v.predicateName());
                         }
+                        // A guardrail rejection is NEW information (error +
+                        // hint) — charge the step.
+                        otherOutcomeThisStep = true;
                         continue;
                     }
                 }
@@ -641,11 +764,20 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                                 sequence++, step, base3.toolName(), base3.arguments(),
                                 base3.success(), base3.resultData(), base3.errorMessage(),
                                 base3.latencyMs(), base3.deduplicated(), base3.originalAtStep()));
-                        accumulatedToolResults.put(toolName, cachedHit.resultData());
+                        // P1 idempotent-spin fix — the ToolEvent keeps the
+                        // cached payload byte-identical (trace contract); only
+                        // the LLM-visible accumulated copy carries the
+                        // "not executed / stop repeating" diagnostic.
+                        int serveCount = countBackstopServe(backstopServeCounts, dedupKey);
+                        accumulatedToolResults.put(toolName, withRepeatSuppressedNotice(
+                                cachedHit.resultData(), "a1_identity_cache",
+                                "step " + cachedHit.stepIndex(), serveCount));
+                        backstopServedThisStep = true;
                         log.info(
                                 "AgentRunLoop A1 dedup: byte-identical {} at step {} served from "
-                                        + "per-run cache (original_at_step={}); tool not re-dispatched",
-                                toolName, step, cachedHit.stepIndex());
+                                        + "per-run cache (original_at_step={}, identical_serve_count={}); "
+                                        + "tool not re-dispatched, step not charged against the work budget",
+                                toolName, step, cachedHit.stepIndex(), serveCount);
                         continue;
                     }
                 }
@@ -690,13 +822,20 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                             base4.success(), base4.resultData(), base4.errorMessage(),
                             base4.latencyMs(), base4.deduplicated(), base4.originalAtStep(),
                             base4.paraphraseSuppressed(), base4.faqHitAtStep()));
-                    accumulatedToolResults.put(toolName,
-                            lastSearchKnowledgeViableHit.resultData());
+                    int serveCount = countBackstopServe(backstopServeCounts,
+                            dedupKey == null ? toolName : dedupKey);
+                    accumulatedToolResults.put(toolName, withRepeatSuppressedNotice(
+                            lastSearchKnowledgeViableHit.resultData(),
+                            "within_turn_faq_hit",
+                            "step " + lastSearchKnowledgeViableHit.stepIndex(),
+                            serveCount));
+                    backstopServedThisStep = true;
                     log.info(
                             "AgentRunLoop A3 backstop: same-turn search_knowledge re-search at "
-                                    + "step {} suppressed (prior viable hit at step {}); tool not "
-                                    + "re-dispatched",
-                            step, lastSearchKnowledgeViableHit.stepIndex());
+                                    + "step {} suppressed (prior viable hit at step {}, "
+                                    + "identical_serve_count={}); tool not re-dispatched, step not "
+                                    + "charged against the work budget",
+                            step, lastSearchKnowledgeViableHit.stepIndex(), serveCount);
                     continue;
                 }
 
@@ -737,14 +876,20 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                                     base5.originalAtStep(), base5.paraphraseSuppressed(),
                                     base5.faqHitAtStep(), base5.crossTurnParaphraseSuppressed(),
                                     base5.crossTurnHitAtTurn()));
-                            accumulatedToolResults.put(toolName, standingPayload);
+                            int serveCount = countBackstopServe(backstopServeCounts,
+                                    dedupKey == null ? toolName : dedupKey);
+                            accumulatedToolResults.put(toolName, withRepeatSuppressedNotice(
+                                    standingPayload, "cross_turn_standing_hit",
+                                    "turn " + standingHitTurnSnapshot, serveCount));
+                            backstopServedThisStep = true;
                             log.info(
                                     "AgentRunLoop A(cross-turn) backstop: cross-turn "
                                             + "search_knowledge re-search at step {} suppressed "
                                             + "(standing viable hit for UC={} captured at turn {}, "
-                                            + "budget {} spent); tool not re-dispatched",
+                                            + "budget {} spent, identical_serve_count={}); tool not "
+                                            + "re-dispatched, step not charged against the work budget",
                                     step, standingHitUcSnapshot, standingHitTurnSnapshot,
-                                    standingBudgetSnapshot);
+                                    standingBudgetSnapshot, serveCount);
                             continue;
                         }
                         // Malformed / unreadable standing payload → FAIL OPEN:
@@ -768,6 +913,12 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 }
 
                 // 6b. Dispatch and record event
+                //
+                // P1 idempotent-spin fix — reaching here means a tool is
+                // ACTUALLY executed this step (success, tool-side error, or
+                // thrown exception all count as real work), so the step is
+                // charged against plan.maxToolSteps() exactly as before.
+                freshDispatchThisStep = true;
                 long tt = System.currentTimeMillis();
                 ToolResult result;
                 try {
@@ -957,6 +1108,23 @@ public class AgentRunLoopImpl implements AgentRunLoop {
                 return AgentRunResult.escalate(handoverReason, llmEvents, toolEvents,
                         lastProjection, lastLlmRawResponse, llmCallRecords);
             }
+
+            // P1 idempotent-spin — OBSERVABILITY ONLY (see the counters'
+            // declaration): classify the step just completed. A step counts as
+            // no-progress when at least one call was served by an idempotency
+            // backstop AND no tool was dispatched AND nothing was rejected.
+            // The budget is NOT altered either way.
+            if (backstopServedThisStep && !freshDispatchThisStep && !otherOutcomeThisStep) {
+                noProgressSteps++;
+                log.warn(
+                        "AgentRunLoop step {} did NO work (every tool call was served by an "
+                                + "idempotency backstop; the LLM is re-issuing searches that "
+                                + "cannot retrieve anything new) — max_tool_steps={}, "
+                                + "no_progress_steps={}",
+                        step, maxSteps, noProgressSteps);
+            } else {
+                dispatchingSteps++;
+            }
         }
 
         // Loop exhausted. Sprint 8.2 §M0b — preserve the last LLM raw
@@ -964,9 +1132,75 @@ public class AgentRunLoopImpl implements AgentRunLoop {
         // "no LLM call for this turn" when multiple successful LLM calls
         // happened before the loop hit maxToolSteps. Terminal outcome and
         // PhaseEvaluator MAX_STEPS mapping are unchanged.
-        log.warn("AgentRunLoop hit max_tool_steps={} without terminal outcome", maxSteps);
+        log.warn("AgentRunLoop hit max_tool_steps={} without terminal outcome "
+                        + "(dispatching_steps={}, no_progress_steps={})",
+                maxSteps, dispatchingSteps, noProgressSteps);
         return AgentRunResult.maxSteps(llmEvents, toolEvents, lastProjection,
                 lastLlmRawResponse, llmCallRecords);
+    }
+
+    /**
+     * P1 idempotent-spin fix (2026-07-25) — increment and return the per-run
+     * count of how many times {@code identityKey} has been served by an
+     * idempotency backstop WITHOUT a fresh dispatch. The first backstop serve
+     * for an identity returns {@code 1}. Pure cardinality on the existing
+     * {@code toolName + canonicalArgumentsHash} identity — no content,
+     * keyword, similarity, or per-UC logic.
+     */
+    static int countBackstopServe(Map<String, Integer> counts, String identityKey) {
+        if (counts == null || identityKey == null) return 1;
+        return counts.merge(identityKey, 1, Integer::sum);
+    }
+
+    /**
+     * P1 idempotent-spin fix (2026-07-25) — return the LLM-visible copy of a
+     * backstop-served payload, carrying an extra {@link #REPEAT_SUPPRESSED_KEY}
+     * diagnostic that states the tool was NOT executed, which backstop served
+     * it, where the served evidence came from, how many times this identity has
+     * now been served without running, and the tool-agnostic
+     * {@link #REPEAT_SUPPRESSED_HINT} telling the LLM to take a different
+     * action.
+     *
+     * <p>Why this exists: before this fix the three backstops replayed the
+     * prior payload SILENTLY. The LLM saw a result that did not match the
+     * query it had just issued, concluded its search had returned irrelevant
+     * material, and re-issued it — burning the whole tool-step budget and
+     * exiting via MAX_STEPS → {@code turn_budget_exhausted}. The runtime owns
+     * idempotency (Constitution §1.4), so it must also tell the LLM that
+     * idempotency fired; this is the same {@code error} + {@code hint} shape
+     * the Skill guardrail rejections already put on
+     * {@code accumulated_tool_results}.
+     *
+     * <p>Shape safety: the notice is added to a COPY, under a NEW key, so the
+     * payload remains a strict superset of what it was. {@code hits},
+     * {@code faq_miss}, {@code source_ids} and the absence of {@code error}
+     * are all preserved — no existing reader (projection
+     * {@code search_reuse_instruction}, {@code SkillGuardrailDispatcher}
+     * grounding / handover predicates) changes verdict. A non-{@code Map}
+     * payload is returned unchanged rather than wrapped.
+     *
+     * <p>The corresponding {@link ToolEvent} keeps the un-annotated payload,
+     * so the persisted trace contract is byte-unchanged.
+     */
+    static Object withRepeatSuppressedNotice(Object servedPayload,
+                                             String backstopLabel,
+                                             String servedFrom,
+                                             int identicalServeCount) {
+        if (!(servedPayload instanceof Map<?, ?> payloadMap)) {
+            return servedPayload;
+        }
+        Map<String, Object> copy = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> e : payloadMap.entrySet()) {
+            copy.put(String.valueOf(e.getKey()), e.getValue());
+        }
+        Map<String, Object> notice = new LinkedHashMap<>();
+        notice.put("tool_not_executed", true);
+        notice.put("backstop", backstopLabel);
+        notice.put("served_from", servedFrom);
+        notice.put("identical_serve_count", identicalServeCount);
+        notice.put("hint", REPEAT_SUPPRESSED_HINT);
+        copy.put(REPEAT_SUPPRESSED_KEY, notice);
+        return copy;
     }
 
     /**

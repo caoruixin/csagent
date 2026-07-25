@@ -444,6 +444,38 @@ public class ContextProjectionBuilder {
             }
             projection.set("risk_flags", riskFlagsNode);
 
+            // WS-3 / D2 (2026-07-25) — frustration as a projected SOFT SIGNAL.
+            //
+            // The BRD's "the bot must escalate after ... customer indicates
+            // frustration" rule is revised to "de-escalate and keep solving
+            // first" (phase0_normative_freeze.md §0.6, deviation 2026-07-25).
+            // The implementation of that revision is this slot: the runtime's
+            // deterministic detector still runs, but its output is handed to
+            // the LLM as an observation instead of being spent on a control
+            // decision. Whether a frustrated turn should be handed over
+            // depends on what the customer is actually asking for, which is a
+            // semantic judgement the Constitution assigns to the LLM (§1.3);
+            // encoding it as a keyword-driven trigger is what §1.5 / §1.7
+            // forbid. The deterministic floor that remains is unchanged and
+            // lives elsewhere: an explicit request for a human (ControlKernel
+            // step 2.5 / DriftDetector) and the fraud / safety / GDPR /
+            // payment hard shifts in risk-keywords.yaml.
+            //
+            // The slot is OMITTED entirely when no signal fires, so the common
+            // path is byte-identical to the pre-WS-3 projection.
+            if (EscalationReasonResolver.hasDistressSignal(userMessage)) {
+                ObjectNode sentimentNode = objectMapper.createObjectNode();
+                sentimentNode.put("frustration_detected", true);
+                sentimentNode.put("binding", "advisory");
+                sentimentNode.put("note",
+                        "The customer sounds frustrated on this turn. This is an "
+                                + "observation, not an instruction: frustration on its own is "
+                                + "NOT a reason to hand over. Acknowledge it and keep solving "
+                                + "if the underlying ask is still something you can explain or "
+                                + "look up. You own this judgement.");
+                projection.set("user_sentiment_signal", sentimentNode);
+            }
+
             // Sprint 7 §I2 — intake_state projection. Surfaces required /
             // collected / remaining fields and intake_complete for INTAKE-path
             // UCs (UC-G/H/I/J/K) so the LLM can ask only for missing fields
@@ -997,6 +1029,24 @@ public class ContextProjectionBuilder {
             // present even when there is no PhasePlan / accumulated results.
             projection.set("already_called", buildAlreadyCalledNode(priorToolEvents));
 
+            // P1 paraphrase-storm fix (2026-07-25) — the LLM's own
+            // search_knowledge attempts THIS TURN, verbatim. `already_called`
+            // above carries only an opaque `arguments_hash`, so the LLM could
+            // not read back the queries it had already issued; the question
+            // "is my new query materially different from what I already
+            // searched?" was literally unanswerable from the projection, and
+            // the model answered it optimistically every time (measured:
+            // session f62ad6ce-… turn 1, ten searches, nine suppressed, all
+            // reasoning "the prior search was about X, not Y"). This slot is
+            // deterministic STATE, not an instruction: it reports what was
+            // asked, whether the tool actually ran, and what came back.
+            // §1.3 keeps the decision with the LLM; §1.4/§3.2-Q3 make it the
+            // Runtime's job to surface the state that decision needs.
+            projection.set("search_attempts_this_turn",
+                    buildSearchAttemptsNode(priorToolEvents));
+            projection.set("search_attempts_summary",
+                    buildSearchAttemptsSummaryNode(priorToolEvents));
+
             // R4.a #6 + #7 — ad-context premise projection. Surfaces already-
             // observed runtime state (form_context.email/ad_id presence + the
             // lookup_listing_or_ad tool result) as a structured enum + struct,
@@ -1144,15 +1194,44 @@ public class ContextProjectionBuilder {
                 if (priorSearch != null && priorSearch.has("faq_miss")
                         && !priorSearch.path("faq_miss").asBoolean(true)) {
                     projection.put("prior_search_knowledge_viable_hit", true);
+                    // P1 paraphrase-storm fix (2026-07-25) — REWRITTEN.
+                    //
+                    // The previous wording ended "...a fresh search_knowledge is
+                    // only warranted if the prior result was faq_miss=true or
+                    // your new query is materially different from what you
+                    // already searched." That clause was measured to be the
+                    // licence the model cited, verbatim, while issuing ten
+                    // searches in one turn (session f62ad6ce-… step-by-step
+                    // reasoning: "the prior search was about ad status, not
+                    // visibility tips. A new search with a materially different
+                    // query is warranted"). It granted an exemption whose
+                    // precondition the model had no data to evaluate, because
+                    // its own prior queries were not in the projection.
+                    //
+                    // The replacement removes the exemption clause and states
+                    // the MECHANICAL CONSEQUENCE instead: while a viable hit
+                    // stands, the runtime serves it back rather than retrieving
+                    // again, and the attempt still costs a tool step. That is a
+                    // true statement about how this runtime behaves (the A1 /
+                    // A3 / cross-turn backstops), not an instruction and not a
+                    // rule — the LLM still owns whether to search (§1.3). It is
+                    // paired with search_attempts_this_turn, which is where the
+                    // model can now actually check what it already asked.
                     projection.put("search_reuse_instruction",
                             "A prior search_knowledge in this turn already returned a viable hit "
                             + "(faq_miss=false); the hits are in "
                             + "accumulated_tool_results.search_knowledge.hits. Do NOT call "
                             + "search_knowledge again this turn — draft your grounded "
                             + "customer-facing answer via resolve_article from those existing "
-                            + "hits (cite the source_id), or escalate. A fresh search_knowledge "
-                            + "is only warranted if the prior result was faq_miss=true or your "
-                            + "new query is materially different from what you already searched.");
+                            + "hits (cite the source_id). Every query you have already issued "
+                            + "this turn is listed verbatim in search_attempts_this_turn, with "
+                            + "whether it actually ran and what it returned (counts in "
+                            + "search_attempts_summary); check it before assuming you have not "
+                            + "covered this ground. While that viable hit stands, re-issuing "
+                            + "search_knowledge — in any wording — does NOT retrieve anything "
+                            + "new: the runtime serves the same result back without querying the "
+                            + "knowledge base, and the attempt still consumes one of your "
+                            + "remaining tool steps.");
                 }
             }
 
@@ -1439,6 +1518,153 @@ public class ContextProjectionBuilder {
             alreadyCalled.add(entry);
         }
         return alreadyCalled;
+    }
+
+    /** The one tool this slot describes. Read-only retrieval. */
+    private static final String SEARCH_KNOWLEDGE_TOOL = "search_knowledge";
+
+    /**
+     * P1 paraphrase-storm fix (2026-07-25) — build the
+     * {@code search_attempts_this_turn} slot: every {@code search_knowledge}
+     * call already issued in the current {@code AgentRunLoop.run(...)}, in
+     * order, with the query VERBATIM and the honest execution outcome.
+     *
+     * <p>Per entry: {@code at_step}, {@code query}, {@code executed}
+     * (false when one of the three idempotency backstops served it without
+     * running the tool), {@code served_from} (which prior step / turn's result
+     * was replayed), {@code suppression} (which backstop), and the result
+     * state actually handed back ({@code faq_miss}, {@code hit_count},
+     * {@code top_source_ids}).
+     *
+     * <p><strong>Why this is not another falsified soft signal.</strong> The
+     * A3 / cross-turn soft layers told the model what to do and were ignored;
+     * so was the per-call {@code repeat_suppressed.hint} added earlier the
+     * same day (measured ignored on session {@code f62ad6ce-…}). This slot
+     * tells it nothing — it reports facts the runtime already holds and had
+     * been withholding. The model's own step-by-step reasoning on the failing
+     * turns ("the prior search was about ad status, not visibility tips") was
+     * a *factual claim about its own history* that it had no way to check.
+     * Making a claim checkable is a projection duty (§1.4), not persuasion.
+     *
+     * <p>Zero content matching: no keyword list, no similarity metric, no
+     * per-UC branching, no judgement about whether two queries "mean the
+     * same". The entries are transcribed from {@link ToolEvent}s.
+     *
+     * <p>Empty array when there are no search events (shape stability, §N0).
+     * Tolerant of malformed/absent result payloads — a field that cannot be
+     * read is simply omitted rather than guessed.
+     */
+    private ArrayNode buildSearchAttemptsNode(List<ToolEvent> priorToolEvents) {
+        ArrayNode attempts = objectMapper.createArrayNode();
+        if (priorToolEvents == null || priorToolEvents.isEmpty()) {
+            return attempts;
+        }
+        for (ToolEvent evt : priorToolEvents) {
+            if (evt == null || !SEARCH_KNOWLEDGE_TOOL.equals(evt.toolName())) {
+                continue;
+            }
+            ObjectNode entry = objectMapper.createObjectNode();
+            entry.put("at_step", evt.stepIndex());
+            Object q = evt.arguments() == null ? null : evt.arguments().get("query");
+            if (q != null) {
+                entry.put("query", String.valueOf(q));
+            }
+            if (!evt.success()) {
+                // Rejected by the plan whitelist, or the dispatch failed.
+                entry.put("executed", false);
+                entry.put("outcome", "failed");
+                if (evt.errorMessage() != null) {
+                    entry.put("error", evt.errorMessage());
+                }
+                attempts.add(entry);
+                continue;
+            }
+            boolean suppressed = evt.deduplicated()
+                    || evt.paraphraseSuppressed()
+                    || evt.crossTurnParaphraseSuppressed();
+            entry.put("executed", !suppressed);
+            if (suppressed) {
+                if (evt.deduplicated()) {
+                    entry.put("suppression", "a1_identity_cache");
+                    entry.put("served_from", "step " + evt.originalAtStep());
+                } else if (evt.paraphraseSuppressed()) {
+                    entry.put("suppression", "within_turn_faq_hit");
+                    entry.put("served_from", "step " + evt.faqHitAtStep());
+                } else {
+                    entry.put("suppression", "cross_turn_standing_hit");
+                    entry.put("served_from", "turn " + evt.crossTurnHitAtTurn());
+                }
+            }
+            if (evt.resultData() instanceof Map<?, ?> data) {
+                Object faqMiss = data.get("faq_miss");
+                if (faqMiss instanceof Boolean fm) {
+                    entry.put("faq_miss", fm);
+                }
+                Object hits = data.get("hits");
+                if (hits instanceof List<?> hitList) {
+                    entry.put("hit_count", hitList.size());
+                    ArrayNode ids = objectMapper.createArrayNode();
+                    for (Object hit : hitList) {
+                        if (hit instanceof Map<?, ?> hitMap) {
+                            Object sid = hitMap.get("source_id");
+                            if (sid != null) {
+                                ids.add(String.valueOf(sid));
+                            }
+                        }
+                    }
+                    entry.set("top_source_ids", ids);
+                }
+            }
+            attempts.add(entry);
+        }
+        return attempts;
+    }
+
+    /**
+     * P1 paraphrase-storm fix (2026-07-25) — the counting companion to
+     * {@link #buildSearchAttemptsNode}: how many search attempts were made
+     * this turn, how many actually reached the knowledge base, and how many
+     * were served from an existing result without running.
+     *
+     * <p>{@code distinct_queries} counts distinct verbatim query strings —
+     * a plain set cardinality, NOT a similarity or paraphrase judgement. It is
+     * reported so the LLM can see the shape of its own behaviour ("9 attempts,
+     * 8 distinct strings, 1 real retrieval") without the runtime ruling on
+     * whether any two of them mean the same thing. Deciding that remains
+     * §1.3 territory.
+     */
+    private ObjectNode buildSearchAttemptsSummaryNode(List<ToolEvent> priorToolEvents) {
+        ObjectNode summary = objectMapper.createObjectNode();
+        int attempts = 0;
+        int executed = 0;
+        int servedWithoutExecuting = 0;
+        java.util.Set<String> distinct = new java.util.LinkedHashSet<>();
+        if (priorToolEvents != null) {
+            for (ToolEvent evt : priorToolEvents) {
+                if (evt == null || !SEARCH_KNOWLEDGE_TOOL.equals(evt.toolName())) {
+                    continue;
+                }
+                attempts++;
+                Object q = evt.arguments() == null ? null : evt.arguments().get("query");
+                if (q != null) {
+                    distinct.add(String.valueOf(q));
+                }
+                if (!evt.success()) {
+                    continue;
+                }
+                if (evt.deduplicated() || evt.paraphraseSuppressed()
+                        || evt.crossTurnParaphraseSuppressed()) {
+                    servedWithoutExecuting++;
+                } else {
+                    executed++;
+                }
+            }
+        }
+        summary.put("attempts", attempts);
+        summary.put("knowledge_base_queries_executed", executed);
+        summary.put("served_without_executing", servedWithoutExecuting);
+        summary.put("distinct_query_strings", distinct.size());
+        return summary;
     }
 
     // ------------------------------------------------------------------
