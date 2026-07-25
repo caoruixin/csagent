@@ -20,24 +20,110 @@ persona:
   - When posting and add there seems nowhere to put the price in
   hidden_facts: []
   will_request_human_if: ''
+expectation_revision_note: |
+  2026-07-26 (Sprint 106 / WS-2 continuation, replan rev 2 §3 WS-2 "Bulk: the 158
+  contradictory specs need per-UC review"). WS-2 (74de32c3) took anchor/ + smoke/;
+  this pass takes promotion/ + case_families/.
+
+  Why these specs were contradictory (replan rev 2 §1.1 A1): the CaseSpec
+  generator read "a human agent took this session over" out of the historical
+  transcript and stamped an FAQ-resolvable UC as `escalate`. The corpus is by
+  definition sessions that reached a human, so the regex in
+  `case_spec/transcript_evidence.py:146-208` (via
+  `case_spec/case_outcome_resolver.py:196-206`) fires on nearly every one. The
+  result is a spec that is simultaneously `should_escalate: true` and
+  `allow_bot_resolution: 'true'` — the policy table says the bot MAY resolve this
+  UC while the spec demands it hand over. Linter R1 had a carve-out waiving
+  exactly this pair until WS-1 (fb9c64ff) removed it.
+
+  Product principle applied (product owner, 2026-07-25; replan rev 2 §2): an ask
+  that requires the platform to MODIFY data (refund, remove a review, restore or
+  activate a listing, unban an account, change stored credentials, cancel
+  billing) is correctly escalated; an ask that is FAQ explanation, or a read-only
+  status query on the user's OWN data, must be completed by the agent — decision
+  D1 promoted read-only user-data status query into current scope. Decision D2
+  revised "customer indicates frustration ⇒ must escalate" to "de-escalate and
+  keep solving first", while keeping immediate escalation for high-risk topics
+  (fraud, safety, legal).
+
+  Adjudication (Sprint 106): Converted to a two-stage conditional acceptance
+  (explanation half required, then handover may be accepted).
+
+  The ask: regain access after a failing password reset, delete a duplicate
+  Apple account, and find the missing price field.
+
+  Three asks. Password-reset recovery is the shape WS-2 already flipped on
+  cs011 (spam / promotions folder, which address the link went to), and
+  'When posting and add there seems nowhere to put the price in' is a
+  straightforward category-behaviour explanation. Deleting the duplicate
+  Apple-created account is a write. Stage 1 must cover the two explanation
+  halves before the account deletion is handed over.
+
+  Why two-stage rather than a flip or a permissive list: a plain
+  `acceptable_outcomes: [resolve, escalate]` would score 1.0 for BOTH terminals
+  (`scoring/outcome_checks.py::_check_correct_outcome` takes the acceptable-set
+  branch first), i.e. it would measure nothing on the axis this sprint cares
+  about. The declarative `conditional_outcome_acceptance` block
+  (`scoring/conditional_outcome.py`, mechanism from S-Auto-40 WP1-A) is used
+  instead. Semantics per `conditional_outcome.py:232-281`:
+    * bot delivers the explanation half and the customer ends SATISFIED /
+      UNKNOWN with outcome `resolve` → PASS.
+    * bot delivers grounded help, the customer is positively UNRESOLVED after it,
+      and the bot then hands over → CONDITIONAL_ELIGIBLE (scores 0.0 and is
+      surfaced for review; PASS only via a committed per-trace adjudication in
+      `case_specs/conditional_outcome_adjudications.yaml`).
+    * bot hands over WITHOUT a closure-qualified grounded-help marker, or after
+      the customer was already SATISFIED → FAIL. That is the failure shape this
+      spec previously rewarded.
+  `require_closure_precondition: true` is satisfied structurally — a bot turn
+  carrying tool calls AND non-empty `source_ids` AND a non-empty answer
+  (`conditional_outcome.py:113-132`) — so it does not depend on this spec having
+  a `closure_criterion` field.
+
+  `correct_outcome` is present in `scoring.outcome_checks`, which is required for
+  the block to be evaluated at all: the delegation lives inside
+  `_check_correct_outcome` (`outcome_checks.py:227-237`), so without it the new
+  rule would be inert.
+
+  `allow_bot_resolution` is deliberately LEFT at the UC policy value rather than
+  set to 'partial': linter R2 compares that field to the policy row
+  (`case_spec/linter.py:253-280`), so 'partial' would trade an R1 error for an R2
+  one. The per-case expectation is carried by the conditional block, not by that
+  field.
+
+  NOT changed: primary_uc, secondary_ucs, persona, seed_messages, hidden_facts,
+  form_context, risk_level, max_turns, hard_checks, or llm_judge_dimensions.
+# Sprint 106 2026-07-26: two-stage, condition-bound outcome acceptance.
+# Stage 1 — the explanation / read-only half must be delivered, evidenced by
+# the closure-qualified grounded-help marker (require_closure_precondition).
+# Stage 2 — only then, and only when the customer is positively UNRESOLVED
+# after that help, may the data-modifying half be handed over, and that is
+# CONDITIONAL_ELIGIBLE (review-required), not a free pass.
+# See expectation_revision_note above.
+conditional_outcome_acceptance:
+  schema_version: 1
+  satisfied_outcome: resolve
+  unresolved_accept_outcome: escalate
+  require_closure_precondition: true
 expected:
-  outcome_class: escalate
+  outcome_class: resolve
   primary_uc: UC-D
   secondary_ucs:
   - UC-H
   - UC-FP
   - UC-K
-  should_escalate: true
+  should_escalate: false
   allow_bot_resolution: 'true'
-  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
-  escalation_trigger: clarification_budget_exhausted
+  bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge,
+    resolve_article, record_outcome), and answer the explanation / read-only half from the knowledge base and the
+    user's own data FIRST. Only if the customer is still unresolved after that grounded help may the remaining
+    data-modifying half be handed over; see conditional_outcome_acceptance.
+  escalation_trigger: null
   risk_level: low
   expected_tool_sequence:
   - get_customer_context
   - search_knowledge
   - resolve_article
-  - request_handover
   - record_outcome
   forbidden_tools:
   - create_case_controlled
@@ -49,7 +135,6 @@ expected:
   - I've fixed
   - I have sent you an email
   - I can restore/delete/ban this directly
-  - I'll resolve this for you
   max_turns: 15
 scoring:
   hard_checks:
@@ -64,7 +149,7 @@ scoring:
   outcome_checks:
   - correct_uc
   - correct_outcome
-  - escalation_triggered
+  - resolution_achieved
   - answer_accuracy
   llm_judge_dimensions:
   - groundedness
