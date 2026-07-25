@@ -83,12 +83,30 @@ WS-5 validation ran 15 real sessions over five `promotion/` and `anchor/`
 specs — i.e. **programmatic-authority** specs, not human-review ones — and
 every one scored `composite = 0.000` in all three arms including the
 pre-change baseline. The sharpest instance is
-`promotion/cs_interactive_179` under drift: `correct_uc = 1.0`,
-`correct_outcome = 1.0`, `containment_outcome = resolved`, zero L1 failures —
-and still `FAIL`, because its three L3 dimensions are all `advisory`, so
-`judge_score = 0` and the composite cannot exceed 0.5. A case where the bot
-did the right thing cannot pass. The pass rate on these specs is not
-measuring the agent at all.
+`promotion/cs_interactive_185` (draw 3, run `20260725-124324`):
+`correct_uc = 1.0`, `correct_outcome = 1.0`, `containment_outcome = resolved`,
+zero L1 failures — and still `FAIL`, because its three L3 dimensions are all
+`advisory`, so `judge_score = 0` and the composite cannot exceed 0.5. A case
+where the bot did the right thing cannot pass. The pass rate on these specs
+is not measuring the agent at all.
+
+> **Correction (Sprint 105, 2026-07-26).** This paragraph previously named
+> `cs_interactive_179` as the sharpest instance. Re-scoring all eight
+> recorded runs shows `cs_interactive_179` **never** reaches that profile in
+> any of its 12 recorded draws — its best is
+> `correct_uc = 1.0, correct_outcome = 0.0, escalated`. The session with the
+> profile described here is `cs_interactive_185` @ `20260725-124324`, which
+> is also the single case in the whole recorded substrate with
+> `case_passed = True`, and therefore the only one whose verdict the Sprint
+> 105 fix moves (0.5000 → 0.8667, FAIL → PASS). The Sprint 105 contract
+> inherited the same swapped id. See `docs/sprints/sprint-105-handoff.md` §3.
+>
+> **Scope of the defect (same re-measurement).** "Worse than bad_cases only"
+> understates it: **0 of 486 specs configure either gating L3 dimension**
+> (`premature_finish` / `stall_quality`) — 430 declare only the three
+> advisory dims and 56 declare none — so `composite >= 0.7` was unreachable
+> for the *entire* corpus, not just the `promotion/` and `anchor/` specs.
+> `passed_cases` and `task_success_rate` were pinned at zero corpus-wide.
 
 A second, independent degradation was found the same day: because the judge
 had been sharing the simulator's config, pointing it at a model that rejects
