@@ -48,14 +48,14 @@
 | 规范项 | 继承内容 | 规范源 |
 |-------|---------|--------|
 | **V1 scope boundary** | In-scope: FAQ、产品/功能说明、操作指导、1–2 轮澄清、明确转人工。Out-of-scope: 复杂多步流程、高风险自动决策、复杂写操作、多 agent、长链路事务、跨渠道生命周期治理、精细化团队路由。 | tech_spec §4.1, §4.2 |
-| **control kernel state machine** | INIT → DISCOVER → RESOLVE → CONFIRM → CLOSE / ESCALATE | tech_spec §11.2, §11.3 |
+| **control kernel state machine** | INIT → DISCOVER → RESOLVE → CONFIRM → CLOSE / ESCALATE。**[DEVIATION 2026-07-26 — 见 §0.6；转移表本身未改动，但 `active_use_case` 现在可以在 DISCOVER 之外改变，且原本 DISCOVER 专属的"同轮 replan"现在也在 RESOLVE / CONFIRM 触发。]** | tech_spec §11.2, §11.3 / §0.6 deviation log |
 | **LLM 响应契约 (V1)** | LLM 输出采用 OpenAI-style 原生 tool-use 格式 `{user_message, reasoning, tool_calls: [{name, arguments}]}`。意图通过 tool_calls 内容隐式表达（无独立 action 词表）。可调用工具范围由本表 "V1 tool set (agent_visible)" + per-UC 可用性矩阵硬约束。V1 默认不做 `sub_agent_call`、unrestricted multi-tool composition、workflow chaining；不得直接调用 human-only 工具。**[DEVIATION 2026-05-01 — 见 §0.6；由原 5-action 抽象层迁移至单一 tool-use 层。]** | tech_spec §11.4 + §0.6 deviation log |
 | **control budgets** | `max_clarification_rounds`、`max_faq_miss`、`max_bot_turns_per_issue`、`max_repeated_same_action`、`max_total_bot_turns_before_forced_escalation` | tech_spec §11.5 |
 | **drift handling semantics** | minor drift（保持 use case）/ soft shift（切换 active issue 但保留主问题）/ hard shift（升级或切策略） | tech_spec §11.6 |
 | **state model layers** | External State / Session State / Memory（V1 极轻）/ Context（每轮投影） | tech_spec §8 |
 | **context projection contract** | 输出包含 `task_summary`、`active_use_case`、`candidate_use_cases`、`recent_messages`、`retrieved_knowledge`、`risk_flags`、`budget_state`、`tool_schemas`（per-UC 可见 tool 列表 + 参数 schema，由 ToolPolicyEnforcer 按 active_use_case 过滤）、**`form_context`**（v0.2 新增 — pre-chat form 数据在 INIT 阶段即可用）。**[DEVIATION 2026-05-01 — 见 §0.6；移除 `allowed_actions` 字段，UC × phase 约束统一由 tool 可用性矩阵承担。]** | tech_spec §10.5 / tool_spec_v0.2 `form_context_ingestion` / §0.6 deviation log |
 | **use case registry lite schema** | use_case_id / name / description / example_user_requests / knowledge_scope / risk_level / allow_clarification / allow_bot_resolution / escalation_conditions / outcome_class（per-UC 可调用工具范围由本表 "per-UC 工具可用性矩阵" 强约束，不再单独列举 `allowed_actions`）。**[DEVIATION 2026-05-01 — 见 §0.6。]** | tech_spec §9.2 / §0.6 deviation log |
-| **V1 tool set (agent_visible)** | `search_knowledge`、`resolve_article`、`get_customer_context`、`request_handover`、`record_outcome`。每个工具必有 stable name / clear description / parameter schema / permission boundary / standardized success-error payload | tech_spec §13.1, §13.2 / tool_spec §tools |
+| **V1 tool set (agent_visible)** | `search_knowledge`、`resolve_article`、`get_customer_context`、`request_handover`、`record_outcome`。每个工具必有 stable name / clear description / parameter schema / permission boundary / standardized success-error payload。**[DEVIATION 2026-07-26 — 见 §0.6；新增 `propose_reroute`（会话中途改变 active_use_case）。本行此前已与实现漂移：`classify_use_case`（2026-05-02）与 `update_intake_fields`（Sprint 080）当时未登记，本次一并补记。]** | tech_spec §13.1, §13.2 / tool_spec §tools / §0.6 deviation log |
 | **V1 tool set (runtime_only，模型不可直接调用，v0.2.1 = 5 个)** | `create_case_controlled`（仅 UC-H/UC-J/UC-K 允许）、`lookup_customer_account`（由 `get_customer_context` 组装）、`lookup_listing_or_ad`（由 `get_customer_context` 组装）、**`get_moderation_review_context`**（v0.2 新增，仅 UC-A/UC-FP，由 `lookup_listing_or_ad` 链式调用，提供广告删除/审核原因的 grounded 事实依据）、**`get_message_moderation_context`**（v0.2.1 新增，仅 UC-C，由 `get_customer_context` 在 UC-C 消息诊断场景下链式调用，判断消息是否被平台审核拦截）。由 runtime 策略驱动，不暴露给模型上下文或 prompt。 | tool_spec_v0.2.1 §tools (visibility: runtime_only) |
 | **V1 runtime capabilities (non-tool，v0.2 新增)** | `fixed_script_library`（管理式模板库，**合规审批已通过（v5）**，为 UC-G/H/I/J/K 无 knowledge retrieval 场景 + 通用 opening/closing/escalation 提供固定话术）、`form_context_ingestion`（INIT 阶段解析 pre-chat form 数据写入 session state，自动触发 `get_customer_context`）、`tool_policy_enforcer`（每次 tool call 前检查 UC 可用性，violation 返回 `scope_blocked`）、`progress_placeholder`（tool call 延迟 >1.5s 时发送占位消息）。这些是 runtime 层内建能力，不是 LLM 可调用的工具。 | tool_spec_v0.2 §runtime_capabilities |
 | **human-only tools (Phase2 或人工触发)** | `moderation_enforcement_action`（删帖 / 限号 / 账号限制，critical risk）、`send_followup_email_or_async_update`（异步邮件更新，medium risk；**邮件规则/模版/内容遵循现有 Salesforce 人工 CS 系统，Bot 不直接向用户发送邮件**，由坐席 / back-office 触发）。Phase 1 Bot 不得直接或间接调用。 | tool_spec §tools (visibility: human_only) |
@@ -118,6 +118,49 @@
 ## 0.6 漂移登记 (Deviation Log)
 
 按 §0.5 流程登记的所有母规范偏离。每条记录包含变更范围、原设计、新设计、原因、对 release gates / eval suite 的影响、owner 确认、实施引用。
+
+### Deviation 2026-07-26 — 会话中途改路由（`propose_reroute`）+ 同轮 replan 不再是 DISCOVER 专属
+
+**变更范围**: §0.3 表格行 "control kernel state machine"（转移表未改，但 `active_use_case` 的可变时机与"同轮 replan"的触发面扩大）、§0.3 表格行 "V1 tool set (agent_visible)"（新增第 6 个 agent-visible 工具 `propose_reroute`；同时补记此前未登记的 `classify_use_case` / `update_intake_fields`）。
+
+**触发**: `docs/diagnostics/failure-briefs/ws5-2026-07-25-intent-switch-forces-escalation.md`。WS-5（2026-07-25）第一次把 intent switching 变成可观测的——486 个 CaseSpec 中 344 个声明了 `persona.drift_behavior`，但从未讲给 simulator 听，因此语料从未真正跑过"会话中途换意图"。第一批跑到它的会话全部失败：两个 `promotion/` spec × 三次抽样，五个可测会话中**零个 resolve**，四个以 bot 主动升级收尾。
+
+**原设计**: `active_use_case` 只能在 DISCOVER 阶段由 `classify_use_case` 提交。该工具只出现在 `skills/discover_triage.yaml:9` 的 `tools_required`，`ContextProjectionBuilder` 把投影的 `tool_schemas` 过滤到 `plan.allowedTools`，所以 DISCOVER 之外 LLM 连这个工具的存在都看不到，硬调也会被 `ToolDispatcher.validateAgainstPlan` 以 `tool_not_in_plan` 拒绝。DISCOVER 之外唯一能改 UC 的机制是 runtime 的模式匹配：`DriftDetector`（24 个关键词 + `contains()`）与 `RuntimeIntentClassifier`（5 条 Sprint-10 regex）。二者不命中时返回 `unknown()` → `CONTINUE_CURRENT` → 状态不变。
+
+**新设计**: 新增 agent-visible 工具 `propose_reroute(target_use_case, reasoning)`，登记在 RESOLVE-FAQ / RESOLVE-TECHNICAL / CONFIRM 三个 Skill 的 `tools_required`。runtime 只做**能力面**判定——目标 UC 是否在 registry 中、是否与当前 UC 不同、`(RESOLVE, target)` 是否有 Skill 承接——三者满足即改写 `session.activeUseCase` 并保留 `previousActiveUseCase`；**不判断**用户的新诉求"是不是真的属于"该 UC，那是 Constitution §1.3 划给 LLM 的软语义判断。被拒绝的提案以 `honoured: false` + 原因返回，是普通工具输出，不是错误，不终止本轮。
+
+**为什么不复用 `classify_use_case`**（两条都是代码层面的硬理由，非风格偏好）:
+
+1. `ClassifyUseCaseTool.shouldPreserveStrongPrior` 会**静默拒绝**（`committed: false` / `strong_prior_carry_forward`）任何与"表单强先验仍能推出的 active UC"不同的提案。目标 spec `cs_interactive_179` 的 `topic_subject` 是 `Replies & Messaging`，经 `TOPIC_ALIASES` 归一为 `Replies or Messaging`，`use-case-registry.yaml` 的 `strong-prior-topics` 把它映射到 UC-C，而该 spec 的 `primary_uc` 正是 UC-C——也就是说方案 (a) 在本 sprint 两个目标之一上**出厂即死**，除非削弱该 guard，而它保护的是另一个仍然存在的缺陷（UC 轮转）。
+2. `classify_use_case` 的提交语义与 DISCOVER 绑死：`AgentRunLoopImpl` 只在 `plan.phase()==DISCOVER` 时返回 `USE_CASE_IDENTIFIED`，`ControlKernel` 也只在同一条件下 replan。在 RESOLVE 中途调用它会改掉 `session.activeUseCase` 却继续跑旧 UC 的 plan：`ToolDispatcher.dispatch` 按**新** UC 做 per-UC 策略检查，`validateAgainstPlan` 按**旧** plan 的白名单放行——轮内状态分裂。
+
+独立工具还有一个可观测性收益：trace 里"入口分类"与"中途改路由"可以分开查（事件 payload 带 `via: propose_reroute` + `previous_use_case_id`）。
+
+**落点（phase machine）——原地改路由，不新增转移边**: 承接相为 RESOLVE。从 RESOLVE 改路由无需转移；从 CONFIRM 走 `CONFIRM → RESOLVE`，这条边 `control-policy.yaml` 本来就声明了。**没有新增任何 phase 转移边**，`RerouteDecider.java:105-110` 注释所依据的"合法表禁止 `RESOLVE → DISCOVER`"仍然成立且未被触碰。
+
+`CONFIRM → DISCOVER` 这条**已声明但无写入方**的边**保持原状**，本次不激活也不删除。理由：改路由要的是"立刻在新 UC 上做事"，而 DISCOVER 的产出是"再问一个澄清问题"——恰好是让这些会话耗尽 clarification budget 的那件事。当 LLM 确实说不出目标 UC 时，它本来就可以直接提问，不需要换相。删除该边则会与 `phase3_detailed_technical_design.md:534` 冲突，那是另一个 owner 的合约，不在本 sprint 范围内；此处登记为已知残留。
+
+**实施（server 侧，本次落地）**:
+- `service/tools/ProposeRerouteTool.java`（**新增**）— 能力面判定 + 状态改写 + 事件。无关键词、无 regex、无 per-UC 分支。
+- `config/tool-policy.yaml` — `propose_reroute: AGENT_VISIBLE / allowed-ucs: [ALL]`。`[ALL]` 是因为该工具存在的目的就是离开当前 UC，按当前 UC 设闸等于把闸门设在决策的错误一侧；实际暴露面由三个 Skill 的 `tools_required` 决定。
+- `skills/resolve_faq_grounded_answer.yaml` / `resolve_technical_diagnose_or_intake.yaml` / `confirm.yaml` — `tools_required` 加 `propose_reroute`；`valid_terminal_outcomes` 加 `USE_CASE_REROUTED`；`procedure` 追加能力说明段（陈述工具做什么、参数是什么、honour/decline 各自的后果、判断权归谁——不含劝说式措辞）。
+- `model/TerminalOutcome.java` / `model/AgentRunResult.java` — 新增 `USE_CASE_REROUTED` + `useCaseRerouted(...)` 工厂，与 `USE_CASE_IDENTIFIED` 同形但可区分。
+- `service/runtime/AgentRunLoopImpl.java` — 6f 边界：honour 成立即返回 `USE_CASE_REROUTED`（读 `honoured` 标志而非 `success` 位，因为 decline 也是 success）。
+- `service/runtime/ControlKernel.java` — 把原 §M3 的"同轮 replan"块推广到 `USE_CASE_REROUTED`；wall-clock 预算门、事件合并、`effectivePhaseBefore` 提升逻辑全部复用未改。
+- `service/runtime/PhaseEvaluator.java` — `interpretRunResult` 增加 `USE_CASE_REROUTED` → `("RESOLVE", "uc_rerouted")` 映射，与 `uc_identified` 同形。
+- `service/runtime/ContextProjectionBuilder.java` — `propose_reroute` 工具 schema（`target_use_case` 的 enum 由 `UseCaseRegistryService.getAllUseCases()` 生成，而非字面量表）+ 新增 `reroute_target_use_cases` 投影槽（registry 全量 UC 的 `{id, name}`，去掉当前 UC）。
+- `service/runtime/skill/SkillLoader.java` — `VALID_TOOL_NAMES` + `VALID_PROJECTION_SLOTS` 各加一项。
+
+**为什么 `alternate_candidate_use_cases` 一个槽不够**（WP2 的判定，有代码证据）: 该槽只由 `session.intakeAmbiguousCandidates` 填充，而 `SessionManager.java:192-205` 只在 `RoutingResult.AMBIGUOUS` 分支写它。凡是入口确定性路由的会话（所有 strong-prior topic、所有 B2 phrase-bias 命中）该字段为 null，槽输出 `[]`——恰好是"入口路由很确定、用户后来改了话题"这一类会话。目标 spec `cs_interactive_179` 就属于此类，可从 registry + router 代码直接推出。同时 `candidate_use_cases_named` 被 `required_context_keys` 限制在 DISCOVER，因此 RESOLVE 中 LLM 看到的 UC id 是无语义的裸符号。`reroute_target_use_cases` 补的正是这个事实缺口：它陈述工具接受什么、每个 id 叫什么，不陈述何时该用——后者是 §1.3 的判断权。
+
+**对 release gates 与 eval suite 的影响**:
+- `wrong containment ≤ 2%` 预期改善：这正是"用户换了诉求、bot 只能在旧 UC 里答或转人工"的直接对策。
+- `active use case accuracy ≥ 85%`：定义面出现新情形——一个会话现在可能合法地拥有多个先后不同的 active UC。现有 eval 以单一 `primary_uc` 计分，尚未表达"改路由后哪个才算对"。本 sprint 不改任何 CaseSpec（合约明令禁止），此项登记为 eval 侧待办。
+- `groundedness pass rate ≥ 98%` / `critical policy violation = 0`：未降低任何 grounding 或安全下限。改路由后跑的是目标 UC 自己的 Skill，`must_cite_source` / `premature_resolve_outcome_guard` / `intake_complete_required` 按目标 UC 原样生效；高风险硬规则（显式要人工、fraud / safety / GDPR / payment / appeal 硬切换）全部未触碰。
+- 预算未降低：`CROSS_TURN_SUPPRESSION_BUDGET` 与 `control-policy.yaml` 的所有 budget 值均未改动。
+- Java 测试基线：改动前 1481 run / 1 failure（inherited `SystemPromptUserRequestedTiebreakerTest`）→ 改动后 1493 run / 同一处 inherited failure / 0 error，新增失败为 0。13 处 golden tool-set / declaration-matrix 断言按新集合**更新**（仍是精确匹配，未放宽），并把 WS-3 遗漏的 `resolve_technical_diagnose_or_intake` 补进 `Sprint53SkillDeclarationGatingTest` 的矩阵。
+
+**owner 确认**: 待人工确认。本条目由 Sprint 103 / WS-6-A dev agent 依 §0.5 流程登记；方案方向来自 `docs/proposals/performance_priority_replan_2026-07.md` §3 WS-6（"给 RESOLVE/CONFIRM 一个改路由能力"），(a)/(b) 二选一的判定与落点选择由 dev agent 依上述代码证据作出，记录于 `docs/sprints/sprint-103-handoff.md`。
 
 ### Deviation 2026-07-25 — 挫败不再是升级触发器 + UC-K 归位到 partial path
 
