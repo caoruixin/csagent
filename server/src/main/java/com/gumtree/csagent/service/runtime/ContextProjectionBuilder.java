@@ -912,11 +912,45 @@ public class ContextProjectionBuilder {
             // LLM still owns next-action (§1.3); no semantic hardcode. Emitted
             // only in DISCOVER (the only phase where clarification rounds are
             // counted); absent in every other phase.
+            // Sprint 104 — `used` / `max` alone were accurate but not
+            // sufficient: nothing told the LLM what happens AT the cap. The
+            // runtime does not ask. BudgetChecker:32 fires at
+            // `clarificationCount >= max` inside ControlKernel Step 3 (:310),
+            // which force-escalates (:334-339) WITHOUT building a projection
+            // and WITHOUT invoking the LLM — so the model's last opportunity to
+            // act is the turn on which it sees `remaining == 1`, and it had no
+            // way to know that. Measured 2026-07-26: in 4 of 4 sessions that
+            // genuinely exhausted this budget, the force-escalated turn was the
+            // turn on which the customer supplied exactly what the bot had just
+            // asked for (`projected_context` is NULL on each of those turns).
+            //
+            // `remaining` is arithmetic over state already emitted;
+            // `on_exhaustion` states what the runtime does. Neither says what
+            // to conclude — the choice between committing a use case and asking
+            // another question stays with the LLM (§1.3). No keyword, no
+            // similarity metric, no per-UC branch. This is the same
+            // projection-accuracy duty (§1.4) as the P1-04 precedent, which
+            // removed a clause advertising runtime behaviour that did not
+            // exist; here the omission is the consequence rather than a false
+            // exemption.
             if (DISCOVER_PHASE.equalsIgnoreCase(session.getCurrentPhase())) {
                 ObjectNode budgetsNode = objectMapper.createObjectNode();
                 ObjectNode clarificationBudget = objectMapper.createObjectNode();
-                clarificationBudget.put("used", session.getClarificationCount());
-                clarificationBudget.put("max", controlPolicy.getMaxClarificationRounds());
+                int used = session.getClarificationCount() == null
+                        ? 0 : session.getClarificationCount();
+                int max = controlPolicy.getMaxClarificationRounds();
+                clarificationBudget.put("used", used);
+                clarificationBudget.put("max", max);
+                clarificationBudget.put("remaining", Math.max(0, max - used));
+                clarificationBudget.put("counts_toward_used",
+                        "a DISCOVER turn that sends free text WITHOUT calling "
+                        + "classify_use_case; a turn that calls classify_use_case "
+                        + "does not");
+                clarificationBudget.put("on_exhaustion",
+                        "when used reaches max, the customer's NEXT message is "
+                        + "escalated to a human automatically, before you are "
+                        + "consulted — you will not get a turn to act on their "
+                        + "reply, however useful it is");
                 budgetsNode.set("clarification", clarificationBudget);
                 projection.set("budgets", budgetsNode);
             }

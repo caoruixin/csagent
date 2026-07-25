@@ -184,8 +184,18 @@ class PhaseEvaluatorSkillIntegrationTest {
                     + "below 0.5 means do NOT call classify_use_case — ask one focused "
                     + "clarifying question (`user_message` ending with `?`) instead. Only "
                     + "escalate from DISCOVER if the user explicitly requests a human, the "
-                    + "issue is clearly out of scope, or you cannot disambiguate after one "
-                    + "clarifying turn.";
+                    + "issue is clearly out of scope, or you cannot disambiguate within the "
+                    + "clarification budget the projection reports. Sprint 104 "
+                    + "clarification-budget fact (read `budgets.clarification` in the "
+                    + "projection, do not assume a number): a DISCOVER turn in which you send "
+                    + "free text WITHOUT calling classify_use_case increments `used` by one. "
+                    + "When `used` reaches `max`, the customer's NEXT message is escalated to "
+                    + "a human automatically, by the runtime, BEFORE you are consulted — you "
+                    + "do not get a turn to act on their reply, however useful it is. A turn "
+                    + "in which you call classify_use_case does not increment `used`. This is "
+                    + "a mechanical description of what the runtime does, not an instruction "
+                    + "about what to decide; whether to commit a use case now or ask another "
+                    + "question remains yours.";
 
     private static final String DISCOVER_GROUNDING_INSTRUCTION =
             "Do not commit to detailed answers in DISCOVER. Your job is to determine the "
@@ -194,7 +204,8 @@ class PhaseEvaluatorSkillIntegrationTest {
 
     private static final String DISCOVER_ESCALATION_POLICY =
             "Escalate if user explicitly requests human help, if request is clearly out of scope, "
-                    + "or if you cannot disambiguate after one clarification.";
+                    + "or if you cannot disambiguate within the clarification budget reported "
+                    + "in the projection's `budgets.clarification` slot.";
 
     private static final String CONFIRM_OBJECTIVE =
             "Determine whether the user is satisfied with the prior answer";
