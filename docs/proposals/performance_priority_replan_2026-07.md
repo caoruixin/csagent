@@ -70,13 +70,32 @@ machine**, and **the loop's freedom is allocated to the wrong place**. See §4.
 | B5 | **The one L3 dimension that could catch it grades it as equivalent, and is disabled everywhere it matters.** | `llm_judge.py:346`: "5 = … fully resolved **or properly escalated**". Not configured on any of the 19 bad_cases |
 | B6 | **Sharpest single point: `cs012` fails L1 when it behaves correctly.** | Global critical regex `hard_checks.py:255` `\b(please\s+)?call\s+me\b` fires on that case's seed message #2 and demands escalation within one turn; the case's own `closure_criterion:27-30` demands policy explanation first. Correct behaviour ⇒ L1 FAIL; wrong behaviour ⇒ L1 pass |
 
-### 1.3 Loop C — the bad-case suite's programmatic verdict is structurally always 0
+### 1.3 Loop C — the programmatic verdict is structurally always 0
 
 All 19 bad_cases set `llm_judge_dimensions: []` ⇒ `judge_score = 0` ⇒
 `composite = 0.5 * outcome ≤ 0.5`, against a PASS threshold of `>= 0.7`
 (`executor.py:413`). Masked today by `case_passed_authority: "human_review"`,
 but **any reader treating composite as a trend is misled — including the
 autoloop, which has been optimizing exactly this number.**
+
+**Confirmed live on 2026-07-25, and it is worse than "bad_cases only."** The
+WS-5 validation ran 15 real sessions over five `promotion/` and `anchor/`
+specs — i.e. **programmatic-authority** specs, not human-review ones — and
+every one scored `composite = 0.000` in all three arms including the
+pre-change baseline. The sharpest instance is
+`promotion/cs_interactive_179` under drift: `correct_uc = 1.0`,
+`correct_outcome = 1.0`, `containment_outcome = resolved`, zero L1 failures —
+and still `FAIL`, because its three L3 dimensions are all `advisory`, so
+`judge_score = 0` and the composite cannot exceed 0.5. A case where the bot
+did the right thing cannot pass. The pass rate on these specs is not
+measuring the agent at all.
+
+A second, independent degradation was found the same day: because the judge
+had been sharing the simulator's config, pointing it at a model that rejects
+an explicit `temperature` made **every L3 dimension 400 twice and fall back
+to `_DEFAULT_SCORE = 3.0`** — the whole L3 layer collapsing to a constant
+behind a single log line (`scoring/llm_judge.py`). Fixed in WS-5, but it
+shows the L3 layer can silently become a constant without any gate noticing.
 
 ### 1.4 Simulator — the suspicion needs redirecting
 
@@ -91,8 +110,21 @@ autoloop, which has been optimizing exactly this number.**
   `session_runner.py:259-280`. *The best-specified signal cannot end the
   session; the session-ending signal is unspecified.*
 - **Intent switching is not being tested at all.** `persona.drift_behavior` is
-  non-`none` in **344 of 486 specs** but is **never injected into the prompt**;
-  `seed_messages[1:]` likewise.
+  non-`none` in **344 of 486 specs** but is **declared without ever being
+  explained to the model**. Precisely: the field itself never reaches the
+  prompt, and the only thing that does is a bare token —
+  `extractor.py:1144` appends the literal string `Drift: hard_shift.` to
+  `user_goal_summary`, which *is* rendered. The WS-5 baseline arm proves that
+  token did nothing: 0 intent shifts across 10 signals. `seed_messages[1:]`
+  is genuinely never injected, and should stay that way — those are reactive
+  turns from the historical agent transcript and are non-sequiturs without
+  the agent turns they answered.
+- **Drift coverage is stratified in a way that matters for test selection.**
+  `exploration/` is 106/107 `hard_shift` but all 106 are intake UCs stamped
+  `escalate`; `anchor/` is 120 `soft_shift` and **zero** `hard_shift`;
+  `smoke/` and `bad_cases/` are zero `hard_shift` by construction
+  (`smoke_curator._is_safe_for_smoke` excludes drift). So resolve-class
+  intent-switching coverage lands almost entirely on `promotion/`.
 - Simulator and L3 judge share one model and one provider
   (`llm_judge.py:84-85`); error correlation is not isolated.
 
