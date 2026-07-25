@@ -21,6 +21,61 @@ persona:
   - fact: The user has two live ads posted on their Gumtree account.
     disclose_when: when the bot asks about account activity or ad status
   will_request_human_if: ''
+expectation_revision_note: |
+  2026-07-26 (Sprint 106, contract item 3 — "Fix cs_interactive_185's
+  primary_uc"). VERDICT: `primary_uc` is CORRECT as UC-D. NOTHING IS CHANGED in
+  this file beyond this note.
+
+  Sprint 103 §6.6 recorded that "the spec expects UC-D (Account & Login), but
+  its scripted drift in every draw is toward editing live ads (UC-A/UC-B
+  territory)", flagging it for this sprint. Adjudicated on the spec's own
+  evidence, as the contract requires, the UC-D pin is right and the premise is
+  not supported:
+
+  1. EVERY authored field points at Account & Login. `form_context.topic_subject`
+     is "Account Support"; the form description is a browser cookie-clearing
+     instruction given to regain access; `user_goal_summary` opens "User wants
+     to access his Gumtree account"; and all three `seed_messages` are the
+     same thread — the 4-dots/More-tools cookie path, "Trying to get access to
+     my account", and the old address being blocked by Microsoft. There is no
+     authored user intent to edit, post or manage an advert anywhere.
+
+  2. The ONLY ad-related content is one `hidden_facts` entry — "The user has
+     two live ads posted on their Gumtree account" — whose `disclose_when` is
+     "when the bot asks about account activity or ad status". That is a REPLY
+     the persona gives when questioned, not a goal it pursues. It exists to let
+     the bot confirm the account is live, which is corroboration for the UC-D
+     access story.
+
+  3. "In every draw" is contradicted by Sprint 103's own evidence table
+     (`docs/sprints/sprint-103-handoff.md` §5.2). Of the three measured draws
+     of this case, draw 2 ran `DISCOVER; DISCOVER→RESOLVE[UC-D];
+     RESOLVE→ESCALATE[UC-D]` and draw 3 ran `DISCOVER×2;
+     DISCOVER→ESCALATE[UC-D]` — UC-D throughout. Only draw 1 ended on UC-A, and
+     `propose_reroute` never fired on this case in any draw. So 2 of 3 draws
+     agree with the pin. Sprint 103 itself hedged the finding as "arguably
+     wrong".
+
+  Why the drift label is ALSO left alone. `drift_behavior: hard_shift` is
+  arguably overstated — the persona's two threads (the cookie/browser block and
+  the Microsoft-blocked email address) are both inside UC-D, which is a soft
+  shift, not a hard one. It is deliberately NOT changed, for two reasons.
+  First, the single UC-A excursion is better explained by the documented
+  simulator defect than by this spec: per replan rev 2 §1.4 the
+  `persona.drift_behavior` field never reaches the model at all, and the only
+  thing rendered is the bare token "Drift: hard_shift." appended to
+  `user_goal_summary` (`case_spec/extractor.py:1144`) — so the simulator is
+  told to shift without being told to what, and the two-live-ads hidden fact is
+  the only other material available to shift toward. That is an eval-framework
+  defect (§3.2 question 1, `infra`), not an `eval_spec` one, and it is out of
+  this sprint's contract. Second, retuning the drift class would silently
+  remove this case from the drift population that Sprint 104 is measuring right
+  now, on a premise its own evidence does not support — and changing a spec to
+  match observed bot behaviour is the §5.4 failure mode this workstream exists
+  to undo.
+
+  FLAGGED FOR SPRINT 104: this file is byte-unchanged apart from this note, so
+  no drift measurement taken against it needs re-attribution.
 expected:
   outcome_class: resolve
   primary_uc: UC-D

@@ -19,6 +19,51 @@ persona:
     do the form.
   hidden_facts: []
   will_request_human_if: ''
+expectation_revision_note: |
+  2026-07-26 (Sprint 106 / WS-2 continuation, replan rev 2 §3 WS-2 "Bulk: the 158
+  contradictory specs need per-UC review"). WS-2 (74de32c3) took anchor/ + smoke/;
+  this pass takes promotion/ + case_families/.
+
+  Why these specs were contradictory (replan rev 2 §1.1 A1): the CaseSpec
+  generator read "a human agent took this session over" out of the historical
+  transcript and stamped an FAQ-resolvable UC as `escalate`. The corpus is by
+  definition sessions that reached a human, so the regex in
+  `case_spec/transcript_evidence.py:146-208` (via
+  `case_spec/case_outcome_resolver.py:196-206`) fires on nearly every one. The
+  result is a spec that is simultaneously `should_escalate: true` and
+  `allow_bot_resolution: 'true'` — the policy table says the bot MAY resolve this
+  UC while the spec demands it hand over. Linter R1 had a carve-out waiving
+  exactly this pair until WS-1 (fb9c64ff) removed it.
+
+  Product principle applied (product owner, 2026-07-25; replan rev 2 §2): an ask
+  that requires the platform to MODIFY data (refund, remove a review, restore or
+  activate a listing, unban an account, change stored credentials, cancel
+  billing) is correctly escalated; an ask that is FAQ explanation, or a read-only
+  status query on the user's OWN data, must be completed by the agent — decision
+  D1 promoted read-only user-data status query into current scope. Decision D2
+  revised "customer indicates frustration ⇒ must escalate" to "de-escalate and
+  keep solving first", while keeping immediate escalation for high-risk topics
+  (fraud, safety, legal).
+
+  Adjudication (Sprint 106): Expected outcome KEPT as escalate, pending a
+  product decision.
+
+  The ask: complete secure-payment onboarding as a retired non-taxpayer who
+  cannot submit the tax form.
+
+  REFERRED TO THE PRODUCT OWNER (governance §3.2 question 7,
+  `product_policy`). The user has a Gateway account but does not pay tax and
+  therefore cannot complete a mandatory onboarding form. Answering requires
+  knowing whether an exception route exists for non-taxpayers - a
+  product/compliance decision nobody has taken. Per the Sprint 106 contract
+  §5, the existing expectation is left UNCHANGED rather than guessed at;
+  this spec is listed for the product owner in the handoff.
+
+  NOTHING IS CHANGED in this file. Per the Sprint 106 contract §5, a spec whose
+  answer depends on a product decision nobody has taken is NOT decided by the dev
+  agent: the current expectation stands, the spec is marked here, and it is
+  listed for the product owner in `docs/sprints/sprint-106-handoff.md`. The
+  residual R1 error on this file is therefore also expected.
 expected:
   outcome_class: escalate
   primary_uc: UC-F
