@@ -720,6 +720,52 @@ owned path and cost ~30 lines together.
   The moving session in §3 is the first case where the hole reaches the new
   ladder's top tier.
 
+### 10.1 Independent-substrate validation — Sprint 104's six runs
+
+The evidence in §2 and §3 comes entirely from runs this sprint also used to
+find the defect. Sprint 104 recorded six further runs
+(`csagent-wt-104/eval_interactive/results/20260725-18{2254,2528,2742,3008,3105,3438}`,
+**11 sessions**) that Sprint 105 never saw. Re-scored offline with the new
+`rescore` command, no bot call, no judge call:
+
+```
+cases                                        11
+fidelity (reproduce their recorded verdict)  11/11
+verdicts moved                                0
+judge term raised from a structural 0.0      10/11
+judge_basis: advisory_fallback 10 | none 1
+containment tiers: D2 7 | D3 3 | UNKNOWN 1
+```
+
+**Zero verdicts moved on a substrate the sprint never saw.** The judge term
+rose on 10 of 11 cases — from the structural `0.0` to a real advisory-based
+measurement between `0.4000` and `1.0000` — and every one of those 11 cases
+stayed `FAIL` at `composite 0.0000`, because an L1 hard check or an L2 gate
+bites before the composite arithmetic runs
+(`L1:escalation_reason_consistency`, `L2_GATE:correct_uc`,
+`L2_GATE:correct_outcome`).
+
+The sharpest single data point for P0: `cs_interactive_155` @ `s104-negctl`
+now scores `judge = 1.0000` on advisory dims and **still fails**. A perfect
+advisory judge cannot buy a pass past a failed gate — which is the property
+§2's "advisory dims are a fallback signal, never a dilutant" rule was meant
+to have, tested here against behaviour this sprint had no hand in.
+
+It also corroborates §2's corpus-wide claim from a second angle: 10 of 11
+cases resolve to `judge_basis = advisory_fallback`, i.e. their specs
+configure no gating dimension either.
+
+Two byproducts, both folded back above:
+
+- **A third HTTP 500** — `cs_interactive_030` @ `20260725-183008`
+  (`s104-negctl`), on a third backend build. The brief was widened to 3 of 27
+  sessions and gained the fact that Sprint 104's rerun of the same case
+  succeeded, so the fault is transient rather than input-deterministic.
+- **The `OQ-S105.user-state-not-consumed` measurement**, run over all 27
+  recorded sessions: exactly **1** carries `containment_outcome = "resolved"`,
+  and its final `user_state` is `unresolved_after_help`. One opportunity, one
+  miss.
+
 **Remaining §7 items (1, 2, 3, 5) routed to the ledger, not committed.** A
 drafted `docs/action_bank.md` §5.2 section is held in the session scratchpad
 rather than written, because four worktrees appending to one 195 KB file

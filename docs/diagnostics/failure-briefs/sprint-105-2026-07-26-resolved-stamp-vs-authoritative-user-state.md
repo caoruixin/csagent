@@ -92,17 +92,29 @@ docstring already concedes it cannot audit the stamp it consumes.
 
 ## Is this a one-off or a pattern?
 
-**Unknown, and structurally likely to be a pattern.** One confirmed instance —
-it is the only case in the 17-session substrate that reaches `case_passed=True`
-at all, so the substrate cannot answer the frequency question. What is
-measurable is the *exposure*: 475 of 488 specs cannot apply the rule, and the
-`unresolved_after_help` / `new_request` user states are common in this
-corpus's recorded signals.
+**One instance, out of one opportunity — measured 2026-07-26.** The cheap
+measurement this brief originally proposed has now been run over all 27
+recorded sessions in all 14 runs (the eight WS-5 / Sprint 103 runs plus
+Sprint 104's six), counting sessions with `containment_outcome == "resolved"`
+and reading each one's final `user_state_signals` entry:
 
-The cheap next measurement, which needs no live run: re-score every recorded
-run and count sessions with `containment_outcome == "resolved"` and a final
-`user_state` in the UNRESOLVED family. Sprint 105's `rescore` command already
-loads both fields.
+```
+recorded sessions:                                    27
+sessions stamped containment_outcome == "resolved":    1
+of those, final user_state in the UNRESOLVED family:   1
+```
+
+Exactly one `resolved` stamp exists in the whole substrate, and it is the one
+above — `case_passed=True`, final `user_state=unresolved_after_help`,
+`goal_status=impossible`. So the sample is tiny and the hit rate within it is
+1/1. That is not "a pattern in 27 sessions"; it is "the only time the rule
+could have bitten, it did not."
+
+What is separately measurable is the *exposure*: 475 of 488 specs cannot
+apply the rule at all, and the corpus is about to start producing many more
+`resolved` stamps now that the Loop C fix has un-pinned the composite. Today
+one session slipped through; the reason to act is that the denominator is
+about to grow.
 
 ## Which layer is likely responsible?
 
