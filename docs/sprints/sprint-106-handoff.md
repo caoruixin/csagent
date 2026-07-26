@@ -20,9 +20,9 @@ notes: >
 
 **Branch** `sprint-106-casespec-promotion`. First pass (through `b853f167`):
 6 commits, 82 spec files, all under `eval_interactive/case_specs/`. Second pass
-(§11, through the Codex fix-ups): the full `82f8a137..HEAD` range is 13 commits
-and touches 90 files — 88 under `case_specs/` (2 of them deletions) plus this
-handoff and, once recorded, nothing else. Non-owned paths stay empty.
+(§11, through the Codex fix-ups): the full `82f8a137..HEAD` range is **13
+commits touching 83 files — 82 under `case_specs/` (2 of them deletions) plus
+this handoff**. Nothing else. Non-owned paths stay empty.
 
 ## 0. Headline
 
