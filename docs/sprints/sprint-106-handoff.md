@@ -18,8 +18,11 @@ notes: >
 
 # Sprint 106 handoff
 
-**Branch** `sprint-106-casespec-promotion` — 6 commits, 82 files, all under
-`eval_interactive/case_specs/`.
+**Branch** `sprint-106-casespec-promotion`. First pass (through `b853f167`):
+6 commits, 82 spec files, all under `eval_interactive/case_specs/`. Second pass
+(§11, through the Codex fix-ups): the full `82f8a137..HEAD` range is 13 commits
+and touches 90 files — 88 under `case_specs/` (2 of them deletions) plus this
+handoff and, once recorded, nothing else. Non-owned paths stay empty.
 
 ## 0. Headline
 
@@ -675,7 +678,11 @@ Measured before deciding anything, with
 
 Every `source_session_id` in the corpus resolves against
 `data/eval_datasets/*_turns.csv` + `data/filtered/*` (32,823 distinct session
-ids indexed from 45 CSVs). **No spec is an orphan**, so branch 1 of the rule is
+ids indexed from 45 CSVs) **in the primary checkout
+`/Users/caoruixin/projects/csagent/data`** — `data/*` is gitignored, and this
+worktree carries only `data/eval_datasets/`, not `data/filtered/`. The census
+was run against the primary checkout for that reason; any spec-level
+adjudication done from a worktree must do the same or it will under-resolve. **No spec is an orphan**, so branch 1 of the rule is
 available for 381 of 484 specs, and "AI got it wrong" is a checkable claim
 rather than a suspicion.
 
@@ -780,3 +787,64 @@ change to the Python package, so it belongs to Sprint 105's path.
    a session scratchpad and will be lost. If transcript adjudication is going
    to be the standard method, they belong in `eval_interactive/` as a
    supported command.
+6. **The §4.2 header below must be copied to the top of
+   `docs/codex-findings.md` at integration.** That file is outside this
+   sprint's path fence, so it was not edited here.
+
+## 12. Codex §4.1 review — `approve` / `pass` / blocking_count 0
+
+Dispatched read-only (`codex exec --sandbox read-only`,
+`model_reasoning_effort=high`) over `82f8a137..HEAD` with the nine-question
+kernel from `docs/current/anti-hardcode-review-kernel.md`, plus six adversarial
+checks this sprint asked for by name (§5.4-in-reverse, the two deletions, the
+seven trigger rewrites, hardcode-by-data, the residual R1 count, and the
+negative controls).
+
+**Verdict, verbatim:**
+
+```
+approve
+
+## Sprint Review Decision
+decision: pass
+blocking_count: 0
+summary: The branch does not introduce semantic hardcode: there is no
+runtime/prompt/judge branching, no permissive `[resolve, escalate]` widening,
+and the kept escalate cases mostly stay on the safe side of §5.4 by refusing to
+teach unsupported write actions or unguided review-removal behavior. The seven
+trigger rewrites are enum-valid and transcript-supported, the two deletions are
+defensible corpus-scope removals rather than evidence laundering, and the
+untouched-bucket negative controls held. Non-blocking issues remain: the handoff
+has stale range/count metadata, the `cs_interactive_185` file note still carries
+an argument the handoff says was withdrawn, and the two-stage specs in
+programmatic buckets are measurement-signal only until adjudication process
+catches up.
+```
+
+Independently re-verified by the reviewer rather than taken from this document:
+all seven new triggers are canonical enum members with `outcome_class`
+unchanged; no `acceptable_outcomes: [resolve, escalate]` anywhere in the diff;
+`anchor/cs_interactive_030` and `anchor/cs_interactive_155` byte-unchanged and
+all four out-of-scope buckets untouched; and the `070` / `086` transcripts read
+directly from `data/eval_datasets/` to test the deletion rationale (`070`
+legitimate, `086` "borderline but still acceptable").
+
+### 12.1 The three non-blocking findings, all fixed
+
+| # | finding | fix |
+|---|---|---|
+| 1 | Handoff header said "6 commits, 82 files, all under `case_specs/`" — stale after the second pass, and the range now includes the handoff itself | header rewritten to state both passes |
+| 2 | §11.2 cited `data/filtered/*`, which does not exist in this worktree | §11.2 now names the primary checkout and says why a worktree under-resolves |
+| 3 | **`cs_interactive_185`'s in-file note still carried the "2 of 3 draws" argument the handoff had withdrawn** — a real contradiction between the corpus and the archive | the note's point 3 is replaced with the framework-defect argument, and the withdrawn argument is recorded as withdrawn so nobody re-runs the reasoning. Comment-only; `expected` still untouched, so §4.1's re-attribution answer to Sprint 104 is unaffected |
+
+### 12.2 Two reviewer observations carried, not fixed
+
+- **`cs_interactive_227` is the weak one of the seven.** The reviewer agrees the
+  new trigger beats the budget artefact but notes the transcript also supports
+  the §11.8 follow-up that this spec may want a `resolve` flip. Left as-is
+  deliberately: re-opening a `outcome_class` was not this pass's sanctioned
+  task, and the follow-up is already recorded.
+- **The 12 two-stage specs in programmatic buckets are signal-only** until
+  someone adjudicates them (§7.3). The reviewer classifies this as a
+  measurement caveat rather than a semantic hardcode, which matches §7.3's own
+  framing. Still needs an owner before anyone reads a `promotion/` pass-rate.

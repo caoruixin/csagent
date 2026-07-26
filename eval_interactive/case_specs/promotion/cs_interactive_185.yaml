@@ -47,14 +47,23 @@ expectation_revision_note: |
      the bot confirm the account is live, which is corroboration for the UC-D
      access story.
 
-  3. "In every draw" is contradicted by Sprint 103's own evidence table
-     (`docs/sprints/sprint-103-handoff.md` §5.2). Of the three measured draws
-     of this case, draw 2 ran `DISCOVER; DISCOVER→RESOLVE[UC-D];
-     RESOLVE→ESCALATE[UC-D]` and draw 3 ran `DISCOVER×2;
-     DISCOVER→ESCALATE[UC-D]` — UC-D throughout. Only draw 1 ended on UC-A, and
-     `propose_reroute` never fired on this case in any draw. So 2 of 3 draws
-     agree with the pin. Sprint 103 itself hedged the finding as "arguably
-     wrong".
+  3. The ad-shaped asks are produced by a known FRAMEWORK defect, not by this
+     spec's content. Per replan rev 2 §1.4, `persona.drift_behavior` never
+     reaches the model; the only thing rendered is the bare token
+     `Drift: hard_shift.` appended to `user_goal_summary`
+     (`case_spec/extractor.py:1144`). The simulator is told to shift without
+     being told to what, and the two-live-ads `hidden_facts` entry is the only
+     other material available to shift toward — so an ad-renewal / ad-recovery
+     excursion is the EXPECTED output of that defect on this persona, on any
+     draw. That is `infra` under §3.2 question 1, not `eval_spec`.
+
+     WITHDRAWN ARGUMENT (recorded so the reasoning is not re-run): an earlier
+     version of this note argued that "in every draw" was contradicted by
+     Sprint 103 §5.2, since 2 of 3 measured draws committed UC-D throughout.
+     That count is accurate but answers the wrong question — Sprint 104 §5.6's
+     claim is about the ASKS THE CUSTOMER RAISED, not the UC the runtime
+     committed, and in its draws those disagreed. Points 1-3 carry the verdict
+     without it.
 
   Why the drift label is ALSO left alone. `drift_behavior: hard_shift` is
   arguably overstated — the persona's two threads (the cookie/browser block and
