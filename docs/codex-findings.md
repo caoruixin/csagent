@@ -24,6 +24,47 @@ surface). Prior: M-Auto-10 → `docs/milestones/M-Auto-10_codex-review.md`; M-Au
 
 ---
 
+## Sprint 106 (perf-replan wave) — §4.1 per-sub-sprint review — 2026-07-26
+
+Branch `sprint-106-casespec-promotion` @ `73cc0e83` (merged as PR #11,
+`e0201801`); range `82f8a137..HEAD`; dispatched read-only via `codex exec`
+(`model_reasoning_effort=high`) with the nine-question kernel plus six
+adversarial checks the sprint named by hand. Full transcript archived at
+`docs/sprints/sprint-106-codex-review.md`; the verdict is also reproduced in
+`docs/sprints/sprint-106-handoff.md` §12.
+
+**Dispatch note:** dispatched by the dev agent under explicit human instruction
+(2026-07-26), the same recorded override Sprint 105 used.
+
+```
+approve
+
+## Sprint Review Decision
+decision: pass
+blocking_count: 0
+summary: The branch does not introduce semantic hardcode: there is no runtime/prompt/judge branching, no permissive `[resolve, escalate]` widening, and the kept escalate cases mostly stay on the safe side of §5.4 by refusing to teach unsupported write actions or unguided review-removal behavior. The seven trigger rewrites are enum-valid and transcript-supported, the two deletions are defensible corpus-scope removals rather than evidence laundering, and the untouched-bucket negative controls held. Non-blocking issues remain: the handoff has stale range/count metadata, the `cs_interactive_185` file note still carries an argument the handoff says was withdrawn, and the two-stage specs in programmatic buckets are measurement-signal only until adjudication process catches up.
+```
+
+**What the reviewer verified independently** (not taken from the handoff): all
+seven rewritten `escalation_trigger` values are canonical enum members
+(`case_spec/schema.py:54-79`) with `outcome_class` unchanged; no
+`acceptable_outcomes: [resolve, escalate]` anywhere in the diff; both drift
+negative controls (`anchor/cs_interactive_030`, `anchor/cs_interactive_155`)
+byte-unchanged and all four out-of-scope buckets untouched; and the `070` /
+`086` source transcripts read directly from `data/eval_datasets/` to test the
+deletion rationale — `070` legitimate, `086` "borderline but still acceptable".
+
+**Three non-blocking findings, all fixed** in `ea282420` + `73cc0e83`: stale
+commit/file counts in the handoff header; a `data/filtered/*` citation that does
+not resolve inside a worktree; and — the real one — `cs_interactive_185`'s
+in-file note still carrying the "2 of 3 draws" argument the handoff had already
+withdrawn, a contradiction between the corpus and its archive. Two observations
+carried forward rather than fixed: `cs_interactive_227` may want a `resolve`
+flip on transcript evidence, and the 12 two-stage specs in programmatic buckets
+are signal-only until someone adjudicates them.
+
+---
+
 ## Sprint 105 (perf-replan wave) — §4.1 per-sub-sprint review — 2026-07-26
 
 Branch `sprint-105-eval-verdict` @ `a2af44cb`; prompt
