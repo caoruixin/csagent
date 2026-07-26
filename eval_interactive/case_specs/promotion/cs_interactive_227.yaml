@@ -63,6 +63,31 @@ expectation_revision_note: |
   the UC policy row (`case_spec/linter.py:236-249`) and has no way to record
   "reviewed and deliberately kept". That residual R1 count is expected and is
   accounted for in the Sprint 106 handoff; it is not an unreviewed spec.
+  2026-07-26 (Sprint 106, second pass — escalation_trigger adjudication).
+  `escalation_trigger` was `clarification_budget_exhausted`. That value is a
+  RUNTIME ARTEFACT, not a semantic reason: per Sprint 104 §1.2,
+  `max-clarification-rounds: 2` (`control-policy.yaml:2`) is enforced at
+  `BudgetChecker.java:32-37` via `ControlKernel.processMessage` Step 3, which
+  force-escalates WITHOUT building a projection or invoking the LLM; the counter
+  charges the bot's own outgoing reply once per turn and never registers that a
+  clarification succeeded. In 4 of 4 measured sessions the force-escalated turn
+  was the one on which the customer had just supplied what was asked. A CaseSpec
+  that names it as the EXPECTED reason is asking the agent to reach an outcome no
+  semantic agent can choose, so the corpus was rewarding the artefact.
+
+  Re-adjudicated against this case's own source transcript, per the corpus-
+  cleaning principle taken 2026-07-26 (evidence first; delete only what no
+  evidence can settle). New `escalation_trigger`: `appeal_requires_human`.
+
+  The customer asks that a new business account not be deactivated and that
+  permission to trade be granted. The human agent escalated (turn 8) and
+  then gave the review path — post the advert and it will be reviewed
+  (turns 27-28). The reason is a permission/appeal decision reserved to a
+  human.
+
+  `outcome_class` is UNCHANGED — the keep recorded above stands. Only the reason
+  for the handover is corrected. `bot_handling_pattern` is updated in the same
+  edit because it named the old reason in prose.
 expected:
   outcome_class: escalate
   primary_uc: UC-FP
@@ -72,8 +97,8 @@ expected:
   should_escalate: true
   allow_bot_resolution: 'true'
   bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
-  escalation_trigger: clarification_budget_exhausted
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason appeal_requires_human.
+  escalation_trigger: appeal_requires_human
   risk_level: medium
   expected_tool_sequence:
   - get_customer_context
