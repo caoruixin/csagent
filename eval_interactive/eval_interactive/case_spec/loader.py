@@ -19,8 +19,18 @@ from .schema import (
 )
 
 
-def _parse_case_spec(raw: dict, source_suite: str | None = None) -> CaseSpec:
-    """Parse a raw dict (from YAML) into a CaseSpec dataclass."""
+def _parse_case_spec(
+    raw: dict,
+    source_suite: str | None = None,
+    source_path: str | Path | None = None,
+) -> CaseSpec:
+    """Parse a raw dict (from YAML) into a CaseSpec dataclass.
+
+    ``source_path`` is diagnostic-only: it is folded into
+    ``Expected.spec_context`` so a load-time advisory warning names the spec
+    that produced it (Sprint 105 handoff §7 item 7). It never reaches
+    scoring.
+    """
     fc_raw = raw["form_context"]
     form_context = FormContext(
         first_name=fc_raw["first_name"],
@@ -66,7 +76,10 @@ def _parse_case_spec(raw: dict, source_suite: str | None = None) -> CaseSpec:
     raw_trigger = e_raw.get("escalation_trigger", None)
     if isinstance(raw_trigger, str) and not raw_trigger.strip():
         raw_trigger = None
+    case_id = raw.get("case_id", "<unknown case_id>")
+    spec_context = f"{case_id} ({source_path})" if source_path else str(case_id)
     expected = Expected(
+        spec_context=spec_context,
         outcome_class=e_raw["outcome_class"],
         primary_uc=e_raw["primary_uc"],
         secondary_ucs=e_raw.get("secondary_ucs", []),
@@ -141,7 +154,7 @@ def load_case_spec(
     if source_suite is None:
         source_suite = path.parent.name or None
 
-    return _parse_case_spec(raw, source_suite=source_suite)
+    return _parse_case_spec(raw, source_suite=source_suite, source_path=path)
 
 
 def load_case_specs(

@@ -491,6 +491,133 @@ def set_baseline(run_path: str):
     click.echo(f"  Composite: {baseline_info['summary']['mean_composite_score']:.4f}")
 
 
+@main.command("rescore")
+@click.argument("run_paths", nargs=-1, required=True)
+@click.option(
+    "--case-specs",
+    "spec_root",
+    default="case_specs",
+    show_default=True,
+    help="Root directory to load CaseSpecs from.",
+)
+@click.option(
+    "--json",
+    "json_out",
+    default=None,
+    help="Write the full machine-readable report here.",
+)
+@click.option(
+    "--no-ladder",
+    is_flag=True,
+    help="Skip D1/D2/D3 containment-tier derivation.",
+)
+@click.option(
+    "--fidelity-only",
+    is_flag=True,
+    help="Only verify that rehydration reproduces the recorded verdict.",
+)
+def rescore(
+    run_paths: tuple[str, ...],
+    spec_root: str,
+    json_out: str | None,
+    no_ladder: bool,
+    fidelity_only: bool,
+):
+    """Re-score recorded run(s) offline. Makes no bot call.
+
+    RUN_PATHS are run directories (or results.json files) produced by a
+    previous ``run``. The scoring layer is replayed over the persisted
+    L1 / L2 / L3 / Tier-2 results, so a scoring-layer change can be
+    attributed against fixed bot behaviour.
+
+    Every case is first checked against a frozen copy of the
+    pre-Sprint-105 aggregation formula. A case that does not reproduce
+    its own recorded numbers has lost information in serialisation and is
+    marked ``FIDELITY-FAIL``; it must not be quoted as evidence.
+    """
+    import json as _json
+    from pathlib import Path
+
+    from eval_interactive.scoring.rescore import report_to_dict, rescore_run
+
+    reports = []
+    any_unusable = False
+
+    for run_path in run_paths:
+        try:
+            report = rescore_run(run_path, spec_root, ladder=not no_ladder)
+        except FileNotFoundError as exc:
+            click.echo(f"SKIP {run_path}: {exc}", err=True)
+            continue
+        reports.append(report)
+
+        click.echo("")
+        click.echo(f"=== {report.run_id or run_path}  label={report.label or '-'} ===")
+        click.echo(f"    source: {report.source}")
+        click.echo(
+            f"    fidelity: {report.fidelity_ok}/{len(report.cases)} cases "
+            f"reproduce their recorded verdict"
+        )
+        click.echo(
+            f"    L3 fallback calls: {report.l3_fallback_calls}/"
+            f"{report.l3_total_calls}"
+            + ("  *** L3 LAYER COLLAPSED ***" if report.l3_layer_collapsed else "")
+        )
+        if not report.verdict_usable:
+            any_unusable = True
+            click.echo(
+                "    VERDICT NOT USABLE "
+                "(L3 layer wholly collapsed and/or a fidelity mismatch)"
+            )
+        elif not report.evidence_clean:
+            any_unusable = True
+            click.echo(
+                "    NOT QUOTABLE AS EVIDENCE "
+                "(non-zero L3 fallback count; the judge layer was degraded)"
+            )
+
+        if fidelity_only:
+            for c in report.cases:
+                if not c.fidelity.ok:
+                    click.echo(f"    FIDELITY-FAIL {c.case_id}: {c.fidelity.detail}")
+            continue
+
+        click.echo("")
+        click.echo(
+            f"    {'case_id':<24s} {'auth':<13s} {'was':<6s} {'now':<10s} "
+            f"{'composite':<19s} {'tier':<5s} direction"
+        )
+        click.echo("    " + "-" * 100)
+        for c in report.cases:
+            comp = (
+                f"{c.recorded_composite:.4f} -> "
+                f"{c.rescored.composite:.4f}" if c.rescored else f"{c.recorded_composite:.4f} -> -"
+            )
+            flag = "" if c.fidelity.ok else "  [FIDELITY-FAIL]"
+            if c.l3_fallback_calls:
+                flag += f"  [L3 fallbacks: {c.l3_fallback_calls}/{c.l3_total_calls}]"
+            if not c.spec_found:
+                flag += "  [spec not found]"
+            click.echo(
+                f"    {c.case_id:<24s} {c.case_passed_authority:<13s} "
+                f"{c.recorded_status:<6s} {c.rescored_status:<10s} "
+                f"{comp:<19s} {c.containment_tier or '-':<5s} {c.direction}{flag}"
+            )
+
+    if json_out:
+        payload = {"reports": [report_to_dict(r) for r in reports]}
+        Path(json_out).write_text(
+            _json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        click.echo(f"\nWrote {json_out}")
+
+    if any_unusable:
+        click.echo(
+            "\nAt least one run is not usable as evidence; see the flags above.",
+            err=True,
+        )
+
+
 @main.command("runs")
 def list_runs():
     """List all evaluation runs with baseline indicator."""

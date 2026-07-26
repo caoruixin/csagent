@@ -696,6 +696,38 @@ class BatchExecutor:
             )
         return out
 
+    @staticmethod
+    def _containment_tier_fields(
+        trace_data, l1_results, l2_results, total_turns: int
+    ) -> dict:
+        """Compute the D1/D2/D3 tier for one session (Sprint 105 item 4).
+
+        Best-effort: a ladder failure must never fail a case, so any
+        exception degrades to ``UNKNOWN`` rather than propagating. The
+        tier is an observation axis, not a gate.
+        """
+        try:
+            from eval_interactive.scoring.containment_ladder import (
+                derive_tier_from_facts,
+                extract_facts_from_trace,
+            )
+
+            verdict = derive_tier_from_facts(
+                extract_facts_from_trace(
+                    trace_data, l1_results, l2_results, total_turns
+                )
+            )
+            return {
+                "containment_tier": verdict.tier,
+                "containment_tier_detail": verdict.detail,
+            }
+        except Exception as exc:  # noqa: BLE001 — observation must not gate
+            logger.warning("Sprint 105: containment tier derivation failed: %s", exc)
+            return {
+                "containment_tier": "UNKNOWN",
+                "containment_tier_detail": f"tier derivation failed: {exc}",
+            }
+
     def _build_case_result(
         self,
         case_spec: CaseSpec,
@@ -737,14 +769,45 @@ class BatchExecutor:
             "stall_detected": composite_score.stall_result.detected,
             "stall_failure_tag": composite_score.stall_result.failure_tag,
             "containment_outcome": trace_data.session_state.containment_outcome,
+            # Sprint 105 (item 4 / WS-4): the D1/D2/D3 business ladder,
+            # derived in the eval layer from trace facts that already
+            # exist. ADDITIVE — ``containment_outcome`` above keeps its
+            # three values and its meaning unchanged; this is a second,
+            # orthogonal axis that separates "explained, then handed over
+            # with context" (D2, a business success) from "handed over
+            # with no attempt" (D3, a failure), which the flat value
+            # scores identically.
+            **self._containment_tier_fields(
+                trace_data,
+                composite_score.l1_results,
+                composite_score.l2_results,
+                session_result.total_turns,
+            ),
             "active_use_case": trace_data.session_state.active_use_case,
             "escalation_reason": trace_data.session_state.escalation_reason,
+            # Sprint 105 (item 1): ``severity`` is now persisted on L1 / L2
+            # as well as L3. Without it a recorded run cannot be re-scored
+            # faithfully — ``composite.py`` filters advisory results out of
+            # both the L1 gate and the outcome mean, and several checks
+            # (``no_forbidden_tools``, ``user_requested_escalation``,
+            # ``escalation_reason_family_match``) choose their severity at
+            # runtime, so it is not recoverable from the check name alone.
             "l1_results": [
-                {"check": r.check_name, "passed": r.passed, "detail": r.detail}
+                {
+                    "check": r.check_name,
+                    "passed": r.passed,
+                    "detail": r.detail,
+                    "severity": getattr(r, "severity", "critical"),
+                }
                 for r in composite_score.l1_results
             ],
             "l2_results": [
-                {"check": r.check_name, "score": r.score, "detail": r.detail}
+                {
+                    "check": r.check_name,
+                    "score": r.score,
+                    "detail": r.detail,
+                    "severity": getattr(r, "severity", "critical"),
+                }
                 for r in composite_score.l2_results
             ],
             "l3_results": [
@@ -758,9 +821,22 @@ class BatchExecutor:
                     # critical dims (``premature_finish`` / ``stall_quality``)
                     # without re-deriving the split from the dim name.
                     "severity": getattr(r, "severity", "critical"),
+                    # Sprint 105 (item 3): empty when the judge LLM produced
+                    # this score; otherwise names why the fallback constant
+                    # was substituted. A non-empty value means this dim is
+                    # NOT a measurement.
+                    "fallback_reason": getattr(r, "fallback_reason", ""),
                 }
                 for r in composite_score.l3_results
             ],
+            # Sprint 105 (items 2 + 3): make the state of the L3 layer
+            # readable without re-deriving it from the dim list.
+            # ``judge_measured=false`` means ``judge_score`` is ABSENT, not
+            # a measured zero — the distinction the Loop C defect erased.
+            "judge_measured": composite_score.judge_measured,
+            "judge_basis": composite_score.judge_basis,
+            "l3_fallback_calls": composite_score.l3_fallback_calls,
+            "l3_total_calls": composite_score.l3_total_calls,
             # S-Eval-5 (M3-Eval, Option A AUTHORIZED): per-step Tier-2
             # ``skill_procedure_followship`` outcomes. Empty list when
             # the extractor is inert (e.g., Skill YAMLs absent or no
@@ -880,6 +956,13 @@ class BatchExecutor:
             "l3_results": [],
             "transcript": [],
             "status": "TIMEOUT",
+            # Sprint 105 follow-up (handoff §7 item 6): every placeholder row
+            # carries the key, empty. It was absent here, so a consumer doing
+            # ``case["contract_warnings"]`` — which the populated row always
+            # supports — raised KeyError on a run that happened to time out.
+            # Empty means "no lenient-mode warning recorded", which is the
+            # truth for a row that never reached trace collection.
+            "contract_warnings": [],
             "llm_calls": [],
             "per_turn_trace": [],
             # Machine-readable: this row carries no measurement.
@@ -921,6 +1004,8 @@ class BatchExecutor:
             "l3_results": [],
             "transcript": [],
             "status": "CANCELLED",
+            # Sprint 105 follow-up (handoff §7 item 6): uniform key, empty.
+            "contract_warnings": [],
             "llm_calls": [],
             "per_turn_trace": [],
             "measurement_valid": False,
@@ -982,6 +1067,10 @@ class BatchExecutor:
             "l3_results": [],
             "transcript": list(transcript or []),
             "status": "ERROR",
+            # Sprint 105 follow-up (handoff §7 item 6): uniform key, empty.
+            # This is the row the two recorded HTTP-500 sessions landed on
+            # (handoff §7 item 4), so it is the one a consumer meets first.
+            "contract_warnings": [],
             "llm_calls": [],
             "per_turn_trace": [],
         }
@@ -1031,12 +1120,20 @@ class BatchExecutor:
                     "check": synthetic.check_name,
                     "passed": synthetic.passed,
                     "detail": synthetic.detail,
+                    # Sprint 105 follow-up: the populated path serialises
+                    # ``severity`` on every L1 row (it is load-bearing —
+                    # ``composite.py`` filters advisory results out of the L1
+                    # gate). This row dropped it, so the same consumer had to
+                    # branch on status to read it.
+                    "severity": synthetic.severity,
                 }
             ],
             "l2_results": [],
             "l3_results": [],
             "transcript": [],
             "status": "CONTRACT_VIOLATION",
+            # Sprint 105 follow-up (handoff §7 item 6): uniform key, empty.
+            "contract_warnings": [],
             "contract_violation": {
                 "field": exc.field,
                 "phase": exc.phase,
@@ -1085,6 +1182,11 @@ class BatchExecutor:
                 "mean_composite_score": 0.0,
                 "mean_outcome_score": 0.0,
                 "mean_judge_score": 0.0,
+                "l3_fallback_calls": 0,
+                "l3_total_calls": 0,
+                "l3_layer_collapsed": False,
+                "verdict_usable": True,
+                "containment_tier_breakdown": {},
                 "per_uc_breakdown": {},
                 "escalation_correctness": 0.0,
                 "policy_compliance_rate": 0.0,
@@ -1174,6 +1276,30 @@ class BatchExecutor:
         # :func:`sets.is_human_judgment_suite`. Cases that pre-date the
         # annotation (``None``) coalesce to ``"programmatic"`` here,
         # matching the safety default used per-case.
+        # Sprint 105 (item 3): run-level L3 health. A judge that 400s and
+        # falls back to the mid-scale constant for every dimension used to
+        # produce a run that looked fully scored, behind one WARNING line.
+        # These three fields make that state loud at the run level:
+        # ``l3_layer_collapsed`` true means the run carries NO judge signal
+        # at all, and ``verdict_usable`` false means its numbers must not
+        # be quoted as a verdict.
+        l3_fallback_calls = sum(
+            int(r.get("l3_fallback_calls", 0) or 0) for r in case_results
+        )
+        l3_total_calls = sum(
+            int(r.get("l3_total_calls", 0) or 0) for r in case_results
+        )
+        l3_layer_collapsed = (
+            l3_total_calls > 0 and l3_fallback_calls == l3_total_calls
+        )
+
+        # Sprint 105 (item 4): D1/D2/D3 distribution across the run. Purely
+        # observational — no gate reads it.
+        tier_breakdown: dict[str, int] = {}
+        for r in case_results:
+            tier = r.get("containment_tier") or "UNKNOWN"
+            tier_breakdown[tier] = tier_breakdown.get(tier, 0) + 1
+
         authorities = {
             (r.get("case_passed_authority") or "programmatic")
             for r in case_results
@@ -1191,6 +1317,11 @@ class BatchExecutor:
             "failed_cases": failed,
             "task_success_rate": round(passed / total, 4) if total else 0.0,
             "stall_rate": round(stall_count / total, 4) if total else 0.0,
+            "l3_fallback_calls": l3_fallback_calls,
+            "l3_total_calls": l3_total_calls,
+            "l3_layer_collapsed": l3_layer_collapsed,
+            "verdict_usable": not l3_layer_collapsed,
+            "containment_tier_breakdown": tier_breakdown,
             "mean_composite_score": round(sum(composites) / total, 4),
             "mean_outcome_score": round(sum(outcomes) / total, 4),
             "mean_judge_score": round(sum(judges) / total, 4),
