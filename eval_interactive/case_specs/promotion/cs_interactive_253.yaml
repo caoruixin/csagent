@@ -8,7 +8,7 @@ form_context:
   ad_id: ''
   description: ''
 persona:
-  user_goal_summary: 'User wants Facebook to enforce posting policies against accounts that are violating them, after previous
+  user_goal_summary: 'User wants Gumtree to enforce posting policies against accounts that are violating them, after previous
     complaints were ignored. Drift: soft_shift.'
   frustration_level: mild
   verbosity: normal
@@ -51,11 +51,28 @@ expectation_revision_note: |
 
   The user is reporting other members and demanding action after previous
   reports went nowhere. Moderating third-party accounts is a write and a
-  human judgement. (Note: this spec's `user_goal_summary` says 'Facebook'
-  where it means Gumtree - a generator artifact recorded in the Sprint 106
-  handoff, not corrected here.)
+  human judgement.
 
-  NOTHING IS CHANGED in this file beyond this note. The spec keeps
+  2026-07-26 (second pass — persona text corrected against the source
+  transcript). `user_goal_summary` said the user wanted 'Facebook' to enforce
+  its posting policies. The word does not appear anywhere in session
+  570Q5000008iwmrIAA: the customer says "regarding some accounts posting ads
+  breaking posting policy" and "i complain organist those accounts before to
+  you and you take no action", and the agent routes them to a written complaint
+  address. 'Facebook' is a generator hallucination, and this field is rendered
+  to the user simulator on every draw, so it contaminated every run of this
+  case. Corrected to 'Gumtree' — the transcript settles it, so the
+  corpus-cleaning principle of 2026-07-26 fixes rather than deletes.
+
+  Cross-check: a repo-wide scan for competitor brand names in persona and
+  form-context text returned six specs. `promotion/cs_interactive_018` ("on
+  ebay I have 100% positive reviews") and `promotion/cs_interactive_177` ("we'll
+  have to switch to local facebook") are FAITHFUL — the customer said those
+  words. Only this one was fabricated. `anchor/cs_interactive_239`,
+  `exploration/cs_interactive_171` and `exploration/cs_interactive_365` sit
+  outside this sprint's paths and were not checked.
+
+  Nothing else in this file is changed. The spec keeps
   `outcome_class: escalate`. The linter will therefore keep reporting R1
   `uc_outcome_consistent` on it, because R1 is a strict equality check against
   the UC policy row (`case_spec/linter.py:236-249`) and has no way to record
