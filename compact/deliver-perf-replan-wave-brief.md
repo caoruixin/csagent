@@ -56,10 +56,20 @@ and its acceptable outcome includes "not worth reviving". No branch, no worktree
 | `promotion/` lint | 99 specs, **40 R1 errors**, 1 R11 warning | every one of the 40 is a reviewed deliberate keep — see §4 item 2. |
 | `server` mvn | **1503 run / 1 failure / 0 errors / 2 skipped** | re-measured on the merged tree, not copied from a handoff. Was 1493/1 before the wave; 104 added +10 and is the only sprint that touched `server/**`. The single failure is the inherited `SystemPromptUserRequestedTiebreakerTest.systemPrompt_marksActiveUcTiebreakerExplicitly` — same one as before the wave, 0 self-introduced across all four sprints. |
 
-**Worktree trap:** `data/*` is gitignored, so a fresh `git worktree` measures
-one more pytest failure than the primary checkout, and cannot resolve
-`data/filtered/*` at all. Copy or symlink `data/` into any new worktree before
-measuring anything.
+**Worktree trap:** `data/*` is gitignored, so a fresh `git worktree` does not
+carry it — it measures one more pytest failure than the primary checkout and
+cannot resolve `data/filtered/*` at all. Two different fixes, do not confuse
+them:
+
+- **Tests** resolve `data/...` relative to the checkout root, so a worktree
+  needs `data/eval_datasets` and `data/filtered` symlinked in before the pytest
+  count means anything.
+- **Ad-hoc analysis** — transcript adjudication, corpus census, anything you
+  write yourself — should just read
+  **`/Users/caoruixin/projects/csagent/data`** directly (human-authorised,
+  2026-07-26). No copy, no symlink; point at the absolute path and the full
+  `filtered/` tree is there. That is how Sprint 106's provenance census and
+  every transcript in its §11 adjudications were read.
 
 ## 3. Two product-owner decisions that need a governance home
 
