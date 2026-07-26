@@ -435,6 +435,11 @@ marked in-file; both remain R1 errors.
 two-stage rather than referred. If the product owner rules on `086`, `091`
 should be re-read at the same time.
 
+> **SUPERSEDED 2026-07-26 — see §11.3.** Both referrals were resolved by
+> removal, not by a ruling: the corpus-cleaning principle says a spec whose
+> answer turns on an undrawn product or compliance line leaves eval scope
+> rather than waiting in it. `091` stays as the two-stage spec it already is.
+
 ## 7. Real defects found, out of contract, not fixed
 
 1. **The generator will re-create every contradiction on the next
@@ -448,6 +453,8 @@ should be re-read at the same time.
    extractor. Either the resolver needs the fix, or the rewritten expectations
    need to be pinned as approved overrides in `case_spec_overrides.yaml`. This
    should be a named workstream, not a footnote.
+   **DECIDED 2026-07-26 — neither: regeneration is frozen and the corpus is a
+   curated artefact. See §11.6, including the guard that is still missing.**
 
 2. **R1 cannot record an adjudicated exception** (§3.3). 55 deliberate keeps
    are indistinguishable from 55 unreviewed specs in the count. Suggested shape:
@@ -475,6 +482,7 @@ should be re-read at the same time.
    rendered to the simulator. Recorded in the file's note; not corrected,
    because persona text was outside this sprint's remit and correcting it would
    change what the simulator is told mid-flight while Sprint 104 measures.
+   **Corrected in the second pass — see §11.5.**
 
 5. **`cs_interactive_185`'s "wrong `primary_uc`" finding is real as an
    observation and wrong as a diagnosis** (§4 above). Sprint 103 §6.6 and
@@ -530,6 +538,10 @@ should be re-read at the same time.
    fix were coming is exactly what §5.4 forbids. It needs a joint runtime +
    corpus decision: either the runtime must not stamp this reason after the
    customer has complied, or the corpus must stop asking for it.
+
+   **DECIDED 2026-07-26 — the corpus stops asking for it. The seven
+   `promotion/` specs were re-adjudicated against their own transcripts in the
+   second pass; see §11.4. The three `anchor/` specs are still wrong.**
 
    **Standing constraint for the rest of WS-2** (`bad_cases/` 16 R1,
    `anchor/` 20 residual): **no spec may expect a third clarifying question.**
@@ -618,3 +630,153 @@ produced, and no override re-asserts one.
       contended with Sprint 105, so no yield needed (§5).
 - [x] No bot session run; no backend restart; autoloop not resumed; no Codex
       dispatched; no merge to `perf-replan-2026-07` or `main`.
+
+**§10 applies to the first pass (commits through `b853f167`). The second pass
+adds §11 and moves four of the numbers above: corpus 486 → 484, `promotion/`
+101 → 99 specs and 42 → 40 R1 errors.**
+
+## 11. Second pass — corpus-cleaning decisions of 2026-07-26
+
+After the first pass closed, Sprint 104's heads-up arrived and the product
+owner took a standing decision about what this corpus *is*. Both changed what
+should happen to specs this sprint had parked. This section records the
+decisions, the evidence that made them cheap, and everything removed.
+
+### 11.1 The standing principle
+
+The raw material of this corpus is real, human-handled sessions with their
+complete chat logs. **Everything layered on top — persona, `user_goal_summary`,
+`hidden_facts`, `expected`, drift labels — was manufactured by an LLM
+pipeline, and human review covered only part of it.** A spec that contradicts
+itself is therefore more likely to be a generation artefact than a real finding
+about the product.
+
+The routing rule taken from that (product owner, 2026-07-26):
+
+1. **The source transcript settles it → fix the spec against the transcript.**
+   Cheap, and not "churn".
+2. **Nothing can settle it — no transcript evidence, or a purely authored spec
+   that contradicts itself → remove it from eval scope.** Record the removal
+   and the reason.
+3. **The answer turns on a product or compliance line nobody has drawn →
+   remove it.** Do not carry it as a permanent lint error waiting for a
+   decision that is not coming.
+
+### 11.2 What made branch 1 the default: the transcripts are all still there
+
+Measured before deciding anything, with
+`scratchpad/census.py` (parser-based, not `grep` — §3):
+
+| population | count | provenance |
+|---|---:|---|
+| derived from a real session | 381 | `anchor` 159, `exploration` 107, `promotion` 101, `smoke` 14 |
+| authored outright (no real session) | 105 | `case_families` 49, `probe` 25, `anchor_outcome` 12, `bad_cases` 8 |
+| **real-session specs whose transcript could NOT be located** | **0** | — |
+
+Every `source_session_id` in the corpus resolves against
+`data/eval_datasets/*_turns.csv` + `data/filtered/*` (32,823 distinct session
+ids indexed from 45 CSVs). **No spec is an orphan**, so branch 1 of the rule is
+available for 381 of 484 specs, and "AI got it wrong" is a checkable claim
+rather than a suspicion.
+
+Structural health, same census: `outcome_class` vs `should_escalate`
+disagreements **0**; `should_escalate: false` carrying a trigger **0**;
+`should_escalate: true` with a null trigger **5**, all in the authored
+`anchor_outcome/` bucket (§7.6 — confirmed, and now located). Source
+transcripts with ≤2 customer turns: **6** corpus-wide. **The damage is not in
+the structure — it is in the semantic layer**, which is exactly the layer the
+LLM pipeline wrote.
+
+### 11.3 Removal ledger
+
+Both files are deleted, so the reason lives here.
+
+| spec | UC | session | why removed |
+|---|---|---|---|
+| `promotion/cs_interactive_070` | UC-F | `570Q5000008U6zRIAS` | Rule 3 + 2. A retired non-taxpayer cannot complete the mandatory secure-payment form. The transcript never reaches the substance: the agent asks for an email/ad id, says the customer's earlier chat is still open so there is no context, and it ends on "Exxactly what I have told you." Whether an exception route exists for non-taxpayers is a compliance line, not an eval question. |
+| `promotion/cs_interactive_086` | UC-E | `570Q5000008fp8PIAQ` | Rule 3. A carer argues withdrawing the call option excludes blind and disabled users. The transcript shows the human agent explaining the email-only trial, logging the accessibility complaint as a feature request, and closing. Removed on the human decision of 2026-07-26 rather than converted to two-stage. |
+
+Neither file is referenced anywhere outside itself, neither has a
+`case_spec_overrides.yaml` entry, and no count-anchor test asserts a
+`promotion/` count (the anchors are `smoke` 14, `anchor` 159, `bad_cases` 19 in
+`tests/test_s_eval_1_schema_and_scoring.py:356-392`).
+
+`cs_interactive_091` raises the same feature withdrawal but only asks "so what
+do I do?". It stays as the two-stage spec the first pass made it.
+
+### 11.4 The seven budget-trigger specs, re-adjudicated (§7.8 → decided)
+
+Decision: **rewrite the reason, do not delete.** Each was checked against its
+own transcript; `outcome_class` is unchanged on all seven.
+
+| spec | new `escalation_trigger` | transcript evidence |
+|---|---|---|
+| `007` | `payment_dispute_detected` | duplicate £9.99 charge; agent escalates for feedback after the clarifications were answered |
+| `022` | `out_of_scope` | "This needs to be handled with our Sales team and you're currently through to customer service" |
+| `077` | `payment_dispute_detected` | charged after a personal account was classed as business; escalated to a specialist team, 24-48h |
+| `125` | `user_requested` | asks for a phone call three times ("I need to call someone!") |
+| `131` | `appeal_requires_human` | "it's my first add i have not created any violation so please check" |
+| `227` | `appeal_requires_human` | account-permission decision; agent escalates, then gives the review path |
+| `229` | `agent_unable_to_resolve` | agent finds neither the advert nor a pending payment; session times out unresolved |
+
+**These seven should score worse until the runtime budget is fixed.** That is
+the intended direction: §5.4 says the eval encodes what should happen, not what
+does. The three `anchor/` specs with the same defect (`132`, `145`, `146`) are
+outside this sprint's paths and are still wrong.
+
+### 11.5 `cs_interactive_253` corrected (§7.4 → decided)
+
+Rule 1. "Facebook" does not appear anywhere in session `570Q5000008iwmrIAA`;
+the field is rendered to the simulator on every draw, so the hallucination
+contaminated every run. Corrected to "Gumtree".
+
+The brand scan that found it returned six specs corpus-wide.
+`promotion/cs_interactive_018` and `promotion/cs_interactive_177` are
+**faithful** — the customer really did say "on ebay I have 100% positive
+reviews" and "we'll have to switch to local facebook". Reading the count as six
+defects would have been wrong. `anchor/cs_interactive_239`,
+`exploration/cs_interactive_171`, `exploration/cs_interactive_365` are
+unchecked and belong to other paths.
+
+### 11.6 The generator is frozen (§7.1 → decided)
+
+Decision: **stop regenerating. The corpus is a curated artefact.** The
+generator may propose new cases; it may not overwrite adjudicated ones, and a
+new case enters only after human or transcript-backed review. This retires the
+§7.1 risk that a regeneration silently reverts WS-2's 80 specs and this
+sprint's 79 — but only by convention so far.
+
+Not done here, and needed: a durable home for this decision outside a sprint
+archive (the corpus lifecycle is not sprint-scoped), and a mechanical guard so
+the convention cannot be broken by accident. The cheapest guard shape: the
+generator refuses to overwrite any spec carrying an `expectation_revision_note`,
+which is already present on all 79 specs this sprint adjudicated. That is a
+change to the Python package, so it belongs to Sprint 105's path.
+
+### 11.7 Verification after the second pass
+
+| gate | first pass | second pass | verdict |
+|---|---|---|---|
+| `uv run pytest -q` | 14 failed, 764 passed, 5 skipped | **14 failed, 764 passed, 5 skipped** | unchanged |
+| full-corpus load | 486 OK, 0 failed | **484 OK, 0 failed** | pass (2 removed) |
+| `promotion/` linter | 101 specs, 42 R1, 1 R11 | **99 specs, 40 R1, 1 R11** | −2, exactly the two removals |
+| `case_families/` linter | 50 specs, 13 R1 | **unchanged** | untouched this pass |
+| `anchor` / `smoke` / `bad_cases` / `exploration` | — | **byte-unchanged** | pass |
+| files changed outside owned paths | 0 | **0** | pass |
+
+### 11.8 Handed on
+
+1. `anchor/` 132, 145, 146 still expect `clarification_budget_exhausted`
+   (§11.4).
+2. `anchor/239`, `exploration/171`, `exploration/365` brand mentions unverified
+   (§11.5).
+3. The generator freeze needs a governance home and a guard (§11.6).
+4. `cs_interactive_227`'s transcript ends with the agent resolving by
+   explanation ("post the advert and we'll review it") after escalating. Its
+   K1 keep was not re-opened in this pass — the trigger was the sanctioned
+   task — but it is the strongest candidate in this bucket for a flip to
+   resolve on transcript evidence.
+5. The two census scripts (`census.py`, `transcript.py`, `quality.py`) live in
+   a session scratchpad and will be lost. If transcript adjudication is going
+   to be the standard method, they belong in `eval_interactive/` as a
+   supported command.
