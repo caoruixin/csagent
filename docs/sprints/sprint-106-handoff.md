@@ -312,11 +312,18 @@ recorded as a real defect in §7.
 ## 4. `cs_interactive_185` — flagged for Sprint 104
 
 **Verdict: `primary_uc` is CORRECT as UC-D. Nothing changed but an
-`expectation_revision_note`.**
+`expectation_revision_note`. This closes the finding — it does not also go to
+the action bank.**
 
-Sprint 103 §6.6 flagged that "the spec expects UC-D (Account & Login), but its
-scripted drift in every draw is toward editing live ads (UC-A/UC-B territory)".
-Adjudicated on the spec's own evidence, the pin holds and the premise does not:
+The same observation has now been recorded three times. Sprint 103 §6.6: "the
+spec expects UC-D (Account & Login), but its scripted drift in every draw is
+toward editing live ads (UC-A/UC-B territory)". Sprint 104 §5.6, reconfirming:
+in all three of its draws the *committed* UC was UC-D, but the asks the customer
+actually raised were ad-renewal / ad-recovery. Both sprints were fenced out of
+`case_specs/**` and could not act. This sprint owns the path, so the finding is
+adjudicated here and carried no further.
+
+Adjudicated on the spec's own evidence, the pin holds:
 
 1. **Every authored field is Account & Login.** `topic_subject` is "Account
    Support"; the form description is a browser cookie-clearing instruction for
@@ -329,33 +336,59 @@ Adjudicated on the spec's own evidence, the pin holds and the premise does not:
    two live ads posted on their Gumtree account" — whose `disclose_when` is
    "when the bot asks about account activity or ad status". That is a reply the
    persona gives when questioned, not a goal it pursues.
-3. **"In every draw" is contradicted by Sprint 103's own evidence table**
-   (`sprint-103-handoff.md` §5.2). Draw 2 ran `DISCOVER; DISCOVER→RESOLVE[UC-D];
-   RESOLVE→ESCALATE[UC-D]` and draw 3 ran `DISCOVER×2; DISCOVER→ESCALATE[UC-D]`
-   — UC-D throughout. Only draw 1 ended UC-A, and `propose_reroute` never fired
-   on this case in any draw. 2 of 3 draws agree with the pin. Sprint 103 itself
-   hedged the finding as "arguably wrong".
+3. **The ad-shaped asks are produced by a known framework defect, not by this
+   spec's content.** Per replan rev 2 §1.4 the `persona.drift_behavior` field
+   never reaches the model; the only thing rendered is the bare token
+   `Drift: hard_shift.` appended to `user_goal_summary`
+   (`case_spec/extractor.py:1144`). The simulator is told to shift without being
+   told to what, and the two-live-ads `hidden_facts` entry is the only other
+   material available to shift toward — so an ad-renewal / ad-recovery excursion
+   is the *expected* output of that defect on this persona, on any draw. That is
+   `infra` under §3.2 question 1, not `eval_spec`, and it is out of this
+   contract.
+
+**Correction to this section's first draft.** It also argued that "in every
+draw" was contradicted by Sprint 103 §5.2 — draw 2 ran `DISCOVER;
+DISCOVER→RESOLVE[UC-D]; RESOLVE→ESCALATE[UC-D]`, draw 3 ran `DISCOVER×2;
+DISCOVER→ESCALATE[UC-D]`, `propose_reroute` never fired, so 2 of 3 draws agreed
+with the pin. That count is accurate but it answers the wrong question:
+Sprint 104's claim is about **the asks the customer raised**, not about the UC
+the runtime committed, and the two can disagree — in 104's draws they did.
+The committed-UC count is therefore **withdrawn as an argument**. Points 1-3
+carry the verdict without it.
 
 `drift_behavior` was also left alone. `hard_shift` is arguably overstated —
 both of the persona's threads (the cookie/browser block, the Microsoft-blocked
-email) sit inside UC-D, which is a soft shift. It was not changed for two
-reasons. First, the single UC-A excursion is better explained by a documented
-eval-framework defect than by this spec: per replan rev 2 §1.4 the
-`persona.drift_behavior` field never reaches the model, and the only thing
-rendered is the bare token `Drift: hard_shift.` appended to `user_goal_summary`
-(`extractor.py:1144`) — the simulator is told to shift without being told to
-what, and the two-live-ads hidden fact is the only other material available to
-shift toward. That is `infra` under §3.2 question 1, and out of this contract.
-Second, retuning the class would silently remove this case from the drift
-population Sprint 104 is measuring right now, on a premise its own evidence
-does not support — and changing a spec to match observed bot behaviour is the
-§5.4 failure mode this workstream exists to undo.
+email) sit inside UC-D, which is a soft shift. It was not changed because
+retuning the class would silently remove this case from the drift population
+Sprint 104 is measuring right now, on a premise the spec's own evidence does not
+support — and changing a spec to match observed bot behaviour is the §5.4
+failure mode this workstream exists to undo. The excursion's cause is point 3
+above, which is a framework fix, not a spec edit.
 
-**For Sprint 104: `cs_interactive_185` is byte-unchanged apart from a comment
-block. No drift measurement taken against it needs re-attribution.**
+### 4.1 Re-attribution answer for Sprint 104 / PR #9
 
-Sprint 104 should however note §5 below: 10 `promotion/` specs now carry a
-two-stage block, which changes how their escalate path scores.
+Sprint 104's heads-up asked this sprint to state, once and deliberately,
+whether any of its measured specs moved — its behaviour evidence was taken
+against a frozen `case_specs` tree and it could not know what this sprint did.
+**Answer: nothing 104 measured changed. PR #9's evidence needs no
+re-attribution from Sprint 106.**
+
+| what 104 named | verified result |
+|---|---|
+| frozen tree `06f526ab27c91ce1584d954a650aa7be15b0e619` | identical to `82f8a137:eval_interactive/case_specs`, i.e. the pre-106 corpus. This sprint's tree is `18965ee1857ae21c5c2c702290741d1b583fcd64` |
+| `promotion/cs_interactive_179`, `183`, `263` | **blob-identical** to the frozen tree. None was ever in scope: all three already declare `outcome_class: resolve` / `should_escalate: false`, so none was an R1 violation |
+| `anchor/cs_interactive_155` | **blob-identical** — the whole `anchor/` bucket is byte-unchanged (§3.1) |
+| `promotion/cs_interactive_185` | changed by the `expectation_revision_note` block **only**. `primary_uc`: UC-D → **UC-D** (unchanged). The entire `expected:` block is untouched |
+
+Verification: `git rev-parse 82f8a137:<path>` vs `git rev-parse HEAD:<path>` per
+file, and `git diff --name-only 82f8a137..HEAD -- eval_interactive/case_specs`
+for the complete 82-file change set, which is the authoritative list if 104
+measured anything beyond the four specs it named.
+
+The one thing 104 does need to carry forward is §7.3 below: 12 specs now carry a
+two-stage block, which changes how their escalate path scores. None of them is a
+spec 104 measured.
 
 ## 5. `case_spec_overrides.yaml` — swept, zero conflicts, nothing touched
 
@@ -443,9 +476,15 @@ should be re-read at the same time.
    because persona text was outside this sprint's remit and correcting it would
    change what the simulator is told mid-flight while Sprint 104 measures.
 
-5. **Sprint 103's §6.6 finding on `cs_interactive_185` is contradicted by its
-   own §5.2 table** (§4 above). Not a code defect, but a handoff claim that
-   would have caused a wrong edit had it been taken at face value.
+5. **`cs_interactive_185`'s "wrong `primary_uc`" finding is real as an
+   observation and wrong as a diagnosis** (§4 above). Sprint 103 §6.6 and
+   Sprint 104 §5.6 both saw ad-shaped asks on a UC-D spec; the cause is
+   `extractor.py:1144` rendering a target-less `Drift: hard_shift.` token, so
+   the persona's only non-account material is the thing it drifts toward. Taken
+   at face value the finding would have caused a wrong edit — retuning a spec to
+   fix a framework defect. **This item's earlier form — "contradicted by Sprint
+   103's own §5.2 table" — is withdrawn**: the §5.2 table counts *committed
+   UCs*, which does not answer a claim about *the asks the customer raised*.
 
 6. **Five specs repo-wide have `should_escalate: true` with a null
    `escalation_trigger`** (R3, surfaced as loader warnings during the
@@ -457,6 +496,47 @@ should be re-read at the same time.
    missing `bot_handling_pattern` (both on `_manifest.yaml`), and 1 R10
    intake-fields error on `cs40g02_uc_k_explicit_user_requested`. Plus 5 R8
    warnings.
+
+8. **Ten specs repo-wide expect `clarification_budget_exhausted` as the
+   escalation reason — a reason the LLM never participates in.** Found by
+   cross-reading Sprint 104's heads-up against this sprint's corpus, after the
+   adjudication was finished. Distribution: `promotion/` 7
+   (`cs_interactive_007`, `022`, `077`, `125`, `131`, `227`, `229` — 5 UC-F,
+   2 UC-FP, **all seven are keeps**, so this sprint left every one of them in
+   place) and `anchor/` 3 (`cs_interactive_132`, `145`, `146` — WS-2's bucket,
+   byte-unchanged here). Counted with
+   `grep -rl '^  escalation_trigger: clarification_budget_exhausted'` per
+   bucket; the repo-wide trigger census is 251 null / 42 `user_requested` /
+   36 `appeal_requires_human` / 28 `trust_safety_required` / 24
+   `faq_miss_threshold_exceeded` / … / **10 `clarification_budget_exhausted`**.
+
+   Why it is a defect and not a preference: per Sprint 104 §1.2,
+   `max-clarification-rounds: 2` (`control-policy.yaml:2`) is enforced at
+   `BudgetChecker.java:32-37` via `ControlKernel.processMessage` Step 3, which
+   **force-escalates without ever building a projection or invoking the LLM**;
+   the counter charges the bot's own outgoing free-text reply once per turn
+   unconditionally and never registers that a clarification succeeded. In 4 of 4
+   measured sessions the force-escalated turn was the turn on which the customer
+   had just supplied exactly what the bot asked for, with `projected_context`
+   NULL. So these ten specs encode a runtime artefact as the *desired* handover
+   reason. `cs_interactive_007` is the clearest shape: escalating is right (K1,
+   a refund the bot cannot move), but its `bot_handling_pattern` literally reads
+   "hand over with reason clarification_budget_exhausted" — the outcome is right
+   for a reason no semantic agent could ever choose.
+
+   **Not fixed here, deliberately.** This sprint adjudicated `outcome_class`;
+   the trigger is a separate dimension, and Sprint 104 registered the budget
+   itself as a *deferred* runtime candidate — writing specs as though a runtime
+   fix were coming is exactly what §5.4 forbids. It needs a joint runtime +
+   corpus decision: either the runtime must not stamp this reason after the
+   customer has complied, or the corpus must stop asking for it.
+
+   **Standing constraint for the rest of WS-2** (`bad_cases/` 16 R1,
+   `anchor/` 20 residual): **no spec may expect a third clarifying question.**
+   The bot gets two; the third turn is terminated by the runtime before the LLM
+   runs. This is not drift-specific — `anchor/cs_interactive_155`, a
+   `drift_behavior: none` negative control, hit the same wall. Any converging
+   DISCOVER session that needs a second question is exposed.
 
 ## 8. Where I think this contract is wrong
 
