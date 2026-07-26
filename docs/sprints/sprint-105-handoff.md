@@ -370,23 +370,38 @@ meaning; no recorded baseline is re-mapped. The new `containment_tier` /
 |---|---|---|---|
 | Baseline (before first edit) | **15** | 763 | 5 |
 | After | **14** | 786 | 5 |
+| After, with `data/eval_datasets` symlinked in (2026-07-26) | **13** | 787 | 5 |
 
 **The contract's stated baseline (`764 passed, 14 failed, 5 skipped`) was
-wrong, and its attribution was wrong twice over.** Measured attribution, via
-`pytest -q --tb=line`:
+wrong for this worktree** — the worktree is missing a data tree the primary
+checkout has. Measured attribution, via `pytest -q --tb=line`:
 
 | count | cause | owner |
 |---|---|---|
-| 12 | missing `data/human_review_annotations_2026-04-22_golden.csv` | `data/**` (Sprint 107) |
-| 2 | missing `data/eval_datasets/badcase_turns.csv` | `data/**` (Sprint 107) |
+| 13 | missing `data/human_review_annotations_2026-04-22_golden.csv` | `data/**` (Sprint 107) — absent from the primary checkout too |
+| 1 | missing `data/eval_datasets/badcase_turns.csv` | **worktree-only**; `.gitignore:8 data/*` means `git worktree add` does not carry `data/` |
 | 1 | stale Skill-count assertion | **mine — item 5, fixed** |
 
-The contract said "13 of the 14 come from the missing
-`human_review_annotations…golden.csv`". It is 12 from that file and 2 from a
-*second* missing file the contract did not know about. Both are gitignored
-(`.gitignore:8 data/*`) and **both are absent from the primary checkout as
-well**, so this is environmental, not something Sprint 107 necessarily
-restores.
+**Correction, 2026-07-26 — the attribution above is the second measurement,
+and it reverses what I first wrote.** I originally reported 12 from the golden
+CSV and 2 from `badcase_turns.csv`, and criticised the contract's "13 of the 14
+come from the golden CSV" on that basis (§8 item 3). **The contract's split was
+right and mine was wrong.** After symlinking
+`data/eval_datasets → /Users/caoruixin/projects/csagent/data/eval_datasets` the
+suite reports `13 failed, 787 passed, 5 skipped`, and all 13 survivors die on
+the golden CSV: 8 in `tests/regression/test_case_spec_overrides.py`, 4 in
+`tests/regression/test_case_spec_persona_snapshots.py`, and 1 in
+`tests/test_transcript_evidence.py::test_cs_interactive_004_account_login_guidance_resolves_without_async_false_positive`
+— which I had mis-bucketed under `badcase_turns.csv` because both files are
+absent here and I attributed by module rather than by traceback.
+`badcase_turns.csv` is worth exactly **one** failure
+(`test_transcript_evidence.py::test_cs_interactive_001_like_evidence_detects_unresolved_investigation`),
+and it **is present in the primary checkout** — so that failure is a worktree
+artefact, not a repo-wide one. The golden CSV is genuinely absent everywhere,
+so those 13 are environmental in any checkout.
+
+Restated against a data-complete checkout: baseline **14 failed / 764 passed /
+5 skipped** → after **13 / 787 / 5**. The delta below is unaffected.
 
 Delta: −1 failure (item 5), +23 passes (22 new tests in
 `test_sprint_105_loop_c_and_ladder.py`, plus the item-5 test flipping green).
@@ -484,10 +499,16 @@ it is not the same as a spec that configures `premature_finish` /
    deterministic check is a better guard here than a noisy LLM dim. The
    corpus's omission is, on this failure mode, costing nothing.
 
-3. **`data/eval_datasets/badcase_turns.csv` is missing from the primary
-   checkout too**, costing 2 test failures the contract did not account for.
-   Both missing data files are gitignored, so restoring them is a local-env
-   task, not a code change.
+3. **`data/human_review_annotations_2026-04-22_golden.csv` is missing from
+   every checkout, primary included**, costing **13** test failures that no
+   sprint in this series owns. (Corrected 2026-07-26: I first wrote this item
+   about `badcase_turns.csv` and put the count at 2. That file is present in
+   the primary checkout and costs exactly 1 failure, which is a
+   worktree-only artefact of `.gitignore:8 data/*` — see §5.) Both files are
+   gitignored, so restoring them is a local-env task, not a code change; but
+   13 permanently-red tests is baseline rot, and the decision of whether to
+   regenerate the golden CSV or make those tests skip on its absence is
+   unowned.
 
 4. **Two of 17 recorded sessions died on a backend HTTP 500**
    (`cs_interactive_170` @ `s103-neighbors`, `cs_interactive_179` @
@@ -536,12 +557,22 @@ it is not the same as a spec that configures `premature_finish` /
    ("only more discriminating, never more permissive") is what caught this;
    its §3.2 framing did not.
 
-3. **Its baseline was wrong and its attribution was wrong.** Stated `764
-   passed / 14 failed`; actual `763 passed / 15 failed`. Stated "13 from the
-   golden CSV"; actual 12 from the golden CSV and 2 from a second missing file
-   it does not mention. The contract's own warning ("re-measure; an earlier
-   contract in this series mis-attributed the 14th") was well-placed but
-   under-stated — the split was wrong in both directions.
+3. ~~**Its baseline was wrong and its attribution was wrong.**~~
+   **WITHDRAWN 2026-07-26 — the contract was right and I was wrong.** I
+   claimed the split was "12 from the golden CSV and 2 from a second missing
+   file". Re-measured by traceback rather than by module: **13 from the golden
+   CSV and 1 from `badcase_turns.csv`**, exactly as the contract stated. What
+   survives of the complaint is only the total: the contract's `764 passed /
+   14 failed` is the *primary checkout's* number, and this worktree measures
+   `763 / 15` because `.gitignore:8 data/*` keeps `git worktree add` from
+   carrying `data/`. That is a worktree-provisioning gap, not a contract
+   error — a contract that states the primary baseline is stating the right
+   thing. Full correction in §5; §7 item 3 corrected to match.
+
+   The lesson is the mirror of item 8's: I attributed 15 failures to two
+   missing files by looking at which module they lived in, then used that
+   attribution to correct a contract that had measured it properly. Attribute
+   from the traceback, and re-measure before contradicting a stated baseline.
 
 4. **Its named target session does not exist.** §1 and re-plan §1.3 both say
    "the sharpest instance: `promotion/cs_interactive_179` under drift reached
