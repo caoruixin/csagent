@@ -19,6 +19,73 @@ persona:
   - I will pay when I want not when you want to get the money!!!
   hidden_facts: []
   will_request_human_if: ''
+expectation_revision_note: |
+  2026-07-26 (Sprint 106 / WS-2 continuation, replan rev 2 §3 WS-2 "Bulk: the 158
+  contradictory specs need per-UC review"). WS-2 (74de32c3) took anchor/ + smoke/;
+  this pass takes promotion/ + case_families/.
+
+  Why these specs were contradictory (replan rev 2 §1.1 A1): the CaseSpec
+  generator read "a human agent took this session over" out of the historical
+  transcript and stamped an FAQ-resolvable UC as `escalate`. The corpus is by
+  definition sessions that reached a human, so the regex in
+  `case_spec/transcript_evidence.py:146-208` (via
+  `case_spec/case_outcome_resolver.py:196-206`) fires on nearly every one. The
+  result is a spec that is simultaneously `should_escalate: true` and
+  `allow_bot_resolution: 'true'` — the policy table says the bot MAY resolve this
+  UC while the spec demands it hand over. Linter R1 had a carve-out waiving
+  exactly this pair until WS-1 (fb9c64ff) removed it.
+
+  Product principle applied (product owner, 2026-07-25; replan rev 2 §2): an ask
+  that requires the platform to MODIFY data (refund, remove a review, restore or
+  activate a listing, unban an account, change stored credentials, cancel
+  billing) is correctly escalated; an ask that is FAQ explanation, or a read-only
+  status query on the user's OWN data, must be completed by the agent — decision
+  D1 promoted read-only user-data status query into current scope. Decision D2
+  revised "customer indicates frustration ⇒ must escalate" to "de-escalate and
+  keep solving first", while keeping immediate escalation for high-risk topics
+  (fraud, safety, legal).
+
+  Adjudication (Sprint 106): Expected outcome KEPT as escalate.
+
+  The ask: stop recurring monthly debits and speak to a person by phone.
+  Keep reason: K1 data modification + K3 explicit human demand.
+
+  Two independent keep reasons: 'stop to take the payment from my account
+  every month' is a billing-mandate write, and 'Costumer service phone
+  number??' is an explicit request for a human channel. The 'that is
+  stealing' framing also raises the posture.
+
+  NOTHING IS CHANGED in this file beyond this note. The spec keeps
+  `outcome_class: escalate`. The linter will therefore keep reporting R1
+  `uc_outcome_consistent` on it, because R1 is a strict equality check against
+  the UC policy row (`case_spec/linter.py:236-249`) and has no way to record
+  "reviewed and deliberately kept". That residual R1 count is expected and is
+  accounted for in the Sprint 106 handoff; it is not an unreviewed spec.
+  2026-07-26 (Sprint 106, second pass — escalation_trigger adjudication).
+  `escalation_trigger` was `clarification_budget_exhausted`. That value is a
+  RUNTIME ARTEFACT, not a semantic reason: per Sprint 104 §1.2,
+  `max-clarification-rounds: 2` (`control-policy.yaml:2`) is enforced at
+  `BudgetChecker.java:32-37` via `ControlKernel.processMessage` Step 3, which
+  force-escalates WITHOUT building a projection or invoking the LLM; the counter
+  charges the bot's own outgoing reply once per turn and never registers that a
+  clarification succeeded. In 4 of 4 measured sessions the force-escalated turn
+  was the one on which the customer had just supplied what was asked. A CaseSpec
+  that names it as the EXPECTED reason is asking the agent to reach an outcome no
+  semantic agent can choose, so the corpus was rewarding the artefact.
+
+  Re-adjudicated against this case's own source transcript, per the corpus-
+  cleaning principle taken 2026-07-26 (evidence first; delete only what no
+  evidence can settle). New `escalation_trigger`: `user_requested`.
+
+  The customer disputes recurring £8-9 monthly charges ("that is
+  stealing!!!") and asks three separate times to speak to a person by phone
+  — "I need to call someone!", "Costumer service phone number??" (turns 9,
+  11). Explicit human demand is the honest reason; the budget never entered
+  into it.
+
+  `outcome_class` is UNCHANGED — the keep recorded above stands. Only the reason
+  for the handover is corrected. `bot_handling_pattern` is updated in the same
+  edit because it named the old reason in prose.
 expected:
   outcome_class: escalate
   primary_uc: UC-F
@@ -29,8 +96,8 @@ expected:
   should_escalate: true
   allow_bot_resolution: 'true'
   bot_handling_pattern: Acknowledge the issue, run policy-mandated tools (get_customer_context, search_knowledge, resolve_article,
-    request_handover, record_outcome), collect required intake fields (none), and hand over with reason clarification_budget_exhausted.
-  escalation_trigger: clarification_budget_exhausted
+    request_handover, record_outcome), collect required intake fields (none), and hand over with reason user_requested.
+  escalation_trigger: user_requested
   risk_level: medium
   expected_tool_sequence:
   - get_customer_context
