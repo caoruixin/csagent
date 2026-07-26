@@ -129,6 +129,25 @@ class CompositeScore:
     # ``case_results[].failure_tags`` without a separate executor field.
     verdict_reason: str = ""
     detail: str = ""
+    # Sprint 105 (item 2). False when this case has NO usable gating L3
+    # signal — either no gating dim was configured, or every gating dim
+    # fell back to ``_DEFAULT_SCORE``. In that state ``judge_score`` is
+    # ``0.0`` as an *absent* value, not as a measured zero, and the
+    # composite is renormalised onto the outcome term alone. Consumers
+    # that average or trend ``judge_score`` MUST filter on this flag;
+    # treating an unmeasured 0.0 as a measured 0.0 is exactly the Loop C
+    # defect this field exists to make visible.
+    judge_measured: bool = True
+    # Which L3 population produced ``judge_score``:
+    #   "gating"            — one or more critical-severity dims (normal)
+    #   "advisory_fallback" — no gating dim; advisory dims used instead
+    #   "none"              — no usable L3 signal; judge_score is absent,
+    #                         not zero, and the composite renormalises
+    judge_basis: str = "gating"
+    # Number of gating + advisory L3 dims whose score came from the
+    # fallback constant rather than the judge LLM (Sprint 105 item 3).
+    l3_fallback_calls: int = 0
+    l3_total_calls: int = 0
 
 
 def compute_composite(
@@ -162,11 +181,23 @@ def compute_composite(
       flip ``case_passed``. Callers that do not pass ``tier2_result``
       get the empty-list default (Tier-2 PASS / advisory; no gate
       effect — backward-compat with pre-Sprint-43 call sites).
-    - ``outcome_score = mean(L2 scores)`` if any L2 results, else 0.0
-    - ``judge_score = mean(L3 scores) / 5.0`` if any L3 results, else 0.0
-    - ``composite = 0.0 if not case_passed else 0.5 * outcome + 0.5 * judge``
+    - ``outcome_score = mean(gating L2 scores)`` if any, else 0.0
+    - ``judge_score = mean(measured gating L3 scores) / 5.0`` if any, else
+      0.0 with ``judge_measured=False`` (Sprint 105 item 2: absence of a
+      signal is no longer scored as failure of it). A gating dim whose
+      score came from the fallback constant is not a measurement and is
+      excluded from the mean (Sprint 105 item 3).
+    - ``composite``:
+        * ``0.0`` when ``case_passed`` is False;
+        * ``0.5 * outcome + 0.5 * judge`` when L3 is measured;
+        * ``outcome`` when L3 is unmeasured but gating L2 exists
+          (renormalised onto the component that carries signal);
+        * ``0.0`` when neither layer carries signal.
+      The judge term is the only one renormalised away — a missing
+      *outcome* term never is, so a pass always rests on L2 evidence.
     - A case is "successful" if ``case_passed AND composite >= 0.7`` (the
       0.7 threshold lives in the executor / summary layer, not here).
+      Sprint 105 did not move this threshold.
 
     ``case_spec`` is optional only for backwards compatibility with callers
     that have not yet been updated. When omitted, mandatory-L2 gating is
@@ -232,15 +263,83 @@ def compute_composite(
     # already applied to L1 / L2 above. Critical L3 dims
     # (`premature_finish`, `stall_quality`) continue to feed the
     # judge_score mean as before.
+    #
+    # Sprint 105 (item 3): a dim whose score came from ``_DEFAULT_SCORE``
+    # because the judge call failed or its response would not parse is
+    # NOT a measurement. Averaging it in lets the whole L3 layer decay to
+    # the constant 3.0 (judge_score 0.6) while still looking scored —
+    # observed live on 2026-07-25 when the judge model rejected an
+    # explicit ``temperature`` and every dimension 400'd twice. Fallbacks
+    # are therefore dropped from the mean; if that empties the gating set,
+    # L3 is *unmeasured* rather than zero (see below).
     gating_l3 = [r for r in l3_results if getattr(r, "severity", "critical") != "advisory"]
-    if gating_l3:
-        judge_score = (sum(r.score for r in gating_l3) / len(gating_l3)) / 5.0
+    advisory_l3 = [r for r in l3_results if getattr(r, "severity", "critical") == "advisory"]
+    measured_l3 = [r for r in gating_l3 if not getattr(r, "fallback_reason", "")]
+    measured_advisory_l3 = [
+        r for r in advisory_l3 if not getattr(r, "fallback_reason", "")
+    ]
+    l3_fallback_calls = sum(
+        1 for r in l3_results if getattr(r, "fallback_reason", "")
+    )
+
+    # -- Loop C (Sprint 105 item 2) --
+    # The old rule was ``judge_score = 0.0`` whenever there were no gating
+    # L3 results, and ``composite = 0.5 * outcome + 0.5 * judge``
+    # unconditionally. That scores the *absence* of a signal as the
+    # *failure* of it: a spec whose only configured L3 dims are advisory
+    # (all `promotion/` specs, and all 19 `bad_cases`, which configure
+    # none at all) could never exceed ``composite = 0.5`` against a pass
+    # bar of 0.7 — no matter how well the bot behaved. A ruler that
+    # returns FAIL for every input has no discriminating power; per
+    # Constitution §1.6 a constant is not evidence.
+    #
+    # The fix does NOT lower the 0.7 bar and does NOT promote any dim to
+    # gating — both would be ruler-widening under §5.4. Instead it stops
+    # discarding the judge signal that actually exists, and only
+    # renormalises when there is genuinely none:
+    #
+    #   gating L3 measured                  -> 0.5*outcome + 0.5*judge(gating)
+    #   no gating L3, advisory L3 measured  -> 0.5*outcome + 0.5*judge(advisory)
+    #   no L3 signal at all, gating L2      -> outcome  (renormalised)
+    #   neither layer carries signal        -> 0.0, no-evidence gate fires
+    #
+    # **Advisory dims are a fallback signal, never a dilutant.** S-Eval-5
+    # demoted `groundedness` / `relevance` / `tone_appropriateness` /
+    # `user_goal_achievement` out of the composite so they could not skew
+    # a mean that already had gating dims in it. That intent is preserved
+    # exactly: whenever a gating dim is measured, advisory dims are
+    # excluded as before. S-Eval-5 simply did not contemplate the case
+    # where the advisory dims are the *only* judge signal — which is every
+    # `promotion/` spec — and there, discarding them is strictly less
+    # discriminating than using them. Concretely, on the one recorded
+    # session whose verdict this sprint moves, the advisory judge caught a
+    # real turn-3 citation defect (`groundedness=2.0`); renormalising it
+    # away would have scored that session a flat 1.0.
+    #
+    # Renormalisation, when it does apply, is deliberately one-directional:
+    # it never applies to a missing *outcome* term. Passing on a judge
+    # score with no L2 evidence would be a pass resting on nothing about
+    # whether the bot did the right thing, which OQ-S77 #3 refuses.
+    if measured_l3:
+        judge_basis = "gating"
+        judge_score = (sum(r.score for r in measured_l3) / len(measured_l3)) / 5.0
+    elif measured_advisory_l3:
+        judge_basis = "advisory_fallback"
+        judge_score = (
+            sum(r.score for r in measured_advisory_l3) / len(measured_advisory_l3)
+        ) / 5.0
     else:
+        judge_basis = "none"
         judge_score = 0.0
+    judge_measured = judge_basis != "none"
 
     # -- Composite --
-    if case_passed:
+    if not case_passed:
+        composite = 0.0
+    elif judge_measured:
         composite = 0.5 * outcome_score + 0.5 * judge_score
+    elif gating_l2:
+        composite = outcome_score
     else:
         composite = 0.0
 
@@ -258,6 +357,14 @@ def compute_composite(
     # contradiction (OQ-S77 #2) is handled upstream in
     # ``hard_checks._check_trace_minimum`` (an L1 fail that flows through
     # ``l1_passed`` here), so it is not re-implemented in this block.
+    #
+    # Sprint 105 note on the interaction with judge renormalisation: both
+    # gates below key on ``composite == 0.0``, and renormalisation cannot
+    # open a hole under them. With no gating L2 the outcome term is 0.0
+    # and the judge term is halved, so the ceiling is 0.5 when L3 is
+    # measured and 0.0 when it is not — neither can reach the 0.7 bar.
+    # A pass therefore still requires gating L2 evidence, which is what
+    # OQ-S77 #3 exists to enforce.
     verdict_reason = ""
     if case_passed:
         if stall_result.detected and composite == 0.0:
@@ -340,6 +447,31 @@ def compute_composite(
         tag = stall_result.failure_tag or "STALL"
         failure_tags.append(f"STALL:{tag}")
 
+    # Sprint 105 (items 2 + 3): make the two "no L3 signal" states legible
+    # in the serialised tags rather than leaving them to be inferred from
+    # a 0.0 that looks like a measured zero.
+    #   L3_UNMEASURED:no_gating_dims_configured — the CaseSpec configured
+    #     no gating L3 dim (or only advisory ones). Expected on
+    #     `promotion/` specs and on all 19 `bad_cases`; the composite is
+    #     renormalised onto the outcome term.
+    #   L3_UNMEASURED:all_gating_dims_fell_back — gating dims WERE
+    #     configured but every one of them returned the fallback constant.
+    #     This is a judge-infrastructure failure, not a bot result, and a
+    #     run carrying it must not be quoted as evidence.
+    if judge_basis == "advisory_fallback":
+        failure_tags.append("L3_BASIS:advisory_fallback")
+    elif not judge_measured:
+        if gating_l3:
+            failure_tags.append("L3_UNMEASURED:all_gating_dims_fell_back")
+        elif advisory_l3:
+            failure_tags.append("L3_UNMEASURED:all_advisory_dims_fell_back")
+        else:
+            failure_tags.append("L3_UNMEASURED:no_dims_configured")
+    for r in l3_results:
+        reason = getattr(r, "fallback_reason", "")
+        if reason:
+            failure_tags.append(f"L3_FALLBACK:{r.dimension}:{reason}")
+
     # OQ-S77 (S-Auto-22): record which post-composite false-positive gate (if
     # any) flipped the verdict, so the reason reaches the serialised
     # ``case_results[].failure_tags`` without adding a new executor field.
@@ -389,6 +521,10 @@ def compute_composite(
         tier2_result=tier2_result,
         verdict_reason=verdict_reason,
         detail=detail,
+        judge_measured=judge_measured,
+        judge_basis=judge_basis,
+        l3_fallback_calls=l3_fallback_calls,
+        l3_total_calls=len(l3_results),
     )
 
 

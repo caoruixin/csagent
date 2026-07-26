@@ -13,6 +13,24 @@ from eval_interactive.scoring.stall_detector import StallResult
 
 class TestComputeComposite:
     def test_all_pass_no_judge(self):
+        """Sprint 105 (item 2): no L3 configured -> composite renormalises.
+
+        BEFORE-STATE, preserved verbatim as the documented prior
+        expectation of this test::
+
+            assert result.judge_score == 0.0
+            assert result.composite == 0.5  # 0.5 * 1.0 + 0.5 * 0.0
+            assert result.failure_tags == []
+
+        That arithmetic scored the *absence* of a judge signal as the
+        *failure* of it: a case with a perfect outcome and no configured
+        L3 dim was capped at 0.5 against a 0.7 pass bar, so it could
+        never pass however well the bot behaved. ``judge_score`` is still
+        0.0 — it is an absent value, which is what ``judge_measured``
+        now says explicitly — but the composite no longer halves against
+        it. See ``tests/test_sprint_105_loop_c_and_ladder.py`` for the
+        full before/after characterisation.
+        """
         l1 = [
             HardCheckResult("no_forbidden_tools", True),
             HardCheckResult("budget_enforcement", True),
@@ -26,8 +44,11 @@ class TestComputeComposite:
         assert result.case_passed is True
         assert result.outcome_score == 1.0
         assert result.judge_score == 0.0
-        assert result.composite == 0.5  # 0.5 * 1.0 + 0.5 * 0.0
-        assert result.failure_tags == []
+        assert result.judge_measured is False
+        assert result.judge_basis == "none"
+        # Renormalised onto the only layer that carries signal.
+        assert result.composite == 1.0
+        assert result.failure_tags == ["L3_UNMEASURED:no_dims_configured"]
 
     def test_all_pass_with_judge(self):
         l1 = [HardCheckResult("no_stall", True)]

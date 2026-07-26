@@ -534,16 +534,30 @@ class TestProductionSkillLoad:
     # S-Eval-3 populates 18 critical_steps across the 6 Skills per the
     # contract §2 per-Skill anticipated distribution table.
 
+    # Sprint 105 (item 5): refreshed against delivered reality. The
+    # S-Eval-3 originals (6 Skills / 18 steps) were stale in three
+    # independent ways, all from the 2026-07-25 wave:
+    #   - ``resolve_technical_diagnose_or_intake`` (3 steps) was added by
+    #     WS-3 ``b0bed5b6``, taking the Skill count 6 -> 7;
+    #   - ``resolve_faq_grounded_answer`` went 5 -> 6 (``b0bed5b6`` /
+    #     ``f7ff58f5``);
+    #   - ``resolve_intake_collect_and_handover`` went 5 -> 4
+    #     (``b0bed5b6``).
+    # Total 18 -> 21, still inside the S-Eval-3 contract §2 outer
+    # envelope (18-30). This is a stale-assertion fix, not a behaviour
+    # change: no Skill YAML is edited here (``server/**`` is out of
+    # scope for Sprint 105).
     _EXPECTED_PER_SKILL_COUNTS = {
         "discover_triage": 3,
         "confirm": 2,
-        "resolve_faq_grounded_answer": 5,
-        "resolve_intake_collect_and_handover": 5,
+        "resolve_faq_grounded_answer": 6,
+        "resolve_intake_collect_and_handover": 4,
+        "resolve_technical_diagnose_or_intake": 3,
         "escalate": 2,
         "terminal": 1,
     }
 
-    def test_load_all_six_production_skills_populated_critical_steps(self):
+    def test_load_all_production_skills_populated_critical_steps(self):
         from pathlib import Path
 
         from eval_interactive.scoring.skill_procedure_check import (
@@ -559,8 +573,9 @@ class TestProductionSkillLoad:
             / "skills"
         )
         skills = load_skills_from_dir(skills_dir)
-        assert len(skills) == 6, (
-            f"expected 6 production Skill YAMLs, found {len(skills)} under {skills_dir}"
+        assert len(skills) == len(self._EXPECTED_PER_SKILL_COUNTS), (
+            f"expected {len(self._EXPECTED_PER_SKILL_COUNTS)} production Skill "
+            f"YAMLs, found {len(skills)} under {skills_dir}"
         )
         total = 0
         for s in skills:
@@ -579,10 +594,11 @@ class TestProductionSkillLoad:
                 )
                 assert step.severity in ("mandatory", "advisory")
             total += len(s.critical_steps)
-        assert total == 18, (
-            f"S-Eval-3 expected 18 populated critical_steps total across the 6 "
-            f"Skills (within contract §2 envelope 16-22 lower-bound; 18-30 outer "
-            f"envelope), got {total}"
+        assert total == sum(self._EXPECTED_PER_SKILL_COUNTS.values()), (
+            f"expected {sum(self._EXPECTED_PER_SKILL_COUNTS.values())} populated "
+            f"critical_steps total across the "
+            f"{len(self._EXPECTED_PER_SKILL_COUNTS)} Skills (S-Eval-3 contract §2 "
+            f"outer envelope 18-30), got {total}"
         )
 
     def test_extractor_handles_full_production_skill_set_without_crash(self):
