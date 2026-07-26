@@ -956,6 +956,13 @@ class BatchExecutor:
             "l3_results": [],
             "transcript": [],
             "status": "TIMEOUT",
+            # Sprint 105 follow-up (handoff §7 item 6): every placeholder row
+            # carries the key, empty. It was absent here, so a consumer doing
+            # ``case["contract_warnings"]`` — which the populated row always
+            # supports — raised KeyError on a run that happened to time out.
+            # Empty means "no lenient-mode warning recorded", which is the
+            # truth for a row that never reached trace collection.
+            "contract_warnings": [],
             "llm_calls": [],
             "per_turn_trace": [],
             # Machine-readable: this row carries no measurement.
@@ -997,6 +1004,8 @@ class BatchExecutor:
             "l3_results": [],
             "transcript": [],
             "status": "CANCELLED",
+            # Sprint 105 follow-up (handoff §7 item 6): uniform key, empty.
+            "contract_warnings": [],
             "llm_calls": [],
             "per_turn_trace": [],
             "measurement_valid": False,
@@ -1058,6 +1067,10 @@ class BatchExecutor:
             "l3_results": [],
             "transcript": list(transcript or []),
             "status": "ERROR",
+            # Sprint 105 follow-up (handoff §7 item 6): uniform key, empty.
+            # This is the row the two recorded HTTP-500 sessions landed on
+            # (handoff §7 item 4), so it is the one a consumer meets first.
+            "contract_warnings": [],
             "llm_calls": [],
             "per_turn_trace": [],
         }
@@ -1107,12 +1120,20 @@ class BatchExecutor:
                     "check": synthetic.check_name,
                     "passed": synthetic.passed,
                     "detail": synthetic.detail,
+                    # Sprint 105 follow-up: the populated path serialises
+                    # ``severity`` on every L1 row (it is load-bearing —
+                    # ``composite.py`` filters advisory results out of the L1
+                    # gate). This row dropped it, so the same consumer had to
+                    # branch on status to read it.
+                    "severity": synthetic.severity,
                 }
             ],
             "l2_results": [],
             "l3_results": [],
             "transcript": [],
             "status": "CONTRACT_VIOLATION",
+            # Sprint 105 follow-up (handoff §7 item 6): uniform key, empty.
+            "contract_warnings": [],
             "contract_violation": {
                 "field": exc.field,
                 "phase": exc.phase,

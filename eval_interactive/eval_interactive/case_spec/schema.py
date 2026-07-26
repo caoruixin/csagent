@@ -216,6 +216,15 @@ class Expected:
     # unaffected. Element values mirror ``outcome_class`` (resolve /
     # escalate / abandoned).
     acceptable_outcomes: list[str] = field(default_factory=list)
+    # Sprint 105 follow-up (handoff §7 item 7): diagnostic-only provenance
+    # label, set by the loader to "<case_id> (<path>)". Not part of the
+    # ground truth and never read by scoring — it exists so a load-time
+    # warning names which spec produced it. A corpus load emitted five
+    # identical, un-attributed advisory warnings before this.
+    spec_context: Optional[str] = None
+
+    def _diag_prefix(self) -> str:
+        return f"{self.spec_context}: " if self.spec_context else ""
 
     def __post_init__(self) -> None:
         # ----- allow_bot_resolution domain -----
@@ -264,8 +273,9 @@ class Expected:
                 # escalation_reason_consistency is tagged advisory in the
                 # same condition). The runtime contract is unchanged.
                 _log.warning(
-                    "Expected.escalation_trigger is None with should_escalate=true; "
-                    "family-match scoring will be treated as advisory for this case."
+                    "%sExpected.escalation_trigger is None with should_escalate=true; "
+                    "family-match scoring will be treated as advisory for this case.",
+                    self._diag_prefix(),
                 )
             elif trigger not in ESCALATION_TRIGGER_VALUES:
                 raise ValueError(
