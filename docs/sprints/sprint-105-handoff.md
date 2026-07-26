@@ -665,3 +665,68 @@ it is not the same as a spec that configures `premature_finish` /
       `perf-replan-2026-07` or `main`; no other sprint's paths touched
       (`case_specs/**` unedited — lint identical at 488/226/51).
 - [x] No run artifacts committed; every commit staged by explicit path.
+
+---
+
+## 10. Post-handoff follow-ups (2026-07-26, separate session)
+
+Written after the handoff above was committed, in the same worktree, on the
+same branch. Nothing here changes a verdict, a bar, or a score.
+
+**Environment.** `data/eval_datasets` was symlinked to the primary
+checkout's copy (`.gitignore:8 data/*` keeps `git worktree add` from carrying
+the tree). Not a repo change; it is what made the §5 re-measurement possible.
+
+**Corrections (commit `d34483e7`).** §5 attribution table, §7 item 3 and §8
+item 3. Re-measured by traceback rather than by module: the baseline failures
+split **13 (golden CSV) + 1 (`badcase_turns.csv`, worktree-only)**, not
+12 + 2, so the contract's "13 of the 14 come from the golden CSV" was right
+and the §8 complaint against it is withdrawn.
+
+**§7 items 6 + 7 closed (commit `050a98c0`).** Both were in this sprint's
+owned path and cost ~30 lines together.
+
+- All four placeholder row builders now emit `contract_warnings` (empty), so
+  the `KeyError` is gone from the rows that matter — the two HTTP-500 rows of
+  §7 item 4 are exactly where it fired. The contract-violation row also now
+  serialises `severity` on its synthetic L1 entry, which the populated path
+  has always carried and `composite.py` treats as load-bearing.
+- `Expected` gained a diagnostic-only `spec_context` label filled by the
+  loader, so the five un-attributed advisory warnings now name
+  `anchor_outcome_uc_{g,h,i,j,k}`. Pinned so it can never round-trip into a
+  written spec YAML (that would churn the corpus under Sprint 106).
+- Evidence: eval_interactive pytest **13 failed / 796 passed / 5 skipped**
+  (from 13/787/5 post-symlink; +9 = the new tests, no regression). Corpus
+  lint unchanged at **488 / 226 / 51**. No `server/**`, `case_specs/**`,
+  `eval/**` or `data/**` change.
+
+**§7 items 4 + 8 filed as failure briefs** under
+`docs/diagnostics/failure-briefs/`:
+
+- `sprint-105-2026-07-26-backend-500-unmeasured-sessions.md`. Adds to §7
+  item 4: the two 500s are on **different backend builds** (the WS-6-A
+  re-route commit landed between the `ws5-*` and `s103-*` runs), both fired
+  on the turn where the customer changes the subject, and no backend log
+  survives. **§5.8 does not preempt** — the layer is `infra` but the scope is
+  the bot backend, not the eval framework.
+- `sprint-105-2026-07-26-resolved-stamp-vs-authoritative-user-state.md`.
+  **Re-routes §7 item 8 from `server/**` to `eval_spec`.**
+  `ControlKernel.java:1558-1567` documents that the runtime never observes
+  the simulator-side `user_state` / `goal_impossible` signals, so it cannot
+  be the fix site. The M-Auto-9 product decision already rules that
+  `resolved` + authoritative UNRESOLVED user_state ⇒ FAIL; the reason it does
+  not bite here is that `outcome_checks.py:238` gates that path behind
+  `conditional_outcome_acceptance`, which only **13 of 488 specs** declare.
+  The moving session in §3 is the first case where the hole reaches the new
+  ladder's top tier.
+
+**Remaining §7 items (1, 2, 3, 5) routed to the ledger, not committed.** A
+drafted `docs/action_bank.md` §5.2 section is held in the session scratchpad
+rather than written, because four worktrees appending to one 195 KB file
+would conflict; the intended write is one wave-wide section by the deliver
+agent at merge. It records, per item, the §5.8 judgement for the
+framework-scoped `infra` item (`results.json` field loss is an R-item, **not**
+a preempting brief — it corrupts no measurement already taken), the
+`premature_finish` rubric OQ, the unowned golden-CSV decision, and a new
+`OQ-S105.user-state-not-consumed` paired with the existing
+`OQ-S77.goal-impossible-resolved-evidence`.
